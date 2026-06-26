@@ -1,0 +1,389 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+// ─── WORKSPACE (TENANT) ───────────────────────────────────────────
+model Workspace {
+  id                  String    @id @default(cuid())
+  name                String
+  slug                String    @unique
+  plan                Plan      @default(TRIAL)
+  trialEndsAt         DateTime?
+  openrouterKeyEnc    String?
+  openrouterKeyHint   String?
+  defaultModel        String    @default("deepseek/deepseek-chat")
+  defaultEmbedModel   String    @default("text-embedding-3-small")
+  defaultTtsVoice     String    @default("alloy")
+  language            String    @default("fa")
+  onboardingStep      Int       @default(0) // 0-5, tracks activation checklist
+  onboardingCompleted Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  users             User[]
+  agents            Agent[]
+  contacts          Contact[]
+  conversations     Conversation[]
+  subscriptions     Subscription[]
+  usageLogs         UsageLog[]
+  products          Product[]
+  productCategories ProductCategory[]
+
+  @@index([slug])
+}
+
+enum Plan {
+  TRIAL
+  STARTER
+  PRO
+  BUSINESS
+}
+
+// ─── USER (phone-based, no email/password) ────────────────────────
+model User {
+  id          String   @id @default(cuid())
+  workspaceId String
+  phone       String   @unique // e.g. +989121234567
+  name        String?
+  role        UserRole @default(OWNER)
+  language    String   @default("fa")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+  @@index([phone])
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ─── OTP STORE (audit trail; live OTPs in Redis) ──────────────────
+model OTPLog {
+  id       String   @id @default(cuid())
+  phone    String
+  sentAt   DateTime @default(now())
+  verified Boolean  @default(false)
+  ip       String?
+
+  @@index([phone])
+}
+
+// ─── AGENT ────────────────────────────────────────────────────────
+model Agent {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String
+  description     String?
+  systemPrompt    String   @db.Text
+  model           String?
+  temperature     Float    @default(0.7)
+  maxTokens       Int      @default(1000)
+  language        String   @default("fa")
+  voiceEnabled    Boolean  @default(false)
+  ttsVoice        String   @default("alloy")
+  avatar          String?
+  welcomeMessage  String?
+  fallbackMessage String?
+  handoffEnabled  Boolean  @default(false)
+  handoffMessage  String?
+  active          Boolean  @default(true)
+  flowConfig      Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
+  channels        AgentChannel[]
+  knowledgeBases  KnowledgeBase[]
+  conversations   Conversation[]
+  knowledgeChunks KnowledgeChunk[]
+  catalogItems    AgentCatalog[]
+
+  @@index([workspaceId])
+}
+
+// ─── CHANNEL CONNECTIONS ──────────────────────────────────────────
+model AgentChannel {
+  id         String      @id @default(cuid())
+  agentId    String
+  type       ChannelType
+  config     Json // encrypted token/config
+  active     Boolean     @default(true)
+  webhookUrl String?
+  createdAt  DateTime    @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@unique([agentId, type])
+  @@index([agentId])
+}
+
+enum ChannelType {
+  TELEGRAM
+  WHATSAPP
+  INSTAGRAM
+  RUBIKA
+  BALE
+  WEB_WIDGET
+  API
+}
+
+// ─── PRODUCT CATALOG ──────────────────────────────────────────────
+model ProductCategory {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String
+  parentId    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id])
+  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  ProductCategory[] @relation("CategoryTree")
+  products  Product[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model Product {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  categoryId         String?
+  name               String
+  description        String?   @db.Text
+  price              Float?
+  comparePrice       Float? // original price (for showing discount)
+  sku                String?
+  stock              Int? // null = unlimited
+  images             String[] // Supabase Storage URLs
+  attributes         Json? // {"color": "blue", "size": "XL"}
+  tags               String[]
+  active             Boolean   @default(true)
+  embeddingUpdatedAt DateTime? // track when last embedded into vector store
+  queryCount         Int       @default(0) // how many times AI retrieved this product
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id])
+  category     ProductCategory? @relation(fields: [categoryId], references: [id])
+  catalogItems AgentCatalog[]
+
+  @@index([workspaceId])
+  @@index([categoryId])
+}
+
+// Agent ↔ Product many-to-many (which products does each agent know about)
+model AgentCatalog {
+  id        String @id @default(cuid())
+  agentId   String
+  productId String
+
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, productId])
+  @@index([agentId])
+}
+
+// ─── KNOWLEDGE BASE ───────────────────────────────────────────────
+model KnowledgeBase {
+  id          String   @id @default(cuid())
+  agentId     String
+  workspaceId String
+  name        String
+  type        KBType
+  sourceUrl   String?
+  fileKey     String?
+  fileName    String?
+  fileSize    Int?
+  status      KBStatus @default(PENDING)
+  chunkCount  Int      @default(0)
+  errorMsg    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent  Agent            @relation(fields: [agentId], references: [id])
+  chunks KnowledgeChunk[]
+
+  @@index([agentId])
+  @@index([workspaceId])
+}
+
+enum KBType {
+  PDF
+  CSV
+  URL
+  TEXT
+  FAQ
+  PRODUCT_CATALOG
+}
+
+enum KBStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+// ─── KNOWLEDGE CHUNKS (with vector embeddings) ────────────────────
+model KnowledgeChunk {
+  id          String                       @id @default(cuid())
+  kbId        String
+  agentId     String
+  workspaceId String
+  content     String                       @db.Text
+  metadata    Json? // {source, page, productId, sku, price}
+  embedding   Unsupported("vector(1536)")?
+  createdAt   DateTime                     @default(now())
+
+  kb    KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
+  agent Agent         @relation(fields: [agentId], references: [id])
+
+  @@index([agentId])
+  @@index([workspaceId])
+}
+
+// ─── CONTACT (CRM) ────────────────────────────────────────────────
+model Contact {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String?
+  phone       String?
+  telegramId  String?
+  whatsappId  String?
+  instagramId String?
+  rubikaId    String?
+  baleId      String?
+  tags        String[]
+  stage       String   @default("lead")
+  notes       String?  @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  conversations Conversation[]
+
+  @@index([workspaceId])
+  @@index([telegramId])
+  @@index([phone])
+}
+
+// ─── CONVERSATION ─────────────────────────────────────────────────
+model Conversation {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  agentId       String
+  contactId     String?
+  channel       ChannelType
+  externalId    String?
+  status        ConvStatus  @default(OPEN)
+  handedOff     Boolean     @default(false)
+  rating        Int?
+  summary       String?     @db.Text
+  messageCount  Int         @default(0)
+  lastMessageAt DateTime?
+  createdAt     DateTime    @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  contact   Contact?  @relation(fields: [contactId], references: [id])
+  messages  Message[]
+
+  @@index([workspaceId])
+  @@index([agentId])
+  @@index([contactId])
+  @@index([externalId])
+}
+
+enum ConvStatus {
+  OPEN
+  RESOLVED
+  HANDED_OFF
+}
+
+// ─── MESSAGE ──────────────────────────────────────────────────────
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String      @db.Text
+  contentType    ContentType @default(TEXT)
+  audioUrl       String?
+  metadata       Json?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ContentType {
+  TEXT
+  AUDIO
+  IMAGE
+}
+
+// ─── USAGE LOG ────────────────────────────────────────────────────
+model UsageLog {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  agentId          String?
+  date             DateTime @default(now())
+  conversationId   String?
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  model            String?
+  cost             Float?
+  type             LogType
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, date])
+}
+
+enum LogType {
+  CHAT
+  EMBEDDING
+  TTS
+  STT
+}
+
+// ─── SUBSCRIPTION ─────────────────────────────────────────────────
+model Subscription {
+  id               String    @id @default(cuid())
+  workspaceId      String    @unique
+  plan             Plan
+  status           SubStatus @default(ACTIVE)
+  monthlyPrice     Float
+  currency         String    @default("IRR") // Iranian Rial
+  currentPeriodEnd DateTime
+  createdAt        DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}

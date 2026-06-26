@@ -1,0 +1,43 @@
+'use client'
+
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { motion } from 'framer-motion'
+import { MagneticButton } from '@/components/ui/magnetic-button'
+
+export function CtaSection() {
+  const t = useTranslations('marketing.cta')
+
+  return (
+    <section className="relative overflow-hidden bg-black py-32">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.04] blur-3xl"
+      />
+      <div className="relative mx-auto max-w-3xl px-6 text-center">
+        <motion.h2
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.7 }}
+          className="gradient-text text-4xl font-light leading-tight md:text-5xl"
+        >
+          {t('title')}
+        </motion.h2>
+
+        <div className="mt-10 flex justify-center">
+          <MagneticButton>
+            <Link
+              href="/login"
+              className="inline-block rounded-xl bg-white px-8 py-3.5 font-medium text-black shadow-[0_0_50px_rgba(255,255,255,0.2)] transition-transform hover:scale-[1.03]"
+            >
+              {t('button')}
+            </Link>
+          </MagneticButton>
+        </div>
+
+        <p className="mt-6 text-sm text-white/40">{t('note')}</p>
+      </div>
+    </section>
+  )
+}

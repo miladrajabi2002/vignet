@@ -1,0 +1,348 @@
+{
+  "common": {
+    "brand": "VIGENT",
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "skip": "Skip",
+    "search": "Search",
+    "active": "Active",
+    "inactive": "Inactive",
+    "error": "Something went wrong",
+    "retry": "Retry"
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "login": "Log in",
+    "getStarted": "Start free"
+  },
+  "auth": {
+    "title": "Sign in to Vigent",
+    "subtitle": "Sign in with your mobile number",
+    "phoneLabel": "Mobile number",
+    "phonePlaceholder": "09123456789",
+    "sendCode": "Send verification code",
+    "sending": "Sending…",
+    "otpTitle": "Enter the verification code",
+    "otpSubtitle": "Enter the 6-digit code sent to {phone}",
+    "nameLabel": "Your name?",
+    "namePlaceholder": "Full name",
+    "verify": "Sign in / Sign up",
+    "verifying": "Verifying…",
+    "resend": "Resend code",
+    "resendIn": "Resend in {seconds}s",
+    "changeNumber": "Change number",
+    "errors": {
+      "INVALID_PHONE": "Invalid mobile number",
+      "INVALID_CODE": "The code you entered is incorrect",
+      "RATE_LIMIT": "Too many requests. Please try again later",
+      "SMS_FAILED": "Failed to send SMS",
+      "GENERIC": "Something went wrong. Please try again"
+    },
+    "noCard": "No credit card required — just your phone number"
+  },
+  "dashboard": {
+    "overview": "Overview",
+    "agents": "Agents",
+    "products": "Products",
+    "conversations": "Conversations",
+    "contacts": "Contacts",
+    "analytics": "Analytics",
+    "integrations": "Integrations",
+    "billing": "Billing",
+    "settings": "Settings",
+    "onboarding": "Get started",
+    "logout": "Log out",
+    "welcome": "Welcome",
+    "greeting": "Hi, {name}"
+  },
+  "onboarding": {
+    "title": "Set up Vigent",
+    "subtitle": "Activate your agent in 5 simple steps",
+    "progress": "{done} of {total} steps",
+    "completedTitle": "Congratulations! Setup complete",
+    "completedSubtitle": "Your agent is ready",
+    "skip": "Skip guide",
+    "steps": {
+      "key": {
+        "title": "Add your OpenRouter key",
+        "desc": "Add your OpenRouter API key to power your AI",
+        "cta": "Add key"
+      },
+      "agent": {
+        "title": "Create your first agent",
+        "desc": "Create a smart agent for your business",
+        "cta": "Create agent"
+      },
+      "knowledge": {
+        "title": "Add knowledge or products",
+        "desc": "Give your agent your data or product catalog",
+        "cta": "Add knowledge"
+      },
+      "channel": {
+        "title": "Connect a channel",
+        "desc": "Connect your agent to Telegram, WhatsApp and more",
+        "cta": "Connect channel"
+      },
+      "test": {
+        "title": "Test your agent",
+        "desc": "Start your first conversation with your agent",
+        "cta": "Test agent"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "aiKeys": {
+      "title": "AI Keys",
+      "subtitle": "Add your OpenRouter key to use AI models",
+      "keyLabel": "OpenRouter key",
+      "keyPlaceholder": "sk-or-v1-…",
+      "currentKey": "Current key",
+      "validate": "Validate & save",
+      "validating": "Validating…",
+      "valid": "Key is valid and saved",
+      "invalid": "Invalid key",
+      "remove": "Remove key",
+      "byokNote": "Vigent uses your key; token costs are billed directly to your OpenRouter account."
+    }
+  },
+  "agents": {
+    "title": "Agents",
+    "new": "New agent",
+    "empty": "No agents yet",
+    "emptyDesc": "Create your first smart agent to talk to your customers",
+    "create": "Create agent",
+    "creating": "Creating…",
+    "test": "Test",
+    "settings": "Settings",
+    "knowledge": "Knowledge",
+    "products": "Products",
+    "channels": "Channels",
+    "conversations": "Conversations",
+    "active": "Active",
+    "inactive": "Inactive",
+    "wizard": {
+      "step": "Step {n} of {total}",
+      "basics": "Basics",
+      "persona": "Persona & instructions",
+      "config": "Model configuration",
+      "name": "Agent name",
+      "namePlaceholder": "e.g. Sales assistant",
+      "description": "Short description",
+      "descriptionPlaceholder": "What does this agent do?",
+      "systemPrompt": "System prompt",
+      "systemPromptHint": "Tell the agent how to behave. You can use variables:",
+      "welcomeMessage": "Welcome message",
+      "welcomePlaceholder": "Hi! How can I help you?",
+      "fallbackMessage": "Fallback message (when it has no answer)",
+      "model": "AI model",
+      "modelHint": "Leave blank to use the workspace default model",
+      "language": "Language",
+      "temperature": "Creativity (temperature)",
+      "maxTokens": "Max response length"
+    },
+    "settingsForm": {
+      "title": "Agent settings",
+      "saved": "Changes saved",
+      "delete": "Delete agent",
+      "deleteConfirm": "Delete this agent? This cannot be undone.",
+      "handoffEnabled": "Hand off to a human operator",
+      "voiceEnabled": "Voice responses"
+    },
+    "playground": {
+      "placeholder": "Type a message…",
+      "send": "Send",
+      "empty": "Start a conversation to test your agent",
+      "noKey": "Add your OpenRouter key in settings first",
+      "error": "Failed to get a response"
+    }
+  },
+  "channels": {
+    "title": "Channels",
+    "subtitle": "Connect your agent to messaging channels",
+    "webWidget": "Web widget",
+    "widgetDesc": "Paste this code on your website to show the agent chat",
+    "enable": "Enable",
+    "enabled": "Enabled",
+    "disable": "Disable",
+    "embedCode": "Embed code",
+    "copy": "Copy",
+    "copied": "Copied",
+    "comingSoon": "Coming soon: Telegram, WhatsApp, Rubika, Bale"
+  },
+  "knowledge": {
+    "title": "Knowledge base",
+    "subtitle": "Add data so your agent can answer from it",
+    "add": "Add knowledge",
+    "adding": "Adding…",
+    "tabText": "Text",
+    "tabUrl": "URL",
+    "tabFile": "File",
+    "name": "Title",
+    "namePlaceholder": "e.g. FAQ",
+    "content": "Text",
+    "contentPlaceholder": "Paste text or Q&A…",
+    "url": "Page URL",
+    "urlPlaceholder": "https://example.com/page",
+    "fileHint": "PDF or CSV (max 20MB)",
+    "fileSelect": "Choose file",
+    "empty": "No knowledge added yet",
+    "chunks": "{count} chunks",
+    "delete": "Delete",
+    "refresh": "Refresh",
+    "storageNotConfigured": "File upload requires Supabase Storage to be configured",
+    "status": {
+      "PENDING": "Queued",
+      "PROCESSING": "Processing",
+      "READY": "Ready",
+      "ERROR": "Error"
+    }
+  },
+  "products": {
+    "title": "Products",
+    "new": "Add product",
+    "empty": "No products yet",
+    "emptyDesc": "Add your products so your agent can know and sell them",
+    "search": "Search products…",
+    "sort": "Sort",
+    "sortNewest": "Newest",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortQueried": "Most queried",
+    "allCategories": "All categories",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "unlimited": "Unlimited",
+    "toman": "Toman",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this product?",
+    "active": "Active",
+    "queries": "{count} queries",
+    "manageCategories": "Manage categories",
+    "form": {
+      "create": "Create product",
+      "creating": "Creating…",
+      "save": "Save",
+      "name": "Product name",
+      "namePlaceholder": "e.g. Running shoes",
+      "description": "Description",
+      "price": "Price (Toman)",
+      "comparePrice": "Original price (for discount)",
+      "sku": "SKU",
+      "stock": "Stock (blank = unlimited)",
+      "category": "Category",
+      "noCategory": "No category",
+      "tags": "Tags (comma separated)",
+      "attributes": "Attributes",
+      "attrKey": "Attribute",
+      "attrValue": "Value",
+      "addAttr": "Add attribute",
+      "active": "Active"
+    },
+    "categories": {
+      "title": "Categories",
+      "add": "Add category",
+      "namePlaceholder": "Category name",
+      "empty": "No categories yet",
+      "count": "{count} products"
+    },
+    "catalog": {
+      "title": "Agent products",
+      "subtitle": "Choose the products this agent should know about",
+      "save": "Save",
+      "saved": "Saved",
+      "empty": "Add some products first",
+      "selected": "{count} selected"
+    }
+  },
+  "marketing": {
+    "hero": {
+      "badge": "VIGENT AI PLATFORM ✦",
+      "title": "Smart AI agents",
+      "rotate": ["for sales", "for support", "for your business"],
+      "subtitle": "Build smart agents that answer from your own data and talk to your customers across every channel.",
+      "ctaPrimary": "Start free — 14 days",
+      "ctaSecondary": "Watch demo"
+    },
+    "stats": {
+      "conversations": "conversations",
+      "agents": "agents",
+      "businesses": "businesses"
+    },
+    "features": {
+      "title": "Everything to build a smart agent",
+      "items": {
+        "builder": { "title": "Agent builder", "desc": "Design conversation flows with a visual builder" },
+        "knowledge": { "title": "Knowledge base", "desc": "Upload your documents and data" },
+        "products": { "title": "Product catalog", "desc": "Your agent knows and sells your products" },
+        "channels": { "title": "Omnichannel", "desc": "Telegram, WhatsApp, Rubika, Bale and web widget" },
+        "voice": { "title": "Voice messaging", "desc": "Your agent hears and replies to customers" },
+        "crm": { "title": "Unified CRM", "desc": "One inbox for every channel" }
+      }
+    },
+    "how": {
+      "title": "Get started in three steps",
+      "step1": "Add your OpenRouter key",
+      "step2": "Upload your data and products",
+      "step3": "Connect a channel — your agent is live"
+    },
+    "channels": {
+      "title": "All channels, one dashboard"
+    },
+    "pricing": {
+      "title": "Pricing for every business",
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "discount": "20% off",
+      "perMonth": "/ mo",
+      "cta": "Get started",
+      "popular": "Most popular"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "q": "Do I need technical skills to use it?",
+          "a": "No. Create an agent in a few clicks, upload your data, and connect a channel."
+        },
+        {
+          "q": "How are AI token costs handled?",
+          "a": "You bring your own OpenRouter key, and token costs are billed directly to your account. Vigent only charges for the platform."
+        },
+        {
+          "q": "Which channels are supported?",
+          "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all in one dashboard."
+        },
+        {
+          "q": "Can I try it for free?",
+          "a": "Yes — a 14-day free trial with no credit card required."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Build your smart agent today",
+      "button": "Start free",
+      "note": "No credit card required — just your phone number"
+    },
+    "footer": {
+      "tagline": "AI platform for businesses",
+      "product": "Product",
+      "resources": "Resources",
+      "company": "Company",
+      "rights": "© 2025 Vigent",
+      "madeIn": "Made in Iran"
+    }
+  }
+}
