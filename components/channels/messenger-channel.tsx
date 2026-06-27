@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Copy,
   CheckCheck,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -92,6 +93,56 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
+const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000 // 3 days with no inbound = likely broken
+
+/**
+ * Webhook health badge for a connected channel: how long since the last inbound
+ * message arrived. A long silence usually means the webhook or token is broken.
+ */
+function WebhookHealth({ lastInboundAt }: { lastInboundAt?: string | null }) {
+  const t = useTranslations('channels')
+
+  if (!lastInboundAt) {
+    return (
+      <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-tertiary)]" />
+        {t('webhookNoInbound')}
+      </div>
+    )
+  }
+
+  const ts = new Date(lastInboundAt).getTime()
+  const ageMs = Date.now() - ts
+  const stale = ageMs > STALE_AFTER_MS
+  const rel = formatRelative(ageMs, t)
+
+  return (
+    <div
+      className={`mt-3 flex items-center gap-1.5 text-xs ${
+        stale ? 'text-danger' : 'text-[var(--text-secondary)]'
+      }`}
+    >
+      {stale ? (
+        <AlertTriangle className="h-3.5 w-3.5" />
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+      )}
+      {t('webhookLastInbound', { time: rel })}
+    </div>
+  )
+}
+
+/** Coarse Persian/intl relative time ("۲ دقیقه پیش") from an age in ms. */
+function formatRelative(ageMs: number, t: ReturnType<typeof useTranslations>): string {
+  const min = Math.floor(ageMs / 60000)
+  if (min < 1) return t('timeJustNow')
+  if (min < 60) return t('timeMinutes', { n: min })
+  const hours = Math.floor(min / 60)
+  if (hours < 24) return t('timeHours', { n: hours })
+  const days = Math.floor(hours / 24)
+  return t('timeDays', { n: days })
+}
+
 export function MessengerChannel({
   agentId,
   type,
@@ -102,6 +153,7 @@ export function MessengerChannel({
   botUsername,
   callbackUrl,
   verifyToken,
+  lastInboundAt,
 }: {
   agentId: string
   type: MessengerKind
@@ -114,6 +166,8 @@ export function MessengerChannel({
   callbackUrl?: string | null
   /** For Meta channels: verify token to paste in the Meta dashboard. */
   verifyToken?: string | null
+  /** ISO timestamp of the last inbound webhook message, or null if none yet. */
+  lastInboundAt?: string | null
 }) {
   const t = useTranslations('channels')
   const router = useRouter()
@@ -195,6 +249,8 @@ export function MessengerChannel({
           </button>
         )}
       </div>
+
+      {enabled && <WebhookHealth lastInboundAt={lastInboundAt} />}
 
       {/* Connected Meta channels: show the webhook callback URL + verify token to finish dashboard setup. */}
       {enabled && isMeta && callbackUrl && verifyToken && (

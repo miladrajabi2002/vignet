@@ -74,6 +74,15 @@ const HISTORY_LIMIT = 10
 /**
  * Find an existing conversation (by id, or by channel + externalId) or create
  * a new one. Always scoped to the workspace + agent.
+ *
+ * For messenger channels the same platform thread (externalId, e.g. a Telegram
+ * chat id) always maps back to a single ongoing conversation — regardless of
+ * its status — so a returning user keeps their full history instead of starting
+ * over. A resumed conversation that was auto-resolved is reopened.
+ *
+ * A unique constraint on (agentId, channel, externalId) makes creation safe
+ * against the race where two webhook deliveries arrive nearly simultaneously:
+ * the loser of the race catches the conflict and re-reads the winner's row.
  */
 async function resolveConversation(
   params: StartChatParams,
@@ -95,23 +104,57 @@ async function resolveConversation(
         agentId: agent.id,
         channel: params.channel,
         externalId: params.externalId,
-        status: 'OPEN',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true },
+    })
+    if (found) {
+      // Reopen a conversation the stale-sweep (or a handoff) had closed so the
+      // thread shows as active again and continuity is preserved.
+      if (found.status !== 'OPEN') {
+        await prisma.conversation.update({
+          where: { id: found.id },
+          data: { status: 'OPEN' },
+        })
+      }
+      return { id: found.id }
+    }
+  }
+
+  try {
+    return await prisma.conversation.create({
+      data: {
+        workspaceId,
+        agentId: agent.id,
+        channel: params.channel,
+        contactId: params.contactId,
+        externalId: params.externalId,
       },
       select: { id: true },
     })
-    if (found) return found
+  } catch (e) {
+    // Unique-constraint race: a concurrent delivery created the row first.
+    if (
+      params.externalId &&
+      typeof e === 'object' &&
+      e !== null &&
+      'code' in e &&
+      (e as { code?: string }).code === 'P2002'
+    ) {
+      const winner = await prisma.conversation.findFirst({
+        where: {
+          workspaceId,
+          agentId: agent.id,
+          channel: params.channel,
+          externalId: params.externalId,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+      if (winner) return winner
+    }
+    throw e
   }
-
-  return prisma.conversation.create({
-    data: {
-      workspaceId,
-      agentId: agent.id,
-      channel: params.channel,
-      contactId: params.contactId,
-      externalId: params.externalId,
-    },
-    select: { id: true },
-  })
 }
 
 /** Load recent conversation history as model-ready chat messages. */

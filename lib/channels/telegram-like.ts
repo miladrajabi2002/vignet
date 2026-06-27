@@ -58,6 +58,11 @@ export function createTelegramLikeAdapter(opts: {
       await call('sendMessage', { chat_id: chatId, text })
     },
 
+    async sendTyping(chatId: string): Promise<void> {
+      // Shows "typing…" for ~5s in the client. Best-effort.
+      await call('sendChatAction', { chat_id: chatId, action: 'typing' })
+    },
+
     async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
       const form = new FormData()
       form.append('chat_id', chatId)

@@ -50,7 +50,11 @@ async function resolveChannel(type: MessengerType, webhookToken: string) {
   const token = readBotToken(channel.config)
   if (!token) return null
 
-  return { agent: channel.agent, adapter: getAdapter(type, token) }
+  return {
+    channelId: channel.id,
+    agent: channel.agent,
+    adapter: getAdapter(type, token),
+  }
 }
 
 /** Find or create the contact behind an inbound message. */
@@ -124,7 +128,13 @@ export async function handleInbound(
 
   const resolved = await resolveChannel(type, webhookToken)
   if (!resolved) return
-  const { agent, adapter } = resolved
+  const { channelId, agent, adapter } = resolved
+
+  // Stamp the channel's last-inbound time so the dashboard can surface webhook
+  // health ("last message 2m ago" vs. a silent/broken hook). Fire-and-forget.
+  prisma.agentChannel
+    .update({ where: { id: channelId }, data: { lastInboundAt: new Date() } })
+    .catch((e) => console.error('[handler] lastInboundAt update failed:', e))
 
   const chatAgent: ChatAgent = {
     id: agent.id,
@@ -146,6 +156,13 @@ export async function handleInbound(
       if (!text) continue
 
       const contactId = await upsertContact(agent.workspaceId, type, msg)
+
+      // Best-effort "typing…" indicator while the model generates the reply.
+      if (adapter.sendTyping) {
+        adapter
+          .sendTyping(msg.chatId)
+          .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
+      }
 
       const result = await generateReply({
         workspaceId: agent.workspaceId,

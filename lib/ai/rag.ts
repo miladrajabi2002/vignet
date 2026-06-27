@@ -106,10 +106,12 @@ export function buildMessages(params: {
 
   const langLine = isFa ? 'به زبان فارسی پاسخ بده.' : 'Respond in English.'
 
-  // Tone: warm and concise, not robotic
+  // Tone: warm and concise, not robotic. Conversation flow: greet and discover
+  // the need first, only pitch a product once the user's intent is clear — don't
+  // dump a sales offer on a bare "hi".
   const toneInstruction = isFa
-    ? 'لحنت صمیمی، مختصر و انسانی باشد — مثل یک فروشنده حرفه‌ای، نه ربات. از جملات کوتاه و روشن استفاده کن.'
-    : 'Be warm, concise and human — like a professional salesperson, not a robot. Use short, clear sentences.'
+    ? 'لحنت صمیمی، مختصر و انسانی باشد — مثل یک فروشنده خوب، نه ربات. از جملات کوتاه و روشن استفاده کن. در پیام اول فقط خوش‌آمد بگو و بپرس چطور می‌توانی کمک کنی؛ محصول یا قیمت را تا وقتی نیاز کاربر روشن نشده پیشنهاد نده.'
+    : "Be warm, concise and human — like a good salesperson, not a robot. Use short, clear sentences. On the first message just greet and ask how you can help; don't pitch a product or price until the user's need is clear."
 
   const catalogBlock = buildCatalogBlock(params.catalogProducts, isFa)
 

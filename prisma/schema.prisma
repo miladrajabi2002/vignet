@@ -119,10 +119,11 @@ model AgentChannel {
   id         String      @id @default(cuid())
   agentId    String
   type       ChannelType
-  config     Json // encrypted token/config
-  active     Boolean     @default(true)
-  webhookUrl String?
-  createdAt  DateTime    @default(now())
+  config        Json // encrypted token/config
+  active        Boolean     @default(true)
+  webhookUrl    String?
+  lastInboundAt DateTime? // last time an inbound webhook message arrived (health signal)
+  createdAt     DateTime    @default(now())
 
   agent Agent @relation(fields: [agentId], references: [id])
 
@@ -304,6 +305,7 @@ model Conversation {
   contact   Contact?  @relation(fields: [contactId], references: [id])
   messages  Message[]
 
+  @@unique([agentId, channel, externalId])
   @@index([workspaceId])
   @@index([agentId])
   @@index([contactId])

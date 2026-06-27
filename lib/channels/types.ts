@@ -36,6 +36,12 @@ export interface MessengerAdapter {
   parseUpdate(body: unknown): InboundMessage[]
   /** Send a plain text reply. */
   sendText(chatId: string, text: string): Promise<void>
+  /**
+   * Show a "typing…" indicator while the reply is being generated. Optional and
+   * best-effort — platforms that don't support it simply omit this method, and
+   * callers must not let its failure block the actual reply.
+   */
+  sendTyping?(chatId: string): Promise<void>
   /** Send a voice reply. Optional — falls back to text when unsupported. */
   sendVoice?(chatId: string, voice: OutboundVoice): Promise<void>
   /** Resolve a downloadable URL for an inbound voice file. Optional. */

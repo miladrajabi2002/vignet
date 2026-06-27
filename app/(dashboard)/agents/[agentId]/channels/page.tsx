@@ -32,7 +32,9 @@ export default async function AgentChannelsPage({
     select: {
       id: true,
       name: true,
-      channels: { select: { id: true, type: true, config: true } },
+      channels: {
+        select: { id: true, type: true, config: true, lastInboundAt: true },
+      },
     },
   })
   if (!agent) notFound()
@@ -99,6 +101,7 @@ export default async function AgentChannelsPage({
             botUsername={botUsername || null}
             callbackUrl={callbackUrl}
             verifyToken={isMeta ? webhookToken || null : null}
+            lastInboundAt={ch?.lastInboundAt ? ch.lastInboundAt.toISOString() : null}
           />
         )
       })}

@@ -105,6 +105,22 @@ export function instagramAdapter(token: string): MessengerAdapter {
         throw new Error(`INSTAGRAM sendText failed (${res.status}): ${detail}`)
       }
     },
+
+    async sendTyping(chatId: string): Promise<void> {
+      // Comments have no typing state — only DMs do.
+      if (!token || chatId.startsWith(COMMENT_PREFIX)) return
+      await fetch(`${GRAPH_BASE}/me/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipient: { id: chatId },
+          sender_action: 'typing_on',
+        }),
+      })
+    },
   }
 }
 
