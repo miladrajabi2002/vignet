@@ -199,6 +199,49 @@
     "webhookWarning": "ربات ذخیره شد اما تنظیم وب‌هوک ناموفق بود. توکن را بررسی کنید.",
     "botTokenLabel": "توکن ربات",
     "botTokenPlaceholder": "توکن دریافتی از ربات‌ساز را وارد کنید",
+    "setupGuide": "نحوهٔ دریافت توکن — گام‌به‌گام",
+    "webhookSetupNote": "تنظیمات را در داشبورد متا کامل کنید: وارد اپ خود شوید → بخش Webhooks، آدرس Callback و توکن تأیید زیر را وارد کنید و سپس فیلدهای messages و messaging را مشترک شوید (اینستاگرام: فیلد comments را هم اضافه کنید).",
+    "callbackUrl": "آدرس Callback",
+    "verifyToken": "توکن تأیید (Verify token)",
+    "fieldBotToken": "توکن ربات",
+    "fieldBotTokenPh": "توکن دریافتی از ربات‌ساز را وارد کنید",
+    "fieldAccessToken": "توکن دسترسی (Access token)",
+    "fieldAccessTokenPh": "توکن دسترسی دائمی (EAAB…)",
+    "fieldPhoneNumberId": "شناسهٔ شمارهٔ تلفن (Phone number ID)",
+    "fieldPhoneNumberIdPh": "مثلاً 1029384756",
+    "fieldPageToken": "توکن دسترسی صفحه (Page access token)",
+    "fieldPageTokenPh": "توکن دسترسی صفحه (EAAB…)",
+    "guide": {
+      "TELEGRAM": [
+        "در تلگرام @BotFather را باز کنید و دستور /newbot را بفرستید.",
+        "یک نام و یک نام‌کاربری برای ربات انتخاب کنید.",
+        "توکنی که BotFather می‌دهد را کپی و در کادر زیر وارد کنید."
+      ],
+      "BALE": [
+        "در بله @botfather را باز کنید و یک ربات جدید بسازید.",
+        "نام و نام‌کاربری ربات را انتخاب کنید.",
+        "توکن صادرشده را کپی و در کادر زیر وارد کنید."
+      ],
+      "RUBIKA": [
+        "در روبیکا ربات BotFather را باز کرده و ربات جدید بسازید.",
+        "نام و نام‌کاربری را تعیین کنید و توکن API را کپی کنید.",
+        "توکن را در کادر زیر وارد کنید. آدرس دریافت پیام به‌صورت خودکار ثبت می‌شود."
+      ],
+      "WHATSAPP": [
+        "در developers.facebook.com یک اپ متا بسازید و محصول WhatsApp را اضافه کنید.",
+        "در بخش WhatsApp → API Setup، شناسهٔ شمارهٔ تلفن (Phone number ID) را کپی کنید.",
+        "یک توکن دسترسی دائمی بسازید (از طریق System User با دسترسی whatsapp_business_messaging).",
+        "توکن دسترسی و شناسهٔ شماره را در کادر زیر وارد و متصل کنید.",
+        "پس از اتصال، آدرس Callback و توکن تأیید نمایش‌داده‌شده را در WhatsApp → Configuration → Webhook وارد کنید و فیلد messages را مشترک شوید."
+      ],
+      "INSTAGRAM": [
+        "حساب اینستاگرام را به حساب حرفه‌ای (Business/Creator) تبدیل و به یک صفحهٔ فیسبوک متصل کنید.",
+        "یک اپ متا بسازید و محصول Instagram (Messenger) را اضافه کنید.",
+        "یک Page access token با دسترسی‌های instagram_basic، instagram_manage_messages و instagram_manage_comments بسازید.",
+        "توکن دسترسی صفحه را در کادر زیر وارد و متصل کنید.",
+        "پس از اتصال، آدرس Callback و توکن تأیید را در بخش Webhooks اپ وارد کنید و فیلدهای messages و comments را مشترک شوید."
+      ]
+    },
     "telegram": "تلگرام",
     "telegramHint": "ربات تلگرام خود را با توکن BotFather وصل کنید",
     "bale": "بله",
@@ -206,9 +249,9 @@
     "rubika": "روبیکا",
     "rubikaHint": "ربات روبیکا خود را با توکن وصل کنید",
     "whatsapp": "واتساپ",
-    "whatsappHint": "واتساپ کلود API — توکن را به‌صورت accessToken|phoneNumberId وارد کنید",
+    "whatsappHint": "واتساپ کلود API — پاسخ خودکار به پیام‌های مستقیم",
     "instagram": "اینستاگرام",
-    "instagramHint": "پیام‌رسان اینستاگرام — توکن دسترسی صفحهٔ متا را وارد کنید"
+    "instagramHint": "پاسخ به دایرکت و کامنت‌های اینستاگرام از طریق API متا"
   },
   "conversations": {
     "title": "گفتگوها",

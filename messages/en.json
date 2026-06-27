@@ -199,6 +199,49 @@
     "webhookWarning": "Bot saved but webhook setup failed. Check the token.",
     "botTokenLabel": "Bot token",
     "botTokenPlaceholder": "Paste the token from the bot provider",
+    "setupGuide": "How to get this — step by step",
+    "webhookSetupNote": "Finish setup in the Meta dashboard: open your app → Webhooks, paste the callback URL and verify token below, then subscribe to the messages and messaging fields (Instagram: also comments).",
+    "callbackUrl": "Callback URL",
+    "verifyToken": "Verify token",
+    "fieldBotToken": "Bot token",
+    "fieldBotTokenPh": "Paste the token from the bot provider",
+    "fieldAccessToken": "Access token",
+    "fieldAccessTokenPh": "Permanent access token (EAAB…)",
+    "fieldPhoneNumberId": "Phone number ID",
+    "fieldPhoneNumberIdPh": "e.g. 1029384756",
+    "fieldPageToken": "Page access token",
+    "fieldPageTokenPh": "Page access token (EAAB…)",
+    "guide": {
+      "TELEGRAM": [
+        "Open @BotFather in Telegram and send /newbot.",
+        "Choose a name and a username for your bot.",
+        "Copy the token BotFather gives you and paste it below."
+      ],
+      "BALE": [
+        "Open @botfather in Bale and create a new bot.",
+        "Pick a name and username for your bot.",
+        "Copy the issued token and paste it below."
+      ],
+      "RUBIKA": [
+        "Open the BotFather bot inside Rubika and create a new bot.",
+        "Set a name and username, then copy the API token.",
+        "Paste the token below. We register the receive-update endpoint automatically."
+      ],
+      "WHATSAPP": [
+        "Create a Meta app at developers.facebook.com and add the WhatsApp product.",
+        "In WhatsApp → API Setup, copy the Phone number ID.",
+        "Generate a permanent access token (via a System User with whatsapp_business_messaging permission).",
+        "Paste the access token and phone number ID below and connect.",
+        "After connecting, copy the callback URL and verify token shown here into WhatsApp → Configuration → Webhook, and subscribe to the messages field."
+      ],
+      "INSTAGRAM": [
+        "Convert your Instagram account to a Professional (Business/Creator) account and link it to a Facebook Page.",
+        "Create a Meta app and add the Instagram (Messenger) product.",
+        "Generate a Page access token with instagram_basic, instagram_manage_messages and instagram_manage_comments permissions.",
+        "Paste the page access token below and connect.",
+        "After connecting, copy the callback URL and verify token into the app's Webhooks, and subscribe to the messages and comments fields."
+      ]
+    },
     "telegram": "Telegram",
     "telegramHint": "Connect your Telegram bot with the BotFather token",
     "bale": "Bale",
@@ -206,9 +249,9 @@
     "rubika": "Rubika",
     "rubikaHint": "Connect your Rubika bot with its token",
     "whatsapp": "WhatsApp",
-    "whatsappHint": "WhatsApp Cloud API — paste your token as accessToken|phoneNumberId",
+    "whatsappHint": "WhatsApp Cloud API — auto-reply to direct messages",
     "instagram": "Instagram",
-    "instagramHint": "Instagram Messaging — paste your Meta page access token"
+    "instagramHint": "Instagram DMs and comment replies via the Meta API"
   },
   "conversations": {
     "title": "Conversations",
