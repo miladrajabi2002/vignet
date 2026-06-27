@@ -20,6 +20,9 @@ const AGENT_SELECT = {
   temperature: true,
   maxTokens: true,
   fallbackMessage: true,
+  handoffEnabled: true,
+  handoffMessage: true,
+  handoffKeywords: true,
   voiceEnabled: true,
   ttsVoice: true,
   active: true,
@@ -131,6 +134,9 @@ export async function handleInbound(
     temperature: agent.temperature,
     maxTokens: agent.maxTokens,
     fallbackMessage: agent.fallbackMessage,
+    handoffEnabled: agent.handoffEnabled,
+    handoffMessage: agent.handoffMessage,
+    handoffKeywords: agent.handoffKeywords,
   }
 
   const messages = adapter.parseUpdate(body)

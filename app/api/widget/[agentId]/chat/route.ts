@@ -49,6 +49,9 @@ export async function POST(req: Request, { params }: Params) {
       temperature: true,
       maxTokens: true,
       fallbackMessage: true,
+      handoffEnabled: true,
+      handoffMessage: true,
+      handoffKeywords: true,
     },
   })
   if (!agent || !agent.active) {

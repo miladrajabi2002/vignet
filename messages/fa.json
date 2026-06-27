@@ -134,6 +134,9 @@
     "conversations": "گفتگو",
     "active": "فعال",
     "inactive": "غیرفعال",
+    "health_green": "آماده",
+    "health_yellow": "ناقص",
+    "health_red": "خام",
     "wizard": {
       "step": "گام {n} از {total}",
       "basics": "اطلاعات پایه",
@@ -165,7 +168,12 @@
       "successKnowledge": "برای پاسخ‌های دقیق‌تر، دانش کسب‌وکارتان را اضافه کنید",
       "goToAgent": "تست ایجنت",
       "addProducts": "افزودن محصول",
-      "addKnowledge": "افزودن دانش"
+      "addKnowledge": "افزودن دانش",
+      "bizVarsLabel": "اطلاعات کسب‌وکارت را وارد کن تا در تمپلیت جایگذاری شود:",
+      "bizName": "نام کسب‌وکار",
+      "bizPhone": "شماره تماس",
+      "bizHours": "ساعت کاری",
+      "previewTemplate": "پیش‌نمایش"
     },
     "settingsForm": {
       "title": "تنظیمات ایجنت",
@@ -173,6 +181,9 @@
       "delete": "حذف ایجنت",
       "deleteConfirm": "آیا از حذف این ایجنت مطمئن هستید؟ این عمل قابل بازگشت نیست.",
       "handoffEnabled": "انتقال به اپراتور انسانی",
+      "handoffKeywords": "کلمات کلیدی انتقال",
+      "handoffKeywordsPlaceholder": "مثال: مدیر، شکایت، انسان",
+      "handoffKeywordsHint": "با کاما جدا کنید — اگر کاربر این کلمات را نوشت، به اپراتور انسانی منتقل می‌شود",
       "voiceEnabled": "پاسخ صوتی"
     },
     "playground": {
@@ -182,7 +193,9 @@
       "noKey": "ابتدا کلید OpenRouter را در تنظیمات اضافه کنید",
       "error": "خطا در دریافت پاسخ",
       "record": "ضبط صدا",
-      "speak": "خواندن پاسخ"
+      "speak": "خواندن پاسخ",
+      "rateGood": "پاسخ خوب بود",
+      "rateBad": "پاسخ مناسب نبود"
     },
     "models": {
       "intro": "مدلی که مغز ایجنت است را انتخاب کنید. هر مدل تعادل متفاوتی بین کیفیت پاسخ و هزینه دارد.",
@@ -291,7 +304,9 @@
     "ratings": "امتیاز",
     "activityHeatmap": "فعالیت بر اساس روز و ساعت",
     "agentActivity": "فعالیت ایجنت‌ها",
-    "noData": "هنوز داده‌ای نیست"
+    "noData": "هنوز داده‌ای نیست",
+    "unansweredQueries": "سوالات بی‌جواب",
+    "noUnanswered": "همه سوالات پاسخ داده شده‌اند"
   },
   "contacts": {
     "title": "مخاطبین",

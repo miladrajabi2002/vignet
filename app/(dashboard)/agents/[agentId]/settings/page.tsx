@@ -45,6 +45,7 @@ export default async function AgentSettingsPage({
           fallbackMessage: agent.fallbackMessage,
           handoffEnabled: agent.handoffEnabled,
           handoffMessage: agent.handoffMessage,
+          handoffKeywords: agent.handoffKeywords,
           active: agent.active,
         }}
       />

@@ -36,6 +36,9 @@ export async function POST(req: Request) {
       temperature: true,
       maxTokens: true,
       fallbackMessage: true,
+      handoffEnabled: true,
+      handoffMessage: true,
+      handoffKeywords: true,
     },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })

@@ -18,6 +18,40 @@ export interface ChatAgent {
   temperature: number
   maxTokens: number
   fallbackMessage: string | null
+  handoffEnabled: boolean
+  handoffMessage: string | null
+  handoffKeywords: string[]
+}
+
+const UNANSWERED_PHRASES = [
+  'اطلاعاتم کامل نیست',
+  'اطلاعات این محصول را ندارم',
+  'اطلاعات محصولات ما در حال',
+  'اطلاعات در این مورد کامل نیست',
+  "I don't have information",
+  'catalog is being updated',
+]
+
+function detectUnanswered(reply: string, fallback: string | null): boolean {
+  if (fallback && reply.trim() === fallback.trim()) return true
+  const lower = reply.toLowerCase()
+  return UNANSWERED_PHRASES.some((p) => lower.includes(p.toLowerCase()))
+}
+
+async function shouldHandoff(
+  agent: ChatAgent,
+  conversationId: string,
+  userMessage: string,
+): Promise<boolean> {
+  if (!agent.handoffEnabled) return false
+  if (agent.handoffKeywords.length > 0) {
+    const lower = userMessage.toLowerCase()
+    if (agent.handoffKeywords.some((kw) => lower.includes(kw.toLowerCase()))) return true
+  }
+  const consecutiveFallbacks = await prisma.message.count({
+    where: { conversationId, role: 'ASSISTANT', unanswered: true },
+  })
+  return consecutiveFallbacks >= 3
 }
 
 export interface StartChatParams {
@@ -226,6 +260,28 @@ export async function startChat(
 
       send({ type: 'meta', conversationId })
 
+      // Smart handoff: check before calling AI
+      const handoff = await shouldHandoff(agent, conversationId, message)
+      if (handoff) {
+        const handoffText = agent.handoffMessage || 'در حال اتصال به پشتیبانی انسانی...'
+        send({ type: 'delta', text: handoffText })
+        try {
+          const savedMsg = await prisma.message.create({
+            data: { conversationId, role: 'ASSISTANT', content: handoffText },
+          })
+          await prisma.conversation.update({
+            where: { id: conversationId },
+            data: { status: 'HANDED_OFF', messageCount: { increment: 2 }, lastMessageAt: new Date() },
+          })
+          send({ type: 'done', messageId: savedMsg.id })
+        } catch (e) {
+          console.error('[chat-engine] handoff persist error:', e)
+          send({ type: 'done' })
+        }
+        controller.close()
+        return
+      }
+
       let full = ''
       let usage: ChatUsage | null = null
       try {
@@ -253,8 +309,15 @@ export async function startChat(
 
       // Persist assistant reply and update conversation counters.
       try {
-        await prisma.message.create({
-          data: { conversationId, role: 'ASSISTANT', content: full },
+        const unanswered = detectUnanswered(full, agent.fallbackMessage)
+        const savedMsg = await prisma.message.create({
+          data: {
+            conversationId,
+            role: 'ASSISTANT',
+            content: full,
+            unanswered,
+            metadata: unanswered ? { question: message } : undefined,
+          },
         })
         await prisma.conversation.update({
           where: { id: conversationId },
@@ -267,11 +330,12 @@ export async function startChat(
           logUsage({ workspaceId, agentId: agent.id, conversationId, model, usage })
         }
         await syncOnboarding(workspaceId)
+        send({ type: 'done', messageId: savedMsg.id })
       } catch (e) {
         console.error('[chat-engine] persist error:', e)
+        send({ type: 'done' })
       }
 
-      send({ type: 'done' })
       controller.close()
     },
   })
@@ -330,6 +394,22 @@ export async function generateReply(
     userMessage: message,
   })
 
+  // Smart handoff: check before calling AI
+  const handoff = await shouldHandoff(agent, conversationId, message)
+  if (handoff) {
+    const reply = agent.handoffMessage || 'در حال اتصال به پشتیبانی انسانی...'
+    try {
+      await prisma.message.create({ data: { conversationId, role: 'ASSISTANT', content: reply } })
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { status: 'HANDED_OFF', messageCount: { increment: 2 }, lastMessageAt: new Date() },
+      })
+    } catch (e) {
+      console.error('[chat-engine] handoff persist error:', e)
+    }
+    return { conversationId, reply }
+  }
+
   let reply = ''
   let usage: ChatUsage | null = null
   try {
@@ -350,8 +430,15 @@ export async function generateReply(
   }
 
   try {
+    const unanswered = detectUnanswered(reply, agent.fallbackMessage)
     await prisma.message.create({
-      data: { conversationId, role: 'ASSISTANT', content: reply },
+      data: {
+        conversationId,
+        role: 'ASSISTANT',
+        content: reply,
+        unanswered,
+        metadata: unanswered ? { question: message } : undefined,
+      },
     })
     await prisma.conversation.update({
       where: { id: conversationId },

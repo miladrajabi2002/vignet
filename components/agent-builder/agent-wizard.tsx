@@ -4,45 +4,61 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Package, BookOpen, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Loader2, Package, BookOpen, Zap } from 'lucide-react'
 import { ModelSelect } from './model-select'
 
 const TOTAL = 3
 const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
 
 const PROMPT_TEMPLATES = {
-  shop: `تو دستیار فروش این کسب‌وکار هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
+  shop: `تو دستیار فروش {{business}} هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
 
 قوانین پاسخ‌دهی:
 • پاسخ‌ها زیر ۴۰ کلمه باشن مگر توضیح بیشتری لازم باشه
 • قبل از گفتن هر قیمتی، اول کاتالوگ محصولات رو چک کن
 • اگه محصولی در لیست ما نبود، بگو: "این محصول الان در لیست ما نیست"
 • موجودی رو صادقانه اعلام کن
-• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با تیم ما تماس بگیرید"`,
-  support: `تو متخصص پشتیبانی این کسب‌وکار هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
+• ساعت کاری: {{hours}}
+• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با ما تماس بگیرید: {{phone}}"`,
+  support: `تو متخصص پشتیبانی {{business}} هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
 
 قوانین پاسخ‌دهی:
 • اول مشکل مشتری رو کامل بفهم، بعد جواب بده
 • راه‌حل‌های عملی و ساده بده، گام‌به‌گام
-• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره"
+• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره — تماس: {{phone}}"
 • هرگز اطلاعات شخصی مشتری رو نخواه مگر ضروری باشه
 • صادق باش — اگه جواب نداری بگو، حدس نزن`,
-  restaurant: `تو دستیار این رستوران هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
+  restaurant: `تو دستیار {{business}} هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
 
 قوانین پاسخ‌دهی:
 • قیمت و منو رو دقیقاً از کاتالوگ بگو، حدس نزن
 • غذاهای پرطرفدار رو با اشتیاق معرفی کن
+• ساعت کاری: {{hours}} | تماس: {{phone}}
 • برای رزرو یا سفارش، اطلاعات تماس یا لینک بده
 • اگه سوالی داشتی که جوابش رو نمی‌دونی، بگو: "برای اطلاعات بیشتر تماس بگیرید"`,
-  general: `تو دستیار هوشمند این کسب‌وکار هستی. شخصیتت: مودب، مختصر، مفید.
+  general: `تو دستیار هوشمند {{business}} هستی. شخصیتت: مودب، مختصر، مفید.
 
 قوانین پاسخ‌دهی:
 • پاسخ‌ها کوتاه و دقیق باشن
 • اگه اطلاعاتی نداری، صادقانه بگو به‌جای حدس زدن
-• مشتری رو به بخش مناسب هدایت کن`,
+• مشتری رو به بخش مناسب هدایت کن
+• راه تماس: {{phone}} | ساعت کاری: {{hours}}`,
 } as const
 
 type TemplateKey = keyof typeof PROMPT_TEMPLATES
+
+interface BizVars {
+  name: string
+  phone: string
+  hours: string
+}
+
+function applyBizVars(text: string, vars: BizVars): string {
+  return text
+    .replace(/\{\{business\}\}/g, vars.name || '{{business}}')
+    .replace(/\{\{phone\}\}/g, vars.phone || '{{phone}}')
+    .replace(/\{\{hours\}\}/g, vars.hours || '{{hours}}')
+}
 
 interface FormState {
   name: string
@@ -72,6 +88,8 @@ export function AgentWizard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [created, setCreated] = useState<CreatedAgent | null>(null)
+  const [previewKey, setPreviewKey] = useState<TemplateKey | null>(null)
+  const [bizVars, setBizVars] = useState<BizVars>({ name: '', phone: '', hours: '' })
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
@@ -86,6 +104,14 @@ export function AgentWizard() {
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
+
+  const setBiz = (k: keyof BizVars, v: string) =>
+    setBizVars((b) => ({ ...b, [k]: v }))
+
+  function selectTemplate(key: TemplateKey) {
+    set('systemPrompt', applyBizVars(PROMPT_TEMPLATES[key], bizVars))
+    setPreviewKey(null)
+  }
 
   const canNext = step === 0 ? form.name.trim().length > 0 : true
 
@@ -224,19 +250,63 @@ export function AgentWizard() {
             {step === 1 && (
               <>
                 <Field label={t('systemPrompt')}>
+                  {/* Business variables */}
+                  <div className="mb-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+                    <p className="mb-2 text-xs text-[var(--text-muted)]">{t('bizVarsLabel')}</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <input
+                        value={bizVars.name}
+                        onChange={(e) => setBiz('name', e.target.value)}
+                        placeholder={t('bizName')}
+                        className="input text-xs"
+                      />
+                      <input
+                        value={bizVars.phone}
+                        onChange={(e) => setBiz('phone', e.target.value)}
+                        placeholder={t('bizPhone')}
+                        className="input text-xs"
+                      />
+                      <input
+                        value={bizVars.hours}
+                        onChange={(e) => setBiz('hours', e.target.value)}
+                        placeholder={t('bizHours')}
+                        className="input text-xs"
+                      />
+                    </div>
+                  </div>
                   {/* Template quick-start */}
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)]">{t('templateLabel')}</span>
-                    {(['shop', 'support', 'restaurant', 'general'] as TemplateKey[]).map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => set('systemPrompt', PROMPT_TEMPLATES[key])}
-                        className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                      >
-                        {t(`template${key.charAt(0).toUpperCase() + key.slice(1)}` as Parameters<typeof t>[0])}
-                      </button>
-                    ))}
+                  <div className="mb-2">
+                    <p className="mb-2 text-xs text-[var(--text-muted)]">{t('templateLabel')}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(['shop', 'support', 'restaurant', 'general'] as TemplateKey[]).map((key) => (
+                        <div key={key} className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => selectTemplate(key)}
+                            className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                          >
+                            {t(`template${key.charAt(0).toUpperCase() + key.slice(1)}` as Parameters<typeof t>[0])}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewKey(previewKey === key ? null : key)}
+                            className="rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+                            title={t('previewTemplate')}
+                          >
+                            {previewKey === key
+                              ? <ChevronUp className="h-3 w-3" />
+                              : <ChevronDown className="h-3 w-3" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {previewKey && (
+                      <div className="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+                        <pre className="whitespace-pre-wrap font-mono text-xs text-[var(--text-secondary)]">
+                          {applyBizVars(PROMPT_TEMPLATES[previewKey], bizVars)}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                   <textarea
                     value={form.systemPrompt}

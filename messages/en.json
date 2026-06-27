@@ -134,6 +134,9 @@
     "conversations": "Conversations",
     "active": "Active",
     "inactive": "Inactive",
+    "health_green": "Ready",
+    "health_yellow": "Incomplete",
+    "health_red": "Draft",
     "wizard": {
       "step": "Step {n} of {total}",
       "basics": "Basics",
@@ -165,7 +168,12 @@
       "successKnowledge": "Add your business knowledge for more accurate answers",
       "goToAgent": "Test agent",
       "addProducts": "Add products",
-      "addKnowledge": "Add knowledge"
+      "addKnowledge": "Add knowledge",
+      "bizVarsLabel": "Enter your business info to inject into the template:",
+      "bizName": "Business name",
+      "bizPhone": "Phone number",
+      "bizHours": "Working hours",
+      "previewTemplate": "Preview"
     },
     "settingsForm": {
       "title": "Agent settings",
@@ -173,6 +181,9 @@
       "delete": "Delete agent",
       "deleteConfirm": "Delete this agent? This cannot be undone.",
       "handoffEnabled": "Hand off to a human operator",
+      "handoffKeywords": "Handoff trigger keywords",
+      "handoffKeywordsPlaceholder": "e.g. manager, complaint, human",
+      "handoffKeywordsHint": "Comma-separated — if the user types any of these, the conversation is escalated to a human",
       "voiceEnabled": "Voice responses"
     },
     "playground": {
@@ -182,7 +193,9 @@
       "noKey": "Add your OpenRouter key in settings first",
       "error": "Failed to get a response",
       "record": "Record voice",
-      "speak": "Read reply aloud"
+      "speak": "Read reply aloud",
+      "rateGood": "Good response",
+      "rateBad": "Poor response"
     },
     "models": {
       "intro": "Pick the model that powers your agent. Each one balances answer quality against cost differently.",
@@ -291,7 +304,9 @@
     "ratings": "ratings",
     "activityHeatmap": "Activity by day & hour",
     "agentActivity": "Agent activity",
-    "noData": "No data yet"
+    "noData": "No data yet",
+    "unansweredQueries": "Unanswered questions",
+    "noUnanswered": "All questions were answered"
   },
   "contacts": {
     "title": "Contacts",

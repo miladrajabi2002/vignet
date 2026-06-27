@@ -7,6 +7,7 @@ import {
   Star,
   CheckCircle2,
   Cpu,
+  HelpCircle,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -44,7 +45,7 @@ export default async function AgentAnalyticsPage({
 
   const where = { workspaceId: ws, agentId: agent.id }
 
-  const [convos, channelGroups, ratingAgg, resolved, totalConvos, usageAgg, products] =
+  const [convos, channelGroups, ratingAgg, resolved, totalConvos, usageAgg, products, unansweredMsgs] =
     await Promise.all([
       prisma.conversation.findMany({
         where: { ...where, createdAt: { gte: since } },
@@ -74,6 +75,15 @@ export default async function AgentAnalyticsPage({
         orderBy: { queryCount: 'desc' },
         take: 6,
         select: { name: true, queryCount: true },
+      }),
+      prisma.message.findMany({
+        where: {
+          unanswered: true,
+          conversation: { workspaceId: ws, agentId: agent.id, createdAt: { gte: since } },
+        },
+        select: { metadata: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
       }),
     ])
 
@@ -163,6 +173,28 @@ export default async function AgentAnalyticsPage({
           )}
         </Panel>
       </div>
+
+      <Panel title={t('unansweredQueries')}>
+        {unansweredMsgs.length === 0 ? (
+          <Empty text={t('noUnanswered')} />
+        ) : (
+          <ul className="divide-y divide-[var(--border-subtle)]">
+            {unansweredMsgs.map((msg, i) => {
+              const question =
+                msg.metadata && typeof msg.metadata === 'object' && 'question' in msg.metadata
+                  ? String((msg.metadata as Record<string, unknown>).question)
+                  : null
+              if (!question) return null
+              return (
+                <li key={i} className="flex items-start gap-3 py-3">
+                  <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <span className="text-sm text-[var(--text-secondary)]">{question}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Panel>
     </div>
   )
 }
