@@ -3,6 +3,7 @@ import { StatsCounter } from '@/components/marketing/stats-counter'
 import { FeaturesSection } from '@/components/marketing/features-section'
 import { HowItWorks } from '@/components/marketing/how-it-works'
 import { ChannelsSection } from '@/components/marketing/channels-section'
+import { DemoSection } from '@/components/marketing/demo-section'
 import { PricingSection } from '@/components/marketing/pricing-section'
 import { Testimonials } from '@/components/marketing/testimonials'
 import { FaqSection } from '@/components/marketing/faq-section'
@@ -16,6 +17,7 @@ export default function HomePage() {
       <FeaturesSection />
       <HowItWorks />
       <ChannelsSection />
+      <DemoSection />
       <Testimonials />
       <PricingSection />
       <FaqSection />

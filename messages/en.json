@@ -130,6 +130,7 @@
     "knowledge": "Knowledge",
     "products": "Products",
     "channels": "Channels",
+    "analytics": "Analytics",
     "conversations": "Conversations",
     "active": "Active",
     "inactive": "Inactive",
@@ -182,7 +183,7 @@
     "embedCode": "Embed code",
     "copy": "Copy",
     "copied": "Copied",
-    "comingSoon": "Coming soon: Instagram",
+    "comingSoon": "Coming soon",
     "connect": "Connect",
     "connectConfirm": "Connect bot",
     "connectError": "Connection failed",
@@ -197,14 +198,20 @@
     "rubika": "Rubika",
     "rubikaHint": "Connect your Rubika bot with its token",
     "whatsapp": "WhatsApp",
-    "whatsappHint": "WhatsApp Cloud API — paste your token as accessToken|phoneNumberId"
+    "whatsappHint": "WhatsApp Cloud API — paste your token as accessToken|phoneNumberId",
+    "instagram": "Instagram",
+    "instagramHint": "Instagram Messaging — paste your Meta page access token"
   },
   "conversations": {
     "title": "Conversations",
     "subtitle": "Unified inbox across all channels",
     "empty": "No conversations yet",
     "anonymous": "Anonymous user",
-    "noMessages": "No messages in this conversation"
+    "noMessages": "No messages in this conversation",
+    "csat": "Rating",
+    "resolve": "Mark resolved",
+    "reopen": "Reopen",
+    "summary": "AI summary"
   },
   "analytics": {
     "title": "Analytics",
@@ -216,6 +223,10 @@
     "conversationsTrend": "Conversations — last 14 days",
     "channelBreakdown": "By channel",
     "topProducts": "Top products by AI queries",
+    "satisfaction": "Customer satisfaction",
+    "ratings": "ratings",
+    "activityHeatmap": "Activity by day & hour",
+    "agentActivity": "Agent activity",
     "noData": "No data yet"
   },
   "contacts": {
@@ -233,7 +244,19 @@
     "stageLost": "Lost",
     "pipeline": "Pipeline",
     "list": "List",
-    "noStage": "No contacts in this stage"
+    "noStage": "No contacts in this stage",
+    "detail": {
+      "name": "Name",
+      "tags": "Tags",
+      "tagsPlaceholder": "vip, returning (comma separated)",
+      "notes": "Notes",
+      "notesPlaceholder": "Internal notes about this contact…",
+      "save": "Save",
+      "saved": "Saved",
+      "history": "Conversation history",
+      "noHistory": "No conversations yet",
+      "lastActivity": "last activity"
+    }
   },
   "billing": {
     "title": "Billing",
@@ -379,6 +402,15 @@
       "saved": "Saved",
       "empty": "Add some products first",
       "selected": "{count} selected"
+    },
+    "detail": {
+      "queryCount": "AI queries",
+      "agentCoverage": "Agents",
+      "stock": "Stock",
+      "knownByAgents": "Known by agents",
+      "noAgents": "No agent knows about this product yet",
+      "inactive": "Inactive",
+      "updatedAt": "Last updated"
     }
   },
   "marketing": {
@@ -414,6 +446,16 @@
     },
     "channels": {
       "title": "All channels, one dashboard"
+    },
+    "demo": {
+      "title": "See it in action",
+      "subtitle": "A real exchange — your agent answers from your data, instantly.",
+      "bubbles": [
+        { "role": "user", "text": "Do you have the running shoes in size 42?" },
+        { "role": "agent", "text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping." },
+        { "role": "user", "text": "Great, is there a discount?" },
+        { "role": "agent", "text": "It's already 15% off the original price. Want me to reserve a pair for you?" }
+      ]
     },
     "pricing": {
       "title": "Pricing for every business",

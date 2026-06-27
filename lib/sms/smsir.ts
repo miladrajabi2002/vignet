@@ -71,6 +71,50 @@ export async function sendOTP(mobile: string): Promise<void> {
   }
 }
 
+/**
+ * Send a free-form SMS via sms.ir's bulk endpoint (used for notifications, not
+ * OTP). Requires SMS_IR_API_KEY and SMS_IR_LINE_NUMBER. In dev (no API key) the
+ * message is logged to the console instead. Never throws — notifications must
+ * not break the caller; returns false when not delivered.
+ */
+export async function sendSms(mobile: string, message: string): Promise<boolean> {
+  const normalized = normalizePhone(mobile)
+  if (!normalized) return false
+
+  const apiKey = process.env.SMS_IR_API_KEY
+  const lineNumber = process.env.SMS_IR_LINE_NUMBER
+
+  if (!apiKey || !lineNumber) {
+    console.warn(`[sms.ir] DEV MODE — SMS to ${normalized}: ${message}`)
+    return false
+  }
+
+  try {
+    const res = await fetch(`${SMS_IR_BASE}/send/bulk`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        lineNumber: Number(lineNumber),
+        messageText: message,
+        mobiles: [normalized],
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error(`[sms.ir] bulk send failed (${res.status}): ${body}`)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error('[sms.ir] bulk send threw:', e)
+    return false
+  }
+}
+
 /** Verify a code against the value stored in Redis. Consumes it on success. */
 export async function verifyOTP(mobile: string, code: string): Promise<boolean> {
   const normalized = normalizePhone(mobile)

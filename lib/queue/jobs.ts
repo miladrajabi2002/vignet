@@ -2,6 +2,8 @@ import type { Queue } from 'bullmq'
 import { QUEUE_NAMES, createQueueConnection, isQueueDisabled } from '@/lib/queue/connection'
 import type { IngestionJobData } from '@/lib/knowledge/ingest'
 import type { ProductEmbedJobData } from '@/lib/products/catalog'
+import type { SummaryJobData } from '@/lib/conversations/summary'
+import type { NotificationJobData } from '@/lib/notifications/notify'
 
 // Lazily-created Queue singletons (bullmq is imported dynamically to keep it
 // out of the edge/runtime bundle until actually needed).
@@ -53,6 +55,40 @@ export async function dispatchProductEmbed(
   }
 }
 
+/** Enqueue a conversation-summary job. Falls back to inline processing. */
+export async function dispatchSummary(data: SummaryJobData): Promise<void> {
+  if (isQueueDisabled()) return runInlineSummary(data)
+  try {
+    const q = await getQueue(QUEUE_NAMES.conversationSummary)
+    await q.add('summary', data, {
+      removeOnComplete: true,
+      removeOnFail: 50,
+      attempts: 2,
+    })
+  } catch (e) {
+    console.warn('[queue] summary enqueue failed, running inline:', e)
+    return runInlineSummary(data)
+  }
+}
+
+/** Enqueue a notification (email/SMS/ops). Falls back to inline processing. */
+export async function dispatchNotification(
+  data: NotificationJobData,
+): Promise<void> {
+  if (isQueueDisabled()) return runInlineNotification(data)
+  try {
+    const q = await getQueue(QUEUE_NAMES.notifications)
+    await q.add('notify', data, {
+      removeOnComplete: true,
+      removeOnFail: 50,
+      attempts: 3,
+    })
+  } catch (e) {
+    console.warn('[queue] notification enqueue failed, running inline:', e)
+    return runInlineNotification(data)
+  }
+}
+
 function runInlineIngestion(data: IngestionJobData): void {
   void import('@/lib/knowledge/ingest').then(({ processIngestion }) =>
     processIngestion(data).catch((e) =>
@@ -65,6 +101,22 @@ function runInlineProductEmbed(data: ProductEmbedJobData): void {
   void import('@/lib/products/catalog').then(({ processProductEmbed }) =>
     processProductEmbed(data).catch((e) =>
       console.error('[queue] inline product-embed failed:', e),
+    ),
+  )
+}
+
+function runInlineSummary(data: SummaryJobData): void {
+  void import('@/lib/conversations/summary').then(({ processSummary }) =>
+    processSummary(data).catch((e) =>
+      console.error('[queue] inline summary failed:', e),
+    ),
+  )
+}
+
+function runInlineNotification(data: NotificationJobData): void {
+  void import('@/lib/notifications/notify').then(({ processNotification }) =>
+    processNotification(data).catch((e) =>
+      console.error('[queue] inline notification failed:', e),
     ),
   )
 }

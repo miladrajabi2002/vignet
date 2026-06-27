@@ -4,6 +4,8 @@ import type { ConnectionOptions } from 'bullmq'
 export const QUEUE_NAMES = {
   ingestion: 'knowledge-ingestion',
   productEmbed: 'product-embed',
+  conversationSummary: 'conversation-summary',
+  notifications: 'notifications',
 } as const
 
 /**

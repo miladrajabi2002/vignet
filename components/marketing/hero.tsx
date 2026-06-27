@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { ParticleGrid } from './particle-grid'
 import { Spotlight } from './spotlight'
+import { BeamLines } from './beam-lines'
 
 function useTypewriter(words: string[], typing = 90, deleting = 45, hold = 1600) {
   const [text, setText] = useState('')
@@ -59,11 +60,7 @@ export function Hero() {
       <ParticleGrid />
       <Spotlight />
 
-      {/* Beam lines */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-1/4 top-1/3 h-px w-[150%] -rotate-12 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="absolute -left-1/4 top-2/3 h-px w-[150%] rotate-12 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
-      </div>
+      <BeamLines />
 
       {/* Bottom vignette */}
       <div

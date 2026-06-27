@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getTranslations, getLocale } from 'next-intl/server'
 import { MessagesSquare, Star, CheckCircle2, Cpu } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -9,6 +10,9 @@ import {
 } from '@/components/dashboard/charts/conversation-chart'
 import { ChannelDonut } from '@/components/dashboard/charts/channel-donut'
 import { BarList } from '@/components/dashboard/charts/bar-list'
+import { SatisfactionGauge } from '@/components/dashboard/charts/satisfaction-gauge'
+import { HourlyHeatmap } from '@/components/dashboard/charts/hourly-heatmap'
+import { AgentSparkline } from '@/components/dashboard/charts/agent-sparkline'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 
 const DAYS = 14
@@ -23,36 +27,52 @@ export default async function AnalyticsPage() {
   since.setHours(0, 0, 0, 0)
   since.setDate(since.getDate() - (DAYS - 1))
 
-  const [convos, channelGroups, ratingAgg, resolved, totalConvos, usageAgg, topProducts] =
-    await Promise.all([
-      prisma.conversation.findMany({
-        where: { workspaceId: ws, createdAt: { gte: since } },
-        select: { createdAt: true },
-      }),
-      prisma.conversation.groupBy({
-        by: ['channel'],
-        where: { workspaceId: ws },
-        _count: { _all: true },
-      }),
-      prisma.conversation.aggregate({
-        where: { workspaceId: ws, rating: { not: null } },
-        _avg: { rating: true },
-      }),
-      prisma.conversation.count({
-        where: { workspaceId: ws, status: 'RESOLVED' },
-      }),
-      prisma.conversation.count({ where: { workspaceId: ws } }),
-      prisma.usageLog.aggregate({
-        where: { workspaceId: ws },
-        _sum: { promptTokens: true, completionTokens: true },
-      }),
-      prisma.product.findMany({
-        where: { workspaceId: ws, queryCount: { gt: 0 } },
-        orderBy: { queryCount: 'desc' },
-        take: 6,
-        select: { name: true, queryCount: true },
-      }),
-    ])
+  const [
+    convos,
+    channelGroups,
+    ratingAgg,
+    ratedCount,
+    resolved,
+    totalConvos,
+    usageAgg,
+    topProducts,
+    agents,
+  ] = await Promise.all([
+    prisma.conversation.findMany({
+      where: { workspaceId: ws, createdAt: { gte: since } },
+      select: { createdAt: true, agentId: true },
+    }),
+    prisma.conversation.groupBy({
+      by: ['channel'],
+      where: { workspaceId: ws },
+      _count: { _all: true },
+    }),
+    prisma.conversation.aggregate({
+      where: { workspaceId: ws, rating: { not: null } },
+      _avg: { rating: true },
+    }),
+    prisma.conversation.count({
+      where: { workspaceId: ws, rating: { not: null } },
+    }),
+    prisma.conversation.count({
+      where: { workspaceId: ws, status: 'RESOLVED' },
+    }),
+    prisma.conversation.count({ where: { workspaceId: ws } }),
+    prisma.usageLog.aggregate({
+      where: { workspaceId: ws },
+      _sum: { promptTokens: true, completionTokens: true },
+    }),
+    prisma.product.findMany({
+      where: { workspaceId: ws, queryCount: { gt: 0 } },
+      orderBy: { queryCount: 'desc' },
+      take: 6,
+      select: { name: true, queryCount: true },
+    }),
+    prisma.agent.findMany({
+      where: { workspaceId: ws },
+      select: { id: true, name: true },
+    }),
+  ])
 
   // ── Daily trend (group in JS so it stays DB-agnostic) ──
   const dayFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
@@ -73,6 +93,48 @@ export default async function AnalyticsPage() {
     label: dayFmt.format(new Date(key)),
     value,
   }))
+
+  // ── Day-of-week × hour heatmap (over the same window) ──
+  const heatmap: number[][] = Array.from({ length: 7 }, () =>
+    new Array(24).fill(0),
+  )
+  for (const c of convos) {
+    const d = new Date(c.createdAt)
+    heatmap[d.getDay()][d.getHours()] += 1
+  }
+  const dayFmtShort = new Intl.DateTimeFormat(
+    locale === 'fa' ? 'fa-IR' : 'en-US',
+    { weekday: 'short' },
+  )
+  // getDay(): 0=Sunday … 6=Saturday. Label each row accordingly.
+  const dayLabels = Array.from({ length: 7 }, (_, i) =>
+    dayFmtShort.format(new Date(2024, 0, 7 + i)),
+  )
+
+  // ── Per-agent daily trend sparklines (top agents by volume) ──
+  const agentName = new Map(agents.map((a) => [a.id, a.name]))
+  const agentDaily = new Map<string, number[]>()
+  for (const c of convos) {
+    if (!c.agentId) continue
+    let arr = agentDaily.get(c.agentId)
+    if (!arr) {
+      arr = new Array(DAYS).fill(0)
+      agentDaily.set(c.agentId, arr)
+    }
+    const idx = Math.floor(
+      (new Date(c.createdAt).getTime() - since.getTime()) / 86_400_000,
+    )
+    if (idx >= 0 && idx < DAYS) arr[idx] += 1
+  }
+  const agentTrends = [...agentDaily.entries()]
+    .map(([id, series]) => ({
+      id,
+      name: agentName.get(id) ?? '—',
+      series,
+      total: series.reduce((a, b) => a + b, 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 6)
 
   const channels = channelGroups
     .map((g) => ({
@@ -134,6 +196,24 @@ export default async function AnalyticsPage() {
             <Empty text={t('noData')} />
           )}
         </Panel>
+        <Panel title={t('satisfaction')}>
+          <SatisfactionGauge
+            value={avgRating}
+            count={ratedCount}
+            label={t('ratings')}
+          />
+        </Panel>
+      </div>
+
+      <Panel title={t('activityHeatmap')}>
+        <HourlyHeatmap
+          matrix={heatmap}
+          dayLabels={dayLabels}
+          emptyText={t('noData')}
+        />
+      </Panel>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <Panel title={t('topProducts')}>
           {topProducts.length ? (
             <BarList
@@ -142,6 +222,29 @@ export default async function AnalyticsPage() {
                 value: p.queryCount,
               }))}
             />
+          ) : (
+            <Empty text={t('noData')} />
+          )}
+        </Panel>
+        <Panel title={t('agentActivity')}>
+          {agentTrends.length ? (
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {agentTrends.map((a) => (
+                <Link
+                  key={a.id}
+                  href={`/agents/${a.id}/analytics`}
+                  className="flex items-center gap-3 py-2.5 transition-colors hover:opacity-80"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">
+                    {a.name}
+                  </span>
+                  <AgentSparkline data={a.series} />
+                  <span className="w-8 text-end text-sm text-[var(--text-secondary)]">
+                    {nf.format(a.total)}
+                  </span>
+                </Link>
+              ))}
+            </div>
           ) : (
             <Empty text={t('noData')} />
           )}

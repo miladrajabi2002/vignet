@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, Loader2, type LucideIcon } from 'lucide-react'
 
-export type MessengerKind = 'TELEGRAM' | 'BALE' | 'RUBIKA' | 'WHATSAPP'
+export type MessengerKind =
+  | 'TELEGRAM'
+  | 'BALE'
+  | 'RUBIKA'
+  | 'WHATSAPP'
+  | 'INSTAGRAM'
 
 export function MessengerChannel({
   agentId,

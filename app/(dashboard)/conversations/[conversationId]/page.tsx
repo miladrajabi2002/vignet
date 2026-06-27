@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { ArrowLeft, User, Phone } from 'lucide-react'
+import { ArrowLeft, User, Phone, Sparkles } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ConversationActions } from '@/components/crm/conversation-actions'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 
@@ -22,6 +23,9 @@ export default async function ConversationThreadPage({
     select: {
       id: true,
       channel: true,
+      status: true,
+      rating: true,
+      summary: true,
       createdAt: true,
       agent: { select: { name: true } },
       contact: { select: { name: true, phone: true } },
@@ -65,6 +69,24 @@ export default async function ConversationThreadPage({
           </div>
         </div>
       </div>
+
+      <ConversationActions
+        conversationId={conversation.id}
+        status={conversation.status}
+        rating={conversation.rating}
+      />
+
+      {conversation.summary && (
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t('summary')}
+          </div>
+          <p className="text-sm leading-relaxed text-[var(--text-primary)]">
+            {conversation.summary}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
         {conversation.messages.map((m) => {

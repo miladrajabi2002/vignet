@@ -1,7 +1,14 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { ArrowLeft, Send, MessagesSquare, Radio, MessageCircle } from 'lucide-react'
+import {
+  ArrowLeft,
+  Send,
+  MessagesSquare,
+  Radio,
+  MessageCircle,
+  Camera,
+} from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { WebWidgetChannel } from '@/components/channels/web-widget-channel'
@@ -45,6 +52,12 @@ export default async function AgentChannelsPage({
       label: t('whatsapp'),
       hint: t('whatsappHint'),
       icon: MessageCircle,
+    },
+    {
+      type: 'INSTAGRAM',
+      label: t('instagram'),
+      hint: t('instagramHint'),
+      icon: Camera,
     },
   ]
 

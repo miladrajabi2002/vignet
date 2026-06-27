@@ -99,11 +99,12 @@ export async function chatCompletion(
 
 /**
  * Streaming chat completion. Yields content deltas as they arrive by parsing
- * the OpenRouter SSE stream. The final yielded usage (if any) is ignored here;
- * callers that need usage should use chatCompletion.
+ * the OpenRouter SSE stream. When `onUsage` is provided, we request usage in
+ * the stream (`stream_options.include_usage`) and invoke it with the final
+ * token counts so callers can log usage without a second request.
  */
 export async function* streamChat(
-  opts: ChatOptions,
+  opts: ChatOptions & { onUsage?: (usage: ChatUsage) => void },
 ): AsyncGenerator<string, void, unknown> {
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
@@ -114,6 +115,7 @@ export async function* streamChat(
       temperature: opts.temperature ?? 0.7,
       max_tokens: opts.maxTokens ?? 1000,
       stream: true,
+      ...(opts.onUsage ? { stream_options: { include_usage: true } } : {}),
     }),
   })
   if (!res.ok || !res.body) {
@@ -142,6 +144,12 @@ export async function* streamChat(
         const json = JSON.parse(data)
         const delta = json.choices?.[0]?.delta?.content
         if (delta) yield delta
+        if (json.usage && opts.onUsage) {
+          opts.onUsage({
+            promptTokens: json.usage.prompt_tokens ?? 0,
+            completionTokens: json.usage.completion_tokens ?? 0,
+          })
+        }
       } catch {
         // Ignore keep-alive comments / partial JSON.
       }

@@ -67,7 +67,12 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
             </div>
 
             <div className="flex flex-1 flex-col p-4">
-              <h3 className="truncate font-medium text-[var(--text-primary)]">{p.name}</h3>
+              <Link
+                href={`/products/${p.id}`}
+                className="truncate font-medium text-[var(--text-primary)] hover:underline"
+              >
+                {p.name}
+              </Link>
               {p.category && (
                 <span className="mt-0.5 text-xs text-[var(--text-muted)]">{p.category.name}</span>
               )}

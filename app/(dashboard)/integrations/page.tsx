@@ -23,8 +23,8 @@ const CHANNELS: {
   { type: 'TELEGRAM', name: 'Telegram', icon: Send, available: true },
   { type: 'BALE', name: 'Bale', icon: MessagesSquare, available: true },
   { type: 'RUBIKA', name: 'Rubika', icon: Radio, available: true },
-  { type: 'WHATSAPP', name: 'WhatsApp', icon: MessageCircle, available: false },
-  { type: 'INSTAGRAM', name: 'Instagram', icon: Camera, available: false },
+  { type: 'WHATSAPP', name: 'WhatsApp', icon: MessageCircle, available: true },
+  { type: 'INSTAGRAM', name: 'Instagram', icon: Camera, available: true },
 ]
 
 export default async function IntegrationsPage() {

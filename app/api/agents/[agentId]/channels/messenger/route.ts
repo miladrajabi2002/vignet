@@ -19,6 +19,7 @@ const WEBHOOK_PATH: Record<(typeof MESSENGER_TYPES)[number], string> = {
   BALE: 'bale',
   RUBIKA: 'rubika',
   WHATSAPP: 'whatsapp',
+  INSTAGRAM: 'instagram',
 }
 
 function baseUrl(): string {

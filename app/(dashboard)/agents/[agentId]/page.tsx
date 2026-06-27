@@ -1,7 +1,15 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { Bot, Settings, Database, Share2, Package, Workflow } from 'lucide-react'
+import {
+  Bot,
+  Settings,
+  Database,
+  Share2,
+  Package,
+  Workflow,
+  BarChart3,
+} from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { TestPlayground } from '@/components/agent-builder/test-playground'
@@ -26,6 +34,7 @@ export default async function AgentDetailPage({
     { href: `/agents/${agent.id}/knowledge`, label: t('knowledge'), icon: Database },
     { href: `/agents/${agent.id}/catalog`, label: t('products'), icon: Package },
     { href: `/agents/${agent.id}/channels`, label: t('channels'), icon: Share2 },
+    { href: `/agents/${agent.id}/analytics`, label: t('analytics'), icon: BarChart3 },
   ]
 
   return (

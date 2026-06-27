@@ -5,6 +5,7 @@ import {
   streamChat,
   chatCompletion,
   type ChatMessage,
+  type ChatUsage,
 } from '@/lib/ai/openrouter'
 import { retrieveContext, buildMessages } from '@/lib/ai/rag'
 import { syncOnboarding } from '@/lib/onboarding'
@@ -96,6 +97,30 @@ async function loadHistory(conversationId: string): Promise<ChatMessage[]> {
     }))
 }
 
+/** Record token usage for a chat turn (fire-and-forget). */
+function logUsage(params: {
+  workspaceId: string
+  agentId: string
+  conversationId: string
+  model: string
+  usage: ChatUsage
+}): void {
+  if (!params.usage.promptTokens && !params.usage.completionTokens) return
+  prisma.usageLog
+    .create({
+      data: {
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        conversationId: params.conversationId,
+        model: params.model,
+        promptTokens: params.usage.promptTokens,
+        completionTokens: params.usage.completionTokens,
+        type: 'CHAT',
+      },
+    })
+    .catch((e) => console.error('[chat-engine] usage log failed:', e))
+}
+
 /** Bump queryCount for any product chunks retrieved (fire-and-forget). */
 function bumpProductQueries(
   workspaceId: string,
@@ -168,6 +193,7 @@ export async function startChat(
       send({ type: 'meta', conversationId })
 
       let full = ''
+      let usage: ChatUsage | null = null
       try {
         for await (const delta of streamChat({
           key,
@@ -175,6 +201,9 @@ export async function startChat(
           messages,
           temperature: agent.temperature,
           maxTokens: agent.maxTokens,
+          onUsage: (u) => {
+            usage = u
+          },
         })) {
           full += delta
           send({ type: 'delta', text: delta })
@@ -200,6 +229,9 @@ export async function startChat(
             lastMessageAt: new Date(),
           },
         })
+        if (usage) {
+          logUsage({ workspaceId, agentId: agent.id, conversationId, model, usage })
+        }
         await syncOnboarding(workspaceId)
       } catch (e) {
         console.error('[chat-engine] persist error:', e)
@@ -261,6 +293,7 @@ export async function generateReply(
   })
 
   let reply = ''
+  let usage: ChatUsage | null = null
   try {
     const result = await chatCompletion({
       key,
@@ -270,6 +303,7 @@ export async function generateReply(
       maxTokens: agent.maxTokens,
     })
     reply = result.content.trim()
+    usage = result.usage
   } catch (e) {
     console.error('[chat-engine] completion error:', e)
   }
@@ -285,6 +319,9 @@ export async function generateReply(
       where: { id: conversationId },
       data: { messageCount: { increment: 2 }, lastMessageAt: new Date() },
     })
+    if (usage) {
+      logUsage({ workspaceId, agentId: agent.id, conversationId, model, usage })
+    }
     await syncOnboarding(workspaceId)
   } catch (e) {
     console.error('[chat-engine] persist error:', e)

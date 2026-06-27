@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { Users, Search, LayoutList, Columns3, User } from 'lucide-react'
@@ -186,9 +187,12 @@ function ListView({
           <Avatar />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate text-sm font-medium text-[var(--text-primary)]">
+              <Link
+                href={`/contacts/${c.id}`}
+                className="truncate text-sm font-medium text-[var(--text-primary)] hover:underline"
+              >
                 {c.name || c.phone || t('anonymous')}
-              </span>
+              </Link>
               {c.channels.map((ch) => (
                 <ChannelBadge key={ch} type={ch} />
               ))}
@@ -246,9 +250,12 @@ function PipelineView({
                     className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      <Link
+                        href={`/contacts/${c.id}`}
+                        className="truncate text-sm font-medium text-[var(--text-primary)] hover:underline"
+                      >
                         {c.name || c.phone || t('anonymous')}
-                      </span>
+                      </Link>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1">
                       {c.channels.map((ch) => (

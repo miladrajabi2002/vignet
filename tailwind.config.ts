@@ -58,6 +58,8 @@ const config: Config = {
       animation: {
         shimmer: 'shimmer-sweep 2.5s linear infinite',
         blink: 'blink 1s step-end infinite',
+        beam: 'beam-pulse 5s ease-in-out infinite',
+        'beam-slow': 'beam-pulse 7s ease-in-out infinite',
       },
       transitionTimingFunction: {
         smooth: 'cubic-bezier(0.16, 1, 0.3, 1)',

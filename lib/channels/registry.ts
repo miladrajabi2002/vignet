@@ -16,9 +16,20 @@ import {
   setWhatsappWebhook,
   getWhatsappInfo,
 } from '@/lib/channels/whatsapp'
+import {
+  instagramAdapter,
+  setInstagramWebhook,
+  getInstagramInfo,
+} from '@/lib/channels/instagram'
 
 /** Channel types that are bot-token messenger channels (vs. web widget/api). */
-export const MESSENGER_TYPES = ['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP'] as const
+export const MESSENGER_TYPES = [
+  'TELEGRAM',
+  'BALE',
+  'RUBIKA',
+  'WHATSAPP',
+  'INSTAGRAM',
+] as const
 export type MessengerType = (typeof MESSENGER_TYPES)[number]
 
 export function isMessengerType(type: ChannelType): type is MessengerType {
@@ -39,6 +50,8 @@ export function getAdapter(
       return rubikaAdapter(token)
     case 'WHATSAPP':
       return whatsappAdapter(token)
+    case 'INSTAGRAM':
+      return instagramAdapter(token)
   }
 }
 
@@ -57,6 +70,8 @@ export function setWebhook(
       return setRubikaWebhook(token, url)
     case 'WHATSAPP':
       return setWhatsappWebhook()
+    case 'INSTAGRAM':
+      return setInstagramWebhook()
   }
 }
 
@@ -74,13 +89,15 @@ export function getBotInfo(
       return getRubikaBotInfo(token)
     case 'WHATSAPP':
       return getWhatsappInfo(token)
+    case 'INSTAGRAM':
+      return getInstagramInfo(token)
   }
 }
 
 /** Map a messenger channel to the Contact field that stores its user id. */
 export function contactIdField(
   type: MessengerType,
-): 'telegramId' | 'baleId' | 'rubikaId' | 'whatsappId' {
+): 'telegramId' | 'baleId' | 'rubikaId' | 'whatsappId' | 'instagramId' {
   switch (type) {
     case 'TELEGRAM':
       return 'telegramId'
@@ -90,5 +107,7 @@ export function contactIdField(
       return 'rubikaId'
     case 'WHATSAPP':
       return 'whatsappId'
+    case 'INSTAGRAM':
+      return 'instagramId'
   }
 }

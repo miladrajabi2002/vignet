@@ -196,3 +196,13 @@
     opacity: 0;
   }
 }
+
+@keyframes beam-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
