@@ -4,6 +4,7 @@ import { FeaturesSection } from '@/components/marketing/features-section'
 import { HowItWorks } from '@/components/marketing/how-it-works'
 import { ChannelsSection } from '@/components/marketing/channels-section'
 import { PricingSection } from '@/components/marketing/pricing-section'
+import { Testimonials } from '@/components/marketing/testimonials'
 import { FaqSection } from '@/components/marketing/faq-section'
 import { CtaSection } from '@/components/marketing/cta-section'
 
@@ -15,6 +16,7 @@ export default function HomePage() {
       <FeaturesSection />
       <HowItWorks />
       <ChannelsSection />
+      <Testimonials />
       <PricingSection />
       <FaqSection />
       <CtaSection />

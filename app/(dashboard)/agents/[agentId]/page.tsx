@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { Bot, Settings, Database, Share2, Package } from 'lucide-react'
+import { Bot, Settings, Database, Share2, Package, Workflow } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { TestPlayground } from '@/components/agent-builder/test-playground'
@@ -21,6 +21,7 @@ export default async function AgentDetailPage({
   if (!agent) notFound()
 
   const tabs = [
+    { href: `/agents/${agent.id}/builder`, label: t('builder'), icon: Workflow },
     { href: `/agents/${agent.id}/settings`, label: t('settings'), icon: Settings },
     { href: `/agents/${agent.id}/knowledge`, label: t('knowledge'), icon: Database },
     { href: `/agents/${agent.id}/catalog`, label: t('products'), icon: Package },

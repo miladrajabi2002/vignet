@@ -4,6 +4,7 @@ import { embedTexts } from '@/lib/ai/embeddings'
 import { insertChunk } from '@/lib/knowledge/vector-store'
 import { parsePdf, parseCsv, parseUrl } from '@/lib/knowledge/parsers'
 import { downloadFile, BUCKETS } from '@/lib/storage'
+import { notifyOps } from '@/lib/email/resend'
 
 export interface IngestionJobData {
   kbId: string
@@ -98,6 +99,11 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
       where: { id: kb.id },
       data: { status: 'ERROR', errorMsg: message.slice(0, 500) },
     })
+    // Fire-and-forget ops alert (no-op unless ALERT_EMAIL + Resend configured).
+    void notifyOps(
+      'Knowledge ingestion failed',
+      `KB: ${kb.name} (${kb.id})\nType: ${kb.type}\nWorkspace: ${kb.workspaceId}\nError: ${message}`,
+    )
     throw e
   }
 }

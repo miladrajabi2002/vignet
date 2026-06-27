@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VoiceRecorder } from '@/components/voice/voice-recorder'
+import { SpeakButton } from '@/components/voice/audio-player'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -107,7 +109,10 @@ export function TestPlayground({
           messages.map((m, i) => (
             <div
               key={i}
-              className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}
+              className={cn(
+                'flex items-end gap-1.5',
+                m.role === 'user' ? 'justify-end' : 'justify-start',
+              )}
             >
               <div
                 className={cn(
@@ -121,6 +126,9 @@ export function TestPlayground({
                   <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
                 )}
               </div>
+              {m.role === 'assistant' && m.content && (
+                <SpeakButton text={m.content} label={t('speak')} />
+              )}
             </div>
           ))
         )}
@@ -133,6 +141,15 @@ export function TestPlayground({
       )}
 
       <div className="flex items-center gap-2 border-t border-[var(--border-default)] p-3">
+        <VoiceRecorder
+          vad
+          disabled={streaming}
+          label={t('record')}
+          onTranscript={(text) =>
+            setInput((prev) => (prev ? `${prev} ${text}` : text))
+          }
+          onError={(code) => setError(code === 'NO_KEY' ? t('noKey') : t('error'))}
+        />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

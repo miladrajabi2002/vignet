@@ -20,9 +20,18 @@ export const agentCreateSchema = z.object({
   handoffMessage: z.string().max(500).optional(),
 })
 
+/** A persisted visual-builder graph. Kept loose — it's a design artifact. */
+export const flowConfigSchema = z.object({
+  nodes: z.array(z.any()).max(200),
+  edges: z.array(z.any()).max(400),
+})
+
 export const agentUpdateSchema = agentCreateSchema.partial().extend({
   active: z.boolean().optional(),
+  flowConfig: flowConfigSchema.optional(),
 })
+
+export type FlowConfig = z.infer<typeof flowConfigSchema>
 
 export type AgentCreateInput = z.infer<typeof agentCreateSchema>
 export type AgentUpdateInput = z.infer<typeof agentUpdateSchema>

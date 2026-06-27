@@ -125,6 +125,7 @@
     "create": "Create agent",
     "creating": "Creating…",
     "test": "Test",
+    "builder": "Builder",
     "settings": "Settings",
     "knowledge": "Knowledge",
     "products": "Products",
@@ -165,7 +166,9 @@
       "send": "Send",
       "empty": "Start a conversation to test your agent",
       "noKey": "Add your OpenRouter key in settings first",
-      "error": "Failed to get a response"
+      "error": "Failed to get a response",
+      "record": "Record voice",
+      "speak": "Read reply aloud"
     }
   },
   "channels": {
@@ -179,7 +182,118 @@
     "embedCode": "Embed code",
     "copy": "Copy",
     "copied": "Copied",
-    "comingSoon": "Coming soon: Telegram, WhatsApp, Rubika, Bale"
+    "comingSoon": "Coming soon: Instagram",
+    "connect": "Connect",
+    "connectConfirm": "Connect bot",
+    "connectError": "Connection failed",
+    "invalidToken": "Invalid bot token",
+    "webhookWarning": "Bot saved but webhook setup failed. Check the token.",
+    "botTokenLabel": "Bot token",
+    "botTokenPlaceholder": "Paste the token from the bot provider",
+    "telegram": "Telegram",
+    "telegramHint": "Connect your Telegram bot with the BotFather token",
+    "bale": "Bale",
+    "baleHint": "Connect your Bale bot with its token",
+    "rubika": "Rubika",
+    "rubikaHint": "Connect your Rubika bot with its token",
+    "whatsapp": "WhatsApp",
+    "whatsappHint": "WhatsApp Cloud API — paste your token as accessToken|phoneNumberId"
+  },
+  "conversations": {
+    "title": "Conversations",
+    "subtitle": "Unified inbox across all channels",
+    "empty": "No conversations yet",
+    "anonymous": "Anonymous user",
+    "noMessages": "No messages in this conversation"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Performance across your agents and channels",
+    "totalConversations": "Conversations",
+    "resolveRate": "Resolve rate",
+    "avgRating": "Avg. rating",
+    "tokensUsed": "Tokens used",
+    "conversationsTrend": "Conversations — last 14 days",
+    "channelBreakdown": "By channel",
+    "topProducts": "Top products by AI queries",
+    "noData": "No data yet"
+  },
+  "contacts": {
+    "title": "Contacts",
+    "subtitle": "Everyone who talked to your agents",
+    "empty": "No contacts yet",
+    "anonymous": "Anonymous",
+    "search": "Search name or phone…",
+    "conversations": "conversations",
+    "lastSeen": "Last seen",
+    "stage": "Stage",
+    "stageLead": "Lead",
+    "stageQualified": "Qualified",
+    "stageCustomer": "Customer",
+    "stageLost": "Lost",
+    "pipeline": "Pipeline",
+    "list": "List",
+    "noStage": "No contacts in this stage"
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Your plan, usage and invoices",
+    "currentPlan": "Current plan",
+    "status": "Status",
+    "renewsOn": "Renews on",
+    "trialEnds": "Trial ends",
+    "noSubscription": "No active subscription",
+    "usageThisMonth": "Usage this month",
+    "conversations": "Conversations",
+    "tokens": "Tokens",
+    "estCost": "Estimated AI cost",
+    "byok": "You use your own OpenRouter key — AI costs are billed directly by OpenRouter, not Vigent.",
+    "upgrade": "Upgrade plan",
+    "planTrial": "Trial",
+    "planStarter": "Starter",
+    "planPro": "Pro",
+    "planBusiness": "Business"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "Connect Vigent to the tools you use",
+    "channels": "Messaging channels",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "configure": "Configure",
+    "manageInAgent": "Channels are configured per agent",
+    "openAgents": "Open agents",
+    "comingSoon": "Coming soon"
+  },
+  "builder": {
+    "title": "Flow builder",
+    "subtitle": "Design how your agent guides the conversation",
+    "addNode": "Add node",
+    "nodeMessage": "Message",
+    "nodeAi": "AI response",
+    "nodeCondition": "Condition",
+    "nodeCollect": "Collect info",
+    "nodeProduct": "Product lookup",
+    "nodeHandoff": "Human handoff",
+    "save": "Save flow",
+    "saved": "Saved",
+    "nodeSettings": "Node settings",
+    "nodeLabel": "Label",
+    "nodeText": "Text",
+    "deleteNode": "Delete node",
+    "selectHint": "Select a node to edit it"
+  },
+  "status": {
+    "title": "System status",
+    "subtitle": "Live health of the Vigent platform",
+    "operational": "All systems operational",
+    "degraded": "Partial outage",
+    "down": "Major outage",
+    "lastChecked": "Last checked",
+    "database": "Database",
+    "redis": "Cache & queue (Redis)",
+    "ms": "ms",
+    "unreachable": "Unreachable"
   },
   "knowledge": {
     "title": "Knowledge base",
@@ -309,6 +423,26 @@
       "perMonth": "/ mo",
       "cta": "Get started",
       "popular": "Most popular"
+    },
+    "testimonials": {
+      "title": "Loved by Iranian businesses",
+      "items": [
+        {
+          "quote": "Our Telegram support is fully automated now. The agent answers product questions instantly, day and night.",
+          "name": "Sara M.",
+          "role": "Online store owner"
+        },
+        {
+          "quote": "Setup took ten minutes. Uploading our catalog and connecting Bale was effortless.",
+          "name": "Reza K.",
+          "role": "Marketing manager"
+        },
+        {
+          "quote": "Bringing our own OpenRouter key means we control the costs. Exactly what we needed.",
+          "name": "Niloofar A.",
+          "role": "Startup founder"
+        }
+      ]
     },
     "faq": {
       "title": "Frequently asked questions",

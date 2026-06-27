@@ -65,7 +65,9 @@ Key variables:
 | `REDIS_URL` | ✅ | e.g. `redis://localhost:6379` |
 | `SMS_IR_API_KEY` / `SMS_IR_TEMPLATE_ID` | ⬜ | sms.ir OTP; omit for dev console fallback |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` | ⬜ | Storage (Phase 2 uploads) |
-| `RESEND_API_KEY` | ⬜ | Transactional email (Phase 5) |
+| `RESEND_API_KEY` | ⬜ | Transactional email (ops alerts) |
+| `RESEND_FROM` | ⬜ | Verified Resend sender, e.g. `Vigent <alerts@vigent.ir>` |
+| `ALERT_EMAIL` | ⬜ | Ops inbox for critical alerts; empty = email disabled |
 
 > ⚠️ `.env` is git-ignored. Never commit real secrets.
 
@@ -194,6 +196,49 @@ npm run start
 | `npm run db:deploy` | `prisma migrate deploy` (apply committed) |
 | `npm run db:push` | Push schema without a migration (prototyping) |
 | `npm run db:studio` | Prisma Studio |
+
+---
+
+## 10b. Deploying & updating on a server
+
+The platform is a standard Next.js app plus an optional BullMQ worker. Any host
+that runs Node ≥ 20 works (VPS with PM2, Docker, Vercel, etc.).
+
+### First deploy
+```bash
+git clone <repo> && cd vigent
+npm ci                       # clean, lockfile-exact install
+cp .env.example .env         # then fill in production values
+npm run db:deploy            # apply committed migrations
+npm run build
+npm run start                # serves on PORT (default 3000)
+# in a second process, only if DISABLE_QUEUE=0:
+npm run worker
+```
+
+### Updating to a new version (pull latest changes)
+Run these from the project directory on the server, in order:
+```bash
+git pull                     # fetch the new code
+npm ci                       # sync deps (safe even if unchanged)
+npm run db:deploy            # apply any new migrations (no-op if none)
+npm run build                # rebuild the production bundle
+# restart the app process, e.g. with PM2:
+pm2 restart vigent && pm2 restart vigent-worker
+# (or: stop `npm run start` / `npm run worker` and start them again)
+```
+
+> If you run behind PM2, a typical setup is:
+> ```bash
+> pm2 start "npm run start"  --name vigent
+> pm2 start "npm run worker" --name vigent-worker   # only if DISABLE_QUEUE=0
+> pm2 save
+> ```
+
+### Health & status after deploy
+- `GET /api/health` → JSON, `200` when healthy / `503` when fully down. Good for
+  uptime monitors and load-balancer checks.
+- `/status` → human-readable status page (database + Redis), bilingual.
 
 ---
 
