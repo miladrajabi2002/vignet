@@ -7,7 +7,7 @@ import {
   type ChatMessage,
   type ChatUsage,
 } from '@/lib/ai/openrouter'
-import { retrieveContext, buildMessages } from '@/lib/ai/rag'
+import { retrieveContext, buildMessages, type CatalogProduct } from '@/lib/ai/rag'
 import { syncOnboarding } from '@/lib/onboarding'
 
 export interface ChatAgent {
@@ -97,6 +97,36 @@ async function loadHistory(conversationId: string): Promise<ChatMessage[]> {
     }))
 }
 
+/** Fetch the products assigned to this agent's catalog. */
+async function fetchCatalogProducts(agentId: string): Promise<CatalogProduct[]> {
+  const rows = await prisma.agentCatalog.findMany({
+    where: { agentId },
+    select: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          stock: true,
+          active: true,
+          category: { select: { name: true } },
+        },
+      },
+    },
+  })
+  return rows
+    .filter((r) => r.product.active)
+    .map((r) => ({
+      id: r.product.id,
+      name: r.product.name,
+      description: r.product.description,
+      price: r.product.price,
+      stock: r.product.stock,
+      category: r.product.category?.name ?? null,
+    }))
+}
+
 /** Record token usage for a chat turn (fire-and-forget). */
 function logUsage(params: {
   workspaceId: string
@@ -161,7 +191,10 @@ export async function startChat(
   const conversation = await resolveConversation(params)
   const conversationId = conversation.id
 
-  const history = await loadHistory(conversationId)
+  const [history, catalogProducts] = await Promise.all([
+    loadHistory(conversationId),
+    fetchCatalogProducts(agent.id),
+  ])
 
   // Persist the incoming user message.
   await prisma.message.create({
@@ -180,6 +213,7 @@ export async function startChat(
     systemPrompt: agent.systemPrompt,
     language: agent.language,
     contextText,
+    catalogProducts,
     history,
     userMessage: message,
   })
@@ -271,7 +305,10 @@ export async function generateReply(
   const conversation = await resolveConversation(params)
   const conversationId = conversation.id
 
-  const history = await loadHistory(conversationId)
+  const [history, catalogProducts] = await Promise.all([
+    loadHistory(conversationId),
+    fetchCatalogProducts(agent.id),
+  ])
 
   await prisma.message.create({
     data: { conversationId, role: 'USER', content: message },
@@ -288,6 +325,7 @@ export async function generateReply(
     systemPrompt: agent.systemPrompt,
     language: agent.language,
     contextText,
+    catalogProducts,
     history,
     userMessage: message,
   })

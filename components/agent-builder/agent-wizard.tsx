@@ -10,6 +10,27 @@ import { ModelSelect } from './model-select'
 const TOTAL = 3
 const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
 
+const PROMPT_TEMPLATES = {
+  shop: `تو دستیار هوشمند فروش این کسب‌وکار هستی. با مشتریان صمیمی، مختصر و حرفه‌ای صحبت کن.
+- قیمت‌ها و مشخصات را دقیقاً از کاتالوگ محصولات بگو
+- اگر اطلاعاتی نداری، صادقانه بگو "اطلاعاتم در این مورد کامل نیست"
+- سوال مشتری را کامل بفهم قبل از پاسخ دادن
+- پاسخ‌هایت را کوتاه و مفید نگه‌دار`,
+  support: `تو متخصص پشتیبانی مشتریان این کسب‌وکار هستی. صبور، مودب و راه‌حل‌محور باش.
+- مشکل مشتری را دقیقاً درک کن
+- راه‌حل‌های عملی و گام‌به‌گام بده
+- اگر نتوانستی کمک کنی، به تیم انسانی راهنمایی کن`,
+  restaurant: `تو دستیار رستوران هستی. با مشتریان گرم و دوستانه صحبت کن.
+- منو، قیمت‌ها و موجودی را از کاتالوگ بگو
+- غذاهای محبوب و پیشنهاد روز را معرفی کن
+- برای رزرو میز یا سفارش آنلاین راهنمایی کن`,
+  general: `تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.
+- پاسخ‌هایت را کوتاه، دقیق و صمیمی نگه‌دار
+- اگر اطلاعاتی نداری، صادقانه بگو`,
+} as const
+
+type TemplateKey = keyof typeof PROMPT_TEMPLATES
+
 interface FormState {
   name: string
   description: string
@@ -34,7 +55,7 @@ export function AgentWizard() {
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
-    systemPrompt: 'تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.',
+    systemPrompt: PROMPT_TEMPLATES.general,
     welcomeMessage: '',
     fallbackMessage: '',
     model: '',
@@ -134,10 +155,24 @@ export function AgentWizard() {
             {step === 1 && (
               <>
                 <Field label={t('systemPrompt')}>
+                  {/* Template quick-start */}
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-[var(--text-muted)]">{t('templateLabel')}</span>
+                    {(['shop', 'support', 'restaurant', 'general'] as TemplateKey[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => set('systemPrompt', PROMPT_TEMPLATES[key])}
+                        className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                      >
+                        {t(`template${key.charAt(0).toUpperCase() + key.slice(1)}` as Parameters<typeof t>[0])}
+                      </button>
+                    ))}
+                  </div>
                   <textarea
                     value={form.systemPrompt}
                     onChange={(e) => set('systemPrompt', e.target.value)}
-                    rows={6}
+                    rows={7}
                     className="input resize-none font-mono text-sm"
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -163,6 +198,7 @@ export function AgentWizard() {
                     placeholder={t('welcomePlaceholder')}
                     className="input"
                   />
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{t('welcomeHint')}</p>
                 </Field>
                 <Field label={t('fallbackMessage')}>
                   <input
