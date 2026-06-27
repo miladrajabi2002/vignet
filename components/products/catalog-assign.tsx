@@ -23,8 +23,18 @@ export function CatalogAssign({
 }) {
   const t = useTranslations('products.catalog')
   const router = useRouter()
-  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected))
+  // Helpful default: a brand-new agent (nothing assigned yet) starts with ALL
+  // products selected so it can answer about the whole catalogue out of the
+  // box. The user can narrow it down afterwards.
+  const [selected, setSelected] = useState<Set<string>>(
+    () =>
+      new Set(
+        initialSelected.length > 0 ? initialSelected : products.map((p) => p.id),
+      ),
+  )
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
+  const allSelected = selected.size === products.length && products.length > 0
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -33,6 +43,11 @@ export function CatalogAssign({
       else next.add(id)
       return next
     })
+
+  const toggleAll = () =>
+    setSelected((prev) =>
+      prev.size === products.length ? new Set() : new Set(products.map((p) => p.id)),
+    )
 
   async function save() {
     setStatus('saving')
@@ -43,8 +58,9 @@ export function CatalogAssign({
     })
     if (res.ok) {
       setStatus('saved')
-      router.refresh()
-      setTimeout(() => setStatus('idle'), 2000)
+      // Connect the steps: jump straight to the agent's test chat so the user
+      // can immediately try asking about the products they just assigned.
+      router.push(`/agents/${agentId}`)
     } else {
       setStatus('idle')
     }
@@ -60,17 +76,28 @@ export function CatalogAssign({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-[var(--text-secondary)]">
-          {t('selected', { count: selected.size })}
-        </span>
+      <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-xs leading-relaxed text-[var(--text-secondary)]">
+        {t('hint')}
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleAll}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+          >
+            {allSelected ? t('deselectAll') : t('selectAll')}
+          </button>
+          <span className="text-sm text-[var(--text-secondary)]">
+            {t('selected', { count: selected.size })}
+          </span>
+        </div>
         <button
           onClick={save}
           disabled={status === 'saving'}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
         >
           {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
-          {status === 'saved' ? t('saved') : t('save')}
+          {status === 'saved' ? t('saved') : t('saveAndTest')}
         </button>
       </div>
 

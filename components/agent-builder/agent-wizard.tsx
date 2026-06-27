@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { ModelSelect } from './model-select'
 
 const TOTAL = 3
 const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
@@ -68,14 +69,17 @@ export function AgentWizard() {
       })
       if (!res.ok) {
         setError(true)
+        setLoading(false)
         return
       }
       const data = await res.json()
+      // Navigate to the freshly created agent. Note: we intentionally do NOT
+      // call router.refresh() right after push() — doing both races the
+      // navigation and can leave a blank screen until a manual reload. push()
+      // to a new dynamic route already renders it with fresh server data.
       router.push(`/agents/${data.agent.id}`)
-      router.refresh()
     } catch {
       setError(true)
-    } finally {
       setLoading(false)
     }
   }
@@ -173,16 +177,7 @@ export function AgentWizard() {
             {step === 2 && (
               <>
                 <Field label={t('model')}>
-                  <input
-                    dir="ltr"
-                    value={form.model}
-                    onChange={(e) => set('model', e.target.value)}
-                    placeholder="deepseek/deepseek-chat"
-                    className="input font-mono text-sm"
-                  />
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    {t('modelHint')}
-                  </p>
+                  <ModelSelect value={form.model} onChange={(v) => set('model', v)} />
                 </Field>
                 <Field label={t('language')}>
                   <select

@@ -55,12 +55,18 @@ export default async function AgentDetailPage({
         </div>
         <span
           className={cn(
-            'rounded-full px-2.5 py-1 text-xs',
+            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs',
             agent.active
               ? 'bg-success/10 text-success'
               : 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
           )}
         >
+          {agent.active && (
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+            </span>
+          )}
           {agent.active ? t('active') : t('inactive')}
         </span>
       </div>

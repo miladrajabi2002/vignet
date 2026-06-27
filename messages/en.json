@@ -125,7 +125,7 @@
     "create": "Create agent",
     "creating": "Creating…",
     "test": "Test",
-    "builder": "Builder",
+    "builder": "Conversation design",
     "settings": "Settings",
     "knowledge": "Knowledge",
     "products": "Products",
@@ -170,6 +170,14 @@
       "error": "Failed to get a response",
       "record": "Record voice",
       "speak": "Read reply aloud"
+    },
+    "models": {
+      "intro": "Pick the model that powers your agent. Each one balances answer quality against cost differently.",
+      "default": "Default",
+      "quality": "Quality",
+      "cost": "Cost",
+      "advanced": "Enter a custom model (advanced)",
+      "customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat"
     }
   },
   "channels": {
@@ -289,8 +297,8 @@
     "comingSoon": "Coming soon"
   },
   "builder": {
-    "title": "Flow builder",
-    "subtitle": "Design how your agent guides the conversation",
+    "title": "Conversation design (flow)",
+    "subtitle": "Design your agent’s conversation step by step — or leave it empty to let the agent answer freely.",
     "addNode": "Add node",
     "nodeMessage": "Message",
     "nodeAi": "AI response",
@@ -304,7 +312,25 @@
     "nodeLabel": "Label",
     "nodeText": "Text",
     "deleteNode": "Delete node",
-    "selectHint": "Select a node to edit it"
+    "selectHint": "Select a node to edit it",
+    "guideTitle": "How does it work?",
+    "guideIntro": "You build the conversation like a map: start from “Start” and connect nodes in order.",
+    "guideStep1": "Pick a node from the side panel to add it to the canvas.",
+    "guideStep2": "Drag from a node’s edge handle to the next node to build the path.",
+    "guideStep3": "Click any node to edit its text and settings in the side panel.",
+    "guideStep4": "Finally, click “Save flow”.",
+    "guideNote": "Note: building a flow is optional. Without one, the agent answers intelligently from your instructions and knowledge. Use a flow only when you want a precise, controlled path.",
+    "gotIt": "Got it",
+    "showGuide": "Guide",
+    "emptyCanvas": "Canvas is empty — add a node from the side panel",
+    "connectHint": "To connect, drag from a node’s edge handle to the next node",
+    "descStart": "Where the conversation starts",
+    "descMessage": "Send a fixed message to the user",
+    "descAi": "Generate a smart AI reply",
+    "descCondition": "Branch the path based on a condition",
+    "descCollect": "Ask for and collect info from the user (e.g. name or phone)",
+    "descProduct": "Look up products and present them",
+    "descHandoff": "Hand the conversation to a human agent"
   },
   "status": {
     "title": "System status",
@@ -401,7 +427,11 @@
       "save": "Save",
       "saved": "Saved",
       "empty": "Add some products first",
-      "selected": "{count} selected"
+      "selected": "{count} selected",
+      "hint": "Choose which products this agent can talk about. By default all products are selected so the agent knows your whole catalogue.",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "saveAndTest": "Save & test agent"
     },
     "detail": {
       "queryCount": "AI queries",
@@ -417,7 +447,11 @@
     "hero": {
       "badge": "VIGENT AI PLATFORM ✦",
       "title": "Smart AI agents",
-      "rotate": ["for sales", "for support", "for your business"],
+      "rotate": [
+        "for sales",
+        "for support",
+        "for your business"
+      ],
       "subtitle": "Build smart agents that answer from your own data and talk to your customers across every channel.",
       "ctaPrimary": "Start free — 14 days",
       "ctaSecondary": "Watch demo"
@@ -430,12 +464,30 @@
     "features": {
       "title": "Everything to build a smart agent",
       "items": {
-        "builder": { "title": "Agent builder", "desc": "Design conversation flows with a visual builder" },
-        "knowledge": { "title": "Knowledge base", "desc": "Upload your documents and data" },
-        "products": { "title": "Product catalog", "desc": "Your agent knows and sells your products" },
-        "channels": { "title": "Omnichannel", "desc": "Telegram, WhatsApp, Rubika, Bale and web widget" },
-        "voice": { "title": "Voice messaging", "desc": "Your agent hears and replies to customers" },
-        "crm": { "title": "Unified CRM", "desc": "One inbox for every channel" }
+        "builder": {
+          "title": "Agent builder",
+          "desc": "Design conversation flows with a visual builder"
+        },
+        "knowledge": {
+          "title": "Knowledge base",
+          "desc": "Upload your documents and data"
+        },
+        "products": {
+          "title": "Product catalog",
+          "desc": "Your agent knows and sells your products"
+        },
+        "channels": {
+          "title": "Omnichannel",
+          "desc": "Telegram, WhatsApp, Rubika, Bale and web widget"
+        },
+        "voice": {
+          "title": "Voice messaging",
+          "desc": "Your agent hears and replies to customers"
+        },
+        "crm": {
+          "title": "Unified CRM",
+          "desc": "One inbox for every channel"
+        }
       }
     },
     "how": {
@@ -451,10 +503,22 @@
       "title": "See it in action",
       "subtitle": "A real exchange — your agent answers from your data, instantly.",
       "bubbles": [
-        { "role": "user", "text": "Do you have the running shoes in size 42?" },
-        { "role": "agent", "text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping." },
-        { "role": "user", "text": "Great, is there a discount?" },
-        { "role": "agent", "text": "It's already 15% off the original price. Want me to reserve a pair for you?" }
+        {
+          "role": "user",
+          "text": "Do you have the running shoes in size 42?"
+        },
+        {
+          "role": "agent",
+          "text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping."
+        },
+        {
+          "role": "user",
+          "text": "Great, is there a discount?"
+        },
+        {
+          "role": "agent",
+          "text": "It's already 15% off the original price. Want me to reserve a pair for you?"
+        }
       ]
     },
     "pricing": {

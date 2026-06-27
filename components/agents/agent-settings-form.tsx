@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, Check, Trash2 } from 'lucide-react'
+import { ModelSelect } from '@/components/agent-builder/model-select'
 
 export interface AgentSettingsData {
   id: string
@@ -96,10 +97,10 @@ export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
             className="input resize-none font-mono text-sm"
           />
         </Field>
+        <Field label={tw('model')}>
+          <ModelSelect value={form.model} onChange={(v) => set('model', v)} />
+        </Field>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label={tw('model')}>
-            <input dir="ltr" value={form.model} onChange={(e) => set('model', e.target.value)} placeholder="deepseek/deepseek-chat" className="input font-mono text-sm" />
-          </Field>
           <Field label={tw('language')}>
             <select value={form.language} onChange={(e) => set('language', e.target.value as 'fa' | 'en')} className="input">
               <option value="fa">فارسی</option>

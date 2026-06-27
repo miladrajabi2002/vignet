@@ -15,7 +15,7 @@ import {
   type Connection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Loader2, Plus, Trash2, Check } from 'lucide-react'
+import { Loader2, Plus, Trash2, Check, HelpCircle, X, MousePointerClick } from 'lucide-react'
 import { nodeTypes, PALETTE, type FlowNodeType } from './node-types'
 
 const DEFAULT_NODES: Node[] = [
@@ -45,6 +45,11 @@ export function FlowEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showGuide, setShowGuide] = useState(true)
+
+  // The canvas is "untouched" when it only holds the implicit start node, so we
+  // can show a gentle hint to nudge the user to add their first node.
+  const isEmpty = nodes.length <= 1
 
   const onConnect = useCallback(
     (c: Connection) => setEdges((eds) => addEdge({ ...c, animated: true }, eds)),
@@ -113,24 +118,77 @@ export function FlowEditor({
   }
 
   return (
-    <div className="flex h-[calc(100vh-220px)] min-h-[460px] gap-3">
-      {/* Palette */}
-      <div className="flex w-44 shrink-0 flex-col gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-        <span className="px-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
-          {t('addNode')}
-        </span>
-        {PALETTE.map(({ type, labelKey, icon: Icon }) => (
+    <div className="space-y-3">
+      {showGuide ? (
+        <div className="relative rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
           <button
-            key={type}
-            onClick={() => addNode(type, t(labelKey))}
-            className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] px-2.5 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+            onClick={() => setShowGuide(false)}
+            className="absolute end-3 top-3 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+            aria-label={t('gotIt')}
           >
-            <Icon className="h-3.5 w-3.5" />
-            {t(labelKey)}
-            <Plus className="ms-auto h-3 w-3" />
+            <X className="h-4 w-4" />
           </button>
-        ))}
-      </div>
+          <div className="mb-2 flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-sm font-medium text-[var(--text-primary)]">
+              {t('guideTitle')}
+            </span>
+          </div>
+          <p className="mb-3 text-sm text-[var(--text-secondary)]">{t('guideIntro')}</p>
+          <ol className="space-y-1.5">
+            {['guideStep1', 'guideStep2', 'guideStep3', 'guideStep4'].map((k, i) => (
+              <li key={k} className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[var(--border-hover)] text-[10px] text-[var(--text-primary)]">
+                  {i + 1}
+                </span>
+                {t(k)}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 rounded-lg bg-[var(--bg-base)] px-3 py-2 text-xs leading-relaxed text-[var(--text-muted)]">
+            {t('guideNote')}
+          </p>
+          <button
+            onClick={() => setShowGuide(false)}
+            className="mt-3 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black transition-transform hover:scale-[1.02]"
+          >
+            {t('gotIt')}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowGuide(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          {t('showGuide')}
+        </button>
+      )}
+
+      <div className="flex h-[calc(100vh-260px)] min-h-[460px] gap-3">
+        {/* Palette */}
+        <div className="flex w-52 shrink-0 flex-col gap-2 overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+          <span className="px-1 text-[11px] uppercase tracking-wide text-[var(--text-muted)]">
+            {t('addNode')}
+          </span>
+          {PALETTE.map(({ type, labelKey, descKey, icon: Icon }) => (
+            <button
+              key={type}
+              onClick={() => addNode(type, t(labelKey))}
+              title={t(descKey)}
+              className="group flex flex-col gap-1 rounded-lg border border-[var(--border-default)] px-2.5 py-2 text-start transition-colors hover:border-[var(--border-hover)]"
+            >
+              <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {t(labelKey)}
+                <Plus className="ms-auto h-3 w-3" />
+              </span>
+              <span className="text-[10px] leading-snug text-[var(--text-muted)]">
+                {t(descKey)}
+              </span>
+            </button>
+          ))}
+        </div>
 
       {/* Canvas */}
       <div className="relative flex-1 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)]">
@@ -163,6 +221,14 @@ export function FlowEditor({
           ) : null}
           {saved ? t('saved') : t('save')}
         </button>
+
+        {isEmpty && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1.5 text-center">
+            <MousePointerClick className="h-5 w-5 text-[var(--text-muted)]" />
+            <span className="text-xs text-[var(--text-muted)]">{t('emptyCanvas')}</span>
+            <span className="text-[11px] text-[var(--text-hint)]">{t('connectHint')}</span>
+          </div>
+        )}
       </div>
 
       {/* Inspector */}
@@ -206,6 +272,7 @@ export function FlowEditor({
         ) : (
           <p className="text-xs text-[var(--text-muted)]">{t('selectHint')}</p>
         )}
+        </div>
       </div>
     </div>
   )

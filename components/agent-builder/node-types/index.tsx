@@ -33,14 +33,15 @@ export type FlowNodeType = keyof typeof nodeTypes
 export const PALETTE: {
   type: FlowNodeType
   labelKey: string
+  descKey: string
   icon: LucideIcon
 }[] = [
-  { type: 'message', labelKey: 'nodeMessage', icon: MessageSquare },
-  { type: 'aiResponse', labelKey: 'nodeAi', icon: Sparkles },
-  { type: 'condition', labelKey: 'nodeCondition', icon: GitBranch },
-  { type: 'collectInfo', labelKey: 'nodeCollect', icon: ClipboardList },
-  { type: 'productLookup', labelKey: 'nodeProduct', icon: Package },
-  { type: 'humanHandoff', labelKey: 'nodeHandoff', icon: UserRound },
+  { type: 'message', labelKey: 'nodeMessage', descKey: 'descMessage', icon: MessageSquare },
+  { type: 'aiResponse', labelKey: 'nodeAi', descKey: 'descAi', icon: Sparkles },
+  { type: 'condition', labelKey: 'nodeCondition', descKey: 'descCondition', icon: GitBranch },
+  { type: 'collectInfo', labelKey: 'nodeCollect', descKey: 'descCollect', icon: ClipboardList },
+  { type: 'productLookup', labelKey: 'nodeProduct', descKey: 'descProduct', icon: Package },
+  { type: 'humanHandoff', labelKey: 'nodeHandoff', descKey: 'descHandoff', icon: UserRound },
 ]
 
 export const START_ICON = Play

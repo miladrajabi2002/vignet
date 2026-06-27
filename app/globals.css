@@ -135,6 +135,31 @@
   .input:focus {
     border-color: var(--border-strong);
   }
+
+  /* Native <select> with the .input class: hide the OS arrow and draw a single
+     clean chevron, correctly placed on the trailing edge for both LTR and RTL.
+     The SVG uses currentColor via the muted text token. */
+  select.input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.45)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    /* Default (LTR): arrow on the right, extra right padding for it. */
+    background-position: right 0.85rem center;
+    padding-inline-end: 2.5rem;
+  }
+  html[dir='rtl'] select.input {
+    /* RTL: arrow flips to the left edge. */
+    background-position: left 0.85rem center;
+  }
+  .light select.input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(0,0,0,0.45)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  }
+  select.input option {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
 }
 
 @layer utilities {
