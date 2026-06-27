@@ -158,7 +158,14 @@
       "modelHint": "خالی بگذارید تا از مدل پیش‌فرض فضای کاری استفاده شود",
       "language": "زبان",
       "temperature": "خلاقیت (Temperature)",
-      "maxTokens": "حداکثر طول پاسخ"
+      "maxTokens": "حداکثر طول پاسخ",
+      "successTitle": "ایجنت شما آماده شد!",
+      "successProducts": "{{count}} محصول به‌طور خودکار به ایجنت اضافه شد",
+      "successNoProducts": "هنوز محصولی اضافه نشده — می‌توانید بعداً اضافه کنید",
+      "successKnowledge": "برای پاسخ‌های دقیق‌تر، دانش کسب‌وکارتان را اضافه کنید",
+      "goToAgent": "تست ایجنت",
+      "addProducts": "افزودن محصول",
+      "addKnowledge": "افزودن دانش"
     },
     "settingsForm": {
       "title": "تنظیمات ایجنت",

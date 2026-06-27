@@ -49,7 +49,11 @@ function formatPrice(price: number): string {
 }
 
 function buildCatalogBlock(products: CatalogProduct[], isFa: boolean): string {
-  if (products.length === 0) return ''
+  if (products.length === 0) {
+    return isFa
+      ? '\n\nتوجه مهم: هیچ محصولی در کاتالوگ این کسب‌وکار تعریف نشده. هرگز محصول، قیمت یا مشخصاتی اختراع نکن. اگر کاربر درباره محصول یا قیمت پرسید، بگو: "اطلاعات محصولات ما در حال به‌روزرسانی است، لطفاً مستقیماً با ما تماس بگیرید."'
+      : '\n\nImportant: No products are defined in this catalog. Never invent products, prices, or specs. If asked about products or prices, say: "Our product catalog is being updated — please contact us directly."'
+  }
 
   const lines = products.map((p, i) => {
     const parts: string[] = [`نام: ${p.name}`]

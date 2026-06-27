@@ -6,6 +6,40 @@ import { useTranslations } from 'next-intl'
 import { Loader2, Check, Trash2 } from 'lucide-react'
 import { ModelSelect } from '@/components/agent-builder/model-select'
 
+const PROMPT_TEMPLATES = {
+  shop: `تو دستیار فروش این کسب‌وکار هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
+
+قوانین پاسخ‌دهی:
+• پاسخ‌ها زیر ۴۰ کلمه باشن مگر توضیح بیشتری لازم باشه
+• قبل از گفتن هر قیمتی، اول کاتالوگ محصولات رو چک کن
+• اگه محصولی در لیست ما نبود، بگو: "این محصول الان در لیست ما نیست"
+• موجودی رو صادقانه اعلام کن
+• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با تیم ما تماس بگیرید"`,
+  support: `تو متخصص پشتیبانی این کسب‌وکار هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
+
+قوانین پاسخ‌دهی:
+• اول مشکل مشتری رو کامل بفهم، بعد جواب بده
+• راه‌حل‌های عملی و ساده بده، گام‌به‌گام
+• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره"
+• هرگز اطلاعات شخصی مشتری رو نخواه مگر ضروری باشه
+• صادق باش — اگه جواب نداری بگو، حدس نزن`,
+  restaurant: `تو دستیار این رستوران هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
+
+قوانین پاسخ‌دهی:
+• قیمت و منو رو دقیقاً از کاتالوگ بگو، حدس نزن
+• غذاهای پرطرفدار رو با اشتیاق معرفی کن
+• برای رزرو یا سفارش، اطلاعات تماس یا لینک بده
+• اگه سوالی داشتی که جوابش رو نمی‌دونی، بگو: "برای اطلاعات بیشتر تماس بگیرید"`,
+  general: `تو دستیار هوشمند این کسب‌وکار هستی. شخصیتت: مودب، مختصر، مفید.
+
+قوانین پاسخ‌دهی:
+• پاسخ‌ها کوتاه و دقیق باشن
+• اگه اطلاعاتی نداری، صادقانه بگو به‌جای حدس زدن
+• مشتری رو به بخش مناسب هدایت کن`,
+} as const
+
+type TemplateKey = keyof typeof PROMPT_TEMPLATES
+
 export interface AgentSettingsData {
   id: string
   name: string
@@ -90,10 +124,23 @@ export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
           <input value={form.description} onChange={(e) => set('description', e.target.value)} className="input" />
         </Field>
         <Field label={tw('systemPrompt')}>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[var(--text-muted)]">{tw('templateLabel')}</span>
+            {(['shop', 'support', 'restaurant', 'general'] as TemplateKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => set('systemPrompt', PROMPT_TEMPLATES[key])}
+                className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+              >
+                {tw(`template${key.charAt(0).toUpperCase() + key.slice(1)}` as Parameters<typeof tw>[0])}
+              </button>
+            ))}
+          </div>
           <textarea
             value={form.systemPrompt}
             onChange={(e) => set('systemPrompt', e.target.value)}
-            rows={5}
+            rows={7}
             className="input resize-none font-mono text-sm"
           />
         </Field>

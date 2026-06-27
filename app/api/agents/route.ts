@@ -51,7 +51,20 @@ export async function POST(req: Request) {
     },
   })
 
+  // Auto-assign all active workspace products so the agent can answer about
+  // them immediately without requiring a manual catalog page visit.
+  const activeProducts = await prisma.product.findMany({
+    where: { workspaceId: user.workspaceId, active: true },
+    select: { id: true },
+  })
+  if (activeProducts.length > 0) {
+    await prisma.agentCatalog.createMany({
+      data: activeProducts.map((p) => ({ agentId: agent.id, productId: p.id })),
+      skipDuplicates: true,
+    })
+  }
+
   await syncOnboarding(user.workspaceId)
 
-  return NextResponse.json({ agent }, { status: 201 })
+  return NextResponse.json({ agent, catalogCount: activeProducts.length }, { status: 201 })
 }

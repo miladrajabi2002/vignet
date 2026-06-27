@@ -4,29 +4,42 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Package, BookOpen, Zap } from 'lucide-react'
 import { ModelSelect } from './model-select'
 
 const TOTAL = 3
 const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
 
 const PROMPT_TEMPLATES = {
-  shop: `تو دستیار هوشمند فروش این کسب‌وکار هستی. با مشتریان صمیمی، مختصر و حرفه‌ای صحبت کن.
-- قیمت‌ها و مشخصات را دقیقاً از کاتالوگ محصولات بگو
-- اگر اطلاعاتی نداری، صادقانه بگو "اطلاعاتم در این مورد کامل نیست"
-- سوال مشتری را کامل بفهم قبل از پاسخ دادن
-- پاسخ‌هایت را کوتاه و مفید نگه‌دار`,
-  support: `تو متخصص پشتیبانی مشتریان این کسب‌وکار هستی. صبور، مودب و راه‌حل‌محور باش.
-- مشکل مشتری را دقیقاً درک کن
-- راه‌حل‌های عملی و گام‌به‌گام بده
-- اگر نتوانستی کمک کنی، به تیم انسانی راهنمایی کن`,
-  restaurant: `تو دستیار رستوران هستی. با مشتریان گرم و دوستانه صحبت کن.
-- منو، قیمت‌ها و موجودی را از کاتالوگ بگو
-- غذاهای محبوب و پیشنهاد روز را معرفی کن
-- برای رزرو میز یا سفارش آنلاین راهنمایی کن`,
-  general: `تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.
-- پاسخ‌هایت را کوتاه، دقیق و صمیمی نگه‌دار
-- اگر اطلاعاتی نداری، صادقانه بگو`,
+  shop: `تو دستیار فروش این کسب‌وکار هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
+
+قوانین پاسخ‌دهی:
+• پاسخ‌ها زیر ۴۰ کلمه باشن مگر توضیح بیشتری لازم باشه
+• قبل از گفتن هر قیمتی، اول کاتالوگ محصولات رو چک کن
+• اگه محصولی در لیست ما نبود، بگو: "این محصول الان در لیست ما نیست"
+• موجودی رو صادقانه اعلام کن
+• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با تیم ما تماس بگیرید"`,
+  support: `تو متخصص پشتیبانی این کسب‌وکار هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
+
+قوانین پاسخ‌دهی:
+• اول مشکل مشتری رو کامل بفهم، بعد جواب بده
+• راه‌حل‌های عملی و ساده بده، گام‌به‌گام
+• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره"
+• هرگز اطلاعات شخصی مشتری رو نخواه مگر ضروری باشه
+• صادق باش — اگه جواب نداری بگو، حدس نزن`,
+  restaurant: `تو دستیار این رستوران هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
+
+قوانین پاسخ‌دهی:
+• قیمت و منو رو دقیقاً از کاتالوگ بگو، حدس نزن
+• غذاهای پرطرفدار رو با اشتیاق معرفی کن
+• برای رزرو یا سفارش، اطلاعات تماس یا لینک بده
+• اگه سوالی داشتی که جوابش رو نمی‌دونی، بگو: "برای اطلاعات بیشتر تماس بگیرید"`,
+  general: `تو دستیار هوشمند این کسب‌وکار هستی. شخصیتت: مودب، مختصر، مفید.
+
+قوانین پاسخ‌دهی:
+• پاسخ‌ها کوتاه و دقیق باشن
+• اگه اطلاعاتی نداری، صادقانه بگو به‌جای حدس زدن
+• مشتری رو به بخش مناسب هدایت کن`,
 } as const
 
 type TemplateKey = keyof typeof PROMPT_TEMPLATES
@@ -43,6 +56,12 @@ interface FormState {
   maxTokens: number
 }
 
+interface CreatedAgent {
+  id: string
+  name: string
+  catalogCount: number
+}
+
 export function AgentWizard() {
   const t = useTranslations('agents.wizard')
   const tA = useTranslations('agents')
@@ -52,6 +71,7 @@ export function AgentWizard() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  const [created, setCreated] = useState<CreatedAgent | null>(null)
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
@@ -94,11 +114,7 @@ export function AgentWizard() {
         return
       }
       const data = await res.json()
-      // Navigate to the freshly created agent. Note: we intentionally do NOT
-      // call router.refresh() right after push() — doing both races the
-      // navigation and can leave a blank screen until a manual reload. push()
-      // to a new dynamic route already renders it with fresh server data.
-      router.push(`/agents/${data.agent.id}`)
+      setCreated({ id: data.agent.id, name: data.agent.name, catalogCount: data.catalogCount ?? 0 })
     } catch {
       setError(true)
       setLoading(false)
@@ -106,6 +122,59 @@ export function AgentWizard() {
   }
 
   const stepTitles = [t('basics'), t('persona'), t('config')]
+
+  if (created) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <CheckCircle2 className="h-12 w-12 text-success" />
+            <div>
+              <h2 className="text-xl font-medium text-[var(--text-primary)]">{t('successTitle')}</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{created.name}</p>
+            </div>
+            <div className="mt-2 flex w-full flex-col gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-4 text-start">
+              <div className="flex items-center gap-3">
+                <Package className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {created.catalogCount > 0
+                    ? t('successProducts', { count: created.catalogCount })
+                    : t('successNoProducts')}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <BookOpen className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+                <p className="text-sm text-[var(--text-secondary)]">{t('successKnowledge')}</p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => router.push(`/agents/${created.id}`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02]"
+              >
+                <Zap className="h-4 w-4" />
+                {t('goToAgent')}
+              </button>
+              <button
+                onClick={() => router.push('/products')}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+              >
+                <Package className="h-4 w-4" />
+                {t('addProducts')}
+              </button>
+              <button
+                onClick={() => router.push(`/agents/${created.id}/knowledge`)}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+              >
+                <BookOpen className="h-4 w-4" />
+                {t('addKnowledge')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-2xl">

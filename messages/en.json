@@ -158,7 +158,14 @@
       "modelHint": "Leave blank to use the workspace default model",
       "language": "Language",
       "temperature": "Creativity (temperature)",
-      "maxTokens": "Max response length"
+      "maxTokens": "Max response length",
+      "successTitle": "Your agent is ready!",
+      "successProducts": "{{count}} products were automatically added to the agent",
+      "successNoProducts": "No products added yet — you can add them later",
+      "successKnowledge": "Add your business knowledge for more accurate answers",
+      "goToAgent": "Test agent",
+      "addProducts": "Add products",
+      "addKnowledge": "Add knowledge"
     },
     "settingsForm": {
       "title": "Agent settings",

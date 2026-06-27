@@ -68,6 +68,21 @@ export async function POST(req: Request) {
     },
   })
 
+  // Auto-assign the new product to every agent in the workspace so catalog
+  // injection stays in sync without manual visits to the catalog page.
+  if (product.active) {
+    const agents = await prisma.agent.findMany({
+      where: { workspaceId: user.workspaceId },
+      select: { id: true },
+    })
+    if (agents.length > 0) {
+      await prisma.agentCatalog.createMany({
+        data: agents.map((a) => ({ agentId: a.id, productId: product.id })),
+        skipDuplicates: true,
+      })
+    }
+  }
+
   await syncOnboarding(user.workspaceId)
   return NextResponse.json({ product }, { status: 201 })
 }
