@@ -264,8 +264,8 @@ export const DOCS: DocPage[] = [
     blocks: [
       {
         type: 'p',
-        fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت وب در دسترس است و کانال‌های پیام‌رسان (تلگرام، واتساپ، روبیکا، بله) به‌زودی اضافه می‌شوند.',
-        en: 'Channels define where your agent talks to customers. The web widget is available now, with messaging channels (Telegram, WhatsApp, Rubika, Bale) coming soon.',
+        fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت وب و کانال‌های پیام‌رسان (تلگرام، واتساپ، اینستاگرام، روبیکا، بله) همگی در دسترس هستند.',
+        en: 'Channels define where your agent talks to customers. The web widget and messaging channels (Telegram, WhatsApp, Instagram, Rubika, Bale) are all available.',
       },
       { type: 'h2', fa: 'فعال‌سازی ویجت وب', en: 'Enable the web widget' },
       {

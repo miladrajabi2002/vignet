@@ -324,6 +324,7 @@
     "pipeline": "Pipeline",
     "list": "List",
     "noStage": "No contacts in this stage",
+    "dropHere": "Drop here",
     "detail": {
       "name": "Name",
       "tags": "Tags",

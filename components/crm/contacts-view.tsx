@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Users, Search, LayoutList, Columns3, User } from 'lucide-react'
+import { Users, Search, LayoutList, Columns3, User, GripVertical } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -217,18 +217,49 @@ function PipelineView({
   onMove: (id: string, s: Stage) => void
 }) {
   const t = useTranslations('contacts')
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overStage, setOverStage] = useState<Stage | null>(null)
+
+  function stageOf(r: ContactRow): Stage {
+    return STAGES.includes(r.stage as Stage) ? (r.stage as Stage) : 'lead'
+  }
+
+  function handleDrop(stage: Stage) {
+    if (dragId) {
+      const cur = rows.find((r) => r.id === dragId)
+      if (cur && stageOf(cur) !== stage) onMove(dragId, stage)
+    }
+    setDragId(null)
+    setOverStage(null)
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {STAGES.map((stage) => {
-        const items = rows.filter((r) =>
-          stage === 'lead'
-            ? !STAGES.includes(r.stage as Stage) || r.stage === 'lead'
-            : r.stage === stage,
-        )
+        const items = rows.filter((r) => stageOf(r) === stage)
+        const isOver = overStage === stage
         return (
           <div
             key={stage}
-            className="flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]"
+            onDragOver={(e) => {
+              if (!dragId) return
+              e.preventDefault()
+              if (overStage !== stage) setOverStage(stage)
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return
+              if (overStage === stage) setOverStage(null)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              handleDrop(stage)
+            }}
+            className={cn(
+              'flex flex-col rounded-2xl border bg-[var(--bg-surface)] transition-colors',
+              isOver
+                ? 'border-[var(--border-strong)] bg-[var(--bg-hover)]'
+                : 'border-[var(--border-default)]',
+            )}
           >
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
               <span className="text-sm font-medium text-[var(--text-primary)]">
@@ -241,15 +272,28 @@ function PipelineView({
             <div className="flex flex-1 flex-col gap-2 p-3">
               {items.length === 0 ? (
                 <p className="py-6 text-center text-xs text-[var(--text-muted)]">
-                  {t('noStage')}
+                  {isOver ? t('dropHere') : t('noStage')}
                 </p>
               ) : (
                 items.map((c) => (
                   <div
                     key={c.id}
-                    className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3"
+                    draggable
+                    onDragStart={(e) => {
+                      setDragId(c.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null)
+                      setOverStage(null)
+                    }}
+                    className={cn(
+                      'group cursor-grab rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 transition-opacity active:cursor-grabbing',
+                      dragId === c.id && 'opacity-40',
+                    )}
                   >
                     <div className="flex items-center gap-2">
+                      <GripVertical className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
                       <Link
                         href={`/contacts/${c.id}`}
                         className="truncate text-sm font-medium text-[var(--text-primary)] hover:underline"
