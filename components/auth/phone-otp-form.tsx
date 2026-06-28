@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -14,7 +13,6 @@ const RESEND_SECONDS = 120
 
 export function PhoneOtpForm() {
   const t = useTranslations('auth')
-  const router = useRouter()
 
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
@@ -88,8 +86,10 @@ export function PhoneOtpForm() {
         otpRefs.current[0]?.focus()
         return
       }
-      router.push('/overview')
-      router.refresh()
+      // Full-page navigation (not router.push) so middleware + server layouts
+      // see the freshly-set session cookie and can run the onboarding redirect.
+      // A soft navigation here lands on a blank page until manual refresh.
+      window.location.assign('/overview')
     } catch {
       setError('GENERIC')
     } finally {

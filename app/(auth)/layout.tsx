@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-4">
+    <div className="dark relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-4">
       {/* Subtle dot grid backdrop */}
       <div
         aria-hidden
