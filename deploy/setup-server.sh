@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  Vignet — نصب خودکار سرور روی Ubuntu 22.04
+#  Vignet — نصب خودکار سرور روی Ubuntu 22.04 / 24.04
 #  این اسکریپت فقط یک‌بار روی سرور تازه اجرا می‌شود.
 #  - مقادیر را به‌صورت تعاملی از تو می‌پرسد
 #  - هر سرویس را اول چک می‌کند؛ اگر نصب بود رد می‌شود، اگر نبود نصب می‌کند
@@ -10,6 +10,14 @@ set -euo pipefail
 
 PG_VERSION="16"
 NODE_MAJOR="20"
+
+# apt update روی بعضی سرورها به‌خاطر مخزن‌های جانبی خراب (PPAها) خطا می‌دهد.
+# این تابع خطای آن مخزن‌ها را نادیده می‌گیرد تا نصب پکیج‌های ما متوقف نشود.
+apt_update() {
+  if ! sudo apt-get update -y; then
+    echo "⚠ بعضی مخزن‌ها به‌روز نشدند (نادیده گرفته شد) — ادامه می‌دهیم"
+  fi
+}
 
 # ─── گرفتن مقادیر از کاربر ──────────────────────────────────────────────────
 echo "============================================================"
@@ -43,7 +51,7 @@ esac
 
 # ─── ابزارهای پایه ──────────────────────────────────────────────────────────
 echo "==> بررسی ابزارهای پایه"
-sudo apt-get update -y
+apt_update
 sudo apt-get install -y curl ca-certificates gnupg lsb-release openssl git build-essential
 
 # ─── PostgreSQL 16 + pgvector ───────────────────────────────────────────────
@@ -57,7 +65,7 @@ else
   echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
 https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
     | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
-  sudo apt-get update -y
+  apt_update
   sudo apt-get install -y "postgresql-${PG_VERSION}"
   sudo systemctl enable --now postgresql
 fi
