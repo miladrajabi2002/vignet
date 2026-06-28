@@ -1,15 +1,28 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
-let client: SupabaseClient | null = null
+// S3-compatible object storage (self-hosted MinIO, or any S3 provider).
+// Configure via env: S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION.
+let client: S3Client | null = null
 
-function getClient(): SupabaseClient {
+function getClient(): S3Client {
   if (client) return client
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_KEY
-  if (!url || !key) {
-    throw new Error('SUPABASE_URL / SUPABASE_SERVICE_KEY not configured')
+  const endpoint = process.env.S3_ENDPOINT
+  const accessKeyId = process.env.S3_ACCESS_KEY
+  const secretAccessKey = process.env.S3_SECRET_KEY
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error('S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY not configured')
   }
-  client = createClient(url, key, { auth: { persistSession: false } })
+  client = new S3Client({
+    endpoint,
+    region: process.env.S3_REGION || 'us-east-1',
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true, // required for MinIO (path-style bucket addressing)
+  })
   return client
 }
 
@@ -25,13 +38,14 @@ export async function uploadFile(params: {
   body: Buffer | Uint8Array
   contentType: string
 }): Promise<string> {
-  const { error } = await getClient()
-    .storage.from(params.bucket)
-    .upload(params.path, params.body, {
-      contentType: params.contentType,
-      upsert: true,
-    })
-  if (error) throw new Error(`Storage upload failed: ${error.message}`)
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: params.bucket,
+      Key: params.path,
+      Body: params.body,
+      ContentType: params.contentType,
+    }),
+  )
   return params.path
 }
 
@@ -40,10 +54,12 @@ export async function downloadFile(
   bucket: string,
   path: string,
 ): Promise<Buffer> {
-  const { data, error } = await getClient().storage.from(bucket).download(path)
-  if (error || !data) throw new Error(`Storage download failed: ${error?.message}`)
-  const arrayBuffer = await data.arrayBuffer()
-  return Buffer.from(arrayBuffer)
+  const res = await getClient().send(
+    new GetObjectCommand({ Bucket: bucket, Key: path }),
+  )
+  if (!res.Body) throw new Error(`Storage download failed: empty body for ${path}`)
+  const bytes = await res.Body.transformToByteArray()
+  return Buffer.from(bytes)
 }
 
 /** Create a time-limited signed URL for private files (e.g. product images). */
@@ -52,13 +68,17 @@ export async function signedUrl(
   path: string,
   expiresIn = 3600,
 ): Promise<string> {
-  const { data, error } = await getClient()
-    .storage.from(bucket)
-    .createSignedUrl(path, expiresIn)
-  if (error || !data) throw new Error(`Signed URL failed: ${error?.message}`)
-  return data.signedUrl
+  return getSignedUrl(
+    getClient(),
+    new GetObjectCommand({ Bucket: bucket, Key: path }),
+    { expiresIn },
+  )
 }
 
 export function isStorageConfigured(): boolean {
-  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
+  return !!(
+    process.env.S3_ENDPOINT &&
+    process.env.S3_ACCESS_KEY &&
+    process.env.S3_SECRET_KEY
+  )
 }

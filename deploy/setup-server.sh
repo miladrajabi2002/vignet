@@ -4,7 +4,7 @@
 #  این اسکریپت فقط یک‌بار روی سرور تازه اجرا می‌شود.
 #  - مقادیر را به‌صورت تعاملی از تو می‌پرسد
 #  - هر سرویس را اول چک می‌کند؛ اگر نصب بود رد می‌شود، اگر نبود نصب می‌کند
-#  نصب می‌کند: PostgreSQL 16 + pgvector, Redis, Node.js 20, PM2
+#  نصب می‌کند: PostgreSQL 16 + pgvector, Redis, Node.js 20, PM2, MinIO
 # ============================================================================
 set -euo pipefail
 
@@ -48,6 +48,45 @@ read -rp "ادامه بدهم؟ [Y/n]: " CONFIRM
 case "${CONFIRM:-Y}" in
   [nN]*) echo "لغو شد."; exit 1 ;;
 esac
+
+# ─── آماده‌سازی فایل .env و توابع کمکی ───────────────────────────────────────
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="${PROJECT_DIR}/.env"
+
+# اگر .env نبود، از روی .env.example بساز (تا کلیدهای دیگر هم سرجایشان بمانند)
+if [ ! -f "${ENV_FILE}" ]; then
+  if [ -f "${PROJECT_DIR}/.env.example" ]; then
+    cp "${PROJECT_DIR}/.env.example" "${ENV_FILE}"
+    echo "==> .env از روی .env.example ساخته شد"
+  else
+    touch "${ENV_FILE}"
+  fi
+fi
+
+# خواندن مقدار فعلی یک کلید از .env (خالی اگر نبود)
+get_env() {
+  grep -E "^$1=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'
+}
+
+# جایگذاری یک کلید: خط قبلی را حذف و مقدار جدید را اضافه می‌کند (با هر کاراکتری امن است)
+set_env() {
+  local key="$1" val="$2"
+  grep -vE "^${key}=" "${ENV_FILE}" > "${ENV_FILE}.tmp" 2>/dev/null || true
+  printf '%s="%s"\n' "${key}" "${val}" >> "${ENV_FILE}.tmp"
+  mv "${ENV_FILE}.tmp" "${ENV_FILE}"
+}
+
+# راز را فقط در صورتی می‌سازد که از قبل خالی باشد (تا session/کلیدهای رمزشده خراب نشوند)
+ensure_secret() {
+  local key="$1" gen="$2" cur
+  cur="$(get_env "${key}")"
+  if [ -z "${cur}" ]; then
+    set_env "${key}" "${gen}"
+    echo "→ ${key} ساخته شد"
+  else
+    echo "→ ${key} از قبل مقدار دارد — دست‌نخورده ماند"
+  fi
+}
 
 # ─── ابزارهای پایه ──────────────────────────────────────────────────────────
 echo "==> بررسی ابزارهای پایه"
@@ -120,40 +159,73 @@ else
   sudo npm install -g pm2
 fi
 
-# ─── نوشتن خودکار فایل .env ─────────────────────────────────────────────────
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="${PROJECT_DIR}/.env"
+# ─── MinIO (ذخیره‌سازی فایل، سازگار با S3) ──────────────────────────────────
+# کلیدها را از .env فعلی بازاستفاده می‌کنیم تا با سرویس systemd هماهنگ بمانند؛
+# اگر نبود، می‌سازیم.
+MINIO_USER="$(get_env S3_ACCESS_KEY)"; [ -z "${MINIO_USER}" ] && MINIO_USER="vignet"
+MINIO_PASS="$(get_env S3_SECRET_KEY)"; [ -z "${MINIO_PASS}" ] && MINIO_PASS="$(openssl rand -hex 24)"
 
-# اگر .env نبود، از روی .env.example بساز (تا کلیدهای دیگر هم سرجایشان بمانند)
-if [ ! -f "${ENV_FILE}" ]; then
-  if [ -f "${PROJECT_DIR}/.env.example" ]; then
-    cp "${PROJECT_DIR}/.env.example" "${ENV_FILE}"
-    echo "==> .env از روی .env.example ساخته شد"
-  else
-    touch "${ENV_FILE}"
-  fi
+if [ -x /usr/local/bin/minio ]; then
+  echo "==> باینری MinIO از قبل هست — رد شد"
+else
+  echo "==> دانلود MinIO"
+  sudo curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio \
+    -o /usr/local/bin/minio
+  sudo chmod +x /usr/local/bin/minio
+fi
+if [ -x /usr/local/bin/mc ]; then
+  echo "==> کلاینت mc از قبل هست — رد شد"
+else
+  echo "==> دانلود کلاینت mc"
+  sudo curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc \
+    -o /usr/local/bin/mc
+  sudo chmod +x /usr/local/bin/mc
 fi
 
-# جایگذاری یک کلید: خط قبلی را حذف و مقدار جدید را اضافه می‌کند (با هر کاراکتری امن است)
-set_env() {
-  local key="$1" val="$2"
-  grep -vE "^${key}=" "${ENV_FILE}" > "${ENV_FILE}.tmp" 2>/dev/null || true
-  printf '%s="%s"\n' "${key}" "${val}" >> "${ENV_FILE}.tmp"
-  mv "${ENV_FILE}.tmp" "${ENV_FILE}"
-}
+echo "==> پیکربندی سرویس MinIO"
+sudo useradd -r -s /sbin/nologin minio-user 2>/dev/null || true
+sudo mkdir -p /var/lib/minio
+sudo chown -R minio-user:minio-user /var/lib/minio
 
-# راز را فقط در صورتی می‌سازد که از قبل خالی باشد (تا session/کلیدهای رمزشده خراب نشوند)
-ensure_secret() {
-  local key="$1" gen="$2" cur
-  cur="$(grep -E "^${key}=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')"
-  if [ -z "${cur}" ]; then
-    set_env "${key}" "${gen}"
-    echo "→ ${key} ساخته شد"
-  else
-    echo "→ ${key} از قبل مقدار دارد — دست‌نخورده ماند"
-  fi
-}
+# روی 127.0.0.1 محدود است (از بیرون در دسترس نیست) — امن
+sudo tee /etc/default/minio >/dev/null <<EOF
+MINIO_ROOT_USER=${MINIO_USER}
+MINIO_ROOT_PASSWORD=${MINIO_PASS}
+MINIO_VOLUMES=/var/lib/minio
+MINIO_OPTS=--address 127.0.0.1:9000 --console-address 127.0.0.1:9001
+EOF
 
+sudo tee /etc/systemd/system/minio.service >/dev/null <<'EOF'
+[Unit]
+Description=MinIO Object Storage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=minio-user
+Group=minio-user
+EnvironmentFile=/etc/default/minio
+ExecStart=/usr/local/bin/minio server $MINIO_VOLUMES $MINIO_OPTS
+Restart=always
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now minio
+
+echo "==> انتظار برای بالا آمدن MinIO و ساخت bucketها"
+for _ in $(seq 1 30); do
+  curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1 && break
+  sleep 1
+done
+mc alias set vignet-local "http://127.0.0.1:9000" "${MINIO_USER}" "${MINIO_PASS}" >/dev/null
+mc mb --ignore-existing vignet-local/knowledge
+mc mb --ignore-existing vignet-local/products
+
+# ─── نوشتن خودکار فایل .env ─────────────────────────────────────────────────
 echo "==> نوشتن مقادیر در .env"
 DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=public"
 set_env "DATABASE_URL" "${DB_URL}"
@@ -162,6 +234,10 @@ set_env "REDIS_URL"    "redis://localhost:6379"
 set_env "NEXTAUTH_URL"          "${APP_URL}"
 set_env "NEXT_PUBLIC_APP_URL"   "${APP_URL}"
 set_env "NEXT_PUBLIC_WIDGET_URL" "${APP_URL}"
+set_env "S3_ENDPOINT"  "http://127.0.0.1:9000"
+set_env "S3_ACCESS_KEY" "${MINIO_USER}"
+set_env "S3_SECRET_KEY" "${MINIO_PASS}"
+set_env "S3_REGION"    "us-east-1"
 ensure_secret "NEXTAUTH_SECRET" "$(openssl rand -base64 32)"
 ensure_secret "AUTH_SECRET"     "$(openssl rand -base64 32)"
 ensure_secret "ENCRYPTION_KEY"  "$(openssl rand -hex 32)"
@@ -175,12 +251,12 @@ cat <<DONE
  فایل .env به‌صورت خودکار پر شد:
    • DATABASE_URL / DIRECT_URL  → Postgres محلی
    • REDIS_URL                  → Redis محلی
+   • S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY → MinIO محلی (bucketها ساخته شد)
    • NEXTAUTH_URL / APP_URL / WIDGET_URL → ${APP_URL}
    • NEXTAUTH_SECRET / AUTH_SECRET / ENCRYPTION_KEY → ساخته شد
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
    • SMS_IR_API_KEY / SMS_IR_TEMPLATE_ID   (برای OTP)
-   • SUPABASE_URL / SUPABASE_SERVICE_KEY   (برای آپلود فایل)
    • RESEND_API_KEY                        (اختیاری، ایمیل)
 
  ویرایش:  nano ${ENV_FILE}
