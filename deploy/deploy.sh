@@ -13,7 +13,12 @@ echo "==> دریافت آخرین کد"
 git pull --ff-only
 
 echo "==> نصب وابستگی‌ها"
-npm ci
+# npm ci سخت‌گیر است و با اختلاف نسخه‌ی npm بین محیط‌ها خطا می‌دهد؛
+# اگر لاک‌فایل کامل هم‌خوان نبود، به npm install برمی‌گردیم.
+npm ci || {
+  echo "⚠ npm ci ناموفق بود (لاک‌فایل ناهمگام) — به npm install برمی‌گردیم"
+  npm install
+}
 
 echo "==> اجرای migration دیتابیس"
 npx prisma migrate deploy
