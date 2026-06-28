@@ -244,7 +244,7 @@ export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
           <button
             onClick={save}
             disabled={status === 'saving'}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
           >
             {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
             {status === 'saved' ? tc('saved') : tc('save')}
@@ -281,8 +281,8 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-center justify-between">
       <span className="text-sm text-[var(--text-secondary)]">{label}</span>
-      <span className={`relative h-6 w-11 rounded-full border transition-colors ${checked ? 'border-white/30 bg-white/20' : 'border-[var(--border-default)] bg-[var(--bg-muted)]'}`}>
-        <span className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white transition-all ${checked ? 'start-6' : 'start-1'}`} />
+      <span className={`relative h-6 w-11 rounded-full border transition-colors ${checked ? 'border-[rgba(var(--ink-rgb),0.3)] bg-[rgba(var(--ink-rgb),0.2)]' : 'border-[var(--border-default)] bg-[var(--bg-muted)]'}`}>
+        <span className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[var(--white)] transition-all ${checked ? 'start-6' : 'start-1'}`} />
       </span>
     </button>
   )

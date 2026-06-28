@@ -94,7 +94,7 @@ export function CatalogAssign({
         <button
           onClick={save}
           disabled={status === 'saving'}
-          className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
         >
           {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
           {status === 'saved' ? t('saved') : t('saveAndTest')}
@@ -118,7 +118,7 @@ export function CatalogAssign({
                 <span
                   className={cn(
                     'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                    on ? 'border-white bg-white text-black' : 'border-[var(--border-hover)]',
+                    on ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]' : 'border-[var(--border-hover)]',
                   )}
                 >
                   {on && <Check className="h-3.5 w-3.5" />}

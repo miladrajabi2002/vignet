@@ -41,8 +41,8 @@ export function HourlyHeatmap({
                   style={{
                     backgroundColor:
                       v === 0
-                        ? 'rgba(255,255,255,0.04)'
-                        : `rgba(255,255,255,${0.12 + (v / max) * 0.78})`,
+                        ? 'rgba(var(--ink-rgb),0.04)'
+                        : `rgba(var(--ink-rgb),${0.12 + (v / max) * 0.78})`,
                   }}
                 />
               ))}

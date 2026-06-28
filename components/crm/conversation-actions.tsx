@@ -79,7 +79,7 @@ export function ConversationActions({
           'inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium disabled:opacity-50',
           resolved
             ? 'border border-[var(--border-default)] text-[var(--text-secondary)]'
-            : 'bg-white text-black',
+            : 'bg-[var(--white)] text-[var(--bg-base)]',
         )}
       >
         {busy ? (

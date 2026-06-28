@@ -19,7 +19,7 @@ export function OnboardingCelebrate() {
           return (
             <motion.span
               key={i}
-              className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-white"
+              className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-[var(--white)]"
               initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
               animate={{
                 opacity: 0,
@@ -33,8 +33,8 @@ export function OnboardingCelebrate() {
         })}
       </div>
 
-      <PartyPopper className="h-10 w-10 text-white" />
-      <h2 className="mt-4 text-2xl font-light text-white">
+      <PartyPopper className="h-10 w-10 text-[var(--text-primary)]" />
+      <h2 className="mt-4 text-2xl font-light text-[var(--text-primary)]">
         {t('completedTitle')}
       </h2>
       <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -42,7 +42,7 @@ export function OnboardingCelebrate() {
       </p>
       <Link
         href="/overview"
-        className="mt-6 rounded-xl bg-white px-6 py-2.5 font-medium text-black transition-transform hover:scale-[1.02]"
+        className="mt-6 rounded-xl bg-[var(--white)] px-6 py-2.5 font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
       >
         {t('steps.test.cta')}
       </Link>

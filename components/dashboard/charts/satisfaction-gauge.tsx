@@ -17,7 +17,7 @@ export function SatisfactionGauge({
 }) {
   const score = value ?? 0
   const pct = Math.max(0, Math.min(100, (score / 5) * 100))
-  const data = [{ name: 'csat', value: pct, fill: '#ffffff' }]
+  const data = [{ name: 'csat', value: pct, fill: 'rgb(var(--ink-rgb))' }]
 
   return (
     <div className="relative h-[180px] w-full">
@@ -31,7 +31,7 @@ export function SatisfactionGauge({
         >
           <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
           <RadialBar
-            background={{ fill: 'rgba(255,255,255,0.06)' }}
+            background={{ fill: 'rgba(var(--ink-rgb),0.06)' }}
             dataKey="value"
             cornerRadius={8}
           />

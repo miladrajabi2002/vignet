@@ -80,7 +80,7 @@ export default async function BillingPage() {
           </div>
           <a
             href="/#pricing"
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-black transition-transform hover:scale-[1.02]"
+            className="rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
           >
             {t('upgrade')}
           </a>

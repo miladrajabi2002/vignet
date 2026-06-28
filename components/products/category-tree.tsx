@@ -82,7 +82,7 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
           <button
             onClick={add}
             disabled={busy || !name.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {t('add')}

@@ -18,7 +18,7 @@ export function BarList({ data }: { data: BarItem[] }) {
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
             <div
-              className="h-full rounded-full bg-white/70"
+              className="h-full rounded-full bg-[rgba(var(--ink-rgb),0.7)]"
               style={{ width: `${(d.value / max) * 100}%` }}
             />
           </div>

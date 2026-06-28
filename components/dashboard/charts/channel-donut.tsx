@@ -7,8 +7,16 @@ export interface DonutSlice {
   value: number
 }
 
-// Monochrome ramp — distinct grey shades, no colour accent.
-const SHADES = ['#ffffff', '#bdbdbd', '#8a8a8a', '#5e5e5e', '#3a3a3a', '#262626']
+// Monochrome ramp — distinct ink opacities, no colour accent. Built from the
+// theme's foreground "ink" so it inverts cleanly in the light theme.
+const SHADES = [
+  'rgba(var(--ink-rgb),1)',
+  'rgba(var(--ink-rgb),0.72)',
+  'rgba(var(--ink-rgb),0.52)',
+  'rgba(var(--ink-rgb),0.36)',
+  'rgba(var(--ink-rgb),0.24)',
+  'rgba(var(--ink-rgb),0.15)',
+]
 
 export function ChannelDonut({ data }: { data: DonutSlice[] }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -33,11 +41,11 @@ export function ChannelDonut({ data }: { data: DonutSlice[] }) {
             </Pie>
             <Tooltip
               contentStyle={{
-                background: '#111111',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-hover)',
                 borderRadius: 12,
                 fontSize: 12,
-                color: '#fff',
+                color: 'var(--text-primary)',
               }}
             />
           </PieChart>

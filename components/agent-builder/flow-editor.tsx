@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useTheme } from 'next-themes'
 import {
   ReactFlow,
   Background,
@@ -38,6 +39,8 @@ export function FlowEditor({
 }) {
   const t = useTranslations('builder')
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
+  const isLight = resolvedTheme === 'light'
   const [nodes, setNodes, onNodesChange] = useNodesState(
     initialNodes.length ? initialNodes : DEFAULT_NODES,
   )
@@ -150,7 +153,7 @@ export function FlowEditor({
           </p>
           <button
             onClick={() => setShowGuide(false)}
-            className="mt-3 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black transition-transform hover:scale-[1.02]"
+            className="mt-3 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
           >
             {t('gotIt')}
           </button>
@@ -203,16 +206,16 @@ export function FlowEditor({
           onPaneClick={() => setSelectedId(null)}
           fitView
           proOptions={{ hideAttribution: true }}
-          colorMode="dark"
+          colorMode={isLight ? 'light' : 'dark'}
         >
-          <Background color="rgba(255,255,255,0.08)" gap={20} />
+          <Background color="rgba(var(--ink-rgb),0.08)" gap={20} />
           <Controls className="!border-[var(--border-default)] !bg-[var(--bg-elevated)]" />
         </ReactFlow>
 
         <button
           onClick={save}
           disabled={saving}
-          className="absolute end-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black transition-transform hover:scale-[1.03] disabled:opacity-50"
+          className="absolute end-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.03] disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

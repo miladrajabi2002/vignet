@@ -71,7 +71,7 @@ export function WebWidgetChannel({
           <button
             onClick={enable}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg bg-white px-4 py-1.5 text-sm font-medium text-black disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {t('enable')}

@@ -65,7 +65,7 @@ export default async function ProductsPage({
           </Link>
           <Link
             href="/products/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
           >
             <Plus className="h-4 w-4" />
             {t('new')}
@@ -78,7 +78,7 @@ export default async function ProductsPage({
           <Package className="h-8 w-8 text-[var(--text-muted)]" />
           <h2 className="mt-4 text-lg text-[var(--text-primary)]">{t('empty')}</h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('emptyDesc')}</p>
-          <Link href="/products/new" className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-black">
+          <Link href="/products/new" className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)]">
             {t('new')}
           </Link>
         </div>

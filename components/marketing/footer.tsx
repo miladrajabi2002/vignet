@@ -7,65 +7,59 @@ export function Footer() {
   const t = useTranslations('marketing.footer')
   const tNav = useTranslations('nav')
 
-  const columns = [
-    {
-      title: t('product'),
-      links: [
-        { label: tNav('features'), href: '/features' },
-        { label: tNav('pricing'), href: '/pricing' },
-      ],
-    },
-    {
-      title: t('resources'),
-      links: [
-        { label: tNav('docs'), href: '/docs' },
-        { label: 'Blog', href: '/blog' },
-      ],
-    },
-    {
-      title: t('company'),
-      links: [
-        { label: tNav('login'), href: '/login' },
-        { label: tNav('getStarted'), href: '/login' },
-      ],
-    },
+  const links = [
+    { label: tNav('features'), href: '/#features' },
+    { label: tNav('how'), href: '/#how' },
+    { label: tNav('pricing'), href: '/#pricing' },
+    { label: tNav('docs'), href: '/docs' },
+    { label: tNav('login'), href: '/login' },
   ]
 
   return (
-    <footer className="border-t border-white/[0.06] bg-black">
-      <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
-            <span className="font-mono text-lg font-medium tracking-widest text-white">
+    <footer className="relative bg-black">
+      {/* Soft gradient hairline instead of a hard border */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+      />
+
+      <div className="mx-auto max-w-6xl px-6 py-16">
+        <div className="flex flex-col items-start justify-between gap-10 md:flex-row md:items-center">
+          <div>
+            <span className="font-mono text-xl font-medium tracking-widest text-white">
               VIGENT
             </span>
-            <p className="mt-3 max-w-xs text-sm text-white/40">
-              {t('tagline')}
-            </p>
+            <p className="mt-3 max-w-xs text-sm text-white/40">{t('tagline')}</p>
           </div>
 
-          {columns.map((col) => (
-            <div key={col.title}>
-              <h4 className="text-sm font-medium text-white/70">{col.title}</h4>
-              <ul className="mt-4 space-y-2">
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <Link
-                      href={l.href}
-                      className="text-sm text-white/40 transition-colors hover:text-white"
-                    >
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <nav className="flex flex-wrap gap-x-8 gap-y-3">
+            {links.map((l) => (
+              <Link
+                key={l.label}
+                href={l.href}
+                className="text-sm text-white/50 transition-colors hover:text-white"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-xs text-white/30 sm:flex-row">
           <span>{t('rights')}</span>
-          <span>{t('madeIn')}</span>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/status"
+              className="inline-flex items-center gap-2 transition-colors hover:text-white/60"
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+              </span>
+              Status
+            </Link>
+            <span>{t('madeIn')}</span>
+          </div>
         </div>
       </div>
     </footer>

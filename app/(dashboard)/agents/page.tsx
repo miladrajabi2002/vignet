@@ -57,7 +57,7 @@ export default async function AgentsPage() {
         </h1>
         <Link
           href="/agents/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02]"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
         >
           <Plus className="h-4 w-4" />
           {t('new')}
@@ -75,7 +75,7 @@ export default async function AgentsPage() {
           </p>
           <Link
             href="/agents/new"
-            className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-black"
+            className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)]"
           >
             {t('create')}
           </Link>

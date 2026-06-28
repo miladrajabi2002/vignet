@@ -63,7 +63,7 @@ export function OnboardingChecklist({
       {/* Progress bar */}
       <div className="mx-5 h-1 overflow-hidden rounded-full bg-[var(--white-05)]">
         <motion.div
-          className="h-full bg-white"
+          className="h-full bg-[var(--white)]"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -102,7 +102,7 @@ export function OnboardingChecklist({
                         {done ? (
                           <Check className="h-3.5 w-3.5" />
                         ) : isCurrent ? (
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--white)]" />
                         ) : (
                           i + 1
                         )}

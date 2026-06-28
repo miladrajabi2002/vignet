@@ -21,6 +21,7 @@
   "nav": {
     "home": "Home",
     "features": "Features",
+    "how": "How it works",
     "pricing": "Pricing",
     "docs": "Docs",
     "login": "Log in",
@@ -541,6 +542,7 @@
     },
     "features": {
       "title": "Everything to build a smart agent",
+      "subtitle": "From the visual builder to omnichannel delivery — one platform for the whole journey.",
       "items": {
         "builder": {
           "title": "Agent builder",
@@ -570,8 +572,12 @@
     },
     "how": {
       "title": "Get started in three steps",
+      "subtitle": "Go from zero to a live agent in minutes — no code required.",
+      "step1Title": "Connect your key",
       "step1": "Add your OpenRouter key",
+      "step2Title": "Add your knowledge",
       "step2": "Upload your data and products",
+      "step3Title": "Go live",
       "step3": "Connect a channel — your agent is live"
     },
     "channels": {

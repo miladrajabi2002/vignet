@@ -102,14 +102,14 @@ export default async function ConversationThreadPage({
                   'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
                   isUser
                     ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                    : 'bg-white text-black',
+                    : 'bg-[var(--white)] text-[var(--bg-base)]',
                 )}
               >
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                 <span
                   className={cn(
                     'mt-1 block text-[10px]',
-                    isUser ? 'text-[var(--text-muted)]' : 'text-black/40',
+                    isUser ? 'text-[var(--text-muted)]' : 'text-[var(--bg-base)] opacity-40',
                   )}
                 >
                   {formatDateTime(m.createdAt, locale)}

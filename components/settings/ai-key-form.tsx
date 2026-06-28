@@ -99,7 +99,7 @@ export function AiKeyForm({ currentHint }: { currentHint: string | null }) {
         <button
           onClick={save}
           disabled={status === 'loading' || !key.trim()}
-          className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black transition-transform hover:scale-[1.01] disabled:opacity-50"
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-[var(--white)] px-4 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.01] disabled:opacity-50"
         >
           {status === 'loading' && <Loader2 className="h-4 w-4 animate-spin" />}
           {status === 'loading' ? t('validating') : t('validate')}

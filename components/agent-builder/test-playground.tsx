@@ -140,7 +140,7 @@ export function TestPlayground({
                   className={cn(
                     'max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm',
                     m.role === 'user'
-                      ? 'bg-white text-black'
+                      ? 'bg-[var(--white)] text-[var(--bg-base)]'
                       : 'border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-primary)]',
                   )}
                 >
@@ -211,7 +211,7 @@ export function TestPlayground({
         <button
           onClick={send}
           disabled={streaming || !input.trim()}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-black transition-transform hover:scale-[1.03] disabled:opacity-50"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.03] disabled:opacity-50"
           aria-label={t('send')}
         >
           {streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 rtl:rotate-180" />}

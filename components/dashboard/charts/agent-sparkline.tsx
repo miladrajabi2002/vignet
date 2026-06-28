@@ -22,14 +22,14 @@ export function AgentSparkline({
         <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
           <defs>
             <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity={0.22} />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+              <stop offset="0%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0} />
             </linearGradient>
           </defs>
           <Area
             type="monotone"
             dataKey="value"
-            stroke="#ffffff"
+            stroke="rgb(var(--ink-rgb))"
             strokeWidth={1.25}
             fill="url(#sparkFill)"
             dot={false}

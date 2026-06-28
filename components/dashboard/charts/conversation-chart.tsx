@@ -21,39 +21,39 @@ export function ConversationChart({ data }: { data: TrendPoint[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
         <defs>
           <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+            <stop offset="0%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0.18} />
+            <stop offset="100%" stopColor="rgb(var(--ink-rgb))" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
           dataKey="label"
-          tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+          tick={{ fill: 'rgba(var(--ink-rgb),0.4)', fontSize: 11 }}
           tickLine={false}
-          axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+          axisLine={{ stroke: 'rgba(var(--ink-rgb),0.08)' }}
           interval="preserveStartEnd"
         />
         <YAxis
           allowDecimals={false}
           width={32}
-          tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+          tick={{ fill: 'rgba(var(--ink-rgb),0.4)', fontSize: 11 }}
           tickLine={false}
           axisLine={false}
         />
         <Tooltip
-          cursor={{ stroke: 'rgba(255,255,255,0.16)' }}
+          cursor={{ stroke: 'rgba(var(--ink-rgb),0.16)' }}
           contentStyle={{
-            background: '#111111',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-hover)',
             borderRadius: 12,
             fontSize: 12,
-            color: '#fff',
+            color: 'var(--text-primary)',
           }}
-          labelStyle={{ color: 'rgba(255,255,255,0.55)' }}
+          labelStyle={{ color: 'var(--text-secondary)' }}
         />
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#ffffff"
+          stroke="rgb(var(--ink-rgb))"
           strokeWidth={1.5}
           fill="url(#trendFill)"
           dot={false}

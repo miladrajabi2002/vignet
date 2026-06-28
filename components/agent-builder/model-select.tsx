@@ -87,14 +87,14 @@ export function ModelSelect({
                   {m.name}
                 </span>
                 {isDefault && (
-                  <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] text-[var(--text-primary)]">
+                  <span className="rounded-md bg-[var(--white-10)] px-1.5 py-0.5 text-[10px] text-[var(--text-primary)]">
                     {t('default')}
                   </span>
                 )}
                 <span
                   className={cn(
                     'ms-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                    on ? 'border-white bg-white text-black' : 'border-[var(--border-hover)]',
+                    on ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]' : 'border-[var(--border-hover)]',
                   )}
                 >
                   {on && <Check className="h-3.5 w-3.5" />}

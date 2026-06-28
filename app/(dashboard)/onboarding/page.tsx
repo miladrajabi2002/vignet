@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
         <p className="mt-2 text-[var(--text-secondary)]">{t('subtitle')}</p>
         <div className="mx-auto mt-6 h-1.5 max-w-sm overflow-hidden rounded-full bg-[var(--white-05)]">
           <div
-            className="h-full bg-white transition-all duration-700"
+            className="h-full bg-[var(--white)] transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>

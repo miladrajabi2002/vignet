@@ -39,7 +39,7 @@ export function BaseNode({
         <Handle
           type="target"
           position={Position.Left}
-          className="!h-2 !w-2 !border-0 !bg-white/60"
+          className="!h-2 !w-2 !border-0 !bg-[rgba(var(--ink-rgb),0.6)]"
         />
       )}
 
@@ -62,7 +62,7 @@ export function BaseNode({
           type="source"
           position={Position.Right}
           style={s.top ? { top: s.top } : undefined}
-          className="!h-2 !w-2 !border-0 !bg-white/60"
+          className="!h-2 !w-2 !border-0 !bg-[rgba(var(--ink-rgb),0.6)]"
         >
           {s.label && (
             <span className="pointer-events-none absolute -top-2 left-3 whitespace-nowrap text-[9px] text-[var(--text-muted)]">

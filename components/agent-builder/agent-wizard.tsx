@@ -176,7 +176,7 @@ export function AgentWizard() {
             <div className="mt-4 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => router.push(`/agents/${created.id}`)}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
               >
                 <Zap className="h-4 w-4" />
                 {t('goToAgent')}
@@ -209,7 +209,7 @@ export function AgentWizard() {
       </div>
       <div className="mb-8 h-1 overflow-hidden rounded-full bg-[var(--white-05)]">
         <div
-          className="h-full bg-white transition-all duration-500"
+          className="h-full bg-[var(--white)] transition-all duration-500"
           style={{ width: `${((step + 1) / TOTAL) * 100}%` }}
         />
       </div>
@@ -410,7 +410,7 @@ export function AgentWizard() {
               type="button"
               onClick={() => canNext && setStep((s) => s + 1)}
               disabled={!canNext}
-              className="inline-flex items-center gap-1 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
             >
               {tc('next')}
               <ArrowRight className="h-4 w-4 rtl:rotate-180" />
@@ -420,7 +420,7 @@ export function AgentWizard() {
               type="button"
               onClick={submit}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? tA('creating') : tA('create')}
