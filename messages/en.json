@@ -91,9 +91,9 @@
         "cta": "Add knowledge"
       },
       "channel": {
-        "title": "Connect a channel",
+        "title": "Add a connection",
         "desc": "Connect your agent to Telegram, WhatsApp and more",
-        "cta": "Connect channel"
+        "cta": "Add connection"
       },
       "test": {
         "title": "Test your agent",
@@ -130,7 +130,7 @@
     "settings": "Settings",
     "knowledge": "Knowledge",
     "products": "Products",
-    "channels": "Channels",
+    "channels": "Connections",
     "analytics": "Analytics",
     "conversations": "Conversations",
     "active": "Active",
@@ -208,8 +208,8 @@
     }
   },
   "channels": {
-    "title": "Channels",
-    "subtitle": "Connect your agent to messaging channels",
+    "title": "Connections",
+    "subtitle": "Connect your agent to your messaging apps",
     "webWidget": "Web widget",
     "widgetDesc": "Paste this code on your website to show the agent chat",
     "enable": "Enable",
@@ -288,7 +288,7 @@
   },
   "conversations": {
     "title": "Conversations",
-    "subtitle": "Unified inbox across all channels",
+    "subtitle": "Unified inbox across all connections",
     "empty": "No conversations yet",
     "anonymous": "Anonymous user",
     "noMessages": "No messages in this conversation",
@@ -299,13 +299,13 @@
   },
   "analytics": {
     "title": "Analytics",
-    "subtitle": "Performance across your agents and channels",
+    "subtitle": "Performance across your agents and connections",
     "totalConversations": "Conversations",
     "resolveRate": "Resolve rate",
     "avgRating": "Avg. rating",
     "tokensUsed": "Tokens used",
     "conversationsTrend": "Conversations — last 14 days",
-    "channelBreakdown": "By channel",
+    "channelBreakdown": "By connection",
     "topProducts": "Top products by AI queries",
     "satisfaction": "Customer satisfaction",
     "ratings": "ratings",
@@ -367,11 +367,11 @@
   "integrations": {
     "title": "Integrations",
     "subtitle": "Connect Vigent to the tools you use",
-    "channels": "Messaging channels",
+    "channels": "Messaging connections",
     "connected": "Connected",
     "notConnected": "Not connected",
     "configure": "Configure",
-    "manageInAgent": "Channels are configured per agent",
+    "manageInAgent": "Connections are configured per agent",
     "openAgents": "Open agents",
     "comingSoon": "Coming soon"
   },
@@ -531,7 +531,7 @@
         "for support",
         "for your business"
       ],
-      "subtitle": "Build smart agents that answer from your own data and talk to your customers across every channel.",
+      "subtitle": "Build smart agents that answer from your own data and talk to your customers across every connection.",
       "ctaPrimary": "Start free — 14 days",
       "ctaSecondary": "Watch demo"
     },
@@ -557,7 +557,7 @@
           "desc": "Your agent knows and sells your products"
         },
         "channels": {
-          "title": "Omnichannel",
+          "title": "All connections",
           "desc": "Telegram, WhatsApp, Rubika, Bale and web widget"
         },
         "voice": {
@@ -566,7 +566,7 @@
         },
         "crm": {
           "title": "Unified CRM",
-          "desc": "One inbox for every channel"
+          "desc": "One inbox for every connection"
         }
       }
     },
@@ -578,14 +578,23 @@
       "step2Title": "Add your knowledge",
       "step2": "Upload your data and products",
       "step3Title": "Go live",
-      "step3": "Connect a channel — your agent is live"
+      "step3": "Add a connection — your agent is live"
     },
     "channels": {
-      "title": "All channels, one dashboard"
+      "title": "All your connections, one dashboard",
+      "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
     },
     "demo": {
       "title": "See it in action",
-      "subtitle": "A real exchange — your agent answers from your data, instantly.",
+      "subtitle": "Watch the agent answer in real time — from your catalog, your knowledge base, and even voice notes.",
+      "typing": "typing…",
+      "voiceLabel": "Voice message",
+      "replay": "Replay",
+      "sources": {
+        "catalog": "From product catalog",
+        "knowledge": "From knowledge base",
+        "voice": "From voice message"
+      },
       "bubbles": [
         {
           "role": "user",
@@ -593,15 +602,27 @@
         },
         {
           "role": "agent",
-          "text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping."
+          "text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping.",
+          "source": "catalog"
         },
         {
           "role": "user",
-          "text": "Great, is there a discount?"
+          "text": "What's your return policy?"
         },
         {
           "role": "agent",
-          "text": "It's already 15% off the original price. Want me to reserve a pair for you?"
+          "text": "You can return any item free within 7 days — just request it right here.",
+          "source": "knowledge"
+        },
+        {
+          "role": "user",
+          "voice": true,
+          "text": ""
+        },
+        {
+          "role": "agent",
+          "text": "Got your voice note — I've reserved a pair in size 42 for you. ✅",
+          "source": "voice"
         }
       ]
     },
@@ -639,14 +660,14 @@
       "items": [
         {
           "q": "Do I need technical skills to use it?",
-          "a": "No. Create an agent in a few clicks, upload your data, and connect a channel."
+          "a": "No. Create an agent in a few clicks, upload your data, and add a connection."
         },
         {
           "q": "How are AI token costs handled?",
           "a": "You bring your own OpenRouter key, and token costs are billed directly to your account. Vigent only charges for the platform."
         },
         {
-          "q": "Which channels are supported?",
+          "q": "Which connections are supported?",
           "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all in one dashboard."
         },
         {
