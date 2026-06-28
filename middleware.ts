@@ -5,12 +5,16 @@ import { authConfig } from '@/auth.config'
 const { auth } = NextAuth(authConfig)
 
 // The `authorized` callback in authConfig gates access (and redirects).
-// When access is allowed, we forward the current pathname as a header so
-// server layouts can make routing decisions (e.g. onboarding redirects).
+// When access is allowed, we forward the current pathname so server layouts can
+// make routing decisions (e.g. onboarding redirects). This MUST be set on the
+// outgoing *request* headers — a header set on `NextResponse.next()`'s response
+// is never visible to `headers()` in a server component, which left the layout
+// reading an empty pathname and redirecting /onboarding → /onboarding in a loop
+// (blank page after a new user's first login).
 export default auth((req) => {
-  const res = NextResponse.next()
-  res.headers.set('x-pathname', req.nextUrl.pathname)
-  return res
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set('x-pathname', req.nextUrl.pathname)
+  return NextResponse.next({ request: { headers: requestHeaders } })
 })
 
 export const config = {

@@ -11,17 +11,12 @@ export interface SessionUser {
 
 /** Return the current session user, or null if unauthenticated. */
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  try {
-    const session = await auth()
-    if (!session?.user) return null
-    return session.user as SessionUser
-  } catch (e) {
-    // A transient JWT decode/secret error must not throw out of a Server
-    // Component render (that blanks the whole page). Treat it as logged-out so
-    // requireUser() cleanly redirects to /login instead.
-    console.error('[session] auth() failed:', e)
-    return null
-  }
+  // NB: do not wrap auth() in try/catch — Next.js throws control-flow errors
+  // (DynamicServerError, NEXT_REDIRECT) through it, and swallowing them breaks
+  // the build/render. next-auth already returns a null session on a bad token.
+  const session = await auth()
+  if (!session?.user) return null
+  return session.user as SessionUser
 }
 
 /** Return the current user or redirect to /login. */
