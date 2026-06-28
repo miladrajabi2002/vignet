@@ -8,6 +8,15 @@ import { generateSlug } from '@/lib/utils'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  logger: {
+    // Bots/scanners constantly probe /api/auth/* with invalid actions, which
+    // makes authjs throw UnknownAction (a harmless 400) and flood the pm2
+    // error log. Swallow just that case; surface every other auth error.
+    error(error) {
+      if (error?.name === 'UnknownAction') return
+      console.error('[auth][error]', error)
+    },
+  },
   providers: [
     Credentials({
       name: 'phone-otp',
