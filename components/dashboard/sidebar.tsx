@@ -16,6 +16,7 @@ import {
   Rocket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Logo } from '@/components/ui/logo'
 
 const NAV = [
   { key: 'overview', href: '/overview', icon: LayoutDashboard },
@@ -39,9 +40,7 @@ export function Sidebar() {
         href="/overview"
         className="mb-8 flex items-center gap-2 px-2 py-1"
       >
-        <span className="font-mono text-lg font-medium tracking-widest text-[var(--text-primary)]">
-          VIGENT
-        </span>
+        <Logo className="h-5 w-auto text-[var(--text-primary)]" />
       </Link>
 
       <Link

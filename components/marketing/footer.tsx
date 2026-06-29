@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import { Logo } from '@/components/ui/logo'
 
 export function Footer() {
   const t = useTranslations('marketing.footer')
@@ -26,9 +27,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="flex flex-col items-start justify-between gap-10 md:flex-row md:items-center">
           <div>
-            <span className="font-mono text-xl font-medium tracking-widest text-[var(--text-primary)]">
-              VIGENT
-            </span>
+            <Logo className="h-6 w-auto text-[var(--text-primary)]" />
             <p className="mt-3 max-w-xs text-sm text-[var(--text-secondary)]">{t('tagline')}</p>
           </div>
 

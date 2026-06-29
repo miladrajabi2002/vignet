@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { Logo } from '@/components/ui/logo'
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -20,9 +21,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       />
       <Link
         href="/"
-        className="absolute top-8 font-mono text-lg font-medium tracking-widest text-white"
+        className="absolute top-8 text-white"
+        aria-label="Vigent"
       >
-        VIGENT
+        <Logo className="h-5 w-auto" />
       </Link>
       <div className="relative z-10 w-full max-w-sm">{children}</div>
     </div>

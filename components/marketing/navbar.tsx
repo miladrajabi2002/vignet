@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Logo } from '@/components/ui/logo'
 import { cn } from '@/lib/utils'
 
 // In-page section anchors (homepage) plus the docs route.
@@ -63,9 +64,10 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link
           href="/"
-          className="font-mono text-lg font-medium tracking-widest text-[var(--text-primary)] transition-opacity hover:opacity-70"
+          className="text-[var(--text-primary)] transition-opacity hover:opacity-70"
+          aria-label="Vigent"
         >
-          VIGENT
+          <Logo className="h-5 w-auto" />
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
