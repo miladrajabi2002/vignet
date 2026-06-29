@@ -13,13 +13,17 @@ import {
   ChevronDown,
   AlertTriangle,
   ShieldAlert,
+  Plus,
+  Trash2,
+  Sparkles,
 } from 'lucide-react'
 import {
   normalizeWidgetSettings,
   normalizeDomains,
+  WIDGET_ICONS,
   type WidgetSettings,
 } from '@/lib/widget/config'
-import { WidgetPreview } from './widget-preview'
+import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
 
 export function WebWidgetChannel({
   agentId,
@@ -58,6 +62,19 @@ export function WebWidgetChannel({
   function patch(p: Partial<WidgetSettings>) {
     setSettings((s) => ({ ...s, ...p }))
     setSaved(false)
+  }
+
+  function setQuick(i: number, val: string) {
+    const q = [...settings.quickReplies]
+    q[i] = val
+    patch({ quickReplies: q })
+  }
+  function addQuick() {
+    if (settings.quickReplies.length >= 4) return
+    patch({ quickReplies: [...settings.quickReplies, ''] })
+  }
+  function removeQuick(i: number) {
+    patch({ quickReplies: settings.quickReplies.filter((_, j) => j !== i) })
   }
 
   async function enable() {
@@ -111,6 +128,7 @@ export function WebWidgetChannel({
 
   const liveSettings: WidgetSettings = {
     ...settings,
+    quickReplies: settings.quickReplies.filter((q) => q.trim()),
     allowedDomains: normalizeDomains(domainsText),
   }
   const unprotected = liveSettings.allowedDomains.length === 0
@@ -268,6 +286,117 @@ export function WebWidgetChannel({
                       className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
                     />
                   </Field>
+
+                  <Field label={`${t('subtitle')} · ${t('optional')}`}>
+                    <input
+                      type="text"
+                      value={settings.subtitle ?? ''}
+                      placeholder={t('subtitlePh')}
+                      onChange={(e) => patch({ subtitle: e.target.value || null })}
+                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                    />
+                  </Field>
+
+                  <Field label={t('icon')}>
+                    <div className="flex flex-wrap gap-2">
+                      {WIDGET_ICONS.map((key) => {
+                        const Ico = WIDGET_ICON_COMPONENTS[key]
+                        const active = settings.icon === key
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => patch({ icon: key })}
+                            className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+                              active
+                                ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
+                                : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                          >
+                            <Ico className="h-5 w-5" />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Field>
+
+                  <Field label={t('corners')}>
+                    <Segmented
+                      value={settings.corners}
+                      onChange={(v) => patch({ corners: v as WidgetSettings['corners'] })}
+                      options={[
+                        { value: 'soft', label: t('cornersSoft') },
+                        { value: 'round', label: t('cornersRound') },
+                        { value: 'sharp', label: t('cornersSharp') },
+                      ]}
+                    />
+                  </Field>
+
+                  <Field label={t('font')}>
+                    <Segmented
+                      value={settings.font}
+                      onChange={(v) => patch({ font: v as WidgetSettings['font'] })}
+                      options={[
+                        { value: 'default', label: t('fontDefault') },
+                        { value: 'inherit', label: t('fontInherit') },
+                      ]}
+                    />
+                  </Field>
+                </section>
+
+                {/* Interaction */}
+                <section className="space-y-3">
+                  <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {t('interaction')}
+                  </h4>
+
+                  <Field label={`${t('quickReplies')} · ${t('optional')}`}>
+                    <div className="space-y-2">
+                      {settings.quickReplies.map((q, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={q}
+                            placeholder={t('quickReplyPh')}
+                            onChange={(e) => setQuick(i, e.target.value)}
+                            className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeQuick(i)}
+                            className="rounded-lg p-2 text-[var(--text-secondary)] hover:text-danger"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {settings.quickReplies.length < 4 && (
+                        <button
+                          type="button"
+                          onClick={addQuick}
+                          className="inline-flex items-center gap-1 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          {t('addQuickReply')}
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t('quickRepliesHint')}</p>
+                  </Field>
+
+                  <Toggle
+                    label={t('soundLabel')}
+                    hint={t('soundHint')}
+                    checked={settings.sound}
+                    onChange={(v) => patch({ sound: v })}
+                  />
+                  <Toggle
+                    label={t('autoGreetLabel')}
+                    hint={t('autoGreetHint')}
+                    checked={settings.autoGreet}
+                    onChange={(v) => patch({ autoGreet: v })}
+                  />
                 </section>
 
                 {/* Security */}
@@ -339,6 +468,42 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-sm text-[var(--text-primary)]">{label}</span>
       {children}
     </label>
+  )
+}
+
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start"
+    >
+      <div className="flex-1">
+        <div className="text-sm text-[var(--text-primary)]">{label}</div>
+        <div className="text-xs text-[var(--text-secondary)]">{hint}</div>
+      </div>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? 'bg-[var(--white)]' : 'bg-[var(--border-default)]'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
+            checked ? 'start-[18px] bg-[var(--bg-base)]' : 'start-0.5 bg-[var(--text-secondary)]'
+          }`}
+        />
+      </span>
+    </button>
   )
 }
 

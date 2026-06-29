@@ -49,6 +49,13 @@ export async function GET(_req: Request, { params }: Params) {
       primaryColor: settings.primaryColor,
       position: settings.position,
       launcherLabel: settings.launcherLabel,
+      font: settings.font,
+      icon: settings.icon,
+      subtitle: settings.subtitle,
+      corners: settings.corners,
+      quickReplies: settings.quickReplies,
+      sound: settings.sound,
+      autoGreet: settings.autoGreet,
     },
     { headers: corsHeaders },
   )

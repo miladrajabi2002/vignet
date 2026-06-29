@@ -9,6 +9,19 @@
 
 export type WidgetTheme = 'dark' | 'light'
 export type WidgetPosition = 'right' | 'left'
+export type WidgetFont = 'default' | 'inherit'
+export type WidgetCorners = 'soft' | 'round' | 'sharp'
+
+/** Preset avatar/launcher icons (keys shared between loader.js + dashboard). */
+export const WIDGET_ICONS = [
+  'chat',
+  'bot',
+  'headset',
+  'sparkles',
+  'bag',
+  'help',
+] as const
+export type WidgetIcon = (typeof WIDGET_ICONS)[number]
 
 export interface WidgetSettings {
   /** Brand accent: launcher fill, user bubble, send button. */
@@ -21,6 +34,20 @@ export interface WidgetSettings {
   headerTitle: string | null
   /** Optional short label shown beside the launcher icon. */
   launcherLabel: string | null
+  /** Built-in modern font (Vazirmatn) vs inheriting the host site's font. */
+  font: WidgetFont
+  /** Preset avatar/launcher icon key. */
+  icon: WidgetIcon
+  /** Optional header subtitle/tagline (defaults to the online status text). */
+  subtitle: string | null
+  /** Corner-radius style for the panel + bubbles. */
+  corners: WidgetCorners
+  /** One-click suggested questions shown under the welcome message. */
+  quickReplies: string[]
+  /** Play a soft chime when the assistant replies. */
+  sound: boolean
+  /** Auto-pop the welcome message as a teaser bubble after a few seconds. */
+  autoGreet: boolean
   /**
    * Hostnames allowed to embed the widget. Empty = allow everywhere (with an
    * "unprotected" warning shown in the dashboard).
@@ -34,6 +61,13 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   position: 'right',
   headerTitle: null,
   launcherLabel: null,
+  font: 'default',
+  icon: 'chat',
+  subtitle: null,
+  corners: 'soft',
+  quickReplies: [],
+  sound: false,
+  autoGreet: false,
   allowedDomains: [],
 }
 
@@ -61,12 +95,38 @@ export function normalizeWidgetSettings(raw: unknown): WidgetSettings {
       ? c.launcherLabel.trim().slice(0, 40)
       : null
 
+  const font: WidgetFont = c.font === 'inherit' ? 'inherit' : 'default'
+  const icon: WidgetIcon = WIDGET_ICONS.includes(c.icon as WidgetIcon)
+    ? (c.icon as WidgetIcon)
+    : 'chat'
+  const corners: WidgetCorners =
+    c.corners === 'round' || c.corners === 'sharp' ? c.corners : 'soft'
+
+  const subtitle =
+    typeof c.subtitle === 'string' && c.subtitle.trim()
+      ? c.subtitle.trim().slice(0, 50)
+      : null
+
+  const quickReplies = Array.isArray(c.quickReplies)
+    ? c.quickReplies
+        .map((q) => (typeof q === 'string' ? q.trim().slice(0, 60) : ''))
+        .filter(Boolean)
+        .slice(0, 4)
+    : []
+
   return {
     primaryColor,
     theme,
     position,
     headerTitle,
     launcherLabel,
+    font,
+    icon,
+    subtitle,
+    corners,
+    quickReplies,
+    sound: c.sound === true,
+    autoGreet: c.autoGreet === true,
     allowedDomains: normalizeDomains(c.allowedDomains),
   }
 }
