@@ -9,10 +9,21 @@ import {
   AudioLines,
   Mic,
   RotateCcw,
+  GraduationCap,
+  SlidersHorizontal,
+  Workflow,
+  Share2,
   type LucideIcon,
 } from 'lucide-react'
 import { SpotlightCard } from '@/components/ui/spotlight-card'
 import { TextReveal } from '@/components/ui/text-reveal'
+
+const HIGHLIGHTS: { key: string; icon: LucideIcon }[] = [
+  { key: 'learning', icon: GraduationCap },
+  { key: 'personalize', icon: SlidersHorizontal },
+  { key: 'flow', icon: Workflow },
+  { key: 'omnichannel', icon: Share2 },
+]
 
 type Bubble = {
   role: 'user' | 'agent'
@@ -45,6 +56,7 @@ const sleep = (ms: number, signal: AbortSignal) =>
 export function DemoSection() {
   const t = useTranslations('marketing.demo')
   const tSrc = useTranslations('marketing.demo.sources')
+  const tH = useTranslations('marketing.demo.highlights')
   const bubbles = t.raw('bubbles') as Bubble[]
 
   const ref = useRef<HTMLDivElement>(null)
@@ -173,7 +185,7 @@ export function DemoSection() {
 
   return (
     <section className="relative overflow-hidden bg-black py-28">
-      <div className="mx-auto max-w-4xl px-6">
+      <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-center text-3xl font-light text-white md:text-4xl">
           <TextReveal text={t('title')} />
         </h2>
@@ -181,16 +193,37 @@ export function DemoSection() {
           {t('subtitle')}
         </p>
 
-        <motion.div
-          ref={ref}
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mt-14 max-w-lg"
-        >
-          <SpotlightCard className="p-5">
-            <div className="flex min-h-[340px] flex-col justify-end space-y-3">
+        <div className="mt-16 grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+          {/* Live chat demo */}
+          <motion.div
+            ref={ref}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="mx-auto w-full max-w-lg"
+          >
+            <SpotlightCard className="p-5">
+              {/* Chat header — makes it read as a real, live conversation */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 border-b border-white/[0.08] px-5 pb-4">
+                <div className="relative">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-white/20 to-white/[0.05] text-sm font-medium text-white">
+                    و
+                  </div>
+                  <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-black bg-emerald-400" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-white">
+                    {t('agentName')}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400/90">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    {t('online')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex min-h-[340px] flex-col justify-end space-y-3">
               {bubbles
                 .slice(0, done)
                 .map((b, i) => renderBubble(b, i, b.text))}
@@ -237,8 +270,48 @@ export function DemoSection() {
                 </motion.button>
               )}
             </AnimatePresence>
-          </SpotlightCard>
-        </motion.div>
+            </SpotlightCard>
+          </motion.div>
+
+          {/* Capability highlights beside the live chat */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            className="mx-auto w-full max-w-lg"
+          >
+            <h3 className="text-2xl font-light text-white md:text-3xl">
+              {tH('title')}
+            </h3>
+            <p className="mt-3 text-white/45">{tH('subtitle')}</p>
+
+            <ul className="mt-8 space-y-3">
+              {HIGHLIGHTS.map(({ key, icon: Icon }, i) => (
+                <motion.li
+                  key={key}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.5, delay: 0.15 + i * 0.08 }}
+                  className="group flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] transition-colors duration-300 group-hover:border-white/25">
+                    <Icon className="h-5 w-5 text-white/80 transition-colors group-hover:text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-[15px] font-medium text-white">
+                      {tH(`items.${key}.title`)}
+                    </h4>
+                    <p className="mt-1 text-sm leading-relaxed text-white/45">
+                      {tH(`items.${key}.desc`)}
+                    </p>
+                  </div>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
       </div>
     </section>
   )

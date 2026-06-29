@@ -653,11 +653,35 @@
       "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
     },
     "demo": {
-      "title": "See it in action",
+      "title": "Live chat, smarter than ever",
       "subtitle": "Watch the agent answer in real time — from your catalog, your knowledge base, and even voice notes.",
       "typing": "typing…",
       "voiceLabel": "Voice message",
       "replay": "Replay",
+      "agentName": "Vignet Agent",
+      "online": "Online",
+      "highlights": {
+        "title": "Not just a chatbot",
+        "subtitle": "An agent that learns, adapts to your brand, and manages the conversation.",
+        "items": {
+          "learning": {
+            "title": "Self-learning agent",
+            "desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
+          },
+          "personalize": {
+            "title": "Full personalization",
+            "desc": "Tune the agent's tone, personality and replies to match your brand and taste"
+          },
+          "flow": {
+            "title": "Conversation flow control",
+            "desc": "Design and control the conversation path with a visual builder — no code"
+          },
+          "omnichannel": {
+            "title": "Omnichannel",
+            "desc": "The same agent replies on Telegram, WhatsApp, Instagram and a web widget"
+          }
+        }
+      },
       "sources": {
         "catalog": "From product catalog",
         "knowledge": "From knowledge base",
