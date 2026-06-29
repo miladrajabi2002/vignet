@@ -38,7 +38,7 @@
   }
 
   // ---- Color helpers (compute a legible foreground for the brand color) ----
-  function contrast(hex) {
+  function rgb(hex) {
     var h = (hex || '#000').replace('#', '')
     if (h.length === 3)
       h = h
@@ -47,12 +47,21 @@
           return x + x
         })
         .join('')
-    var r = parseInt(h.slice(0, 2), 16) || 0
-    var g = parseInt(h.slice(2, 4), 16) || 0
-    var b = parseInt(h.slice(4, 6), 16) || 0
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6
+    return {
+      r: parseInt(h.slice(0, 2), 16) || 0,
+      g: parseInt(h.slice(2, 4), 16) || 0,
+      b: parseInt(h.slice(4, 6), 16) || 0,
+    }
+  }
+  function contrast(hex) {
+    var c = rgb(hex)
+    return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255 > 0.6
       ? '#000000'
       : '#ffffff'
+  }
+  function softColor(hex, alpha) {
+    var c = rgb(hex)
+    return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + alpha + ')'
   }
 
   // ---- Stylesheet (one injected <style>; classes enable hover + keyframes) ----
@@ -109,15 +118,17 @@
       '.vgt-typing span:nth-child(2){animation-delay:.18s;}' +
       '.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
       // input
-      '.vgt-foot{padding:12px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
-      '.vgt-inputwrap{display:flex;gap:8px;align-items:flex-end;background:var(--vgt-surface);border:1px solid var(--vgt-border);border-radius:14px;padding:6px 6px 6px 14px;transition:border-color .15s;}' +
-      '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);}' +
-      '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-size:14px;line-height:1.5;max-height:96px;padding:6px 0;font-family:inherit;}' +
-      '.vgt-input::placeholder{color:var(--vgt-muted);}' +
-      '.vgt-send{flex:0 0 38px;width:38px;height:38px;border:none;cursor:pointer;border-radius:11px;background:var(--vgt-accent);color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;transition:transform .15s,opacity .15s;}' +
-      '.vgt-send:hover{transform:scale(1.06);}' +
-      '.vgt-send:disabled{opacity:.4;cursor:default;transform:none;}' +
+      '.vgt-foot{padding:12px 14px 10px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
+      '.vgt-inputwrap{display:flex;gap:6px;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);border-radius:18px;padding:5px;padding-inline-start:16px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
+      '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
+      '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-size:14.5px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;font-family:inherit;}' +
+      '.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
+      '.vgt-send{flex:0 0 40px;width:40px;height:40px;border:none;cursor:pointer;border-radius:50%;background:var(--vgt-accent);color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;transition:transform .15s,opacity .15s,box-shadow .15s;box-shadow:0 4px 12px -3px var(--vgt-accent-soft);}' +
+      '.vgt-send:hover{transform:scale(1.08);box-shadow:0 6px 16px -3px var(--vgt-accent-soft);}' +
+      '.vgt-send:active{transform:scale(.94);}' +
+      '.vgt-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none;}' +
       '.vgt-send svg{width:18px;height:18px;}' +
+      '.vgt-root.vgt-rtl .vgt-send svg{transform:scaleX(-1);}' +
       '.vgt-brand{text-align:center;font-size:11px;color:var(--vgt-muted);padding-top:8px;}' +
       '.vgt-brand a{color:var(--vgt-muted);text-decoration:none;font-weight:600;}' +
       // keyframes
@@ -209,6 +220,7 @@
     var s = root.style
     s.setProperty('--vgt-accent', accent)
     s.setProperty('--vgt-on-accent', contrast(accent))
+    s.setProperty('--vgt-accent-soft', softColor(accent, 0.22))
     s.setProperty('--vgt-bg', dark ? '#0c0c0e' : '#ffffff')
     s.setProperty('--vgt-surface', dark ? '#1a1a1f' : '#f4f4f5')
     s.setProperty('--vgt-text', dark ? '#f4f4f5' : '#18181b')
