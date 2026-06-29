@@ -306,10 +306,12 @@
     var typing = showTyping()
     var assistant = null
 
+    var payload = { message: text }
+    if (conversationId) payload.conversationId = conversationId
     fetch(base + '/api/widget/' + agentId + '/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, conversationId: conversationId }),
+      body: JSON.stringify(payload),
     })
       .then(function (res) {
         if (!res.ok || !res.body) {

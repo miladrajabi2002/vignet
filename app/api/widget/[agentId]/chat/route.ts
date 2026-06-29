@@ -10,7 +10,9 @@ type Params = { params: { agentId: string } }
 
 const bodySchema = z.object({
   message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
+  // Accept null too: older/embedded widgets send `conversationId: null` on the
+  // first turn, which `.optional()` alone would reject as INVALID.
+  conversationId: z.string().nullish(),
 })
 
 export function OPTIONS() {
@@ -87,7 +89,7 @@ export async function POST(req: Request, { params }: Params) {
     workspaceId: agent.workspaceId,
     agent,
     message: parsed.data.message,
-    conversationId: parsed.data.conversationId,
+    conversationId: parsed.data.conversationId ?? undefined,
     channel: 'WEB_WIDGET',
   })
 
