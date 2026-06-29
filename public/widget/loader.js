@@ -71,7 +71,10 @@
     var css =
       // Force LTR on the container so positioning (inset-inline-*) is deterministic
       // regardless of the host page direction; inner text direction is set per-panel.
-      '.vgt-root{position:fixed;bottom:20px;z-index:2147483000;direction:ltr;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;}' +
+      '.vgt-root{position:fixed;bottom:20px;z-index:2147483000;direction:ltr;visibility:hidden;opacity:0;transition:opacity .28s ease;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;}' +
+      // Revealed only once the real (dashboard) config is applied, so there is no
+      // flash of the default position/theme before the custom one loads.
+      '.vgt-root.vgt-ready{visibility:visible;opacity:1;}' +
       '.vgt-root.vgt-right{inset-inline-end:20px;}' +
       '.vgt-root.vgt-left{inset-inline-start:20px;}' +
       // launcher
@@ -401,12 +404,37 @@
   })
 
   // ---- Init ----
-  function mount() {
-    document.body.appendChild(root)
+  // The widget stays hidden until the real (dashboard) config has been applied,
+  // then fades in once — avoiding a visible jump from the default theme/position
+  // to the customized one. mount() and the config fetch race; reveal needs both.
+  var mounted = false
+  var configReady = false
+  var welcomeShown = false
+
+  function reveal() {
+    if (!mounted || !configReady) return
     applyConfig()
+    root.classList.add('vgt-ready')
+    if (config.welcomeMessage && !welcomeShown) {
+      welcomeShown = true
+      bubble('assistant', config.welcomeMessage)
+    }
+  }
+  function mount() {
+    if (mounted) return
+    mounted = true
+    document.body.appendChild(root)
+    reveal()
+  }
+  function markReady() {
+    configReady = true
+    reveal()
   }
   if (document.body) mount()
   else document.addEventListener('DOMContentLoaded', mount)
+
+  // Fallback: never leave the launcher hidden if the config call is slow/down.
+  var readyTimer = setTimeout(markReady, 2500)
 
   fetch(base + '/api/widget/' + agentId)
     .then(function (r) {
@@ -418,10 +446,11 @@
           if (cfg[k] != null) config[k] = cfg[k]
         })
       }
-      applyConfig()
-      if (config.welcomeMessage) bubble('assistant', config.welcomeMessage)
+      clearTimeout(readyTimer)
+      markReady()
     })
     .catch(function () {
-      applyConfig()
+      clearTimeout(readyTimer)
+      markReady()
     })
 })()
