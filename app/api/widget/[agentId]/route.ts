@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { corsHeaders, corsOptions } from '@/lib/cors'
+import { normalizeWidgetSettings } from '@/lib/widget/config'
 
 type Params = { params: { agentId: string } }
 
@@ -8,7 +9,7 @@ export function OPTIONS() {
   return corsOptions()
 }
 
-// Public widget config — only safe, non-sensitive fields.
+// Public widget config — only safe, non-sensitive fields + appearance settings.
 export async function GET(_req: Request, { params }: Params) {
   const agent = await prisma.agent.findUnique({
     where: { id: params.agentId },
@@ -19,6 +20,11 @@ export async function GET(_req: Request, { params }: Params) {
       language: true,
       avatar: true,
       active: true,
+      channels: {
+        where: { type: 'WEB_WIDGET' },
+        select: { config: true },
+        take: 1,
+      },
     },
   })
 
@@ -29,13 +35,20 @@ export async function GET(_req: Request, { params }: Params) {
     )
   }
 
+  const settings = normalizeWidgetSettings(agent.channels[0]?.config)
+
   return NextResponse.json(
     {
       id: agent.id,
-      name: agent.name,
+      name: settings.headerTitle ?? agent.name,
       welcomeMessage: agent.welcomeMessage,
       language: agent.language,
       avatar: agent.avatar,
+      // Appearance — consumed by loader.js to theme the widget.
+      theme: settings.theme,
+      primaryColor: settings.primaryColor,
+      position: settings.position,
+      launcherLabel: settings.launcherLabel,
     },
     { headers: corsHeaders },
   )

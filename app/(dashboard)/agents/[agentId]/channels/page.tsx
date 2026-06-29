@@ -27,19 +27,26 @@ export default async function AgentChannelsPage({
   const user = await requireUser()
   const t = await getTranslations('channels')
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: {
-      id: true,
-      name: true,
-      channels: {
-        select: { id: true, type: true, config: true, lastInboundAt: true },
+  const [agent, workspace] = await Promise.all([
+    prisma.agent.findFirst({
+      where: { id: params.agentId, workspaceId: user.workspaceId },
+      select: {
+        id: true,
+        name: true,
+        channels: {
+          select: { id: true, type: true, config: true, lastInboundAt: true },
+        },
       },
-    },
-  })
+    }),
+    prisma.workspace.findUnique({
+      where: { id: user.workspaceId },
+      select: { openrouterKeyEnc: true },
+    }),
+  ])
   if (!agent) notFound()
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
+  const hasApiKey = !!workspace?.openrouterKeyEnc
   const baseUrl = process.env.NEXT_PUBLIC_WIDGET_URL ?? 'http://localhost:3000'
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
@@ -70,9 +77,12 @@ export default async function AgentChannelsPage({
 
       <WebWidgetChannel
         agentId={agent.id}
+        agentName={agent.name}
         baseUrl={baseUrl}
         enabled={!!widget}
         channelId={widget?.id ?? null}
+        config={(widget?.config as Record<string, unknown> | null) ?? null}
+        hasApiKey={hasApiKey}
       />
 
       {messengers.map((m) => {

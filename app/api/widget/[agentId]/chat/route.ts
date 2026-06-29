@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
 import { corsHeaders, corsOptions } from '@/lib/cors'
+import { normalizeWidgetSettings, isOriginAllowed } from '@/lib/widget/config'
 
 type Params = { params: { agentId: string } }
 
@@ -52,12 +53,33 @@ export async function POST(req: Request, { params }: Params) {
       handoffEnabled: true,
       handoffMessage: true,
       handoffKeywords: true,
+      channels: {
+        where: { type: 'WEB_WIDGET' },
+        select: { config: true },
+        take: 1,
+      },
     },
   })
   if (!agent || !agent.active) {
     return NextResponse.json(
       { error: 'NOT_FOUND' },
       { status: 404, headers: corsHeaders },
+    )
+  }
+
+  // Anti-abuse: if the owner configured an allowlist, only embed-able from those
+  // domains. Empty allowlist = open (the dashboard warns it is unprotected).
+  const settings = normalizeWidgetSettings(agent.channels[0]?.config)
+  if (
+    !isOriginAllowed(
+      req.headers.get('origin'),
+      req.headers.get('referer'),
+      settings.allowedDomains,
+    )
+  ) {
+    return NextResponse.json(
+      { error: 'FORBIDDEN_ORIGIN' },
+      { status: 403, headers: corsHeaders },
     )
   }
 
