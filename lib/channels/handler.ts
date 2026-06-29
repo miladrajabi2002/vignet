@@ -11,6 +11,7 @@ import {
   type MessengerType,
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
+import { captureError } from '@/lib/errors/capture'
 
 const AGENT_SELECT = {
   id: true,
@@ -191,7 +192,10 @@ export async function handleInbound(
         }
       }
     } catch (e) {
-      console.error(`[handler] ${type} message failed:`, e)
+      captureError(`webhook:${type}`, e, {
+        workspaceId: agent.workspaceId,
+        metadata: { agentId: agent.id, channelId },
+      })
     }
   }
 }

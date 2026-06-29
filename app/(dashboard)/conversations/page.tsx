@@ -5,16 +5,26 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
+import { Pagination } from '@/components/ui/pagination'
 
-export default async function ConversationsPage() {
+const PAGE_SIZE = 50
+
+export default async function ConversationsPage({
+  searchParams,
+}: {
+  searchParams: { page?: string }
+}) {
   const user = await requireUser()
   const t = await getTranslations('conversations')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 
+  const page = Math.max(1, Number(searchParams.page) || 1)
+
   const conversations = await prisma.conversation.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-    take: 50,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE + 1, // one extra row tells us whether a next page exists
     select: {
       id: true,
       channel: true,
@@ -31,6 +41,9 @@ export default async function ConversationsPage() {
     },
   })
 
+  const hasNext = conversations.length > PAGE_SIZE
+  const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -38,14 +51,14 @@ export default async function ConversationsPage() {
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
       </div>
 
-      {conversations.length === 0 ? (
+      {pageItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
           <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
           <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
         </div>
       ) : (
         <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-          {conversations.map((c) => {
+          {pageItems.map((c) => {
             const last = c.messages[0]
             const when = c.lastMessageAt ?? c.createdAt
             const who = c.contact?.name || c.contact?.phone || t('anonymous')
@@ -79,6 +92,12 @@ export default async function ConversationsPage() {
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        hasNext={hasNext}
+        makeHref={(p) => `/conversations?page=${p}`}
+      />
     </div>
   )
 }

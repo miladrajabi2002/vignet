@@ -9,6 +9,8 @@ import {
 } from '@/lib/ai/openrouter'
 import { retrieveContext, buildMessages, type CatalogProduct } from '@/lib/ai/rag'
 import { syncOnboarding } from '@/lib/onboarding'
+import { captureError } from '@/lib/errors/capture'
+import { notifyWorkspace } from '@/lib/notifications/create'
 
 export interface ChatAgent {
   id: string
@@ -36,6 +38,18 @@ function detectUnanswered(reply: string, fallback: string | null): boolean {
   if (fallback && reply.trim() === fallback.trim()) return true
   const lower = reply.toLowerCase()
   return UNANSWERED_PHRASES.some((p) => lower.includes(p.toLowerCase()))
+}
+
+/** Notify the workspace owner that a conversation was handed off to a human. */
+function notifyHandoff(workspaceId: string, conversationId: string): Promise<void> {
+  return notifyWorkspace({
+    workspaceId,
+    type: 'HANDOFF',
+    title: 'گفتگو به اپراتور انسانی منتقل شد',
+    body: 'یک مکالمه نیاز به پاسخ شما دارد.',
+    link: `/conversations/${conversationId}`,
+    sms: true,
+  }).catch(() => {})
 }
 
 async function shouldHandoff(
@@ -84,17 +98,30 @@ const HISTORY_LIMIT = 10
  * against the race where two webhook deliveries arrive nearly simultaneously:
  * the loser of the race catches the conflict and re-reads the winner's row.
  */
+interface ExperimentConfig {
+  active: boolean
+  hasVariant: boolean
+  split: number
+}
+
+/** Decide which prompt variant a brand-new conversation should be served. */
+function pickVariant(exp?: ExperimentConfig): string {
+  if (exp?.active && exp.hasVariant && Math.random() * 100 < exp.split) return 'B'
+  return 'A'
+}
+
 async function resolveConversation(
   params: StartChatParams,
-): Promise<{ id: string }> {
+  exp?: ExperimentConfig,
+): Promise<{ id: string; variant: string }> {
   const { workspaceId, agent } = params
 
   if (params.conversationId) {
     const found = await prisma.conversation.findFirst({
       where: { id: params.conversationId, workspaceId, agentId: agent.id },
-      select: { id: true },
+      select: { id: true, variant: true },
     })
-    if (found) return found
+    if (found) return { id: found.id, variant: found.variant ?? 'A' }
   }
 
   if (params.externalId) {
@@ -106,7 +133,7 @@ async function resolveConversation(
         externalId: params.externalId,
       },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, status: true },
+      select: { id: true, status: true, variant: true },
     })
     if (found) {
       // Reopen a conversation the stale-sweep (or a handoff) had closed so the
@@ -117,21 +144,24 @@ async function resolveConversation(
           data: { status: 'OPEN' },
         })
       }
-      return { id: found.id }
+      return { id: found.id, variant: found.variant ?? 'A' }
     }
   }
 
+  const variant = pickVariant(exp)
   try {
-    return await prisma.conversation.create({
+    const created = await prisma.conversation.create({
       data: {
         workspaceId,
         agentId: agent.id,
         channel: params.channel,
         contactId: params.contactId,
         externalId: params.externalId,
+        variant,
       },
       select: { id: true },
     })
+    return { id: created.id, variant }
   } catch (e) {
     // Unique-constraint race: a concurrent delivery created the row first.
     if (
@@ -149,11 +179,41 @@ async function resolveConversation(
           externalId: params.externalId,
         },
         orderBy: { createdAt: 'desc' },
-        select: { id: true },
+        select: { id: true, variant: true },
       })
-      if (winner) return winner
+      if (winner) return { id: winner.id, variant: winner.variant ?? 'A' }
     }
     throw e
+  }
+}
+
+/** Fetch model default + experiment config for an agent in one round-trip. */
+async function loadAgentRuntime(
+  workspaceId: string,
+  agentId: string,
+): Promise<{ defaultModel: string | null; exp: ExperimentConfig; variantPrompt: string | null }> {
+  const [ws, a] = await Promise.all([
+    prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { defaultModel: true },
+    }),
+    prisma.agent.findUnique({
+      where: { id: agentId },
+      select: {
+        experimentActive: true,
+        experimentVariantPrompt: true,
+        experimentSplit: true,
+      },
+    }),
+  ])
+  return {
+    defaultModel: ws?.defaultModel ?? null,
+    variantPrompt: a?.experimentVariantPrompt ?? null,
+    exp: {
+      active: !!a?.experimentActive,
+      hasVariant: !!a?.experimentVariantPrompt,
+      split: a?.experimentSplit ?? 50,
+    },
   }
 }
 
@@ -258,15 +318,16 @@ export async function startChat(
   const key = await getWorkspaceOpenRouterKey(workspaceId)
   if (!key) return { error: 'NO_KEY' }
 
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { defaultModel: true },
-  })
-  const model = agent.model || ws?.defaultModel || 'deepseek/deepseek-chat'
+  const runtime = await loadAgentRuntime(workspaceId, agent.id)
+  const model = agent.model || runtime.defaultModel || 'deepseek/deepseek-chat'
 
   // Resolve (or create) the conversation, scoped to the workspace.
-  const conversation = await resolveConversation(params)
+  const conversation = await resolveConversation(params, runtime.exp)
   const conversationId = conversation.id
+  const systemPrompt =
+    conversation.variant === 'B' && runtime.variantPrompt
+      ? runtime.variantPrompt
+      : agent.systemPrompt
 
   const [history, catalogProducts] = await Promise.all([
     loadHistory(conversationId),
@@ -287,7 +348,7 @@ export async function startChat(
   bumpProductQueries(workspaceId, chunks)
 
   const messages = buildMessages({
-    systemPrompt: agent.systemPrompt,
+    systemPrompt,
     language: agent.language,
     contextText,
     catalogProducts,
@@ -316,6 +377,7 @@ export async function startChat(
             where: { id: conversationId },
             data: { status: 'HANDED_OFF', messageCount: { increment: 2 }, lastMessageAt: new Date() },
           })
+          void notifyHandoff(workspaceId, conversationId)
           send({ type: 'done', messageId: savedMsg.id })
         } catch (e) {
           console.error('[chat-engine] handoff persist error:', e)
@@ -342,7 +404,10 @@ export async function startChat(
           send({ type: 'delta', text: delta })
         }
       } catch (e) {
-        console.error('[chat-engine] stream error:', e)
+        captureError('chat-engine:stream', e, {
+          workspaceId,
+          metadata: { agentId: agent.id, model, conversationId },
+        })
         if (!full) {
           full = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
           send({ type: 'delta', text: full })
@@ -403,14 +468,15 @@ export async function generateReply(
   const key = await getWorkspaceOpenRouterKey(workspaceId)
   if (!key) return { error: 'NO_KEY' }
 
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { defaultModel: true },
-  })
-  const model = agent.model || ws?.defaultModel || 'deepseek/deepseek-chat'
+  const runtime = await loadAgentRuntime(workspaceId, agent.id)
+  const model = agent.model || runtime.defaultModel || 'deepseek/deepseek-chat'
 
-  const conversation = await resolveConversation(params)
+  const conversation = await resolveConversation(params, runtime.exp)
   const conversationId = conversation.id
+  const systemPrompt =
+    conversation.variant === 'B' && runtime.variantPrompt
+      ? runtime.variantPrompt
+      : agent.systemPrompt
 
   const [history, catalogProducts] = await Promise.all([
     loadHistory(conversationId),
@@ -429,7 +495,7 @@ export async function generateReply(
   bumpProductQueries(workspaceId, chunks)
 
   const messages = buildMessages({
-    systemPrompt: agent.systemPrompt,
+    systemPrompt,
     language: agent.language,
     contextText,
     catalogProducts,
@@ -447,6 +513,7 @@ export async function generateReply(
         where: { id: conversationId },
         data: { status: 'HANDED_OFF', messageCount: { increment: 2 }, lastMessageAt: new Date() },
       })
+      void notifyHandoff(workspaceId, conversationId)
     } catch (e) {
       console.error('[chat-engine] handoff persist error:', e)
     }
@@ -466,7 +533,10 @@ export async function generateReply(
     reply = result.content.trim()
     usage = result.usage
   } catch (e) {
-    console.error('[chat-engine] completion error:', e)
+    captureError('chat-engine:completion', e, {
+      workspaceId,
+      metadata: { agentId: agent.id, model, conversationId },
+    })
   }
   if (!reply) {
     reply = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'

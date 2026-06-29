@@ -9,10 +9,12 @@ import {
   Share2,
   AudioLines,
   Inbox,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react'
 
 const ITEMS: { key: string; icon: LucideIcon }[] = [
+  { key: 'learning', icon: GraduationCap },
   { key: 'builder', icon: Workflow },
   { key: 'knowledge', icon: Database },
   { key: 'products', icon: Package },

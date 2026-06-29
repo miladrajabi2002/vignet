@@ -6,6 +6,8 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationActions } from '@/components/crm/conversation-actions'
+import { OperatorReply } from '@/components/crm/operator-reply'
+import { isMessengerType } from '@/lib/channels/registry'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 
@@ -23,6 +25,7 @@ export default async function ConversationThreadPage({
     select: {
       id: true,
       channel: true,
+      externalId: true,
       status: true,
       rating: true,
       summary: true,
@@ -31,13 +34,22 @@ export default async function ConversationThreadPage({
       contact: { select: { name: true, phone: true } },
       messages: {
         orderBy: { createdAt: 'asc' },
-        select: { id: true, role: true, content: true, createdAt: true, contentType: true },
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          createdAt: true,
+          contentType: true,
+          metadata: true,
+        },
       },
     },
   })
   if (!conversation) notFound()
 
   const who = conversation.contact?.name || conversation.contact?.phone || t('anonymous')
+  const canDeliver =
+    isMessengerType(conversation.channel) && !!conversation.externalId
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col space-y-4">
@@ -92,6 +104,10 @@ export default async function ConversationThreadPage({
         {conversation.messages.map((m) => {
           const isUser = m.role === 'USER'
           if (m.role === 'SYSTEM') return null
+          const isOperator =
+            !!m.metadata &&
+            typeof m.metadata === 'object' &&
+            (m.metadata as Record<string, unknown>).operator === true
           return (
             <div
               key={m.id}
@@ -105,6 +121,11 @@ export default async function ConversationThreadPage({
                     : 'bg-[var(--white)] text-[var(--bg-base)]',
                 )}
               >
+                {isOperator && (
+                  <span className="mb-0.5 block text-[10px] font-medium opacity-60">
+                    {t('operatorBadge')}
+                  </span>
+                )}
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                 <span
                   className={cn(
@@ -122,6 +143,8 @@ export default async function ConversationThreadPage({
           <p className="py-8 text-center text-sm text-[var(--text-muted)]">{t('noMessages')}</p>
         )}
       </div>
+
+      <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
     </div>
   )
 }

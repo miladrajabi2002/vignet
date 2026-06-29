@@ -242,6 +242,20 @@ ensure_secret "NEXTAUTH_SECRET" "$(openssl rand -base64 32)"
 ensure_secret "AUTH_SECRET"     "$(openssl rand -base64 32)"
 ensure_secret "ENCRYPTION_KEY"  "$(openssl rand -hex 32)"
 
+# اعتبارنامه‌ی داشبورد ادمین (مسیر /admin) — یوزر/پسورد ثابت
+ensure_secret "ADMIN_USER" "admin"
+ensure_secret "ADMIN_PASS" "$(openssl rand -hex 12)"
+ensure_secret "ADMIN_SESSION_SECRET" "$(openssl rand -base64 32)"
+
+# ─── بک‌آپ شبانه‌ی دیتابیس (cron) ────────────────────────────────────────────
+echo "==> نصب زمان‌بندی بک‌آپ شبانه"
+sudo mkdir -p /var/backups/vignet
+sudo chown "$(whoami)":"$(whoami)" /var/backups/vignet 2>/dev/null || true
+CRON_LINE="0 3 * * * cd ${PROJECT_DIR} && bash deploy/backup.sh >> /var/log/vignet-backup.log 2>&1"
+# خط قبلی بک‌آپ را حذف و دوباره اضافه می‌کنیم (idempotent)
+( crontab -l 2>/dev/null | grep -v 'deploy/backup.sh' ; echo "${CRON_LINE}" ) | crontab -
+echo "→ هر شب ساعت ۳ بامداد بک‌آپ گرفته می‌شود (لاگ: /var/log/vignet-backup.log)"
+
 # ─── نتیجه ──────────────────────────────────────────────────────────────────
 cat <<DONE
 
@@ -254,6 +268,11 @@ cat <<DONE
    • S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY → MinIO محلی (bucketها ساخته شد)
    • NEXTAUTH_URL / APP_URL / WIDGET_URL → ${APP_URL}
    • NEXTAUTH_SECRET / AUTH_SECRET / ENCRYPTION_KEY → ساخته شد
+   • ADMIN_USER / ADMIN_PASS → اعتبارنامه‌ی داشبورد ادمین (/admin) ساخته شد
+   • بک‌آپ شبانه‌ی دیتابیس روی cron نصب شد (هر شب ۳ بامداد)
+
+ ℹ️  یوزر/پسورد ادمین را با این دستور ببین:
+     grep -E '^ADMIN_(USER|PASS)=' ${ENV_FILE}
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
    • SMS_IR_API_KEY / SMS_IR_TEMPLATE_ID   (برای OTP)

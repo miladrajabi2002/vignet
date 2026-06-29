@@ -9,6 +9,8 @@ import {
   Package,
   Workflow,
   BarChart3,
+  GraduationCap,
+  FlaskConical,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -34,6 +36,8 @@ export default async function AgentDetailPage({
     { href: `/agents/${agent.id}/knowledge`, label: t('knowledge'), icon: Database },
     { href: `/agents/${agent.id}/catalog`, label: t('products'), icon: Package },
     { href: `/agents/${agent.id}/channels`, label: t('channels'), icon: Share2 },
+    { href: `/agents/${agent.id}/learning`, label: t('learning'), icon: GraduationCap },
+    { href: `/agents/${agent.id}/experiments`, label: t('experiments'), icon: FlaskConical },
     { href: `/agents/${agent.id}/analytics`, label: t('analytics'), icon: BarChart3 },
   ]
 

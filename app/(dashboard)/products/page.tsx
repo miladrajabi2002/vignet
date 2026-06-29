@@ -5,11 +5,14 @@ import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductGrid, ProductsToolbar } from '@/components/products/product-grid'
+import { Pagination } from '@/components/ui/pagination'
+
+const PAGE_SIZE = 24
 
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; sort?: string; categoryId?: string }
+  searchParams: { q?: string; sort?: string; categoryId?: string; page?: string }
 }) {
   const user = await requireUser()
   const t = await getTranslations('products')
@@ -17,6 +20,7 @@ export default async function ProductsPage({
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
   const categoryId = searchParams.categoryId ?? ''
+  const page = Math.max(1, Number(searchParams.page) || 1)
 
   const orderBy: Prisma.ProductOrderByWithRelationInput =
     sort === 'price_asc'
@@ -43,6 +47,8 @@ export default async function ProductsPage({
       },
       orderBy,
       include: { category: { select: { name: true } } },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE + 1, // one extra row signals whether a next page exists
     }),
     prisma.productCategory.findMany({
       where: { workspaceId: user.workspaceId },
@@ -50,6 +56,19 @@ export default async function ProductsPage({
       select: { id: true, name: true },
     }),
   ])
+
+  const hasNext = products.length > PAGE_SIZE
+  const pageProducts = hasNext ? products.slice(0, PAGE_SIZE) : products
+
+  const makeHref = (p: number) => {
+    const sp = new URLSearchParams()
+    if (q) sp.set('q', q)
+    if (sort !== 'newest') sp.set('sort', sort)
+    if (categoryId) sp.set('categoryId', categoryId)
+    if (p > 1) sp.set('page', String(p))
+    const qs = sp.toString()
+    return qs ? `/products?${qs}` : '/products'
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -90,7 +109,8 @@ export default async function ProductsPage({
             defaultSort={sort}
             defaultCategory={categoryId}
           />
-          <ProductGrid products={products} />
+          <ProductGrid products={pageProducts} />
+          <Pagination page={page} hasNext={hasNext} makeHref={makeHref} />
         </>
       )}
     </div>

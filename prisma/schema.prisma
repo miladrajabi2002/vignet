@@ -36,6 +36,7 @@ model Workspace {
   usageLogs         UsageLog[]
   products          Product[]
   productCategories ProductCategory[]
+  notifications     Notification[]
 
   @@index([slug])
 }
@@ -101,6 +102,11 @@ model Agent {
   handoffKeywords  String[] @default([])
   active           Boolean  @default(true)
   flowConfig      Json?
+  // ─ A/B experiment (optional): serve a variant system prompt to a % of new
+  //   conversations and compare outcomes. Inactive by default.
+  experimentActive        Boolean @default(false)
+  experimentVariantPrompt String? @db.Text
+  experimentSplit         Int     @default(50) // % of new conversations served variant B
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -110,8 +116,26 @@ model Agent {
   conversations   Conversation[]
   knowledgeChunks KnowledgeChunk[]
   catalogItems    AgentCatalog[]
+  versions        AgentVersion[]
 
   @@index([workspaceId])
+}
+
+// ─── AGENT VERSION (prompt/config snapshots for rollback) ─────────────
+model AgentVersion {
+  id           String   @id @default(cuid())
+  agentId      String
+  label        String
+  systemPrompt String   @db.Text
+  model        String?
+  temperature  Float    @default(0.7)
+  maxTokens    Int      @default(1000)
+  note         String?
+  createdAt    DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
 }
 
 // ─── CHANNEL CONNECTIONS ──────────────────────────────────────────
@@ -123,6 +147,7 @@ model AgentChannel {
   active        Boolean     @default(true)
   webhookUrl    String?
   lastInboundAt DateTime? // last time an inbound webhook message arrived (health signal)
+  healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
   createdAt     DateTime    @default(now())
 
   agent Agent @relation(fields: [agentId], references: [id])
@@ -294,6 +319,7 @@ model Conversation {
   externalId    String?
   status        ConvStatus  @default(OPEN)
   handedOff     Boolean     @default(false)
+  variant       String? // A/B experiment variant served to this conversation ('A' | 'B')
   rating        Int?
   summary       String?     @db.Text
   messageCount  Int         @default(0)
@@ -391,4 +417,45 @@ enum SubStatus {
   ACTIVE
   CANCELLED
   PAST_DUE
+}
+
+// ─── NOTIFICATION (in-app bell; may also fan out to email/SMS) ────────
+model Notification {
+  id          String           @id @default(cuid())
+  workspaceId String
+  type        NotificationType
+  title       String
+  body        String?          @db.Text
+  link        String? // in-app deep link, e.g. /conversations/<id>
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, read, createdAt])
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  HANDOFF
+  CHANNEL_DOWN
+  LEARNING
+  SYSTEM
+}
+
+// ─── ERROR LOG (surfaced in the /admin monitoring dashboard) ──────────
+// Captured application errors so the operator can watch production health
+// without tailing PM2 logs. Written fire-and-forget via captureError().
+model ErrorLog {
+  id          String   @id @default(cuid())
+  level       String   @default("error") // error | warn
+  source      String? // e.g. "chat-engine", "webhook:telegram"
+  message     String   @db.Text
+  stack       String?  @db.Text
+  workspaceId String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
 }

@@ -33,9 +33,11 @@ const STAGE_KEY: Record<Stage, string> = {
 export function ContactsView({
   initial,
   locale,
+  footer,
 }: {
   initial: ContactRow[]
   locale: 'fa' | 'en'
+  footer?: React.ReactNode
 }) {
   const t = useTranslations('contacts')
   const [rows, setRows] = useState(initial)
@@ -108,6 +110,10 @@ export function ContactsView({
       ) : (
         <PipelineView rows={filtered} onMove={move} />
       )}
+
+      {/* Pagination only makes sense for the flat list; the pipeline drags
+          across stages within the loaded page and a search hides the controls. */}
+      {footer && view === 'list' && !query ? footer : null}
     </div>
   )
 }

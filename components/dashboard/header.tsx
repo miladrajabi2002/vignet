@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { LogOut } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { logout } from '@/app/actions/auth'
 
 export async function Header({ name }: { name?: string | null }) {
@@ -14,6 +15,7 @@ export async function Header({ name }: { name?: string | null }) {
       </div>
 
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <LanguageSwitcher />
         <ThemeToggle />
         <form action={logout}>

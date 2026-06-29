@@ -3,15 +3,25 @@ import type { ChannelType } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ContactsView, type ContactRow } from '@/components/crm/contacts-view'
+import { Pagination } from '@/components/ui/pagination'
 
-export default async function ContactsPage() {
+const PAGE_SIZE = 100
+
+export default async function ContactsPage({
+  searchParams,
+}: {
+  searchParams: { page?: string }
+}) {
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+
+  const page = Math.max(1, Number(searchParams.page) || 1)
 
   const contacts = await prisma.contact.findMany({
     where: { workspaceId: user.workspaceId },
     orderBy: { updatedAt: 'desc' },
-    take: 300,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE + 1, // one extra row signals whether a next page exists
     select: {
       id: true,
       name: true,
@@ -28,7 +38,10 @@ export default async function ContactsPage() {
     },
   })
 
-  const rows: ContactRow[] = contacts.map((c) => {
+  const hasNext = contacts.length > PAGE_SIZE
+  const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
+
+  const rows: ContactRow[] = pageContacts.map((c) => {
     const channels: ChannelType[] = []
     if (c.telegramId) channels.push('TELEGRAM')
     if (c.whatsappId) channels.push('WHATSAPP')
@@ -47,5 +60,17 @@ export default async function ContactsPage() {
     }
   })
 
-  return <ContactsView initial={rows} locale={locale} />
+  return (
+    <ContactsView
+      initial={rows}
+      locale={locale}
+      footer={
+        <Pagination
+          page={page}
+          hasNext={hasNext}
+          makeHref={(p) => `/contacts?page=${p}`}
+        />
+      }
+    />
+  )
 }
