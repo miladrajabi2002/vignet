@@ -19,7 +19,7 @@ S3_BACKUP_BUCKET="${S3_BACKUP_BUCKET:-backups}"
 
 # ─── خواندن DATABASE_URL از .env ────────────────────────────────────────────
 get_env() {
-  grep -E "^$1=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'
+  grep -E "^$1=" "${ENV_FILE}" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true
 }
 
 if [ ! -f "${ENV_FILE}" ]; then
