@@ -7,9 +7,9 @@ export default function MarketingLayout({
 }: {
   children: ReactNode
 }) {
-  // Marketing site is always pure black, regardless of dashboard theme.
+  // Marketing site follows the light/dark toggle (same as the dashboard).
   return (
-    <div className="dark bg-black">
+    <div className="bg-[var(--bg-base)] text-[var(--text-primary)]">
       <Navbar />
       <main>{children}</main>
       <Footer />

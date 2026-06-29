@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
 
 // In-page section anchors (homepage) plus the docs route.
@@ -55,14 +56,14 @@ export function Navbar() {
       className={cn(
         'fixed inset-x-0 top-0 z-50 transition-colors duration-300',
         scrolled
-          ? 'border-b border-white/[0.06] bg-black/70 backdrop-blur-xl'
+          ? 'border-b border-[var(--border-default)] bg-[var(--bg-base)]/70 backdrop-blur-xl'
           : 'bg-transparent',
       )}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link
           href="/"
-          className="font-mono text-lg font-medium tracking-widest text-white transition-opacity hover:opacity-70"
+          className="font-mono text-lg font-medium tracking-widest text-[var(--text-primary)] transition-opacity hover:opacity-70"
         >
           VIGENT
         </Link>
@@ -75,8 +76,8 @@ export function Navbar() {
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-sm transition-colors',
                 active === l.id
-                  ? 'bg-white/[0.08] text-white'
-                  : 'text-white/55 hover:bg-white/[0.04] hover:text-white',
+                  ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
               )}
             >
               {l.label}
@@ -85,23 +86,24 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <LanguageSwitcher />
           <Link
             href="/login"
-            className="text-sm text-white/70 transition-colors hover:text-white"
+            className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             {t('login')}
           </Link>
           <Link
             href="/login"
-            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black shadow-[0_0_0_0_rgba(255,255,255,0)] transition-all hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]"
+            className="rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] shadow-[0_0_0_0_rgba(var(--ink-rgb),0)] transition-all hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(var(--ink-rgb),0.18)]"
           >
             {t('getStarted')}
           </Link>
         </div>
 
         <button
-          className="text-white md:hidden"
+          className="text-[var(--text-primary)] md:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-label="Menu"
         >
@@ -110,7 +112,7 @@ export function Navbar() {
       </nav>
 
       {open && (
-        <div className="border-t border-white/[0.06] bg-black px-6 py-4 md:hidden">
+        <div className="border-t border-[var(--border-default)] bg-[var(--bg-base)] px-6 py-4 md:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) => (
               <Link
@@ -120,19 +122,20 @@ export function Navbar() {
                 className={cn(
                   'rounded-lg px-3 py-2.5 text-sm transition-colors',
                   active === l.id
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-white/70 hover:bg-white/[0.04] hover:text-white',
+                    ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
                 )}
               >
                 {l.label}
               </Link>
             ))}
             <div className="flex items-center gap-3 pt-3">
+              <ThemeToggle />
               <LanguageSwitcher />
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-medium text-black"
+                className="flex-1 rounded-lg bg-[var(--white)] px-4 py-2 text-center text-sm font-medium text-[var(--bg-base)]"
               >
                 {t('getStarted')}
               </Link>

@@ -9,10 +9,10 @@ export function CtaSection() {
   const t = useTranslations('marketing.cta')
 
   return (
-    <section className="relative overflow-hidden bg-black py-32">
+    <section className="relative overflow-hidden bg-[var(--bg-base)] py-32">
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.04] blur-3xl"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--white-05)] blur-3xl"
       />
       <div className="relative mx-auto max-w-3xl px-6 text-center">
         <motion.h2
@@ -29,14 +29,14 @@ export function CtaSection() {
           <MagneticButton>
             <Link
               href="/login"
-              className="inline-block rounded-xl bg-white px-8 py-3.5 font-medium text-black shadow-[0_0_50px_rgba(255,255,255,0.2)] transition-transform hover:scale-[1.03]"
+              className="inline-block rounded-xl bg-[var(--white)] px-8 py-3.5 font-medium text-[var(--bg-base)] shadow-[0_0_50px_rgba(var(--ink-rgb),0.2)] transition-transform hover:scale-[1.03]"
             >
               {t('button')}
             </Link>
           </MagneticButton>
         </div>
 
-        <p className="mt-6 text-sm text-white/40">{t('note')}</p>
+        <p className="mt-6 text-sm text-[var(--text-muted)]">{t('note')}</p>
       </div>
     </section>
   )

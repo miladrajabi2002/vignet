@@ -134,7 +134,7 @@ export function DemoSection() {
           }
         >
           {!isUser && b.source && Icon && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] text-white/55">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--white-05)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">
               <Icon className="h-3 w-3" />
               {tSrc(b.source)}
             </span>
@@ -143,18 +143,18 @@ export function DemoSection() {
           <div
             className={
               isUser
-                ? 'rounded-2xl bg-white/[0.06] px-4 py-2.5 text-sm text-white/80'
-                : 'rounded-2xl bg-white px-4 py-2.5 text-sm text-black'
+                ? 'rounded-2xl bg-[var(--white-10)] px-4 py-2.5 text-sm text-[var(--text-primary)]'
+                : 'rounded-2xl bg-[var(--white)] px-4 py-2.5 text-sm text-[var(--bg-base)]'
             }
           >
             {b.voice ? (
               <span className="inline-flex items-center gap-2 py-0.5">
-                <Mic className="h-4 w-4 text-white/70" />
+                <Mic className="h-4 w-4 text-[var(--text-secondary)]" />
                 <span className="flex items-end gap-[3px]">
                   {[6, 11, 7, 14, 9, 5, 12, 8].map((h, j) => (
                     <motion.span
                       key={j}
-                      className="w-[2px] rounded-full bg-white/45"
+                      className="w-[2px] rounded-full bg-[var(--text-muted)]"
                       style={{ height: h }}
                       animate={{ scaleY: [1, 0.45, 1] }}
                       transition={{
@@ -165,13 +165,13 @@ export function DemoSection() {
                     />
                   ))}
                 </span>
-                <span className="text-xs text-white/45">0:06</span>
+                <span className="text-xs text-[var(--text-muted)]">0:06</span>
               </span>
             ) : (
               <span className="whitespace-pre-wrap">
                 {text}
                 {opts?.cursor && (
-                  <span className="ms-0.5 inline-block h-3.5 w-px animate-blink bg-black/70 align-middle" />
+                  <span className="ms-0.5 inline-block h-3.5 w-px animate-blink bg-[var(--bg-base)]/70 align-middle" />
                 )}
               </span>
             )}
@@ -184,12 +184,12 @@ export function DemoSection() {
   const inFlight = bubbles[done]
 
   return (
-    <section className="relative overflow-hidden bg-black py-28">
+    <section className="relative overflow-hidden bg-[var(--bg-base)] py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-center text-3xl font-light text-white md:text-4xl">
+        <h2 className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl">
           <TextReveal text={t('title')} />
         </h2>
-        <p className="mx-auto mt-4 max-w-lg text-center text-white/45">
+        <p className="mx-auto mt-4 max-w-lg text-center text-[var(--text-secondary)]">
           {t('subtitle')}
         </p>
 
@@ -205,19 +205,18 @@ export function DemoSection() {
           >
             <SpotlightCard className="p-5">
               {/* Chat header — makes it read as a real, live conversation */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 border-b border-white/[0.08] px-5 pb-4">
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 border-b border-[var(--border-default)] px-5 pb-4">
                 <div className="relative">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-white/20 to-white/[0.05] text-sm font-medium text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[var(--white-30)] to-[var(--white-05)] text-sm font-medium text-[var(--text-primary)]">
                     و
                   </div>
-                  <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-black bg-emerald-400" />
+                  <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-surface)] bg-emerald-500" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
                     {t('agentName')}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400/90">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-xs text-emerald-500">
                     {t('online')}
                   </span>
                 </div>
@@ -238,11 +237,11 @@ export function DemoSection() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-end"
                 >
-                  <div className="flex items-center gap-1.5 rounded-2xl bg-white px-4 py-3">
+                  <div className="flex items-center gap-1.5 rounded-2xl bg-[var(--white)] px-4 py-3">
                     {[0, 1, 2].map((d) => (
                       <motion.span
                         key={d}
-                        className="h-1.5 w-1.5 rounded-full bg-black/50"
+                        className="h-1.5 w-1.5 rounded-full bg-[var(--bg-base)]/50"
                         animate={{ opacity: [0.3, 1, 0.3] }}
                         transition={{
                           duration: 1,
@@ -263,7 +262,7 @@ export function DemoSection() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setRunId((n) => n + 1)}
-                  className="mt-4 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white/70"
+                  className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   {t('replay')}
@@ -281,10 +280,10 @@ export function DemoSection() {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
             className="mx-auto w-full max-w-lg"
           >
-            <h3 className="text-2xl font-light text-white md:text-3xl">
+            <h3 className="text-2xl font-light text-[var(--text-primary)] md:text-3xl">
               {tH('title')}
             </h3>
-            <p className="mt-3 text-white/45">{tH('subtitle')}</p>
+            <p className="mt-3 text-[var(--text-secondary)]">{tH('subtitle')}</p>
 
             <ul className="mt-8 space-y-3">
               {HIGHLIGHTS.map(({ key, icon: Icon }, i) => (
@@ -294,16 +293,16 @@ export function DemoSection() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '-40px' }}
                   transition={{ duration: 0.5, delay: 0.15 + i * 0.08 }}
-                  className="group flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.015] p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.04]"
+                  className="group flex gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-4 transition-all duration-300 hover:border-[var(--border-hover)] hover:bg-[var(--white-10)]"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] transition-colors duration-300 group-hover:border-white/25">
-                    <Icon className="h-5 w-5 text-white/80 transition-colors group-hover:text-white" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] transition-colors duration-300 group-hover:border-[var(--border-strong)]">
+                    <Icon className="h-5 w-5 text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]" />
                   </div>
                   <div>
-                    <h4 className="text-[15px] font-medium text-white">
+                    <h4 className="text-[15px] font-medium text-[var(--text-primary)]">
                       {tH(`items.${key}.title`)}
                     </h4>
-                    <p className="mt-1 text-sm leading-relaxed text-white/45">
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
                       {tH(`items.${key}.desc`)}
                     </p>
                   </div>

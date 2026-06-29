@@ -9,14 +9,14 @@ export function Testimonials() {
   const items = t.raw('items') as { quote: string; name: string; role: string }[]
 
   return (
-    <section className="bg-black py-28">
+    <section className="bg-[var(--bg-base)] py-28">
       <div className="mx-auto max-w-6xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center text-3xl font-light text-white md:text-4xl"
+          className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl"
         >
           {t('title')}
         </motion.h2>
@@ -29,15 +29,15 @@ export function Testimonials() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
               transition={{ duration: 0.6, delay: i * 0.08 }}
-              className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-colors hover:border-white/20"
+              className="flex flex-col justify-between rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-6 transition-colors hover:border-[var(--border-hover)]"
             >
-              <Quote className="h-6 w-6 text-white/20" />
-              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-white/70">
+              <Quote className="h-6 w-6 text-[var(--text-muted)]" />
+              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-[var(--text-secondary)]">
                 {item.quote}
               </blockquote>
-              <figcaption className="mt-6 border-t border-white/[0.06] pt-4">
-                <div className="text-sm font-medium text-white">{item.name}</div>
-                <div className="text-xs text-white/40">{item.role}</div>
+              <figcaption className="mt-6 border-t border-[var(--border-default)] pt-4">
+                <div className="text-sm font-medium text-[var(--text-primary)]">{item.name}</div>
+                <div className="text-xs text-[var(--text-muted)]">{item.role}</div>
               </figcaption>
             </motion.figure>
           ))}

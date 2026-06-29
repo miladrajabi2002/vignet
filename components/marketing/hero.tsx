@@ -46,14 +46,14 @@ export function Hero() {
   const typed = useTypewriter(words)
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black">
+    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--bg-base)]">
       {/* Dot grid */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           backgroundImage:
-            'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+            'radial-gradient(rgba(var(--ink-rgb),0.04) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
       />
@@ -65,7 +65,7 @@ export function Hero() {
       {/* Bottom vignette */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-b from-transparent to-black"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-b from-transparent to-[var(--bg-base)]"
       />
 
       <motion.div
@@ -74,32 +74,32 @@ export function Hero() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="relative z-20 mx-auto max-w-3xl px-6 text-center"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] px-4 py-1.5 text-xs tracking-wide text-white/60">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hover)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
           {t('badge')}
         </span>
 
         <h1 className="mt-8 text-5xl font-light leading-tight md:text-6xl">
           <span className="gradient-text block">{t('title')}</span>
-          <span className="mt-2 block min-h-[1.2em] text-white">
+          <span className="mt-2 block min-h-[1.2em] text-[var(--text-primary)]">
             {typed}
-            <span className="ms-1 inline-block w-[2px] animate-blink bg-white align-middle" style={{ height: '0.9em' }} />
+            <span className="ms-1 inline-block w-[2px] animate-blink bg-[var(--white)] align-middle" style={{ height: '0.9em' }} />
           </span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-md text-base text-white/45">
+        <p className="mx-auto mt-6 max-w-md text-base text-[var(--text-secondary)]">
           {t('subtitle')}
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/login"
-            className="rounded-xl bg-white px-7 py-3 font-medium text-black shadow-[0_0_40px_rgba(255,255,255,0.15)] transition-transform hover:scale-[1.02]"
+            className="rounded-xl bg-[var(--white)] px-7 py-3 font-medium text-[var(--bg-base)] shadow-[0_0_40px_rgba(var(--ink-rgb),0.15)] transition-transform hover:scale-[1.02]"
           >
             {t('ctaPrimary')}
           </Link>
           <Link
             href="#features"
-            className="rounded-xl border border-white/20 px-7 py-3 font-medium text-white/80 transition-colors hover:border-white/40 hover:text-white"
+            className="rounded-xl border border-[var(--border-hover)] px-7 py-3 font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
           >
             {t('ctaSecondary')}
           </Link>
@@ -110,7 +110,7 @@ export function Hero() {
         aria-hidden
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-8 z-20 text-white/30"
+        className="absolute bottom-8 z-20 text-[var(--text-muted)]"
       >
         <ChevronDown className="h-6 w-6" />
       </motion.div>

@@ -20,6 +20,13 @@ export function ParticleGrid() {
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const isMobile = window.matchMedia('(max-width: 768px)').matches
+
+    // Read the theme "ink" color so particles invert with the light/dark toggle.
+    const readInk = () =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--ink-rgb')
+        .trim() || '255,255,255'
+    let ink = readInk()
     const COUNT = isMobile ? 25 : 50
     const LINK_DIST = 120
     const REPEL_DIST = 80
@@ -82,7 +89,7 @@ export function ParticleGrid() {
           const dist = Math.hypot(dx, dy)
           if (dist < LINK_DIST) {
             const opacity = (1 - dist / LINK_DIST) * 0.12
-            ctx!.strokeStyle = `rgba(255,255,255,${opacity})`
+            ctx!.strokeStyle = `rgba(${ink},${opacity})`
             ctx!.lineWidth = 1
             ctx!.beginPath()
             ctx!.moveTo(nodes[i].x, nodes[i].y)
@@ -93,7 +100,7 @@ export function ParticleGrid() {
       }
 
       // Dots
-      ctx!.fillStyle = 'rgba(255,255,255,0.5)'
+      ctx!.fillStyle = `rgba(${ink},0.5)`
       for (const n of nodes) {
         ctx!.beginPath()
         ctx!.arc(n.x, n.y, 1, 0, Math.PI * 2)
@@ -122,12 +129,23 @@ export function ParticleGrid() {
       seed()
     })
     if (canvas.parentElement) ro.observe(canvas.parentElement)
+
+    // Re-read the ink color when the light/dark class flips on <html>.
+    const themeObserver = new MutationObserver(() => {
+      ink = readInk()
+    })
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseleave', onMouseLeave)
 
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      themeObserver.disconnect()
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseleave', onMouseLeave)
     }

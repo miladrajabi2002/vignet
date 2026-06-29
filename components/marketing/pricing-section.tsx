@@ -58,35 +58,35 @@ export function PricingSection() {
   ]
 
   return (
-    <section id="pricing" className="bg-black py-28">
+    <section id="pricing" className="bg-[var(--bg-base)] py-28">
       <div className="mx-auto max-w-6xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center text-3xl font-light text-white md:text-4xl"
+          className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl"
         >
           {t('title')}
         </motion.h2>
 
         {/* Billing toggle */}
         <div className="mt-8 flex items-center justify-center gap-3">
-          <span className="text-sm text-white/60">{t('monthly')}</span>
+          <span className="text-sm text-[var(--text-secondary)]">{t('monthly')}</span>
           <button
             onClick={() => setAnnual((a) => !a)}
-            className="relative h-7 w-12 rounded-full border border-white/15 bg-white/[0.05]"
+            className="relative h-7 w-12 rounded-full border border-[var(--border-hover)] bg-[var(--white-05)]"
             aria-label="Toggle billing period"
           >
             <span
               className={cn(
-                'absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white transition-all',
+                'absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-[var(--white)] transition-all',
                 annual ? 'start-6' : 'start-1',
               )}
             />
           </button>
-          <span className="text-sm text-white/60">{t('annual')}</span>
-          <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs text-white/70">
+          <span className="text-sm text-[var(--text-secondary)]">{t('annual')}</span>
+          <span className="rounded-full border border-[var(--border-hover)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
             {t('discount')}
           </span>
         </div>
@@ -104,23 +104,23 @@ export function PricingSection() {
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className={cn(
-                  'flex flex-col rounded-2xl border bg-[#0a0a0a] p-6',
+                  'flex flex-col rounded-2xl border bg-[var(--bg-surface)] p-6',
                   plan.featured
-                    ? 'border-white/25 shadow-[0_0_50px_rgba(255,255,255,0.06)]'
-                    : 'border-white/[0.08]',
+                    ? 'border-[var(--border-strong)] shadow-[0_0_50px_rgba(var(--ink-rgb),0.06)]'
+                    : 'border-[var(--border-default)]',
                 )}
               >
                 {plan.featured && (
-                  <span className="mb-3 self-start rounded-full border border-white/20 px-2.5 py-0.5 text-xs text-white/70">
+                  <span className="mb-3 self-start rounded-full border border-[var(--border-hover)] px-2.5 py-0.5 text-xs text-[var(--text-secondary)]">
                     {t('popular')}
                   </span>
                 )}
-                <h3 className="text-lg font-medium text-white">{plan.name}</h3>
+                <h3 className="text-lg font-medium text-[var(--text-primary)]">{plan.name}</h3>
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-light text-white">
+                  <span className="text-3xl font-light text-[var(--text-primary)]">
                     {fmt(price)}
                   </span>
-                  <span className="text-sm text-white/40">
+                  <span className="text-sm text-[var(--text-muted)]">
                     {t('perMonth')}
                   </span>
                 </div>
@@ -129,9 +129,9 @@ export function PricingSection() {
                   {plan.features.map((f) => (
                     <li
                       key={f}
-                      className="flex items-center gap-2 text-sm text-white/60"
+                      className="flex items-center gap-2 text-sm text-[var(--text-secondary)]"
                     >
-                      <Check className="h-4 w-4 shrink-0 text-white/70" />
+                      <Check className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
                       {f}
                     </li>
                   ))}
@@ -142,8 +142,8 @@ export function PricingSection() {
                   className={cn(
                     'mt-8 rounded-xl py-2.5 text-center text-sm font-medium transition-transform hover:scale-[1.02]',
                     plan.featured
-                      ? 'bg-white text-black'
-                      : 'border border-white/15 text-white hover:border-white/30',
+                      ? 'bg-[var(--white)] text-[var(--bg-base)]'
+                      : 'border border-[var(--border-hover)] text-[var(--text-primary)] hover:border-[var(--border-strong)]',
                   )}
                 >
                   {t('cta')}

@@ -25,7 +25,7 @@ export function ChannelsSection() {
   const t = useTranslations('marketing.channels')
 
   return (
-    <section className="border-y border-white/[0.06] bg-black py-28">
+    <section className="border-y border-[var(--border-default)] bg-[var(--bg-base)] py-28">
       <div className="mx-auto max-w-5xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -34,10 +34,10 @@ export function ChannelsSection() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <h2 className="text-3xl font-light text-white md:text-4xl">
+          <h2 className="text-3xl font-light text-[var(--text-primary)] md:text-4xl">
             {t('title')}
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-white/45">{t('subtitle')}</p>
+          <p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">{t('subtitle')}</p>
         </motion.div>
 
         <div className="mt-14 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
@@ -48,10 +48,10 @@ export function ChannelsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
-              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-6 transition-all hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.03]"
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 transition-all hover:-translate-y-1 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
             >
-              <Icon className="h-7 w-7 text-white/60 transition-colors group-hover:text-white" />
-              <span className="text-xs text-white/50 transition-colors group-hover:text-white/80">
+              <Icon className="h-7 w-7 text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]" />
+              <span className="text-xs text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-secondary)]">
                 {name}
               </span>
             </motion.div>

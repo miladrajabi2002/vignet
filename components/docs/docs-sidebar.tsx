@@ -21,8 +21,8 @@ export function DocsSidebar() {
             className={cn(
               'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors',
               active
-                ? 'bg-white/[0.06] text-white'
-                : 'text-white/55 hover:bg-white/[0.04] hover:text-white',
+                ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
