@@ -60,7 +60,9 @@
   function injectStyles() {
     if (document.getElementById('vgt-styles')) return
     var css =
-      '.vgt-root{position:fixed;bottom:20px;z-index:2147483000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;}' +
+      // Force LTR on the container so positioning (inset-inline-*) is deterministic
+      // regardless of the host page direction; inner text direction is set per-panel.
+      '.vgt-root{position:fixed;bottom:20px;z-index:2147483000;direction:ltr;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;}' +
       '.vgt-root.vgt-right{inset-inline-end:20px;}' +
       '.vgt-root.vgt-left{inset-inline-start:20px;}' +
       // launcher
