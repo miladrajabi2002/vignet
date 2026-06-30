@@ -184,9 +184,9 @@ export function DemoSection() {
   const inFlight = bubbles[done]
 
   return (
-    <section className="relative overflow-hidden bg-[var(--bg-base)] py-28">
+    <section id="demo" className="relative overflow-hidden bg-[var(--bg-base)] py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl">
+        <h2 className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
           <TextReveal text={t('title')} />
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-center text-[var(--text-secondary)]">

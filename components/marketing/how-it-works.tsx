@@ -14,7 +14,7 @@ export function HowItWorks() {
   const t = useTranslations('marketing.how')
 
   return (
-    <section id="how" className="bg-[var(--bg-base)] py-28">
+    <section id="how" className="bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -23,7 +23,7 @@ export function HowItWorks() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <h2 className="text-3xl font-light text-[var(--text-primary)] md:text-4xl">
+          <h2 className="text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[var(--text-secondary)]">{t('subtitle')}</p>

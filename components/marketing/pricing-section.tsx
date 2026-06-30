@@ -58,14 +58,14 @@ export function PricingSection() {
   ]
 
   return (
-    <section id="pricing" className="bg-[var(--bg-base)] py-28">
+    <section id="pricing" className="bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl"
+          className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl"
         >
           {t('title')}
         </motion.h2>

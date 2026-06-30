@@ -266,7 +266,7 @@
   },
   "channels": {
     "title": "Connections",
-    "subtitle": "Connect your agent to your messaging apps",
+    "subtitle": "Header subtitle",
     "webWidget": "Web widget",
     "widgetDesc": "Paste this code on your website to show the agent chat",
     "enable": "Enable",
@@ -303,7 +303,6 @@
     "saveError": "Save failed",
     "noKeyWarning": "No AI key configured — the widget cannot reply and shows a \"Failed to get a response\" error.",
     "noKeyCta": "Set API key",
-    "subtitle": "Header subtitle",
     "subtitlePh": "e.g. Instant answers to your questions",
     "icon": "Icon",
     "corners": "Corners",
@@ -643,7 +642,8 @@
       ],
       "subtitle": "Build smart agents that answer from your own data and talk to your customers across every connection.",
       "ctaPrimary": "Start free — 14 days",
-      "ctaSecondary": "Watch demo"
+      "ctaSecondary": "Watch demo",
+      "trust": "No credit card required · Cancel anytime"
     },
     "stats": {
       "conversations": "conversations",

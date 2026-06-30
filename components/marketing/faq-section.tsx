@@ -19,7 +19,7 @@ export function FaqSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center text-3xl font-light text-[var(--text-primary)] md:text-4xl"
+          className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl"
         >
           {t('title')}
         </motion.h2>

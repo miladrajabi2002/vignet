@@ -98,7 +98,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/login"
-            className="rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] shadow-[0_0_0_0_rgba(var(--ink-rgb),0)] transition-all hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(var(--ink-rgb),0.18)]"
+            className="rounded-full bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] shadow-[0_4px_16px_rgba(var(--ink-rgb),0.12)] transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(var(--ink-rgb),0.2)]"
           >
             {t('getStarted')}
           </Link>
@@ -137,7 +137,7 @@ export function Navbar() {
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded-lg bg-[var(--white)] px-4 py-2 text-center text-sm font-medium text-[var(--bg-base)]"
+                className="flex-1 rounded-full bg-[var(--white)] px-4 py-2.5 text-center text-sm font-medium text-[var(--bg-base)]"
               >
                 {t('getStarted')}
               </Link>

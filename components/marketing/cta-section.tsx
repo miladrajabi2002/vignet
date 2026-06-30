@@ -20,7 +20,7 @@ export function CtaSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.7 }}
-          className="gradient-text text-4xl font-light leading-tight md:text-5xl"
+          className="gradient-text text-4xl font-light leading-tight tracking-tight md:text-5xl"
         >
           {t('title')}
         </motion.h2>
@@ -29,7 +29,7 @@ export function CtaSection() {
           <MagneticButton>
             <Link
               href="/login"
-              className="inline-block rounded-xl bg-[var(--white)] px-8 py-3.5 font-medium text-[var(--bg-base)] shadow-[0_0_50px_rgba(var(--ink-rgb),0.2)] transition-transform hover:scale-[1.03]"
+              className="inline-flex items-center justify-center rounded-full bg-[var(--white)] px-8 py-3.5 text-sm font-medium text-[var(--bg-base)] shadow-[0_8px_30px_rgba(var(--ink-rgb),0.12)] transition-all duration-300 ease-smooth hover:shadow-[0_12px_40px_rgba(var(--ink-rgb),0.2)]"
             >
               {t('button')}
             </Link>

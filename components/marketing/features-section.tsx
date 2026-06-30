@@ -34,7 +34,7 @@ export function FeaturesSection() {
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <h2 className="text-3xl font-light text-[var(--text-primary)] md:text-4xl">
+          <h2 className="text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">{t('subtitle')}</p>

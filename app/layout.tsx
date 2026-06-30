@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
-import { Vazirmatn } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Providers } from '@/components/providers'
@@ -19,9 +18,14 @@ const geistMono = localFont({
   weight: '100 900',
 })
 
-const vazirmatn = Vazirmatn({
-  subsets: ['arabic'],
+// Estedad — a refined variable Persian typeface (OFL). Replaces Vazirmatn as
+// the Persian/RTL family: cleaner, more characterful, and self-hosted so it
+// loads instantly with no external request. Weight contrast (300 → 600) does
+// the work of a separate display face for the minimal-luxury look.
+const estedad = localFont({
+  src: './fonts/EstedadVF.woff2',
   variable: '--font-fa',
+  weight: '100 900',
   display: 'swap',
 })
 
@@ -43,7 +47,7 @@ export default async function RootLayout({
       lang={locale}
       dir={dir}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${vazirmatn.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable} ${estedad.variable}`}
     >
       <body className="antialiased">
         <Providers>
