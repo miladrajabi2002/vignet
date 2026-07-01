@@ -39,5 +39,6 @@ export async function POST(req: Request) {
 	const buf = Buffer.from(await file.arrayBuffer())
 	await writeFile(join(dir, name), buf)
 
-	return NextResponse.json({ url: `/uploads/blog/${name}` })
+	const origin = new URL(req.url).origin
+	return NextResponse.json({ url: `${origin}/uploads/blog/${name}` })
 }
