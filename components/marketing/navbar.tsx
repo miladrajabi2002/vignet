@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Logo } from '@/components/ui/logo'
+import { SocialLinks } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 
 // In-page section anchors (homepage) plus the docs/blog routes.
@@ -89,6 +90,7 @@ export function Navbar() {
 				</div>
 
 				<div className="hidden items-center gap-3 md:flex">
+					<SocialLinks variant="compact" />
 					<ThemeToggle />
 					<LanguageSwitcher />
 					<Link
@@ -133,6 +135,7 @@ export function Navbar() {
 							</Link>
 						))}
 						<div className="flex items-center gap-3 pt-3">
+							<SocialLinks variant="compact" />
 							<ThemeToggle />
 							<LanguageSwitcher />
 							<Link
