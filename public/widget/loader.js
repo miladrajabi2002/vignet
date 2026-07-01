@@ -120,7 +120,7 @@
 		bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
 		help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
 		close: '<path d="M18 6 6 18M6 6l12 12"/>',
-		send: '<path d="m3 11 18-5v8L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+		send: '<path fill="currentColor" stroke="none" d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2z"/>',
 		phone:
 			'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
 	}
@@ -148,7 +148,7 @@
 	// ---- Fonts ----
 	var FONT_LINKS = {
 		vazirmatn:
-			'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap',
+			'https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css',
 		samim: 'https://cdn.jsdelivr.net/gh/rastikerdar/samim-font@v4.0.5/dist/font-face.css',
 		yekan:
 			'https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css',
@@ -185,6 +185,7 @@
 			// launcher
 			'.vgt-launcher{display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
 			'border-radius:30px;background:var(--vgt-accent);color:var(--vgt-on-accent);box-shadow:0 12px 32px -8px var(--vgt-accent-shadow);' +
+			'font-family:var(--vgt-font);' +
 			'transition:transform .25s cubic-bezier(.34,1.5,.64,1),box-shadow .25s;}' +
 			'.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 18px 42px -10px var(--vgt-accent-shadow);}' +
 			'.vgt-launcher:active{transform:scale(.95);}' +
@@ -192,7 +193,7 @@
 			'.vgt-launcher-ico svg{width:25px;height:25px;position:absolute;transition:transform .35s cubic-bezier(.34,1.5,.64,1),opacity .25s ease;}' +
 			'.vgt-launcher:not(.vgt-open) .vgt-l-close{transform:rotate(-90deg) scale(.5);opacity:0;}' +
 			'.vgt-launcher.vgt-open .vgt-l-main{transform:rotate(90deg) scale(.5);opacity:0;}' +
-			'.vgt-launcher-label{font-size:14px;font-weight:600;padding-inline-end:12px;white-space:nowrap;}' +
+			'.vgt-launcher-label{font-family:var(--vgt-font);font-size:14px;font-weight:600;padding-inline-end:12px;white-space:nowrap;letter-spacing:0;}' +
 			// launcher ping (online presence)
 			'.vgt-launcher:not(.vgt-open)::after{content:"";position:absolute;top:6px;' +
 			'inset-inline-end:6px;width:10px;height:10px;border-radius:50%;background:#22c55e;' +

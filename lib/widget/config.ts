@@ -28,7 +28,7 @@ export const WIDGET_FONTS: {
 		value: 'vazirmatn',
 		labelFa: 'وزیرمتن',
 		labelEn: 'Vazirmatn',
-		href: 'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap',
+		href: 'https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css',
 		family:
 			"'Vazirmatn',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif",
 	},

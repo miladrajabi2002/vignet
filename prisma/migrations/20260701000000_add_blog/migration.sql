@@ -1,3 +1,6 @@
+-- EnumType
+CREATE TYPE "BlogStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED');
+
 -- CreateTable
 CREATE TABLE "BlogCategory" (
     "id" TEXT NOT NULL,
@@ -21,7 +24,7 @@ CREATE TABLE "BlogPost" (
     "excerpt" TEXT,
     "content" TEXT NOT NULL,
     "coverImage" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "status" "BlogStatus" NOT NULL DEFAULT 'DRAFT',
     "seoTitle" TEXT,
     "seoDescription" TEXT,
     "seoKeywords" TEXT[] DEFAULT ARRAY[]::TEXT[],
@@ -56,6 +59,3 @@ ALTER TABLE "BlogCategory" ADD CONSTRAINT "BlogCategory_workspaceId_fkey" FOREIG
 ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "BlogPost" ADD CONSTRAINT "BlogPost_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "BlogCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- EnumType
-CREATE TYPE "BlogStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED');

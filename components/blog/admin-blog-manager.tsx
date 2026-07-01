@@ -7,7 +7,6 @@ import {
 	BlogEditor,
 	type BlogPostData,
 	type BlogCategory,
-	type BlogWorkspace,
 } from '@/components/blog/blog-editor'
 import { toPersianDigits } from '@/lib/blog/helpers'
 
@@ -54,30 +53,25 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function AdminBlogManager({
 	initialPosts,
-	initialWorkspaces,
 	initialCategories,
 	locale,
 }: {
 	initialPosts: AdminPostRow[]
-	initialWorkspaces: BlogWorkspace[]
 	initialCategories: BlogCategory[]
 	locale: 'fa' | 'en'
 }) {
 	const t = useTranslations('blog')
 	const [posts, setPosts] = useState<AdminPostRow[]>(initialPosts)
-	const [workspaces] = useState<BlogWorkspace[]>(initialWorkspaces)
 	const [categories] = useState<BlogCategory[]>(initialCategories)
 	const [editing, setEditing] = useState<AdminPostRow | null>(null)
 	const [creating, setCreating] = useState(false)
 	const [deleting, setDeleting] = useState<string | null>(null)
-	const [filterWs, setFilterWs] = useState<string>('')
 	const [search, setSearch] = useState('')
 
 	const isFa = locale === 'fa'
 	const statusLabels = isFa ? STATUS_LABELS_FA : STATUS_LABELS_EN
 
 	const filtered = posts.filter((p) => {
-		if (filterWs && p.workspace?.id !== filterWs) return false
 		if (search) {
 			const q = search.toLowerCase()
 			if (!p.title.toLowerCase().includes(q) && !p.slug.toLowerCase().includes(q))
@@ -191,18 +185,6 @@ export function AdminBlogManager({
 
 			{/* Filters */}
 			<div className="flex flex-wrap gap-2">
-				<select
-					value={filterWs}
-					onChange={(e) => setFilterWs(e.target.value)}
-					className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-sm text-zinc-300 outline-none focus:border-zinc-700"
-				>
-					<option value="">{isFa ? 'همه کسب‌وکارها' : 'All workspaces'}</option>
-					{workspaces.map((w) => (
-						<option key={w.id} value={w.id}>
-							{w.name}
-						</option>
-					))}
-				</select>
 				<input
 					type="text"
 					value={search}
@@ -358,9 +340,6 @@ export function AdminBlogManager({
 									initial={editing ? editingInitial! : creatingInitial}
 									categories={categories}
 									isEdit={!!editing}
-									adminMode
-									workspaces={workspaces}
-									workspaceId={editing?.workspace?.id ?? null}
 									onClose={handleClose}
 								/>
 							</div>

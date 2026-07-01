@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -13,6 +13,10 @@ import {
 	AlertTriangle,
 	CheckCircle2,
 	XCircle,
+	ImagePlus,
+	Upload,
+	Link2,
+	X,
 } from 'lucide-react'
 import {
 	slugify,
@@ -48,43 +52,35 @@ export interface BlogCategory {
 	name: string
 }
 
-export interface BlogWorkspace {
-	id: string
-	name: string
-}
-
 export function BlogEditor({
 	initial,
 	categories,
 	isEdit,
-	adminMode = false,
-	workspaces,
-	workspaceId: initialWorkspaceId,
 	onClose,
 }: {
 	initial: BlogPostData
 	categories: BlogCategory[]
 	isEdit: boolean
-	/** When true, posts to /api/admin/blog/* (admin auth) instead of /api/blog/* (user auth). */
-	adminMode?: boolean
-	/** Required in adminMode so the admin can pick which workspace owns the post. */
-	workspaces?: BlogWorkspace[]
-	/** Pre-selected workspace for new posts (admin mode). */
-	workspaceId?: string | null
-	/** Optional close handler — when provided, a "بستن" button appears next to Save. */
 	onClose?: () => void
 }) {
 	const t = useTranslations('blog')
 	const router = useRouter()
 	const [post, setPost] = useState<BlogPostData>(initial)
-	const [workspaceId, setWorkspaceId] = useState<string | null>(
-		initialWorkspaceId ?? null,
-	)
 	const [saving, setSaving] = useState(false)
 	const [saved, setSaved] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [view, setView] = useState<'write' | 'preview'>('write')
 	const [keywordInput, setKeywordInput] = useState('')
+	const [uploading, setUploading] = useState(false)
+
+	//Image dialog state (insert inline image)
+	const [imgDialog, setImgDialog] = useState(false)
+	const [imgUrl, setImgUrl] = useState('')
+	const [imgAlt, setImgAlt] = useState('')
+
+	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const coverInputRef = useRef<HTMLInputElement>(null)
+	const inlineUploadRef = useRef<HTMLInputElement>(null)
 
 	function patch(p: Partial<BlogPostData>) {
 		setPost((s) => ({ ...s, ...p }))
@@ -111,21 +107,75 @@ export function BlogEditor({
 		[post.content],
 	)
 
+	// ─── Upload helper ───
+	async function uploadImage(file: File): Promise<string | null> {
+		setUploading(true)
+		try {
+			const fd = new FormData()
+			fd.append('file', file)
+			const res = await fetch('/api/admin/blog/upload', { method: 'POST', body: fd })
+			const data = await res.json()
+			if (!res.ok) return null
+			return data.url as string
+		} catch {
+			return null
+		} finally {
+			setUploading(false)
+		}
+	}
+
+	// ─── Cover image upload ───
+	async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+		const file = e.target.files?.[0]
+		if (!file) return
+		const url = await uploadImage(file)
+		if (url) patch({ coverImage: url })
+		e.target.value = ''
+	}
+
+	// ─── Insert inline image at cursor ───
+	function insertImageAtCursor(url: string, alt: string) {
+		const ta = textareaRef.current
+		const md = `![${alt}](${url})`
+		if (!ta) {
+			patch({ content: post.content + '\n' + md + '\n' })
+			return
+		}
+		const start = ta.selectionStart ?? post.content.length
+		const end = ta.selectionEnd ?? post.content.length
+		const next = post.content.slice(0, start) + md + post.content.slice(end)
+		patch({ content: next })
+		// restore cursor just after inserted image
+		requestAnimationFrame(() => {
+			ta.focus()
+			const pos = start + md.length
+			ta.setSelectionRange(pos, pos)
+		})
+	}
+
+	async function handleInlineUpload(e: React.ChangeEvent<HTMLInputElement>) {
+		const file = e.target.files?.[0]
+		if (!file) return
+		const url = await uploadImage(file)
+		if (url) insertImageAtCursor(url, file.name.replace(/\.[^.]+$/, ''))
+		e.target.value = ''
+	}
+
+	function confirmInsertImageLink() {
+		if (!imgUrl.trim()) return
+		insertImageAtCursor(imgUrl.trim(), imgAlt.trim())
+		setImgUrl('')
+		setImgAlt('')
+		setImgDialog(false)
+	}
+
 	async function save(status?: BlogPostData['status']) {
 		setSaving(true)
 		setError(null)
 		setSaved(false)
 
-		// In admin mode, a workspaceId is required (admin can post on behalf of any workspace).
-		if (adminMode && !workspaceId) {
-			setError(t('errWorkspaceRequired'))
-			setSaving(false)
-			return
-		}
-
 		const payload = {
 			...post,
-			...(adminMode ? { workspaceId } : {}),
 			slug: slugify(post.slug || post.title),
 			excerpt: post.excerpt || deriveExcerpt(post.content),
 			seoTitle: post.seoTitle || null,
@@ -136,7 +186,7 @@ export function BlogEditor({
 			ogImage: post.ogImage || null,
 		}
 		try {
-			const base = adminMode ? '/api/admin/blog/posts' : '/api/blog/posts'
+			const base = '/api/admin/blog/posts'
 			const url = isEdit ? `${base}/${post.id}` : base
 			const method = isEdit ? 'PATCH' : 'POST'
 			const res = await fetch(url, {
@@ -154,16 +204,8 @@ export function BlogEditor({
 				return
 			}
 			setSaved(true)
-			if (adminMode) {
-				// In admin mode we typically render in a modal; refresh + call onClose.
-				router.refresh()
-				if (onClose) setTimeout(onClose, 600)
-			} else if (!isEdit && data.post?.id) {
-				router.push(`/blog-admin/${data.post.id}/edit`)
-				router.refresh()
-			} else {
-				router.refresh()
-			}
+			router.refresh()
+			if (onClose) setTimeout(onClose, 600)
 		} catch {
 			setError(t('errSave'))
 		} finally {
@@ -239,30 +281,6 @@ export function BlogEditor({
 				</div>
 			)}
 
-			{/* Workspace selector — admin mode only (admin can post on behalf of any tenant). */}
-			{adminMode && workspaces && workspaces.length > 0 && (
-				<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-					<label className="block">
-						<span className="mb-1 block text-xs text-[var(--text-secondary)]">
-							{t('workspace')}
-						</span>
-						<select
-							value={workspaceId ?? ''}
-							onChange={(e) => setWorkspaceId(e.target.value || null)}
-							disabled={isEdit}
-							className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)] disabled:opacity-60"
-						>
-							<option value="">{t('selectWorkspace')}</option>
-							{workspaces.map((w) => (
-								<option key={w.id} value={w.id}>
-									{w.name}
-								</option>
-							))}
-						</select>
-					</label>
-				</div>
-			)}
-
 			<div className="grid gap-5 lg:grid-cols-3">
 				{/* Main editor (2 cols) */}
 				<div className="space-y-4 lg:col-span-2">
@@ -287,34 +305,82 @@ export function BlogEditor({
 						/>
 					</div>
 
-					{/* Editor tabs */}
+					{/* Editor tabs + image toolbar */}
 					<div className="overflow-hidden rounded-xl border border-[var(--border-default)]">
-						<div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
-							<button
-								onClick={() => setView('write')}
-								className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
-									view === 'write'
-										? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
-										: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-								}`}
-							>
-								<Code className="h-3.5 w-3.5" />
-								{t('write')}
-							</button>
-							<button
-								onClick={() => setView('preview')}
-								className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
-									view === 'preview'
-										? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
-										: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-								}`}
-							>
-								<Eye className="h-3.5 w-3.5" />
-								{t('preview')}
-							</button>
+						<div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
+							<div className="flex">
+								<button
+									onClick={() => setView('write')}
+									className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
+										view === 'write'
+											? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
+											: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+									}`}
+								>
+									<Code className="h-3.5 w-3.5" />
+									{t('write')}
+								</button>
+								<button
+									onClick={() => setView('preview')}
+									className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
+										view === 'preview'
+											? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
+											: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+									}`}
+								>
+									<Eye className="h-3.5 w-3.5" />
+									{t('preview')}
+								</button>
+							</div>
+							{/* Insert-image toolbar */}
+							{view === 'write' && (
+								<div className="flex items-center gap-1 pe-2">
+									<input
+										ref={inlineUploadRef}
+										type="file"
+										accept="image/*"
+										className="hidden"
+										onChange={handleInlineUpload}
+									/>
+									<button
+										type="button"
+										onClick={() => inlineUploadRef.current?.click()}
+										disabled={uploading}
+										title={isFa(t) ? 'آپلود عکس در متن' : 'Upload image inline'}
+										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:opacity-50"
+									>
+										{uploading ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin" />
+										) : (
+											<Upload className="h-3.5 w-3.5" />
+										)}
+										{isFa(t) ? 'آپلود عکس' : 'Upload'}
+									</button>
+									<button
+										type="button"
+										onClick={() => setImgDialog(true)}
+										title={isFa(t) ? 'درج عکس با لینک' : 'Insert image by URL'}
+										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+									>
+										<Link2 className="h-3.5 w-3.5" />
+										{isFa(t) ? 'لینک عکس' : 'URL'}
+									</button>
+									<button
+										type="button"
+										onClick={() => inlineUploadRef.current?.click()}
+										disabled={uploading}
+										title={isFa(t) ? 'درج عکس' : 'Insert image'}
+										className="flex items-center gap-1.5 rounded-md bg-[var(--white)] px-2.5 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
+									>
+										<ImagePlus className="h-3.5 w-3.5" />
+										{isFa(t) ? 'درج عکس' : 'Image'}
+									</button>
+								</div>
+							)}
 						</div>
 						{view === 'write' ? (
 							<textarea
+								ref={textareaRef}
 								value={post.content}
 								onChange={(e) => patch({ content: e.target.value })}
 								placeholder={t('contentPh')}
@@ -562,19 +628,61 @@ export function BlogEditor({
 								))}
 							</select>
 						</label>
-						<label className="block">
+
+						{/* Cover image: URL + Upload + preview */}
+						<div>
 							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
 								{t('coverImage')}
 							</span>
-							<input
-								type="url"
-								value={post.coverImage ?? ''}
-								onChange={(e) => patch({ coverImage: e.target.value || null })}
-								placeholder="https://…"
-								dir="ltr"
-								className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
-							/>
-						</label>
+							<div className="flex gap-2">
+								<input
+									type="url"
+									value={post.coverImage ?? ''}
+									onChange={(e) => patch({ coverImage: e.target.value || null })}
+									placeholder="https://…"
+									dir="ltr"
+									className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								/>
+								<input
+									ref={coverInputRef}
+									type="file"
+									accept="image/*"
+									className="hidden"
+									onChange={handleCoverUpload}
+								/>
+								<button
+									type="button"
+									onClick={() => coverInputRef.current?.click()}
+									disabled={uploading}
+									className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+								>
+									{uploading ? (
+										<Loader2 className="h-3.5 w-3.5 animate-spin" />
+									) : (
+										<Upload className="h-3.5 w-3.5" />
+									)}
+									{isFa(t) ? 'آپلود' : 'Upload'}
+								</button>
+							</div>
+							{post.coverImage && (
+								<div className="relative mt-2 overflow-hidden rounded-lg border border-[var(--border-default)]">
+									{/* eslint-disable-next-line @next/next/no-img-element */}
+									<img
+										src={post.coverImage}
+										alt=""
+										className="h-28 w-full object-cover"
+									/>
+									<button
+										type="button"
+										onClick={() => patch({ coverImage: null })}
+										className="absolute top-1.5 end-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+									>
+										<X className="h-3.5 w-3.5" />
+									</button>
+								</div>
+							)}
+						</div>
+
 						<label className="block">
 							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
 								{t('canonicalUrl')}
@@ -623,6 +731,91 @@ export function BlogEditor({
 					</div>
 				</div>
 			</div>
+
+			{/* ─── Insert-image-by-URL dialog ─── */}
+			{imgDialog && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+					onClick={(e) => {
+						if (e.target === e.currentTarget) setImgDialog(false)
+					}}
+				>
+					<div className="w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-5">
+						<div className="mb-3 flex items-center justify-between">
+							<h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+								<Link2 className="h-4 w-4" />
+								{isFa(t) ? 'درج عکس با لینک' : 'Insert image by URL'}
+							</h3>
+							<button
+								onClick={() => setImgDialog(false)}
+								className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+							>
+								<X className="h-4 w-4" />
+							</button>
+						</div>
+						<div className="space-y-3">
+							<label className="block">
+								<span className="mb-1 block text-xs text-[var(--text-secondary)]">
+									{isFa(t) ? 'آدرس عکس' : 'Image URL'}
+								</span>
+								<input
+									type="url"
+									value={imgUrl}
+									onChange={(e) => setImgUrl(e.target.value)}
+									placeholder="https://example.com/image.jpg"
+									dir="ltr"
+									autoFocus
+									className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								/>
+							</label>
+							<label className="block">
+								<span className="mb-1 block text-xs text-[var(--text-secondary)]">
+									{isFa(t) ? 'متن جایگزین (اختیاری)' : 'Alt text (optional)'}
+								</span>
+								<input
+									type="text"
+									value={imgAlt}
+									onChange={(e) => setImgAlt(e.target.value)}
+									dir="auto"
+									className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								/>
+							</label>
+							{imgUrl && (
+								// eslint-disable-next-line @next/next/no-img-element
+								<img
+									src={imgUrl}
+									alt=""
+									className="max-h-40 w-full rounded-lg border border-[var(--border-default)] object-contain"
+								/>
+							)}
+							<div className="flex justify-end gap-2">
+								<button
+									onClick={() => setImgDialog(false)}
+									className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+								>
+									{isFa(t) ? 'انصراف' : 'Cancel'}
+								</button>
+								<button
+									onClick={confirmInsertImageLink}
+									disabled={!imgUrl.trim()}
+									className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
+								>
+									<ImagePlus className="h-3.5 w-3.5" />
+									{isFa(t) ? 'درج' : 'Insert'}
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
+}
+
+// Tiny locale helper so we don't depend on a hook outside the component body.
+function isFa(t: (k: string) => string): boolean {
+	// The 'blog' namespace is rendered in the active locale; if the 'newPost'
+	// label starts with a Persian letter we treat the locale as fa.
+	const label = t('newPost')
+	return /[\u0600-\u06FF]/.test(label)
 }
