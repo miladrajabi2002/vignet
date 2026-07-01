@@ -47,6 +47,7 @@ export function Navbar() {
 	}, [])
 
 	const links = [
+		{ href: '/', id: 'home', label: t('home') },
 		{ href: '/#features', id: 'features', label: t('features') },
 		{ href: '/#how', id: 'how', label: t('how') },
 		{ href: '/#pricing', id: 'pricing', label: t('pricing') },

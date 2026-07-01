@@ -234,8 +234,86 @@ export function renderMarkdown(markdown: string): string {
 		}
 	}
 
-	for (const raw of lines) {
-		const line = raw
+	// ─── Table parsing ────────────────────────────────────────────
+	// A GFM table starts with a header row of pipe-separated cells,
+	// followed by a separator row like `| --- | :--: | --: | :- |`.
+	// Returns the rendered <table> HTML, or null if the slice isn't a table.
+	function parseTable(start: number): { html: string; next: number } | null {
+		const headerLine = lines[start]
+		const sepLine = lines[start + 1]
+		if (!headerLine || !sepLine) return null
+
+		// Header: must contain at least one pipe and at least one cell.
+		if (!headerLine.includes('|')) return null
+		// Separator: only pipes, dashes, colons, spaces.
+		if (!/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(sepLine)) return null
+
+		const splitRow = (row: string): string[] => {
+			let r = row.trim()
+			// Strip leading/trailing pipes for cleaner split.
+			if (r.startsWith('|')) r = r.slice(1)
+			if (r.endsWith('|')) r = r.slice(0, -1)
+			return r.split('|').map((c) => c.trim())
+		}
+
+		const headers = splitRow(headerLine)
+		if (headers.length === 0) return null
+
+		// Collect body rows until a non-table line.
+		const body: string[][] = []
+		let i = start + 2
+		while (i < lines.length) {
+			const l = lines[i]
+			// Blank line or line without pipe ends the table.
+			if (!l.trim() || !l.includes('|')) break
+			// Stop if it looks like another block (heading, list, quote…).
+			if (/^#{1,6}\s/.test(l) || /^\s*([-*+]\s|\d+\.\s)/.test(l) || l.startsWith('> '))
+				break
+			body.push(splitRow(l))
+			i += 1
+		}
+
+		const aligns = splitRow(sepLine).map((cell) => {
+			const left = cell.startsWith(':')
+			const right = cell.endsWith(':')
+			if (left && right) return 'center'
+			if (right) return 'right'
+			if (left) return 'left'
+			return '' // default
+		})
+
+		const cell = (text: string, idx: number, isHeader: boolean) => {
+			const tag = isHeader ? 'th' : 'td'
+			const align = aligns[idx]
+			const style = align ? ` style="text-align:${align}"` : ''
+			return `<${tag}${style}>${inline(text)}</${tag}>`
+		}
+
+		const html: string[] = ['<div class="table-wrap"><table>']
+		html.push(
+			'<thead><tr>' +
+				headers.map((h, idx) => cell(h, idx, true)).join('') +
+				'</tr></thead>',
+		)
+		if (body.length) {
+			html.push(
+				'<tbody>' +
+					body
+						.map(
+							(row) =>
+								'<tr>' + row.map((c, idx) => cell(c, idx, false)).join('') + '</tr>',
+						)
+						.join('') +
+					'</tbody>',
+			)
+		}
+		html.push('</table></div>')
+		return { html: html.join(''), next: i }
+	}
+	// ─── /Table parsing ───────────────────────────────────────────
+
+	for (let idx = 0; idx < lines.length; idx++) {
+		const line = lines[idx]
 		// Code fence
 		if (line.trim().startsWith('```')) {
 			flushParagraph()
@@ -252,6 +330,18 @@ export function renderMarkdown(markdown: string): string {
 		if (inCode) {
 			out.push(esc(line))
 			continue
+		}
+		// Table: peek at the current + next line. If it looks like a table
+		// header + separator, parse the whole block at once and skip ahead.
+		if (line.includes('|') && idx + 1 < lines.length) {
+			const table = parseTable(idx)
+			if (table) {
+				flushParagraph()
+				closeList()
+				out.push(table.html)
+				idx = table.next - 1 // loop's idx++ moves past the table
+				continue
+			}
 		}
 		// Blank line → flush
 		if (!line.trim()) {

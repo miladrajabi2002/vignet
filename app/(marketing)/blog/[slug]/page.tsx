@@ -172,28 +172,6 @@ export default async function PublicBlogPostPage({ params }: Props) {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
 			/>
 
-			{/* Breadcrumb */}
-			<nav className="mb-6 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-				<Link href="/" className="hover:text-[var(--text-secondary)]">
-					{locale === 'fa' ? 'خانه' : 'Home'}
-				</Link>
-				<span>/</span>
-				<Link href="/blog" className="hover:text-[var(--text-secondary)]">
-					{locale === 'fa' ? 'بلاگ' : 'Blog'}
-				</Link>
-				{post.category && (
-					<>
-						<span>/</span>
-						<Link
-							href={`/blog/category/${post.category.slug}`}
-							className="hover:text-[var(--text-secondary)]"
-						>
-							{post.category.name}
-						</Link>
-					</>
-				)}
-			</nav>
-
 			{/* Header */}
 			<header className="mb-8">
 				{post.category && (

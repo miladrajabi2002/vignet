@@ -10,12 +10,11 @@ export const revalidate = 0
 
 /**
  * PopularPosts — server component that pulls the most-viewed published blog
- * posts and renders them as a compact ranking grid. Sits on the homepage
- * right before the pricing section, so visitors see social proof (popular
- * content) before being asked to upgrade.
+ * posts and renders them as a simple horizontal row of three equal cards.
+ * Sits on the homepage right before the pricing section, so visitors see
+ * social proof (popular content) before being asked to upgrade.
  *
- * Returns null silently when there are no posts yet, so the homepage stays
- * clean on a fresh install.
+ * Returns null silently when there are fewer than 1 published posts.
  */
 async function getWorkspaceId(): Promise<string | null> {
 	const ws = await prisma.workspace.findFirst({
@@ -34,7 +33,7 @@ export async function PopularPosts() {
 	const posts = await prisma.blogPost.findMany({
 		where: { workspaceId: wsId, status: 'PUBLISHED' },
 		orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
-		take: 4,
+		take: 3,
 		select: {
 			id: true,
 			title: true,
@@ -73,19 +72,11 @@ export async function PopularPosts() {
 					</p>
 				</div>
 
-				{/* Grid: first post spans two columns on large screens for emphasis */}
-				<div className="mt-14 grid grid-cols-1 gap-5 lg:grid-cols-2">
-					{/* Featured #1 — large card */}
-					{posts[0] && (
-						<PopularCard post={posts[0]} rank={1} large locale={locale} isFa={isFa} />
-					)}
-
-					{/* Smaller #2–#4 stack on the right (or below on mobile) */}
-					<div className="flex flex-col gap-5">
-						{posts.slice(1, 4).map((p, i) => (
-							<PopularCard key={p.id} post={p} rank={i + 2} locale={locale} isFa={isFa} />
-						))}
-					</div>
+				{/* Three equal cards in a horizontal row */}
+				<div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+					{posts.map((p, i) => (
+						<PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
+					))}
 				</div>
 
 				{/* CTA to the full blog */}
@@ -104,7 +95,7 @@ export async function PopularPosts() {
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   Card sub-components
+   Card sub-component — single uniform card layout for all ranks
    ─────────────────────────────────────────────────────────────────────── */
 
 type PostPreview = {
@@ -148,78 +139,32 @@ function ViewsLabel({ views, isFa }: { views: number; isFa: boolean }) {
 function PopularCard({
 	post,
 	rank,
-	large = false,
 	locale,
 	isFa,
 }: {
 	post: PostPreview
 	rank: number
-	large?: boolean
 	locale: 'fa' | 'en'
 	isFa: boolean
 }) {
 	const excerpt = post.excerpt || deriveExcerpt(post.content)
 	const time = relativeTime(post.publishedAt ?? post.createdAt, locale)
 
-	if (large) {
-		return (
-			<Link
-				href={`/blog/${post.slug}`}
-				className="group relative flex flex-col overflow-hidden rounded-3xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-all duration-300 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)]"
-			>
-				{post.coverImage && (
-					// eslint-disable-next-line @next/next/no-img-element
-					<img
-						src={post.coverImage}
-						alt={post.title}
-						className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-					/>
-				)}
-				<div className="flex flex-1 flex-col p-6 sm:p-8">
-					<div className="flex items-center justify-between gap-3">
-						<RankBadge rank={rank} />
-						{post.category && (
-							<span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
-								{post.category.name}
-							</span>
-						)}
-					</div>
-					<h3 className="mt-4 text-2xl font-medium leading-tight text-[var(--text-primary)] sm:text-3xl">
-						{post.title}
-					</h3>
-					<p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-3">
-						{excerpt}
-					</p>
-					<div className="mt-5 flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
-						<ViewsLabel views={post.views} isFa={isFa} />
-						<span>{time}</span>
-						<span>
-							{isFa
-								? `${toPersianDigits(post.readingMinutes)} دقیقه مطالعه`
-								: `${post.readingMinutes} min read`}
-						</span>
-					</div>
-				</div>
-			</Link>
-		)
-	}
-
-	// Compact horizontal card
 	return (
 		<Link
 			href={`/blog/${post.slug}`}
-			className="group flex gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 transition-all duration-300 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)]"
+			className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)]"
 		>
 			{post.coverImage && (
 				// eslint-disable-next-line @next/next/no-img-element
 				<img
 					src={post.coverImage}
 					alt={post.title}
-					className="hidden h-20 w-28 shrink-0 rounded-xl object-cover sm:block"
+					className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
 				/>
 			)}
-			<div className="flex min-w-0 flex-1 flex-col">
-				<div className="flex items-center gap-2">
+			<div className="flex flex-1 flex-col p-5">
+				<div className="flex items-center justify-between gap-3">
 					<RankBadge rank={rank} />
 					{post.category && (
 						<span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
@@ -227,12 +172,20 @@ function PopularCard({
 						</span>
 					)}
 				</div>
-				<h3 className="mt-2 line-clamp-2 text-[15px] font-medium leading-snug text-[var(--text-primary)] transition-colors group-hover:text-[var(--text-primary)]">
+				<h3 className="mt-3 line-clamp-2 text-base font-medium leading-snug text-[var(--text-primary)]">
 					{post.title}
 				</h3>
-				<div className="mt-auto flex items-center gap-3 pt-2 text-[11px] text-[var(--text-muted)]">
+				<p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2">
+					{excerpt}
+				</p>
+				<div className="mt-4 flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
 					<ViewsLabel views={post.views} isFa={isFa} />
 					<span>{time}</span>
+					<span>
+						{isFa
+							? `${toPersianDigits(post.readingMinutes)} دقیقه`
+							: `${post.readingMinutes} min`}
+					</span>
 				</div>
 			</div>
 		</Link>
