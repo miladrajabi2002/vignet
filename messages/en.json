@@ -1,881 +1,992 @@
 {
-	"common": {
-		"brand": "VIGENT",
-		"loading": "Loading…",
-		"save": "Save",
-		"saving": "Saving…",
-		"saved": "Saved",
-		"cancel": "Cancel",
-		"delete": "Delete",
-		"edit": "Edit",
-		"back": "Back",
-		"next": "Next",
-		"continue": "Continue",
-		"skip": "Skip",
-		"search": "Search",
-		"active": "Active",
-		"inactive": "Inactive",
-		"error": "Something went wrong",
-		"retry": "Retry",
-		"previous": "Previous",
-		"page": "Page {page}"
-	},
-	"notifications": {
-		"title": "Notifications",
-		"empty": "No notifications",
-		"markAllRead": "Mark all as read",
-		"viewAll": "View all"
-	},
-	"experiments": {
-		"title": "Experiments & versions",
-		"subtitle": "A/B test different prompts and keep previous versions",
-		"abTitle": "A/B prompt experiment",
-		"abHint": "A share of new conversations is answered with the variant B prompt so you can compare the two.",
-		"variantPrompt": "Variant B prompt",
-		"variantPlaceholder": "Write the alternative system prompt here…",
-		"split": "Variant B traffic %",
-		"enable": "Enable experiment",
-		"active": "Experiment is active",
-		"inactive": "Experiment is off",
-		"save": "Save",
-		"saved": "Saved ✓",
-		"comparison": "Performance comparison",
-		"variantA": "Variant A (current)",
-		"variantB": "Variant B",
-		"conversations": "conversations",
-		"avgRating": "Avg. rating",
-		"handoff": "Handed off",
-		"versionsTitle": "Saved versions",
-		"versionsHint": "Snapshot the agent's current prompt and config so you can roll back later.",
-		"saveVersion": "Save current version",
-		"restore": "Restore",
-		"restored": "Restored ✓",
-		"delete": "Delete",
-		"noVersions": "No versions saved yet",
-		"error": "Something went wrong"
-	},
-	"learning": {
-		"title": "Agent learning",
-		"subtitle": "Review questions the agent couldn't answer and add them to its knowledge with one click",
-		"pending": "Pending review",
-		"learned": "Learned",
-		"empty": "Great! No unanswered questions",
-		"emptyHint": "Whenever the agent can't answer a question, it shows up here",
-		"question": "Customer question",
-		"suggest": "Generate suggested answer",
-		"suggesting": "Generating…",
-		"answerPlaceholder": "Write or edit the answer here…",
-		"approve": "Add to knowledge",
-		"approving": "Adding…",
-		"dismiss": "Dismiss",
-		"approved": "Added to the agent's knowledge ✓",
-		"noKey": "Add your OpenRouter key in settings first",
-		"error": "Something went wrong, try again",
-		"viewConversation": "View conversation"
-	},
-	"nav": {
-		"home": "Home",
-		"features": "Features",
-		"how": "How it works",
-		"pricing": "Pricing",
-		"blog": "Blog",
-		"docs": "Docs",
-		"login": "Log in",
-		"getStarted": "Start free"
-	},
-	"auth": {
-		"title": "Sign in to Vigent",
-		"subtitle": "Sign in with your mobile number",
-		"phoneLabel": "Mobile number",
-		"phonePlaceholder": "09123456789",
-		"sendCode": "Send verification code",
-		"sending": "Sending…",
-		"otpTitle": "Enter the verification code",
-		"otpSubtitle": "Enter the 6-digit code sent to {phone}",
-		"nameLabel": "Your name?",
-		"namePlaceholder": "Full name",
-		"verify": "Sign in / Sign up",
-		"verifying": "Verifying…",
-		"resend": "Resend code",
-		"resendIn": "Resend in {seconds}s",
-		"changeNumber": "Change number",
-		"errors": {
-			"INVALID_PHONE": "Invalid mobile number",
-			"INVALID_CODE": "The code you entered is incorrect",
-			"RATE_LIMIT": "Too many requests. Please try again later",
-			"SMS_FAILED": "Failed to send SMS",
-			"GENERIC": "Something went wrong. Please try again"
-		},
-		"noCard": "No credit card required — just your phone number"
-	},
-	"dashboard": {
-		"overview": "Overview",
-		"agents": "Agents",
-		"products": "Products",
-		"conversations": "Conversations",
-		"contacts": "Customers",
-		"analytics": "Analytics",
-		"integrations": "Integrations",
-		"billing": "Billing",
-		"settings": "Settings",
-		"onboarding": "Get started",
-		"logout": "Log out",
-		"welcome": "Welcome",
-		"greeting": "Hi, {name}"
-	},
-	"onboarding": {
-		"title": "Set up Vigent",
-		"subtitle": "Activate your agent in 5 simple steps",
-		"progress": "{done} of {total} steps",
-		"completedTitle": "Congratulations! Setup complete",
-		"completedSubtitle": "Your agent is ready",
-		"skip": "Skip guide",
-		"steps": {
-			"key": {
-				"title": "Add your OpenRouter key",
-				"desc": "Add your OpenRouter API key to power your AI",
-				"cta": "Add key"
-			},
-			"agent": {
-				"title": "Create your first agent",
-				"desc": "Create a smart agent for your business",
-				"cta": "Create agent"
-			},
-			"knowledge": {
-				"title": "Add knowledge or products",
-				"desc": "Give your agent your data or product catalog",
-				"cta": "Add knowledge"
-			},
-			"channel": {
-				"title": "Add a connection",
-				"desc": "Connect your agent to Telegram, WhatsApp and more",
-				"cta": "Add connection"
-			},
-			"test": {
-				"title": "Test your agent",
-				"desc": "Start your first conversation with your agent",
-				"cta": "Test agent"
-			}
-		}
-	},
-	"settings": {
-		"title": "Settings",
-		"aiKeys": {
-			"title": "AI Keys",
-			"subtitle": "Add your OpenRouter key to use AI models",
-			"keyLabel": "OpenRouter key",
-			"keyPlaceholder": "sk-or-v1-…",
-			"currentKey": "Current key",
-			"validate": "Validate & save",
-			"validating": "Validating…",
-			"valid": "Key is valid and saved",
-			"invalid": "Invalid key",
-			"remove": "Remove key",
-			"byokNote": "Vigent uses your key; token costs are billed directly to your OpenRouter account."
-		}
-	},
-	"agents": {
-		"title": "Agents",
-		"subtitle": "Your AI agents — click any card to see its settings",
-		"new": "New agent",
-		"empty": "No agents yet",
-		"emptyDesc": "Create your first smart agent to talk to your customers",
-		"create": "Create agent",
-		"creating": "Creating…",
-		"test": "Test",
-		"builder": "Conversation design",
-		"settings": "Settings",
-		"knowledge": "Knowledge",
-		"products": "Products",
-		"experiments": "Experiments",
-		"learning": "Learning",
-		"channels": "Connections",
-		"analytics": "Analytics",
-		"conversations": "Conversations",
-		"active": "Active",
-		"inactive": "Inactive",
-		"wizard": {
-			"step": "Step {n} of {total}",
-			"basics": "Basics",
-			"persona": "Persona & instructions",
-			"config": "Model configuration",
-			"name": "Agent name",
-			"namePlaceholder": "e.g. Sales assistant",
-			"description": "Short description",
-			"descriptionPlaceholder": "What does this agent do?",
-			"systemPrompt": "System prompt",
-			"systemPromptHint": "Tell the agent how to behave. You can use variables:",
-			"templateLabel": "Start with a template:",
-			"templateShop": "Shop",
-			"templateSupport": "Support",
-			"templateRestaurant": "Restaurant",
-			"templateGeneral": "General",
-			"welcomeMessage": "Welcome message",
-			"welcomePlaceholder": "Hi! How can I help you?",
-			"welcomeHint": "Keep it short — one sentence works best",
-			"fallbackMessage": "Fallback message (when it has no answer)",
-			"model": "AI model",
-			"modelHint": "Leave blank to use the workspace default model",
-			"language": "Language",
-			"temperature": "Creativity (temperature)",
-			"maxTokens": "Max response length",
-			"successTitle": "Your agent is ready!",
-			"successProducts": "{{count}} products were automatically added to the agent",
-			"successNoProducts": "No products added yet — you can add them later",
-			"successKnowledge": "Add your business knowledge for more accurate answers",
-			"goToAgent": "Test agent",
-			"addProducts": "Add products",
-			"addKnowledge": "Add knowledge",
-			"bizVarsLabel": "Enter your business info to inject into the template:",
-			"bizName": "Business name",
-			"bizPhone": "Phone number",
-			"bizHours": "Working hours",
-			"previewTemplate": "Preview"
-		},
-		"settingsForm": {
-			"title": "Agent settings",
-			"saved": "Changes saved",
-			"delete": "Delete agent",
-			"deleteConfirm": "Delete this agent? This cannot be undone.",
-			"handoffEnabled": "Hand off to a human operator",
-			"handoffKeywords": "Handoff trigger keywords",
-			"handoffKeywordsPlaceholder": "e.g. manager, complaint, human",
-			"handoffKeywordsHint": "Comma-separated — if the user types any of these, the conversation is escalated to a human",
-			"voiceEnabled": "Voice responses"
-		},
-		"playground": {
-			"placeholder": "Type a message…",
-			"send": "Send",
-			"empty": "Start a conversation to test your agent",
-			"noKey": "Add your OpenRouter key in settings first",
-			"error": "Failed to get a response",
-			"record": "Record voice",
-			"speak": "Read reply aloud",
-			"rateGood": "Good response",
-			"rateBad": "Poor response"
-		},
-		"models": {
-			"intro": "Pick the model that powers your agent. Each one balances answer quality against cost differently.",
-			"default": "Default",
-			"quality": "Quality",
-			"cost": "Cost",
-			"advanced": "Enter a custom model (advanced)",
-			"customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat"
-		}
-	},
-	"channels": {
-		"title": "Connections",
-		"subtitle": "Connect your agent to your messaging apps",
-		"webWidget": "Web widget",
-		"widgetDesc": "Paste this code on your website to show the agent chat",
-		"enable": "Enable",
-		"enabled": "Enabled",
-		"disable": "Disable",
-		"embedCode": "Embed code",
-		"copy": "Copy",
-		"copied": "Copied",
-		"comingSoon": "Coming soon",
-		"widgetSettings": "Widget settings & customization",
-		"widgetSettingsHint": "Configure the widget's appearance, color and security",
-		"appearance": "Appearance",
-		"brandColor": "Brand color",
-		"theme": "Theme",
-		"themeDark": "Dark",
-		"themeLight": "Light",
-		"position": "Position",
-		"posRight": "Right",
-		"posLeft": "Left",
-		"headerTitle": "Header title",
-		"headerTitlePh": "Assistant name (default: agent name)",
-		"launcherLabel": "Launcher label",
-		"launcherLabelPh": "e.g. Chat with us",
-		"optional": "optional",
-		"security": "Security & abuse prevention",
-		"allowedDomains": "Allowed domains",
-		"allowedDomainsHint": "One domain per line. Works only on these domains. Empty = anywhere.",
-		"allowedDomainsPh": "example.com\nshop.example.com",
-		"unprotectedWarning": "No domain set — the widget can be embedded on any site. Add your domain to stop others spending your credits.",
-		"livePreview": "Live preview",
-		"save": "Save changes",
-		"saving": "Saving…",
-		"saved": "Saved",
-		"saveError": "Save failed",
-		"noKeyWarning": "No AI key configured — the widget cannot reply and shows a \"Failed to get a response\" error.",
-		"noKeyCta": "Set API key",
-		"subtitle": "Header subtitle",
-		"subtitlePh": "e.g. Instant answers to your questions",
-		"icon": "Icon",
-		"corners": "Corners",
-		"cornersSoft": "Soft",
-		"cornersRound": "Round",
-		"cornersSharp": "Sharp",
-		"font": "Font",
-		"fontDefault": "Modern font",
-		"fontInherit": "Site font",
-		"interaction": "Interaction & behavior",
-		"autoGreetLabel": "Auto greeting bubble",
-		"autoGreetHint": "Auto-show the welcome message as a teaser bubble after a few seconds.",
-		"autoGreetDelayLabel": "Teaser delay",
-		"leadCaptureLabel": "Capture phone number",
-		"leadCaptureHint": "Asks for the visitor's phone before opening chat so they don't abandon mid-conversation.",
-		"leadCaptureMessage": "Prompt message",
-		"leadCaptureMessagePh": "e.g. To help you faster, please enter your phone number.",
-		"connect": "Connect",
-		"connectConfirm": "Connect bot",
-		"connectError": "Connection failed",
-		"invalidToken": "Invalid bot token",
-		"webhookWarning": "Bot saved but webhook setup failed. Check the token.",
-		"webhookNoInbound": "No messages received yet — send one to the bot to verify the connection.",
-		"webhookLastInbound": "Last message received: {time}",
-		"timeJustNow": "just now",
-		"timeMinutes": "{n}m ago",
-		"timeHours": "{n}h ago",
-		"timeDays": "{n}d ago",
-		"botTokenLabel": "Bot token",
-		"botTokenPlaceholder": "Paste the token from the bot provider",
-		"setupGuide": "How to get this — step by step",
-		"webhookSetupNote": "Finish setup in the Meta dashboard: open your app → Webhooks, paste the callback URL and verify token below, then subscribe to the messages and messaging fields (Instagram: also comments).",
-		"callbackUrl": "Callback URL",
-		"verifyToken": "Verify token",
-		"fieldBotToken": "Bot token",
-		"fieldBotTokenPh": "Paste the token from the bot provider",
-		"fieldAccessToken": "Access token",
-		"fieldAccessTokenPh": "Permanent access token (EAAB…)",
-		"fieldPhoneNumberId": "Phone number ID",
-		"fieldPhoneNumberIdPh": "e.g. 1029384756",
-		"fieldPageToken": "Page access token",
-		"fieldPageTokenPh": "Page access token (EAAB…)",
-		"guide": {
-			"TELEGRAM": [
-				"Open @BotFather in Telegram and send /newbot.",
-				"Choose a name and a username for your bot.",
-				"Copy the token BotFather gives you and paste it below."
-			],
-			"BALE": [
-				"Open @botfather in Bale and create a new bot.",
-				"Pick a name and username for your bot.",
-				"Copy the issued token and paste it below."
-			],
-			"RUBIKA": [
-				"Open the BotFather bot inside Rubika and create a new bot.",
-				"Set a name and username, then copy the API token.",
-				"Paste the token below. We register the receive-update endpoint automatically."
-			],
-			"WHATSAPP": [
-				"Create a Meta app at developers.facebook.com and add the WhatsApp product.",
-				"In WhatsApp → API Setup, copy the Phone number ID.",
-				"Generate a permanent access token (via a System User with whatsapp_business_messaging permission).",
-				"Paste the access token and phone number ID below and connect.",
-				"After connecting, copy the callback URL and verify token shown here into WhatsApp → Configuration → Webhook, and subscribe to the messages field."
-			],
-			"INSTAGRAM": [
-				"Convert your Instagram account to a Professional (Business/Creator) account and link it to a Facebook Page.",
-				"Create a Meta app and add the Instagram (Messenger) product.",
-				"Generate a Page access token with instagram_basic, instagram_manage_messages and instagram_manage_comments permissions.",
-				"Paste the page access token below and connect.",
-				"After connecting, copy the callback URL and verify token into the app's Webhooks, and subscribe to the messages and comments fields."
-			]
-		},
-		"telegram": "Telegram",
-		"telegramHint": "Connect your Telegram bot with the BotFather token",
-		"bale": "Bale",
-		"baleHint": "Connect your Bale bot with its token",
-		"rubika": "Rubika",
-		"rubikaHint": "Connect your Rubika bot with its token",
-		"whatsapp": "WhatsApp",
-		"whatsappHint": "WhatsApp Cloud API — auto-reply to direct messages",
-		"instagram": "Instagram",
-		"instagramHint": "Instagram DMs and comment replies via the Meta API"
-	},
-	"conversations": {
-		"title": "Conversations",
-		"subtitle": "Unified inbox across all connections",
-		"empty": "No conversations yet",
-		"replyPlaceholder": "Reply as operator…",
-		"send": "Send",
-		"sending": "Sending…",
-		"operatorBadge": "Operator",
-		"replyHint": "This message is sent directly to the contact and the conversation moves to “handed off”.",
-		"replyNoChannel": "This channel can't be replied to from the panel (widget/API only).",
-		"replyFailed": "Failed to send message",
-		"anonymous": "Anonymous user",
-		"noMessages": "No messages in this conversation",
-		"csat": "Rating",
-		"resolve": "Mark resolved",
-		"reopen": "Reopen",
-		"summary": "AI summary"
-	},
-	"analytics": {
-		"title": "Analytics",
-		"subtitle": "Performance across your agents and connections",
-		"totalConversations": "Conversations",
-		"resolveRate": "Resolve rate",
-		"avgRating": "Avg. rating",
-		"tokensUsed": "Tokens used",
-		"conversationsTrend": "Conversations — last 14 days",
-		"channelBreakdown": "By connection",
-		"topProducts": "Top products by AI queries",
-		"satisfaction": "Customer satisfaction",
-		"ratings": "ratings",
-		"activityHeatmap": "Activity by day & hour",
-		"agentActivity": "Agent activity",
-		"noData": "No data yet",
-		"unansweredQueries": "Unanswered questions",
-		"noUnanswered": "All questions were answered"
-	},
-	"contacts": {
-		"title": "Contacts",
-		"subtitle": "Everyone who talked to your agents",
-		"empty": "No contacts yet",
-		"anonymous": "Anonymous",
-		"search": "Search name or phone…",
-		"conversations": "conversations",
-		"lastSeen": "Last seen",
-		"stage": "Stage",
-		"stageLead": "Lead",
-		"stageQualified": "Qualified",
-		"stageCustomer": "Customer",
-		"stageLost": "Lost",
-		"pipeline": "Pipeline",
-		"list": "List",
-		"noStage": "No contacts in this stage",
-		"dropHere": "Drop here",
-		"detail": {
-			"name": "Name",
-			"tags": "Tags",
-			"tagsPlaceholder": "vip, returning (comma separated)",
-			"notes": "Notes",
-			"notesPlaceholder": "Internal notes about this contact…",
-			"save": "Save",
-			"saved": "Saved",
-			"history": "Conversation history",
-			"noHistory": "No conversations yet",
-			"lastActivity": "last activity"
-		}
-	},
-	"billing": {
-		"title": "Billing",
-		"subtitle": "Your plan, usage and invoices",
-		"currentPlan": "Current plan",
-		"status": "Status",
-		"renewsOn": "Renews on",
-		"trialEnds": "Trial ends",
-		"noSubscription": "No active subscription",
-		"usageThisMonth": "Usage this month",
-		"conversations": "Conversations",
-		"tokens": "Tokens",
-		"estCost": "Estimated AI cost",
-		"byok": "You use your own OpenRouter key — AI costs are billed directly by OpenRouter, not Vigent.",
-		"upgrade": "Upgrade plan",
-		"planTrial": "Trial",
-		"planStarter": "Starter",
-		"planPro": "Pro",
-		"planBusiness": "Business"
-	},
-	"integrations": {
-		"title": "Integrations",
-		"subtitle": "Connect Vigent to the tools you use",
-		"channels": "Messaging connections",
-		"connected": "Connected",
-		"notConnected": "Not connected",
-		"configure": "Configure",
-		"manageInAgent": "Connections are configured per agent",
-		"openAgents": "Open agents",
-		"comingSoon": "Coming soon"
-	},
-	"builder": {
-		"title": "Conversation design (flow)",
-		"subtitle": "Design your agent’s conversation step by step — or leave it empty to let the agent answer freely.",
-		"addNode": "Add node",
-		"nodeMessage": "Message",
-		"nodeAi": "AI response",
-		"nodeCondition": "Condition",
-		"nodeCollect": "Collect info",
-		"nodeProduct": "Product lookup",
-		"nodeHandoff": "Human handoff",
-		"save": "Save flow",
-		"saved": "Saved",
-		"nodeSettings": "Node settings",
-		"nodeLabel": "Label",
-		"nodeText": "Text",
-		"deleteNode": "Delete node",
-		"selectHint": "Select a node to edit it",
-		"guideTitle": "How does it work?",
-		"guideIntro": "You build the conversation like a map: start from “Start” and connect nodes in order.",
-		"guideStep1": "Pick a node from the side panel to add it to the canvas.",
-		"guideStep2": "Drag from a node’s edge handle to the next node to build the path.",
-		"guideStep3": "Click any node to edit its text and settings in the side panel.",
-		"guideStep4": "Finally, click “Save flow”.",
-		"guideNote": "Note: building a flow is optional. Without one, the agent answers intelligently from your instructions and knowledge. Use a flow only when you want a precise, controlled path.",
-		"gotIt": "Got it",
-		"showGuide": "Guide",
-		"templates": "Templates",
-		"templatesTitle": "Choose a flow template",
-		"useTemplate": "Use this template",
-		"templatesNote": "Picking a template replaces the current canvas. You can edit or delete any node afterwards.",
-		"emptyCanvas": "Canvas is empty — add a node from the side panel",
-		"connectHint": "To connect, drag from a node’s edge handle to the next node",
-		"descStart": "Where the conversation starts",
-		"descMessage": "Send a fixed message to the user",
-		"descAi": "Generate a smart AI reply",
-		"descCondition": "Branch the path based on a condition",
-		"descCollect": "Ask for and collect info from the user (e.g. name or phone)",
-		"descProduct": "Look up products and present them",
-		"descHandoff": "Hand the conversation to a human agent"
-	},
-	"status": {
-		"title": "System status",
-		"subtitle": "Live health of the Vigent platform",
-		"operational": "All systems operational",
-		"degraded": "Partial outage",
-		"down": "Major outage",
-		"lastChecked": "Last checked",
-		"database": "Database",
-		"redis": "Cache & queue (Redis)",
-		"ms": "ms",
-		"unreachable": "Unreachable"
-	},
-	"knowledge": {
-		"title": "Knowledge base",
-		"subtitle": "Add data so your agent can answer from it",
-		"add": "Add knowledge",
-		"adding": "Adding…",
-		"tabText": "Text",
-		"tabUrl": "URL",
-		"tabFile": "File",
-		"name": "Title",
-		"namePlaceholder": "e.g. FAQ",
-		"content": "Text",
-		"contentPlaceholder": "Paste text or Q&A…",
-		"url": "Page URL",
-		"urlPlaceholder": "https://example.com/page",
-		"fileHint": "PDF or CSV (max 20MB)",
-		"fileSelect": "Choose file",
-		"empty": "No knowledge added yet",
-		"chunks": "{count} chunks",
-		"delete": "Delete",
-		"refresh": "Refresh",
-		"storageNotConfigured": "File upload requires Supabase Storage to be configured",
-		"status": {
-			"PENDING": "Queued",
-			"PROCESSING": "Processing",
-			"READY": "Ready",
-			"ERROR": "Error"
-		}
-	},
-	"products": {
-		"title": "Products",
-		"new": "Add product",
-		"empty": "No products yet",
-		"emptyDesc": "Add your products so your agent can know and sell them",
-		"search": "Search products…",
-		"sort": "Sort",
-		"sortNewest": "Newest",
-		"sortPriceAsc": "Price: low to high",
-		"sortPriceDesc": "Price: high to low",
-		"sortQueried": "Most queried",
-		"allCategories": "All categories",
-		"inStock": "In stock",
-		"outOfStock": "Out of stock",
-		"unlimited": "Unlimited",
-		"toman": "Toman",
-		"edit": "Edit",
-		"delete": "Delete",
-		"deleteConfirm": "Delete this product?",
-		"active": "Active",
-		"queries": "{count} queries",
-		"manageCategories": "Manage categories",
-		"form": {
-			"create": "Create product",
-			"creating": "Creating…",
-			"save": "Save",
-			"name": "Product name",
-			"namePlaceholder": "e.g. Running shoes",
-			"description": "Description",
-			"price": "Price (Toman)",
-			"comparePrice": "Original price (for discount)",
-			"sku": "SKU",
-			"stock": "Stock (blank = unlimited)",
-			"category": "Category",
-			"noCategory": "No category",
-			"tags": "Tags (comma separated)",
-			"attributes": "Attributes",
-			"attrKey": "Attribute",
-			"attrValue": "Value",
-			"addAttr": "Add attribute",
-			"active": "Active"
-		},
-		"categories": {
-			"title": "Categories",
-			"add": "Add category",
-			"namePlaceholder": "Category name",
-			"empty": "No categories yet",
-			"count": "{count} products"
-		},
-		"catalog": {
-			"title": "Agent products",
-			"subtitle": "Choose the products this agent should know about",
-			"save": "Save",
-			"saved": "Saved",
-			"empty": "Add some products first",
-			"selected": "{count} selected",
-			"hint": "Choose which products this agent can talk about. By default all products are selected so the agent knows your whole catalogue.",
-			"selectAll": "Select all",
-			"deselectAll": "Deselect all",
-			"saveAndTest": "Save & test agent"
-		},
-		"detail": {
-			"queryCount": "AI queries",
-			"agentCoverage": "Agents",
-			"stock": "Stock",
-			"knownByAgents": "Known by agents",
-			"noAgents": "No agent knows about this product yet",
-			"inactive": "Inactive",
-			"updatedAt": "Last updated"
-		}
-	},
-	"marketing": {
-		"hero": {
-			"badge": "VIGENT AI PLATFORM ✦",
-			"title": "Smart AI agents",
-			"rotate": ["for sales", "for support", "for your business"],
-			"subtitle": "Build smart agents that answer from your own data and talk to your customers across every connection.",
-			"ctaPrimary": "Start free — 14 days",
-			"ctaSecondary": "Watch demo",
-			"trust": "No credit card required · Set up in under 5 minutes · Persian-language support"
-		},
-		"stats": {
-			"conversations": "conversations",
-			"agents": "agents",
-			"businesses": "businesses"
-		},
-		"features": {
-			"title": "Everything to build a smart agent",
-			"subtitle": "From the visual builder to omnichannel delivery — one platform for the whole journey.",
-			"items": {
-				"learning": {
-					"title": "Self-learning agent",
-					"desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
-				},
-				"builder": {
-					"title": "Agent builder",
-					"desc": "Design conversation flows with a visual builder"
-				},
-				"knowledge": {
-					"title": "Knowledge base",
-					"desc": "Upload your documents and data"
-				},
-				"products": {
-					"title": "Product catalog",
-					"desc": "Your agent knows and sells your products"
-				},
-				"channels": {
-					"title": "All connections",
-					"desc": "Telegram, WhatsApp, Rubika, Bale and web widget"
-				},
-				"voice": {
-					"title": "Voice messaging",
-					"desc": "Your agent hears and replies to customers"
-				},
-				"crm": {
-					"title": "Unified CRM",
-					"desc": "One inbox for every connection"
-				}
-			}
-		},
-		"how": {
-			"title": "Get started in three steps",
-			"subtitle": "Go from zero to a live agent in minutes — no code required.",
-			"step1Title": "Connect your key",
-			"step1": "Add your OpenRouter key",
-			"step2Title": "Add your knowledge",
-			"step2": "Upload your data and products",
-			"step3Title": "Go live",
-			"step3": "Add a connection — your agent is live"
-		},
-		"channels": {
-			"title": "All your connections, one dashboard",
-			"subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
-		},
-		"demo": {
-			"title": "Live chat, smarter than ever",
-			"subtitle": "Watch the agent answer in real time — from your catalog, your knowledge base, and even voice notes.",
-			"typing": "typing…",
-			"voiceLabel": "Voice message",
-			"replay": "Replay",
-			"agentName": "Vignet Agent",
-			"online": "Online",
-			"highlights": {
-				"title": "Not just a chatbot",
-				"subtitle": "An agent that learns, adapts to your brand, and manages the conversation.",
-				"items": {
-					"learning": {
-						"title": "Self-learning agent",
-						"desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
-					},
-					"personalize": {
-						"title": "Full personalization",
-						"desc": "Tune the agent's tone, personality and replies to match your brand and taste"
-					},
-					"flow": {
-						"title": "Conversation flow control",
-						"desc": "Design and control the conversation path with a visual builder — no code"
-					},
-					"omnichannel": {
-						"title": "Omnichannel",
-						"desc": "The same agent replies on Telegram, WhatsApp, Instagram and a web widget"
-					}
-				}
-			},
-			"sources": {
-				"catalog": "From product catalog",
-				"knowledge": "From knowledge base",
-				"voice": "From voice message"
-			},
-			"bubbles": [
-				{
-					"role": "user",
-					"text": "Do you have the running shoes in size 42?"
-				},
-				{
-					"role": "agent",
-					"text": "Yes! The Pro Runner is in stock in size 42 — 1,200,000 Toman, with free shipping.",
-					"source": "catalog"
-				},
-				{
-					"role": "user",
-					"text": "What's your return policy?"
-				},
-				{
-					"role": "agent",
-					"text": "You can return any item free within 7 days — just request it right here.",
-					"source": "knowledge"
-				},
-				{
-					"role": "user",
-					"voice": true,
-					"text": ""
-				},
-				{
-					"role": "agent",
-					"text": "Got your voice note — I've reserved a pair in size 42 for you. ✅",
-					"source": "voice"
-				}
-			]
-		},
-		"pricing": {
-			"title": "Pricing for every business",
-			"monthly": "Monthly",
-			"annual": "Annual",
-			"discount": "20% off",
-			"perMonth": "/ mo",
-			"cta": "Get started",
-			"popular": "Most popular"
-		},
-		"testimonials": {
-			"title": "Loved by Iranian businesses",
-			"items": [
-				{
-					"quote": "Our Telegram support is fully automated now. The agent answers product questions instantly, day and night.",
-					"name": "Sara M.",
-					"role": "Online store owner"
-				},
-				{
-					"quote": "Setup took ten minutes. Uploading our catalog and connecting Bale was effortless.",
-					"name": "Reza K.",
-					"role": "Marketing manager"
-				},
-				{
-					"quote": "Bringing our own OpenRouter key means we control the costs. Exactly what we needed.",
-					"name": "Niloofar A.",
-					"role": "Startup founder"
-				}
-			]
-		},
-		"faq": {
-			"title": "Frequently asked questions",
-			"items": [
-				{
-					"q": "Do I need technical skills to use it?",
-					"a": "No. Create an agent in a few clicks, upload your data, and add a connection."
-				},
-				{
-					"q": "How are AI token costs handled?",
-					"a": "You bring your own OpenRouter key, and token costs are billed directly to your account. Vigent only charges for the platform."
-				},
-				{
-					"q": "Which connections are supported?",
-					"a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all in one dashboard."
-				},
-				{
-					"q": "Can I try it for free?",
-					"a": "Yes — a 14-day free trial with no credit card required."
-				}
-			]
-		},
-		"cta": {
-			"title": "Build your smart agent today",
-			"button": "Start free",
-			"note": "No credit card required — just your phone number"
-		},
-		"footer": {
-			"tagline": "AI platform for businesses",
-			"product": "Product",
-			"resources": "Resources",
-			"company": "Company",
-			"rights": "© 2025 Vigent",
-			"madeIn": "Made in Iran"
-		}
-	},
-	"blog": {
-		"title": "Blog",
-		"subtitle": "SEO-optimized articles to drive organic traffic",
-		"newPost": "New post",
-		"editPost": "Edit post",
-		"edit": "Edit",
-		"empty": "No posts yet",
-		"emptyDesc": "Create your first blog post to attract organic search traffic",
-		"colTitle": "Title",
-		"colCategory": "Category",
-		"colStatus": "Status",
-		"colViews": "Views",
-		"colUpdated": "Updated",
-		"categories": "Categories",
-		"titlePh": "Catchy post title — include main keyword",
-		"contentPh": "Markdown content here…\n\n## Subheading\n\nParagraph text…",
-		"excerpt": "Excerpt",
-		"excerptPh": "Short post excerpt (160 chars)",
-		"autoFill": "Auto-fill",
-		"seoFields": "SEO settings",
-		"seoTitle": "SEO title (meta title)",
-		"seoDescription": "SEO description (meta description)",
-		"keywords": "Keywords",
-		"keywordsPh": "Type a keyword and press Enter",
-		"suggested": "Suggested",
-		"addSuggested": "Add all suggested",
-		"seoScore": "SEO score",
-		"publishSettings": "Publish settings",
-		"category": "Category",
-		"noCategory": "No category",
-		"coverImage": "Cover image (URL)",
-		"canonicalUrl": "Canonical URL (prevents duplicate content)",
-		"featured": "Featured post",
-		"status": "Status",
-		"status_DRAFT": "Draft",
-		"status_PUBLISHED": "Published",
-		"status_SCHEDULED": "Scheduled",
-		"status_ARCHIVED": "Archived",
-		"write": "Write",
-		"preview": "Preview",
-		"previewEmpty": "Preview will appear here…",
-		"saveDraft": "Save draft",
-		"publish": "Publish",
-		"saved": "Saved",
-		"close": "Close",
-		"workspace": "Workspace",
-		"selectWorkspace": "Select workspace…",
-		"errSave": "Save failed",
-		"errSlugTaken": "This slug is already used. Pick another.",
-		"errWorkspaceRequired": "Please select a workspace."
-	}
+        "common": {
+                "brand": "VIGENT",
+                "loading": "Loading…",
+                "save": "Save",
+                "saving": "Saving…",
+                "saved": "Saved",
+                "cancel": "Cancel",
+                "delete": "Delete",
+                "edit": "Edit",
+                "back": "Back",
+                "next": "Next",
+                "continue": "Continue",
+                "skip": "Skip",
+                "search": "Search",
+                "active": "Active",
+                "inactive": "Inactive",
+                "error": "Something went wrong",
+                "retry": "Retry",
+                "previous": "Previous",
+                "page": "Page {page}"
+        },
+        "notifications": {
+                "title": "Notifications",
+                "empty": "No notifications",
+                "markAllRead": "Mark all as read",
+                "viewAll": "View all"
+        },
+        "experiments": {
+                "title": "Experiments & versions",
+                "subtitle": "A/B test different prompts and keep previous versions",
+                "abTitle": "A/B prompt experiment",
+                "abHint": "A share of new conversations is answered with the variant B prompt so you can compare the two.",
+                "variantPrompt": "Variant B prompt",
+                "variantPlaceholder": "Write the alternative system prompt here…",
+                "split": "Variant B traffic %",
+                "enable": "Enable experiment",
+                "active": "Experiment is active",
+                "inactive": "Experiment is off",
+                "save": "Save",
+                "saved": "Saved ✓",
+                "comparison": "Performance comparison",
+                "variantA": "Variant A (current)",
+                "variantB": "Variant B",
+                "conversations": "conversations",
+                "avgRating": "Avg. rating",
+                "handoff": "Handed off",
+                "versionsTitle": "Saved versions",
+                "versionsHint": "Snapshot the agent's current prompt and config so you can roll back later.",
+                "saveVersion": "Save current version",
+                "restore": "Restore",
+                "restored": "Restored ✓",
+                "delete": "Delete",
+                "noVersions": "No versions saved yet",
+                "error": "Something went wrong"
+        },
+        "learning": {
+                "title": "Agent learning",
+                "subtitle": "Review questions the agent couldn't answer and add them to its knowledge with one click",
+                "pending": "Pending review",
+                "learned": "Learned",
+                "empty": "Great! No unanswered questions",
+                "emptyHint": "Whenever the agent can't answer a question, it shows up here",
+                "question": "Customer question",
+                "suggest": "Generate suggested answer",
+                "suggesting": "Generating…",
+                "answerPlaceholder": "Write or edit the answer here…",
+                "approve": "Add to knowledge",
+                "approving": "Adding…",
+                "dismiss": "Dismiss",
+                "approved": "Added to the agent's knowledge ✓",
+                "noKey": "Add your OpenRouter key in settings first",
+                "error": "Something went wrong, try again",
+                "viewConversation": "View conversation"
+        },
+        "nav": {
+                "home": "Home",
+                "features": "Features",
+                "how": "How it works",
+                "pricing": "Pricing",
+                "blog": "Blog",
+                "docs": "Docs",
+                "login": "Log in",
+                "getStarted": "Start free"
+        },
+        "auth": {
+                "title": "Sign in to Vigent",
+                "subtitle": "Sign in with your mobile number",
+                "phoneLabel": "Mobile number",
+                "phonePlaceholder": "09123456789",
+                "sendCode": "Send verification code",
+                "sending": "Sending…",
+                "otpTitle": "Enter the verification code",
+                "otpSubtitle": "Enter the 6-digit code sent to {phone}",
+                "nameLabel": "Your name?",
+                "namePlaceholder": "Full name",
+                "verify": "Sign in / Sign up",
+                "verifying": "Verifying…",
+                "resend": "Resend code",
+                "resendIn": "Resend in {seconds}s",
+                "changeNumber": "Change number",
+                "errors": {
+                        "INVALID_PHONE": "Invalid mobile number",
+                        "INVALID_CODE": "The code you entered is incorrect",
+                        "RATE_LIMIT": "Too many requests. Please try again later",
+                        "SMS_FAILED": "Failed to send SMS",
+                        "GENERIC": "Something went wrong. Please try again"
+                },
+                "noCard": "No credit card required — just your phone number"
+        },
+        "dashboard": {
+                "overview": "Overview",
+                "agents": "Agents",
+                "products": "Products",
+                "conversations": "Conversations",
+                "contacts": "Customers",
+                "analytics": "Analytics",
+                "integrations": "Integrations",
+                "billing": "Billing",
+                "settings": "Settings",
+                "onboarding": "Get started",
+                "logout": "Log out",
+                "welcome": "Welcome",
+                "greeting": "Hi, {name}"
+        },
+        "onboarding": {
+                "title": "Set up Vigent",
+                "subtitle": "Activate your agent in 5 simple steps",
+                "progress": "{done} of {total} steps",
+                "completedTitle": "Congratulations! Setup complete",
+                "completedSubtitle": "Your agent is ready",
+                "skip": "Skip guide",
+                "steps": {
+                        "key": {
+                                "title": "Add your OpenRouter key",
+                                "desc": "Add your OpenRouter API key to power your AI",
+                                "cta": "Add key"
+                        },
+                        "agent": {
+                                "title": "Create your first agent",
+                                "desc": "Create a smart agent for your business",
+                                "cta": "Create agent"
+                        },
+                        "knowledge": {
+                                "title": "Add knowledge or products",
+                                "desc": "Give your agent your data or product catalog",
+                                "cta": "Add knowledge"
+                        },
+                        "channel": {
+                                "title": "Add a connection",
+                                "desc": "Connect your agent to Telegram, WhatsApp and more",
+                                "cta": "Add connection"
+                        },
+                        "test": {
+                                "title": "Test your agent",
+                                "desc": "Start your first conversation with your agent",
+                                "cta": "Test agent"
+                        }
+                }
+        },
+        "settings": {
+                "title": "Settings",
+                "aiKeys": {
+                        "title": "AI Keys",
+                        "subtitle": "Add your OpenRouter key to use AI models",
+                        "keyLabel": "OpenRouter key",
+                        "keyPlaceholder": "sk-or-v1-…",
+                        "currentKey": "Current key",
+                        "validate": "Validate & save",
+                        "validating": "Validating…",
+                        "valid": "Key is valid and saved",
+                        "invalid": "Invalid key",
+                        "remove": "Remove key",
+                        "byokNote": "Vigent uses your key; token costs are billed directly to your OpenRouter account."
+                }
+        },
+        "agents": {
+                "title": "Agents",
+                "subtitle": "Your AI agents — click any card to see its settings",
+                "new": "New agent",
+                "empty": "No agents yet",
+                "emptyDesc": "Create your first smart agent to talk to your customers",
+                "create": "Create agent",
+                "creating": "Creating…",
+                "test": "Test",
+                "builder": "Conversation design",
+                "settings": "Settings",
+                "knowledge": "Knowledge",
+                "products": "Products",
+                "experiments": "Experiments",
+                "learning": "Learning",
+                "channels": "Connections",
+                "analytics": "Analytics",
+                "conversations": "Conversations",
+                "active": "Active",
+                "inactive": "Inactive",
+                "wizard": {
+                        "step": "Step {n} of {total}",
+                        "basics": "Basics",
+                        "persona": "Persona & instructions",
+                        "config": "Model configuration",
+                        "name": "Agent name",
+                        "namePlaceholder": "e.g. Sales assistant",
+                        "description": "Short description",
+                        "descriptionPlaceholder": "What does this agent do?",
+                        "systemPrompt": "System prompt",
+                        "systemPromptHint": "Tell the agent how to behave. You can use variables:",
+                        "templateLabel": "Start with a template:",
+                        "templateShop": "Shop",
+                        "templateSupport": "Support",
+                        "templateRestaurant": "Restaurant",
+                        "templateGeneral": "General",
+                        "welcomeMessage": "Welcome message",
+                        "welcomePlaceholder": "Hi! How can I help you?",
+                        "welcomeHint": "Keep it short — one sentence works best",
+                        "fallbackMessage": "Fallback message (when it has no answer)",
+                        "model": "AI model",
+                        "modelHint": "Leave blank to use the workspace default model",
+                        "language": "Language",
+                        "temperature": "Creativity (temperature)",
+                        "maxTokens": "Max response length",
+                        "successTitle": "Your agent is ready!",
+                        "successProducts": "{{count}} products were automatically added to the agent",
+                        "successNoProducts": "No products added yet — you can add them later",
+                        "successKnowledge": "Add your business knowledge for more accurate answers",
+                        "goToAgent": "Test agent",
+                        "addProducts": "Add products",
+                        "addKnowledge": "Add knowledge",
+                        "bizVarsLabel": "Enter your business info to inject into the template:",
+                        "bizName": "Business name",
+                        "bizPhone": "Phone number",
+                        "bizHours": "Working hours",
+                        "previewTemplate": "Preview"
+                },
+                "settingsForm": {
+                        "title": "Agent settings",
+                        "saved": "Changes saved",
+                        "delete": "Delete agent",
+                        "deleteConfirm": "Delete this agent? This cannot be undone.",
+                        "handoffEnabled": "Hand off to a human operator",
+                        "handoffKeywords": "Handoff trigger keywords",
+                        "handoffKeywordsPlaceholder": "e.g. manager, complaint, human",
+                        "handoffKeywordsHint": "Comma-separated — if the user types any of these, the conversation is escalated to a human",
+                        "voiceEnabled": "Voice responses"
+                },
+                "playground": {
+                        "placeholder": "Type a message…",
+                        "send": "Send",
+                        "empty": "Start a conversation to test your agent",
+                        "noKey": "Add your OpenRouter key in settings first",
+                        "error": "Failed to get a response",
+                        "record": "Record voice",
+                        "speak": "Read reply aloud",
+                        "rateGood": "Good response",
+                        "rateBad": "Poor response"
+                },
+                "models": {
+                        "intro": "Pick the model that powers your agent. Each one balances answer quality against cost differently.",
+                        "default": "Default",
+                        "quality": "Quality",
+                        "cost": "Cost",
+                        "advanced": "Enter a custom model (advanced)",
+                        "customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat"
+                }
+        },
+        "channels": {
+                "title": "Connections",
+                "subtitle": "Connect your agent to your messaging apps",
+                "webWidget": "Web widget",
+                "widgetDesc": "Paste this code on your website to show the agent chat",
+                "enable": "Enable",
+                "enabled": "Enabled",
+                "disable": "Disable",
+                "embedCode": "Embed code",
+                "copy": "Copy",
+                "copied": "Copied",
+                "comingSoon": "Coming soon",
+                "widgetSettings": "Widget settings & customization",
+                "widgetSettingsHint": "Configure the widget's appearance, color and security",
+                "appearance": "Appearance",
+                "brandColor": "Brand color",
+                "theme": "Theme",
+                "themeDark": "Dark",
+                "themeLight": "Light",
+                "position": "Position",
+                "posRight": "Right",
+                "posLeft": "Left",
+                "headerTitle": "Header title",
+                "headerTitlePh": "Assistant name (default: agent name)",
+                "launcherLabel": "Launcher label",
+                "launcherLabelPh": "e.g. Chat with us",
+                "optional": "optional",
+                "security": "Security & abuse prevention",
+                "allowedDomains": "Allowed domains",
+                "allowedDomainsHint": "One domain per line. Works only on these domains. Empty = anywhere.",
+                "allowedDomainsPh": "example.com\nshop.example.com",
+                "unprotectedWarning": "No domain set — the widget can be embedded on any site. Add your domain to stop others spending your credits.",
+                "livePreview": "Live preview",
+                "save": "Save changes",
+                "saving": "Saving…",
+                "saved": "Saved",
+                "saveError": "Save failed",
+                "noKeyWarning": "No AI key configured — the widget cannot reply and shows a \"Failed to get a response\" error.",
+                "noKeyCta": "Set API key",
+                "subtitle": "Header subtitle",
+                "subtitlePh": "e.g. Instant answers to your questions",
+                "icon": "Icon",
+                "corners": "Corners",
+                "cornersSoft": "Soft",
+                "cornersRound": "Round",
+                "cornersSharp": "Sharp",
+                "font": "Font",
+                "fontDefault": "Modern font",
+                "fontInherit": "Site font",
+                "interaction": "Interaction & behavior",
+                "autoGreetLabel": "Auto greeting bubble",
+                "autoGreetHint": "Auto-show the welcome message as a teaser bubble after a few seconds.",
+                "autoGreetDelayLabel": "Teaser delay",
+                "leadCaptureLabel": "Capture phone number",
+                "leadCaptureHint": "Asks for the visitor's phone before opening chat so they don't abandon mid-conversation.",
+                "leadCaptureMessage": "Prompt message",
+                "leadCaptureMessagePh": "e.g. To help you faster, please enter your phone number.",
+                "connect": "Connect",
+                "connectConfirm": "Connect bot",
+                "connectError": "Connection failed",
+                "invalidToken": "Invalid bot token",
+                "webhookWarning": "Bot saved but webhook setup failed. Check the token.",
+                "webhookNoInbound": "No messages received yet — send one to the bot to verify the connection.",
+                "webhookLastInbound": "Last message received: {time}",
+                "timeJustNow": "just now",
+                "timeMinutes": "{n}m ago",
+                "timeHours": "{n}h ago",
+                "timeDays": "{n}d ago",
+                "botTokenLabel": "Bot token",
+                "botTokenPlaceholder": "Paste the token from the bot provider",
+                "setupGuide": "How to get this — step by step",
+                "webhookSetupNote": "Finish setup in the Meta dashboard: open your app → Webhooks, paste the callback URL and verify token below, then subscribe to the messages and messaging fields (Instagram: also comments).",
+                "callbackUrl": "Callback URL",
+                "verifyToken": "Verify token",
+                "fieldBotToken": "Bot token",
+                "fieldBotTokenPh": "Paste the token from the bot provider",
+                "fieldAccessToken": "Access token",
+                "fieldAccessTokenPh": "Permanent access token (EAAB…)",
+                "fieldPhoneNumberId": "Phone number ID",
+                "fieldPhoneNumberIdPh": "e.g. 1029384756",
+                "fieldPageToken": "Page access token",
+                "fieldPageTokenPh": "Page access token (EAAB…)",
+                "guide": {
+                        "TELEGRAM": [
+                                "Open @BotFather in Telegram and send /newbot.",
+                                "Choose a name and a username for your bot.",
+                                "Copy the token BotFather gives you and paste it below."
+                        ],
+                        "BALE": [
+                                "Open @botfather in Bale and create a new bot.",
+                                "Pick a name and username for your bot.",
+                                "Copy the issued token and paste it below."
+                        ],
+                        "RUBIKA": [
+                                "Open the BotFather bot inside Rubika and create a new bot.",
+                                "Set a name and username, then copy the API token.",
+                                "Paste the token below. We register the receive-update endpoint automatically."
+                        ],
+                        "WHATSAPP": [
+                                "Create a Meta app at developers.facebook.com and add the WhatsApp product.",
+                                "In WhatsApp → API Setup, copy the Phone number ID.",
+                                "Generate a permanent access token (via a System User with whatsapp_business_messaging permission).",
+                                "Paste the access token and phone number ID below and connect.",
+                                "After connecting, copy the callback URL and verify token shown here into WhatsApp → Configuration → Webhook, and subscribe to the messages field."
+                        ],
+                        "INSTAGRAM": [
+                                "Convert your Instagram account to a Professional (Business/Creator) account and link it to a Facebook Page.",
+                                "Create a Meta app and add the Instagram (Messenger) product.",
+                                "Generate a Page access token with instagram_basic, instagram_manage_messages and instagram_manage_comments permissions.",
+                                "Paste the page access token below and connect.",
+                                "After connecting, copy the callback URL and verify token into the app's Webhooks, and subscribe to the messages and comments fields."
+                        ]
+                },
+                "telegram": "Telegram",
+                "telegramHint": "Connect your Telegram bot with the BotFather token",
+                "bale": "Bale",
+                "baleHint": "Connect your Bale bot with its token",
+                "rubika": "Rubika",
+                "rubikaHint": "Connect your Rubika bot with its token",
+                "whatsapp": "WhatsApp",
+                "whatsappHint": "WhatsApp Cloud API — auto-reply to direct messages",
+                "instagram": "Instagram",
+                "instagramHint": "Instagram DMs and comment replies via the Meta API"
+        },
+        "conversations": {
+                "title": "Conversations",
+                "subtitle": "Unified inbox across all connections",
+                "empty": "No conversations yet",
+                "replyPlaceholder": "Reply as operator…",
+                "send": "Send",
+                "sending": "Sending…",
+                "operatorBadge": "Operator",
+                "replyHint": "This message is sent directly to the contact and the conversation moves to “handed off”.",
+                "replyNoChannel": "This channel can't be replied to from the panel (widget/API only).",
+                "replyFailed": "Failed to send message",
+                "anonymous": "Anonymous user",
+                "noMessages": "No messages in this conversation",
+                "csat": "Rating",
+                "resolve": "Mark resolved",
+                "reopen": "Reopen",
+                "summary": "AI summary"
+        },
+        "analytics": {
+                "title": "Analytics",
+                "subtitle": "Performance across your agents and connections",
+                "totalConversations": "Conversations",
+                "resolveRate": "Resolve rate",
+                "avgRating": "Avg. rating",
+                "tokensUsed": "Tokens used",
+                "conversationsTrend": "Conversations — last 14 days",
+                "channelBreakdown": "By connection",
+                "topProducts": "Top products by AI queries",
+                "satisfaction": "Customer satisfaction",
+                "ratings": "ratings",
+                "activityHeatmap": "Activity by day & hour",
+                "agentActivity": "Agent activity",
+                "noData": "No data yet",
+                "unansweredQueries": "Unanswered questions",
+                "noUnanswered": "All questions were answered"
+        },
+        "contacts": {
+                "title": "Contacts",
+                "subtitle": "Everyone who talked to your agents",
+                "empty": "No contacts yet",
+                "anonymous": "Anonymous",
+                "search": "Search name or phone…",
+                "conversations": "conversations",
+                "lastSeen": "Last seen",
+                "stage": "Stage",
+                "stageLead": "Lead",
+                "stageQualified": "Qualified",
+                "stageCustomer": "Customer",
+                "stageLost": "Lost",
+                "pipeline": "Pipeline",
+                "list": "List",
+                "noStage": "No contacts in this stage",
+                "dropHere": "Drop here",
+                "detail": {
+                        "name": "Name",
+                        "tags": "Tags",
+                        "tagsPlaceholder": "vip, returning (comma separated)",
+                        "notes": "Notes",
+                        "notesPlaceholder": "Internal notes about this contact…",
+                        "save": "Save",
+                        "saved": "Saved",
+                        "history": "Conversation history",
+                        "noHistory": "No conversations yet",
+                        "lastActivity": "last activity"
+                }
+        },
+        "billing": {
+                "title": "Billing",
+                "subtitle": "Your plan, usage and invoices",
+                "currentPlan": "Current plan",
+                "status": "Status",
+                "renewsOn": "Renews on",
+                "trialEnds": "Trial ends",
+                "noSubscription": "No active subscription",
+                "usageThisMonth": "Usage this month",
+                "conversations": "Conversations",
+                "tokens": "Tokens",
+                "estCost": "Estimated AI cost",
+                "byok": "You use your own OpenRouter key — AI costs are billed directly by OpenRouter, not Vigent.",
+                "upgrade": "Upgrade plan",
+                "planTrial": "Trial",
+                "planStarter": "Starter",
+                "planPro": "Pro",
+                "planBusiness": "Business"
+        },
+        "integrations": {
+                "title": "Integrations",
+                "subtitle": "Connect Vigent to the tools you use",
+                "channels": "Messaging connections",
+                "connected": "Connected",
+                "notConnected": "Not connected",
+                "configure": "Configure",
+                "manageInAgent": "Connections are configured per agent",
+                "openAgents": "Open agents",
+                "comingSoon": "Coming soon"
+        },
+        "builder": {
+                "title": "Conversation design (flow)",
+                "subtitle": "Design your agent’s conversation step by step — or leave it empty to let the agent answer freely.",
+                "addNode": "Add node",
+                "nodeMessage": "Message",
+                "nodeAi": "AI response",
+                "nodeCondition": "Condition",
+                "nodeCollect": "Collect info",
+                "nodeProduct": "Product lookup",
+                "nodeHandoff": "Human handoff",
+                "save": "Save flow",
+                "saved": "Saved",
+                "nodeSettings": "Node settings",
+                "nodeLabel": "Label",
+                "nodeText": "Text",
+                "deleteNode": "Delete node",
+                "selectHint": "Select a node to edit it",
+                "guideTitle": "How does it work?",
+                "guideIntro": "You build the conversation like a map: start from “Start” and connect nodes in order.",
+                "guideStep1": "Pick a node from the side panel to add it to the canvas.",
+                "guideStep2": "Drag from a node’s edge handle to the next node to build the path.",
+                "guideStep3": "Click any node to edit its text and settings in the side panel.",
+                "guideStep4": "Finally, click “Save flow”.",
+                "guideNote": "Note: building a flow is optional. Without one, the agent answers intelligently from your instructions and knowledge. Use a flow only when you want a precise, controlled path.",
+                "gotIt": "Got it",
+                "showGuide": "Guide",
+                "templates": "Templates",
+                "templatesTitle": "Choose a flow template",
+                "useTemplate": "Use this template",
+                "templatesNote": "Picking a template replaces the current canvas. You can edit or delete any node afterwards.",
+                "emptyCanvas": "Canvas is empty — add a node from the side panel",
+                "connectHint": "To connect, drag from a node’s edge handle to the next node",
+                "descStart": "Where the conversation starts",
+                "descMessage": "Send a fixed message to the user",
+                "descAi": "Generate a smart AI reply",
+                "descCondition": "Branch the path based on a condition",
+                "descCollect": "Ask for and collect info from the user (e.g. name or phone)",
+                "descProduct": "Look up products and present them",
+                "descHandoff": "Hand the conversation to a human agent"
+        },
+        "status": {
+                "title": "System status",
+                "subtitle": "Live health of the Vigent platform",
+                "operational": "All systems operational",
+                "degraded": "Partial outage",
+                "down": "Major outage",
+                "lastChecked": "Last checked",
+                "database": "Database",
+                "redis": "Cache & queue (Redis)",
+                "ms": "ms",
+                "unreachable": "Unreachable"
+        },
+        "knowledge": {
+                "title": "Knowledge base",
+                "subtitle": "Add data so your agent can answer from it",
+                "add": "Add knowledge",
+                "adding": "Adding…",
+                "tabText": "Text",
+                "tabUrl": "URL",
+                "tabFile": "File",
+                "name": "Title",
+                "namePlaceholder": "e.g. FAQ",
+                "content": "Text",
+                "contentPlaceholder": "Paste text or Q&A…",
+                "url": "Page URL",
+                "urlPlaceholder": "https://example.com/page",
+                "fileHint": "PDF or CSV (max 20MB)",
+                "fileSelect": "Choose file",
+                "empty": "No knowledge added yet",
+                "chunks": "{count} chunks",
+                "delete": "Delete",
+                "refresh": "Refresh",
+                "storageNotConfigured": "File upload requires Supabase Storage to be configured",
+                "status": {
+                        "PENDING": "Queued",
+                        "PROCESSING": "Processing",
+                        "READY": "Ready",
+                        "ERROR": "Error"
+                }
+        },
+        "products": {
+                "title": "Products",
+                "new": "Add product",
+                "empty": "No products yet",
+                "emptyDesc": "Add your products so your agent can know and sell them",
+                "search": "Search products…",
+                "sort": "Sort",
+                "sortNewest": "Newest",
+                "sortPriceAsc": "Price: low to high",
+                "sortPriceDesc": "Price: high to low",
+                "sortQueried": "Most queried",
+                "allCategories": "All categories",
+                "inStock": "In stock",
+                "outOfStock": "Out of stock",
+                "unlimited": "Unlimited",
+                "toman": "Toman",
+                "edit": "Edit",
+                "delete": "Delete",
+                "deleteConfirm": "Delete this product?",
+                "active": "Active",
+                "queries": "{count} queries",
+                "manageCategories": "Manage categories",
+                "form": {
+                        "create": "Create product",
+                        "creating": "Creating…",
+                        "save": "Save",
+                        "name": "Product name",
+                        "namePlaceholder": "e.g. Running shoes",
+                        "description": "Description",
+                        "price": "Price (Toman)",
+                        "comparePrice": "Original price (for discount)",
+                        "sku": "SKU",
+                        "stock": "Stock (blank = unlimited)",
+                        "category": "Category",
+                        "noCategory": "No category",
+                        "tags": "Tags (comma separated)",
+                        "attributes": "Attributes",
+                        "attrKey": "Attribute",
+                        "attrValue": "Value",
+                        "addAttr": "Add attribute",
+                        "active": "Active"
+                },
+                "categories": {
+                        "title": "Categories",
+                        "add": "Add category",
+                        "namePlaceholder": "Category name",
+                        "empty": "No categories yet",
+                        "count": "{count} products"
+                },
+                "catalog": {
+                        "title": "Agent products",
+                        "subtitle": "Choose the products this agent should know about",
+                        "save": "Save",
+                        "saved": "Saved",
+                        "empty": "Add some products first",
+                        "selected": "{count} selected",
+                        "hint": "Choose which products this agent can talk about. By default all products are selected so the agent knows your whole catalogue.",
+                        "selectAll": "Select all",
+                        "deselectAll": "Deselect all",
+                        "saveAndTest": "Save & test agent"
+                },
+                "detail": {
+                        "queryCount": "AI queries",
+                        "agentCoverage": "Agents",
+                        "stock": "Stock",
+                        "knownByAgents": "Known by agents",
+                        "noAgents": "No agent knows about this product yet",
+                        "inactive": "Inactive",
+                        "updatedAt": "Last updated"
+                }
+        },
+        "marketing": {
+                "hero": {
+                        "badge": "VIGENT AI PLATFORM ✦",
+                        "title": "Smart AI agents",
+                        "rotate": ["for sales", "for support", "for your business"],
+                        "subtitle": "Build smart agents that answer from your own data and talk to your customers across every connection.",
+                        "ctaPrimary": "Start free — 14 days",
+                        "ctaSecondary": "Watch demo",
+                        "trust": "No credit card required · Set up in under 5 minutes · Persian-language support"
+                },
+                "stats": {
+                        "conversations": "conversations",
+                        "agents": "agents",
+                        "businesses": "businesses"
+                },
+                "features": {
+                        "title": "Everything to build a smart agent",
+                        "subtitle": "From the visual builder to omnichannel delivery — one platform for the whole journey.",
+                        "items": {
+                                "learning": {
+                                        "title": "Self-learning agent",
+                                        "desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
+                                },
+                                "builder": {
+                                        "title": "Agent builder",
+                                        "desc": "Design conversation flows with a visual builder"
+                                },
+                                "knowledge": {
+                                        "title": "Knowledge base",
+                                        "desc": "Upload your documents and data"
+                                },
+                                "products": {
+                                        "title": "Product catalog",
+                                        "desc": "Your agent knows and sells your products"
+                                },
+                                "channels": {
+                                        "title": "All connections",
+                                        "desc": "Telegram, WhatsApp, Rubika, Bale and web widget"
+                                },
+                                "voice": {
+                                        "title": "Voice messaging",
+                                        "desc": "Your agent hears and replies to customers"
+                                },
+                                "crm": {
+                                        "title": "Unified CRM",
+                                        "desc": "One inbox for every connection"
+                                }
+                        }
+                },
+                "how": {
+                        "title": "Get started in three steps",
+                        "subtitle": "Go from zero to a live agent in minutes — no code required.",
+                        "step1Title": "Connect your key",
+                        "step1": "Add your OpenRouter key",
+                        "step2Title": "Add your knowledge",
+                        "step2": "Upload your data and products",
+                        "step3Title": "Go live",
+                        "step3": "Add a connection — your agent is live"
+                },
+                "channels": {
+                        "title": "All your connections, one dashboard",
+                        "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
+                },
+                "demo": {
+                        "title": "Live chat, smarter than ever",
+                        "subtitle": "Watch the agent answer in real time — from your catalog, your knowledge base, and even voice notes.",
+                        "typing": "typing…",
+                        "voiceLabel": "Voice message",
+                        "replay": "Replay",
+                        "agentName": "Vignet Agent",
+                        "online": "Online",
+                        "ctaStart": "Start free — 14 days",
+                        "ctaStartDesc": "Build your smart agent right now",
+                        "scenarioLabel": "Scenario",
+                        "tabs": {
+                                "sales": "Sales",
+                                "support": "Support",
+                                "catalog": "Catalog"
+                        },
+                        "sources": {
+                                "catalog": "From product catalog",
+                                "knowledge": "From knowledge base",
+                                "voice": "From voice message",
+                                "handoff": "Handoff to human"
+                        },
+                        "productButtons": {
+                                "addToCart": "Add to cart",
+                                "details": "View details",
+                                "compare": "Compare",
+                                "specs": "View specs",
+                                "reserve": "Reserve"
+                        },
+                        "learning": {
+                                "title": "Agent learned",
+                                "desc": "Added this pattern to the knowledge base to answer better next time."
+                        },
+                        "handoff": {
+                                "title": "Handoff to human agent",
+                                "desc": "The agent decided this conversation needs human attention."
+                        },
+                        "highlights": {
+                                "title": "Not just a chatbot",
+                                "subtitle": "An agent that learns, adapts to your brand, and manages the conversation.",
+                                "items": {
+                                        "learning": {
+                                                "title": "Self-learning agent",
+                                                "desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
+                                        },
+                                        "personalize": {
+                                                "title": "Full personalization",
+                                                "desc": "Tune the agent's tone, personality and replies to match your brand and taste"
+                                        },
+                                        "flow": {
+                                                "title": "Conversation flow control",
+                                                "desc": "Design and control the conversation path with a visual builder — no code"
+                                        },
+                                        "omnichannel": {
+                                                "title": "Omnichannel",
+                                                "desc": "The same agent replies on Telegram, WhatsApp, Instagram and a web widget"
+                                        }
+                                }
+                        },
+                        "scenarios": {
+                                "sales": {
+                                        "label": "Sales",
+                                        "bubbles": [
+                                                {
+                                                        "role": "user",
+                                                        "text": "I'm looking for running shoes in size 42"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "We have some great options! Here's our best seller:",
+                                                        "source": "catalog",
+                                                        "product": {
+                                                                "name": "Pro Runner X42",
+                                                                "price": "1,200,000 Toman",
+                                                                "badge": "Best seller",
+                                                                "desc": "Pro running shoe with shock-absorbing sole and lightweight design",
+                                                                "initial": "P"
+                                                        },
+                                                        "buttons": ["addToCart", "details"]
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "text": "What colors do you have?"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "Available in black, white and navy. Black is our most popular.",
+                                                        "source": "catalog"
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "voice": true,
+                                                        "text": ""
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "I heard you — reserved a pair of black size 42 for you. I'll hold it for 24 hours.",
+                                                        "source": "voice",
+                                                        "buttons": ["reserve"]
+                                                }
+                                        ]
+                                },
+                                "support": {
+                                        "label": "Support",
+                                        "bubbles": [
+                                                {
+                                                        "role": "user",
+                                                        "text": "My order hasn't arrived yet 😟"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "I'm sorry for the delay. What's your order number?",
+                                                        "source": "knowledge"
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "text": "12345"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "Your order is being packed — it ships tomorrow morning and arrives by the day after.",
+                                                        "source": "knowledge"
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "text": "Can I get it today?"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "Unfortunately that's not possible for today. I'll hand this off to a human teammate to help you.",
+                                                        "source": "handoff",
+                                                        "handoff": true
+                                                }
+                                        ]
+                                },
+                                "catalog": {
+                                        "label": "Catalog",
+                                        "bubbles": [
+                                                {
+                                                        "role": "user",
+                                                        "text": "I need a laptop for programming"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "Based on your needs, I recommend this model:",
+                                                        "source": "catalog",
+                                                        "product": {
+                                                                "name": "MacBook Pro 14\"",
+                                                                "price": "65,000,000 Toman",
+                                                                "badge": "Recommended",
+                                                                "desc": "M3 Pro chip, 18GB RAM, ideal for dev and design",
+                                                                "initial": "M"
+                                                        },
+                                                        "buttons": ["specs", "compare"]
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "text": "Is it in stock?"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "Yes, 3 units in stock. Same-day delivery for Tehran.",
+                                                        "source": "catalog"
+                                                },
+                                                {
+                                                        "role": "user",
+                                                        "text": "What's the warranty?"
+                                                },
+                                                {
+                                                        "role": "agent",
+                                                        "text": "18 months official manufacturer warranty + 7-day test and return period.",
+                                                        "source": "knowledge"
+                                                }
+                                        ]
+                                }
+                        }
+                },
+                "pricing": {
+                        "title": "Pricing for every business",
+                        "monthly": "Monthly",
+                        "annual": "Annual",
+                        "discount": "20% off",
+                        "perMonth": "/ mo",
+                        "cta": "Get started",
+                        "popular": "Most popular"
+                },
+                "testimonials": {
+                        "title": "Loved by Iranian businesses",
+                        "items": [
+                                {
+                                        "quote": "Our Telegram support is fully automated now. The agent answers product questions instantly, day and night.",
+                                        "name": "Sara M.",
+                                        "role": "Online store owner"
+                                },
+                                {
+                                        "quote": "Setup took ten minutes. Uploading our catalog and connecting Bale was effortless.",
+                                        "name": "Reza K.",
+                                        "role": "Marketing manager"
+                                },
+                                {
+                                        "quote": "Bringing our own OpenRouter key means we control the costs. Exactly what we needed.",
+                                        "name": "Niloofar A.",
+                                        "role": "Startup founder"
+                                }
+                        ]
+                },
+                "faq": {
+                        "title": "Frequently asked questions",
+                        "items": [
+                                {
+                                        "q": "Do I need technical skills to use it?",
+                                        "a": "No. Create an agent in a few clicks, upload your data, and add a connection."
+                                },
+                                {
+                                        "q": "How are AI token costs handled?",
+                                        "a": "You bring your own OpenRouter key, and token costs are billed directly to your account. Vigent only charges for the platform."
+                                },
+                                {
+                                        "q": "Which connections are supported?",
+                                        "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all in one dashboard."
+                                },
+                                {
+                                        "q": "Can I try it for free?",
+                                        "a": "Yes — a 14-day free trial with no credit card required."
+                                }
+                        ]
+                },
+                "cta": {
+                        "title": "Build your smart agent today",
+                        "button": "Start free",
+                        "note": "No credit card required — just your phone number"
+                },
+                "footer": {
+                        "tagline": "AI platform for businesses",
+                        "product": "Product",
+                        "resources": "Resources",
+                        "company": "Company",
+                        "rights": "© 2025 Vigent",
+                        "madeIn": "Made in Iran"
+                }
+        },
+        "blog": {
+                "title": "Blog",
+                "subtitle": "SEO-optimized articles to drive organic traffic",
+                "newPost": "New post",
+                "editPost": "Edit post",
+                "edit": "Edit",
+                "empty": "No posts yet",
+                "emptyDesc": "Create your first blog post to attract organic search traffic",
+                "colTitle": "Title",
+                "colCategory": "Category",
+                "colStatus": "Status",
+                "colViews": "Views",
+                "colUpdated": "Updated",
+                "categories": "Categories",
+                "titlePh": "Catchy post title — include main keyword",
+                "contentPh": "Markdown content here…\n\n## Subheading\n\nParagraph text…",
+                "excerpt": "Excerpt",
+                "excerptPh": "Short post excerpt (160 chars)",
+                "autoFill": "Auto-fill",
+                "seoFields": "SEO settings",
+                "seoTitle": "SEO title (meta title)",
+                "seoDescription": "SEO description (meta description)",
+                "keywords": "Keywords",
+                "keywordsPh": "Type a keyword and press Enter",
+                "suggested": "Suggested",
+                "addSuggested": "Add all suggested",
+                "seoScore": "SEO score",
+                "publishSettings": "Publish settings",
+                "category": "Category",
+                "noCategory": "No category",
+                "coverImage": "Cover image (URL)",
+                "canonicalUrl": "Canonical URL (prevents duplicate content)",
+                "featured": "Featured post",
+                "status": "Status",
+                "status_DRAFT": "Draft",
+                "status_PUBLISHED": "Published",
+                "status_SCHEDULED": "Scheduled",
+                "status_ARCHIVED": "Archived",
+                "write": "Write",
+                "preview": "Preview",
+                "previewEmpty": "Preview will appear here…",
+                "saveDraft": "Save draft",
+                "publish": "Publish",
+                "saved": "Saved",
+                "close": "Close",
+                "workspace": "Workspace",
+                "selectWorkspace": "Select workspace…",
+                "errSave": "Save failed",
+                "errSlugTaken": "This slug is already used. Pick another.",
+                "errWorkspaceRequired": "Please select a workspace."
+        }
 }
