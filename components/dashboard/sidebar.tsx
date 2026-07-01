@@ -13,7 +13,6 @@ import {
 	CreditCard,
 	Settings,
 	Rocket,
-	BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
@@ -24,7 +23,6 @@ const NAV = [
 	{ key: 'products', href: '/products', icon: Package },
 	{ key: 'conversations', href: '/conversations', icon: MessagesSquare },
 	{ key: 'contacts', href: '/contacts', icon: Users },
-	{ key: 'blog', href: '/blog-admin', icon: BookOpen },
 	{ key: 'integrations', href: '/integrations', icon: Plug },
 	{ key: 'billing', href: '/billing', icon: CreditCard },
 	{ key: 'settings', href: '/settings', icon: Settings },

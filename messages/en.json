@@ -115,7 +115,6 @@
 		"conversations": "Conversations",
 		"contacts": "Customers",
 		"analytics": "Analytics",
-		"blog": "Blog",
 		"integrations": "Integrations",
 		"billing": "Billing",
 		"settings": "Settings",
@@ -871,7 +870,11 @@
 		"saveDraft": "Save draft",
 		"publish": "Publish",
 		"saved": "Saved",
+		"close": "Close",
+		"workspace": "Workspace",
+		"selectWorkspace": "Select workspace…",
 		"errSave": "Save failed",
-		"errSlugTaken": "This slug is already used. Pick another."
+		"errSlugTaken": "This slug is already used. Pick another.",
+		"errWorkspaceRequired": "Please select a workspace."
 	}
 }

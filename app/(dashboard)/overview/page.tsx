@@ -8,6 +8,7 @@ import {
 	Star,
 	CheckCircle2,
 	Cpu,
+	GraduationCap,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -49,6 +50,8 @@ export default async function OverviewPage() {
 		usageAgg,
 		topProducts,
 		agentList,
+		pendingLearnings,
+		learnedFaqs,
 	] = await Promise.all([
 		prisma.agent.count({ where: { workspaceId: ws } }),
 		prisma.conversation.count({ where: { workspaceId: ws } }),
@@ -88,6 +91,20 @@ export default async function OverviewPage() {
 		prisma.agent.findMany({
 			where: { workspaceId: ws },
 			select: { id: true, name: true },
+		}),
+		prisma.message.count({
+			where: {
+				role: 'ASSISTANT',
+				unanswered: true,
+				conversation: { workspaceId: ws },
+			},
+		}),
+		prisma.knowledgeBase.count({
+			where: {
+				workspaceId: ws,
+				type: 'FAQ',
+				name: { startsWith: '❓ ' },
+			},
 		}),
 	])
 
@@ -284,6 +301,103 @@ export default async function OverviewPage() {
 					)}
 				</Panel>
 			</div>
+
+			{/* Learning Center summary (section 7) */}
+			{pendingLearnings > 0 && (
+				<Link
+					href="/agents"
+					className="block rounded-2xl border border-warning/30 bg-warning/5 p-5 transition-colors hover:border-warning/50"
+				>
+					<div className="flex items-start gap-4">
+						<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+							<GraduationCap className="h-5 w-5" />
+						</div>
+						<div className="flex-1">
+							<div className="flex items-center gap-2">
+								<h3 className="font-medium text-[var(--text-primary)]">
+									{locale === 'fa'
+										? 'یادگیری موردی — نیاز به توجه'
+										: 'Learning center — needs attention'}
+								</h3>
+								<span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+									{locale === 'fa'
+										? `${nf.format(pendingLearnings)} سؤال بی‌پاسخ`
+										: `${nf.format(pendingLearnings)} unanswered`}
+								</span>
+							</div>
+							<p className="mt-1 text-sm text-[var(--text-secondary)]">
+								{locale === 'fa'
+									? `ایجنت شما به ${nf.format(pendingLearnings)} سؤال نتوانسته پاسخ بدهد. به صفحه یادگیری هر ایجنت بروید تا با کمک هوش مصنوعی، پاسخ پیشنهادی بسازید و به پایگاه دانش اضافه کنید.`
+									: `Your agents couldn't answer ${nf.format(pendingLearnings)} questions. Visit each agent's Learning page to draft AI-suggested answers and add them to the knowledge base.`}
+							</p>
+							<div className="mt-2 text-xs text-[var(--text-muted)]">
+								{locale === 'fa'
+									? `تا الان ${nf.format(learnedFaqs)} پاسخ به پایگاه دانش اضافه شده است.`
+									: `${nf.format(learnedFaqs)} answers added to KB so far.`}
+							</div>
+						</div>
+						<span className="text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]">
+							→
+						</span>
+					</div>
+				</Link>
+			)}
+
+			{/* Metrics explainer (section 6) */}
+			<Panel
+				title={
+					locale === 'fa'
+						? 'این اعداد از کجا می‌آیند؟'
+						: 'Where do these numbers come from?'
+				}
+			>
+				<ul className="space-y-3 text-sm text-[var(--text-secondary)]">
+					<li className="flex gap-2">
+						<Star className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+						<div>
+							<strong className="text-[var(--text-primary)]">
+								{locale === 'fa' ? 'میانگین رضایت: ' : 'Average satisfaction: '}
+							</strong>
+							{locale === 'fa'
+								? 'کاربر در پایان گفتگو از ویجت یا تلگرام، امتیاز ۱ تا ۵ ستاره می‌دهد. میانگین همه امتیازها نمایش داده می‌شود. برای دریافت امتیاز، کاربر باید حداقل یک پاسخ از ایجنت دیده باشد.'
+								: 'The user rates the conversation 1–5 stars at the end (via the widget or Telegram). The average across all rated conversations is shown. To leave a rating, the user must have received at least one assistant reply.'}
+						</div>
+					</li>
+					<li className="flex gap-2">
+						<Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+						<div>
+							<strong className="text-[var(--text-primary)]">
+								{locale === 'fa' ? 'تحویل به اپراتور: ' : 'Handed off to operator: '}
+							</strong>
+							{locale === 'fa'
+								? 'وقتی پیام کاربر شامل کلیدواژه‌های تحویل (مثل «پشتیبان انسانی»، «اپراتور») باشد یا ایجنت نتواند پاسخ دهد، گفتگو به اپراتور منتقل می‌شود (status = HANDED_OFF). این تعداد کل گفتگوهای تحویل‌داده‌شده است. تنظیم کلیدواژه‌ها در صفحه هر ایجنت → تنظیمات است.'
+								: 'When the user\'s message contains handoff keywords (e.g. "human support", "operator") or the agent can\'t answer, the conversation is handed off (status = HANDED_OFF). This is the total count of handed-off conversations. Configure keywords per-agent under Settings.'}
+						</div>
+					</li>
+					<li className="flex gap-2">
+						<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+						<div>
+							<strong className="text-[var(--text-primary)]">
+								{locale === 'fa' ? 'نرخ تکمیل: ' : 'Resolve rate: '}
+							</strong>
+							{locale === 'fa'
+								? 'درصد گفتگوهایی که با وضعیت RESOLVED بسته شده‌اند (نه باز و نه تحویل‌داده‌شده). گفتگو پس از ۲۴ ساعت بی‌فعالیتی خودکار بسته می‌شود.'
+								: 'Percentage of conversations closed with status RESOLVED (not OPEN, not HANDED_OFF). Conversations auto-close after 24h of inactivity.'}
+						</div>
+					</li>
+					<li className="flex gap-2">
+						<Cpu className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+						<div>
+							<strong className="text-[var(--text-primary)]">
+								{locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: '}
+							</strong>
+							{locale === 'fa'
+								? 'مجموع prompt + completion توکن‌ها در همه‌ی مدل‌های LLM (chat + embedding + TTS + STT). هزینه واقعی از پنل OpenRouter شما قابل مشاهده است.'
+								: 'Total prompt + completion tokens across all LLM calls (chat + embedding + TTS + STT). Actual cost is visible in your OpenRouter dashboard.'}
+						</div>
+					</li>
+				</ul>
+			</Panel>
 		</div>
 	)
 }

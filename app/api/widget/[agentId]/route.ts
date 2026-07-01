@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { corsHeaders, corsOptions } from '@/lib/cors'
-import { normalizeWidgetSettings } from '@/lib/widget/config'
+import { getCachedWidgetConfig } from '@/lib/widget/cache'
 
 type Params = { params: { agentId: string } }
 
@@ -10,32 +9,17 @@ export function OPTIONS() {
 }
 
 // Public widget config — only safe, non-sensitive fields + appearance settings.
+// Reads through the cache (60s TTL, invalidated on dashboard save).
 export async function GET(_req: Request, { params }: Params) {
-	const agent = await prisma.agent.findUnique({
-		where: { id: params.agentId },
-		select: {
-			id: true,
-			name: true,
-			welcomeMessage: true,
-			language: true,
-			avatar: true,
-			active: true,
-			channels: {
-				where: { type: 'WEB_WIDGET' },
-				select: { config: true },
-				take: 1,
-			},
-		},
-	})
-
-	if (!agent || !agent.active) {
+	const cached = await getCachedWidgetConfig(params.agentId)
+	if (!cached) {
 		return NextResponse.json(
 			{ error: 'NOT_FOUND' },
 			{ status: 404, headers: corsHeaders },
 		)
 	}
-
-	const settings = normalizeWidgetSettings(agent.channels[0]?.config)
+	// Cache hit returns the same shape as a fresh fetch.
+	const { agent, settings } = cached
 
 	return NextResponse.json(
 		{

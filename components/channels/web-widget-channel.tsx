@@ -101,6 +101,7 @@ export function WebWidgetChannel({
 			if (!res.ok) throw new Error('save failed')
 			setDomainsText(domains.join('\n'))
 			setSaved(true)
+			// Cache invalidation happens server-side in the POST /channels route.
 			router.refresh()
 		} catch {
 			alert(t('saveError'))

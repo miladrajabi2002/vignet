@@ -37,6 +37,8 @@ model Workspace {
   products          Product[]
   productCategories ProductCategory[]
   notifications     Notification[]
+  blogPosts         BlogPost[]
+  blogCategories    BlogCategory[]
 
   @@index([slug])
 }
@@ -83,32 +85,32 @@ model OTPLog {
 
 // ─── AGENT ────────────────────────────────────────────────────────
 model Agent {
-  id              String   @id @default(cuid())
-  workspaceId     String
-  name            String
-  description     String?
-  systemPrompt    String   @db.Text
-  model           String?
-  temperature     Float    @default(0.7)
-  maxTokens       Int      @default(1000)
-  language        String   @default("fa")
-  voiceEnabled    Boolean  @default(false)
-  ttsVoice        String   @default("alloy")
-  avatar          String?
-  welcomeMessage  String?
-  fallbackMessage String?
-  handoffEnabled   Boolean  @default(false)
-  handoffMessage   String?
-  handoffKeywords  String[] @default([])
-  active           Boolean  @default(true)
-  flowConfig      Json?
+  id                      String   @id @default(cuid())
+  workspaceId             String
+  name                    String
+  description             String?
+  systemPrompt            String   @db.Text
+  model                   String?
+  temperature             Float    @default(0.7)
+  maxTokens               Int      @default(1000)
+  language                String   @default("fa")
+  voiceEnabled            Boolean  @default(false)
+  ttsVoice                String   @default("alloy")
+  avatar                  String?
+  welcomeMessage          String?
+  fallbackMessage         String?
+  handoffEnabled          Boolean  @default(false)
+  handoffMessage          String?
+  handoffKeywords         String[] @default([])
+  active                  Boolean  @default(true)
+  flowConfig              Json?
   // ─ A/B experiment (optional): serve a variant system prompt to a % of new
   //   conversations and compare outcomes. Inactive by default.
-  experimentActive        Boolean @default(false)
-  experimentVariantPrompt String? @db.Text
-  experimentSplit         Int     @default(50) // % of new conversations served variant B
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  experimentActive        Boolean  @default(false)
+  experimentVariantPrompt String?  @db.Text
+  experimentSplit         Int      @default(50) // % of new conversations served variant B
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   workspace       Workspace        @relation(fields: [workspaceId], references: [id])
   channels        AgentChannel[]
@@ -140,15 +142,15 @@ model AgentVersion {
 
 // ─── CHANNEL CONNECTIONS ──────────────────────────────────────────
 model AgentChannel {
-  id         String      @id @default(cuid())
-  agentId    String
-  type       ChannelType
-  config        Json // encrypted token/config
-  active        Boolean     @default(true)
-  webhookUrl    String?
-  lastInboundAt DateTime? // last time an inbound webhook message arrived (health signal)
+  id              String      @id @default(cuid())
+  agentId         String
+  type            ChannelType
+  config          Json // encrypted token/config
+  active          Boolean     @default(true)
+  webhookUrl      String?
+  lastInboundAt   DateTime? // last time an inbound webhook message arrived (health signal)
   healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
-  createdAt     DateTime    @default(now())
+  createdAt       DateTime    @default(now())
 
   agent Agent @relation(fields: [agentId], references: [id])
 
@@ -458,4 +460,63 @@ model ErrorLog {
 
   @@index([createdAt])
   @@index([level])
+}
+
+// ─── BLOG (SEO content marketing) ────────────────────────────────────
+// Self-hosted blog under each workspace so the tenant can publish AI /
+// product-related content to drive organic search traffic. Posts are
+// Markdown-rendered server-side with full SEO metadata + JSON-LD.
+model BlogCategory {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  posts     BlogPost[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model BlogPost {
+  id             String     @id @default(cuid())
+  workspaceId    String
+  categoryId     String?
+  title          String
+  slug           String
+  excerpt        String?    @db.Text
+  content        String     @db.Text // Markdown
+  coverImage     String?
+  status         BlogStatus @default(DRAFT)
+  // SEO overrides (optional; defaults derived from title/excerpt/content)
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String[]   @default([])
+  canonicalUrl   String?
+  ogImage        String?
+  readingMinutes Int        @default(1) // auto-computed on save
+  views          Int        @default(0)
+  featured       Boolean    @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id])
+  category  BlogCategory? @relation(fields: [categoryId], references: [id])
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, status, publishedAt])
+  @@index([workspaceId, featured])
+  @@index([categoryId])
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
 }
