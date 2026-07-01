@@ -34,11 +34,12 @@ export async function POST(req: Request) {
 
 	const ext = (file.name.split('.').pop() || 'bin').toLowerCase().slice(0, 5)
 	const name = `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`
+
+	// مسیر مطلق روی دیسک — process.cwd() ریشه پروژه است (PM2 با cwd ریشه اجرا می‌شود)
 	const dir = join(process.cwd(), 'public', 'uploads', 'blog')
 	await mkdir(dir, { recursive: true })
 	const buf = Buffer.from(await file.arrayBuffer())
 	await writeFile(join(dir, name), buf)
 
-	const origin = new URL(req.url).origin
-	return NextResponse.json({ url: `${origin}/uploads/blog/${name}` })
+	return NextResponse.json({ url: `/api/uploads/blog/${name}` })
 }
