@@ -641,7 +641,8 @@
 			"rotate": ["for sales", "for support", "for your business"],
 			"subtitle": "Build smart agents that answer from your own data and talk to your customers across every connection.",
 			"ctaPrimary": "Start free — 14 days",
-			"ctaSecondary": "Watch demo"
+			"ctaSecondary": "Watch demo",
+			"trust": "No credit card required · Set up in under 5 minutes · Persian-language support"
 		},
 		"stats": {
 			"conversations": "conversations",
