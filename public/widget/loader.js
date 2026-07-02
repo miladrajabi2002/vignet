@@ -61,7 +61,7 @@
 		name: 'Vigent',
 		welcomeMessage: '',
 		language: 'fa',
-		theme: 'dark',
+		theme: 'light',
 		primaryColor: '#0F0F10',
 		position: 'right',
 		launcherLabel: null,

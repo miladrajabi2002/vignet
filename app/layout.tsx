@@ -29,10 +29,31 @@ const estedad = localFont({
   display: 'swap',
 })
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
+
 export const metadata: Metadata = {
-  title: 'Vigent — AI Agent Platform',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'Vigent — پلتفرم ایجنت هوش مصنوعی',
+    template: '%s — Vigent',
+  },
   description:
-    'Build smart AI agents that answer from your own data and talk to customers across every channel.',
+    'ایجنت‌های هوشمندی بسازید که از داده‌های شما پاسخ می‌دهند و در تمام کانال‌ها با مشتریان گفتگو می‌کنند.',
+  applicationName: 'Vigent',
+  openGraph: {
+    type: 'website',
+    siteName: 'Vigent',
+    title: 'Vigent — پلتفرم ایجنت هوش مصنوعی',
+    description:
+      'ایجنت‌های هوشمندی بسازید که از داده‌های شما پاسخ می‌دهند و در تمام کانال‌ها با مشتریان گفتگو می‌کنند.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vigent — پلتفرم ایجنت هوش مصنوعی',
+    description:
+      'ایجنت‌های هوشمندی بسازید که از داده‌های شما پاسخ می‌دهند و در تمام کانال‌ها با مشتریان گفتگو می‌کنند.',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default async function RootLayout({

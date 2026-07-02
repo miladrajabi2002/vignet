@@ -93,7 +93,7 @@ export interface WidgetSettings {
 
 export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
 	primaryColor: '#0F0F10',
-	theme: 'dark',
+	theme: 'light',
 	position: 'right',
 	headerTitle: null,
 	launcherLabel: null,
@@ -120,7 +120,8 @@ export function normalizeWidgetSettings(raw: unknown): WidgetSettings {
 			? c.primaryColor.trim()
 			: DEFAULT_WIDGET_SETTINGS.primaryColor
 
-	const theme: WidgetTheme = c.theme === 'light' ? 'light' : 'dark'
+	// White-first brand: default to light unless the widget explicitly opted into dark.
+	const theme: WidgetTheme = c.theme === 'dark' ? 'dark' : 'light'
 	const position: WidgetPosition = c.position === 'left' ? 'left' : 'right'
 
 	const headerTitle =

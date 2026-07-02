@@ -12,7 +12,7 @@ export function FaqSection() {
   const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section className="bg-[var(--bg-base)] py-28">
+    <section className="bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-3xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}

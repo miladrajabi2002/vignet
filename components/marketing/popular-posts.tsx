@@ -24,30 +24,43 @@ async function getWorkspaceId(): Promise<string | null> {
 	return ws?.id ?? null
 }
 
+/**
+ * Fetch the popular posts, swallowing any DB error. This section is decorative
+ * social-proof on the public homepage — a database hiccup must never take the
+ * whole landing page down, so on failure we return an empty list (→ renders
+ * nothing) instead of throwing.
+ */
+async function getPopularPosts() {
+	try {
+		const wsId = await getWorkspaceId()
+		if (!wsId) return []
+		return await prisma.blogPost.findMany({
+			where: { workspaceId: wsId, status: 'PUBLISHED' },
+			orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
+			take: 3,
+			select: {
+				id: true,
+				title: true,
+				slug: true,
+				excerpt: true,
+				content: true,
+				coverImage: true,
+				views: true,
+				publishedAt: true,
+				createdAt: true,
+				readingMinutes: true,
+				category: { select: { name: true, slug: true } },
+			},
+		})
+	} catch (err) {
+		console.error('[PopularPosts] failed to load posts:', err)
+		return []
+	}
+}
+
 export async function PopularPosts() {
 	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-	const wsId = await getWorkspaceId()
-
-	if (!wsId) return null
-
-	const posts = await prisma.blogPost.findMany({
-		where: { workspaceId: wsId, status: 'PUBLISHED' },
-		orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
-		take: 3,
-		select: {
-			id: true,
-			title: true,
-			slug: true,
-			excerpt: true,
-			content: true,
-			coverImage: true,
-			views: true,
-			publishedAt: true,
-			createdAt: true,
-			readingMinutes: true,
-			category: { select: { name: true, slug: true } },
-		},
-	})
+	const posts = await getPopularPosts()
 
 	if (posts.length === 0) return null
 

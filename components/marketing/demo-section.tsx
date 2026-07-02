@@ -358,7 +358,7 @@ export function DemoSection() {
 	const inFlight = bubbles[done]
 
 	return (
-		<section id="demo" className="relative overflow-hidden bg-[var(--bg-base)] py-28">
+		<section id="demo" className="relative overflow-hidden bg-[var(--bg-base)] py-20 md:py-28">
 			{/* Ambient glow that shifts with the active scenario for visual variety */}
 			<div
 				aria-hidden

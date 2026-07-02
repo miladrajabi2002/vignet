@@ -9,7 +9,7 @@ export function CtaSection() {
   const t = useTranslations('marketing.cta')
 
   return (
-    <section className="relative overflow-hidden bg-[var(--bg-base)] py-32">
+    <section className="relative overflow-hidden bg-[var(--bg-base)] py-24 md:py-32">
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--white-05)] blur-3xl"

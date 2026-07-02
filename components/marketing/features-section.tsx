@@ -25,7 +25,7 @@ export function FeaturesSection() {
   const t = useTranslations('marketing.features')
 
   return (
-    <section id="features" className="bg-[var(--bg-base)] py-28">
+    <section id="features" className="bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

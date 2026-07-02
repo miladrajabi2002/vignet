@@ -25,7 +25,7 @@ export function ChannelsSection() {
   const t = useTranslations('marketing.channels')
 
   return (
-    <section className="border-y border-[var(--border-default)] bg-[var(--bg-base)] py-28">
+    <section className="border-y border-[var(--border-default)] bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
