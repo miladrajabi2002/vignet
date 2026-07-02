@@ -1126,6 +1126,7 @@
                 "selectWorkspace": "Select workspace…",
                 "errSave": "Save failed",
                 "errSlugTaken": "This slug is already used. Pick another.",
-                "errWorkspaceRequired": "Please select a workspace."
+                "errWorkspaceRequired": "Please select a workspace.",
+                "jsonImportTitle": "Import post from JSON"
         }
 }

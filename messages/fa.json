@@ -1126,6 +1126,7 @@
                 "selectWorkspace": "انتخاب کسب‌وکار…",
                 "errSave": "ذخیره ناموفق بود",
                 "errSlugTaken": "این slug قبلاً استفاده شده. یکی دیگر انتخاب کنید.",
-                "errWorkspaceRequired": "یک کسب‌وکار انتخاب کنید."
+                "errWorkspaceRequired": "یک کسب‌وکار انتخاب کنید.",
+                "jsonImportTitle": "افزودن پست از JSON"
         }
 }
