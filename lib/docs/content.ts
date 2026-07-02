@@ -9,6 +9,7 @@ import {
         Zap,
         Headset,
         UserCheck,
+        ShoppingCart,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -499,6 +500,134 @@ export const DOCS: DocPage[] = [
                                 type: 'callout',
                                 fa: 'بهترین روش: دستورالعمل پیش‌فرض کافی است، اما می‌توانید پیام سفارشی خود را در تنظیمات ایجنت وارد کنید تا لحن برندتان حفظ شود. اصرار بیش از حد برای شماره نداشته باشید — نام به‌تنهایی کافی است.',
                                 en: 'Best practice: the default instruction is enough, but you can enter a custom prompt in the agent settings to match your brand voice. Don’t push too hard for the phone \u2014 a name alone is enough.',
+                        },
+                ],
+        },
+        {
+                slug: 'woocommerce',
+                icon: ShoppingCart,
+                title: { fa: 'اتصال ووکامرس', en: 'WooCommerce integration' },
+                description: {
+                        fa: 'نحوهٔ اتصال فروشگاه ووکامرس/وردپرس به ویجنت؛ نصب افزونه، تنظیم webhook و همگام‌سازی محصولات و سفارش‌ها.',
+                        en: 'How to connect a WooCommerce/WordPress store to Vigent: plugin install, webhook setup, and product/order sync.',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'با اتصال ووکامرس به ویجنت، کاتالوگ محصولات و سفارش‌های فروشگاه شما به‌صورت خودکار با ویجنت همگام می‌شود. ایجنت می‌تواند قیمت، موجودی و مشخصات محصولات را از داده‌های واقعی فروشگاه بخواند و وقتی سفارش جدید ثبت می‌شود، به‌صورت خودکار روی پروفایل مخاطب مربوطه ظاهر می‌گردد.',
+                                en: 'Connecting WooCommerce to Vigent keeps your store’s product catalog and orders in sync automatically. The agent can read live prices, stock, and product details, and every new order is attached to the matching contact profile.',
+                        },
+                        { type: 'h2', fa: 'این اتصال چه می‌کند؟', en: 'What this integration does' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'محصولات: ایجاد/ویرایش/حذف هر محصول در ووکامرس، فوراً در کاتالوگ ویجنت منعکس می‌شود (با re-embedding خودکار برای جستجوی معنایی).',
+                                                en: 'Products: creating/editing/deleting a product in WooCommerce is mirrored in the Vigent catalog instantly (with automatic re-embedding for semantic search).',
+                                        },
+                                        {
+                                                fa: 'سفارش‌ها: تغییر وضعیت سفارش (مثلاً به «در حال پردازش» یا «تکمیل‌شده») یک رکورد StoreOrder می‌سازد و آن را از روی شماره تماس/ایمیل مشتری به مخاطب مربوطه متصل می‌کند.',
+                                                en: 'Orders: an order status change (e.g. to “Processing” or “Completed”) creates a StoreOrder record and links it to the matching contact by phone/email.',
+                                        },
+                                        {
+                                                fa: 'همگام‌سازی دستی: هر زمان دکمهٔ «همگام‌سازی الآن» را بزنید، کل محصولات و سفارش‌های اخیر دوباره fetch می‌شوند.',
+                                                en: 'Manual sync: hit “Sync now” any time to re-fetch the full product list and recent orders.',
+                                        },
+                                        {
+                                                fa: 'همگام‌سازی خودکار: هر ۱۰ دقیقه یک‌بار، worker ویجنت فروشگاه‌های فعال را کشش (poll) می‌کند تا تغییراتی که از webhook جا مانده‌اند را جبران کند.',
+                                                en: 'Automatic sync: every 10 minutes the Vigent worker polls active stores to catch any changes that missed the webhook.',
+                                        },
+                                ],
+                        },
+                        { type: 'h2', fa: 'پیش‌نیازها', en: 'Prerequisites' },
+                        {
+                                type: 'p',
+                                fa: 'به وردپرس ۵.۶ به بالا، ووکامرس ۶ به بالا، و دسترسی مدیریت وردپرس برای نصب افزونه نیاز دارید. افزونه از REST API ووکامرس ( /wp-json/wc/v3 ) با احراز هویت Basic Auth (consumer key/secret) استفاده می‌کند.',
+                                en: 'You need WordPress 5.6+, WooCommerce 6+, and admin access to install the plugin. The plugin talks to the WooCommerce REST API ( /wp-json/wc/v3 ) using Basic Auth (consumer key/secret).',
+                        },
+                        { type: 'h2', fa: 'گام ۱ — ساخت یکپارچه‌سازی در پنل ویجنت', en: 'Step 1 — Create the integration in Vigent' },
+                        {
+                                type: 'p',
+                                fa: 'به «یکپارچه‌سازی‌ها» در داشبورد بروید، در بخش «فروشگاه آنلاین» روی «افزودن فروشگاه» بزنید، نوع «WooCommerce» را انتخاب کنید و آدرس فروشگاه + کلید consumer key/secret را وارد کنید. پس از ذخیره، ویجنت یک webhook URL و یک کلید امنیتی (webhook secret) به شما می‌دهد.',
+                                en: 'Go to “Integrations” in the dashboard, click “Add store” in the “Online store” section, pick “WooCommerce”, and enter your store URL plus the consumer key/secret. After saving, Vigent gives you a webhook URL and a webhook secret.',
+                        },
+                        {
+                                type: 'code',
+                                caption: {
+                                        fa: 'آدرس webhook در پنل یکپارچه‌سازی‌ها نمایش داده می‌شود و قابل کپی است:',
+                                        en: 'The webhook URL is shown in the integrations panel and is copyable:',
+                                },
+                                code: 'https://app.vigent.ir/api/sync/woocommerce?token=WEBHOOK_SECRET',
+                        },
+                        { type: 'h2', fa: 'گام ۲ — نصب افزونهٔ وردپرس', en: 'Step 2 — Install the WordPress plugin' },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'پوشهٔ wordpress-plugin/vigent-woo را از سورس ویجنت دانلود کنید (یا فایل zip آن را ازReleaseها بگیرید).',
+                                                en: 'Download the wordpress-plugin/vigent-woo folder from the Vigent source (or grab the zip from the Releases).',
+                                        },
+                                        {
+                                                fa: 'در وردپرس به «افزونه‌ها ← افزودن ← بارگذاری افزونه» بروید و فایل vigent-woo.zip را آپلود کنید.',
+                                                en: 'In WordPress go to “Plugins → Add New → Upload Plugin” and upload vigent-woo.zip.',
+                                        },
+                                        {
+                                                fa: 'افزونه را فعال کنید. یک منوی جدید با نام «ویجنت» در نوار کناری مدیریت ظاهر می‌شود.',
+                                                en: 'Activate the plugin. A new “Vigent” menu appears in the WordPress admin sidebar.',
+                                        },
+                                        {
+                                                fa: 'به «ویجنت ← تنظیمات» بروید و آدرس webhook و کلید امنیتی که از پنل ویجنت گرفتید را در فیلدها قرار دهید.',
+                                                en: 'Go to “Vigent → Settings” and paste the webhook URL and webhook secret you copied from the Vigent panel.',
+                                        },
+                                        {
+                                                fa: 'روی «ذخیره» و سپس «تست اتصال» بزنید. افزونه یک پیام نمونه به ویجنت می‌فرستد تا اتصال را تأیید کند.',
+                                                en: 'Hit “Save” then “Test connection”. The plugin sends a sample ping to Vigent to confirm the link works.',
+                                        },
+                                ],
+                        },
+                        { type: 'h2', fa: 'گام ۳ — همگام‌سازی اولیه', en: 'Step 3 — Initial sync' },
+                        {
+                                type: 'p',
+                                fa: 'پس از تست موفق، روی «همگام‌سازی کامل» در صفحهٔ تنظیمات افزونه بزنید تا همهٔ محصولات و سفارش‌های اخیر یک‌بار به ویجنت ارسال شوند. این کار ممکن است برای فروشگاه‌های بزرگ چند دقیقه طول بکشد. پس از آن، هر تغییر محصول/سفارش به‌صورت فوری (push) از طریق webhook به ویجنت می‌رسد.',
+                                en: 'After a successful test, click “Full sync” on the plugin settings page to push all products and recent orders to Vigent once. For large stores this can take a few minutes. After that, every product/order change is pushed to Vigent instantly via the webhook.',
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'نکته: اگر هاست شما outgoing webhooks را محدود کرده، مطمئن شوید آدرس app.vigent.ir در allow-list است. در غیر این صورت افزونه نمی‌تواند به ویجنت بفرستد و فقط همگام‌سازی کششی (هر ۱۰ دقیقه) کار می‌کند.',
+                                en: 'Note: if your host restricts outgoing webhooks, make sure app.vigent.ir is on the allow-list. Otherwise the plugin cannot push to Vigent and only the pull sync (every 10 minutes) will work.',
+                        },
+                        { type: 'h2', fa: 'گام ۴ — تأیید در پنل ویجنت', en: 'Step 4 — Verify in the Vigent panel' },
+                        {
+                                type: 'p',
+                                fa: 'به بخش «یکپارچه‌سازی‌ها» برگردید. باید ببینید «آخرین همگام‌سازی» به‌روز شده و در زیر آن لاگ‌های اخیر (products/orders + تعداد + نتیجه) ظاهر شده‌اند. اگر پیامی در ستون «خطا» دیدید، روی آن بزنید تا متن خطا نمایش داده شود.',
+                                en: 'Back in the “Integrations” panel you should see “Last sync” updated and recent log rows below it (products/orders + count + outcome). If anything shows up in the “Error” column, click it to see the error message.',
+                        },
+                        { type: 'h2', fa: 'عیب‌یابی', en: 'Troubleshooting' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'محصولات در ویجنت ظاهر نمی‌شوند؟ بررسی کنید consumer key/secret دسترسی «Read» به محصولات داشته باشد (در ووکامرس: WooCommerce → Settings → Advanced → REST API).',
+                                                en: 'Products not showing in Vigent? Make sure the consumer key/secret has “Read” permission for products (WooCommerce → Settings → Advanced → REST API).',
+                                        },
+                                        {
+                                                fa: 'سفارش‌ها به مخاطب متصل نمی‌شوند؟ شماره تلفن/ایمیل سفارش باید با همان فیلدی که در پروفایل مخاطب ویجنت ذخیره شده مطابقت داشته باشد (نرمال‌سازی 0 و 98+ پشتیبانی می‌شود).',
+                                                en: 'Orders not linking to contacts? The order phone/email must match the field stored on the Vigent contact profile (0 and 98+ normalization is supported).',
+                                        },
+                                        {
+                                                fa: 'webhook خطای 401 می‌دهد؟ کلید امنیتی (token) را در پنل ویجنت دوباره کپی کنید و در افزونه جای‌گذاری کنید. هر تغییر در پنل ویجنت، کلید را بازتولید نمی‌کند مگر اینکه یکپارچه‌سازی را حذف و دوباره بسازید.',
+                                                en: 'Webhook returns 401? Re-copy the secret token from the Vigent panel and paste it into the plugin. Changing Vigent settings does not regenerate the token unless you delete and recreate the integration.',
+                                        },
+                                        {
+                                                fa: 'هیچ لاگی در پنل نیست؟ پس از «تست اتصال» در افزونه، یک ردیف لاگ باید فوراً در پنل ویجنت ظاهر شود. اگر نشد، احتمالاً آدرس webhook اشتباه است یا هاست outgoing را بسته است.',
+                                                en: 'No log rows in the panel? After “Test connection” in the plugin, a log row should appear in the Vigent panel immediately. If not, the webhook URL is likely wrong or the host is blocking outgoing requests.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'بهترین روش: پس از هر آپدیت بزرگ ووکامرس (مثلاً تغییر نسخهٔ اصلی)، یک‌بار «همگام‌سازی کامل» را بزنید تا مطمئن شوید هیچ محصولی جا نمانده است.',
+                                en: 'Best practice: after any major WooCommerce upgrade, run a “Full sync” once to make sure no product was left behind.',
                         },
                 ],
         },

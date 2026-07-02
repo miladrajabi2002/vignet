@@ -9,6 +9,7 @@ import {
         Zap,
         Headset,
         UserCheck,
+        ShoppingCart,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -68,6 +69,12 @@ export const DOCS_NAV: DocNavItem[] = [
                 href: '/docs/customer-identification',
                 icon: UserCheck,
                 title: { fa: 'شناسایی مشتری', en: 'Customer identification' },
+        },
+        {
+                slug: 'woocommerce',
+                href: '/docs/woocommerce',
+                icon: ShoppingCart,
+                title: { fa: 'اتصال ووکامرس', en: 'WooCommerce integration' },
         },
         {
                 slug: 'caching',
