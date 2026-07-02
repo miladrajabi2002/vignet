@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import {
 	Package,
@@ -11,8 +11,6 @@ import {
 	Mic,
 	RotateCcw,
 	GraduationCap,
-	SlidersHorizontal,
-	Workflow,
 	Share2,
 	ShoppingCart,
 	ArrowRight,
@@ -22,22 +20,28 @@ import {
 	Search,
 	Sparkles,
 	Check,
+	MessageSquare,
+	LayoutDashboard,
+	Bot,
+	Inbox,
+	TrendingUp,
+	Zap,
+	CheckCircle2,
 	type LucideIcon,
 } from 'lucide-react'
-import { SpotlightCard } from '@/components/ui/spotlight-card'
-import { TextReveal } from '@/components/ui/text-reveal'
 import { cn } from '@/lib/utils'
 
 /* ───────────────────────────────────────────────────────────────────────
-   Static configuration — icons for capability highlights, scenario tabs
-   and source badges. Keyed by strings that also live in the i18n file.
+   Static configuration — view tabs, scenario tabs, source badges and
+   capability groups. Keyed by strings that also live in the i18n file.
    ─────────────────────────────────────────────────────────────────────── */
 
-const HIGHLIGHTS: { key: string; icon: LucideIcon }[] = [
-	{ key: 'learning', icon: GraduationCap },
-	{ key: 'personalize', icon: SlidersHorizontal },
-	{ key: 'flow', icon: Workflow },
-	{ key: 'omnichannel', icon: Share2 },
+type ViewId = 'chat' | 'dashboard' | 'learning'
+
+const VIEWS: { id: ViewId; icon: LucideIcon }[] = [
+	{ id: 'chat', icon: MessageSquare },
+	{ id: 'dashboard', icon: LayoutDashboard },
+	{ id: 'learning', icon: GraduationCap },
 ]
 
 const SCENARIO_ICONS: Record<string, LucideIcon> = {
@@ -60,6 +64,20 @@ const BUTTON_META: Record<string, { icon: LucideIcon; primary?: boolean }> = {
 	compare: { icon: ArrowRight },
 	specs: { icon: ArrowRight },
 	reserve: { icon: Check, primary: true },
+}
+
+const CAPABILITY_GROUPS: { key: string; icon: LucideIcon }[] = [
+	{ key: 'agent', icon: Bot },
+	{ key: 'channels', icon: Share2 },
+	{ key: 'management', icon: LayoutDashboard },
+]
+
+// Channel accent dots for the mock inbox — fixed brand-ish hues on purpose.
+const CHANNEL_DOT: Record<string, string> = {
+	telegram: 'bg-sky-500',
+	whatsapp: 'bg-emerald-500',
+	instagram: 'bg-pink-500',
+	widget: 'bg-violet-500',
 }
 
 /* ───────────────────────────────────────────────────────────────────────
@@ -85,6 +103,15 @@ type Bubble = {
 }
 
 type ScenarioId = 'sales' | 'support' | 'catalog'
+
+type InboxItem = {
+	name: string
+	channelKey: string
+	channelLabel: string
+	text: string
+	time: string
+	auto: boolean
+}
 
 const sleep = (ms: number, signal: AbortSignal) =>
 	new Promise<void>((resolve, reject) => {
@@ -116,6 +143,32 @@ function VoiceWave({ playing }: { playing: boolean }) {
 				/>
 			))}
 		</span>
+	)
+}
+
+/** Animated number that counts up when mounted. */
+function CountUp({ to, duration = 1400, suffix = '' }: { to: number; duration?: number; suffix?: string }) {
+	const [val, setVal] = useState(0)
+	const locale = useLocale()
+
+	useEffect(() => {
+		let raf: number
+		const start = performance.now()
+		const tick = (now: number) => {
+			const p = Math.min((now - start) / duration, 1)
+			// ease-out cubic so the counter settles smoothly
+			setVal(Math.round(to * (1 - Math.pow(1 - p, 3))))
+			if (p < 1) raf = requestAnimationFrame(tick)
+		}
+		raf = requestAnimationFrame(tick)
+		return () => cancelAnimationFrame(raf)
+	}, [to, duration])
+
+	return (
+		<>
+			{val.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
+			{suffix}
+		</>
 	)
 }
 
@@ -192,48 +245,50 @@ function BubbleButtons({
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   DemoSection — the headline component.
-   Plays one of three scenarios automatically; lets the visitor switch
-   tabs; ends with a "Start free" CTA that links to /login.
+   View 1 — live chat. Plays a scenario automatically, lets the visitor
+   switch scenarios, and reports back when the conversation finishes.
    ─────────────────────────────────────────────────────────────────────── */
 
-export function DemoSection() {
+function ChatView({
+	play,
+	onDone,
+	onInteract,
+}: {
+	play: boolean
+	onDone: () => void
+	onInteract: () => void
+}) {
 	const t = useTranslations('marketing.demo')
 	const tSrc = useTranslations('marketing.demo.sources')
-	const tH = useTranslations('marketing.demo.highlights')
 
 	const scenarioIds: ScenarioId[] = ['sales', 'support', 'catalog']
 	const [active, setActive] = useState<ScenarioId>('sales')
 
-	// Read the bubbles for the active scenario. `t.raw` returns the JSON
-	// structure directly (arrays/objects), which is exactly what we need.
 	const bubbles = t.raw(`scenarios.${active}.bubbles`) as Bubble[]
-
-	const ref = useRef<HTMLDivElement>(null)
-	const inView = useInView(ref, { once: true, margin: '-120px' })
 
 	// Playback state — number of fully-settled bubbles + the live one in flight.
 	const [done, setDone] = useState(0)
 	const [phase, setPhase] = useState<'idle' | 'typing' | 'writing'>('idle')
 	const [partial, setPartial] = useState('')
-	const [finished, setFinished] = useState(false)
 	const [runId, setRunId] = useState(0)
+	const doneRef = useRef(onDone)
+	doneRef.current = onDone
 
-	// Reset playback whenever the visitor picks a new scenario.
-	useEffect(() => {
+	const pickScenario = (id: ScenarioId) => {
+		onInteract()
+		setActive(id)
 		setRunId((n) => n + 1)
-	}, [active])
+	}
 
 	useEffect(() => {
-		if (!inView) return
+		if (!play) return
 		const controller = new AbortController()
 		const { signal } = controller
 
-		async function play() {
+		async function run() {
 			setDone(0)
 			setPhase('idle')
 			setPartial('')
-			setFinished(false)
 			try {
 				for (let i = 0; i < bubbles.length; i++) {
 					const b = bubbles[i]
@@ -254,19 +309,17 @@ export function DemoSection() {
 						setDone(i + 1)
 					}
 				}
-				setFinished(true)
+				doneRef.current()
 			} catch {
 				/* aborted — a newer run took over */
 			}
 		}
 
-		play()
+		run()
 		return () => controller.abort()
 		// bubbles is static page copy; depend only on the play triggers.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [inView, runId])
-
-	/* ─── Bubble renderer ──────────────────────────────────────────── */
+	}, [play, runId])
 
 	const renderBubble = (
 		b: Bubble,
@@ -358,201 +411,570 @@ export function DemoSection() {
 	const inFlight = bubbles[done]
 
 	return (
+		<div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+			{/* Chat header + scenario pills */}
+			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-default)] px-5 py-3.5">
+				<div className="flex items-center gap-3">
+					<div className="relative">
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[var(--white-30)] to-[var(--white-05)] text-sm font-medium text-[var(--text-primary)]">
+							و
+						</div>
+						<span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-surface)] bg-emerald-500" />
+					</div>
+					<div className="flex flex-col">
+						<span className="text-sm font-medium text-[var(--text-primary)]">
+							{t('agentName')}
+						</span>
+						<span className="inline-flex items-center gap-1 text-xs text-emerald-500">
+							<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+							{t('online')}
+						</span>
+					</div>
+				</div>
+
+				<div className="flex items-center gap-1">
+					{scenarioIds.map((id) => {
+						const Icon = SCENARIO_ICONS[id]
+						const isActive = id === active
+						return (
+							<button
+								key={id}
+								type="button"
+								onClick={() => pickScenario(id)}
+								className={cn(
+									'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+									isActive
+										? 'border-[var(--border-strong)] bg-[var(--white-10)] text-[var(--text-primary)]'
+										: 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+								)}
+							>
+								<Icon className="h-3 w-3" />
+								{t(`tabs.${id}`)}
+							</button>
+						)
+					})}
+				</div>
+			</div>
+
+			{/* Chat body */}
+			<div className="flex flex-1 flex-col justify-end gap-3 px-5 py-5">
+				{bubbles.slice(0, done).map((b, i) => renderBubble(b, i, b.text))}
+
+				{phase === 'writing' &&
+					inFlight &&
+					renderBubble(inFlight, 'writing', partial, { cursor: true })}
+
+				{phase === 'typing' && (
+					<motion.div
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="flex justify-end"
+					>
+						<div className="flex items-center gap-1.5 rounded-2xl bg-[var(--white)] px-4 py-3">
+							{[0, 1, 2].map((d) => (
+								<motion.span
+									key={d}
+									className="h-1.5 w-1.5 rounded-full bg-[var(--bg-base)]/50"
+									animate={{ opacity: [0.3, 1, 0.3] }}
+									transition={{
+										duration: 1,
+										repeat: Infinity,
+										delay: d * 0.18,
+									}}
+								/>
+							))}
+						</div>
+					</motion.div>
+				)}
+			</div>
+		</div>
+	)
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   View 2 — management dashboard mock. Stat tiles count up, inbox rows
+   stream in from every channel, and a tiny bar chart draws itself.
+   ─────────────────────────────────────────────────────────────────────── */
+
+const CHART_BARS = [38, 55, 30, 68, 48, 74, 42, 88, 58, 72, 50, 95]
+
+function DashboardView({ onDone }: { onDone: () => void }) {
+	const t = useTranslations('marketing.demo.dashboard')
+	const inbox = t.raw('inbox') as InboxItem[]
+	const doneRef = useRef(onDone)
+	doneRef.current = onDone
+
+	useEffect(() => {
+		const id = setTimeout(() => doneRef.current(), 5600)
+		return () => clearTimeout(id)
+	}, [])
+
+	const stats: { key: string; icon: LucideIcon; to: number; suffix?: string }[] = [
+		{ key: 'statConversations', icon: MessageSquare, to: 236 },
+		{ key: 'statAutomation', icon: Zap, to: 87, suffix: '٪' },
+		{ key: 'statSales', icon: TrendingUp, to: 12 },
+	]
+
+	return (
+		<div className="flex flex-1 flex-col gap-4 p-5">
+			{/* Stat tiles */}
+			<div className="grid grid-cols-3 gap-3">
+				{stats.map(({ key, icon: Icon, to, suffix }, i) => (
+					<motion.div
+						key={key}
+						initial={{ opacity: 0, y: 14 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.45, delay: i * 0.1 }}
+						className="rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] p-3.5"
+					>
+						<div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+							<Icon className="h-3.5 w-3.5" />
+							{t(key)}
+						</div>
+						<div className="mt-1.5 text-xl font-semibold tabular-nums text-[var(--text-primary)] md:text-2xl">
+							<CountUp to={to} suffix={suffix} />
+						</div>
+					</motion.div>
+				))}
+			</div>
+
+			<div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-[3fr_2fr]">
+				{/* Unified inbox */}
+				<div className="rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] p-3.5">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
+							<Inbox className="h-3.5 w-3.5" />
+							{t('inboxTitle')}
+						</div>
+						<span className="text-[10px] text-[var(--text-muted)]">{t('viewAll')}</span>
+					</div>
+					<div className="mt-3 space-y-2">
+						{inbox.map((item, i) => (
+							<motion.div
+								key={i}
+								initial={{ opacity: 0, x: 16 }}
+								animate={{ opacity: 1, x: 0 }}
+								transition={{ duration: 0.4, delay: 0.9 + i * 0.55 }}
+								className="flex items-center gap-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2"
+							>
+								<span
+									className={cn(
+										'h-2 w-2 shrink-0 rounded-full',
+										CHANNEL_DOT[item.channelKey] ?? 'bg-[var(--text-muted)]',
+									)}
+								/>
+								<div className="min-w-0 flex-1">
+									<div className="flex items-center justify-between gap-2">
+										<span className="truncate text-xs font-medium text-[var(--text-primary)]">
+											{item.name}
+										</span>
+										<span className="shrink-0 text-[9px] text-[var(--text-muted)]">
+											{item.time}
+										</span>
+									</div>
+									<p className="truncate text-[11px] text-[var(--text-muted)]">{item.text}</p>
+								</div>
+								<span
+									className={cn(
+										'shrink-0 rounded-full px-2 py-0.5 text-[9px]',
+										item.auto
+											? 'bg-[var(--white-10)] text-[var(--text-secondary)]'
+											: 'border border-[var(--border-hover)] text-[var(--text-secondary)]',
+									)}
+								>
+									{item.auto ? t('tagAgent') : t('tagHuman')}
+								</span>
+							</motion.div>
+						))}
+					</div>
+				</div>
+
+				{/* Mini bar chart */}
+				<div className="flex flex-col rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] p-3.5">
+					<div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
+						<TrendingUp className="h-3.5 w-3.5" />
+						{t('chartTitle')}
+					</div>
+					<div className="mt-3 flex flex-1 items-end gap-1.5">
+						{CHART_BARS.map((h, i) => (
+							<motion.div
+								key={i}
+								initial={{ scaleY: 0 }}
+								animate={{ scaleY: 1 }}
+								transition={{ duration: 0.5, delay: 0.6 + i * 0.07, ease: 'easeOut' }}
+								className={cn(
+									'flex-1 origin-bottom rounded-t',
+									i === CHART_BARS.length - 1 ? 'bg-[var(--white)]' : 'bg-[var(--white-30)]',
+								)}
+								style={{ height: `${h}%` }}
+							/>
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   View 3 — learning center mock. An unanswered question is detected,
+   the agent proposes an answer, the owner approves it, done.
+   ─────────────────────────────────────────────────────────────────────── */
+
+function LearningView({ onDone }: { onDone: () => void }) {
+	const t = useTranslations('marketing.demo.learningView')
+	const [step, setStep] = useState(0)
+	const doneRef = useRef(onDone)
+	doneRef.current = onDone
+
+	useEffect(() => {
+		const timers = [
+			setTimeout(() => setStep(1), 400),
+			setTimeout(() => setStep(2), 1700),
+			setTimeout(() => setStep(3), 3400),
+			setTimeout(() => setStep(4), 4200),
+			setTimeout(() => doneRef.current(), 5600),
+		]
+		return () => timers.forEach(clearTimeout)
+	}, [])
+
+	return (
+		<div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3 p-5">
+			<div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+				<GraduationCap className="h-4 w-4" />
+				{t('badge')}
+			</div>
+
+			{/* Detected unanswered question */}
+			<AnimatePresence>
+				{step >= 1 && (
+					<motion.div
+						initial={{ opacity: 0, y: 14 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.4 }}
+						className="rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-elevated)] p-4"
+					>
+						<div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+							<Search className="h-3 w-3" />
+							{t('detected')}
+						</div>
+						<p className="mt-2 text-sm font-medium text-[var(--text-primary)]">
+							«{t('question')}»
+						</p>
+						<p className="mt-1.5 text-[10px] text-[var(--text-muted)]">{t('sourceLabel')}</p>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			{/* Suggested answer */}
+			<AnimatePresence>
+				{step >= 2 && (
+					<motion.div
+						initial={{ opacity: 0, y: 14 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.4 }}
+						className="rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-4"
+					>
+						<div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+							<Sparkles className="h-3 w-3" />
+							{t('suggestionLabel')}
+						</div>
+						<p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+							{t('suggestion')}
+						</p>
+
+						{/* Approve button — presses itself at step 3 */}
+						<motion.div
+							animate={step === 3 ? { scale: [1, 0.94, 1] } : {}}
+							transition={{ duration: 0.35 }}
+							className="mt-3"
+						>
+							{step < 4 ? (
+								<span className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 py-2 text-xs font-medium text-[var(--bg-base)]">
+									<Check className="h-3.5 w-3.5" />
+									{t('approve')}
+								</span>
+							) : (
+								<motion.span
+									initial={{ opacity: 0, scale: 0.9 }}
+									animate={{ opacity: 1, scale: 1 }}
+									className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+								>
+									<CheckCircle2 className="h-3.5 w-3.5" />
+									{t('approved')}
+								</motion.span>
+							)}
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			{/* Closing note */}
+			<AnimatePresence>
+				{step >= 4 && (
+					<motion.p
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.5, delay: 0.2 }}
+						className="text-center text-xs text-[var(--text-muted)]"
+					>
+						{t('note')}
+					</motion.p>
+				)}
+			</AnimatePresence>
+		</div>
+	)
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   DemoSection — a full product tour inside one browser-style frame.
+   Autoplays chat → dashboard → learning; the visitor can take over
+   with the view tabs at any time. A categorized capability list sits
+   beside the frame.
+   ─────────────────────────────────────────────────────────────────────── */
+
+export function DemoSection() {
+	const t = useTranslations('marketing.demo')
+	const tCap = useTranslations('marketing.demo.capabilities')
+
+	const [view, setView] = useState<ViewId>('chat')
+	const [autopilot, setAutopilot] = useState(true)
+	const [cycle, setCycle] = useState(0)
+	const advanceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+	const ref = useRef<HTMLDivElement>(null)
+	const inView = useInView(ref, { once: true, margin: '-120px' })
+
+	useEffect(() => () => clearTimeout(advanceTimer.current), [])
+
+	const handleViewDone = (v: ViewId) => {
+		if (!autopilot) return
+		const next: Record<ViewId, ViewId | null> = {
+			chat: 'dashboard',
+			dashboard: 'learning',
+			learning: null,
+		}
+		const n = next[v]
+		advanceTimer.current = setTimeout(() => {
+			if (n) setView(n)
+			else setAutopilot(false)
+		}, 1600)
+	}
+
+	const selectView = (v: ViewId) => {
+		clearTimeout(advanceTimer.current)
+		setAutopilot(false)
+		setView(v)
+	}
+
+	const stopAutopilot = () => {
+		clearTimeout(advanceTimer.current)
+		setAutopilot(false)
+	}
+
+	const replayAll = () => {
+		clearTimeout(advanceTimer.current)
+		setCycle((n) => n + 1)
+		setAutopilot(true)
+		setView('chat')
+	}
+
+	return (
 		<section id="demo" className="relative overflow-hidden bg-[var(--bg-base)] py-20 md:py-28">
-			{/* Ambient glow that shifts with the active scenario for visual variety */}
+			{/* Ambient glow behind the product frame */}
 			<div
 				aria-hidden
 				className="pointer-events-none absolute left-1/2 top-1/3 h-[400px] w-[600px] -translate-x-1/2 rounded-full opacity-[0.07] blur-[100px]"
 				style={{ background: 'var(--white)' }}
 			/>
 
-			<div className="relative mx-auto max-w-6xl px-6">
+			<div className="relative mx-auto max-w-7xl px-6">
 				<h2 className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
-					<TextReveal text={t('title')} />
+					{t('title')}
 				</h2>
 				<p className="mx-auto mt-4 max-w-lg text-center text-[var(--text-secondary)]">
 					{t('subtitle')}
 				</p>
 
-				<div className="mt-16 grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
-					{/* ─── Live chat demo ─────────────────────────────────────── */}
+				<div className="mt-16 grid grid-cols-1 items-start gap-10 lg:grid-cols-[7fr_4fr] lg:gap-12">
+					{/* ─── Product frame ──────────────────────────────────────── */}
 					<motion.div
 						ref={ref}
 						initial={{ opacity: 0, y: 30 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-80px' }}
 						transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-						className="mx-auto w-full max-w-lg"
 					>
-						<SpotlightCard className="overflow-hidden p-0">
-							{/* Scenario tabs */}
-							<div className="flex items-center gap-1 border-b border-[var(--border-default)] px-3 pt-3">
-								{scenarioIds.map((id) => {
-									const Icon = SCENARIO_ICONS[id]
-									const isActive = id === active
-									return (
-										<button
-											key={id}
-											type="button"
-											onClick={() => setActive(id)}
-											className={cn(
-												'relative inline-flex items-center gap-1.5 rounded-t-lg px-3 py-2 text-xs font-medium transition-colors',
-												isActive
-													? 'text-[var(--text-primary)]'
-													: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-											)}
-										>
-											<Icon className="h-3.5 w-3.5" />
-											{t(`tabs.${id}`)}
-											{isActive && (
-												<motion.span
-													layoutId="demo-tab-underline"
-													className="absolute inset-x-0 -bottom-px h-0.5 bg-[var(--text-primary)]"
-												/>
-											)}
-										</button>
-									)
-								})}
-							</div>
-
-							{/* Chat header */}
-							<div className="flex items-center gap-3 border-b border-[var(--border-default)] px-5 py-3.5">
-								<div className="relative">
-									<div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[var(--white-30)] to-[var(--white-05)] text-sm font-medium text-[var(--text-primary)]">
-										و
-									</div>
-									<span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-surface)] bg-emerald-500" />
+						<div className="overflow-hidden rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-surface)] shadow-2xl shadow-black/5">
+							{/* Browser chrome */}
+							<div className="flex items-center gap-3 border-b border-[var(--border-default)] px-4 py-2.5">
+								<div className="flex gap-1.5" aria-hidden>
+									<span className="h-2.5 w-2.5 rounded-full bg-[var(--white-30)]" />
+									<span className="h-2.5 w-2.5 rounded-full bg-[var(--white-10)]" />
+									<span className="h-2.5 w-2.5 rounded-full bg-[var(--white-10)]" />
 								</div>
-								<div className="flex flex-col">
-									<span className="text-sm font-medium text-[var(--text-primary)]">
-										{t('agentName')}
-									</span>
-									<span className="inline-flex items-center gap-1 text-xs text-emerald-500">
-										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-										{t('online')}
-									</span>
+								<div
+									dir="ltr"
+									className="flex-1 rounded-lg bg-[var(--white-05)] px-3 py-1 text-center font-mono text-[10px] text-[var(--text-muted)]"
+								>
+									app.vigent.ir
 								</div>
-							</div>
-
-							{/* Chat body */}
-							<div className="flex min-h-[380px] flex-col justify-end gap-3 px-5 py-5">
-								{bubbles.slice(0, done).map((b, i) => renderBubble(b, i, b.text))}
-
-								{phase === 'writing' &&
-									inFlight &&
-									renderBubble(inFlight, 'writing', partial, { cursor: true })}
-
-								{phase === 'typing' && (
-									<motion.div
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										className="flex justify-end"
-									>
-										<div className="flex items-center gap-1.5 rounded-2xl bg-[var(--white)] px-4 py-3">
-											{[0, 1, 2].map((d) => (
-												<motion.span
-													key={d}
-													className="h-1.5 w-1.5 rounded-full bg-[var(--bg-base)]/50"
-													animate={{ opacity: [0.3, 1, 0.3] }}
-													transition={{
-														duration: 1,
-														repeat: Infinity,
-														delay: d * 0.18,
-													}}
-												/>
-											))}
-										</div>
-									</motion.div>
-								)}
-
-								{/* End-of-conversation CTA */}
 								<AnimatePresence>
-									{finished && (
-										<motion.div
-											initial={{ opacity: 0, y: 12 }}
-											animate={{ opacity: 1, y: 0 }}
-											exit={{ opacity: 0, y: 12 }}
-											transition={{ duration: 0.4 }}
-											className="mt-2 rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-elevated)] p-4"
-										>
-											<div className="flex items-center gap-2">
-												<Sparkles className="h-4 w-4 text-[var(--text-primary)]" />
-												<p className="text-sm font-medium text-[var(--text-primary)]">
-													{t('ctaStartDesc')}
-												</p>
-											</div>
-											<Link
-												href="/login"
-												className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
-											>
-												{t('ctaStart')}
-												<ArrowRight className="h-4 w-4 rtl:rotate-180" />
-											</Link>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</div>
-
-							{/* Footer: replay + scenario switcher */}
-							<div className="flex items-center justify-between border-t border-[var(--border-default)] px-5 py-3">
-								<span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-									{t('scenarioLabel')}: {t(`tabs.${active}`)}
-								</span>
-								<AnimatePresence>
-									{finished && (
+									{!autopilot && (
 										<motion.button
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
 											exit={{ opacity: 0 }}
-											onClick={() => setRunId((n) => n + 1)}
-											className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+											type="button"
+											onClick={replayAll}
+											className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
 										>
-											<RotateCcw className="h-3.5 w-3.5" />
+											<RotateCcw className="h-3 w-3" />
 											{t('replay')}
 										</motion.button>
 									)}
 								</AnimatePresence>
 							</div>
-						</SpotlightCard>
+
+							{/* View tabs */}
+							<div className="flex items-center gap-1 border-b border-[var(--border-default)] px-3 py-2">
+								{VIEWS.map(({ id, icon: Icon }) => {
+									const isActive = id === view
+									return (
+										<button
+											key={id}
+											type="button"
+											onClick={() => selectView(id)}
+											className={cn(
+												'relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+												isActive
+													? 'text-[var(--text-primary)]'
+													: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+											)}
+										>
+											{isActive && (
+												<motion.span
+													layoutId="demo-view-pill"
+													className="absolute inset-0 rounded-lg bg-[var(--white-10)]"
+													transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+												/>
+											)}
+											<Icon className="relative h-3.5 w-3.5" />
+											<span className="relative">{t(`views.${id}`)}</span>
+										</button>
+									)
+								})}
+								{autopilot && (
+									<span className="ms-auto hidden items-center gap-1.5 text-[10px] text-[var(--text-muted)] sm:inline-flex">
+										<span className="relative flex h-1.5 w-1.5">
+											<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+											<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+										</span>
+										{t('autoplayNote')}
+									</span>
+								)}
+							</div>
+
+							{/* View content */}
+							<div className="relative">
+								<AnimatePresence mode="wait">
+									<motion.div
+										key={`${view}-${cycle}`}
+										initial={{ opacity: 0, y: 12 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -12 }}
+										transition={{ duration: 0.35, ease: 'easeOut' }}
+										className="flex min-h-[460px] flex-col"
+									>
+										{view === 'chat' && (
+											<ChatView
+												play={inView}
+												onDone={() => handleViewDone('chat')}
+												onInteract={stopAutopilot}
+											/>
+										)}
+										{view === 'dashboard' && (
+											<DashboardView onDone={() => handleViewDone('dashboard')} />
+										)}
+										{view === 'learning' && (
+											<LearningView onDone={() => handleViewDone('learning')} />
+										)}
+									</motion.div>
+								</AnimatePresence>
+							</div>
+						</div>
+
+						{/* CTA under the frame */}
+						<motion.div
+							initial={{ opacity: 0 }}
+							whileInView={{ opacity: 1 }}
+							viewport={{ once: true }}
+							transition={{ duration: 0.6, delay: 0.3 }}
+							className="mt-5 flex flex-col items-center justify-between gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] px-5 py-4 sm:flex-row"
+						>
+							<div className="flex items-center gap-2">
+								<Sparkles className="h-4 w-4 shrink-0 text-[var(--text-primary)]" />
+								<p className="text-sm text-[var(--text-secondary)]">{t('ctaStartDesc')}</p>
+							</div>
+							<Link
+								href="/login"
+								className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.03]"
+							>
+								{t('ctaStart')}
+								<ArrowRight className="h-4 w-4 rtl:rotate-180" />
+							</Link>
+						</motion.div>
 					</motion.div>
 
-					{/* ─── Capability highlights ─────────────────────────────── */}
+					{/* ─── Capability list ─────────────────────────────────────── */}
 					<motion.div
 						initial={{ opacity: 0, y: 30 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-80px' }}
 						transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-						className="mx-auto w-full max-w-lg"
 					>
 						<h3 className="text-2xl font-light text-[var(--text-primary)] md:text-3xl">
-							{tH('title')}
+							{tCap('title')}
 						</h3>
-						<p className="mt-3 text-[var(--text-secondary)]">{tH('subtitle')}</p>
+						<p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+							{tCap('subtitle')}
+						</p>
 
-						<ul className="mt-8 space-y-3">
-							{HIGHLIGHTS.map(({ key, icon: Icon }, i) => (
-								<motion.li
-									key={key}
-									initial={{ opacity: 0, x: 20 }}
-									whileInView={{ opacity: 1, x: 0 }}
-									viewport={{ once: true, margin: '-40px' }}
-									transition={{ duration: 0.5, delay: 0.15 + i * 0.08 }}
-									className="group flex gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-4 transition-all duration-300 hover:border-[var(--border-hover)] hover:bg-[var(--white-10)]"
-								>
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] transition-colors duration-300 group-hover:border-[var(--border-strong)]">
-										<Icon className="h-5 w-5 text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]" />
-									</div>
-									<div>
-										<h4 className="text-[15px] font-medium text-[var(--text-primary)]">
-											{tH(`items.${key}.title`)}
-										</h4>
-										<p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-											{tH(`items.${key}.desc`)}
-										</p>
-									</div>
-								</motion.li>
-							))}
-						</ul>
+						<div className="mt-8 space-y-5">
+							{CAPABILITY_GROUPS.map(({ key, icon: Icon }, gi) => {
+								const items = tCap.raw(`groups.${key}.items`) as string[]
+								return (
+									<motion.div
+										key={key}
+										initial={{ opacity: 0, x: 20 }}
+										whileInView={{ opacity: 1, x: 0 }}
+										viewport={{ once: true, margin: '-40px' }}
+										transition={{ duration: 0.5, delay: 0.15 + gi * 0.1 }}
+										className="rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-5"
+									>
+										<div className="flex items-center gap-2.5">
+											<div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--white-05)]">
+												<Icon className="h-4 w-4 text-[var(--text-secondary)]" />
+											</div>
+											<h4 className="text-sm font-medium text-[var(--text-primary)]">
+												{tCap(`groups.${key}.title`)}
+											</h4>
+										</div>
+										<ul className="mt-3.5 space-y-2">
+											{items.map((item, i) => (
+												<li
+													key={i}
+													className="flex items-start gap-2 text-[13px] leading-relaxed text-[var(--text-secondary)]"
+												>
+													<Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+													{item}
+												</li>
+											))}
+										</ul>
+									</motion.div>
+								)
+							})}
+						</div>
 					</motion.div>
 				</div>
 			</div>
