@@ -785,56 +785,67 @@
                         "businesses": "businesses"
                 },
                 "features": {
-                        "title": "Everything to build a smart agent",
-                        "subtitle": "From the visual builder to omnichannel delivery — one platform for the whole journey.",
+                        "title": "Everything a professional agent needs",
+                        "subtitle": "From personality design and knowledge to selling and supporting on every channel — without a single line of code.",
+                        "learningBadge": "What sets Vigent apart",
                         "items": {
                                 "learning": {
                                         "title": "Self-learning agent",
-                                        "desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
+                                        "desc": "Every unanswered question is a learning opportunity — the agent records it, proposes an answer, and with your approval learns it for good, getting smarter every day"
                                 },
                                 "builder": {
-                                        "title": "Agent builder",
-                                        "desc": "Design conversation flows with a visual builder"
+                                        "title": "Visual flow builder",
+                                        "desc": "Design the conversation path in a few clicks — welcome flows, sales funnels, order tracking; no code"
                                 },
                                 "knowledge": {
                                         "title": "Knowledge base",
-                                        "desc": "Upload your documents and data"
+                                        "desc": "Upload documents, store policies and FAQs so the agent answers from your real data"
                                 },
                                 "products": {
                                         "title": "Product catalog",
-                                        "desc": "Your agent knows and sells your products"
+                                        "desc": "The agent knows prices, stock and specs — it compares, recommends and sells"
                                 },
                                 "channels": {
                                         "title": "All connections",
-                                        "desc": "Telegram, WhatsApp, Rubika, Bale and web widget"
+                                        "desc": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — one agent, answering everywhere"
                                 },
                                 "voice": {
-                                        "title": "Voice messaging",
-                                        "desc": "Your agent hears and replies to customers"
+                                        "title": "Voice understanding",
+                                        "desc": "Customers send a voice note; the agent hears it, understands it and replies precisely, instantly"
                                 },
                                 "crm": {
-                                        "title": "Unified CRM",
-                                        "desc": "One inbox for every connection"
+                                        "title": "CRM & unified inbox",
+                                        "desc": "Every conversation from every channel in one inbox — with customer follow-up and human handoff"
                                 }
                         }
                 },
                 "how": {
-                        "title": "Get started in three steps",
-                        "subtitle": "Go from zero to a live agent in minutes — no code required.",
-                        "step1Title": "Connect your key",
-                        "step1": "Add your OpenRouter key",
-                        "step2Title": "Add your knowledge",
-                        "step2": "Upload your data and products",
-                        "step3Title": "Go live",
-                        "step3": "Add a connection — your agent is live"
+                        "title": "Your agent, live in three steps",
+                        "subtitle": "No code and no technical team — from sign-up to the first conversation in under 5 minutes.",
+                        "step1Title": "Create your agent",
+                        "step1": "Pick the template that fits your business and connect your OpenRouter key",
+                        "step1Time": "about 1 minute",
+                        "step2Title": "Add knowledge & products",
+                        "step2": "Upload your catalog and documents so the agent knows your business inside out",
+                        "step2Time": "about 2 minutes",
+                        "step3Title": "Connect and go live",
+                        "step3": "Hook up Telegram, WhatsApp or your site widget — the agent starts answering right away",
+                        "step3Time": "about 1 minute",
+                        "cta": "Build your agent now"
                 },
                 "channels": {
                         "title": "All your connections, one dashboard",
                         "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
                 },
                 "demo": {
-                        "title": "Live chat, smarter than ever",
-                        "subtitle": "Watch the agent answer in real time — from your catalog, your knowledge base, and even voice notes.",
+                        "title": "See the product in action",
+                        "subtitle": "A real tour of Vigent — from a customer conversation to the management dashboard and the agent's self-learning.",
+                        "views": {
+                                "chat": "Live chat",
+                                "dashboard": "Dashboard",
+                                "learning": "Learning center"
+                        },
+                        "autoplayNote": "Autoplaying demo",
                         "typing": "typing…",
                         "voiceLabel": "Voice message",
                         "replay": "Replay",
@@ -869,25 +880,93 @@
                                 "title": "Handoff to human agent",
                                 "desc": "The agent decided this conversation needs human attention."
                         },
-                        "highlights": {
-                                "title": "Not just a chatbot",
-                                "subtitle": "An agent that learns, adapts to your brand, and manages the conversation.",
-                                "items": {
-                                        "learning": {
-                                                "title": "Self-learning agent",
-                                                "desc": "The agent learns from conversations — it collects unanswered questions and, with your approval, gets smarter"
+                        "dashboard": {
+                                "statConversations": "Conversations today",
+                                "statAutomation": "Auto-resolved",
+                                "statSales": "Orders from chat",
+                                "inboxTitle": "Unified inbox",
+                                "chartTitle": "Conversations, last 12 hours",
+                                "viewAll": "View all",
+                                "tagAgent": "Agent reply",
+                                "tagHuman": "Operator",
+                                "inbox": [
+                                        {
+                                                "name": "Maryam Ahmadi",
+                                                "channelKey": "telegram",
+                                                "channelLabel": "Telegram",
+                                                "text": "When does my order ship?",
+                                                "time": "just now",
+                                                "auto": true
                                         },
-                                        "personalize": {
-                                                "title": "Full personalization",
-                                                "desc": "Tune the agent's tone, personality and replies to match your brand and taste"
+                                        {
+                                                "name": "Ali Rezaei",
+                                                "channelKey": "whatsapp",
+                                                "channelLabel": "WhatsApp",
+                                                "text": "Does this model come in black?",
+                                                "time": "2 min ago",
+                                                "auto": true
                                         },
-                                        "flow": {
-                                                "title": "Conversation flow control",
-                                                "desc": "Design and control the conversation path with a visual builder — no code"
+                                        {
+                                                "name": "Negar Mousavi",
+                                                "channelKey": "instagram",
+                                                "channelLabel": "Instagram",
+                                                "text": "What's the total with shipping?",
+                                                "time": "5 min ago",
+                                                "auto": true
                                         },
-                                        "omnichannel": {
-                                                "title": "Omnichannel",
-                                                "desc": "The same agent replies on Telegram, WhatsApp, Instagram and a web widget"
+                                        {
+                                                "name": "Hamid Karimi",
+                                                "channelKey": "widget",
+                                                "channelLabel": "Web widget",
+                                                "text": "I'd like to return my order",
+                                                "time": "8 min ago",
+                                                "auto": false
+                                        }
+                                ]
+                        },
+                        "learningView": {
+                                "badge": "Agent learning center",
+                                "detected": "Unanswered question detected",
+                                "question": "Do you offer cash on delivery?",
+                                "sourceLabel": "From a WhatsApp conversation · 2 hours ago",
+                                "suggestionLabel": "Agent's suggested answer",
+                                "suggestion": "Yes — cash on delivery is available in Tehran and Karaj. Other cities use secure online payment.",
+                                "approve": "Approve & add to knowledge",
+                                "approved": "Added to the knowledge base",
+                                "note": "The agent gets smarter with every approval — no manual training needed."
+                        },
+                        "capabilities": {
+                                "title": "Every capability you need, right here",
+                                "subtitle": "What you just saw in the demo and more — agent skills, connections and management tools, all in one platform.",
+                                "groups": {
+                                        "agent": {
+                                                "title": "Smart agent",
+                                                "items": [
+                                                        "Learns automatically from conversations, with your approval",
+                                                        "Full personalization of brand tone and personality",
+                                                        "Visual conversation flow builder — no code",
+                                                        "Understands and answers customer voice notes",
+                                                        "Consults, compares and sells from your product catalog"
+                                                ]
+                                        },
+                                        "channels": {
+                                                "title": "Connections",
+                                                "items": [
+                                                        "Telegram, WhatsApp and Instagram",
+                                                        "Rubika and Bale",
+                                                        "Web widget for your site",
+                                                        "Official WordPress & WooCommerce plugin"
+                                                ]
+                                        },
+                                        "management": {
+                                                "title": "Management & control",
+                                                "items": [
+                                                        "Unified inbox and CRM across every channel",
+                                                        "Smart handoff of conversations to human operators",
+                                                        "Real-time stats on conversations and sales",
+                                                        "Learning center with your final approval",
+                                                        "Weekly performance report by email"
+                                                ]
                                         }
                                 }
                         },
@@ -1018,44 +1097,47 @@
                         "cta": "Get started",
                         "popular": "Most popular"
                 },
-                "testimonials": {
-                        "title": "Loved by Iranian businesses",
-                        "items": [
-                                {
-                                        "quote": "Our Telegram support is fully automated now. The agent answers product questions instantly, day and night.",
-                                        "name": "Sara M.",
-                                        "role": "Online store owner"
-                                },
-                                {
-                                        "quote": "Setup took ten minutes. Uploading our catalog and connecting Bale was effortless.",
-                                        "name": "Reza K.",
-                                        "role": "Marketing manager"
-                                },
-                                {
-                                        "quote": "Bringing our own OpenRouter key means we control the costs. Exactly what we needed.",
-                                        "name": "Niloofar A.",
-                                        "role": "Startup founder"
-                                }
-                        ]
-                },
                 "faq": {
                         "title": "Frequently asked questions",
+                        "subtitle": "Short, clear answers to the questions everyone asks before getting started.",
+                        "moreQuestion": "Didn't find your answer?",
+                        "contact": "Browse the docs",
                         "items": [
                                 {
                                         "q": "Do I need technical skills to use it?",
-                                        "a": "No. Create an agent in a few clicks, upload your data, and add a connection."
+                                        "a": "No. Vigent is built for business owners, not developers. Create an agent in a few clicks, upload your data, and connect the channel you want."
+                                },
+                                {
+                                        "q": "How long does setup take?",
+                                        "a": "Under 5 minutes. Pick a ready-made template, upload your catalog or documents, and add your first connection — the agent starts answering immediately."
                                 },
                                 {
                                         "q": "How are AI token costs handled?",
-                                        "a": "You bring your own OpenRouter key, and token costs are billed directly to your account. Vigent only charges for the platform."
+                                        "a": "You bring your own OpenRouter key, and token costs are billed directly and transparently to your account. Vigent only charges for the platform — no middleman, no markup."
                                 },
                                 {
                                         "q": "Which connections are supported?",
-                                        "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all in one dashboard."
+                                        "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget. For WordPress sites there's an official plugin that syncs your WooCommerce products automatically."
+                                },
+                                {
+                                        "q": "What happens when the agent doesn't know an answer?",
+                                        "a": "It hands the conversation off to a human operator and records the question in the learning center — one approval from you and it answers on its own next time."
+                                },
+                                {
+                                        "q": "Is my business data safe?",
+                                        "a": "Yes. Your data is used only to power your own agent, is never shared, and you can delete it whenever you want."
+                                },
+                                {
+                                        "q": "How well does the agent understand Persian?",
+                                        "a": "Vigent is built and optimized for Persian — from casual to formal, even Persian voice notes. English is fully supported too."
+                                },
+                                {
+                                        "q": "Can I change the agent's tone and personality?",
+                                        "a": "Absolutely. Tone, personality, answering boundaries and even the conversation path are all adjustable with the visual builder, so the agent talks exactly like your team."
                                 },
                                 {
                                         "q": "Can I try it for free?",
-                                        "a": "Yes — a 14-day free trial with no credit card required."
+                                        "a": "Yes — a 14-day free trial with every feature, no credit card required. Upgrade whenever you're ready."
                                 }
                         ]
                 },
