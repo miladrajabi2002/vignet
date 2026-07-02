@@ -29,7 +29,7 @@ export function HourlyHeatmap({
       <div className="min-w-[520px]">
         {matrix.map((row, d) => (
           <div key={d} className="flex items-center gap-1">
-            <span className="w-8 shrink-0 text-[10px] text-[var(--text-muted)]">
+            <span className="w-8 shrink-0 text-[10px] font-medium text-[var(--text-secondary)]">
               {dayLabels[d]}
             </span>
             <div className="flex flex-1 gap-[3px] py-[2px]">
@@ -49,9 +49,9 @@ export function HourlyHeatmap({
             </div>
           </div>
         ))}
-        <div className="mt-1 flex gap-1">
+        <div className="mt-1.5 flex gap-1">
           <span className="w-8 shrink-0" />
-          <div className="flex flex-1 justify-between text-[9px] text-[var(--text-hint)]">
+          <div className="flex flex-1 justify-between text-[10px] font-medium text-[var(--text-secondary)]">
             <span>0</span>
             <span>6</span>
             <span>12</span>

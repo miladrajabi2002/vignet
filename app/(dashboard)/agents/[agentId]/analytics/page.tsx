@@ -8,10 +8,14 @@ import {
   CheckCircle2,
   Cpu,
   HelpCircle,
+  TrendingUp,
+  PieChart,
+  BarChart3,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
+import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import {
   ConversationChart,
   type TrendPoint,
@@ -195,6 +199,94 @@ export default async function AgentAnalyticsPage({
           </ul>
         )}
       </Panel>
+
+      <MetricsExplainer
+        title={
+          locale === 'fa'
+            ? 'این اعداد از کجا می‌آیند؟'
+            : 'Where do these numbers come from?'
+        }
+        items={[
+          {
+            icon: MessagesSquare,
+            term:
+              locale === 'fa' ? 'تعداد گفتگوها: ' : 'Total conversations: ',
+            body:
+              locale === 'fa'
+                ? 'کل گفتگوهای این ایجنت در همه کانال‌ها و همه زمان‌ها. یک گفتگو ممکن است چند پیام داشته باشد ولی فقط یک‌بار شمرده می‌شود.'
+                : 'All conversations this agent has ever had across every channel. A conversation may contain many messages but is counted once.',
+          },
+          {
+            icon: CheckCircle2,
+            iconClass: 'text-success',
+            term: locale === 'fa' ? 'نرخ تکمیل: ' : 'Resolve rate: ',
+            body:
+              locale === 'fa'
+                ? 'درصد گفتگوهایی که با وضعیت RESOLVED بسته شده‌اند. گفتگوهای باز یا تحویل‌داده‌شده به اپراتور در این درصد حساب نمی‌شوند. بسته‌شدن خودکار پس از ۲۴ ساعت بی‌فعالیتی.'
+                : 'Percentage of conversations closed with status RESOLVED. Open or handed-off conversations are excluded. Auto-close after 24h of inactivity.',
+          },
+          {
+            icon: Star,
+            iconClass: 'text-warning',
+            term: locale === 'fa' ? 'میانگین رضایت: ' : 'Average rating: ',
+            body:
+              locale === 'fa'
+                ? 'میانگین امتیاز ۱ تا ۵ ستاره‌ای که کاربران به این ایجنت داده‌اند. فقط گفتگوهایی که امتیاز دریافت کرده‌اند وارد محاسبه می‌شوند.'
+                : 'Average 1–5 star rating users gave this agent. Only rated conversations are included.',
+          },
+          {
+            icon: Cpu,
+            term: locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: ',
+            body:
+              locale === 'fa'
+                ? 'مجموع توکن‌های prompt + completion برای این ایجنت (chat + embedding + TTS + STT). هزینه واقعی در پنل OpenRouter شما قابل مشاهده است.'
+                : 'Total prompt + completion tokens for this agent (chat + embedding + TTS + STT). Actual cost is in your OpenRouter dashboard.',
+          },
+          {
+            icon: TrendingUp,
+            term:
+              locale === 'fa' ? 'روند گفتگوها: ' : 'Conversations trend: ',
+            body:
+              locale === 'fa'
+                ? 'تعداد گفتگوهای جدید در ۱۴ روز گذشته. فقط زمان شروع گفتگو لحاظ می‌شود، نه تعداد پیام‌ها.'
+                : 'New conversations per day over the past 14 days. Counts conversation starts, not message volume.',
+          },
+          {
+            icon: PieChart,
+            term:
+              locale === 'fa'
+                ? 'تفکیک کانال‌ها: '
+                : 'Channel breakdown: ',
+            body:
+              locale === 'fa'
+                ? 'تعداد گفتگوها به تفکیک کانال (تلگرام، بله، روبیکا، واتساپ، اینستاگرام، وب‌ویجت). به شما نشان می‌دهد مشتریان بیشتر از کدام کانال می‌آیند.'
+                : 'Conversation count per channel (Telegram, Bale, Rubika, WhatsApp, Instagram, web widget). Shows where your customers reach you most.',
+          },
+          {
+            icon: BarChart3,
+            term:
+              locale === 'fa'
+                ? 'محصولات پرجستجو: '
+                : 'Top products: ',
+            body:
+              locale === 'fa'
+                ? 'محصولات این ایجنت که بیشترین بار در پاسخ‌ها retriev شده‌اند. شمارنده هر بار که محصول در context پرامپت ظاهر می‌شود افزایش می‌یابد.'
+                : 'This agent\'s products retrieved most often in replies. Counter increments each time the product appears in the prompt context.',
+          },
+          {
+            icon: HelpCircle,
+            iconClass: 'text-warning',
+            term:
+              locale === 'fa'
+                ? 'سؤالات بی‌پاسخ: '
+                : 'Unanswered queries: ',
+            body:
+              locale === 'fa'
+                ? 'پیام‌های کاربر که ایجنت نتوانسته پاسخ بدهد (fallback message داده یا گفتگو بی‌جواب مانده). این‌ها فرصت‌های بهبود پایگاه دانش هستند — به صفحه یادگیری بروید تا پاسخ اضافه کنید.'
+                : 'User messages the agent could not answer (fallback given or left unanswered). These are knowledge-base improvement opportunities — visit the Learning page to add answers.',
+          },
+        ]}
+      />
     </div>
   )
 }

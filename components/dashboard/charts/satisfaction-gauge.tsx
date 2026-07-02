@@ -41,7 +41,7 @@ export function SatisfactionGauge({
         <span className="text-3xl font-light text-[var(--text-primary)]">
           {value ? value.toFixed(1) : '—'}
         </span>
-        <span className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs text-[var(--text-secondary)]">
           {count} {label}
         </span>
       </div>

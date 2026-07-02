@@ -27,15 +27,15 @@ export function ConversationChart({ data }: { data: TrendPoint[] }) {
         </defs>
         <XAxis
           dataKey="label"
-          tick={{ fill: 'rgba(var(--ink-rgb),0.4)', fontSize: 11 }}
+          tick={{ fill: 'rgba(var(--ink-rgb),0.65)', fontSize: 11, fontWeight: 500 }}
           tickLine={false}
-          axisLine={{ stroke: 'rgba(var(--ink-rgb),0.08)' }}
+          axisLine={{ stroke: 'rgba(var(--ink-rgb),0.12)' }}
           interval="preserveStartEnd"
         />
         <YAxis
           allowDecimals={false}
           width={32}
-          tick={{ fill: 'rgba(var(--ink-rgb),0.4)', fontSize: 11 }}
+          tick={{ fill: 'rgba(var(--ink-rgb),0.65)', fontSize: 11, fontWeight: 500 }}
           tickLine={false}
           axisLine={false}
         />

@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { MessagesSquare, User } from 'lucide-react'
+import { MessagesSquare, User, Clock, Filter, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
+import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { relativeTime } from '@/lib/format'
 import { Pagination } from '@/components/ui/pagination'
 
@@ -97,6 +98,43 @@ export default async function ConversationsPage({
         page={page}
         hasNext={hasNext}
         makeHref={(p) => `/conversations?page=${p}`}
+      />
+
+      <MetricsExplainer
+        title={
+          locale === 'fa'
+            ? 'این لیست چگونه مرتب می‌شود؟'
+            : 'How is this list ordered?'
+        }
+        items={[
+          {
+            icon: Clock,
+            term:
+              locale === 'fa' ? 'ترتیب نمایش: ' : 'Sort order: ',
+            body:
+              locale === 'fa'
+                ? 'گفتگوها بر اساس زمان آخرین پیام مرتب می‌شوند (جدیدترین اول). گفتگوهایی که هنوز پیام ندارند بر اساس زمان ایجاد مرتب می‌شوند.'
+                : 'Conversations are ordered by the time of their last message (newest first). Conversations with no messages yet are ordered by creation time.',
+          },
+          {
+            icon: Filter,
+            term:
+              locale === 'fa' ? 'محصولات نمایش: ' : 'What is shown: ',
+            body:
+              locale === 'fa'
+                ? 'هر ردیف یک گفتگو است — شامل نام یا شماره مشتری، کانال، آخرین پیام (پیش‌نمایش کوتاه)، نام ایجنت و زمان نسبی. برای دیدن کل گفتگو روی ردیف کلیک کنید.'
+                : 'Each row is one conversation — showing the customer name or phone, channel, last message (short preview), agent name, and relative time. Click a row to see the full thread.',
+          },
+          {
+            icon: RefreshCw,
+            term:
+              locale === 'fa' ? 'به‌روزرسانی: ' : 'Live updates: ',
+            body:
+              locale === 'fa'
+                ? 'این صفحه به‌صورت لحظه‌ای به‌روز نمی‌شود. برای دیدن گفتگوهای جدید، صفحه را refresh کنید. وضعیت گفتگو (باز، کامل، تحویل‌شده) در صفحه جزئیات قابل تغییر است.'
+                : 'This page does not update in real time. Refresh to see new conversations. Conversation status (open, resolved, handed off) can be changed on the detail page.',
+          },
+        ]}
       />
     </div>
   )

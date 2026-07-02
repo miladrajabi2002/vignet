@@ -259,3 +259,95 @@ bun run db:migrate   # یا npx prisma migrate deploy
 - `npx tsc --noEmit` — تمیز ✓
 - `npx next lint` — بدون خطا ✓
 - `npx vitest run` — ۴۱/۴۱ تست پاس شد ✓
+
+---
+
+## فاز ۶ — رفع ۴۰۴ صفحهٔ مستندات ووکامرس
+
+### هدف
+کاربر گزارش داده بود که آدرس `/docs/woocommerce` با خطای 404 برمی‌گردد. علت این بود که slug `woocommerce` در آرایهٔ `DOCS` در `lib/docs/content.ts` و در `DOCS_NAV` در `lib/docs/nav.ts` وجود نداشت. این فاز آن را اضافه می‌کند.
+
+### فایل‌های تغییر یافته
+
+#### `lib/docs/nav.ts`
+- اضافه شدن آیکن `ShoppingCart` به import از `lucide-react`.
+- اضافه شدن entry جدید در `DOCS_NAV` برای slug `woocommerce` (با href `/docs/woocommerce` و عنوان دوزبانه «اتصال ووکامرس» / «WooCommerce integration») بین `customer-identification` و `caching`.
+
+#### `lib/docs/content.ts`
+- اضافه شدن آیکن `ShoppingCart` به import از `lucide-react`.
+- اضافه شدن `DocPage` جدید با slug `woocommerce` به آرایهٔ `DOCS` (بین `customer-identification` و `caching`). شامل:
+  - عنوان و توضیح دوزبانه (fa/en).
+  - بلاک مقدمه (`p`) — توضیح اینکه اتصال ووکامرس چه می‌کند.
+  - بلاک `h2` + `list` با ۴ آیتم: همگام‌سازی محصولات، سفارش‌ها، دستی و خودکار.
+  - بلاک `h2` + `p` پیش‌نیازها (وردپرس ۵.۶+، ووکامرس ۶+، Basic Auth).
+  - بلاک `h2` + `p` برای گام ۱ (ساخت یکپارچه‌سازی در پنل ویجنت).
+  - بلاک `code` با caption دوزبانه که آدرس نمونهٔ webhook (`https://app.vigent.ir/api/sync/woocommerce?token=WEBHOOK_SECRET`) را نشان می‌دهد.
+  - بلاک `h2` + `steps` با ۵ گام نصب افزونهٔ وردپرس.
+  - بلاک `h2` + `p` برای گام ۳ (همگام‌سازی اولیه).
+  - بلاک `callout` دربارهٔ allow-list هاست.
+  - بلاک `h2` + `p` برای گام ۴ (تأیید در پنل ویجنت).
+  - بلاک `h2` + `list` عیب‌یابی با ۴ آیتم (محصولات، سفارش‌ها، 401، لاگ).
+  - بلاک `callout` نهایی بهترین روش.
+  - مجموعاً بیش از ۱۲ بلاک — بیش از حداقل ۶ بلاک خواسته‌شده.
+
+### نتیجه
+- مسیر `/docs/woocommerce` حالا از طریق `getDoc('woocommerce')` در `app/(marketing)/docs/[slug]/page.tsx` پیدا و رندر می‌شود.
+- در سایدبار مستندات نیز نمایش داده می‌شود (به‌خاطر `DOCS_NAV`).
+- در `generateStaticParams` برای pre-render استاتیک پدیدار می‌شود.
+
+### اعتبارسنجی نهایی
+- `npx tsc --noEmit` — تمیز ✓
+- `npx next lint` — بدون خطا ✓
+- `npx vitest run` — ۴۱/۴۱ تست پاس شد ✓
+
+---
+
+## بهبودهای رابط کاربری — رنگ چارت‌ها + راهنمای اعداد + نوار ناوبری
+
+### هدف
+۱. رنگ labelهای چارت «فعالیت بر اساس روز و ساعت» و سایر چارت‌ها تیره‌تر و واضح‌تر شود.
+۲. بخش راهنما «این اعداد از کجا می‌آیند؟» به صفحات بیشتری اضافه شود.
+۳. نوار ناوبری صفحه اصلی بر اساس مسیر و اسکرول، آیتم فعال را درست نمایش دهد.
+
+### فایل‌های تغییر یافته
+
+#### `components/dashboard/charts/hourly-heatmap.tsx`
+- labelهای روز هفته: از `text-[var(--text-muted)]` (۲۵٪ opacity در dark) به `text-[var(--text-secondary)]` (۵۵٪) + `font-medium`.
+- labelهای ساعت (۰/۶/۱۲/۱۸/۲۳): از `text-[var(--text-hint)]` (۱۲٪ — تقریباً نامرئی!) به `text-[var(--text-secondary)]` + `font-medium` + اندازه ۱۰px.
+
+#### `components/dashboard/charts/conversation-chart.tsx`
+- رنگ tickهای محور X و Y: از `rgba(var(--ink-rgb),0.4)` (۴۰٪) به `rgba(var(--ink-rgb),0.65)` (۶۵٪) + `fontWeight: 500`.
+- رنگ axis line: از ۰٫۰۸ به ۰٫۱۲ برای وضوح بهتر.
+
+#### `components/dashboard/charts/satisfaction-gauge.tsx`
+- متن تعداد رأی‌ها (count): از `text-[var(--text-muted)]` به `text-[var(--text-secondary)]`.
+
+#### `components/dashboard/metrics-explainer.tsx` (جدید)
+- کامپوننت reusable برای نمایش پنل «این اعداد از کجا می‌آیند؟».
+- لیست آیتم‌ها با آیکون + ترم bold + توضیح.
+- قابل استفاده در هر صفحه داشبورد.
+
+#### `app/(dashboard)/overview/page.tsx`
+- بازنویسی بخش explainer با کامپوننت `MetricsExplainer`.
+- اضافه شدن ۳ آیتم توضیحی جدید: «روند گفتگوها»، «فعالیت بر اساس روز و ساعت»، «محصولات پرجستجو» (مجموع ۷ آیتم).
+
+#### `app/(dashboard)/agents/[agentId]/analytics/page.tsx`
+- اضافه شدن پنل `MetricsExplainer` در انتهای صفحه با ۸ آیتم توضیحی: تعداد گفتگوها، نرخ تکمیل، میانگین رضایت، توکن مصرفی، روند، تفکیک کانال‌ها، محصولات پرجستجو، سؤالات بی‌پاسخ.
+
+#### `app/(dashboard)/conversations/page.tsx`
+- اضافه شدن پنل `MetricsExplainer` با عنوان «این لیست چگونه مرتب می‌شود؟» و ۳ آیتم: ترتیب نمایش، محصولات نمایش، به‌روزرسانی.
+
+#### `app/(dashboard)/contacts/page.tsx`
+- اضافه شدن پنل `MetricsExplainer` با عنوان «این مخاطبین از کجا می‌آیند؟» و ۴ آیتم: ایجاد خودکار، یکپارچه‌سازی بین کانال‌ها، مرحله (Stage)، تگ‌ها.
+- بازنویسی ساختار صفحه برای render کردن ContactsView + explainer در یک wrapper.
+
+#### `components/marketing/navbar.tsx`
+- اضافه شدن `usePathname()` برای تشخیص مسیر فعلی.
+- تشخیص مسیر: `/blog` → active='blog'، `/docs` → active='docs'.
+- در صفحه اصلی: scroll-spy فقط روی `/` فعال است؛ وقتی هیچ section در view نیست (بالای صفحه یا بین sectionها)، active='home' می‌شود.
+- رفع مشکل: قبلاً «امکانات» همیشه فعال بود چون `active` پیش‌فرض empty بود و IntersectionObserver درست تشخیص نمی‌داد.
+
+### اعتبارسنجی
+- `npx tsc --noEmit` — تمیز ✓
+- `npx next lint` — بدون خطا ✓
+- `npx vitest run` — ۴۱/۴۱ تست پاس شد ✓
