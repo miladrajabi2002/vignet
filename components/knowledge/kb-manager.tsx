@@ -24,6 +24,10 @@ export interface KbItem {
   status: KbStatus
   chunkCount: number
   errorMsg: string | null
+  /** F4: when the KB was last re-crawled (URL type only). Prisma returns Date. */
+  lastIngestedAt?: Date | string | null
+  /** F4: refresh cadence in hours (0 = manual only). */
+  refreshIntervalHours?: number
 }
 
 type Mode = 'text' | 'url' | 'file'
@@ -42,6 +46,7 @@ export function KbManager({
   const [name, setName] = useState('')
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
+  const [refreshHours, setRefreshHours] = useState<number>(24)
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +82,7 @@ export function KbManager({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
             mode === 'url'
-              ? { name: name || url, mode: 'url', url }
+              ? { name: name || url, mode: 'url', url, refreshIntervalHours: refreshHours }
               : { name: name || 'دانش', mode: 'text', content },
           ),
         })
@@ -157,13 +162,44 @@ export function KbManager({
           />
         )}
         {mode === 'url' && (
-          <input
-            dir="ltr"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={t('urlPlaceholder')}
-            className="input font-mono text-sm"
-          />
+          <div className="space-y-3">
+            <input
+              dir="ltr"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={t('urlPlaceholder')}
+              className="input font-mono text-sm"
+            />
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+              <label className="mb-1.5 block text-xs text-[var(--text-muted)]">
+                {t('refreshIntervalLabel')}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[0, 6, 12, 24, 72, 168].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setRefreshHours(h)}
+                    className={cn(
+                      'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+                      refreshHours === h
+                        ? 'border-[var(--border-strong)] bg-[var(--bg-base)] text-[var(--text-primary)]'
+                        : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
+                    )}
+                  >
+                    {h === 0
+                      ? t('refreshManual')
+                      : h < 24
+                        ? t('refreshHours', { h })
+                        : t('refreshDays', { d: Math.round(h / 24) })}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+                {t('refreshIntervalHint')}
+              </p>
+            </div>
+          </div>
         )}
         {mode === 'file' && (
           <div>
@@ -214,6 +250,24 @@ export function KbManager({
                     ? ` · ${item.errorMsg}`
                     : ''}
                 </div>
+                {item.type === 'URL' && item.lastIngestedAt && (
+                  <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                    {t('lastRefreshed', {
+                      when: new Date(item.lastIngestedAt).toLocaleString('fa-IR'),
+                    })}
+                    {item.refreshIntervalHours && item.refreshIntervalHours > 0
+                      ? ` · ${t('refreshEvery', { h: item.refreshIntervalHours })}`
+                      : ''}
+                  </div>
+                )}
+                {item.type === 'URL' &&
+                  item.refreshIntervalHours &&
+                  item.refreshIntervalHours > 0 &&
+                  !item.lastIngestedAt && (
+                    <div className="mt-0.5 text-[11px] text-[var(--amber)]">
+                      {t('refreshScheduled')}
+                    </div>
+                  )}
               </div>
               <button
                 onClick={() => remove(item.id)}

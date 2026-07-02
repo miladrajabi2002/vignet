@@ -30,6 +30,9 @@ export default async function AgentKnowledgePage({
       status: true,
       chunkCount: true,
       errorMsg: true,
+      // ─ F4: freshness tracking
+      lastIngestedAt: true,
+      refreshIntervalHours: true,
     },
   })
 

@@ -4,7 +4,10 @@ import { getTranslations } from 'next-intl/server'
 import { ArrowLeft } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { AgentSettingsForm } from '@/components/agents/agent-settings-form'
+import {
+  AgentSettingsForm,
+  type AgentSettingsData,
+} from '@/components/agents/agent-settings-form'
 
 export default async function AgentSettingsPage({
   params,
@@ -47,6 +50,12 @@ export default async function AgentSettingsPage({
           handoffMessage: agent.handoffMessage,
           handoffKeywords: agent.handoffKeywords,
           active: agent.active,
+          // ─ F1: layered prompt
+          promptConfig: agent.promptConfig as AgentSettingsData['promptConfig'],
+          roleTemplate: agent.roleTemplate,
+          // ─ F3: customer identification
+          requireCustomerInfo: agent.requireCustomerInfo,
+          customerInfoPrompt: agent.customerInfoPrompt,
         }}
       />
     </div>

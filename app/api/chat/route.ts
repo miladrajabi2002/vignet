@@ -39,13 +39,24 @@ export async function POST(req: Request) {
       handoffEnabled: true,
       handoffMessage: true,
       handoffKeywords: true,
+      // ─ F1: layered prompt
+      promptConfig: true,
+      roleTemplate: true,
+      // ─ F3: customer identification
+      requireCustomerInfo: true,
+      customerInfoPrompt: true,
     },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   const result = await startChat({
     workspaceId: user.workspaceId,
-    agent,
+    agent: {
+      ...agent,
+      promptConfig: (agent.promptConfig ?? null) as Parameters<
+        typeof startChat
+      >[0]['agent']['promptConfig'],
+    },
     message: parsed.data.message,
     conversationId: parsed.data.conversationId,
     channel: 'API',

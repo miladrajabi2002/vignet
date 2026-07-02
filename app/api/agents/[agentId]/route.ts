@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
@@ -41,9 +42,16 @@ export async function PATCH(req: Request, { params }: Params) {
     )
   }
 
+  // Prisma requires JsonNull (not JS null) when explicitly clearing a nullable
+  // JSON column. Convert null/undefined promptConfig to the proper sentinel.
+  const data: Record<string, unknown> = { ...parsed.data }
+  if (data.promptConfig === null) {
+    data.promptConfig = Prisma.JsonNull
+  }
+
   const agent = await prisma.agent.update({
     where: { id: params.agentId },
-    data: parsed.data,
+    data: data as Prisma.Args<typeof prisma.agent, 'update'>['data'],
   })
   return NextResponse.json({ agent })
 }

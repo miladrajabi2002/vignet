@@ -4,61 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Loader2, Package, BookOpen, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Loader2, Package, BookOpen, Zap, Sparkles } from 'lucide-react'
 import { ModelSelect } from './model-select'
+import { ROLE_TEMPLATES, type RoleTemplate } from '@/lib/ai/prompt-builder'
 
 const TOTAL = 3
 const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
-
-const PROMPT_TEMPLATES = {
-  shop: `تو دستیار فروش {{business}} هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
-
-قوانین پاسخ‌دهی:
-• پاسخ‌ها زیر ۴۰ کلمه باشن مگر توضیح بیشتری لازم باشه
-• قبل از گفتن هر قیمتی، اول کاتالوگ محصولات رو چک کن
-• اگه محصولی در لیست ما نبود، بگو: "این محصول الان در لیست ما نیست"
-• موجودی رو صادقانه اعلام کن
-• ساعت کاری: {{hours}}
-• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با ما تماس بگیرید: {{phone}}"`,
-  support: `تو متخصص پشتیبانی {{business}} هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
-
-قوانین پاسخ‌دهی:
-• اول مشکل مشتری رو کامل بفهم، بعد جواب بده
-• راه‌حل‌های عملی و ساده بده، گام‌به‌گام
-• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره — تماس: {{phone}}"
-• هرگز اطلاعات شخصی مشتری رو نخواه مگر ضروری باشه
-• صادق باش — اگه جواب نداری بگو، حدس نزن`,
-  restaurant: `تو دستیار {{business}} هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
-
-قوانین پاسخ‌دهی:
-• قیمت و منو رو دقیقاً از کاتالوگ بگو، حدس نزن
-• غذاهای پرطرفدار رو با اشتیاق معرفی کن
-• ساعت کاری: {{hours}} | تماس: {{phone}}
-• برای رزرو یا سفارش، اطلاعات تماس یا لینک بده
-• اگه سوالی داشتی که جوابش رو نمی‌دونی، بگو: "برای اطلاعات بیشتر تماس بگیرید"`,
-  general: `تو دستیار هوشمند {{business}} هستی. شخصیتت: مودب، مختصر، مفید.
-
-قوانین پاسخ‌دهی:
-• پاسخ‌ها کوتاه و دقیق باشن
-• اگه اطلاعاتی نداری، صادقانه بگو به‌جای حدس زدن
-• مشتری رو به بخش مناسب هدایت کن
-• راه تماس: {{phone}} | ساعت کاری: {{hours}}`,
-} as const
-
-type TemplateKey = keyof typeof PROMPT_TEMPLATES
-
-interface BizVars {
-  name: string
-  phone: string
-  hours: string
-}
-
-function applyBizVars(text: string, vars: BizVars): string {
-  return text
-    .replace(/\{\{business\}\}/g, vars.name || '{{business}}')
-    .replace(/\{\{phone\}\}/g, vars.phone || '{{phone}}')
-    .replace(/\{\{hours\}\}/g, vars.hours || '{{hours}}')
-}
 
 interface FormState {
   name: string
@@ -88,12 +39,14 @@ export function AgentWizard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [created, setCreated] = useState<CreatedAgent | null>(null)
-  const [previewKey, setPreviewKey] = useState<TemplateKey | null>(null)
-  const [bizVars, setBizVars] = useState<BizVars>({ name: '', phone: '', hours: '' })
+  const [selectedRole, setSelectedRole] = useState<RoleTemplate | null>(
+    ROLE_TEMPLATES.find((r) => r.key === 'general_support') ?? null,
+  )
+  const [previewRole, setPreviewRole] = useState<RoleTemplate | null>(null)
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
-    systemPrompt: PROMPT_TEMPLATES.general,
+    systemPrompt: '',
     welcomeMessage: '',
     fallbackMessage: '',
     model: '',
@@ -105,12 +58,9 @@ export function AgentWizard() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
 
-  const setBiz = (k: keyof BizVars, v: string) =>
-    setBizVars((b) => ({ ...b, [k]: v }))
-
-  function selectTemplate(key: TemplateKey) {
-    set('systemPrompt', applyBizVars(PROMPT_TEMPLATES[key], bizVars))
-    setPreviewKey(null)
+  function selectRole(role: RoleTemplate) {
+    setSelectedRole(role)
+    setPreviewRole(null)
   }
 
   const canNext = step === 0 ? form.name.trim().length > 0 : true
@@ -125,6 +75,12 @@ export function AgentWizard() {
         body: JSON.stringify({
           name: form.name,
           description: form.description || undefined,
+          // Send the role template key + the (possibly edited) prompt config so
+          // the agent starts with the full 6-layer engine ready to go.
+          roleTemplate: selectedRole?.key,
+          promptConfig: selectedRole?.config,
+          // Keep the legacy systemPrompt empty — the engine falls back to it
+          // only when promptConfig + roleTemplate are both absent.
           systemPrompt: form.systemPrompt || undefined,
           welcomeMessage: form.welcomeMessage || undefined,
           fallbackMessage: form.fallbackMessage || undefined,
@@ -250,68 +206,82 @@ export function AgentWizard() {
             {step === 1 && (
               <>
                 <Field label={t('systemPrompt')}>
-                  {/* Business variables */}
-                  <div className="mb-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-                    <p className="mb-2 text-xs text-[var(--text-muted)]">{t('bizVarsLabel')}</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <input
-                        value={bizVars.name}
-                        onChange={(e) => setBiz('name', e.target.value)}
-                        placeholder={t('bizName')}
-                        className="input text-xs"
-                      />
-                      <input
-                        value={bizVars.phone}
-                        onChange={(e) => setBiz('phone', e.target.value)}
-                        placeholder={t('bizPhone')}
-                        className="input text-xs"
-                      />
-                      <input
-                        value={bizVars.hours}
-                        onChange={(e) => setBiz('hours', e.target.value)}
-                        placeholder={t('bizHours')}
-                        className="input text-xs"
-                      />
-                    </div>
-                  </div>
-                  {/* Template quick-start */}
+                  {/* Role template picker (6-layer engine) */}
                   <div className="mb-2">
-                    <p className="mb-2 text-xs text-[var(--text-muted)]">{t('templateLabel')}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(['shop', 'support', 'restaurant', 'general'] as TemplateKey[]).map((key) => (
-                        <div key={key} className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => selectTemplate(key)}
-                            className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                          >
-                            {t(`template${key.charAt(0).toUpperCase() + key.slice(1)}` as Parameters<typeof t>[0])}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewKey(previewKey === key ? null : key)}
-                            className="rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-                            title={t('previewTemplate')}
-                          >
-                            {previewKey === key
-                              ? <ChevronUp className="h-3 w-3" />
-                              : <ChevronDown className="h-3 w-3" />}
-                          </button>
-                        </div>
-                      ))}
+                    <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {t('roleTemplateLabel')}
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {ROLE_TEMPLATES.map((role) => {
+                        const selected = selectedRole?.key === role.key
+                        return (
+                          <div key={role.key} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => selectRole(role)}
+                              className={`w-full rounded-xl border p-3 text-start transition-colors ${
+                                selected
+                                  ? 'border-[var(--border-strong)] bg-[var(--bg-muted)]'
+                                  : 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
+                              }`}
+                            >
+                              <p className="text-sm font-medium text-[var(--text-primary)]">
+                                {role.nameFa}
+                              </p>
+                              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                {role.descFa}
+                              </p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewRole(previewRole?.key === role.key ? null : role)
+                              }
+                              className="flex items-center gap-1 px-1 text-[11px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+                            >
+                              {previewRole?.key === role.key ? (
+                                <ChevronUp className="h-3 w-3" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3" />
+                              )}
+                              {t('previewTemplate')}
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
-                    {previewKey && (
+                    {previewRole && (
                       <div className="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-                        <pre className="whitespace-pre-wrap font-mono text-xs text-[var(--text-secondary)]">
-                          {applyBizVars(PROMPT_TEMPLATES[previewKey], bizVars)}
+                        <p className="mb-1 text-[11px] font-medium text-[var(--text-secondary)]">
+                          {previewRole.nameFa} — پیش‌نمایش پرامپت
+                        </p>
+                        <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                          {[
+                            `### شخصیت\n${previewRole.config.personality}`,
+                            `### لحن\n${previewRole.config.tone}`,
+                            previewRole.config.doSay.length
+                              ? `### بایدها\n${previewRole.config.doSay.map((s) => `• ${s}`).join('\n')}`
+                              : '',
+                            previewRole.config.dontSay.length
+                              ? `### نبایدها\n${previewRole.config.dontSay.map((s) => `• ${s}`).join('\n')}`
+                              : '',
+                            `### عدم آگاهی\n${previewRole.config.fallbackBehavior}`,
+                          ]
+                            .filter(Boolean)
+                            .join('\n\n')}
                         </pre>
                       </div>
                     )}
                   </div>
+                  <p className="mb-1 text-[11px] text-[var(--text-muted)]">
+                    {t('systemPromptHint')}
+                  </p>
                   <textarea
                     value={form.systemPrompt}
                     onChange={(e) => set('systemPrompt', e.target.value)}
-                    rows={7}
+                    rows={4}
+                    placeholder={t('systemPromptPlaceholderLegacy')}
                     className="input resize-none font-mono text-sm"
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-2">

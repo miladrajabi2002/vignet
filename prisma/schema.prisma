@@ -39,6 +39,9 @@ model Workspace {
   notifications     Notification[]
   blogPosts         BlogPost[]
   blogCategories    BlogCategory[]
+  operatorChannels  OperatorChannel[]
+  storeIntegrations StoreIntegration[]
+  handoffAlerts     HandoffAlert[]
 
   @@index([slug])
 }
@@ -104,6 +107,20 @@ model Agent {
   handoffKeywords         String[] @default([])
   active                  Boolean  @default(true)
   flowConfig              Json?
+  // ─ 6-LAYER PROMPT ENGINE (F1) ─────────────────────────────────────────
+  //   Structured prompt configuration that replaces the single-line systemPrompt
+  //   with six composable layers: personality, tone, scope, fallback behavior,
+  //   response format, and curated Q&A pairs. When promptConfig is set it takes
+  //   precedence over systemPrompt; the legacy field is kept for backward-compat
+  //   and as a free-form fallback.
+  promptConfig            Json?
+  //   Role template key used to seed promptConfig (e.g. 'sales_consult',
+  //   'post_sale_support', 'pre_sales', 'follow_up', 'general_support').
+  roleTemplate            String?
+  // ─ Customer identification (F3): require name + phone at conversation start
+  //   before the agent proceeds. Drives the collect-info flow at thread open.
+  requireCustomerInfo     Boolean  @default(false)
+  customerInfoPrompt      String?  @db.Text
   // ─ A/B experiment (optional): serve a variant system prompt to a % of new
   //   conversations and compare outcomes. Inactive by default.
   experimentActive        Boolean  @default(false)
@@ -119,6 +136,7 @@ model Agent {
   knowledgeChunks KnowledgeChunk[]
   catalogItems    AgentCatalog[]
   versions        AgentVersion[]
+  handoffAlerts   HandoffAlert[]
 
   @@index([workspaceId])
 }
@@ -241,6 +259,11 @@ model KnowledgeBase {
   status      KBStatus @default(PENDING)
   chunkCount  Int      @default(0)
   errorMsg    String?
+  // ─ F4: freshness tracking. For URL sources, lastIngestedAt records when the
+  //   content was last re-fetched and re-embedded. refreshIntervalHours controls
+  //   the automatic re-crawl cadence (0 = manual only).
+  lastIngestedAt       DateTime?
+  refreshIntervalHours Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -326,12 +349,18 @@ model Conversation {
   summary       String?     @db.Text
   messageCount  Int         @default(0)
   lastMessageAt DateTime?
+  // ─ F3: customer identification state. 'pending' until the contact has given
+  //   their name+phone; 'collected' once captured. 'skipped' for channels where
+  //   the platform identity is already trusted (messenger bots).
+  customerInfoState String  @default("pending")
+  identifiedAt      DateTime?
   createdAt     DateTime    @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   agent     Agent     @relation(fields: [agentId], references: [id])
   contact   Contact?  @relation(fields: [contactId], references: [id])
   messages  Message[]
+  handoffAlerts HandoffAlert[]
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -519,4 +548,152 @@ enum BlogStatus {
   PUBLISHED
   SCHEDULED
   ARCHIVED
+}
+
+// ─── OPERATOR CHANNEL (F3) ───────────────────────────────────────────
+//   A workspace's "operator Telegram bot": when an agent hands a conversation
+//   off to a human, the alert + conversation summary is pushed to this bot so
+//   the operator can read the context and reply. The operator replies inside
+//   the same conversations panel in the dashboard (and optionally from their
+//   own Telegram if the bot is configured with a chat id).
+model OperatorChannel {
+  id             String   @id @default(cuid())
+  workspaceId    String   @unique // one operator bot per workspace for now
+  botToken       String   // encrypted at rest by the app layer (lib/crypto)
+  operatorChatId String?  // Telegram chat id where handoff alerts are sent
+  botUsername    String?  // @username of the bot, shown to operators for /start
+  active         Boolean  @default(true)
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ─── HANDOFF ALERT (F3) ──────────────────────────────────────────────
+//   A single handoff event: created when an agent escalates a conversation to a
+//   human. Carries the snapshot of customer identity + conversation summary so
+//   the operator has everything in one place without re-reading the whole thread.
+model HandoffAlert {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  conversationId String
+  agentId        String
+  // Snapshot at handoff time — the contact's name/phone (if collected) and a
+  // one-line summary so the operator can triage without opening the thread.
+  contactName    String?
+  contactPhone   String?
+  channel        ChannelType
+  reason         String?  @db.Text // keyword match, repeated fallbacks, manual
+  summary        String?  @db.Text
+  // 'open' = awaiting operator; 'claimed' = operator opened it; 'resolved' = done
+  state          String   @default("open")
+  claimedBy      String?  // operator user id (future)
+  // Telegram message id of the alert we sent to the operator bot, so a later
+  // operator reply in Telegram can be correlated back to this conversation.
+  externalMessageId String?
+  createdAt      DateTime @default(now())
+  resolvedAt     DateTime?
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, state])
+  @@index([conversationId])
+  @@index([agentId])
+}
+
+// ─── STORE INTEGRATION (F2) ──────────────────────────────────────────
+//   Connection to an external e-commerce store (WooCommerce, Shopify-like, or a
+//   custom URL to crawl). Products and orders are pulled (or pushed via webhook)
+//   into the workspace's catalog and a dedicated orders table so the agent can
+//   answer "where is my order?" with live data.
+model StoreIntegration {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  type         StoreType
+  // For WooCommerce: store base URL (e.g. https://shop.example.com)
+  storeUrl     String
+  // API credentials (consumer key/secret for Woo REST, or a webhook signing secret)
+  // encrypted at rest by the app layer.
+  credentials  Json
+  // HMAC secret used to verify inbound webhook pushes from the store plugin.
+  webhookSecret String?
+  // Polling cadence for the fallback sync (minutes). 0 = webhook only.
+  pollIntervalMinutes Int @default(30)
+  lastSyncAt   DateTime?
+  lastSyncStatus String? // 'ok' | 'error'
+  lastSyncError String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orders    StoreOrder[]
+  syncLogs  StoreSyncLog[]
+
+  @@index([workspaceId])
+}
+
+enum StoreType {
+  WOOCOMMERCE
+  CUSTOM_URL
+  SHOPIFY
+}
+
+// ─── STORE ORDER (F2) ────────────────────────────────────────────────
+//   Lightweight mirror of an external order so the agent can answer order-status
+//   questions. Updated by webhook push (plugin) and periodic poll (fallback).
+model StoreOrder {
+  id            String   @id @default(cuid())
+  integrationId String
+  workspaceId   String
+  // The order number/id from the external store (e.g. Woo order #1234).
+  externalOrderId String
+  // Customer reference (matched to a Contact when possible by phone/email).
+  contactId     String?
+  customerName  String?
+  customerPhone String?
+  customerEmail String?
+  status        String   // 'pending' | 'processing' | 'on-hold' | 'completed' | 'cancelled' | 'refunded' | 'failed'
+  total         Float
+  currency      String   @default("IRR")
+  itemCount     Int      @default(0)
+  // Short line-item summary for the agent (e.g. "2× T-shirt, 1× Cap")
+  itemsSummary  String?  @db.Text
+  paymentMethod String?
+  shippingMethod String?
+  trackingCode  String?
+  // ISO date strings from the store
+  orderDate     DateTime?
+  updatedAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  integration StoreIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, externalOrderId])
+  @@index([workspaceId])
+  @@index([contactId])
+  @@index([externalOrderId])
+}
+
+// ─── STORE SYNC LOG (F2) ─────────────────────────────────────────────
+//   Audit trail of each sync attempt (products / orders / push / poll) so the
+//   workspace owner can see what was imported and when, and debug failures.
+model StoreSyncLog {
+  id            String   @id @default(cuid())
+  integrationId String
+  workspaceId   String
+  direction     String   // 'push' (webhook from store) | 'poll' (we fetched)
+  entity        String   // 'products' | 'orders' | 'product_update' | 'order_update'
+  outcome       String   // 'ok' | 'error'
+  count         Int      @default(0)
+  message       String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  integration StoreIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId, createdAt])
+  @@index([workspaceId])
 }

@@ -42,6 +42,8 @@ export async function POST(req: Request, { params }: Params) {
   let fileKey: string | undefined
   let fileName: string | undefined
   let fileSize: number | undefined
+  // ─ F4: optional auto-refresh cadence for URL knowledge bases (hours).
+  let refreshIntervalHours = 0
 
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData()
@@ -76,6 +78,12 @@ export async function POST(req: Request, { params }: Params) {
       sourceUrl = String(json.url ?? '')
       if (!/^https?:\/\//.test(sourceUrl))
         return NextResponse.json({ error: 'INVALID_URL' }, { status: 400 })
+      // Parse the optional refresh cadence (0–168 hours, default 0 = manual).
+      const rawHours = Number(json.refreshIntervalHours ?? 0)
+      refreshIntervalHours =
+        Number.isFinite(rawHours) && rawHours >= 0 && rawHours <= 168
+          ? Math.floor(rawHours)
+          : 0
     } else {
       type = json.type === 'FAQ' ? 'FAQ' : 'TEXT'
       inlineText = String(json.content ?? '')
@@ -95,6 +103,8 @@ export async function POST(req: Request, { params }: Params) {
       fileName,
       fileSize,
       status: 'PENDING',
+      // F4: only meaningful for URL type; ignored otherwise.
+      refreshIntervalHours: type === 'URL' ? refreshIntervalHours : 0,
     },
   })
 

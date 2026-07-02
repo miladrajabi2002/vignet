@@ -1,9 +1,16 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { KeyRound, Users, ChevronRight } from 'lucide-react'
+import { requireUser } from '@/lib/session'
+import { prisma } from '@/lib/prisma'
+import {
+        OperatorChannelSetup,
+        type OperatorChannelInfo,
+} from '@/components/crm/operator-channel-setup'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
+  const user = await requireUser()
 
   const items = [
     {
@@ -19,6 +26,31 @@ export default async function SettingsPage() {
       desc: t('settings.title'),
     },
   ]
+
+  // Load the workspace's operator Telegram bot (masked) so the setup card can
+  // render without an extra round-trip. We strip the raw token here — only the
+  // masked hint is sent to the client.
+  const op = await prisma.operatorChannel.findUnique({
+    where: { workspaceId: user.workspaceId },
+    select: {
+      id: true,
+      botUsername: true,
+      operatorChatId: true,
+      active: true,
+      lastError: true,
+      botToken: true,
+    },
+  })
+  const operatorChannel: OperatorChannelInfo | null = op
+    ? {
+        id: op.id,
+        botUsername: op.botUsername,
+        operatorChatId: op.operatorChatId,
+        active: op.active,
+        lastError: op.lastError,
+        botTokenMasked: op.botToken ? '••••' : null,
+      }
+    : null
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -47,6 +79,8 @@ export default async function SettingsPage() {
           </Link>
         ))}
       </div>
+
+      <OperatorChannelSetup current={operatorChannel} />
     </div>
   )
 }

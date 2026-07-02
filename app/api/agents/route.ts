@@ -48,6 +48,13 @@ export async function POST(req: Request) {
       fallbackMessage: data.fallbackMessage,
       handoffEnabled: data.handoffEnabled ?? false,
       handoffMessage: data.handoffMessage,
+      handoffKeywords: data.handoffKeywords ?? [],
+      // ─ F1: layered prompt
+      promptConfig: data.promptConfig ?? undefined,
+      roleTemplate: data.roleTemplate ?? undefined,
+      // ─ F3: customer identification
+      requireCustomerInfo: data.requireCustomerInfo ?? false,
+      customerInfoPrompt: data.customerInfoPrompt ?? undefined,
     },
   })
 

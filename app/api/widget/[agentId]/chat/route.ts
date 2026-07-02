@@ -55,6 +55,12 @@ export async function POST(req: Request, { params }: Params) {
       handoffEnabled: true,
       handoffMessage: true,
       handoffKeywords: true,
+      // ─ F1: layered prompt
+      promptConfig: true,
+      roleTemplate: true,
+      // ─ F3: customer identification
+      requireCustomerInfo: true,
+      customerInfoPrompt: true,
       channels: {
         where: { type: 'WEB_WIDGET' },
         select: { config: true },
@@ -87,7 +93,12 @@ export async function POST(req: Request, { params }: Params) {
 
   const result = await startChat({
     workspaceId: agent.workspaceId,
-    agent,
+    agent: {
+      ...agent,
+      promptConfig: (agent.promptConfig ?? null) as Parameters<
+        typeof startChat
+      >[0]['agent']['promptConfig'],
+    },
     message: parsed.data.message,
     conversationId: parsed.data.conversationId ?? undefined,
     channel: 'WEB_WIDGET',

@@ -2,11 +2,16 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import { ArrowLeft, User, Phone, Sparkles } from 'lucide-react'
+import type { ChannelType } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationActions } from '@/components/crm/conversation-actions'
 import { OperatorReply } from '@/components/crm/operator-reply'
+import {
+        ConversationPanel,
+        type HandoffAlertProp,
+} from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
@@ -30,8 +35,22 @@ export default async function ConversationThreadPage({
       rating: true,
       summary: true,
       createdAt: true,
-      agent: { select: { name: true } },
+      agentId: true,
+      agent: { select: { id: true, name: true } },
       contact: { select: { name: true, phone: true } },
+      handoffAlerts: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          reason: true,
+          state: true,
+          createdAt: true,
+          contactName: true,
+          contactPhone: true,
+          summary: true,
+        },
+      },
       messages: {
         orderBy: { createdAt: 'asc' },
         select: {
@@ -47,9 +66,36 @@ export default async function ConversationThreadPage({
   })
   if (!conversation) notFound()
 
+  // Load the agent's active messenger channels so the panel can show
+  // "go to Telegram/Bale/Rubika" indicators when a handoff is active.
+  const agentChannels = await prisma.agentChannel.findMany({
+    where: { agentId: conversation.agent.id, active: true },
+    select: { type: true },
+  })
+  const connectedChannels: ChannelType[] = agentChannels
+    .map((c) => c.type)
+    .filter((c): c is ChannelType => isMessengerType(c))
+
   const who = conversation.contact?.name || conversation.contact?.phone || t('anonymous')
   const canDeliver =
     isMessengerType(conversation.channel) && !!conversation.externalId
+
+  const latestAlert = conversation.handoffAlerts[0] ?? null
+  const handoffAlertProp: HandoffAlertProp | null = latestAlert
+    ? {
+        id: latestAlert.id,
+        reason: latestAlert.reason,
+        state: latestAlert.state as 'open' | 'claimed' | 'resolved',
+        createdAt: latestAlert.createdAt.toISOString(),
+        contactName: latestAlert.contactName,
+        contactPhone: latestAlert.contactPhone,
+        summary: latestAlert.summary,
+      }
+    : null
+
+  const showPanel =
+    conversation.status === 'HANDED_OFF' ||
+    (handoffAlertProp != null && handoffAlertProp.state !== 'resolved')
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col space-y-4">
@@ -81,6 +127,22 @@ export default async function ConversationThreadPage({
           </div>
         </div>
       </div>
+
+      {showPanel && (
+        <ConversationPanel
+          conversationId={conversation.id}
+          status={conversation.status}
+          contactName={conversation.contact?.name ?? null}
+          contactPhone={conversation.contact?.phone ?? null}
+          channel={conversation.channel}
+          agentName={conversation.agent.name}
+          summary={conversation.summary}
+          handoffAlert={handoffAlertProp}
+          connectedChannels={connectedChannels}
+          canDeliver={canDeliver}
+          locale={locale}
+        />
+      )}
 
       <ConversationActions
         conversationId={conversation.id}
@@ -144,7 +206,11 @@ export default async function ConversationThreadPage({
         )}
       </div>
 
-      <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
+      {/* When the panel is shown, it already renders the OperatorReply box; */}
+      {/* otherwise show the standalone reply box below. */}
+      {!showPanel && (
+        <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
+      )}
     </div>
   )
 }

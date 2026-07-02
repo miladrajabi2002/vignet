@@ -43,11 +43,20 @@ export interface RetrievedChunk {
   content: string
   metadata: Prisma.JsonValue
   similarity: number
+  /** F4: when the chunk's parent KB was last refreshed (null for non-URL). */
+  kbLastIngestedAt?: Date | null
 }
 
 /**
  * Cosine-similarity retrieval over an agent's knowledge chunks.
  * Always scoped by workspaceId AND agentId for tenant isolation.
+ *
+ * F4 — recency boost: for URL-type knowledge bases that declare a refresh
+ * interval, chunks from a recently-refreshed KB get a small similarity bump so
+ * fresh information wins ties against stale entries. The boost decays linearly
+ * over a 7-day window (newest = +0.05, 7 days old = +0). Product-catalog and
+ * non-URL chunks receive no boost (their freshness is tracked separately via
+ * `Product.embeddingUpdatedAt`).
  */
 export async function retrieveChunks(params: {
   workspaceId: string
@@ -58,17 +67,40 @@ export async function retrieveChunks(params: {
   const literal = toVectorLiteral(params.queryEmbedding)
   const limit = params.limit ?? 5
 
+  // Pull a slightly larger candidate set so the recency re-rank has headroom.
+  const candidateLimit = Math.max(limit * 3, limit + 5)
+
   const rows = await prisma.$queryRaw<RetrievedChunk[]>`
-    SELECT id, content, metadata,
-           1 - (embedding <=> ${literal}::vector) AS similarity
-    FROM "KnowledgeChunk"
-    WHERE "workspaceId" = ${params.workspaceId}
-      AND "agentId" = ${params.agentId}
-      AND embedding IS NOT NULL
-    ORDER BY embedding <=> ${literal}::vector
-    LIMIT ${limit}
+    SELECT kc.id, kc.content, kc.metadata,
+           1 - (kc.embedding <=> ${literal}::vector) AS similarity,
+           kb."lastIngestedAt" AS "kbLastIngestedAt"
+    FROM "KnowledgeChunk" kc
+    LEFT JOIN "KnowledgeBase" kb ON kb.id = kc."kbId"
+    WHERE kc."workspaceId" = ${params.workspaceId}
+      AND kc."agentId" = ${params.agentId}
+      AND kc.embedding IS NOT NULL
+    ORDER BY kc.embedding <=> ${literal}::vector
+    LIMIT ${candidateLimit}
   `
-  return rows
+
+  // Re-rank with a recency boost for URL KBs.
+  const RECENT_BOOST_MAX = 0.05
+  const DECAY_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+  const now = Date.now()
+
+  const scored = rows.map((r) => {
+    let boost = 0
+    if (r.kbLastIngestedAt) {
+      const ageMs = now - new Date(r.kbLastIngestedAt).getTime()
+      if (ageMs >= 0 && ageMs < DECAY_MS) {
+        boost = RECENT_BOOST_MAX * (1 - ageMs / DECAY_MS)
+      }
+    }
+    return { ...r, score: r.similarity + boost }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored.slice(0, limit)
 }
 
 /** Delete all chunks for a given product (used when a product changes/deletes). */
