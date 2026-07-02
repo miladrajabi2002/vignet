@@ -31,12 +31,19 @@ export const promptConfigSchema = z.object({
 })
 
 export const roleTemplateKeys = [
+  // Current need-based templates
+  'full_service',
+  'sales_consultant',
+  'support_specialist',
+  'after_sales',
+  'lead_capture',
+  'custom',
+  // Legacy keys — still accepted so existing agents keep validating
   'pre_sales',
   'sales_consult',
   'follow_up',
   'post_sale_support',
   'general_support',
-  'custom',
 ] as const
 
 export const agentCreateSchema = z.object({

@@ -564,8 +564,8 @@ export const DOCS: DocPage[] = [
                                 type: 'steps',
                                 items: [
                                         {
-                                                fa: 'پوشهٔ wordpress-plugin/vigent-woo را از سورس ویجنت دانلود کنید (یا فایل zip آن را ازReleaseها بگیرید).',
-                                                en: 'Download the wordpress-plugin/vigent-woo folder from the Vigent source (or grab the zip from the Releases).',
+                                                fa: 'فایل افزونه را از پنل ویجنت (صفحهٔ اتصالات) یا از آدرس /downloads/vigent-wordpress.zip دانلود کنید.',
+                                                en: 'Download the plugin zip from the Vigent panel (Integrations page) or from /downloads/vigent-wordpress.zip.',
                                         },
                                         {
                                                 fa: 'در وردپرس به «افزونه‌ها ← افزودن ← بارگذاری افزونه» بروید و فایل vigent-woo.zip را آپلود کنید.',

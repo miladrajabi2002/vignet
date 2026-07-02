@@ -9,6 +9,8 @@ export interface LearningItem {
   id: string
   question: string
   conversationId: string
+  /** Prefilled answer when the pair came from a human operator reply. */
+  operatorAnswer?: string
 }
 
 export function LearningCenter({
@@ -27,10 +29,28 @@ export function LearningCenter({
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
-        <GraduationCap className="h-8 w-8 text-[var(--text-muted)]" />
-        <p className="mt-4 text-sm text-[var(--text-primary)]">{t('empty')}</p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">{t('emptyHint')}</p>
+      <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8">
+        <div className="flex flex-col items-center text-center">
+          <GraduationCap className="h-8 w-8 text-[var(--text-muted)]" />
+          <p className="mt-4 text-sm font-medium text-[var(--text-primary)]">{t('empty')}</p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">{t('emptyHint')}</p>
+        </div>
+        {/* How-it-works guide so a first-time visitor understands why this page matters */}
+        <div className="mx-auto mt-6 max-w-lg space-y-3">
+          <p className="text-xs font-medium text-[var(--text-secondary)]">{t('howTitle')}</p>
+          <ol className="space-y-2.5">
+            {([1, 2, 3, 4] as const).map((n) => (
+              <li key={n} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">
+                  {n.toLocaleString('fa-IR')}
+                </span>
+                <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                  {t(`howStep${n}`)}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     )
   }
@@ -59,7 +79,7 @@ function LearningCard({
   onResolved: () => void
 }) {
   const t = useTranslations('learning')
-  const [answer, setAnswer] = useState('')
+  const [answer, setAnswer] = useState(item.operatorAnswer ?? '')
   const [suggesting, setSuggesting] = useState(false)
   const [approving, setApproving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +146,11 @@ function LearningCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <span className="text-xs text-[var(--text-secondary)]">{t('question')}</span>
+          {item.operatorAnswer && (
+            <span className="ms-2 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">
+              {t('fromOperator')}
+            </span>
+          )}
           <p className="mt-0.5 text-sm font-medium text-[var(--text-primary)]">
             {item.question}
           </p>

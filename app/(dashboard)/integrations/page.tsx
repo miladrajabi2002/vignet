@@ -118,7 +118,9 @@ export default async function IntegrationsPage() {
                                 </p>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <StoreIntegrationsSection integrations={storeIntegrations} />
+
+                        <div className="flex items-center justify-between pt-2">
                                 <h2 className="text-sm font-medium text-[var(--text-secondary)]">
                                         {t('channels')}
                                 </h2>
@@ -136,9 +138,10 @@ export default async function IntegrationsPage() {
                                         const count = counts.get(type) ?? 0
                                         const connected = count > 0
                                         return (
-                                                <div
+                                                <Link
                                                         key={type}
-                                                        className="flex flex-col gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5"
+                                                        href="/agents"
+                                                        className="group flex flex-col gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]"
                                                 >
                                                         <div className="flex items-center justify-between">
                                                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-primary)]">
@@ -172,12 +175,10 @@ export default async function IntegrationsPage() {
                                                                                 : t('comingSoon')}
                                                                 </p>
                                                         </div>
-                                                </div>
+                                                </Link>
                                         )
                                 })}
                         </div>
-
-                        <StoreIntegrationsSection integrations={storeIntegrations} />
                 </div>
         )
 }

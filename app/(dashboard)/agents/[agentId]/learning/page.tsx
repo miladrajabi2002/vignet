@@ -45,7 +45,9 @@ export default async function AgentLearningPage({
     .map((m) => {
       const meta = m.metadata as Record<string, unknown> | null
       const question = meta && typeof meta.question === 'string' ? meta.question : ''
-      return { id: m.id, question, conversationId: m.conversationId }
+      const operatorAnswer =
+        meta && typeof meta.operatorAnswer === 'string' ? meta.operatorAnswer : undefined
+      return { id: m.id, question, conversationId: m.conversationId, operatorAnswer }
     })
     .filter((m) => m.question.length > 0)
 

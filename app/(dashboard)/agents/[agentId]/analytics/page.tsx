@@ -1,8 +1,6 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import {
-  ArrowLeft,
   MessagesSquare,
   Star,
   CheckCircle2,
@@ -122,13 +120,6 @@ export default async function AgentAnalyticsPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <Link
-        href={`/agents/${agent.id}`}
-        className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-      >
-        <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-        {agent.name}
-      </Link>
 
       <div>
         <h1 className="text-2xl font-light text-[var(--text-primary)]">

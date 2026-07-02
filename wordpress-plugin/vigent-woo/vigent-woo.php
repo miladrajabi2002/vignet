@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       ویجنت — اتصال ووکامرس
+ * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
- * Description:       محصولات و سفارش‌های ووکامرس را به ایجنت ویجنت می‌فرستد تا پاسخگوی هوش مصنوعی همیشه از قیمت و موجودی و وضعیت سفارش خبر داشته باشد.
- * Version:           1.0.0
+ * Description:       سایت وردپرسی شما را به ایجنت هوشمند ویجنت متصل می‌کند: نوشته‌ها و برگه‌ها به پایگاه دانش ایجنت می‌روند و اگر ووکامرس فعال باشد، محصولات و سفارش‌ها هم خودکار همگام می‌شوند.
+ * Version:           1.1.0
  * Author:            Vigent
  * Author URI:        https://vigent.ir
  * License:           GPL-2.0-or-later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit; // دسترسی مستقیم مسدود است.
 }
 
-define( 'VIGENT_WOO_VERSION', '1.0.0' );
+define( 'VIGENT_WOO_VERSION', '1.1.0' );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 
 /**
@@ -36,6 +36,7 @@ function vigent_woo_activate() {
                                 'webhook_secret'   => '',
                                 'sync_products'    => '1',
                                 'sync_orders'      => '1',
+				'sync_content'     => '1',
                         )
                 );
         }
@@ -53,6 +54,7 @@ function vigent_woo_get_settings() {
                 'webhook_secret'   => '',
                 'sync_products'    => '1',
                 'sync_orders'      => '1',
+				'sync_content'     => '1',
         );
         $saved   = get_option( VIGENT_WOO_OPTION, array() );
         if ( ! is_array( $saved ) ) {
@@ -79,6 +81,26 @@ function vigent_woo_sync_products_enabled() {
 function vigent_woo_sync_orders_enabled() {
         $s = vigent_woo_get_settings();
         return ! empty( $s['sync_orders'] ) && ! empty( $s['webhook_url'] ) && ! empty( $s['webhook_secret'] );
+}
+
+/**
+ * آیا هم‌گام‌سازی محتوا (نوشته‌ها و برگه‌ها) فعال است؟
+ * برخلاف محصول و سفارش، این بخش به ووکامرس نیاز ندارد و روی هر وردپرسی کار می‌کند.
+ *
+ * @return bool
+ */
+function vigent_woo_sync_content_enabled() {
+        $s = vigent_woo_get_settings();
+        return ! empty( $s['sync_content'] ) && ! empty( $s['webhook_url'] ) && ! empty( $s['webhook_secret'] );
+}
+
+/**
+ * آیا ووکامرس فعال است؟
+ *
+ * @return bool
+ */
+function vigent_woo_has_wc() {
+        return function_exists( 'wc_get_product' );
 }
 
 // ─── ارسال رویداد به webhook ویجنت ──────────────────────────────────────────
@@ -264,6 +286,80 @@ function vigent_woo_order_to_payload( $order ) {
         );
 }
 
+/**
+ * تبدیل نوشته/برگه به آرایهٔ قابل ارسال برای پایگاه دانش ویجنت.
+ *
+ * @param WP_Post $post شیء پست.
+ * @return array
+ */
+function vigent_woo_content_to_payload( $post ) {
+        if ( ! $post ) {
+                return array();
+        }
+
+        // متن تمیز بدون شورت‌کد و تگ HTML — همین متن وارد پایگاه دانش می‌شود.
+        $content = apply_filters( 'the_content', $post->post_content );
+        $content = wp_strip_all_tags( strip_shortcodes( $content ) );
+        $content = trim( preg_replace( '/\n{3,}/', "\n\n", $content ) );
+
+        return array(
+                'id'      => (int) $post->ID,
+                'type'    => $post->post_type,
+                'title'   => get_the_title( $post ),
+                'url'     => get_permalink( $post ),
+                'excerpt' => wp_strip_all_tags( get_the_excerpt( $post ) ),
+                'content' => $content,
+                'date'    => get_post_time( 'c', true, $post ),
+        );
+}
+
+// ─── هوک‌های محتوا (نوشته و برگه — بدون نیاز به ووکامرس) ───────────────────
+
+/**
+ * نوشته/برگه منتشر یا به‌روزرسانی شد → content.updated.
+ *
+ * @param int     $post_id شناسهٔ پست.
+ * @param WP_Post $post    شیء پست.
+ */
+function vigent_woo_on_content_save( $post_id, $post ) {
+        if ( ! vigent_woo_sync_content_enabled() ) {
+                return;
+        }
+        if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+                return;
+        }
+        if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+                return;
+        }
+        if ( 'publish' !== $post->post_status ) {
+                return;
+        }
+        vigent_woo_send_event( 'content.updated', vigent_woo_content_to_payload( $post ) );
+}
+add_action( 'save_post', 'vigent_woo_on_content_save', 20, 2 );
+
+/**
+ * نوشته/برگه حذف یا از انتشار خارج شد → content.deleted.
+ *
+ * @param int $post_id شناسهٔ پست.
+ */
+function vigent_woo_on_content_delete( $post_id ) {
+        if ( ! vigent_woo_sync_content_enabled() ) {
+                return;
+        }
+        if ( ! in_array( get_post_type( $post_id ), array( 'post', 'page' ), true ) ) {
+                return;
+        }
+        vigent_woo_send_event(
+                'content.deleted',
+                array(
+                        'id'  => (int) $post_id,
+                        'url' => get_permalink( $post_id ),
+                )
+        );
+}
+add_action( 'wp_trash_post', 'vigent_woo_on_content_delete' );
+
 // ─── هوک‌های رویداد ووکامرس ─────────────────────────────────────────────────
 
 /**
@@ -311,7 +407,7 @@ function vigent_woo_on_product_update( $product_id, $product ) {
  * @param int $post_id شناسهٔ پست (محصول).
  */
 function vigent_woo_on_product_delete( $post_id ) {
-        if ( ! vigent_woo_sync_products_enabled() ) {
+        if ( ! vigent_woo_has_wc() || ! vigent_woo_sync_products_enabled() ) {
                 return;
         }
         // روی before_delete_post برای همهٔ پست‌تیپ‌ها صدا می‌شود؛ فقط محصول را پردازش کن.
@@ -368,6 +464,49 @@ function vigent_woo_full_sync( $kind = 'products' ) {
         $errors  = array();
         $per_page = 50;
         $page     = 1;
+
+        if ( 'content' === $kind ) {
+                if ( ! vigent_woo_sync_content_enabled() ) {
+                        return array( 'sent' => 0, 'errors' => array( __( 'هم‌گام‌سازی محتوا غیرفعال است.', 'vigent-woo' ) ) );
+                }
+                while ( true ) {
+                        $posts = get_posts(
+                                array(
+                                        'post_type'      => array( 'post', 'page' ),
+                                        'post_status'    => 'publish',
+                                        'posts_per_page' => $per_page,
+                                        'paged'          => $page,
+                                        'orderby'        => 'date',
+                                        'order'          => 'DESC',
+                                )
+                        );
+                        if ( empty( $posts ) ) {
+                                break;
+                        }
+                        foreach ( $posts as $post ) {
+                                $result = vigent_woo_send_event( 'content.updated', vigent_woo_content_to_payload( $post ) );
+                                if ( ! empty( $result['success'] ) ) {
+                                        $sent++;
+                                } else {
+                                        $errors[] = sprintf(
+                                                /* translators: 1: post id, 2: error message */
+                                                __( 'محتوا #%1$d: %2$s', 'vigent-woo' ),
+                                                $post->ID,
+                                                $result['body']
+                                        );
+                                }
+                        }
+                        if ( count( $posts ) < $per_page ) {
+                                break;
+                        }
+                        $page++;
+                }
+                return array( 'sent' => $sent, 'errors' => $errors );
+        }
+
+        if ( ! vigent_woo_has_wc() ) {
+                return array( 'sent' => 0, 'errors' => array( __( 'ووکامرس روی این سایت فعال نیست.', 'vigent-woo' ) ) );
+        }
 
         if ( 'products' === $kind ) {
                 if ( ! vigent_woo_sync_products_enabled() ) {
@@ -453,11 +592,22 @@ function vigent_woo_full_sync( $kind = 'products' ) {
  * افزودن زیرمنوی تنظیمات به منوی WooCommerce.
  */
 function vigent_woo_add_admin_menu() {
-        add_submenu_page(
-                'woocommerce',
+        if ( vigent_woo_has_wc() ) {
+                add_submenu_page(
+                        'woocommerce',
+                        __( 'ویجنت — اتصال', 'vigent-woo' ),
+                        __( 'ویجنت', 'vigent-woo' ),
+                        'manage_woocommerce',
+                        'vigent-woo',
+                        'vigent_woo_render_settings_page'
+                );
+                return;
+        }
+        // بدون ووکامرس: زیر منوی «تنظیمات» با دسترسی مدیر سایت.
+        add_options_page(
                 __( 'ویجنت — اتصال', 'vigent-woo' ),
                 __( 'ویجنت', 'vigent-woo' ),
-                'manage_woocommerce',
+                'manage_options',
                 'vigent-woo',
                 'vigent_woo_render_settings_page'
         );
@@ -468,7 +618,8 @@ add_action( 'admin_menu', 'vigent_woo_add_admin_menu' );
  * نمایش صفحهٔ تنظیمات + دکمهٔ هم‌گام‌سازی دستی.
  */
 function vigent_woo_render_settings_page() {
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+        $cap = vigent_woo_has_wc() ? 'manage_woocommerce' : 'manage_options';
+        if ( ! current_user_can( $cap ) ) {
                 wp_die( esc_html__( 'دسترسی غیرمجاز.', 'vigent-woo' ) );
         }
 
@@ -476,16 +627,25 @@ function vigent_woo_render_settings_page() {
         $sync_result = null;
         if ( isset( $_GET['sync'] ) && check_admin_referer( 'vigent_woo_sync' ) ) {
                 $kind = sanitize_text_field( wp_unslash( $_GET['sync'] ) );
-                if ( in_array( $kind, array( 'products', 'orders' ), true ) ) {
+                if ( in_array( $kind, array( 'products', 'orders', 'content' ), true ) ) {
                         $sync_result = vigent_woo_full_sync( $kind );
                 }
         }
 
         $settings = vigent_woo_get_settings();
+        $has_wc   = vigent_woo_has_wc();
+        $base_url = $has_wc
+                ? admin_url( 'admin.php?page=vigent-woo' )
+                : admin_url( 'options-general.php?page=vigent-woo' );
         ?>
         <div class="wrap">
-                <h1><?php echo esc_html__( 'ویجنت — اتصال ووکامرس', 'vigent-woo' ); ?></h1>
-                <p><?php echo esc_html__( 'این افزونه محصولات و سفارش‌های ووکامرس را به ایجنت ویجنت می‌فرستد تا هوش مصنوعی همیشه از اطلاعات فروشگاه خبر داشته باشد.', 'vigent-woo' ); ?></p>
+                <h1><?php echo esc_html__( 'ویجنت — اتصال وردپرس و ووکامرس', 'vigent-woo' ); ?></h1>
+                <p><?php echo esc_html__( 'این افزونه سایت شما را به ایجنت هوشمند ویجنت متصل می‌کند: نوشته‌ها و برگه‌ها وارد پایگاه دانش ایجنت می‌شوند و اگر ووکامرس فعال باشد، محصولات و سفارش‌ها هم خودکار همگام می‌شوند.', 'vigent-woo' ); ?></p>
+                <?php if ( ! $has_wc ) : ?>
+                        <div class="notice notice-info">
+                                <p><?php esc_html_e( 'ووکامرس روی این سایت فعال نیست — هم‌گام‌سازی محتوا (نوشته‌ها و برگه‌ها) کار می‌کند و در صورت نصب ووکامرس، محصولات و سفارش‌ها هم اضافه می‌شوند.', 'vigent-woo' ); ?></p>
+                        </div>
+                <?php endif; ?>
 
                 <?php if ( ! empty( $sync_result ) ) : ?>
                         <div class="notice notice-<?php echo empty( $sync_result['errors'] ) ? 'success' : 'warning'; ?> is-dismissible">
@@ -528,6 +688,16 @@ function vigent_woo_render_settings_page() {
                                         </td>
                                 </tr>
                                 <tr>
+                                        <th scope="row"><?php esc_html_e( 'هم‌گام‌سازی محتوا', 'vigent-woo' ); ?></th>
+                                        <td>
+                                                <label>
+                                                        <input type="checkbox" name="vigent_woo_settings[sync_content]" value="1" <?php checked( $settings['sync_content'], '1' ); ?> />
+                                                        <?php esc_html_e( 'هنگام انتشار یا ویرایش نوشته و برگه، متن آن را به پایگاه دانش ایجنت بفرست.', 'vigent-woo' ); ?>
+                                                </label>
+                                        </td>
+                                </tr>
+                                <?php if ( $has_wc ) : ?>
+                                <tr>
                                         <th scope="row"><?php esc_html_e( 'هم‌گام‌سازی محصولات', 'vigent-woo' ); ?></th>
                                         <td>
                                                 <label>
@@ -545,19 +715,25 @@ function vigent_woo_render_settings_page() {
                                                 </label>
                                         </td>
                                 </tr>
+                                <?php endif; ?>
                         </table>
                         <?php submit_button( __( 'ذخیره تنظیمات', 'vigent-woo' ) ); ?>
                 </form>
 
                 <h2><?php esc_html_e( 'هم‌گام‌سازی کامل دستی', 'vigent-woo' ); ?></h2>
-                <p><?php esc_html_e( 'اگر می‌خواهید همهٔ محصولات یا سفارش‌های فعلی را یک‌باره به ویجنت بفرستید، از دکمه‌های زیر استفاده کنید.', 'vigent-woo' ); ?></p>
+                <p><?php esc_html_e( 'برای ارسال یک‌بارهٔ همهٔ داده‌های فعلی سایت به ویجنت، از دکمه‌های زیر استفاده کنید.', 'vigent-woo' ); ?></p>
                 <p>
-                        <a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=vigent-woo&sync=products' ), 'vigent_woo_sync' ) ); ?>">
+                        <a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( $base_url . '&sync=content', 'vigent_woo_sync' ) ); ?>">
+                                <?php esc_html_e( 'ارسال همهٔ نوشته‌ها و برگه‌ها', 'vigent-woo' ); ?>
+                        </a>
+                        <?php if ( $has_wc ) : ?>
+                        <a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( $base_url . '&sync=products', 'vigent_woo_sync' ) ); ?>">
                                 <?php esc_html_e( 'ارسال همهٔ محصولات', 'vigent-woo' ); ?>
                         </a>
-                        <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=vigent-woo&sync=orders' ), 'vigent_woo_sync' ) ); ?>">
+                        <a class="button button-secondary" href="<?php echo esc_url( wp_nonce_url( $base_url . '&sync=orders', 'vigent_woo_sync' ) ); ?>">
                                 <?php esc_html_e( 'ارسال همهٔ سفارش‌ها', 'vigent-woo' ); ?>
                         </a>
+                        <?php endif; ?>
                 </p>
         </div>
         <?php
@@ -578,6 +754,7 @@ function vigent_woo_register_settings() {
                                 'webhook_secret'   => '',
                                 'sync_products'    => '1',
                                 'sync_orders'      => '1',
+				'sync_content'     => '1',
                         ),
                 )
         );
@@ -596,6 +773,7 @@ function vigent_woo_sanitize_settings( $input ) {
                 'webhook_secret' => '',
                 'sync_products'  => '',
                 'sync_orders'    => '',
+                'sync_content'   => '',
         );
 
         if ( isset( $input['webhook_url'] ) ) {
@@ -609,6 +787,9 @@ function vigent_woo_sanitize_settings( $input ) {
         }
         if ( isset( $input['sync_orders'] ) ) {
                 $out['sync_orders'] = $input['sync_orders'] ? '1' : '';
+        }
+        if ( isset( $input['sync_content'] ) ) {
+                $out['sync_content'] = $input['sync_content'] ? '1' : '';
         }
 
         return $out;

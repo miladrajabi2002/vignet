@@ -47,12 +47,27 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: 'DELIVERY_FAILED' }, { status: 502 })
   }
 
+  // The customer question this reply answers — used to feed the learning
+  // center so the operator's manual answer can be approved into the agent's
+  // knowledge base (the most valuable training signal we have).
+  const lastUserMessage = await prisma.message.findFirst({
+    where: { conversationId: conversation.id, role: 'USER' },
+    orderBy: { createdAt: 'desc' },
+    select: { content: true },
+  })
+  const question = lastUserMessage?.content?.trim() ?? ''
+
   const message = await prisma.message.create({
     data: {
       conversationId: conversation.id,
       role: 'ASSISTANT',
       content: text,
-      metadata: { operator: true },
+      // `unanswered` surfaces this pair in the learning center as a suggestion;
+      // approving it adds the Q&A to the knowledge base, dismissing clears it.
+      unanswered: question.length > 0,
+      metadata: question.length > 0
+        ? { operator: true, question, operatorAnswer: text }
+        : { operator: true },
     },
     select: { id: true, content: true, createdAt: true, role: true },
   })

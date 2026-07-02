@@ -17,6 +17,14 @@ export function Footer() {
 		{ label: tNav('login'), href: '/login' },
 	]
 
+	// SEO landing pages — internal links help these rank for their keywords.
+	const solutionLinks = [
+		{ label: t('solutionTelegram'), href: '/solutions/telegram' },
+		{ label: t('solutionInstagram'), href: '/solutions/instagram' },
+		{ label: t('solutionWhatsapp'), href: '/solutions/whatsapp' },
+		{ label: t('solutionWoocommerce'), href: '/solutions/woocommerce' },
+	]
+
 	return (
 		<footer className="relative bg-[var(--bg-base)]">
 			{/* Soft gradient hairline instead of a hard border */}
@@ -48,6 +56,18 @@ export function Footer() {
 						))}
 					</nav>
 				</div>
+
+				<nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
+					{solutionLinks.map((l) => (
+						<Link
+							key={l.href}
+							href={l.href}
+							className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+						>
+							{l.label}
+						</Link>
+					))}
+				</nav>
 
 				<div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[var(--border-default)] pt-6 text-xs text-[var(--text-muted)] sm:flex-row">
 					<span>{t('rights')}</span>

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
+import { SOLUTIONS } from '@/lib/marketing/solutions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -29,6 +30,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			priority: 0.6,
 		},
 	]
+
+	for (const s of SOLUTIONS) {
+		entries.push({
+			url: `${base}/solutions/${s.slug}`,
+			lastModified: new Date(),
+			changeFrequency: 'monthly',
+			priority: 0.8,
+		})
+	}
 
 	const wsId = await getWorkspaceId()
 	if (wsId) {

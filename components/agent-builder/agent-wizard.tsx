@@ -6,21 +6,54 @@ import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Loader2, Package, BookOpen, Zap, Sparkles } from 'lucide-react'
 import { ModelSelect } from './model-select'
-import { ROLE_TEMPLATES, type RoleTemplate } from '@/lib/ai/prompt-builder'
+import { ROLE_TEMPLATES, type PromptConfig, type RoleTemplate } from '@/lib/ai/prompt-builder'
 
 const TOTAL = 3
-const VARIABLES = ['{{name}}', '{{business}}', '{{phone}}', '{{product}}']
 
 interface FormState {
   name: string
   description: string
-  systemPrompt: string
   welcomeMessage: string
   fallbackMessage: string
   model: string
   language: 'fa' | 'en'
   temperature: number
   maxTokens: number
+}
+
+/** Editable snapshot of the template's 6-layer config (lists as one-per-line text). */
+interface ConfigDraft {
+  personality: string
+  tone: string
+  doSay: string
+  dontSay: string
+  fallbackBehavior: string
+}
+
+function draftFromRole(role: RoleTemplate): ConfigDraft {
+  return {
+    personality: role.config.personality,
+    tone: role.config.tone,
+    doSay: role.config.doSay.join('\n'),
+    dontSay: role.config.dontSay.join('\n'),
+    fallbackBehavior: role.config.fallbackBehavior,
+  }
+}
+
+function configFromDraft(role: RoleTemplate, draft: ConfigDraft): PromptConfig {
+  const lines = (s: string) =>
+    s
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+  return {
+    ...role.config,
+    personality: draft.personality.trim(),
+    tone: draft.tone.trim(),
+    doSay: lines(draft.doSay),
+    dontSay: lines(draft.dontSay),
+    fallbackBehavior: draft.fallbackBehavior.trim(),
+  }
 }
 
 interface CreatedAgent {
@@ -35,18 +68,18 @@ export function AgentWizard() {
   const tc = useTranslations('common')
   const router = useRouter()
 
+  const defaultRole = ROLE_TEMPLATES.find((r) => r.key === 'full_service') ?? ROLE_TEMPLATES[0]
+
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [created, setCreated] = useState<CreatedAgent | null>(null)
-  const [selectedRole, setSelectedRole] = useState<RoleTemplate | null>(
-    ROLE_TEMPLATES.find((r) => r.key === 'general_support') ?? null,
-  )
-  const [previewRole, setPreviewRole] = useState<RoleTemplate | null>(null)
+  const [selectedRole, setSelectedRole] = useState<RoleTemplate>(defaultRole)
+  const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
+  const [showEditor, setShowEditor] = useState(false)
   const [form, setForm] = useState<FormState>({
     name: '',
     description: '',
-    systemPrompt: '',
     welcomeMessage: '',
     fallbackMessage: '',
     model: '',
@@ -58,9 +91,14 @@ export function AgentWizard() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
 
+  const setD = <K extends keyof ConfigDraft>(key: K, value: string) =>
+    setDraft((d) => ({ ...d, [key]: value }))
+
   function selectRole(role: RoleTemplate) {
     setSelectedRole(role)
-    setPreviewRole(null)
+    setDraft(draftFromRole(role))
+    // The custom template is an empty canvas — open the editor right away.
+    setShowEditor(role.key === 'custom')
   }
 
   const canNext = step === 0 ? form.name.trim().length > 0 : true
@@ -77,11 +115,8 @@ export function AgentWizard() {
           description: form.description || undefined,
           // Send the role template key + the (possibly edited) prompt config so
           // the agent starts with the full 6-layer engine ready to go.
-          roleTemplate: selectedRole?.key,
-          promptConfig: selectedRole?.config,
-          // Keep the legacy systemPrompt empty — the engine falls back to it
-          // only when promptConfig + roleTemplate are both absent.
-          systemPrompt: form.systemPrompt || undefined,
+          roleTemplate: selectedRole.key,
+          promptConfig: configFromDraft(selectedRole, draft),
           welcomeMessage: form.welcomeMessage || undefined,
           fallbackMessage: form.fallbackMessage || undefined,
           model: form.model || undefined,
@@ -129,27 +164,14 @@ export function AgentWizard() {
                 <p className="text-sm text-[var(--text-secondary)]">{t('successKnowledge')}</p>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
+            <p className="mt-3 text-sm text-[var(--text-secondary)]">{t('successNextSteps')}</p>
+            <div className="mt-1 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => router.push(`/agents/${created.id}`)}
                 className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
               >
                 <Zap className="h-4 w-4" />
-                {t('goToAgent')}
-              </button>
-              <button
-                onClick={() => router.push('/products')}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-              >
-                <Package className="h-4 w-4" />
-                {t('addProducts')}
-              </button>
-              <button
-                onClick={() => router.push(`/agents/${created.id}/knowledge`)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-              >
-                <BookOpen className="h-4 w-4" />
-                {t('addKnowledge')}
+                {t('startSetup')}
               </button>
             </div>
           </div>
@@ -205,101 +227,102 @@ export function AgentWizard() {
 
             {step === 1 && (
               <>
-                <Field label={t('systemPrompt')}>
-                  {/* Role template picker (6-layer engine) */}
-                  <div className="mb-2">
-                    <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      {t('roleTemplateLabel')}
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {ROLE_TEMPLATES.map((role) => {
-                        const selected = selectedRole?.key === role.key
-                        return (
-                          <div key={role.key} className="space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => selectRole(role)}
-                              className={`w-full rounded-xl border p-3 text-start transition-colors ${
-                                selected
-                                  ? 'border-[var(--border-strong)] bg-[var(--bg-muted)]'
-                                  : 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
-                              }`}
-                            >
-                              <p className="text-sm font-medium text-[var(--text-primary)]">
-                                {role.nameFa}
-                              </p>
-                              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                {role.descFa}
-                              </p>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewRole(previewRole?.key === role.key ? null : role)
-                              }
-                              className="flex items-center gap-1 px-1 text-[11px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-                            >
-                              {previewRole?.key === role.key ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3" />
-                              )}
-                              {t('previewTemplate')}
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    {previewRole && (
-                      <div className="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-                        <p className="mb-1 text-[11px] font-medium text-[var(--text-secondary)]">
-                          {previewRole.nameFa} — پیش‌نمایش پرامپت
-                        </p>
-                        <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                          {[
-                            `### شخصیت\n${previewRole.config.personality}`,
-                            `### لحن\n${previewRole.config.tone}`,
-                            previewRole.config.doSay.length
-                              ? `### بایدها\n${previewRole.config.doSay.map((s) => `• ${s}`).join('\n')}`
-                              : '',
-                            previewRole.config.dontSay.length
-                              ? `### نبایدها\n${previewRole.config.dontSay.map((s) => `• ${s}`).join('\n')}`
-                              : '',
-                            `### عدم آگاهی\n${previewRole.config.fallbackBehavior}`,
-                          ]
-                            .filter(Boolean)
-                            .join('\n\n')}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mb-1 text-[11px] text-[var(--text-muted)]">
-                    {t('systemPromptHint')}
+                {/* Role template picker (6-layer engine) */}
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {t('roleTemplateLabel')}
                   </p>
-                  <textarea
-                    value={form.systemPrompt}
-                    onChange={(e) => set('systemPrompt', e.target.value)}
-                    rows={4}
-                    placeholder={t('systemPromptPlaceholderLegacy')}
-                    className="input resize-none font-mono text-sm"
-                  />
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {t('systemPromptHint')}
-                    </span>
-                    {VARIABLES.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => set('systemPrompt', form.systemPrompt + ' ' + v)}
-                        className="rounded-md border border-[var(--border-default)] px-2 py-0.5 font-mono text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                      >
-                        {v}
-                      </button>
-                    ))}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {ROLE_TEMPLATES.map((role) => {
+                      const selected = selectedRole.key === role.key
+                      return (
+                        <button
+                          key={role.key}
+                          type="button"
+                          onClick={() => selectRole(role)}
+                          className={`w-full rounded-xl border p-3 text-start transition-colors ${
+                            selected
+                              ? 'border-[var(--border-strong)] bg-[var(--bg-muted)]'
+                              : 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            {role.nameFa}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                            {role.descFa}
+                          </p>
+                        </button>
+                      )
+                    })}
                   </div>
-                </Field>
+
+                  {/* Editable 6-layer config — prefilled from the selected template */}
+                  {selectedRole.key !== 'custom' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEditor((v) => !v)}
+                      className="mt-3 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                    >
+                      {showEditor ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                      {t('editTemplate')}
+                    </button>
+                  )}
+                  {showEditor && (
+                    <div className="mt-3 space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-4">
+                      <Field label={t('layerPersonality')}>
+                        <textarea
+                          value={draft.personality}
+                          onChange={(e) => setD('personality', e.target.value)}
+                          rows={3}
+                          placeholder={t('layerPersonalityPh')}
+                          className="input resize-none text-sm"
+                        />
+                      </Field>
+                      <Field label={t('layerTone')}>
+                        <textarea
+                          value={draft.tone}
+                          onChange={(e) => setD('tone', e.target.value)}
+                          rows={2}
+                          placeholder={t('layerTonePh')}
+                          className="input resize-none text-sm"
+                        />
+                      </Field>
+                      <Field label={t('layerDoSay')}>
+                        <textarea
+                          value={draft.doSay}
+                          onChange={(e) => setD('doSay', e.target.value)}
+                          rows={4}
+                          placeholder={t('layerListPh')}
+                          className="input resize-none text-sm"
+                        />
+                      </Field>
+                      <Field label={t('layerDontSay')}>
+                        <textarea
+                          value={draft.dontSay}
+                          onChange={(e) => setD('dontSay', e.target.value)}
+                          rows={4}
+                          placeholder={t('layerListPh')}
+                          className="input resize-none text-sm"
+                        />
+                      </Field>
+                      <Field label={t('layerFallback')}>
+                        <textarea
+                          value={draft.fallbackBehavior}
+                          onChange={(e) => setD('fallbackBehavior', e.target.value)}
+                          rows={2}
+                          placeholder={t('layerFallbackPh')}
+                          className="input resize-none text-sm"
+                        />
+                      </Field>
+                    </div>
+                  )}
+                </div>
                 <Field label={t('welcomeMessage')}>
                   <input
                     value={form.welcomeMessage}

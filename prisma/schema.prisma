@@ -23,6 +23,8 @@ model Workspace {
   defaultEmbedModel   String    @default("text-embedding-3-small")
   defaultTtsVoice     String    @default("alloy")
   language            String    @default("fa")
+  // Email for the (upcoming) weekly business report — collected in settings.
+  reportEmail         String?
   onboardingStep      Int       @default(0) // 0-5, tracks activation checklist
   onboardingCompleted Boolean   @default(false)
   createdAt           DateTime  @default(now())

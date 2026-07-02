@@ -9,6 +9,7 @@ import {
 	verifyWooWebhookSignature,
 	type StoreIntegrationInput,
 } from '@/lib/integrations/woocommerce'
+import { handleWpContentWebhook } from '@/lib/integrations/wp-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -105,6 +106,17 @@ export async function POST(req: Request) {
 		data = JSON.parse(rawBody)
 	} catch {
 		return NextResponse.json({ error: 'INVALID_JSON' }, { status: 400 })
+	}
+
+	// Content topics (posts/pages from plain WordPress) don't need Woo REST
+	// credentials — handle them before credential resolution so the plugin
+	// works on any WordPress site, with or without WooCommerce.
+	if (topic.startsWith('content.')) {
+		void handleWpContentWebhook(
+			{ id: integration.id, workspaceId: integration.workspaceId },
+			{ topic, data },
+		).catch((e) => console.error('[wp-content-webhook] handler error:', e))
+		return NextResponse.json({ ok: true })
 	}
 
 	let credentials

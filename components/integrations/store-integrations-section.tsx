@@ -12,6 +12,7 @@ import {
         Copy,
         Check,
         ExternalLink,
+        Download,
         AlertCircle,
         CheckCircle2,
         X,
@@ -54,7 +55,7 @@ export interface StoreIntegrationItem {
 }
 
 const TYPE_LABEL: Record<StoreType, string> = {
-        WOOCOMMERCE: 'WooCommerce',
+        WOOCOMMERCE: 'وردپرس / ووکامرس',
         CUSTOM_URL: 'URL دلخواه',
         SHOPIFY: 'Shopify',
 }
@@ -64,6 +65,7 @@ const ENTITY_LABEL: Record<string, string> = {
         orders: 'سفارش‌ها',
         product_update: 'به‌روزرسانی محصول',
         order_update: 'به‌روزرسانی سفارش',
+        content_update: 'محتوای سایت',
 }
 
 const DIRECTION_LABEL: Record<string, string> = {
@@ -165,14 +167,48 @@ export function StoreIntegrationsSection({
                         }} />}
 
                         {integrations.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
-                                        <ShoppingBag className="mx-auto mb-3 h-8 w-8 text-[var(--text-muted)]" />
-                                        <p className="text-sm text-[var(--text-secondary)]">
-                                                هنوز فروشگاهی متصل نشده است.
-                                        </p>
-                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                                برای هم‌گام‌سازی محصولات و سفارش‌ها، یک فروشگاه ووکامرس اضافه کنید.
-                                        </p>
+                                <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8">
+                                        <div className="text-center">
+                                                <ShoppingBag className="mx-auto mb-3 h-8 w-8 text-[var(--text-muted)]" />
+                                                <p className="text-sm font-medium text-[var(--text-primary)]">
+                                                        سایت وردپرسی یا فروشگاه ووکامرسی دارید؟ همین حالا وصلش کنید
+                                                </p>
+                                                <p className="mx-auto mt-1 max-w-md text-xs text-[var(--text-secondary)]">
+                                                        با اتصال سایت، نوشته‌ها و برگه‌ها وارد پایگاه دانش ایجنت می‌شوند و اگر
+                                                        ووکامرس داشته باشید، محصولات و سفارش‌ها هم خودکار همگام می‌شوند.
+                                                </p>
+                                        </div>
+                                        <ol className="mx-auto mt-5 max-w-md space-y-2 text-xs text-[var(--text-secondary)]">
+                                                <li className="flex items-start gap-2">
+                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۱</span>
+                                                        افزونهٔ ویجنت را دانلود و در وردپرس نصب کنید.
+                                                </li>
+                                                <li className="flex items-start gap-2">
+                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۲</span>
+                                                        با دکمهٔ «افزودن فروشگاه» آدرس سایت را ثبت کنید تا آدرس webhook و کلید امنیتی بگیرید.
+                                                </li>
+                                                <li className="flex items-start gap-2">
+                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۳</span>
+                                                        آدرس و کلید را در تنظیمات افزونه وارد کرده و «هم‌گام‌سازی کامل» را بزنید.
+                                                </li>
+                                        </ol>
+                                        <div className="mt-5 flex flex-wrap justify-center gap-3">
+                                                <a
+                                                        href="/downloads/vigent-wordpress.zip"
+                                                        download
+                                                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+                                                >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                        دانلود افزونهٔ وردپرس
+                                                </a>
+                                                <button
+                                                        onClick={() => setShowForm(true)}
+                                                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                                >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        افزودن فروشگاه
+                                                </button>
+                                        </div>
                                 </div>
                         ) : (
                                 <div className="space-y-4">
@@ -191,21 +227,32 @@ export function StoreIntegrationsSection({
                         )}
 
                         <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
-                                <div className="flex items-start gap-3">
-                                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                                        <div className="text-xs text-[var(--text-muted)]">
-                                                <p>
-                                                        برای اتصال ووکامرس، افزونهٔ PHP ما را نصب کنید و آدرس webhook و کلید
-                                                        امنیتی بالا را در تنظیمات آن وارد کنید.
-                                                </p>
-                                                <Link
-                                                        href="/docs/woocommerce"
-                                                        className="mt-1 inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                                                >
-                                                        مشاهدهٔ راهنمای نصب افزونه
-                                                        <ExternalLink className="h-3 w-3" />
-                                                </Link>
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-start gap-3">
+                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                                                <div className="text-xs text-[var(--text-muted)]">
+                                                        <p>
+                                                                افزونهٔ ویجنت را روی وردپرس نصب کنید و آدرس webhook و کلید امنیتی
+                                                                بالا را در تنظیمات آن وارد کنید — روی همهٔ سایت‌های وردپرسی کار
+                                                                می‌کند، با یا بدون ووکامرس.
+                                                        </p>
+                                                        <Link
+                                                                href="/docs/woocommerce"
+                                                                className="mt-1 inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                                        >
+                                                                مشاهدهٔ راهنمای نصب افزونه
+                                                                <ExternalLink className="h-3 w-3" />
+                                                        </Link>
+                                                </div>
                                         </div>
+                                        <a
+                                                href="/downloads/vigent-wordpress.zip"
+                                                download
+                                                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                        >
+                                                <Download className="h-3.5 w-3.5" />
+                                                دانلود افزونه
+                                        </a>
                                 </div>
                         </div>
                 </div>
@@ -324,7 +371,6 @@ function AddStoreForm({ onDone }: { onDone: () => void }) {
                                                         <input
                                                                 dir="ltr"
                                                                 type="text"
-                                                                required
                                                                 value={consumerKey}
                                                                 onChange={(e) => setConsumerKey(e.target.value)}
                                                                 placeholder="ck_..."
@@ -338,13 +384,17 @@ function AddStoreForm({ onDone }: { onDone: () => void }) {
                                                         <input
                                                                 dir="ltr"
                                                                 type="password"
-                                                                required
                                                                 value={consumerSecret}
                                                                 onChange={(e) => setConsumerSecret(e.target.value)}
                                                                 placeholder="cs_..."
                                                                 className="input font-mono text-sm"
                                                         />
                                                 </div>
+                                                <p className="text-[11px] text-[var(--text-muted)] sm:col-span-2">
+                                                        کلیدهای REST فقط برای ووکامرس لازم‌اند (برای هم‌گام‌سازی دوره‌ای). اگر
+                                                        سایت وردپرسی بدون فروشگاه دارید، این دو فیلد را خالی بگذارید — اتصال
+                                                        از طریق افزونه و webhook انجام می‌شود.
+                                                </p>
                                         </>
                                 )}
                         </div>

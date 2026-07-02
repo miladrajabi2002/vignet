@@ -2,15 +2,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import {
-  Bot,
-  Settings,
+  ArrowRight,
+  CheckCircle2,
+  Circle,
   Database,
-  Share2,
+  MessageSquare,
   Package,
-  Workflow,
-  BarChart3,
-  GraduationCap,
-  FlaskConical,
+  Share2,
+  Store,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -27,66 +26,146 @@ export default async function AgentDetailPage({
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
+    select: { id: true, welcomeMessage: true },
   })
   if (!agent) notFound()
 
-  const tabs = [
-    { href: `/agents/${agent.id}/builder`, label: t('builder'), icon: Workflow },
-    { href: `/agents/${agent.id}/settings`, label: t('settings'), icon: Settings },
-    { href: `/agents/${agent.id}/knowledge`, label: t('knowledge'), icon: Database },
-    { href: `/agents/${agent.id}/catalog`, label: t('products'), icon: Package },
-    { href: `/agents/${agent.id}/channels`, label: t('channels'), icon: Share2 },
-    { href: `/agents/${agent.id}/learning`, label: t('learning'), icon: GraduationCap },
-    { href: `/agents/${agent.id}/experiments`, label: t('experiments'), icon: FlaskConical },
-    { href: `/agents/${agent.id}/analytics`, label: t('analytics'), icon: BarChart3 },
-  ]
+  const [storeCount, productCount, kbCount, channelCount, convCount] =
+    await Promise.all([
+      prisma.storeIntegration.count({
+        where: { workspaceId: user.workspaceId, active: true },
+      }),
+      prisma.product.count({ where: { workspaceId: user.workspaceId } }),
+      prisma.knowledgeBase.count({
+        where: { agentId: agent.id, type: { not: 'PRODUCT_CATALOG' } },
+      }),
+      prisma.agentChannel.count({ where: { agentId: agent.id } }),
+      prisma.conversation.count({ where: { agentId: agent.id } }),
+    ])
+
+  const steps = [
+    {
+      key: 'store',
+      done: storeCount > 0,
+      optional: true,
+      icon: Store,
+      title: t('setup.storeTitle'),
+      desc: t('setup.storeDesc'),
+      href: '/integrations',
+      cta: t('setup.storeCta'),
+    },
+    {
+      key: 'products',
+      done: productCount > 0,
+      optional: true,
+      icon: Package,
+      title: t('setup.productsTitle'),
+      desc: t('setup.productsDesc'),
+      href: '/products',
+      cta: t('setup.productsCta'),
+    },
+    {
+      key: 'knowledge',
+      done: kbCount > 0,
+      optional: false,
+      icon: Database,
+      title: t('setup.knowledgeTitle'),
+      desc: t('setup.knowledgeDesc'),
+      href: `/agents/${agent.id}/knowledge`,
+      cta: t('setup.knowledgeCta'),
+    },
+    {
+      key: 'channel',
+      done: channelCount > 0,
+      optional: false,
+      icon: Share2,
+      title: t('setup.channelTitle'),
+      desc: t('setup.channelDesc'),
+      href: `/agents/${agent.id}/channels`,
+      cta: t('setup.channelCta'),
+    },
+    {
+      key: 'test',
+      done: convCount > 0,
+      optional: false,
+      icon: MessageSquare,
+      title: t('setup.testTitle'),
+      desc: t('setup.testDesc'),
+      href: null,
+      cta: null,
+    },
+  ] as const
+
+  const doneCount = steps.filter((s) => s.done).length
+  const allDone = steps.every((s) => s.done || s.optional)
+    && steps.filter((s) => !s.optional).every((s) => s.done)
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-          <Bot className="h-6 w-6" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-light text-[var(--text-primary)]">
-            {agent.name}
-          </h1>
-          {agent.description && (
-            <p className="truncate text-sm text-[var(--text-secondary)]">
-              {agent.description}
-            </p>
-          )}
-        </div>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs',
-            agent.active
-              ? 'bg-success/10 text-success'
-              : 'bg-[var(--bg-muted)] text-[var(--text-muted)]',
-          )}
-        >
-          {agent.active && (
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+    <div className="space-y-6">
+      {!allDone && (
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-[var(--text-primary)]">
+              {t('setup.title')}
+            </h2>
+            <span className="text-xs text-[var(--text-muted)]">
+              {t('setup.progress', { done: doneCount, total: steps.length })}
             </span>
-          )}
-          {agent.active ? t('active') : t('inactive')}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {tabs.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-          </Link>
-        ))}
-      </div>
+          </div>
+          <ol className="space-y-1">
+            {steps.map((step) => {
+              const Icon = step.icon
+              return (
+                <li
+                  key={step.key}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5',
+                    !step.done && 'hover:bg-[var(--bg-muted)]',
+                  )}
+                >
+                  {step.done ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
+                  ) : (
+                    <Circle className="h-5 w-5 shrink-0 text-[var(--text-muted)]" />
+                  )}
+                  <Icon className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        'text-sm',
+                        step.done
+                          ? 'text-[var(--text-muted)] line-through'
+                          : 'text-[var(--text-primary)]',
+                      )}
+                    >
+                      {step.title}
+                      {step.optional && !step.done && (
+                        <span className="ms-2 text-[11px] text-[var(--text-muted)]">
+                          {t('setup.optional')}
+                        </span>
+                      )}
+                    </p>
+                    {!step.done && (
+                      <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                        {step.desc}
+                      </p>
+                    )}
+                  </div>
+                  {!step.done && step.href && (
+                    <Link
+                      href={step.href}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                    >
+                      {step.cta}
+                      <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                    </Link>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">

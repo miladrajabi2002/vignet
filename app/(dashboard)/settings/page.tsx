@@ -7,6 +7,7 @@ import {
         OperatorChannelSetup,
         type OperatorChannelInfo,
 } from '@/components/crm/operator-channel-setup'
+import { WeeklyReportCard } from '@/components/settings/weekly-report-card'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
@@ -30,6 +31,11 @@ export default async function SettingsPage() {
   // Load the workspace's operator Telegram bot (masked) so the setup card can
   // render without an extra round-trip. We strip the raw token here — only the
   // masked hint is sent to the client.
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { reportEmail: true },
+  })
+
   const op = await prisma.operatorChannel.findUnique({
     where: { workspaceId: user.workspaceId },
     select: {
@@ -81,6 +87,8 @@ export default async function SettingsPage() {
       </div>
 
       <OperatorChannelSetup current={operatorChannel} />
+
+      <WeeklyReportCard initialEmail={workspace?.reportEmail ?? ''} />
     </div>
   )
 }
