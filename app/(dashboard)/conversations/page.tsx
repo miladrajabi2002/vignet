@@ -5,6 +5,14 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardDonut } from '@/components/dashboard/donut'
+import {
+  conversationsDailyByWorkspace,
+  resolvedDailyByWorkspace,
+  handoffsDailyByWorkspace,
+} from '@/lib/dashboard/charts'
 import { relativeTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
 import { Pagination } from '@/components/ui/pagination'
@@ -23,29 +31,46 @@ export default async function ConversationsPage(
 
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const conversations = await prisma.conversation.findMany({
-    where: { workspaceId: user.workspaceId },
-    orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE + 1, // one extra row tells us whether a next page exists
-    select: {
-      id: true,
-      channel: true,
-      status: true,
-      lastMessageAt: true,
-      createdAt: true,
-      agent: { select: { name: true } },
-      contact: { select: { name: true, phone: true } },
-      messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: { content: true, role: true },
-      },
-    },
-  })
+  const [conversations, totalCount, openCount, resolvedCount, handedOffCount, convTrend7, resolvedTrend7, handoffTrend7] =
+    await Promise.all([
+      prisma.conversation.findMany({
+        where: { workspaceId: user.workspaceId },
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE + 1,
+        select: {
+          id: true,
+          channel: true,
+          status: true,
+          lastMessageAt: true,
+          createdAt: true,
+          agent: { select: { name: true } },
+          contact: { select: { name: true, phone: true } },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { content: true, role: true },
+          },
+        },
+      }),
+      prisma.conversation.count({ where: { workspaceId: user.workspaceId } }),
+      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'OPEN' } }),
+      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'RESOLVED' } }),
+      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' } }),
+      conversationsDailyByWorkspace(user.workspaceId, 7),
+      resolvedDailyByWorkspace(user.workspaceId, 7),
+      handoffsDailyByWorkspace(user.workspaceId, 7),
+    ])
 
   const hasNext = conversations.length > PAGE_SIZE
   const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
+
+  // Status donut data.
+  const statusDonut = [
+    { label: locale === 'fa' ? 'باز' : 'Open', value: openCount },
+    { label: locale === 'fa' ? 'بسته‌شده' : 'Resolved', value: resolvedCount },
+    { label: locale === 'fa' ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
+  ].filter((d) => d.value > 0)
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -53,6 +78,45 @@ export default async function ConversationsPage(
         <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
       </div>
+
+      {/* ─── 7-day MiniTrends ─── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <MiniTrend
+          label={locale === 'fa' ? 'مکالمات ۷ روز' : 'Conversations 7d'}
+          value={convTrend7.total}
+          series={convTrend7.series}
+          color="#3b82f6"
+          hint={locale === 'fa' ? `کل: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`}
+        />
+        <MiniTrend
+          label={locale === 'fa' ? 'بسته‌شده ۷ روز' : 'Resolved 7d'}
+          value={resolvedTrend7.total}
+          series={resolvedTrend7.series}
+          color="#22c55e"
+          hint={locale === 'fa' ? `کل: ${resolvedCount.toLocaleString('fa-IR')}` : `Total: ${resolvedCount}`}
+        />
+        <MiniTrend
+          label={locale === 'fa' ? 'تحویل اپراتور ۷ روز' : 'Handoffs 7d'}
+          value={handoffTrend7.total}
+          series={handoffTrend7.series}
+          color="#f59e0b"
+          hint={locale === 'fa' ? `کل: ${handedOffCount.toLocaleString('fa-IR')}` : `Total: ${handedOffCount}`}
+        />
+      </div>
+
+      {/* ─── Status donut ─── */}
+      {statusDonut.length > 0 && (
+        <DashboardPanel
+          title={locale === 'fa' ? 'وضعیت مکالمات' : 'Conversation Status'}
+          subtitle={locale === 'fa' ? 'توزیع همه مکالمات بر اساس وضعیت فعلی' : 'Distribution of all conversations by current status'}
+        >
+          <DashboardDonut
+            data={statusDonut}
+            centerValue={totalCount}
+            centerLabel={locale === 'fa' ? 'مکالمه' : 'total'}
+          />
+        </DashboardPanel>
+      )}
 
       {pageItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">

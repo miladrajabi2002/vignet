@@ -14,6 +14,9 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardDonut } from '@/components/dashboard/donut'
 import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
   ConversationChart,
@@ -48,7 +51,7 @@ export default async function AgentAnalyticsPage(
 
   const where = { workspaceId: ws, agentId: agent.id }
 
-  const [convos, channelGroups, ratingAgg, resolved, totalConvos, usageAgg, products, unansweredMsgs] =
+  const [convos, channelGroups, ratingAgg, resolved, totalConvos, usageAgg, products, unansweredMsgs, openCount, handedOffCount] =
     await Promise.all([
       prisma.conversation.findMany({
         where: { ...where, createdAt: { gte: since } },
@@ -88,6 +91,8 @@ export default async function AgentAnalyticsPage(
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+      prisma.conversation.count({ where: { ...where, status: 'OPEN' } }),
+      prisma.conversation.count({ where: { ...where, status: 'HANDED_OFF' } }),
     ])
 
   const dayFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
@@ -150,6 +155,31 @@ export default async function AgentAnalyticsPage(
           icon={Cpu}
         />
       </div>
+
+      {/* ─── 7-day MiniTrend (last 7 days from the 14-day trend) ─── */}
+      <MiniTrend
+        label={locale === 'fa' ? 'مکالمات ۷ روز اخیر' : 'Conversations last 7d'}
+        value={trend.slice(-7).reduce((s, p) => s + p.value, 0)}
+        series={trend.slice(-7).map((p) => p.value)}
+        color="#3b82f6"
+        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+      />
+
+      {/* ─── Status donut ─── */}
+      <DashboardPanel
+        title={locale === 'fa' ? 'وضعیت مکالمات این ایجنت' : 'Conversation Status'}
+        subtitle={locale === 'fa' ? 'توزیع بر اساس وضعیت فعلی' : 'Distribution by current status'}
+      >
+        <DashboardDonut
+          data={[
+            { label: locale === 'fa' ? 'باز' : 'Open', value: openCount },
+            { label: locale === 'fa' ? 'بسته‌شده' : 'Resolved', value: resolved },
+            { label: locale === 'fa' ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
+          ].filter((d) => d.value > 0)}
+          centerValue={totalConvos}
+          centerLabel={locale === 'fa' ? 'مکالمه' : 'total'}
+        />
+      </DashboardPanel>
 
       <Panel title={t('conversationsTrend')}>
         <ConversationChart data={trend} />

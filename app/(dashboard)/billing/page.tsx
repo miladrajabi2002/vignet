@@ -4,6 +4,8 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { messagesDailyByWorkspace, tokensDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
 import { getPlanDefs, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
@@ -30,7 +32,7 @@ export default async function BillingPage(
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, convoCount, usage, messagesUsed] =
+  const [workspace, subscription, convoCount, usage, messagesUsed, msgTrend7, tokenTrend7] =
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
@@ -48,6 +50,8 @@ export default async function BillingPage(
         _sum: { promptTokens: true, completionTokens: true, cost: true },
       }),
       getMonthlyMessageCount(ws),
+      messagesDailyByWorkspace(ws, 7),
+      tokensDailyByWorkspace(ws, 7),
     ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
@@ -242,6 +246,24 @@ export default async function BillingPage(
             label={t('estCost')}
             value={`$${cost.toFixed(2)}`}
             icon={Wallet}
+          />
+        </div>
+
+        {/* ─── 7-day usage trends ─── */}
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <MiniTrend
+            label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'}
+            value={msgTrend7.total}
+            series={msgTrend7.series}
+            color="#3b82f6"
+            hint={locale === 'fa' ? 'روزانه' : 'daily'}
+          />
+          <MiniTrend
+            label={locale === 'fa' ? 'توکن ۷ روز' : 'Tokens 7d'}
+            value={tokenTrend7.total}
+            series={tokenTrend7.series}
+            color="#f59e0b"
+            hint={locale === 'fa' ? 'روزانه' : 'daily'}
           />
         </div>
       </div>

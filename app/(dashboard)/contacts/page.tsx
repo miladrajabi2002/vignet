@@ -6,8 +6,33 @@ import { prisma } from '@/lib/prisma'
 import { ContactsView, type ContactRow } from '@/components/crm/contacts-view'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { Pagination } from '@/components/ui/pagination'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardDonut } from '@/components/dashboard/donut'
+import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 
 const PAGE_SIZE = 100
+
+const STAGE_LABELS_FA: Record<string, string> = {
+  lead: 'سرنخ',
+  qualified: 'واجد شرایط',
+  customer: 'مشتری',
+  lost: 'از دست‌رفته',
+}
+const STAGE_LABELS_EN: Record<string, string> = {
+  lead: 'Lead',
+  qualified: 'Qualified',
+  customer: 'Customer',
+  lost: 'Lost',
+}
+
+const CHANNEL_LABELS_FA: Record<string, string> = {
+  TELEGRAM: 'تلگرام',
+  WHATSAPP: 'واتساپ',
+  INSTAGRAM: 'اینستاگرام',
+  RUBIKA: 'روبیکا',
+  BALE: 'بله',
+}
 
 export default async function ContactsPage(
   props: {
@@ -17,29 +42,39 @@ export default async function ContactsPage(
   const searchParams = await props.searchParams;
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+  const isFa = locale === 'fa'
 
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const contacts = await prisma.contact.findMany({
-    where: { workspaceId: user.workspaceId },
-    orderBy: { updatedAt: 'desc' },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE + 1, // one extra row signals whether a next page exists
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      stage: true,
-      tags: true,
-      updatedAt: true,
-      telegramId: true,
-      whatsappId: true,
-      instagramId: true,
-      rubikaId: true,
-      baleId: true,
-      _count: { select: { conversations: true } },
-    },
-  })
+  const [contacts, totalCount, stageGroups, contactTrend7] = await Promise.all([
+    prisma.contact.findMany({
+      where: { workspaceId: user.workspaceId },
+      orderBy: { updatedAt: 'desc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE + 1, // one extra row signals whether a next page exists
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        stage: true,
+        tags: true,
+        updatedAt: true,
+        telegramId: true,
+        whatsappId: true,
+        instagramId: true,
+        rubikaId: true,
+        baleId: true,
+        _count: { select: { conversations: true } },
+      },
+    }),
+    prisma.contact.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.contact.groupBy({
+      by: ['stage'],
+      where: { workspaceId: user.workspaceId },
+      _count: { _all: true },
+    }),
+    contactsDailyByWorkspace(user.workspaceId, 7),
+  ])
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
@@ -63,8 +98,73 @@ export default async function ContactsPage(
     }
   })
 
+  // Stage donut data.
+  const stageLabels = isFa ? STAGE_LABELS_FA : STAGE_LABELS_EN
+  const stageDonut = stageGroups
+    .map((g) => ({
+      label: stageLabels[g.stage] ?? g.stage,
+      value: g._count._all,
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  // Channel distribution (count contacts per channel).
+  const channelCounts: Record<string, number> = {
+    TELEGRAM: 0,
+    WHATSAPP: 0,
+    INSTAGRAM: 0,
+    RUBIKA: 0,
+    BALE: 0,
+  }
+  for (const c of pageContacts) {
+    if (c.telegramId) channelCounts.TELEGRAM++
+    if (c.whatsappId) channelCounts.WHATSAPP++
+    if (c.instagramId) channelCounts.INSTAGRAM++
+    if (c.rubikaId) channelCounts.RUBIKA++
+    if (c.baleId) channelCounts.BALE++
+  }
+  const channelDonut = Object.entries(channelCounts)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => ({
+      label: isFa ? (CHANNEL_LABELS_FA[k] ?? k) : k.charAt(0) + k.slice(1).toLowerCase(),
+      value: v,
+    }))
+    .sort((a, b) => b.value - a.value)
+
   return (
     <div className="space-y-6">
+      {/* ─── 7-day MiniTrend ─── */}
+      <MiniTrend
+        label={isFa ? 'مشتریان جدید ۷ روز' : 'New customers 7d'}
+        value={contactTrend7.total}
+        series={contactTrend7.series}
+        color="#a855f7"
+        hint={isFa ? `کل مشتریان: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`}
+      />
+
+      {/* ─── Stage + Channel donuts ─── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DashboardPanel
+          title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
+          subtitle={isFa ? 'توزیع مشتریان بر اساس مرحله' : 'Customers by pipeline stage'}
+        >
+          <DashboardDonut
+            data={stageDonut}
+            centerValue={totalCount}
+            centerLabel={isFa ? 'مشتری' : 'customers'}
+          />
+        </DashboardPanel>
+        <DashboardPanel
+          title={isFa ? 'توزیع کانال‌ها' : 'Channel Distribution'}
+          subtitle={isFa ? 'مشتریان بر اساس کانال ارتباطی (در این صفحه)' : 'Customers by channel (on this page)'}
+        >
+          <DashboardDonut
+            data={channelDonut}
+            centerValue={pageContacts.length}
+            centerLabel={isFa ? 'در این صفحه' : 'on this page'}
+          />
+        </DashboardPanel>
+      </div>
+
       <ContactsView
         initial={rows}
         locale={locale}
@@ -80,8 +180,8 @@ export default async function ContactsPage(
       <MetricsExplainer
         title={
           locale === 'fa'
-            ? 'این مخاطبین از کجا می‌آیند؟'
-            : 'Where do these contacts come from?'
+            ? 'این مشتریان از کجا می‌آیند؟'
+            : 'Where do these customers come from?'
         }
         items={[
           {
@@ -90,8 +190,8 @@ export default async function ContactsPage(
               locale === 'fa' ? 'ایجاد خودکار: ' : 'Auto-created: ',
             body:
               locale === 'fa'
-                ? 'هر بار که یک شخص برای اولین بار از طریق یکی از کانال‌ها (تلگرام، بله، روبیکا، واتساپ، اینستاگرام یا وب‌ویجت) با ایجنت شما صحبت کند، یک مخاطب جدید به‌صورت خودکار ایجاد می‌شود. نیازی به افزودن دستی نیست.'
-                : 'Every time someone talks to your agent for the first time through any channel (Telegram, Bale, Rubika, WhatsApp, Instagram, or web widget), a new contact is created automatically. No manual entry needed.',
+                ? 'هر بار که یک شخص برای اولین بار از طریق یکی از کانال‌ها (تلگرام، بله، روبیکا، واتساپ، اینستاگرام یا وب‌ویجت) با ایجنت شما صحبت کند، یک مشتری جدید به‌صورت خودکار ایجاد می‌شود. نیازی به افزودن دستی نیست.'
+                : 'Every time someone talks to your agent for the first time through any channel (Telegram, Bale, Rubika, WhatsApp, Instagram, or web widget), a new customer is created automatically. No manual entry needed.',
           },
           {
             icon: GitMerge,
@@ -101,8 +201,8 @@ export default async function ContactsPage(
                 : 'Cross-channel unification: ',
             body:
               locale === 'fa'
-                ? 'اگر یک شخص از دو کانال مختلف (مثلاً تلگرام و واتساپ) با شماره تلفن یکسان پیام بدهد، هر دو ارتباط به همان مخاطب متصل می‌شود — «یک مشتری، چند کانال». این کار با تطبیق شماره تلفن انجام می‌شود.'
-                : 'If the same person messages from two different channels (e.g. Telegram and WhatsApp) with the same phone number, both connections are linked to one contact — "one customer, many channels". This is done by matching phone numbers.',
+                ? 'اگر یک شخص از دو کانال مختلف (مثلاً تلگرام و واتساپ) با شماره تلفن یکسان پیام بدهد، هر دو ارتباط به همان مشتری متصل می‌شود — «یک مشتری، چند کانال». این کار با تطبیق شماره تلفن انجام می‌شود.'
+                : 'If the same person messages from two different channels (e.g. Telegram and WhatsApp) with the same phone number, both connections are linked to one customer — "one customer, many channels". This is done by matching phone numbers.',
           },
           {
             icon: Users,
@@ -110,16 +210,16 @@ export default async function ContactsPage(
               locale === 'fa' ? 'مرحله (Stage): ' : 'Pipeline stage: ',
             body:
               locale === 'fa'
-                ? 'هر مخاطب یک مرحله فروش دارد: لید (سرنخ)، واجد شرایط، مشتری، یا از دست رفته. می‌توانید در نمای pipeline مرحله را با drag-and-drop تغییر دهید. مراحل به‌صورت پیش‌فرض روی «لید» هستند.'
-                : 'Each contact has a sales stage: lead, qualified, customer, or lost. Drag-and-drop in the pipeline view to change it. New contacts default to "lead".',
+                ? 'هر مشتری یک مرحله فروش دارد: لید (سرنخ)، واجد شرایط، مشتری، یا از دست رفته. می‌توانید در نمای pipeline مرحله را با drag-and-drop تغییر دهید. مراحل به‌صورت پیش‌فرض روی «لید» هستند.'
+                : 'Each customer has a sales stage: lead, qualified, customer, or lost. Drag-and-drop in the pipeline view to change it. New customers default to "lead".',
           },
           {
             icon: Tag,
             term: locale === 'fa' ? 'تگ‌ها: ' : 'Tags: ',
             body:
               locale === 'fa'
-                ? 'تگ‌ها برچسب‌های دلخواه هستند که می‌توانید به مخاطب اضافه کنید (مثلاً «VIP»، «خرید عمده»). در صفحه جزئیات مخاطب قابل ویرایش هستند و برای فیلتر کردن و دسته‌بندی استفاده می‌شوند.'
-                : 'Tags are custom labels you can add to a contact (e.g. "VIP", "wholesale"). Edit them on the contact detail page; use them for filtering and segmentation.',
+                ? 'تگ‌ها برچسب‌های دلخواه هستند که می‌توانید به مشتری اضافه کنید (مثلاً «VIP»، «خرید عمده»). در صفحه جزئیات مشتری قابل ویرایش هستند و برای فیلتر کردن و دسته‌بندی استفاده می‌شوند.'
+                : 'Tags are custom labels you can add to a customer (e.g. "VIP", "wholesale"). Edit them on the customer detail page; use them for filtering and segmentation.',
           },
         ]}
       />

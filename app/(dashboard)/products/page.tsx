@@ -6,6 +6,10 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductGrid, ProductsToolbar } from '@/components/products/product-grid'
 import { Pagination } from '@/components/ui/pagination'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardBarList } from '@/components/dashboard/bar-list'
+import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 
 const PAGE_SIZE = 24
 
@@ -32,7 +36,7 @@ export default async function ProductsPage(
           ? { queryCount: 'desc' }
           : { createdAt: 'desc' }
 
-  const [products, categories] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7] = await Promise.all([
     prisma.product.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -56,6 +60,14 @@ export default async function ProductsPage(
       orderBy: { sortOrder: 'asc' },
       select: { id: true, name: true },
     }),
+    prisma.product.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.product.findMany({
+      where: { workspaceId: user.workspaceId, queryCount: { gt: 0 } },
+      orderBy: { queryCount: 'desc' },
+      take: 5,
+      select: { name: true, queryCount: true },
+    }),
+    productsDailyByWorkspace(user.workspaceId, 7),
   ])
 
   const hasNext = products.length > PAGE_SIZE
@@ -92,6 +104,25 @@ export default async function ProductsPage(
           </Link>
         </div>
       </div>
+
+      {/* ─── MiniTrend + top products (hidden when filtering/searching) ─── */}
+      {!q && !categoryId && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <MiniTrend
+            label={t('title') + ' — ۷ روز'}
+            value={productTrend7.total}
+            series={productTrend7.series}
+            color="#22c55e"
+            hint={`کل: ${totalProducts.toLocaleString('fa-IR')}`}
+          />
+          <DashboardPanel title="پربازدیدترین محصولات" subtitle="بر اساس تعداد جستجو توسط ایجنت">
+            <DashboardBarList
+              data={topProductsByQuery.map((p) => ({ label: p.name, value: p.queryCount }))}
+              emptyText="هنوز محصولی جستجو نشده است"
+            />
+          </DashboardPanel>
+        </div>
+      )}
 
       {products.length === 0 && !q && !categoryId ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">

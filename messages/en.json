@@ -566,9 +566,9 @@
                 "noUnanswered": "All questions were answered"
         },
         "contacts": {
-                "title": "Contacts",
+                "title": "Customers",
                 "subtitle": "Everyone who talked to your agents",
-                "empty": "No contacts yet",
+                "empty": "No customers yet",
                 "anonymous": "Anonymous",
                 "search": "Search name or phone…",
                 "conversations": "conversations",
@@ -580,14 +580,14 @@
                 "stageLost": "Lost",
                 "pipeline": "Pipeline",
                 "list": "List",
-                "noStage": "No contacts in this stage",
+                "noStage": "No customers in this stage",
                 "dropHere": "Drop here",
                 "detail": {
                         "name": "Name",
                         "tags": "Tags",
                         "tagsPlaceholder": "vip, returning (comma separated)",
                         "notes": "Notes",
-                        "notesPlaceholder": "Internal notes about this contact…",
+                        "notesPlaceholder": "Internal notes about this customer…",
                         "save": "Save",
                         "saved": "Saved",
                         "history": "Conversation history",

@@ -4,6 +4,10 @@ import { cn } from '@/lib/utils'
 
 /**
  * Tiny inline SVG sparkline for table rows, stat cards, and compact panels.
+ * THEME-AWARE: stroke color is the only colored element; it comes from the
+ * caller (a hex string or "auto"). The component itself uses no theme tokens,
+ * so it renders correctly in both the light admin panel and the dark user
+ * dashboard.
  *
  * @param data     numeric series (oldest → newest)
  * @param color    hex stroke color, or "auto" (green for up-trend, red for down)
@@ -30,7 +34,7 @@ export function Sparkline({
   fluid?: boolean
 }) {
   if (!data || data.length === 0) {
-    return <span className="text-[11px] text-zinc-300">—</span>
+    return <span className="text-[11px] text-[var(--text-muted)]">—</span>
   }
 
   const n = data.length

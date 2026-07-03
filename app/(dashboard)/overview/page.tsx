@@ -12,19 +12,32 @@ import {
         TrendingUp,
         PackageSearch,
         Bot as BotIcon,
+        PiggyBank,
+        Clock,
+        Wallet,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { Sparkline } from '@/components/admin/sparkline'
+import {
+        conversationsDailyByWorkspace,
+        messagesDailyByWorkspace,
+        tokensDailyByWorkspace,
+        contactsDailyByWorkspace,
+        getSavingsEstimate,
+} from '@/lib/dashboard/charts'
 import { computeOnboarding } from '@/lib/onboarding'
 import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
-	ConversationChart,
-	ChannelDonut,
-	SatisfactionGauge,
-	AgentSparkline,
+        ConversationChart,
+        ChannelDonut,
+        SatisfactionGauge,
+        AgentSparkline,
 } from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { HourlyHeatmap } from '@/components/dashboard/charts/hourly-heatmap'
@@ -185,6 +198,21 @@ export default async function OverviewPage() {
                 where: { workspaceId: ws, handedOff: true },
         })
 
+        // ─ 7-day series for MiniTrend cards + savings estimate ──
+        const [
+                convTrend7,
+                msgTrend7,
+                tokenTrend7,
+                contactTrend7,
+                savings,
+        ] = await Promise.all([
+                conversationsDailyByWorkspace(ws, 7),
+                messagesDailyByWorkspace(ws, 7),
+                tokensDailyByWorkspace(ws, 7),
+                contactsDailyByWorkspace(ws, 7),
+                getSavingsEstimate(ws, 7),
+        ])
+
         const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
         return (
@@ -242,6 +270,80 @@ export default async function OverviewPage() {
                                         hint={locale === 'fa' ? 'مجموع توکن مصرفی' : 'Total tokens consumed'}
                                 />
                         </div>
+
+                        {/* ─── 7-day MiniTrends ─── */}
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                <MiniTrend
+                                        label={locale === 'fa' ? 'مکالمات ۷ روز' : 'Conversations 7d'}
+                                        value={convTrend7.total}
+                                        series={convTrend7.series}
+                                        color="#3b82f6"
+                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+                                />
+                                <MiniTrend
+                                        label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'}
+                                        value={msgTrend7.total}
+                                        series={msgTrend7.series}
+                                        color="#22c55e"
+                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+                                />
+                                <MiniTrend
+                                        label={locale === 'fa' ? 'مشتریان جدید ۷ روز' : 'New customers 7d'}
+                                        value={contactTrend7.total}
+                                        series={contactTrend7.series}
+                                        color="#a855f7"
+                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+                                />
+                                <MiniTrend
+                                        label={locale === 'fa' ? 'توکن ۷ روز' : 'Tokens 7d'}
+                                        value={tokenTrend7.total}
+                                        series={tokenTrend7.series}
+                                        color="#f59e0b"
+                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+                                />
+                        </div>
+
+                        {/* ─── Savings estimate (time + cost saved by AI) ─── */}
+                        <DashboardPanel
+                                title={locale === 'fa' ? 'صرفه‌جویی هوش مصنوعی' : 'AI Savings'}
+                                subtitle={locale === 'fa' ? 'گفتگوهایی که ایجنت بدون دخالت اپراتور انسانی بسته است' : 'Conversations resolved by AI without human handoff'}
+                        >
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div className="flex items-center gap-3">
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+                                                        <PiggyBank className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'گفتگوهای خودکار' : 'Automated'}</p>
+                                                        <p className="text-xl font-bold text-[var(--text-primary)]">{nf.format(savings.conversations)}</p>
+                                                </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+                                                        <Clock className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'ساعت صرفه‌جویی شده' : 'Hours saved'}</p>
+                                                        <p className="text-xl font-bold text-[var(--text-primary)]">{nf.format(savings.hoursSaved)}</p>
+                                                </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
+                                                        <Wallet className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'صرفه‌جویی هزینه (تومان)' : 'Cost saved (IRR)'}</p>
+                                                        <p className="text-xl font-bold text-emerald-500">{nf.format(savings.costSavedIRR)}</p>
+                                                </div>
+                                        </div>
+                                        <div className="flex items-center justify-end gap-2">
+                                                <div className="w-full">
+                                                        <p className="mb-1 text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'روند ۷ روز' : '7-day trend'}</p>
+                                                        <Sparkline data={savings.series} color="#22c55e" width={120} height={36} fluid />
+                                                </div>
+                                        </div>
+                                </div>
+                        </DashboardPanel>
 
                         {/* Conversations trend */}
                         <Panel title={tA('conversationsTrend')}>
