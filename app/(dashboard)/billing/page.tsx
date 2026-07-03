@@ -1,9 +1,12 @@
 import { getTranslations, getLocale } from 'next-intl/server'
-import { MessagesSquare, Cpu, Wallet, Sparkles } from 'lucide-react'
+import { MessagesSquare, Cpu, Wallet, Sparkles, Check } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
+import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { formatDateTime } from '@/lib/format'
+import { getPlanDefs, PAID_PLANS } from '@/lib/billing/plans'
+import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 
 const PLAN_KEY: Record<string, string> = {
   TRIAL: 'planTrial',
@@ -12,7 +15,11 @@ const PLAN_KEY: Record<string, string> = {
   BUSINESS: 'planBusiness',
 }
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams?: { payment?: string }
+}) {
   const user = await requireUser()
   const t = await getTranslations('billing')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
@@ -22,23 +29,25 @@ export default async function BillingPage() {
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, convoCount, usage] = await Promise.all([
-    prisma.workspace.findUnique({
-      where: { id: ws },
-      select: { plan: true, trialEndsAt: true },
-    }),
-    prisma.subscription.findUnique({
-      where: { workspaceId: ws },
-      select: { status: true, currentPeriodEnd: true },
-    }),
-    prisma.conversation.count({
-      where: { workspaceId: ws, createdAt: { gte: monthStart } },
-    }),
-    prisma.usageLog.aggregate({
-      where: { workspaceId: ws, date: { gte: monthStart } },
-      _sum: { promptTokens: true, completionTokens: true, cost: true },
-    }),
-  ])
+  const [workspace, subscription, convoCount, usage, messagesUsed] =
+    await Promise.all([
+      prisma.workspace.findUnique({
+        where: { id: ws },
+        select: { plan: true, trialEndsAt: true },
+      }),
+      prisma.subscription.findUnique({
+        where: { workspaceId: ws },
+        select: { status: true, currentPeriodEnd: true },
+      }),
+      prisma.conversation.count({
+        where: { workspaceId: ws, createdAt: { gte: monthStart } },
+      }),
+      prisma.usageLog.aggregate({
+        where: { workspaceId: ws, date: { gte: monthStart } },
+        _sum: { promptTokens: true, completionTokens: true, cost: true },
+      }),
+      getMonthlyMessageCount(ws),
+    ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
   const plan = workspace?.plan ?? 'TRIAL'
@@ -46,8 +55,23 @@ export default async function BillingPage() {
     (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
   const cost = usage._sum.cost ?? 0
 
+  const defs = getPlanDefs()
+  const msgLimit = defs[plan].monthlyMessages
+  const usagePct = Math.min(100, Math.round((messagesUsed / msgLimit) * 100))
+  const trialExpired =
+    plan === 'TRIAL' &&
+    !!workspace?.trialEndsAt &&
+    workspace.trialEndsAt < new Date()
+
+  const paymentStatus = searchParams?.payment
+  const checkoutLabels = {
+    rial: t('payRial'),
+    crypto: t('payCrypto'),
+    error: t('paymentError'),
+  }
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-light text-[var(--text-primary)]">
           {t('title')}
@@ -56,6 +80,23 @@ export default async function BillingPage() {
           {t('subtitle')}
         </p>
       </div>
+
+      {/* Payment result banner (after gateway redirect) */}
+      {paymentStatus === 'success' && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+          {t('paymentSuccess')}
+        </div>
+      )}
+      {(paymentStatus === 'failed' || paymentStatus === 'cancelled') && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+          {paymentStatus === 'failed' ? t('paymentFailed') : t('paymentCancelled')}
+        </div>
+      )}
+      {trialExpired && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+          {t('trialExpiredNotice')}
+        </div>
+      )}
 
       {/* Plan card */}
       <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
@@ -78,14 +119,111 @@ export default async function BillingPage() {
                   : t('noSubscription')}
             </p>
           </div>
-          <a
-            href="/#pricing"
-            className="rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
-          >
-            {t('upgrade')}
-          </a>
+        </div>
+
+        {/* Monthly message quota meter */}
+        <div className="mt-5">
+          <div className="mb-1.5 flex items-center justify-between text-xs">
+            <span className="text-[var(--text-secondary)]">
+              {t('messagesUsed')}
+            </span>
+            <span className="text-[var(--text-primary)]">
+              {nf.format(messagesUsed)} / {nf.format(msgLimit)}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+            <div
+              className={`h-full rounded-full transition-all ${
+                usagePct >= 90
+                  ? 'bg-red-500'
+                  : usagePct >= 70
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+              }`}
+              style={{ width: `${usagePct}%` }}
+            />
+          </div>
+          {usagePct >= 90 && (
+            <p className="mt-1.5 text-xs text-red-500">{t('quotaWarning')}</p>
+          )}
         </div>
       </section>
+
+      {/* Plans */}
+      <div>
+        <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
+          {t('plans')}
+        </h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {PAID_PLANS.map((p) => {
+            const def = defs[p]
+            const isCurrent =
+              plan === p &&
+              subscription?.status === 'ACTIVE' &&
+              subscription.currentPeriodEnd > new Date()
+            const highlight = p === 'PRO'
+            return (
+              <section
+                key={p}
+                className={`flex flex-col rounded-2xl border bg-[var(--bg-surface)] p-6 ${
+                  highlight
+                    ? 'border-[var(--text-primary)]'
+                    : 'border-[var(--border-default)]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-[var(--text-primary)]">
+                    {t(PLAN_KEY[p])}
+                  </h3>
+                  {highlight && (
+                    <span className="rounded-full bg-[var(--white)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--bg-base)]">
+                      {t('popular')}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <span className="text-2xl font-light text-[var(--text-primary)]">
+                    {nf.format(def.priceIRR / 10)}
+                  </span>
+                  <span className="ms-1 text-xs text-[var(--text-muted)]">
+                    {t('tomanPerMonth')}
+                  </span>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    ≈ ${def.priceUSD} {t('cryptoPerMonth')}
+                  </p>
+                </div>
+                <ul className="mt-4 flex-1 space-y-2 text-sm text-[var(--text-secondary)]">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {t('featMessages', { count: nf.format(def.monthlyMessages) })}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {t('featAgents', { count: nf.format(def.maxAgents) })}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {t('featChannels')}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {t('featByok')}
+                  </li>
+                </ul>
+                <div className="mt-5">
+                  {isCurrent ? (
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-center text-sm text-emerald-600 dark:text-emerald-400">
+                      {t('currentPlanBadge')}
+                    </div>
+                  ) : (
+                    <PlanCheckout plan={p} labels={checkoutLabels} />
+                  )}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Usage */}
       <div>

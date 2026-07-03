@@ -13,7 +13,7 @@
 
 export const DEFAULT_MODEL = 'deepseek/deepseek-chat'
 
-export type ModelTier = 'economy' | 'balanced' | 'premium'
+export type ModelTier = 'free' | 'economy' | 'balanced' | 'premium'
 
 export interface AgentModel {
   /** OpenRouter model slug, e.g. "deepseek/deepseek-chat". */
@@ -34,6 +34,35 @@ export interface AgentModel {
 }
 
 export const AGENT_MODELS: AgentModel[] = [
+  // ─ Free tier: OpenRouter's no-cost models. Rate limits apply account-wide:
+  //   ~20 req/min and ~50 req/day (≈1000/day once the account holds $10+
+  //   credit) — fine for building/testing, not for production traffic.
+  {
+    id: 'deepseek/deepseek-chat-v3-0324:free',
+    name: 'DeepSeek V3 (رایگان)',
+    provider: 'DeepSeek',
+    tier: 'free',
+    quality: 4,
+    cost: 0,
+    goodForPersian: true,
+    descFa:
+      'کاملاً رایگان — بهترین کیفیت بین مدل‌های رایگان. محدودیت: ~۲۰ درخواست/دقیقه و ~۵۰ درخواست/روز (با شارژ ۱۰$ حساب، ~۱۰۰۰/روز). برای تست و شروع.',
+    descEn:
+      'Completely free — best quality of the free models. Limits: ~20 req/min, ~50 req/day (~1000/day once your account holds $10+). Great for testing.',
+  },
+  {
+    id: 'meta-llama/llama-3.3-70b-instruct:free',
+    name: 'Llama 3.3 70B (رایگان)',
+    provider: 'Meta',
+    tier: 'free',
+    quality: 3,
+    cost: 0,
+    goodForPersian: true,
+    descFa:
+      'رایگان — چندزبانهٔ قوی برای پاسخ‌های عمومی. همان محدودیت‌های نرخ مدل‌های رایگان را دارد.',
+    descEn:
+      'Free — a strong multilingual generalist. Same free-tier rate limits apply.',
+  },
   {
     id: 'deepseek/deepseek-chat',
     name: 'DeepSeek V3',

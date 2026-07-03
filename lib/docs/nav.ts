@@ -10,6 +10,7 @@ import {
         Headset,
         UserCheck,
         ShoppingCart,
+        KeyRound,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -33,6 +34,12 @@ export const DOCS_NAV: DocNavItem[] = [
                 href: '/docs/getting-started',
                 icon: Rocket,
                 title: { fa: 'شروع به کار', en: 'Getting started' },
+        },
+        {
+                slug: 'why-openrouter',
+                href: '/docs/why-openrouter',
+                icon: KeyRound,
+                title: { fa: 'چرا اپن‌روتر؟', en: 'Why OpenRouter?' },
         },
         {
                 slug: 'agents',

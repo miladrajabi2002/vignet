@@ -63,7 +63,11 @@ export async function POST(req: Request) {
   })
 
   if ('error' in result) {
-    return NextResponse.json({ error: result.error }, { status: 400 })
+    const status = result.error === 'PLAN_BLOCKED' ? 402 : 400
+    return NextResponse.json(
+      { error: result.error, ...('reason' in result ? { reason: result.reason } : {}) },
+      { status },
+    )
   }
 
   return new Response(result.stream, {

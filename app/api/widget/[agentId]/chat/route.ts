@@ -23,8 +23,28 @@ export async function POST(req: Request, { params }: Params) {
   const ip =
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon'
 
-  const allowed = await rateLimit(`widget:${params.agentId}:${ip}`, 20, 60)
+  // Public endpoint → fail closed if Redis is down (an open limiter here lets
+  // anyone drain the workspace's OpenRouter credit).
+  const allowed = await rateLimit(`widget:${params.agentId}:${ip}`, 20, 60, {
+    failClosed: true,
+  })
   if (!allowed) {
+    return NextResponse.json(
+      { error: 'RATE_LIMIT' },
+      { status: 429, headers: corsHeaders },
+    )
+  }
+
+  // Per-agent daily ceiling as a second abuse backstop (IP keys are spoofable
+  // behind some proxies). Configurable via WIDGET_DAILY_MESSAGE_CAP.
+  const dailyCap = Number(process.env.WIDGET_DAILY_MESSAGE_CAP || 1000)
+  const underDailyCap = await rateLimit(
+    `widget-daily:${params.agentId}`,
+    dailyCap,
+    86_400,
+    { failClosed: true },
+  )
+  if (!underDailyCap) {
     return NextResponse.json(
       { error: 'RATE_LIMIT' },
       { status: 429, headers: corsHeaders },
@@ -105,9 +125,10 @@ export async function POST(req: Request, { params }: Params) {
   })
 
   if ('error' in result) {
+    const status = result.error === 'PLAN_BLOCKED' ? 402 : 400
     return NextResponse.json(
       { error: result.error },
-      { status: 400, headers: corsHeaders },
+      { status, headers: corsHeaders },
     )
   }
 

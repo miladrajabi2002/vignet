@@ -10,6 +10,7 @@ import {
         Headset,
         UserCheck,
         ShoppingCart,
+        KeyRound,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -131,6 +132,70 @@ export const DOCS: DocPage[] = [
                                 type: 'p',
                                 fa: 'پس از ورود، یک چک‌لیست پنج‌مرحله‌ای شما را تا فعال‌سازی کامل ایجنت راهنمایی می‌کند: افزودن کلید، ساخت ایجنت، افزودن دانش یا محصول، اتصال یک کانال و تست ایجنت.',
                                 en: 'After signing in, a 5-step checklist guides you to a fully activated agent: add your key, create an agent, add knowledge or products, connect a channel, and test your agent.',
+                        },
+                ],
+        },
+        {
+                slug: 'why-openrouter',
+                icon: KeyRound,
+                title: { fa: 'چرا اپن‌روتر؟', en: 'Why OpenRouter?' },
+                description: {
+                        fa: 'چرا ویجنت از OpenRouter استفاده می‌کند و چطور شارژش کنید',
+                        en: 'Why Vigent is built on OpenRouter and how to top it up',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'اپن‌روتر (OpenRouter) یک درگاه واحد برای دسترسی به تمام مدل‌های هوش مصنوعی دنیاست: GPT، Claude، Gemini، DeepSeek، Llama و صدها مدل دیگر — همه با یک کلید و یک حساب. ویجنت به‌جای قفل‌کردن شما روی یک ارائه‌دهنده، از کلید اپن‌روترِ خودتان استفاده می‌کند تا کنترل کامل هزینه و انتخاب مدل دست شما باشد.',
+                                en: 'OpenRouter is a single gateway to virtually every AI model — GPT, Claude, Gemini, DeepSeek, Llama and hundreds more — behind one key and one account. Instead of locking you into a single provider, Vigent uses your own OpenRouter key so cost and model choice stay in your hands.',
+                        },
+                        { type: 'h2', fa: 'ارزان‌ترین راه مصرف هوش مصنوعی', en: 'The cheapest way to consume AI' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'پرداخت فقط به‌ازای مصرف — نه اشتراک ماهانه؛ هر توکن با بهترین قیمت بازار.',
+                                                en: 'Pure pay-as-you-go — no monthly subscription; every token at the best market price.',
+                                        },
+                                        {
+                                                fa: 'اپن‌روتر هر درخواست را به ارزان‌ترین ارائه‌دهندهٔ همان مدل مسیریابی می‌کند، پس همیشه بهینه‌ترین قیمت را می‌گیرید.',
+                                                en: 'OpenRouter routes each request to the cheapest provider serving that model, so you always get the best price automatically.',
+                                        },
+                                        {
+                                                fa: 'مدل‌های اقتصادی مثل DeepSeek کیفیت بالا را با کسری از هزینهٔ مدل‌های پرچم‌دار ارائه می‌دهند.',
+                                                en: 'Economy models like DeepSeek deliver high quality at a fraction of flagship pricing.',
+                                        },
+                                ],
+                        },
+                        { type: 'h2', fa: 'شارژ با ارز دیجیتال — بدون نیاز به کارت بین‌المللی', en: 'Top up with crypto — no international card needed' },
+                        {
+                                type: 'p',
+                                fa: 'حساب اپن‌روتر را می‌توانید مستقیماً با ارز دیجیتال (USDT، بیت‌کوین، اتریوم و…) شارژ کنید. یعنی برای کاربران ایرانی بدون نیاز به کارت اعتباری خارجی، در چند دقیقه اعتبار هوش مصنوعی دارید.',
+                                en: 'You can fund your OpenRouter balance directly with crypto (USDT, BTC, ETH, …) — no international credit card required. For users in Iran this means working AI credit in minutes.',
+                        },
+                        { type: 'h2', fa: 'مدل‌های رایگان', en: 'Free models' },
+                        {
+                                type: 'p',
+                                fa: 'اپن‌روتر تعدادی مدل کاملاً رایگان هم دارد (پسوند :free). برای شروع و تست ایجنت عالی‌اند، اما محدودیت نرخ دارند: حدود ۲۰ درخواست در دقیقه و ۵۰ درخواست در روز (با شارژ حداقل ۱۰ دلار، سقف روزانه به حدود ۱۰۰۰ درخواست می‌رسد). برای ترافیک واقعی مشتری، مدل‌های اقتصادی پولی مثل DeepSeek V3 را توصیه می‌کنیم.',
+                                en: 'OpenRouter also offers fully free models (the :free suffix). They are great for building and testing, but rate-limited: roughly 20 requests/minute and 50 requests/day (about 1,000/day once your account holds $10+ credit). For real customer traffic we recommend cheap paid models like DeepSeek V3.',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'DeepSeek V3 (رایگان) — بهترین کیفیت بین مدل‌های رایگان، فارسی خوب.',
+                                                en: 'DeepSeek V3 (free) — the best quality among free models, good Persian.',
+                                        },
+                                        {
+                                                fa: 'Llama 3.3 70B (رایگان) — چندزبانهٔ قوی برای پاسخ‌های عمومی.',
+                                                en: 'Llama 3.3 70B (free) — a strong multilingual generalist.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'در ویجنت، مدل‌های رایگان در فهرست انتخاب مدلِ ایجنت با برچسب «رایگان» مشخص شده‌اند — برای شروع یکی از همان‌ها را انتخاب کنید.',
+                                en: 'In Vigent, free models are tagged "Free" in the agent model picker — pick one of those to get started.',
                         },
                 ],
         },

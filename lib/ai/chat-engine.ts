@@ -15,6 +15,7 @@ import {
         identificationInstruction,
 } from '@/lib/ai/customer-identification'
 import { createHandoffAlert } from '@/lib/channels/operator-handoff'
+import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 
@@ -92,10 +93,15 @@ async function shouldHandoff(
                 )
                 if (hit) return { handoff: true, reason: `کلمه کلیدی: ${hit}` }
         }
-        const consecutiveFallbacks = await prisma.message.count({
-                where: { conversationId, role: 'ASSISTANT', unanswered: true },
+        // "Consecutive" means the *latest* 3 assistant replies were all fallbacks —
+        // a lifetime count would keep handing off forever after 3 early misses.
+        const recent = await prisma.message.findMany({
+                where: { conversationId, role: 'ASSISTANT' },
+                orderBy: { createdAt: 'desc' },
+                take: 3,
+                select: { unanswered: true },
         })
-        if (consecutiveFallbacks >= 3) {
+        if (recent.length === 3 && recent.every((m) => m.unanswered)) {
                 return { handoff: true, reason: 'پاسخ‌های متوالی ناموفق (۳ بار)' }
         }
         return { handoff: false, reason: '' }
@@ -131,6 +137,7 @@ function hydrateSystemPrompt(prompt: string, contactName?: string | null): strin
 
 export type StartChatResult =
         | { error: 'NO_KEY' }
+        | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; stream: ReadableStream<Uint8Array> }
 
 const HISTORY_LIMIT = 10
@@ -428,6 +435,10 @@ async function buildSystemPrompt(params: {
 export async function startChat(params: StartChatParams): Promise<StartChatResult> {
         const { workspaceId, agent, message } = params
 
+        // Plan gate: expired trial/subscription or exhausted monthly quota.
+        const gate = await checkChatAllowed(workspaceId)
+        if (!gate.allowed) return { error: 'PLAN_BLOCKED', reason: gate.reason }
+
         const key = await getWorkspaceOpenRouterKey(workspaceId)
         if (!key) return { error: 'NO_KEY' }
 
@@ -620,6 +631,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
 export type GenerateReplyResult =
         | { error: 'NO_KEY' }
+        | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; reply: string }
 
 /**
@@ -631,6 +643,12 @@ export async function generateReply(
         params: StartChatParams,
 ): Promise<GenerateReplyResult> {
         const { workspaceId, agent, message } = params
+
+        // Plan gate: expired trial/subscription or exhausted monthly quota.
+        // Messenger handlers skip errored results, so the agent simply goes
+        // silent instead of erroring at the end customer.
+        const gate = await checkChatAllowed(workspaceId)
+        if (!gate.allowed) return { error: 'PLAN_BLOCKED', reason: gate.reason }
 
         const key = await getWorkspaceOpenRouterKey(workspaceId)
         if (!key) return { error: 'NO_KEY' }

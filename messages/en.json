@@ -357,12 +357,13 @@
                         "quality": "Quality",
                         "cost": "Cost",
                         "advanced": "Enter a custom model (advanced)",
-                        "customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat"
+                        "customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat",
+                        "free": "Free"
                 }
         },
         "channels": {
                 "title": "Connections",
-                "subtitle": "Connect your agent to your messaging apps",
+                "subtitle": "Header subtitle",
                 "webWidget": "Web widget",
                 "widgetDesc": "Paste this code on your website to show the agent chat",
                 "enable": "Enable",
@@ -399,7 +400,6 @@
                 "saveError": "Save failed",
                 "noKeyWarning": "No AI key configured — the widget cannot reply and shows a \"Failed to get a response\" error.",
                 "noKeyCta": "Set API key",
-                "subtitle": "Header subtitle",
                 "subtitlePh": "e.g. Instant answers to your questions",
                 "icon": "Icon",
                 "corners": "Corners",
@@ -597,7 +597,25 @@
                 "planTrial": "Trial",
                 "planStarter": "Starter",
                 "planPro": "Pro",
-                "planBusiness": "Business"
+                "planBusiness": "Business",
+                "messagesUsed": "Messages used this month",
+                "quotaWarning": "You are close to your monthly message limit — upgrade to avoid interruption.",
+                "trialExpiredNotice": "Your trial has ended and agents are paused. Pick a plan to reactivate.",
+                "plans": "Plans",
+                "popular": "Most popular",
+                "tomanPerMonth": "Toman / month",
+                "cryptoPerMonth": "with crypto",
+                "payRial": "Pay in Rial",
+                "payCrypto": "Pay with crypto",
+                "paymentError": "Could not reach the payment gateway. Please try again.",
+                "paymentSuccess": "Payment successful — your plan is now active. 🎉",
+                "paymentFailed": "Payment failed. Nothing was charged (or it will be refunded within 72h).",
+                "paymentCancelled": "Payment was cancelled.",
+                "currentPlanBadge": "Your current plan",
+                "featMessages": "{count} messages / month",
+                "featAgents": "{count} agents",
+                "featChannels": "All channels (Telegram, WhatsApp, web widget, …)",
+                "featByok": "Bring your own OpenRouter key — no hidden AI costs"
         },
         "integrations": {
                 "title": "Integrations",
@@ -773,7 +791,12 @@
                 "hero": {
                         "badge": "VIGENT AI PLATFORM ✦",
                         "title": "Smart AI agents",
-                        "rotate": ["for sales", "for support", "for order tracking", "for your business"],
+                        "rotate": [
+                                "for sales",
+                                "for support",
+                                "for order tracking",
+                                "for your business"
+                        ],
                         "subtitle": "A salesperson that never sleeps: connected to your business data, replying to customers in seconds on your website, Telegram, WhatsApp and Instagram — consulting, selling, tracking orders and supporting.",
                         "ctaPrimary": "Start free — 14 days",
                         "ctaSecondary": "Watch demo",
@@ -989,7 +1012,10 @@
                                                                 "desc": "Pro running shoe with shock-absorbing sole and lightweight design",
                                                                 "initial": "P"
                                                         },
-                                                        "buttons": ["addToCart", "details"]
+                                                        "buttons": [
+                                                                "addToCart",
+                                                                "details"
+                                                        ]
                                                 },
                                                 {
                                                         "role": "user",
@@ -1009,7 +1035,9 @@
                                                         "role": "agent",
                                                         "text": "I heard you — reserved a pair of black size 42 for you. I'll hold it for 24 hours.",
                                                         "source": "voice",
-                                                        "buttons": ["reserve"]
+                                                        "buttons": [
+                                                                "reserve"
+                                                        ]
                                                 }
                                         ]
                                 },
@@ -1064,7 +1092,10 @@
                                                                 "desc": "M3 Pro chip, 18GB RAM, ideal for dev and design",
                                                                 "initial": "M"
                                                         },
-                                                        "buttons": ["specs", "compare"]
+                                                        "buttons": [
+                                                                "specs",
+                                                                "compare"
+                                                        ]
                                                 },
                                                 {
                                                         "role": "user",

@@ -44,6 +44,7 @@ model Workspace {
   operatorChannels  OperatorChannel[]
   storeIntegrations StoreIntegration[]
   handoffAlerts     HandoffAlert[]
+  payments          Payment[]
 
   @@index([slug])
 }
@@ -450,6 +451,42 @@ enum SubStatus {
   ACTIVE
   CANCELLED
   PAST_DUE
+}
+
+// ─── PAYMENT (gateway transactions: ZarinPay rial / NowPayments crypto) ──
+model Payment {
+  id          String        @id @default(cuid())
+  workspaceId String
+  gateway     PaymentGateway
+  plan        Plan
+  amount      Float // in `currency` units (IRR for ZarinPay, USD for NowPayments)
+  currency    String // 'IRR' | 'USD'
+  status      PaymentStatus @default(PENDING)
+  // Gateway handle used to verify: ZarinPay `authority`, NowPayments order/invoice id.
+  authority   String?       @unique
+  // Gateway-side transaction/payment id captured on verification.
+  externalId  String?
+  // Raw verify/IPN payload kept for dispute debugging.
+  callbackPayload Json?
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([status])
+}
+
+enum PaymentGateway {
+  ZARINPAY
+  NOWPAYMENTS
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
 }
 
 // ─── NOTIFICATION (in-app bell; may also fan out to email/SMS) ────────

@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, ChevronDown, Sparkles, Zap, Gem } from 'lucide-react'
+import { Check, ChevronDown, Sparkles, Zap, Gem, Gift } from 'lucide-react'
 import { AGENT_MODELS, DEFAULT_MODEL, type ModelTier } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 
 const TIER_ICON: Record<ModelTier, typeof Zap> = {
+  free: Gift,
   economy: Zap,
   balanced: Sparkles,
   premium: Gem,
@@ -89,6 +90,11 @@ export function ModelSelect({
                 {isDefault && (
                   <span className="rounded-md bg-[var(--white-10)] px-1.5 py-0.5 text-[10px] text-[var(--text-primary)]">
                     {t('default')}
+                  </span>
+                )}
+                {m.tier === 'free' && (
+                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                    {t('free')}
                   </span>
                 )}
                 <span

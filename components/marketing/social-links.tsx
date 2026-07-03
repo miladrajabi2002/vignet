@@ -45,9 +45,12 @@ export function TelegramIcon({ className }: { className?: string }) {
  *  - "inline"  → text+icon links for blog share bars
  */
 
+// URLs come from env (NEXT_PUBLIC_* is inlined at build time — redeploy to
+// apply a change); the literals are only fallbacks.
 const SOCIAL_URLS = {
-	instagram: 'https://instagram.com/vigent_ir',
-	telegram: 'https://t.me/vigent_ir',
+	instagram:
+		process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://instagram.com/vigent_ir',
+	telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || 'https://t.me/vigent_ir',
 } as const
 
 const SOCIAL_LABELS = {

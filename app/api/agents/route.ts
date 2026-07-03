@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentCreateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
+import { checkAgentCreateAllowed } from '@/lib/billing/entitlements'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -21,6 +22,11 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  // Plan gate: agent count is a per-plan limit.
+  if (!(await checkAgentCreateAllowed(user.workspaceId))) {
+    return NextResponse.json({ error: 'PLAN_LIMIT' }, { status: 402 })
+  }
 
   const json = await req.json().catch(() => null)
   const parsed = agentCreateSchema.safeParse(json)
