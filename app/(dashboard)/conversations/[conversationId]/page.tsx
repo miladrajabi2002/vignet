@@ -13,6 +13,7 @@ import {
         type HandoffAlertProp,
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
+import { stripProductTokens } from '@/lib/widget/config'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 
@@ -189,7 +190,9 @@ export default async function ConversationThreadPage(
                     {t('operatorBadge')}
                   </span>
                 )}
-                <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                <p className="whitespace-pre-wrap break-words">
+                  {stripProductTokens(m.content)}
+                </p>
                 <span
                   className={cn(
                     'mt-1 block text-[10px]',

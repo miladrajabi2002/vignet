@@ -11,6 +11,7 @@ export type WidgetTheme = 'dark' | 'light'
 export type WidgetPosition = 'right' | 'left'
 export type WidgetFont = 'vazirmatn' | 'samim' | 'yekan' | 'inherit'
 export type WidgetCorners = 'soft' | 'round' | 'sharp'
+export type WidgetHeaderStyle = 'flat' | 'gradient'
 
 /** Preset avatar/launcher icons (keys shared between loader.js + dashboard). */
 export const WIDGET_ICONS = ['chat', 'bot', 'headset', 'sparkles', 'bag', 'help'] as const
@@ -68,6 +69,16 @@ export interface WidgetSettings {
 	icon: WidgetIcon
 	/** Optional header subtitle/tagline (defaults to the online status text). */
 	subtitle: string | null
+	/**
+	 * Header treatment: 'flat' = neutral surface, 'gradient' = brand-color
+	 * gradient wash behind the header (bolder, more branded look).
+	 */
+	headerStyle: WidgetHeaderStyle
+	/**
+	 * Suggested questions shown as tappable chips on the empty/intro state.
+	 * Clicking one sends it as the visitor's first message. Max 4.
+	 */
+	quickReplies: string[]
 	/** Corner-radius style for the panel + bubbles (legacy preset; cornerRadius wins if set). */
 	corners: WidgetCorners
 	/** Continuous corner radius in px (0-30). When > 0, overrides `corners`. */
@@ -100,6 +111,8 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
 	font: 'vazirmatn',
 	icon: 'chat',
 	subtitle: null,
+	headerStyle: 'gradient',
+	quickReplies: [],
 	corners: 'soft',
 	cornerRadius: 0,
 	autoGreet: false,
@@ -153,6 +166,15 @@ export function normalizeWidgetSettings(raw: unknown): WidgetSettings {
 			? c.subtitle.trim().slice(0, 50)
 			: null
 
+	const headerStyle: WidgetHeaderStyle = c.headerStyle === 'flat' ? 'flat' : 'gradient'
+
+	const quickReplies = Array.isArray(c.quickReplies)
+		? c.quickReplies
+				.filter((q): q is string => typeof q === 'string' && !!q.trim())
+				.map((q) => q.trim().slice(0, 80))
+				.slice(0, 4)
+		: []
+
 	// cornerRadius — coerce to integer 0..30; 0 means "use preset corners".
 	let cornerRadius = DEFAULT_WIDGET_SETTINGS.cornerRadius
 	if (typeof c.cornerRadius === 'number' && Number.isFinite(c.cornerRadius)) {
@@ -182,6 +204,8 @@ export function normalizeWidgetSettings(raw: unknown): WidgetSettings {
 		font,
 		icon,
 		subtitle,
+		headerStyle,
+		quickReplies,
 		corners,
 		cornerRadius,
 		autoGreet: c.autoGreet === true,
@@ -259,6 +283,18 @@ export function resolveCornerRadii(s: Pick<WidgetSettings, 'corners' | 'cornerRa
 		default:
 			return { panel: 22, bubble: 17, input: 18 }
 	}
+}
+
+/**
+ * Strip machine-readable `[[product:{…}]]` card tokens from a persisted
+ * assistant message so dashboard/CRM views show clean text. The widget itself
+ * parses these tokens into rich product cards.
+ */
+export function stripProductTokens(content: string): string {
+	return content
+		.replace(/\[\[product:\{[\s\S]*?\}\]\]/g, '')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim()
 }
 
 /** Pick black/white text for legibility on a given hex background. */

@@ -16,6 +16,9 @@ import {
 	Sparkles,
 	Smartphone,
 	RotateCw,
+	Plus,
+	X,
+	MessageSquarePlus,
 } from 'lucide-react'
 import {
 	normalizeWidgetSettings,
@@ -26,6 +29,18 @@ import {
 	type WidgetFont,
 } from '@/lib/widget/config'
 import { WidgetPreview, WIDGET_ICON_COMPONENTS } from './widget-preview'
+
+/** Curated brand-color presets — one tap instead of fiddling with the picker. */
+const COLOR_PRESETS = [
+	'#0F0F10', // ink
+	'#2563EB', // blue
+	'#7C3AED', // violet
+	'#DB2777', // pink
+	'#E11D48', // rose
+	'#EA580C', // orange
+	'#16A34A', // green
+	'#0D9488', // teal
+]
 
 export function WebWidgetChannel({
 	agentId,
@@ -227,21 +242,56 @@ export function WebWidgetChannel({
 									</h4>
 
 									<Field label={t('brandColor')}>
-										<div className="flex items-center gap-2">
-											<input
-												type="color"
-												value={settings.primaryColor}
-												onChange={(e) => patch({ primaryColor: e.target.value })}
-												className="h-9 w-12 cursor-pointer rounded-lg border border-[var(--border-default)] bg-transparent p-1"
-											/>
-											<input
-												type="text"
-												dir="ltr"
-												value={settings.primaryColor}
-												onChange={(e) => patch({ primaryColor: e.target.value })}
-												className="w-28 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
-											/>
+										<div className="space-y-2">
+											<div className="flex flex-wrap items-center gap-1.5">
+												{COLOR_PRESETS.map((hex) => {
+													const active =
+														settings.primaryColor.toLowerCase() === hex.toLowerCase()
+													return (
+														<button
+															key={hex}
+															type="button"
+															onClick={() => patch({ primaryColor: hex })}
+															aria-label={hex}
+															className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${
+																active
+																	? 'ring-2 ring-[var(--white)] ring-offset-2 ring-offset-[var(--bg-surface)]'
+																	: ''
+															}`}
+															style={{ background: hex }}
+														/>
+													)
+												})}
+											</div>
+											<div className="flex items-center gap-2">
+												<input
+													type="color"
+													value={settings.primaryColor}
+													onChange={(e) => patch({ primaryColor: e.target.value })}
+													className="h-9 w-12 cursor-pointer rounded-lg border border-[var(--border-default)] bg-transparent p-1"
+												/>
+												<input
+													type="text"
+													dir="ltr"
+													value={settings.primaryColor}
+													onChange={(e) => patch({ primaryColor: e.target.value })}
+													className="w-28 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+												/>
+											</div>
 										</div>
+									</Field>
+
+									<Field label={t('headerStyle')}>
+										<Segmented
+											value={settings.headerStyle}
+											onChange={(v) =>
+												patch({ headerStyle: v as WidgetSettings['headerStyle'] })
+											}
+											options={[
+												{ value: 'gradient', label: t('headerStyleGradient') },
+												{ value: 'flat', label: t('headerStyleFlat') },
+											]}
+										/>
 									</Field>
 
 									{/* Theme + Position side-by-side (compact) */}
@@ -424,6 +474,65 @@ export function WebWidgetChannel({
 											/>
 										</Field>
 									)}
+
+									{/* Quick replies */}
+									<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
+										<div className="flex items-center gap-2">
+											<MessageSquarePlus className="h-4 w-4 text-[var(--text-secondary)]" />
+											<div className="flex-1">
+												<div className="text-sm text-[var(--text-primary)]">
+													{t('quickReplies')}
+												</div>
+												<div className="text-xs text-[var(--text-secondary)]">
+													{t('quickRepliesHint')}
+												</div>
+											</div>
+										</div>
+										<div className="mt-3 space-y-2">
+											{settings.quickReplies.map((q, i) => (
+												<div key={i} className="flex items-center gap-2">
+													<input
+														type="text"
+														value={q}
+														maxLength={80}
+														placeholder={t('quickRepliesPh')}
+														onChange={(e) => {
+															const next = [...settings.quickReplies]
+															next[i] = e.target.value
+															patch({ quickReplies: next })
+														}}
+														className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+													/>
+													<button
+														type="button"
+														aria-label={t('remove')}
+														onClick={() =>
+															patch({
+																quickReplies: settings.quickReplies.filter(
+																	(_, j) => j !== i,
+																),
+															})
+														}
+														className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
+													>
+														<X className="h-4 w-4" />
+													</button>
+												</div>
+											))}
+											{settings.quickReplies.length < 4 && (
+												<button
+													type="button"
+													onClick={() =>
+														patch({ quickReplies: [...settings.quickReplies, ''] })
+													}
+													className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+												>
+													<Plus className="h-3.5 w-3.5" />
+													{t('quickRepliesAdd')}
+												</button>
+											)}
+										</div>
+									</div>
 
 									{/* Lead capture */}
 									<Toggle

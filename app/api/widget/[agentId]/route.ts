@@ -37,6 +37,8 @@ export async function GET(_req: Request, props: Params) {
 			font: settings.font,
 			icon: settings.icon,
 			subtitle: settings.subtitle,
+			headerStyle: settings.headerStyle,
+			quickReplies: settings.quickReplies,
 			corners: settings.corners,
 			cornerRadius: settings.cornerRadius,
 			autoGreet: settings.autoGreet,

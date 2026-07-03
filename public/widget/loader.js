@@ -1,7 +1,8 @@
 /* Vigent Web Widget loader — embed with:
    <script src="https://your-domain/widget/loader.js" data-agent-id="AGENT_ID"></script>
-   Zero dependencies. Material / minimal. Themeable from the dashboard
-   (color, light/dark, position, font, icon, subtitle, corners, lead capture). */
+   Zero dependencies. Themeable from the dashboard (color, light/dark, position,
+   font, icon, subtitle, corners, header style, quick replies, lead capture).
+   Renders rich product cards from [[product:{…}]] tokens in the AI reply. */
 ;(function () {
 	'use strict'
 
@@ -44,11 +45,6 @@
 			/* localStorage may be unavailable (private mode); fail silently */
 		}
 	}
-	function clearStoredConv() {
-		try {
-			localStorage.removeItem(CONV_STORAGE_KEY)
-		} catch (e) {}
-	}
 
 	var conversationId = loadStoredConv()
 	var isOpen = false
@@ -69,6 +65,8 @@
 		font: 'vazirmatn',
 		icon: 'chat',
 		subtitle: null,
+		headerStyle: 'gradient',
+		quickReplies: [],
 		corners: 'soft',
 		cornerRadius: 0,
 		autoGreet: false,
@@ -108,6 +106,16 @@
 		var c = rgb(hex)
 		return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')'
 	}
+	/** Shift a hex color toward black (pct<0) or white (pct>0). pct in [-1,1]. */
+	function shade(hex, pct) {
+		var c = rgb(hex)
+		var target = pct < 0 ? 0 : 255
+		var p = Math.abs(pct)
+		function mix(v) {
+			return Math.round(v + (target - v) * p)
+		}
+		return 'rgb(' + mix(c.r) + ',' + mix(c.g) + ',' + mix(c.b) + ')'
+	}
 
 	// ---- Icons ----
 	var ICONS = {
@@ -123,6 +131,8 @@
 		send: '<path fill="currentColor" stroke="none" d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2z"/>',
 		phone:
 			'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+		box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+		arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
 	}
 	function svg(name, extraClass) {
 		return (
@@ -183,11 +193,12 @@
 			'.vgt-root.vgt-left{inset-inline-start:20px;}' +
 			'.vgt-root *{box-sizing:border-box;}' +
 			// launcher
-			'.vgt-launcher{display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
-			'border-radius:30px;background:var(--vgt-accent);color:var(--vgt-on-accent);box-shadow:0 12px 32px -8px var(--vgt-accent-shadow);' +
+			'.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
+			'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
+			'color:var(--vgt-on-accent);box-shadow:0 12px 32px -8px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
 			'font-family:var(--vgt-font);' +
 			'transition:transform .25s cubic-bezier(.34,1.5,.64,1),box-shadow .25s;}' +
-			'.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 18px 42px -10px var(--vgt-accent-shadow);}' +
+			'.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 18px 42px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
 			'.vgt-launcher:active{transform:scale(.95);}' +
 			'.vgt-launcher-ico{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;position:relative;}' +
 			'.vgt-launcher-ico svg{width:25px;height:25px;position:absolute;transition:transform .35s cubic-bezier(.34,1.5,.64,1),opacity .25s ease;}' +
@@ -200,53 +211,104 @@
 			'border:2px solid var(--vgt-accent);box-shadow:0 0 0 0 rgba(34,197,94,.55);' +
 			'animation:vgt-ping 2.4s cubic-bezier(.66,0,.34,1) infinite;}' +
 			// panel
-			'.vgt-panel{position:absolute;bottom:74px;width:384px;max-width:calc(100vw - 32px);height:600px;' +
+			'.vgt-panel{position:absolute;bottom:74px;width:392px;max-width:calc(100vw - 32px);height:620px;' +
 			'max-height:calc(100vh - 120px);display:flex;flex-direction:column;overflow:hidden;border-radius:var(--vgt-r-panel);' +
 			'background:var(--vgt-bg);color:var(--vgt-text);border:1px solid var(--vgt-border);' +
-			'box-shadow:0 28px 80px -18px rgba(0,0,0,.45),0 8px 24px -12px rgba(0,0,0,.3);' +
+			'box-shadow:0 32px 88px -20px rgba(0,0,0,.42),0 8px 24px -12px rgba(0,0,0,.28),0 0 0 1px rgba(0,0,0,.02);' +
 			'opacity:0;transform:translateY(14px) scale(.97);transform-origin:bottom right;pointer-events:none;' +
 			'transition:opacity .28s ease,transform .32s cubic-bezier(.34,1.28,.64,1);}' +
 			'.vgt-root.vgt-left .vgt-panel{transform-origin:bottom left;right:auto;left:0;}' +
 			'.vgt-root.vgt-right .vgt-panel{right:0;}' +
 			'.vgt-panel.vgt-show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}' +
-			// header
-			'.vgt-head{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--vgt-head-bg);' +
+			// header (flat)
+			'.vgt-head{position:relative;display:flex;align-items:center;gap:12px;padding:15px 16px;background:var(--vgt-head-bg);' +
 			'border-bottom:1px solid var(--vgt-border);}' +
-			'.vgt-ava{position:relative;width:40px;height:40px;flex:0 0 40px;border-radius:50%;display:flex;align-items:center;' +
+			'.vgt-ava{position:relative;width:42px;height:42px;flex:0 0 42px;border-radius:14px;display:flex;align-items:center;' +
 			'justify-content:center;background:var(--vgt-accent-soft);color:var(--vgt-accent);overflow:visible;}' +
-			'.vgt-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%;}' +
+			'.vgt-ava img{width:100%;height:100%;object-fit:cover;border-radius:14px;}' +
 			'.vgt-ava svg{width:22px;height:22px;}' +
-			'.vgt-ava-dot{position:absolute;bottom:-1px;inset-inline-end:-1px;width:11px;height:11px;border-radius:50%;' +
+			'.vgt-ava-dot{position:absolute;bottom:-2px;inset-inline-end:-2px;width:11px;height:11px;border-radius:50%;' +
 			'background:#22c55e;border:2px solid var(--vgt-head-bg);box-shadow:0 0 0 2px rgba(34,197,94,.3);' +
 			'animation:vgt-pulse 2.4s ease-in-out infinite;}' +
 			'.vgt-head-meta{flex:1;min-width:0;}' +
 			'.vgt-head-title{font-weight:700;font-size:15px;line-height:1.25;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
-			'.vgt-head-sub{font-size:12.5px;color:var(--vgt-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px;}' +
+			'.vgt-head-sub{font-size:12.5px;color:var(--vgt-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
 			'.vgt-close{background:transparent;border:none;color:var(--vgt-muted);cursor:pointer;padding:7px;border-radius:10px;' +
 			'display:flex;transition:background .15s,color .15s;}' +
 			'.vgt-close:hover{background:var(--vgt-surface);color:var(--vgt-text);}' +
 			'.vgt-close svg{width:18px;height:18px;}' +
+			// header (gradient / branded)
+			'.vgt-head.vgt-head-grad{background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);border-bottom:none;}' +
+			'.vgt-head.vgt-head-grad::after{content:"";position:absolute;inset:0;pointer-events:none;' +
+			'background:radial-gradient(120% 140% at 85% -20%,rgba(255,255,255,.22),transparent 55%);}' +
+			'.vgt-head.vgt-head-grad .vgt-head-title{color:var(--vgt-on-accent);}' +
+			'.vgt-head.vgt-head-grad .vgt-head-sub{color:var(--vgt-on-accent);opacity:.72;}' +
+			'.vgt-head.vgt-head-grad .vgt-ava{background:rgba(255,255,255,.16);color:var(--vgt-on-accent);' +
+			'box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);}' +
+			'.vgt-head.vgt-head-grad .vgt-ava-dot{border-color:var(--vgt-accent);}' +
+			'.vgt-head.vgt-head-grad .vgt-close{color:var(--vgt-on-accent);opacity:.75;z-index:1;}' +
+			'.vgt-head.vgt-head-grad .vgt-close:hover{background:rgba(255,255,255,.15);opacity:1;}' +
 			// body
 			'.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);}' +
 			'.vgt-body::-webkit-scrollbar{width:6px;}' +
 			'.vgt-body::-webkit-scrollbar-thumb{background:var(--vgt-border);border-radius:3px;}' +
-			'.vgt-msg{max-width:82%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-wrap:break-word;' +
+			'.vgt-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-wrap:break-word;' +
 			'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
-			'.vgt-msg.vgt-user{align-self:flex-end;background:var(--vgt-accent);color:var(--vgt-on-accent);border-bottom-right-radius:5px;' +
-			'box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
+			'.vgt-msg.vgt-user{align-self:flex-end;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
+			'color:var(--vgt-on-accent);border-bottom-right-radius:5px;box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
 			'.vgt-root.vgt-rtl .vgt-msg.vgt-user{border-bottom-right-radius:var(--vgt-r-bubble);border-bottom-left-radius:5px;}' +
 			'.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-surface);color:var(--vgt-text);border-bottom-left-radius:5px;}' +
 			'.vgt-root.vgt-rtl .vgt-msg.vgt-bot{border-bottom-left-radius:var(--vgt-r-bubble);border-bottom-right-radius:5px;}' +
 			'.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;}' +
+			// assistant group (chip + bubble + cards + actions)
+			'.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:7px;max-width:100%;}' +
+			'.vgt-group .vgt-msg{animation:none;max-width:84%;}' +
+			'.vgt-group:empty{display:none;}' +
+			// source chip ("از کاتالوگ محصول")
+			'.vgt-source{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;' +
+			'border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-muted);font-size:11px;font-weight:600;' +
+			'animation:vgt-in .3s ease both;}' +
+			'.vgt-source svg{width:12px;height:12px;}' +
+			// product card
+			'.vgt-card{width:min(300px,100%);overflow:hidden;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
+			'background:var(--vgt-bg);box-shadow:0 10px 30px -14px rgba(0,0,0,.22);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
+			'transition:transform .2s ease,box-shadow .2s ease;}' +
+			'.vgt-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px -14px rgba(0,0,0,.3);}' +
+			'.vgt-card-row{display:flex;align-items:center;gap:12px;padding:12px;}' +
+			'.vgt-card-thumb{width:58px;height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;' +
+			'border-radius:14px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
+			'color:var(--vgt-on-accent);font-size:24px;font-weight:700;box-shadow:0 6px 16px -6px var(--vgt-accent-shadow);}' +
+			'.vgt-card-main{flex:1;min-width:0;}' +
+			'.vgt-card-top{display:flex;align-items:center;gap:6px;min-width:0;}' +
+			'.vgt-card-name{font-size:13.5px;font-weight:700;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+			'.vgt-card-badge{flex:0 0 auto;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;' +
+			'color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);border:1px solid var(--vgt-accent-line);}' +
+			'.vgt-card-desc{margin-top:2px;font-size:11.5px;color:var(--vgt-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+			'.vgt-card-price{margin-top:5px;font-size:14px;font-weight:800;color:var(--vgt-text);}' +
+			// action chips under a bot reply
+			'.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
+			'.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
+			'background:var(--vgt-bg);color:var(--vgt-text);border-radius:999px;padding:7px 13px;font-family:inherit;' +
+			'font-size:12px;font-weight:600;transition:border-color .18s,background .18s,transform .15s;}' +
+			'.vgt-action:hover{border-color:var(--vgt-accent);color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);transform:translateY(-1px);}' +
+			'.vgt-action svg{width:12px;height:12px;}' +
+			'.vgt-root.vgt-rtl .vgt-action svg{transform:scaleX(-1);}' +
 			// intro
 			'.vgt-intro{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin:auto;padding:24px 12px;animation:vgt-in .35s ease both;}' +
-			'.vgt-intro-ava{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
-			'background:var(--vgt-accent-soft);color:var(--vgt-accent);animation:vgt-float 4s ease-in-out infinite;}' +
+			'.vgt-intro-ava{width:64px;height:64px;border-radius:22px;display:flex;align-items:center;justify-content:center;' +
+			'background:linear-gradient(135deg,var(--vgt-accent-soft) 0%,transparent 140%);color:var(--vgt-accent);' +
+			'box-shadow:inset 0 0 0 1px var(--vgt-accent-line);animation:vgt-float 4s ease-in-out infinite;}' +
 			'.vgt-intro-ava svg{width:32px;height:32px;}' +
-			'.vgt-intro-text{font-size:15.5px;font-weight:500;line-height:1.6;color:var(--vgt-text);max-width:280px;}' +
+			'.vgt-intro-text{font-size:15.5px;font-weight:500;line-height:1.6;color:var(--vgt-text);max-width:290px;}' +
+			// quick replies
+			'.vgt-qr{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:300px;}' +
+			'.vgt-qr .vgt-action{animation:vgt-in .35s ease both;}' +
+			'.vgt-qr .vgt-action:nth-child(2){animation-delay:.06s;}' +
+			'.vgt-qr .vgt-action:nth-child(3){animation-delay:.12s;}' +
+			'.vgt-qr .vgt-action:nth-child(4){animation-delay:.18s;}' +
 			// lead capture
 			'.vgt-lead{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin:auto;padding:24px 18px;animation:vgt-in .35s ease both;}' +
-			'.vgt-lead-ava{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+			'.vgt-lead-ava{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;' +
 			'background:var(--vgt-accent-soft);color:var(--vgt-accent);}' +
 			'.vgt-lead-ava svg{width:28px;height:28px;}' +
 			'.vgt-lead-text{font-size:14px;line-height:1.7;color:var(--vgt-text);max-width:280px;}' +
@@ -255,7 +317,8 @@
 			'border-radius:var(--vgt-r-input);padding:11px 14px;font-family:inherit;font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s;' +
 			'text-align:center;direction:ltr;}' +
 			'.vgt-lead-input:focus{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);}' +
-			'.vgt-lead-btn{border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:11px;background:var(--vgt-accent);' +
+			'.vgt-lead-btn{border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:11px;' +
+			'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
 			'color:var(--vgt-on-accent);font-family:inherit;font-size:14px;font-weight:600;transition:transform .15s,opacity .15s;' +
 			'box-shadow:0 6px 18px -6px var(--vgt-accent-shadow);}' +
 			'.vgt-lead-btn:hover{transform:translateY(-1px);}.vgt-lead-btn:active{transform:translateY(0);}' +
@@ -264,7 +327,7 @@
 			'.vgt-lead-skip:hover{color:var(--vgt-text);}' +
 			// typing
 			'.vgt-typing{display:flex!important;flex-direction:row!important;gap:4px;align-items:center;padding:14px 16px;}' +
-			'.vgt-typing span{width:7px;height:7px;border-radius:50%;background:var(--vgt-muted);animation:vgt-bounce 1.2s infinite;}' +
+			'.vgt-typing span{width:7px;height:7px;border-radius:50%;background:var(--vgt-accent);opacity:.7;animation:vgt-bounce 1.2s infinite;}' +
 			'.vgt-typing span:nth-child(2){animation-delay:.18s;}.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
 			// input
 			'.vgt-foot{padding:12px 14px 10px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
@@ -274,7 +337,8 @@
 			'.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
 			'font-size:14.5px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
 			'.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
-			'.vgt-send{flex:0 0 40px;width:40px;height:40px;border:none;cursor:pointer;border-radius:50%;background:var(--vgt-accent);' +
+			'.vgt-send{flex:0 0 40px;width:40px;height:40px;border:none;cursor:pointer;border-radius:50%;' +
+			'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
 			'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;' +
 			'transition:transform .2s cubic-bezier(.34,1.5,.64,1),opacity .15s,box-shadow .2s;' +
 			'box-shadow:0 6px 16px -4px var(--vgt-accent-shadow);}' +
@@ -300,12 +364,14 @@
 			'.vgt-teaser-x svg{width:11px;height:11px;}' +
 			// keyframes
 			'@keyframes vgt-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}' +
+			'@keyframes vgt-card-in{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}' +
 			'@keyframes vgt-teaser-in{from{opacity:0;transform:translateY(12px) scale(.92);}to{opacity:1;transform:translateY(0) scale(1);}}' +
 			'@keyframes vgt-bounce{0%,60%,100%{transform:translateY(0);opacity:.5;}30%{transform:translateY(-5px);opacity:1;}}' +
 			'@keyframes vgt-ping{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}' +
 			'@keyframes vgt-pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.3);}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1);}}' +
 			'@keyframes vgt-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}' +
-			'@media (max-width:480px){.vgt-panel{width:calc(100vw - 24px);height:calc(100vh - 100px);}}'
+			'@media (max-width:480px){.vgt-panel{width:calc(100vw - 24px);height:calc(100vh - 100px);}}' +
+			'@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
 		var st = document.createElement('style')
 		st.id = 'vgt-styles'
 		st.textContent = css
@@ -384,10 +450,21 @@
 	function applyConfig() {
 		var dark = config.theme !== 'light'
 		var accent = config.primaryColor || '#0F0F10'
+		var onAccent = contrast(accent)
 		var s = root.style
 		s.setProperty('--vgt-accent', accent)
-		s.setProperty('--vgt-on-accent', contrast(accent))
+		s.setProperty('--vgt-accent-deep', shade(accent, -0.22))
+		s.setProperty('--vgt-on-accent', onAccent)
 		s.setProperty('--vgt-accent-soft', soft(accent, 0.13))
+		s.setProperty('--vgt-accent-line', soft(accent, 0.3))
+		// Accent used as *text/ink* on the panel surface: a very light accent on the
+		// light theme (or very dark accent on the dark theme) is illegible — fall
+		// back to the regular text color in that case.
+		var accentIsLight = contrast(accent) === '#000000'
+		s.setProperty(
+			'--vgt-accent-ink',
+			dark ? (accentIsLight ? accent : '#f3f4f6') : accentIsLight ? '#1a1a1e' : accent,
+		)
 		s.setProperty('--vgt-accent-shadow', soft(accent, dark ? 0.5 : 0.4))
 		s.setProperty('--vgt-bg', dark ? '#0e0e11' : '#ffffff')
 		s.setProperty('--vgt-head-bg', dark ? '#161619' : '#fbfbfc')
@@ -407,10 +484,11 @@
 		root.classList.toggle('vgt-rtl', isRtl())
 		panel.setAttribute('dir', isRtl() ? 'rtl' : 'ltr')
 
+		head.classList.toggle('vgt-head-grad', config.headerStyle === 'gradient')
+
 		headTitle.textContent = config.name || 'Vigent'
-		headSub.innerHTML = ''
 		var dot = el('span', 'vgt-ava-dot')
-		headSub.textContent = config.subtitle || t('آنلاین', 'Online')
+		headSub.textContent = config.subtitle || t('آنلاین — پاسخ فوری', 'Online — instant replies')
 		ava.innerHTML = ''
 		if (config.avatar) {
 			var img = el('img')
@@ -442,7 +520,8 @@
 	// ---- Intro / empty state ----
 	function renderIntro() {
 		if (introVisible) return
-		if (!config.welcomeMessage) return
+		var hasQr = config.quickReplies && config.quickReplies.length > 0
+		if (!config.welcomeMessage && !hasQr) return
 		introVisible = true
 		var intro = el('div', 'vgt-intro')
 		intro.appendChild(el('div', 'vgt-intro-ava', svg(iconKey())))
@@ -450,6 +529,19 @@
 			var txt = el('div', 'vgt-intro-text')
 			txt.textContent = config.welcomeMessage
 			intro.appendChild(txt)
+		}
+		if (hasQr) {
+			var qr = el('div', 'vgt-qr')
+			config.quickReplies.forEach(function (q) {
+				var chip = el('button', 'vgt-action')
+				chip.type = 'button'
+				chip.textContent = q
+				chip.addEventListener('click', function () {
+					send(q)
+				})
+				qr.appendChild(chip)
+			})
+			intro.appendChild(qr)
 		}
 		intro.setAttribute('data-vgt-intro', '1')
 		body.appendChild(intro)
@@ -555,6 +647,149 @@
 		sendBtn.disabled = on
 	}
 
+	// ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
+	var PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
+
+	/** Split a raw assistant string into visible text + parsed product cards,
+	    holding back a trailing partial token while streaming. */
+	function parseAssistant(raw, done) {
+		var cards = []
+		var text = raw.replace(PRODUCT_TOKEN, function (m, json) {
+			try {
+				var p = JSON.parse(json)
+				if (p && typeof p.name === 'string' && p.name) {
+					cards.push({
+						name: String(p.name).slice(0, 80),
+						price: p.price != null ? String(p.price).slice(0, 40) : '',
+						desc: p.desc != null ? String(p.desc).slice(0, 90) : '',
+						badge: p.badge != null ? String(p.badge).slice(0, 20) : '',
+					})
+				}
+			} catch (e) {
+				/* malformed token — drop it silently */
+			}
+			return ''
+		})
+		// While streaming, hold back an unterminated trailing token so it never
+		// flashes as raw text; once done, whatever remains is real text.
+		if (!done) {
+			var tail = text.lastIndexOf('[[')
+			if (tail !== -1 && text.indexOf(']]', tail) === -1) {
+				text = text.slice(0, tail)
+			}
+		}
+		return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards }
+	}
+
+	function renderCard(p) {
+		var card = el('div', 'vgt-card')
+		var row = el('div', 'vgt-card-row')
+		var initial = (p.name || '؟').trim().charAt(0)
+		row.appendChild(el('div', 'vgt-card-thumb', '')).textContent = initial
+		var main = el('div', 'vgt-card-main')
+		var top = el('div', 'vgt-card-top')
+		var name = el('div', 'vgt-card-name')
+		name.textContent = p.name
+		top.appendChild(name)
+		if (p.badge) {
+			var badge = el('span', 'vgt-card-badge')
+			badge.textContent = p.badge
+			top.appendChild(badge)
+		}
+		main.appendChild(top)
+		if (p.desc) {
+			var desc = el('div', 'vgt-card-desc')
+			desc.textContent = p.desc
+			main.appendChild(desc)
+		}
+		if (p.price) {
+			var price = el('div', 'vgt-card-price')
+			price.textContent = p.price
+			main.appendChild(price)
+		}
+		row.appendChild(main)
+		card.appendChild(row)
+		return card
+	}
+
+	function actionChip(label, message) {
+		var btn = el('button', 'vgt-action', svg('arrow'))
+		btn.type = 'button'
+		var span = document.createElement('span')
+		span.textContent = label
+		btn.insertBefore(span, btn.firstChild)
+		btn.addEventListener('click', function () {
+			send(message)
+		})
+		return btn
+	}
+
+	/**
+	 * (Re)render one assistant turn from its raw streamed text into `group`:
+	 * source chip (catalog) + text bubble + product cards + action chips.
+	 * Called on every delta — cheap because it only appends what's new.
+	 */
+	function renderAssistantGroup(group, raw, done) {
+		var parsed = parseAssistant(raw, done)
+
+		// text bubble
+		var msg = group.querySelector('.vgt-msg')
+		if (parsed.text) {
+			if (!msg) {
+				msg = el('div', 'vgt-msg vgt-bot')
+				group.appendChild(msg)
+			}
+			if (msg.textContent !== parsed.text) msg.textContent = parsed.text
+		}
+
+		// source chip — appears once the first card is complete
+		if (parsed.cards.length > 0 && !group.querySelector('.vgt-source')) {
+			var chip = el(
+				'div',
+				'vgt-source',
+				svg('box') + '<span>' + '</span>',
+			)
+			chip.querySelector('span').textContent = t('از کاتالوگ محصول', 'From the product catalog')
+			group.insertBefore(chip, group.firstChild)
+		}
+
+		// cards — append only new ones (already-rendered count tracked on the node)
+		var rendered = Number(group.getAttribute('data-cards') || 0)
+		for (var i = rendered; i < parsed.cards.length; i++) {
+			group.appendChild(renderCard(parsed.cards[i]))
+		}
+		if (parsed.cards.length !== rendered) {
+			group.setAttribute('data-cards', String(parsed.cards.length))
+		}
+
+		// action chips — once, after streaming finished, for the first card
+		if (done && parsed.cards.length > 0 && !group.querySelector('.vgt-actions')) {
+			var name = parsed.cards[0].name
+			var actions = el('div', 'vgt-actions')
+			actions.appendChild(
+				actionChip(
+					t('دیدن مشخصات', 'View specs'),
+					t('مشخصات کامل «' + name + '» را بگو', 'Show me the full specs of "' + name + '"'),
+				),
+			)
+			actions.appendChild(
+				actionChip(
+					t('مقایسه', 'Compare'),
+					t(
+						'«' + name + '» را با گزینه‌های مشابه مقایسه کن',
+						'Compare "' + name + '" with similar options',
+					),
+				),
+			)
+			actions.appendChild(
+				actionChip(t('موجودیه؟', 'In stock?'), t('موجودی «' + name + '» چطوره؟', 'Is "' + name + '" in stock?')),
+			)
+			group.appendChild(actions)
+		}
+
+		scrollDown()
+	}
+
 	function errorText(code) {
 		if (code === 'NO_KEY')
 			return t(
@@ -588,8 +823,17 @@
 		bubble('user', text)
 		setStreaming(true)
 		var typing = showTyping()
-		var assistant = null
-		var replied = false
+		var group = null
+		var raw = ''
+
+		function ensureGroup() {
+			if (!group) {
+				if (typing.parentNode) typing.remove()
+				group = el('div', 'vgt-group')
+				body.appendChild(group)
+			}
+			return group
+		}
 
 		var payload = { message: text }
 		if (conversationId) payload.conversationId = conversationId
@@ -617,6 +861,7 @@
 				function pump() {
 					return reader.read().then(function (r) {
 						if (r.done) {
+							if (group) renderAssistantGroup(group, raw, true)
 							setStreaming(false)
 							return
 						}
@@ -634,15 +879,11 @@
 										saveStoredConv(conversationId)
 									}
 								} else if (evt.type === 'delta') {
-									if (typing.parentNode) typing.remove()
-									if (!assistant) assistant = bubble('assistant', '')
-									assistant.textContent += evt.text
-									scrollDown()
+									raw += evt.text
+									renderAssistantGroup(ensureGroup(), raw, false)
 								} else if (evt.type === 'done') {
-									if (!replied) {
-										replied = true
-									}
-								} else if (evt.type === 'error' && !assistant) {
+									if (group) renderAssistantGroup(group, raw, true)
+								} else if (evt.type === 'error' && !group) {
 									if (typing.parentNode) typing.remove()
 									bubble('error', errorText(evt.error))
 								}

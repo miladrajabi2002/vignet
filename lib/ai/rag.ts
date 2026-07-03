@@ -116,6 +116,12 @@ export function buildMessages(params: {
   catalogProducts: CatalogProduct[]
   history: ChatMessage[]
   userMessage: string
+  /**
+   * When true (web widget only), instruct the model to emit machine-readable
+   * `[[product:{…}]]` tokens when recommending catalog products so the widget
+   * can render rich product cards. Text-only channels must NOT set this.
+   */
+  richCards?: boolean
 }): ChatMessage[] {
   const isFa = params.language === 'fa'
 
@@ -130,6 +136,16 @@ export function buildMessages(params: {
 
   const catalogBlock = buildCatalogBlock(params.catalogProducts, isFa)
 
+  // Rich product cards (web widget only): teach the model the [[product:{…}]]
+  // token so the widget can render a real card (name/price/desc/badge) with
+  // action buttons instead of a plain text blob.
+  const cardInstruction =
+    params.richCards && params.catalogProducts.length > 0
+      ? isFa
+        ? `\n\nنمایش کارت محصول: هرگاه یک یا دو محصول مشخص از کاتالوگ را فعالانه پیشنهاد یا معرفی می‌کنی، بعد از متن پاسخ، برای هر محصول یک خط جداگانه دقیقاً با این قالب اضافه کن:\n[[product:{"name":"نام دقیق محصول","price":"قیمت دقیقاً مطابق کاتالوگ","desc":"خلاصه یک‌خطی حداکثر ۶۰ کاراکتر","badge":"پیشنهاد"}]]\nقوانین: JSON معتبر و تک‌خطی؛ فقط محصولاتی که واقعاً در کاتالوگ هستند؛ حداکثر ۲ کارت در هر پیام؛ badge اختیاری است (مثل «پیشنهاد» یا «پرفروش»)؛ برای سلام‌واحوال‌پرسی یا پاسخ‌های عمومی از این قالب استفاده نکن؛ هرگز این قالب را برای کاربر توضیح نده و نام محصول را در متن قبلش تکرار نکن مگر لازم باشد.`
+        : `\n\nProduct cards: whenever you actively recommend or present one or two specific catalog products, append one line per product after your reply text, exactly in this format:\n[[product:{"name":"exact product name","price":"price exactly as in the catalog","desc":"one-line summary, max 60 chars","badge":"Recommended"}]]\nRules: valid single-line JSON; only products that truly exist in the catalog; max 2 cards per message; badge is optional; do not use this for greetings or generic answers; never explain this format to the user.`
+      : ''
+
   // Instruction hierarchy: retrieved chunks are *data*, never instructions.
   // The <knowledge> fence + explicit note blunts injection attempts hidden in
   // crawled pages / uploaded documents.
@@ -141,7 +157,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${contextBlock}`,
+    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${cardInstruction}${contextBlock}`,
   }
 
   return [

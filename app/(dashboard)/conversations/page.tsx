@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { relativeTime } from '@/lib/format'
+import { stripProductTokens } from '@/lib/widget/config'
 import { Pagination } from '@/components/ui/pagination'
 
 const PAGE_SIZE = 50
@@ -88,7 +89,7 @@ export default async function ConversationsPage(
                   </div>
                   <p className="truncate text-xs text-[var(--text-secondary)]">
                     {last
-                      ? `${last.role === 'ASSISTANT' ? '↩ ' : ''}${last.content}`
+                      ? `${last.role === 'ASSISTANT' ? '↩ ' : ''}${stripProductTokens(last.content)}`
                       : c.agent.name}
                   </p>
                 </div>

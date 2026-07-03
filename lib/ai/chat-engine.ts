@@ -226,6 +226,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                 catalogProducts,
                 history,
                 userMessage: message,
+                // Rich [[product:{…}]] cards are only renderable by the web widget.
+                richCards: params.channel === 'WEB_WIDGET',
         })
 
         return {
