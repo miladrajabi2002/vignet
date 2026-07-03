@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import type { Node, Edge } from '@xyflow/react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { FlowEditor } from '@/components/agent-builder/flow-editor'
+import { FlowEditor } from '@/components/agent-builder/flow-editor-lazy'
 
 export default async function AgentBuilderPage(
   props: {

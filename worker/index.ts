@@ -5,6 +5,7 @@ import { processIngestion } from '@/lib/knowledge/ingest'
 import { processProductEmbed } from '@/lib/products/catalog'
 import { processSummary } from '@/lib/conversations/summary'
 import { processNotification } from '@/lib/notifications/notify'
+import { handleInbound } from '@/lib/channels/handler'
 import { startScheduler } from '@/worker/scheduler'
 
 /**
@@ -51,11 +52,27 @@ const notificationWorker = new Worker(
   { connection, concurrency: 4 },
 )
 
+const inboundWorker = new Worker(
+  QUEUE_NAMES.inboundMessage,
+  async (job) => {
+    console.log(`[worker] inbound-message job ${job.id}`)
+    const { type, token, body } = job.data as {
+      type: Parameters<typeof handleInbound>[0]
+      token: string
+      body: unknown
+    }
+    await handleInbound(type, token, body)
+  },
+  // Each job may hold an LLM round-trip — allow real parallelism.
+  { connection, concurrency: 8 },
+)
+
 for (const [name, w] of [
   ['ingestion', ingestionWorker],
   ['product-embed', productWorker],
   ['summary', summaryWorker],
   ['notifications', notificationWorker],
+  ['inbound-message', inboundWorker],
 ] as const) {
   w.on('failed', (job, err) =>
     console.error(`[worker:${name}] job ${job?.id} failed:`, err.message),
@@ -74,6 +91,7 @@ async function shutdown() {
     productWorker.close(),
     summaryWorker.close(),
     notificationWorker.close(),
+    inboundWorker.close(),
   ])
   process.exit(0)
 }

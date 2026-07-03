@@ -162,7 +162,10 @@
                                 "desc": "Start your first conversation with your agent",
                                 "cta": "Test agent"
                         }
-                }
+                },
+                "railTitle": "Set up your agent",
+                "railStep": "Step {step} of {total}",
+                "railCta": "Continue setup"
         },
         "settings": {
                 "title": "Settings",
@@ -512,7 +515,8 @@
                 "connectedOn": "connected",
                 "resolveAlert": "Resolve alert",
                 "replyHere": "This customer is reachable on the connected channels above — write your reply here.",
-                "alertResolved": "This alert has been resolved"
+                "alertResolved": "This alert has been resolved",
+                "emptyCta": "Connect your first channel"
         },
         "operatorChannel": {
                 "title": "Operator Telegram bot",

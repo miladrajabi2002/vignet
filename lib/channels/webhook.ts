@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { handleInbound } from '@/lib/channels/handler'
+import { dispatchInbound } from '@/lib/queue/jobs'
 import type { MessengerType } from '@/lib/channels/registry'
 import { rateLimit } from '@/lib/ratelimit'
 import { captureError } from '@/lib/errors/capture'
@@ -29,8 +29,9 @@ export async function handleWebhookRequest(
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ ok: true })
 
-  // Process after responding. We intentionally don't await the work.
-  void handleInbound(type, token, body).catch((e) =>
+  // Process after responding: durable BullMQ job when the queue is up
+  // (survives restarts, runs in the worker), inline fire-and-forget otherwise.
+  void dispatchInbound({ type, token, body }).catch((e) =>
     captureError(`webhook:${type}:processing`, e),
   )
 

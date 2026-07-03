@@ -14,11 +14,11 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
+import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
   ConversationChart,
-  type TrendPoint,
-} from '@/components/dashboard/charts/conversation-chart'
-import { ChannelDonut } from '@/components/dashboard/charts/channel-donut'
+  ChannelDonut,
+} from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 

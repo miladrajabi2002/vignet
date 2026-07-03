@@ -57,6 +57,12 @@ export default async function ConversationsPage(
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
           <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
           <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
+          <Link
+            href="/integrations"
+            className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+          >
+            {t('emptyCta')}
+          </Link>
         </div>
       ) : (
         <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">

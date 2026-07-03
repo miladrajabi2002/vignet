@@ -5,6 +5,12 @@ import type { ProductEmbedJobData } from '@/lib/products/catalog'
 import type { SummaryJobData } from '@/lib/conversations/summary'
 import type { NotificationJobData } from '@/lib/notifications/notify'
 
+export interface InboundMessageJobData {
+  type: string
+  token: string
+  body: unknown
+}
+
 // Lazily-created Queue singletons (bullmq is imported dynamically to keep it
 // out of the edge/runtime bundle until actually needed).
 const queues = new Map<string, Queue>()
@@ -118,5 +124,36 @@ function runInlineNotification(data: NotificationJobData): void {
     processNotification(data).catch((e) =>
       console.error('[queue] inline notification failed:', e),
     ),
+  )
+}
+
+/**
+ * Enqueue an inbound messenger webhook update for durable processing in the
+ * worker (LLM reply generation off the web process; survives restarts and
+ * gets 2 attempts). Falls back to inline fire-and-forget processing when the
+ * queue is disabled/unavailable so dev works without a worker.
+ */
+export async function dispatchInbound(data: InboundMessageJobData): Promise<void> {
+  if (isQueueDisabled()) return runInlineInbound(data)
+  try {
+    const q = await getQueue(QUEUE_NAMES.inboundMessage)
+    await q.add('inbound', data, {
+      removeOnComplete: true,
+      removeOnFail: 50,
+      attempts: 2,
+    })
+  } catch (e) {
+    console.warn('[queue] inbound enqueue failed, running inline:', e)
+    return runInlineInbound(data)
+  }
+}
+
+function runInlineInbound(data: InboundMessageJobData): void {
+  void import('@/lib/channels/handler').then(({ handleInbound }) =>
+    handleInbound(
+      data.type as Parameters<typeof handleInbound>[0],
+      data.token,
+      data.body,
+    ).catch((e) => console.error('[queue] inline inbound failed:', e)),
   )
 }

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
 import { requireUser } from '@/lib/session'
+import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
+import { OnboardingRail } from '@/components/dashboard/onboarding-rail'
 
 export default async function DashboardLayout({
   children,
@@ -9,6 +11,14 @@ export default async function DashboardLayout({
   children: ReactNode
 }) {
   const user = await requireUser()
+
+  // Persisted onboarding progress (kept fresh by syncOnboarding) — one cheap
+  // indexed read, deliberately NOT the live recompute.
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { onboardingStep: true, onboardingCompleted: true },
+  })
+  const showRail = workspace ? !workspace.onboardingCompleted : false
 
   // NOTE: We intentionally do NOT force-redirect new users to /onboarding here.
   // A layout-level redirect() fires on every navigation — including soft
@@ -23,6 +33,7 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header name={user.name} />
+        {showRail && <OnboardingRail step={workspace?.onboardingStep ?? 0} />}
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>

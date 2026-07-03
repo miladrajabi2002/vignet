@@ -70,18 +70,25 @@ export async function retrieveChunks(params: {
   // Pull a slightly larger candidate set so the recency re-rank has headroom.
   const candidateLimit = Math.max(limit * 3, limit + 5)
 
-  const rows = await prisma.$queryRaw<RetrievedChunk[]>`
-    SELECT kc.id, kc.content, kc.metadata,
-           1 - (kc.embedding <=> ${literal}::vector) AS similarity,
-           kb."lastIngestedAt" AS "kbLastIngestedAt"
-    FROM "KnowledgeChunk" kc
-    LEFT JOIN "KnowledgeBase" kb ON kb.id = kc."kbId"
-    WHERE kc."workspaceId" = ${params.workspaceId}
-      AND kc."agentId" = ${params.agentId}
-      AND kc.embedding IS NOT NULL
-    ORDER BY kc.embedding <=> ${literal}::vector
-    LIMIT ${candidateLimit}
-  `
+  // The workspace/agent WHERE filter is applied *after* the HNSW scan, so for
+  // small tenants the default ef_search (40) can return too few (or zero)
+  // rows even when matches exist. Raise it for this query only (SET LOCAL is
+  // transaction-scoped).
+  const rows = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SET LOCAL hnsw.ef_search = 120`
+    return tx.$queryRaw<RetrievedChunk[]>`
+      SELECT kc.id, kc.content, kc.metadata,
+             1 - (kc.embedding <=> ${literal}::vector) AS similarity,
+             kb."lastIngestedAt" AS "kbLastIngestedAt"
+      FROM "KnowledgeChunk" kc
+      LEFT JOIN "KnowledgeBase" kb ON kb.id = kc."kbId"
+      WHERE kc."workspaceId" = ${params.workspaceId}
+        AND kc."agentId" = ${params.agentId}
+        AND kc.embedding IS NOT NULL
+      ORDER BY kc.embedding <=> ${literal}::vector
+      LIMIT ${candidateLimit}
+    `
+  })
 
   // Re-rank with a recency boost for URL KBs.
   const RECENT_BOOST_MAX = 0.05

@@ -19,15 +19,15 @@ import { StatsCard } from '@/components/dashboard/stats-card'
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { computeOnboarding } from '@/lib/onboarding'
+import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
-        ConversationChart,
-        type TrendPoint,
-} from '@/components/dashboard/charts/conversation-chart'
-import { ChannelDonut } from '@/components/dashboard/charts/channel-donut'
+	ConversationChart,
+	ChannelDonut,
+	SatisfactionGauge,
+	AgentSparkline,
+} from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
-import { SatisfactionGauge } from '@/components/dashboard/charts/satisfaction-gauge'
 import { HourlyHeatmap } from '@/components/dashboard/charts/hourly-heatmap'
-import { AgentSparkline } from '@/components/dashboard/charts/agent-sparkline'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 
 const DAYS = 14

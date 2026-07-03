@@ -203,12 +203,45 @@ async function runKnowledgeRefresh(): Promise<void> {
 	}
 }
 
+// ─── data retention cleanup ─────────────────────────────────────────────────
+
+const CLEANUP_INTERVAL_MS = 24 * HOUR_MS
+const RETENTION_DAYS = 30
+
+/**
+ * Prune unbounded audit tables daily: OTP logs, error logs and store sync logs
+ * older than RETENTION_DAYS. Keeps these tables from growing forever (OTPLog
+ * gets a row per login attempt, ErrorLog per captured error).
+ */
+async function cleanupOldRecords(): Promise<void> {
+	const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * HOUR_MS)
+	const [otp, errors, syncLogs] = await Promise.all([
+		prisma.oTPLog.deleteMany({ where: { sentAt: { lt: cutoff } } }),
+		prisma.errorLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+		prisma.storeSyncLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+	])
+	const total = otp.count + errors.count + syncLogs.count
+	if (total > 0) {
+		console.log(
+			`[scheduler] retention cleanup: ${otp.count} OTP, ${errors.count} error, ${syncLogs.count} sync log rows deleted`,
+		)
+	}
+}
+
+async function runCleanup(): Promise<void> {
+	try {
+		await cleanupOldRecords()
+	} catch (e) {
+		console.error('[scheduler] retention cleanup failed:', e)
+	}
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
 export function startScheduler(): () => void {
 	console.log(
-		'[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh',
+		'[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup',
 	)
 	// Kick off shortly after boot, then on their own cadences.
 	const initialSweep = setTimeout(runSweep, 30_000)
@@ -223,6 +256,9 @@ export function startScheduler(): () => void {
 	const initialKnowledge = setTimeout(runKnowledgeRefresh, 2 * 60_000)
 	const knowledgeInterval = setInterval(runKnowledgeRefresh, HOUR_MS)
 
+	const initialCleanup = setTimeout(runCleanup, 5 * 60_000)
+	const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
+
 	return () => {
 		clearTimeout(initialSweep)
 		clearInterval(sweepInterval)
@@ -232,5 +268,7 @@ export function startScheduler(): () => void {
 		clearInterval(storeInterval)
 		clearTimeout(initialKnowledge)
 		clearInterval(knowledgeInterval)
+		clearTimeout(initialCleanup)
+		clearInterval(cleanupInterval)
 	}
 }
