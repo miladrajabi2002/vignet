@@ -3,14 +3,16 @@
 import { cn } from '@/lib/utils'
 
 /**
- * Tiny inline SVG sparkline for table rows and compact stat cards.
- * Renders a smooth-ish polyline from a small numeric series.
+ * Tiny inline SVG sparkline for table rows, stat cards, and compact panels.
  *
- * @param data     7 daily counts, oldest → newest
- * @param color    hex stroke color (default emerald green). When "auto",
- *                 the line turns green for an up-trend and red for down.
- * @param width    SVG width in px
- * @param height   SVG height in px
+ * @param data     numeric series (oldest → newest)
+ * @param color    hex stroke color, or "auto" (green for up-trend, red for down)
+ * @param width    viewBox coordinate width (internal resolution). When `fluid`
+ *                 is true, this is the coordinate system, not the rendered width.
+ * @param height   rendered height in px
+ * @param fluid    when true, the SVG stretches to fill its container width
+ *                 (uses vector-effect:non-scaling-stroke to keep stroke crisp).
+ *                 The end-dot is hidden in fluid mode to avoid ellipse distortion.
  */
 export function Sparkline({
   data,
@@ -18,12 +20,14 @@ export function Sparkline({
   width = 96,
   height = 28,
   className,
+  fluid = false,
 }: {
   data: number[]
   color?: string
   width?: number
   height?: number
   className?: string
+  fluid?: boolean
 }) {
   if (!data || data.length === 0) {
     return <span className="text-[11px] text-zinc-300">—</span>
@@ -63,9 +67,10 @@ export function Sparkline({
 
   return (
     <svg
-      width={width}
+      width={fluid ? '100%' : width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio={fluid ? 'none' : 'xMidYMid meet'}
       className={cn('block', className)}
       aria-hidden
     >
@@ -75,10 +80,12 @@ export function Sparkline({
         fill="none"
         stroke={stroke}
         strokeWidth={1.5}
+        vectorEffect={fluid ? 'non-scaling-stroke' : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {points.length > 0 && (
+      {/* End-dot — hidden in fluid mode (would distort into an ellipse). */}
+      {!fluid && points.length > 0 && (
         <circle
           cx={points[points.length - 1][0]}
           cy={points[points.length - 1][1]}

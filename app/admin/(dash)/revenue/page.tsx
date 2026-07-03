@@ -267,12 +267,12 @@ export default async function AdminRevenuePage() {
         </Panel>
 
         <Panel title="درآمد به تفکیک پلن">
-          <TableShell>
+          <TableShell minWidth={0}>
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
                 <Th>پلن</Th>
-                <Th>کسب‌وکار</Th>
-                <Th>پرداخت</Th>
+                <Th className="px-2 text-[10px]">کسب‌وکار</Th>
+                <Th className="px-2 text-[10px]">پرداخت</Th>
                 <Th>درآمد کل</Th>
                 <Th>قیمت ماهانه</Th>
               </tr>
@@ -283,10 +283,10 @@ export default async function AdminRevenuePage() {
                   <Td>
                     <PlanBadge plan={row.plan} />
                   </Td>
-                  <Td className="tabular-nums text-zinc-600">
+                  <Td className="px-2 text-center tabular-nums text-zinc-600">
                     {fa(row.workspaceCount)}
                   </Td>
-                  <Td className="tabular-nums text-zinc-600">
+                  <Td className="px-2 text-center tabular-nums text-zinc-600">
                     {fa(row.paymentCount)}
                   </Td>
                   <Td className="font-medium tabular-nums">{fmtIRR(row.revenueIRR)}</Td>

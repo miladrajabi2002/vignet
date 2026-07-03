@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { Sparkline } from '@/components/admin/sparkline'
 import { cn } from '@/lib/utils'
 
 // ─── FORMATTERS ───────────────────────────────────────────────────
@@ -130,6 +131,7 @@ export function StatCard({
   icon,
   tone = 'default',
   trend,
+  series,
 }: {
   label: string
   value: string | number
@@ -137,6 +139,7 @@ export function StatCard({
   icon?: React.ReactNode
   tone?: 'default' | 'success' | 'warning' | 'danger' | 'info'
   trend?: { value: number; label?: string } // percentage, +/-
+  series?: number[] // 7-day (or similar) daily values for an inline sparkline
 }) {
   const toneRing = {
     default: 'bg-zinc-100 text-zinc-700',
@@ -152,6 +155,18 @@ export function StatCard({
       : tone === 'success'
         ? 'text-emerald-600'
         : 'text-zinc-900'
+
+  // Sparkline stroke color follows the card tone.
+  const sparkColor =
+    tone === 'danger'
+      ? '#ef4444'
+      : tone === 'success'
+        ? '#22c55e'
+        : tone === 'info'
+          ? '#3b82f6'
+          : tone === 'warning'
+            ? '#f59e0b'
+            : '#18181b'
 
   return (
     <Card className="relative overflow-hidden">
@@ -182,6 +197,11 @@ export function StatCard({
             {trend.value >= 0 ? '▲' : '▼'} {Math.abs(trend.value).toLocaleString('fa-IR')}٪
           </span>
           {trend.label && <span className="text-[11px] text-zinc-400">{trend.label}</span>}
+        </div>
+      )}
+      {series && series.length > 0 && (
+        <div className="mt-3">
+          <Sparkline data={series} color={sparkColor} width={200} height={32} fluid />
         </div>
       )}
     </Card>
@@ -275,10 +295,18 @@ export function Td({
   return <td className={cn('px-4 py-3 text-sm text-zinc-700', className)}>{children}</td>
 }
 
-export function TableShell({ children }: { children: React.ReactNode }) {
+export function TableShell({
+  children,
+  minWidth = 640,
+}: {
+  children: React.ReactNode
+  minWidth?: number
+}) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <table className="w-full min-w-[640px]">{children}</table>
+      <table className="w-full" style={{ minWidth }}>
+        {children}
+      </table>
     </div>
   )
 }

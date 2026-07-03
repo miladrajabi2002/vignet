@@ -34,7 +34,9 @@ import {
   conversationsDaily,
   errorsDaily,
   newUsersDaily,
+  newWorkspacesDaily,
   revenueIRRDaily,
+  paymentsDaily,
   planDistribution,
   gatewayBreakdown,
   channelBreakdown,
@@ -108,6 +110,7 @@ export default async function AdminOverviewPage(
     plans,
     gateways,
     channels,
+    kpiTrends,
   ] = await Promise.all([
     getRevenueKPIs(),
     prisma.workspace.count(),
@@ -135,6 +138,18 @@ export default async function AdminOverviewPage(
     planDistribution(),
     gatewayBreakdown(),
     channelBreakdown(),
+    // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
+    //   range switch, so the cards always show recent site-wide momentum).
+    Promise.all([
+      revenueIRRDaily(7),
+      newWorkspacesDaily(7),
+      conversationsDaily(7),
+      newUsersDaily(7),
+      errorsDaily(7),
+      paymentsDaily(7),
+    ]).then(([rev, ws, conv, users, err, pays]) => ({
+      rev, ws, conv, users, err, pays,
+    })),
   ])
 
   return (
@@ -153,18 +168,21 @@ export default async function AdminOverviewPage(
           icon={<Wallet className="h-5 w-5" />}
           tone="success"
           trend={{ value: revenueKPIs.momChange, label: 'نسبت به ماه قبل' }}
+          series={kpiTrends.rev.map((p) => p.value)}
         />
         <StatCard
           label="کسب‌وکارهای فعال"
           value={workspaceCount}
           sub="از کل کاربران"
           icon={<Building2 className="h-5 w-5" />}
+          series={kpiTrends.ws.map((p) => p.value)}
         />
         <StatCard
           label="مکالمات امروز"
           value={conversationsToday}
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="info"
+          series={kpiTrends.conv.map((p) => p.value)}
         />
         <StatCard
           label="نرخ تبدیل"
@@ -181,6 +199,7 @@ export default async function AdminOverviewPage(
           label="کاربران کل"
           value={userCount}
           icon={<Users className="h-5 w-5" />}
+          series={kpiTrends.users.map((p) => p.value)}
         />
         <StatCard
           label="اشتراک‌های فعال"
@@ -189,12 +208,14 @@ export default async function AdminOverviewPage(
           icon={<Repeat className="h-5 w-5" />}
           tone="success"
           trend={{ value: revenueKPIs.subWeekChange, label: 'هفته اخیر' }}
+          series={kpiTrends.pays.map((p) => p.value)}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
           value={errors24h}
           tone={errors24h > 0 ? 'danger' : 'default'}
           icon={<AlertTriangle className="h-5 w-5" />}
+          series={kpiTrends.err.map((p) => p.value)}
         />
         <StatCard
           label="درآمد ماهانه تکرارشونده"
@@ -202,6 +223,7 @@ export default async function AdminOverviewPage(
           sub="مجموع اشتراک‌های فعال"
           icon={<CreditCard className="h-5 w-5" />}
           tone="success"
+          series={kpiTrends.rev.map((p) => p.value)}
         />
       </div>
 
