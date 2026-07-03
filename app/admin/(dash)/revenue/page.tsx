@@ -166,14 +166,14 @@ export default async function AdminRevenuePage() {
           value={fmtIRR(irrTrend7.reduce((s, p) => s + p.value, 0))}
           series={irrTrend7.map((p) => p.value)}
           color="#22c55e"
-          hint="روزانه"
+          hint="روزانه" variant="light"
         />
         <MiniTrend
           label="پرداخت‌های ۷ روز اخیر"
           value={paysTrend7.reduce((s, p) => s + p.value, 0)}
           series={paysTrend7.map((p) => p.value)}
           color="#3b82f6"
-          hint="تعداد پرداخت موفق"
+          hint="تعداد پرداخت موفق" variant="light"
         />
       </div>
 

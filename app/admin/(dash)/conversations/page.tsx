@@ -132,7 +132,7 @@ export default async function AdminConversationsPage(
           value={weekTotal}
           series={convTrend7.map((p) => p.value)}
           color="#3b82f6"
-          hint="میانگین روزانه"
+          hint="میانگین روزانه" variant="light"
         />
         {topChannels.map((ch) => (
           <MiniTrend
@@ -141,7 +141,7 @@ export default async function AdminConversationsPage(
             value={ch.total}
             series={ch.series}
             color={CHANNEL_COLOR[ch.channel] ?? '#18181b'}
-            hint="۷ روز اخیر"
+            hint="۷ روز اخیر" variant="light"
           />
         ))}
       </div>

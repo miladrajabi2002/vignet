@@ -140,7 +140,7 @@ export default async function AdminErrorsPage(
           value={weekTotal}
           series={errTrend7.map((p) => p.value)}
           color="#ef4444"
-          hint="میانگین روزانه"
+          hint="میانگین روزانه" variant="light"
         />
         {topSources.map((s) => (
           <MiniTrend
@@ -149,7 +149,7 @@ export default async function AdminErrorsPage(
             value={s.total}
             series={s.series}
             color="#f59e0b"
-            hint="۷ روز اخیر"
+            hint="۷ روز اخیر" variant="light"
           />
         ))}
       </div>

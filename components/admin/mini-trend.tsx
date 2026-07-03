@@ -1,19 +1,20 @@
 'use client'
 
-import { Sparkline } from './sparkline'
 import { cn } from '@/lib/utils'
+import { Sparkline } from './sparkline'
 
 /**
- * Compact stat tile with an inline sparkline.
- * THEME-AWARE: uses CSS variables (var(--bg-surface), var(--border-default),
- * var(--text-*)) so it renders correctly in BOTH the light admin panel and
- * the dark user dashboard. Works with next-themes light/dark toggle.
+ * Compact stat tile with an inline sparkline — matches the existing
+ * StatsCard layout exactly (same padding, fonts, colors), with an added
+ * recharts sparkline at the bottom.
  *
- * @param label    short title (e.g. "مکالمات ۷ روز")
- * @param value    big number shown next to the sparkline
- * @param series   7 daily counts for the sparkline
- * @param color    sparkline stroke color (hex, or "auto")
- * @param hint     optional small text under the value
+ * @param variant   "theme" → CSS variables (user dashboard, dark/light)
+ *                  "light" → hardcoded light classes (admin panel)
+ * @param label     short title
+ * @param value     big number
+ * @param series    daily values for the sparkline
+ * @param color     sparkline color (hex, or "auto" for green/red trend)
+ * @param hint      optional small text under the value
  */
 export function MiniTrend({
   label,
@@ -21,6 +22,7 @@ export function MiniTrend({
   series,
   color = 'auto',
   hint,
+  variant = 'theme',
   className,
 }: {
   label: string
@@ -28,24 +30,45 @@ export function MiniTrend({
   series: number[]
   color?: string
   hint?: string
+  variant?: 'theme' | 'light'
   className?: string
 }) {
+  // Card container — matches StatsCard in each context.
+  const cardCls =
+    variant === 'light'
+      ? 'rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm'
+      : 'rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]'
+
+  // Label — same position and style as StatsCard.
+  const labelCls =
+    variant === 'light'
+      ? 'text-xs font-medium text-zinc-500'
+      : 'text-sm text-[var(--text-secondary)]'
+
+  // Value — same size and weight as StatsCard.
+  const valueCls =
+    variant === 'light'
+      ? 'mt-2 text-3xl font-semibold tracking-tight text-zinc-900'
+      : 'mt-3 text-3xl font-light text-[var(--text-primary)]'
+
+  // Hint — same as StatsCard's sub/hint.
+  const hintCls =
+    variant === 'light'
+      ? 'mt-1 text-xs text-zinc-500'
+      : 'mt-1 text-[11px] text-[var(--text-muted)]'
+
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-3 rounded-2xl border bg-[var(--bg-surface)] p-4 transition-colors hover:border-[var(--border-hover)]',
-        className,
+    <div className={cn(cardCls, className)}>
+      <p className={labelCls}>{label}</p>
+      <p className={valueCls}>
+        {typeof value === 'number' ? value.toLocaleString('fa-IR') : value}
+      </p>
+      {hint && <p className={hintCls}>{hint}</p>}
+      {series && series.length > 0 && (
+        <div className="mt-3">
+          <Sparkline data={series} color={color} width={200} height={32} fluid />
+        </div>
       )}
-      style={{ borderColor: 'var(--border-default)' }}
-    >
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-[var(--text-secondary)]">{label}</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
-          {typeof value === 'number' ? value.toLocaleString('fa-IR') : value}
-        </p>
-        {hint && <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{hint}</p>}
-      </div>
-      <Sparkline data={series} color={color} width={88} height={32} />
     </div>
   )
 }

@@ -112,7 +112,7 @@ export default async function AdminBlogPage() {
           value={publishedWeekTotal}
           series={dayBuckets}
           color="#22c55e"
-          hint="بر اساس تاریخ انتشار"
+          hint="بر اساس تاریخ انتشار" variant="light"
           className="lg:col-span-1"
         />
         <Panel title="پربازدیدترین مقالات">

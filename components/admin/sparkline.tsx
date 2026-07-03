@@ -1,102 +1,99 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { useId } from 'react'
+import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+
+type TrendDirection = 'up' | 'down' | 'flat'
 
 /**
- * Tiny inline SVG sparkline for table rows, stat cards, and compact panels.
- * THEME-AWARE: stroke color is the only colored element; it comes from the
- * caller (a hex string or "auto"). The component itself uses no theme tokens,
- * so it renders correctly in both the light admin panel and the dark user
- * dashboard.
+ * Compute trend direction from a daily series.
+ * >5% change = up/down, otherwise flat.
+ */
+function computeTrend(data: number[]): TrendDirection {
+  if (!data || data.length === 0) return 'flat'
+  const firstNonZero = data.find((v) => v > 0) ?? 0
+  const last = data[data.length - 1] ?? 0
+  if (firstNonZero === 0 && last === 0) return 'flat'
+  if (firstNonZero === 0 && last > 0) return 'up'
+  const pct = ((last - firstNonZero) / firstNonZero) * 100
+  if (pct > 5) return 'up'
+  if (pct < -5) return 'down'
+  return 'flat'
+}
+
+/**
+ * Recharts-based sparkline — matches the existing AgentSparkline style
+ * (AreaChart with gradient fill) but supports green/red trend coloring.
  *
  * @param data     numeric series (oldest → newest)
- * @param color    hex stroke color, or "auto" (green for up-trend, red for down)
- * @param width    viewBox coordinate width (internal resolution). When `fluid`
- *                 is true, this is the coordinate system, not the rendered width.
+ * @param color    hex color, or "auto" (green for up-trend, red for down,
+ *                 neutral gray for flat). Works in both light and dark themes.
+ * @param width    rendered width in px (ignored when fluid=true)
  * @param height   rendered height in px
- * @param fluid    when true, the SVG stretches to fill its container width
- *                 (uses vector-effect:non-scaling-stroke to keep stroke crisp).
- *                 The end-dot is hidden in fluid mode to avoid ellipse distortion.
+ * @param fluid    when true, the chart fills its container width
+ * @param invert   when true, up = bad (red), down = good (green) — for errors
  */
 export function Sparkline({
   data,
   color = 'auto',
   width = 96,
-  height = 28,
-  className,
+  height = 32,
   fluid = false,
+  invert = false,
 }: {
   data: number[]
   color?: string
   width?: number
   height?: number
-  className?: string
   fluid?: boolean
+  invert?: boolean
 }) {
+  // Stable unique id for the gradient (avoids collisions when multiple
+  // sparklines are on the same page).
+  const rawId = useId()
+  const gradId = `spark-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`
+
   if (!data || data.length === 0) {
     return <span className="text-[11px] text-[var(--text-muted)]">—</span>
   }
 
-  const n = data.length
-  const max = Math.max(1, ...data)
-  const min = Math.min(0, ...data)
-  const range = max - min || 1
-  const stepX = n > 1 ? (width - 4) / (n - 1) : 0
-
-  const points = data.map((v, i) => {
-    const x = 2 + i * stepX
-    const y = height - 2 - ((v - min) / range) * (height - 4)
-    return [x, y] as const
-  })
-
-  const path = points
-    .map(([x, y], i) => (i === 0 ? `M ${x.toFixed(1)} ${y.toFixed(1)}` : `L ${x.toFixed(1)} ${y.toFixed(1)}`))
-    .join(' ')
-
   // Determine stroke color.
   let stroke: string
   if (color === 'auto') {
-    const firstNonZero = data.find((d) => d > 0) ?? 0
-    const last = data[n - 1] ?? 0
-    stroke = last >= firstNonZero ? '#22c55e' : '#ef4444'
+    const dir = computeTrend(data)
+    if (dir === 'flat') {
+      stroke = '#71717a' // zinc-500 — visible on both light and dark
+    } else {
+      const isGood = invert ? dir === 'down' : dir === 'up'
+      stroke = isGood ? '#22c55e' : '#ef4444'
+    }
   } else {
     stroke = color
   }
 
-  // Build a soft area fill below the line.
-  const areaPath =
-    points.length > 0
-      ? `${path} L ${(2 + (n - 1) * stepX).toFixed(1)} ${height - 2} L 2 ${height - 2} Z`
-      : ''
+  const points = data.map((value, i) => ({ i, value }))
 
   return (
-    <svg
-      width={fluid ? '100%' : width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio={fluid ? 'none' : 'xMidYMid meet'}
-      className={cn('block', className)}
-      aria-hidden
-    >
-      {areaPath && <path d={areaPath} fill={stroke} fillOpacity={0.08} stroke="none" />}
-      <path
-        d={path}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={1.5}
-        vectorEffect={fluid ? 'non-scaling-stroke' : undefined}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* End-dot — hidden in fluid mode (would distort into an ellipse). */}
-      {!fluid && points.length > 0 && (
-        <circle
-          cx={points[points.length - 1][0]}
-          cy={points[points.length - 1][1]}
-          r={2}
-          fill={stroke}
-        />
-      )}
-    </svg>
+    <div style={{ width: fluid ? '100%' : width, height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={points} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={stroke}
+            strokeWidth={1.25}
+            fill={`url(#${gradId})`}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

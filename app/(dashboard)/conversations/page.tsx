@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { getTranslations, getLocale } from 'next-intl/server'
+import type { ChannelType, ConvStatus } from '@prisma/client'
 import { MessagesSquare, User, Clock, Filter, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { MiniTrend } from '@/components/admin/mini-trend'
-import { DashboardPanel } from '@/components/dashboard/panel'
-import { DashboardDonut } from '@/components/dashboard/donut'
 import {
   conversationsDailyByWorkspace,
   resolvedDailyByWorkspace,
@@ -16,61 +15,122 @@ import {
 import { relativeTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
 import { Pagination } from '@/components/ui/pagination'
+import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 50
 
+const CHANNEL_LABELS_FA: Record<string, string> = {
+  TELEGRAM: 'تلگرام',
+  WHATSAPP: 'واتساپ',
+  INSTAGRAM: 'اینستاگرام',
+  RUBIKA: 'روبیکا',
+  BALE: 'بله',
+  WEB_WIDGET: 'ویجت وب',
+  API: 'API',
+}
+
+const STATUS_LABELS_FA: Record<string, string> = {
+  OPEN: 'باز',
+  RESOLVED: 'بسته‌شده',
+  HANDED_OFF: 'تحویل اپراتور',
+}
+
 export default async function ConversationsPage(
   props: {
-    searchParams: Promise<{ page?: string }>
+    searchParams: Promise<{ page?: string; channel?: string; status?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('conversations')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+  const isFa = locale === 'fa'
 
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const [conversations, totalCount, openCount, resolvedCount, handedOffCount, convTrend7, resolvedTrend7, handoffTrend7] =
-    await Promise.all([
-      prisma.conversation.findMany({
-        where: { workspaceId: user.workspaceId },
-        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE + 1,
-        select: {
-          id: true,
-          channel: true,
-          status: true,
-          lastMessageAt: true,
-          createdAt: true,
-          agent: { select: { name: true } },
-          contact: { select: { name: true, phone: true } },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: { content: true, role: true },
-          },
+  // ── Filters from query string ──
+  const channelFilter = searchParams.channel as ChannelType | undefined
+  const statusFilter = searchParams.status as ConvStatus | undefined
+
+  const where: {
+    workspaceId: string
+    channel?: ChannelType
+    status?: ConvStatus
+  } = { workspaceId: user.workspaceId }
+  if (channelFilter) where.channel = channelFilter
+  if (statusFilter) where.status = statusFilter
+
+  const [
+    conversations,
+    totalCount,
+    openCount,
+    resolvedCount,
+    handedOffCount,
+    convTrend7,
+    resolvedTrend7,
+    handoffTrend7,
+    channelGroups,
+  ] = await Promise.all([
+    prisma.conversation.findMany({
+      where,
+      orderBy: [
+        // Handed-off conversations first (need attention), then by last message.
+        { handedOff: 'desc' },
+        { lastMessageAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE + 1,
+      select: {
+        id: true,
+        channel: true,
+        status: true,
+        handedOff: true,
+        lastMessageAt: true,
+        createdAt: true,
+        agent: { select: { name: true } },
+        contact: { select: { name: true, phone: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { content: true, role: true },
         },
-      }),
-      prisma.conversation.count({ where: { workspaceId: user.workspaceId } }),
-      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'OPEN' } }),
-      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'RESOLVED' } }),
-      prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' } }),
-      conversationsDailyByWorkspace(user.workspaceId, 7),
-      resolvedDailyByWorkspace(user.workspaceId, 7),
-      handoffsDailyByWorkspace(user.workspaceId, 7),
-    ])
+      },
+    }),
+    prisma.conversation.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'OPEN' } }),
+    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'RESOLVED' } }),
+    prisma.conversation.count({ where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' } }),
+    conversationsDailyByWorkspace(user.workspaceId, 7),
+    resolvedDailyByWorkspace(user.workspaceId, 7),
+    handoffsDailyByWorkspace(user.workspaceId, 7),
+    // Available channels for the filter pills.
+    prisma.conversation.groupBy({
+      by: ['channel'],
+      where: { workspaceId: user.workspaceId },
+      _count: { _all: true },
+    }),
+  ])
 
   const hasNext = conversations.length > PAGE_SIZE
   const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
 
-  // Status donut data.
-  const statusDonut = [
-    { label: locale === 'fa' ? 'باز' : 'Open', value: openCount },
-    { label: locale === 'fa' ? 'بسته‌شده' : 'Resolved', value: resolvedCount },
-    { label: locale === 'fa' ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
-  ].filter((d) => d.value > 0)
+  // Build filter pill hrefs (resets to page 1).
+  const channelLabels = isFa ? CHANNEL_LABELS_FA : null
+  const statusLabels = isFa ? STATUS_LABELS_FA : null
+  const availableChannels = channelGroups
+    .map((g) => ({ channel: g.channel, count: g._count._all }))
+    .sort((a, b) => b.count - a.count)
+
+  function filterHref(overrides: { channel?: string; status?: string }): string {
+    const sp = new URLSearchParams()
+    const ch = overrides.channel ?? ''
+    const st = overrides.status ?? ''
+    if (ch) sp.set('channel', ch)
+    if (st) sp.set('status', st)
+    const qs = sp.toString()
+    return qs ? `/conversations?${qs}` : '/conversations'
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -82,52 +142,140 @@ export default async function ConversationsPage(
       {/* ─── 7-day MiniTrends ─── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MiniTrend
-          label={locale === 'fa' ? 'مکالمات ۷ روز' : 'Conversations 7d'}
+          label={isFa ? 'مکالمات ۷ روز' : 'Conversations 7d'}
           value={convTrend7.total}
           series={convTrend7.series}
           color="#3b82f6"
-          hint={locale === 'fa' ? `کل: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`}
+          hint={isFa ? `کل: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`}
         />
         <MiniTrend
-          label={locale === 'fa' ? 'بسته‌شده ۷ روز' : 'Resolved 7d'}
+          label={isFa ? 'بسته‌شده ۷ روز' : 'Resolved 7d'}
           value={resolvedTrend7.total}
           series={resolvedTrend7.series}
           color="#22c55e"
-          hint={locale === 'fa' ? `کل: ${resolvedCount.toLocaleString('fa-IR')}` : `Total: ${resolvedCount}`}
+          hint={isFa ? `کل: ${resolvedCount.toLocaleString('fa-IR')}` : `Total: ${resolvedCount}`}
         />
         <MiniTrend
-          label={locale === 'fa' ? 'تحویل اپراتور ۷ روز' : 'Handoffs 7d'}
+          label={isFa ? 'تحویل اپراتور ۷ روز' : 'Handoffs 7d'}
           value={handoffTrend7.total}
           series={handoffTrend7.series}
           color="#f59e0b"
-          hint={locale === 'fa' ? `کل: ${handedOffCount.toLocaleString('fa-IR')}` : `Total: ${handedOffCount}`}
+          hint={isFa ? `کل: ${handedOffCount.toLocaleString('fa-IR')}` : `Total: ${handedOffCount}`}
         />
       </div>
 
-      {/* ─── Status donut ─── */}
-      {statusDonut.length > 0 && (
-        <DashboardPanel
-          title={locale === 'fa' ? 'وضعیت مکالمات' : 'Conversation Status'}
-          subtitle={locale === 'fa' ? 'توزیع همه مکالمات بر اساس وضعیت فعلی' : 'Distribution of all conversations by current status'}
-        >
-          <DashboardDonut
-            data={statusDonut}
-            centerValue={totalCount}
-            centerLabel={locale === 'fa' ? 'مکالمه' : 'total'}
-          />
-        </DashboardPanel>
-      )}
+      {/* ─── Filters: channel + status (handed-off prioritized) ─── */}
+      <div className="space-y-3">
+        {/* Status filter */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="ms-1 text-[11px] font-medium text-[var(--text-muted)]">
+            {isFa ? 'وضعیت:' : 'Status:'}
+          </span>
+          <Link
+            href={filterHref({ channel: channelFilter })}
+            className={cn(
+              'rounded-lg px-3 py-1 text-xs font-medium transition-colors',
+              !statusFilter
+                ? 'bg-[var(--white)] text-[var(--bg-base)]'
+                : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+            )}
+          >
+            {isFa ? 'همه' : 'All'}
+          </Link>
+          {(['HANDED_OFF', 'OPEN', 'RESOLVED'] as const).map((s) => {
+            const active = statusFilter === s
+            const label = statusLabels?.[s] ?? s
+            const count = s === 'OPEN' ? openCount : s === 'RESOLVED' ? resolvedCount : handedOffCount
+            return (
+              <Link
+                key={s}
+                href={filterHref({ channel: channelFilter, status: s })}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors',
+                  active
+                    ? s === 'HANDED_OFF'
+                      ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
+                      : 'bg-[var(--white)] text-[var(--bg-base)]'
+                    : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                )}
+              >
+                {s === 'HANDED_OFF' && (
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  </span>
+                )}
+                {label}
+                <span className="text-[10px] opacity-60">{count.toLocaleString('fa-IR')}</span>
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Channel filter */}
+        {availableChannels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="ms-1 text-[11px] font-medium text-[var(--text-muted)]">
+              {isFa ? 'کانال:' : 'Channel:'}
+            </span>
+            <Link
+              href={filterHref({ status: statusFilter })}
+              className={cn(
+                'rounded-lg px-3 py-1 text-xs font-medium transition-colors',
+                !channelFilter
+                  ? 'bg-[var(--white)] text-[var(--bg-base)]'
+                  : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+              )}
+            >
+              {isFa ? 'همه' : 'All'}
+            </Link>
+            {availableChannels.map((c) => {
+              const active = channelFilter === c.channel
+              const label = channelLabels?.[c.channel] ?? c.channel
+              return (
+                <Link
+                  key={c.channel}
+                  href={filterHref({ channel: c.channel, status: statusFilter })}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors',
+                    active
+                      ? 'bg-[var(--white)] text-[var(--bg-base)]'
+                      : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                  )}
+                >
+                  {label}
+                  <span className="text-[10px] opacity-60">{c.count.toLocaleString('fa-IR')}</span>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {pageItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
           <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
-          <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
-          <Link
-            href="/integrations"
-            className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
-          >
-            {t('emptyCta')}
-          </Link>
+          <p className="mt-4 text-sm text-[var(--text-secondary)]">
+            {channelFilter || statusFilter
+              ? (isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters')
+              : t('empty')}
+          </p>
+          {(channelFilter || statusFilter) && (
+            <Link
+              href="/conversations"
+              className="mt-4 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              {isFa ? 'حذف فیلترها' : 'Clear filters'}
+            </Link>
+          )}
+          {!channelFilter && !statusFilter && (
+            <Link
+              href="/integrations"
+              className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+            >
+              {t('emptyCta')}
+            </Link>
+          )}
         </div>
       ) : (
         <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
@@ -139,7 +287,10 @@ export default async function ConversationsPage(
               <Link
                 key={c.id}
                 href={`/conversations/${c.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]',
+                  c.handedOff && 'bg-amber-500/5',
+                )}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
                   <User className="h-4 w-4" />
@@ -150,6 +301,15 @@ export default async function ConversationsPage(
                       {who}
                     </span>
                     <ChannelBadge type={c.channel} />
+                    {c.handedOff && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        </span>
+                        {isFa ? 'تحویل اپراتور' : 'Handed off'}
+                      </span>
+                    )}
                   </div>
                   <p className="truncate text-xs text-[var(--text-secondary)]">
                     {last
@@ -169,7 +329,14 @@ export default async function ConversationsPage(
       <Pagination
         page={page}
         hasNext={hasNext}
-        makeHref={(p) => `/conversations?page=${p}`}
+        makeHref={(p) => {
+          const sp = new URLSearchParams()
+          if (channelFilter) sp.set('channel', channelFilter)
+          if (statusFilter) sp.set('status', statusFilter)
+          if (p > 1) sp.set('page', String(p))
+          const qs = sp.toString()
+          return qs ? `/conversations?${qs}` : '/conversations'
+        }}
       />
 
       <MetricsExplainer
@@ -185,17 +352,17 @@ export default async function ConversationsPage(
               locale === 'fa' ? 'ترتیب نمایش: ' : 'Sort order: ',
             body:
               locale === 'fa'
-                ? 'گفتگوها بر اساس زمان آخرین پیام مرتب می‌شوند (جدیدترین اول). گفتگوهایی که هنوز پیام ندارند بر اساس زمان ایجاد مرتب می‌شوند.'
-                : 'Conversations are ordered by the time of their last message (newest first). Conversations with no messages yet are ordered by creation time.',
+                ? 'مکالمات تحویل‌داده‌شده به اپراتور (نیاز به توجه) اول نمایش داده می‌شوند، سپس بقیه بر اساس زمان آخرین پیام (جدیدترین اول).'
+                : 'Handed-off conversations (needing attention) are shown first, then the rest by last message time (newest first).',
           },
           {
             icon: Filter,
             term:
-              locale === 'fa' ? 'محصولات نمایش: ' : 'What is shown: ',
+              locale === 'fa' ? 'فیلترها: ' : 'Filters: ',
             body:
               locale === 'fa'
-                ? 'هر ردیف یک گفتگو است — شامل نام یا شماره مشتری، کانال، آخرین پیام (پیش‌نمایش کوتاه)، نام ایجنت و زمان نسبی. برای دیدن کل گفتگو روی ردیف کلیک کنید.'
-                : 'Each row is one conversation — showing the customer name or phone, channel, last message (short preview), agent name, and relative time. Click a row to see the full thread.',
+                ? 'می‌توانید بر اساس کانال (تلگرام، واتساپ، ...) و وضعیت (باز، بسته‌شده، تحویل اپراتور) فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
+                : 'Filter by channel (Telegram, WhatsApp, ...) and status (open, resolved, handed off). Filters are stored in the URL so they can be shared.',
           },
           {
             icon: RefreshCw,
@@ -203,8 +370,8 @@ export default async function ConversationsPage(
               locale === 'fa' ? 'به‌روزرسانی: ' : 'Live updates: ',
             body:
               locale === 'fa'
-                ? 'این صفحه به‌صورت لحظه‌ای به‌روز نمی‌شود. برای دیدن گفتگوهای جدید، صفحه را refresh کنید. وضعیت گفتگو (باز، کامل، تحویل‌شده) در صفحه جزئیات قابل تغییر است.'
-                : 'This page does not update in real time. Refresh to see new conversations. Conversation status (open, resolved, handed off) can be changed on the detail page.',
+                ? 'این صفحه به‌صورت لحظه‌ای به‌روز نمی‌شود. برای دیدن مکالمات جدید، صفحه را refresh کنید. وضعیت مکالمه در صفحه جزئیات قابل تغییر است.'
+                : 'This page does not update in real time. Refresh to see new conversations. Conversation status can be changed on the detail page.',
           },
         ]}
       />

@@ -193,6 +193,7 @@ export default async function AdminUserDetailPage(
           series={convSeries}
           color="#3b82f6"
           hint={`کل: ${fa(ws._count.conversations)}`}
+          variant="light"
         />
         <MiniTrend
           label="پرداخت‌های ۷ روز اخیر"
@@ -200,6 +201,7 @@ export default async function AdminUserDetailPage(
           series={paySeries}
           color="#22c55e"
           hint={`کل: ${fa(ws._count.payments)}`}
+          variant="light"
         />
       </div>
 
