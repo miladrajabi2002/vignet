@@ -10,11 +10,12 @@ export function generateStaticParams() {
   }))
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string }
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const page = getDoc(params.slug)
   if (!page) return {}
   const locale = (await getLocale()) as Locale
@@ -22,11 +23,12 @@ export async function generateMetadata({
   return { title: `${title} — Vigent Docs` }
 }
 
-export default async function DocPageRoute({
-  params,
-}: {
-  params: { slug: string }
-}) {
+export default async function DocPageRoute(
+  props: {
+    params: Promise<{ slug: string }>
+  }
+) {
+  const params = await props.params;
   const page = getDoc(params.slug)
   if (!page || page.slug === 'introduction') notFound()
 

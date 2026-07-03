@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { productUpdateSchema } from '@/lib/validations/product'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 
-type Params = { params: { productId: string } }
+type Params = { params: Promise<{ productId: string }> }
 
 async function ownProduct(workspaceId: string, productId: string) {
   return prisma.product.findFirst({
@@ -13,7 +13,8 @@ async function ownProduct(workspaceId: string, productId: string) {
   })
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
@@ -28,7 +29,8 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ product })
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownProduct(user.workspaceId, params.productId)))
@@ -53,7 +55,8 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json({ product })
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownProduct(user.workspaceId, params.productId)))

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
-type Params = { params: { agentId: string; versionId: string } }
+type Params = { params: Promise<{ agentId: string; versionId: string }> }
 
 async function ownAgent(workspaceId: string, agentId: string) {
   return prisma.agent.findFirst({
@@ -12,7 +12,8 @@ async function ownAgent(workspaceId: string, agentId: string) {
 }
 
 /** Restore a saved version onto the agent (applies its prompt/config). */
-export async function POST(_req: Request, { params }: Params) {
+export async function POST(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))
@@ -38,7 +39,8 @@ export async function POST(_req: Request, { params }: Params) {
 }
 
 /** Delete a saved version. */
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))

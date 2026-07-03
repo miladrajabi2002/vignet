@@ -7,13 +7,18 @@ import { prisma } from '@/lib/prisma'
 import { AgentTabs, type AgentTabItem } from '@/components/agents/agent-tabs'
 import { cn } from '@/lib/utils'
 
-export default async function AgentLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode
-  params: { agentId: string }
-}) {
+export default async function AgentLayout(
+  props: {
+    children: React.ReactNode
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const user = await requireUser()
   const t = await getTranslations('agents')
 

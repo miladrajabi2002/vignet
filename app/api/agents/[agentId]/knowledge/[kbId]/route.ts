@@ -3,9 +3,10 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 
-type Params = { params: { agentId: string; kbId: string } }
+type Params = { params: Promise<{ agentId: string; kbId: string }> }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

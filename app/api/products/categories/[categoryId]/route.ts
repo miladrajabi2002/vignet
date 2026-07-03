@@ -3,9 +3,10 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { categoryUpdateSchema } from '@/lib/validations/product'
 
-type Params = { params: { categoryId: string } }
+type Params = { params: Promise<{ categoryId: string }> }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
@@ -31,7 +32,8 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json({ category })
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

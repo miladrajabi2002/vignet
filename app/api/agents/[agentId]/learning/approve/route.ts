@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { dispatchIngestion } from '@/lib/queue/jobs'
 import { LEARNED_PREFIX } from '@/lib/ai/learning'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({
   messageId: z.string().min(1),
@@ -18,7 +18,8 @@ const bodySchema = z.object({
  * by the ingestion worker) and mark the originating message as resolved so it
  * leaves the review queue.
  */
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

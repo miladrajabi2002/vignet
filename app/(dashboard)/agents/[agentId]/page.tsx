@@ -16,11 +16,12 @@ import { prisma } from '@/lib/prisma'
 import { TestPlayground } from '@/components/agent-builder/test-playground'
 import { cn } from '@/lib/utils'
 
-export default async function AgentDetailPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentDetailPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('agents')
 

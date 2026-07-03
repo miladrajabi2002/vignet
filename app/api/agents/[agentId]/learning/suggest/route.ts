@@ -5,12 +5,13 @@ import { prisma } from '@/lib/prisma'
 import { draftAnswer } from '@/lib/ai/learning'
 import { rateLimit } from '@/lib/ratelimit'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({ question: z.string().min(1).max(2000) })
 
 /** Generate an AI-suggested answer for an unanswered question. */
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

@@ -4,11 +4,12 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { KbManager } from '@/components/knowledge/kb-manager'
 
-export default async function AgentKnowledgePage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentKnowledgePage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('knowledge')
 

@@ -7,11 +7,12 @@ import { LearningCenter, type LearningItem } from '@/components/agent-builder/le
 
 export const dynamic = 'force-dynamic'
 
-export default async function AgentLearningPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentLearningPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('learning')
 

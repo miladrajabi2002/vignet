@@ -16,11 +16,12 @@ import { isMessengerType } from '@/lib/channels/registry'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 
-export default async function ConversationThreadPage({
-  params,
-}: {
-  params: { conversationId: string }
-}) {
+export default async function ConversationThreadPage(
+  props: {
+    params: Promise<{ conversationId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('conversations')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'

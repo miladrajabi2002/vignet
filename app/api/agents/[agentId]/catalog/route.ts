@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({ productIds: z.array(z.string()) })
 
@@ -15,7 +15,8 @@ async function ownAgent(workspaceId: string, agentId: string) {
   })
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))
@@ -29,7 +30,8 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 // Replace the agent's assigned product set, re-embedding the delta.
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))

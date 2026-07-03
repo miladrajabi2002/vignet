@@ -10,14 +10,15 @@ export function generateStaticParams() {
 	return SOLUTIONS.map((s) => ({ slug: s.slug }))
 }
 
-export function generateMetadata({
-	params,
-}: {
-	params: { slug: string }
-}): Metadata {
-	const solution = getSolution(params.slug)
-	if (!solution) return {}
-	return {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ slug: string }>
+    }
+): Promise<Metadata> {
+    const params = await props.params;
+    const solution = getSolution(params.slug)
+    if (!solution) return {}
+    return {
 		title: solution.metaTitle,
 		description: solution.metaDescription,
 		alternates: { canonical: `${SITE_URL}/solutions/${solution.slug}` },
@@ -30,15 +31,16 @@ export function generateMetadata({
 	}
 }
 
-export default function SolutionPage({
-	params,
-}: {
-	params: { slug: string }
-}) {
-	const solution = getSolution(params.slug)
-	if (!solution) notFound()
+export default async function SolutionPage(
+    props: {
+        params: Promise<{ slug: string }>
+    }
+) {
+    const params = await props.params;
+    const solution = getSolution(params.slug)
+    if (!solution) notFound()
 
-	const jsonLd = {
+    const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'FAQPage',
 		mainEntity: solution.faq.map((f) => ({
@@ -48,7 +50,7 @@ export default function SolutionPage({
 		})),
 	}
 
-	return (
+    return (
 		<div className="bg-[var(--bg-base)]">
 			<script
 				type="application/ld+json"

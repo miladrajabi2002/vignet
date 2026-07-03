@@ -4,11 +4,12 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductForm } from '@/components/products/product-form'
 
-export default async function EditProductPage({
-  params,
-}: {
-  params: { productId: string }
-}) {
+export default async function EditProductPage(
+  props: {
+    params: Promise<{ productId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('products')
 

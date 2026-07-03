@@ -6,11 +6,12 @@ import { ExperimentsPanel } from '@/components/agent-builder/experiments-panel'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AgentExperimentsPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentExperimentsPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('experiments')
 

@@ -6,7 +6,7 @@ import { slugify, readingMinutes, deriveExcerpt } from '@/lib/blog/helpers'
 
 export const dynamic = 'force-dynamic'
 
-type Params = { params: { postId: string } }
+type Params = { params: Promise<{ postId: string }> }
 
 function guard(): NextResponse | null {
   if (!isAdminAuthed()) {
@@ -15,7 +15,8 @@ function guard(): NextResponse | null {
   return null
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const unauth = guard()
   if (unauth) return unauth
 
@@ -32,7 +33,8 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ post })
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const unauth = guard()
   if (unauth) return unauth
 
@@ -99,7 +101,8 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const unauth = guard()
   if (unauth) return unauth
 

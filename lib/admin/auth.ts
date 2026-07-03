@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import { redirect } from 'next/navigation'
 import crypto from 'crypto'
 
@@ -62,7 +62,7 @@ export const ADMIN_COOKIE = COOKIE_NAME
 
 /** True when the current request carries a valid admin session cookie. */
 export function isAdminAuthed(): boolean {
-  return isValidToken(cookies().get(COOKIE_NAME)?.value)
+  return isValidToken((cookies() as unknown as UnsafeUnwrappedCookies).get(COOKIE_NAME)?.value);
 }
 
 /** Guard for admin server components/layouts. Redirects to login when absent. */

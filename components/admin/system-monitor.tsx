@@ -50,7 +50,8 @@ export function SystemMonitor() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [history, setHistory] = useState<Sample[]>([])
   const [offline, setOffline] = useState(false)
-  const timer = useRef<ReturnType<typeof setInterval>>()
+  // React 19 types: useRef requires an explicit initial value.
+  const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   useEffect(() => {
     async function poll() {

@@ -8,7 +8,7 @@ import {
 	getConnectedMessengerChannels,
 } from '@/lib/channels/operator-handoff'
 
-type Params = { params: { conversationId: string } }
+type Params = { params: Promise<{ conversationId: string }> }
 
 const bodySchema = z.object({
 	reason: z.string().min(1).max(500).optional(),
@@ -21,11 +21,12 @@ const bodySchema = z.object({
  * HANDED_OFF, and returns the connected messenger channels so the UI can
  * show "go to Telegram/Bale/Rubika" buttons.
  */
-export async function POST(req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+export async function POST(req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-	const conversation = await prisma.conversation.findFirst({
+    const conversation = await prisma.conversation.findFirst({
 		where: { id: params.conversationId, workspaceId: user.workspaceId },
 		select: {
 			id: true,
@@ -36,16 +37,16 @@ export async function POST(req: Request, { params }: Params) {
 			agent: { select: { name: true } },
 		},
 	})
-	if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	const json = await req.json().catch(() => null)
-	const parsed = bodySchema.safeParse(json ?? {})
-	if (!parsed.success) {
+    const json = await req.json().catch(() => null)
+    const parsed = bodySchema.safeParse(json ?? {})
+    if (!parsed.success) {
 		return NextResponse.json({ error: 'INVALID', issues: parsed.error.flatten() }, { status: 400 })
 	}
-	const reason = parsed.data.reason ?? 'انتقال دستی توسط اپراتور'
+    const reason = parsed.data.reason ?? 'انتقال دستی توسط اپراتور'
 
-	const alertId = await createHandoffAlert({
+    const alertId = await createHandoffAlert({
 		workspaceId: user.workspaceId,
 		conversationId: conversation.id,
 		agentId: conversation.agentId,
@@ -58,12 +59,12 @@ export async function POST(req: Request, { params }: Params) {
 		summary: conversation.summary ?? null,
 	})
 
-	await prisma.conversation.update({
+    await prisma.conversation.update({
 		where: { id: conversation.id },
 		data: { status: 'HANDED_OFF', handedOff: true },
 	})
 
-	const connectedChannels = await getConnectedMessengerChannels(conversation.agentId)
+    const connectedChannels = await getConnectedMessengerChannels(conversation.agentId)
 
-	return NextResponse.json({ ok: true, alertId, connectedChannels }, { status: 201 })
+    return NextResponse.json({ ok: true, alertId, connectedChannels }, { status: 201 })
 }

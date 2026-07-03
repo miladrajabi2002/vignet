@@ -14,11 +14,12 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { formatDateTime } from '@/lib/format'
 
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: { productId: string }
-}) {
+export default async function ProductDetailPage(
+  props: {
+    params: Promise<{ productId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('products')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
@@ -83,17 +84,16 @@ export default async function ProductDetailPage({
           {t('edit')}
         </Link>
       </div>
-
       {/* Header */}
       <div className="flex flex-col gap-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:flex-row">
         <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[var(--bg-muted)] sm:w-56">
           {product.images[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
+            (<img
               src={product.images[0]}
               alt={product.name}
               className="h-full w-full object-cover"
-            />
+            />)
           ) : (
             <div className="flex h-full items-center justify-center text-[var(--text-hint)]">
               <Package className="h-8 w-8" />
@@ -156,7 +156,6 @@ export default async function ProductDetailPage({
           )}
         </div>
       </div>
-
       {/* Analytics stats */}
       <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (
@@ -174,7 +173,6 @@ export default async function ProductDetailPage({
           </div>
         ))}
       </div>
-
       {/* Agent coverage */}
       <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
         <h2 className="text-sm font-medium text-[var(--text-secondary)]">
@@ -199,7 +197,6 @@ export default async function ProductDetailPage({
           </div>
         )}
       </div>
-
       {/* Attributes */}
       {attributes.length > 0 && (
         <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
@@ -219,10 +216,9 @@ export default async function ProductDetailPage({
           </dl>
         </div>
       )}
-
       <p className="text-xs text-[var(--text-muted)]">
         {t('detail.updatedAt')}: {formatDateTime(product.updatedAt, locale)}
       </p>
     </div>
-  )
+  );
 }

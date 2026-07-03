@@ -4,11 +4,12 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { CatalogAssign } from '@/components/products/catalog-assign'
 
-export default async function AgentCatalogPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentCatalogPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('products.catalog')
 

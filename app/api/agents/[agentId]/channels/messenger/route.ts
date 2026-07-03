@@ -7,7 +7,7 @@ import { syncOnboarding } from '@/lib/onboarding'
 import { buildMessengerConfig } from '@/lib/channels/config'
 import { getBotInfo, setWebhook, MESSENGER_TYPES } from '@/lib/channels/registry'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({
   type: z.enum(MESSENGER_TYPES),
@@ -30,7 +30,8 @@ function baseUrl(): string {
   )
 }
 
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

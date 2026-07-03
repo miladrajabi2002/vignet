@@ -6,7 +6,7 @@ import { startChat } from '@/lib/ai/chat-engine'
 import { corsHeaders, corsOptions } from '@/lib/cors'
 import { normalizeWidgetSettings, isOriginAllowed } from '@/lib/widget/config'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({
   message: z.string().min(1).max(4000),
@@ -19,7 +19,8 @@ export function OPTIONS() {
   return corsOptions()
 }
 
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, props: Params) {
+  const params = await props.params;
   const ip =
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon'
 

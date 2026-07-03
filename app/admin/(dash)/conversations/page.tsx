@@ -11,11 +11,12 @@ const STATUS_LABEL: Record<string, string> = {
   HANDED_OFF: 'تحویل به اپراتور',
 }
 
-export default async function AdminConversationsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string }
-}) {
+export default async function AdminConversationsPage(
+  props: {
+    searchParams: Promise<{ page?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   const rows = await prisma.conversation.findMany({

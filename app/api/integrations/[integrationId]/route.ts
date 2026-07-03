@@ -13,7 +13,7 @@ import { encrypt } from '@/lib/crypto'
  *   DELETE /api/integrations/:id   — remove the integration (cascades to orders + sync logs).
  */
 
-type Params = { params: { integrationId: string } }
+type Params = { params: Promise<{ integrationId: string }> }
 
 const SENSITIVE_FIELDS: Record<string, string[]> = {
 	WOOCOMMERCE: ['consumerSecret'],
@@ -44,11 +44,12 @@ async function ownIntegration(workspaceId: string, integrationId: string) {
 	})
 }
 
-export async function GET(_req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+export async function GET(_req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-	const integration = await prisma.storeIntegration.findFirst({
+    const integration = await prisma.storeIntegration.findFirst({
 		where: { id: params.integrationId, workspaceId: user.workspaceId },
 		include: {
 			syncLogs: {
@@ -67,18 +68,18 @@ export async function GET(_req: Request, { params }: Params) {
 			_count: { select: { orders: true, syncLogs: true } },
 		},
 	})
-	if (!integration) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    if (!integration) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	// Strip encrypted credential ciphertext from the response.
-	const { credentials, ...rest } = integration
-	const visible: Record<string, unknown> = {}
-	if (credentials && typeof credentials === 'object') {
+    // Strip encrypted credential ciphertext from the response.
+    const { credentials, ...rest } = integration
+    const visible: Record<string, unknown> = {}
+    if (credentials && typeof credentials === 'object') {
 		for (const [k, v] of Object.entries(credentials as Record<string, unknown>)) {
 			if (k.endsWith('Enc')) continue
 			visible[k] = v
 		}
 	}
-	return NextResponse.json({ integration: { ...rest, credentials: visible } })
+    return NextResponse.json({ integration: { ...rest, credentials: visible } })
 }
 
 const patchSchema = z.object({
@@ -87,33 +88,34 @@ const patchSchema = z.object({
 	credentials: z.record(z.string(), z.unknown()).optional(),
 })
 
-export async function PATCH(req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+export async function PATCH(req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-	const owned = await ownIntegration(user.workspaceId, params.integrationId)
-	if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    const owned = await ownIntegration(user.workspaceId, params.integrationId)
+    if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	const json = await req.json().catch(() => null)
-	const parsed = patchSchema.safeParse(json)
-	if (!parsed.success) {
+    const json = await req.json().catch(() => null)
+    const parsed = patchSchema.safeParse(json)
+    if (!parsed.success) {
 		return NextResponse.json(
 			{ error: 'INVALID', issues: parsed.error.flatten() },
 			{ status: 400 },
 		)
 	}
 
-	const data: Prisma.StoreIntegrationUpdateInput = {}
-	if (typeof parsed.data.active === 'boolean') data.active = parsed.data.active
-	if (typeof parsed.data.pollIntervalMinutes === 'number') {
+    const data: Prisma.StoreIntegrationUpdateInput = {}
+    if (typeof parsed.data.active === 'boolean') data.active = parsed.data.active
+    if (typeof parsed.data.pollIntervalMinutes === 'number') {
 		data.pollIntervalMinutes = parsed.data.pollIntervalMinutes
 	}
-	if (parsed.data.credentials) {
+    if (parsed.data.credentials) {
 		const encrypted = encryptSensitiveFields(owned.type, parsed.data.credentials)
 		data.credentials = encrypted as Prisma.InputJsonValue
 	}
 
-	const integration = await prisma.storeIntegration.update({
+    const integration = await prisma.storeIntegration.update({
 		where: { id: params.integrationId },
 		data,
 		select: {
@@ -128,17 +130,18 @@ export async function PATCH(req: Request, { params }: Params) {
 			updatedAt: true,
 		},
 	})
-	return NextResponse.json({ integration })
+    return NextResponse.json({ integration })
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+export async function DELETE(_req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-	const owned = await ownIntegration(user.workspaceId, params.integrationId)
-	if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    const owned = await ownIntegration(user.workspaceId, params.integrationId)
+    if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	// Cascades to StoreOrder and StoreSyncLog per the schema's onDelete: Cascade.
-	await prisma.storeIntegration.delete({ where: { id: params.integrationId } })
-	return NextResponse.json({ ok: true })
+    // Cascades to StoreOrder and StoreSyncLog per the schema's onDelete: Cascade.
+    await prisma.storeIntegration.delete({ where: { id: params.integrationId } })
+    return NextResponse.json({ ok: true })
 }

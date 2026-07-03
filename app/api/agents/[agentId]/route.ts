@@ -5,13 +5,14 @@ import { prisma } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 async function getOwnedAgent(workspaceId: string, agentId: string) {
   return prisma.agent.findFirst({ where: { id: agentId, workspaceId } })
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
@@ -26,7 +27,8 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ agent })
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
@@ -56,7 +58,8 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json({ agent })
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

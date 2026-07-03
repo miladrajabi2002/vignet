@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface Props {
-	params: { slug: string }
+	params: Promise<{ slug: string }>
 }
 
 async function getWorkspaceId(): Promise<string | null> {
@@ -21,37 +21,39 @@ async function getWorkspaceId(): Promise<string | null> {
 	return ws?.id ?? null
 }
 
-export async function generateMetadata({ params }: Props) {
-	const wsId = await getWorkspaceId()
-	if (!wsId) return {}
-	const cat = await prisma.blogCategory.findFirst({
+export async function generateMetadata(props: Props) {
+    const params = await props.params;
+    const wsId = await getWorkspaceId()
+    if (!wsId) return {}
+    const cat = await prisma.blogCategory.findFirst({
 		where: { workspaceId: wsId, slug: params.slug },
 	})
-	if (!cat) return {}
-	return {
+    if (!cat) return {}
+    return {
 		title: cat.name,
 		description: cat.description ?? cat.name,
 	}
 }
 
-export default async function PublicBlogCategoryPage({ params }: Props) {
-	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-	const wsId = await getWorkspaceId()
-	if (!wsId) notFound()
+export default async function PublicBlogCategoryPage(props: Props) {
+    const params = await props.params;
+    const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+    const wsId = await getWorkspaceId()
+    if (!wsId) notFound()
 
-	const category = await prisma.blogCategory.findFirst({
+    const category = await prisma.blogCategory.findFirst({
 		where: { workspaceId: wsId, slug: params.slug },
 	})
-	if (!category) notFound()
+    if (!category) notFound()
 
-	const posts = await prisma.blogPost.findMany({
+    const posts = await prisma.blogPost.findMany({
 		where: { workspaceId: wsId, status: 'PUBLISHED', categoryId: category.id },
 		orderBy: { publishedAt: 'desc' },
 		include: { category: { select: { name: true, slug: true } } },
 		take: 50,
 	})
 
-	return (
+    return (
 		<div className="mx-auto max-w-5xl px-4 py-12">
 			<header className="mb-10 text-center">
 				<h1 className="text-3xl font-light text-[var(--text-primary)] sm:text-4xl">

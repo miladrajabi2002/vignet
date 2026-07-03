@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface Props {
-	params: { slug: string }
+	params: Promise<{ slug: string }>
 }
 
 async function getWorkspaceId(): Promise<string | null> {
@@ -28,21 +28,22 @@ async function getWorkspaceId(): Promise<string | null> {
 	return ws?.id ?? null
 }
 
-export async function generateMetadata({ params }: Props) {
-	const wsId = await getWorkspaceId()
-	if (!wsId) return {}
-	const post = await prisma.blogPost.findFirst({
+export async function generateMetadata(props: Props) {
+    const params = await props.params;
+    const wsId = await getWorkspaceId()
+    if (!wsId) return {}
+    const post = await prisma.blogPost.findFirst({
 		where: { workspaceId: wsId, slug: params.slug, status: 'PUBLISHED' },
 	})
-	if (!post) return {}
+    if (!post) return {}
 
-	const title = post.seoTitle ?? deriveSeoTitle(post.title)
-	const description =
+    const title = post.seoTitle ?? deriveSeoTitle(post.title)
+    const description =
 		post.seoDescription ?? deriveSeoDescription(post.excerpt, post.content)
-	const url = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/blog/${post.slug}`
-	const image = post.ogImage ?? post.coverImage
+    const url = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/blog/${post.slug}`
+    const image = post.ogImage ?? post.coverImage
 
-	return {
+    return {
 		title,
 		description,
 		alternates: { canonical: post.canonicalUrl || url },
@@ -65,30 +66,31 @@ export async function generateMetadata({ params }: Props) {
 	}
 }
 
-export default async function PublicBlogPostPage({ params }: Props) {
-	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-	const wsId = await getWorkspaceId()
-	if (!wsId) notFound()
+export default async function PublicBlogPostPage(props: Props) {
+    const params = await props.params;
+    const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+    const wsId = await getWorkspaceId()
+    if (!wsId) notFound()
 
-	const post = await prisma.blogPost.findFirst({
+    const post = await prisma.blogPost.findFirst({
 		where: { workspaceId: wsId, slug: params.slug, status: 'PUBLISHED' },
 		include: { category: { select: { name: true, slug: true } } },
 	})
-	if (!post) notFound()
+    if (!post) notFound()
 
-	// Increment views (fire-and-forget; revalidate happens on next build).
-	void prisma.blogPost
+    // Increment views (fire-and-forget; revalidate happens on next build).
+    void prisma.blogPost
 		.update({
 			where: { id: post.id },
 			data: { views: { increment: 1 } },
 		})
 		.catch(() => {})
 
-	const html = renderMarkdown(post.content)
-	const plainExcerpt = post.excerpt || deriveExcerpt(post.content)
+    const html = renderMarkdown(post.content)
+    const plainExcerpt = post.excerpt || deriveExcerpt(post.content)
 
-	// JSON-LD structured data for Google rich results.
-	const jsonLd = {
+    // JSON-LD structured data for Google rich results.
+    const jsonLd = {
 		'@context': 'https://schema.org',
 		'@type': 'BlogPosting',
 		headline: post.title,
@@ -109,8 +111,8 @@ export default async function PublicBlogPostPage({ params }: Props) {
 		image: post.ogImage ?? post.coverImage ?? undefined,
 	}
 
-	// Breadcrumb JSON-LD
-	const breadcrumbLd = {
+    // Breadcrumb JSON-LD
+    const breadcrumbLd = {
 		'@context': 'https://schema.org',
 		'@type': 'BreadcrumbList',
 		itemListElement: [
@@ -135,8 +137,8 @@ export default async function PublicBlogPostPage({ params }: Props) {
 		],
 	}
 
-	// Get prev/next posts for internal linking
-	const [prev, next] = await Promise.all([
+    // Get prev/next posts for internal linking
+    const [prev, next] = await Promise.all([
 		post.publishedAt
 			? prisma.blogPost.findFirst({
 					where: {
@@ -161,19 +163,18 @@ export default async function PublicBlogPostPage({ params }: Props) {
 			: null,
 	])
 
-	return (
-		<article className="mx-auto max-w-3xl px-4 py-12">
-			<script
+    return (
+        <article className="mx-auto max-w-3xl px-4 py-12">
+            <script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 			/>
-			<script
+            <script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
 			/>
-
-			{/* Header */}
-			<header className="mb-8">
+            {/* Header */}
+            <header className="mb-8">
 				{post.category && (
 					<Link
 						href={`/blog/category/${post.category.slug}`}
@@ -199,25 +200,22 @@ export default async function PublicBlogPostPage({ params }: Props) {
 					</span>
 				</div>
 			</header>
-
-			{post.coverImage && (
+            {post.coverImage && (
 				// eslint-disable-next-line @next/next/no-img-element
-				<img
+				(<img
 					src={post.coverImage}
 					alt={post.title}
 					className="mb-8 aspect-[3/2] w-full rounded-2xl object-cover"
-				/>
+				/>)
 			)}
-
-			{/* Body */}
-			<div
+            {/* Body */}
+            <div
 				dir="auto"
 				className="blog-content text-[15px] leading-8 text-[var(--text-primary)]"
 				dangerouslySetInnerHTML={{ __html: html }}
 			/>
-
-			{/* Social follow bar — keep readers connected after they finish */}
-			<div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:flex-row sm:justify-between">
+            {/* Social follow bar — keep readers connected after they finish */}
+            <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:flex-row sm:justify-between">
 				<div>
 					<p className="text-sm font-medium text-[var(--text-primary)]">
 						{locale === 'fa' ? 'ما را دنبال کنید' : 'Follow us'}
@@ -230,9 +228,8 @@ export default async function PublicBlogPostPage({ params }: Props) {
 				</div>
 				<SocialLinks variant="default" />
 			</div>
-
-			{/* Footer nav */}
-			<footer className="mt-12 border-t border-[var(--border-default)] pt-6">
+            {/* Footer nav */}
+            <footer className="mt-12 border-t border-[var(--border-default)] pt-6">
 				<div className="grid gap-4 sm:grid-cols-2">
 					{prev ? (
 						<Link
@@ -268,6 +265,6 @@ export default async function PublicBlogPostPage({ params }: Props) {
 					)}
 				</div>
 			</footer>
-		</article>
-	)
+        </article>
+    );
 }

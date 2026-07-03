@@ -9,11 +9,12 @@ import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
 import { relativeTime } from '@/lib/format'
 
-export default async function ContactDetailPage({
-  params,
-}: {
-  params: { contactId: string }
-}) {
+export default async function ContactDetailPage(
+  props: {
+    params: Promise<{ contactId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('contacts')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'

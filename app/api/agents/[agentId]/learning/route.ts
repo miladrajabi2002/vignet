@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 async function ownAgent(workspaceId: string, agentId: string) {
   return prisma.agent.findFirst({
@@ -15,7 +15,8 @@ async function ownAgent(workspaceId: string, agentId: string) {
 }
 
 /** List unanswered questions awaiting the operator's review (newest first). */
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))
@@ -51,7 +52,8 @@ export async function GET(_req: Request, { params }: Params) {
 const dismissSchema = z.object({ messageId: z.string().min(1) })
 
 /** Dismiss an unanswered question without learning from it. */
-export async function DELETE(req: Request, { params }: Params) {
+export async function DELETE(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))

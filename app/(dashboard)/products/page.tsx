@@ -9,11 +9,12 @@ import { Pagination } from '@/components/ui/pagination'
 
 const PAGE_SIZE = 24
 
-export default async function ProductsPage({
-  searchParams,
-}: {
-  searchParams: { q?: string; sort?: string; categoryId?: string; page?: string }
-}) {
+export default async function ProductsPage(
+  props: {
+    searchParams: Promise<{ q?: string; sort?: string; categoryId?: string; page?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('products')
 

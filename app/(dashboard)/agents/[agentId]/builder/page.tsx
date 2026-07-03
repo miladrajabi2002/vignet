@@ -5,11 +5,12 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { FlowEditor } from '@/components/agent-builder/flow-editor'
 
-export default async function AgentBuilderPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentBuilderPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('builder')
 

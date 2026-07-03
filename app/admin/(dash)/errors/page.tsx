@@ -7,11 +7,12 @@ export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 50
 
-export default async function AdminErrorsPage({
-  searchParams,
-}: {
-  searchParams: { level?: string; page?: string }
-}) {
+export default async function AdminErrorsPage(
+  props: {
+    searchParams: Promise<{ level?: string; page?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const level = searchParams.level === 'warn' || searchParams.level === 'error'
     ? searchParams.level
     : undefined

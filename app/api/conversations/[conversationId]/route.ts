@@ -4,14 +4,15 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { dispatchSummary } from '@/lib/queue/jobs'
 
-type Params = { params: { conversationId: string } }
+type Params = { params: Promise<{ conversationId: string }> }
 
 const updateSchema = z.object({
   status: z.enum(['OPEN', 'RESOLVED', 'HANDED_OFF']).optional(),
   rating: z.number().int().min(1).max(5).nullish(),
 })
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

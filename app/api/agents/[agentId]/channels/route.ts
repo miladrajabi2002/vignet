@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 const bodySchema = z.object({
 	type: z.enum([
@@ -28,32 +28,34 @@ async function ownAgent(workspaceId: string, agentId: string) {
 	})
 }
 
-export async function GET(_req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-	if (!(await ownAgent(user.workspaceId, params.agentId)))
+export async function GET(_req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+    if (!(await ownAgent(user.workspaceId, params.agentId)))
 		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	const channels = await prisma.agentChannel.findMany({
+    const channels = await prisma.agentChannel.findMany({
 		where: { agentId: params.agentId },
 		select: { id: true, type: true, active: true, createdAt: true },
 	})
-	return NextResponse.json({ channels })
+    return NextResponse.json({ channels })
 }
 
-export async function POST(req: Request, { params }: Params) {
-	const user = await getCurrentUser()
-	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-	if (!(await ownAgent(user.workspaceId, params.agentId)))
+export async function POST(req: Request, props: Params) {
+    const params = await props.params;
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+    if (!(await ownAgent(user.workspaceId, params.agentId)))
 		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-	const json = await req.json().catch(() => null)
-	const parsed = bodySchema.safeParse(json)
-	if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
+    const json = await req.json().catch(() => null)
+    const parsed = bodySchema.safeParse(json)
+    if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
-	const config = (parsed.data.config ?? {}) as Prisma.InputJsonValue
+    const config = (parsed.data.config ?? {}) as Prisma.InputJsonValue
 
-	const channel = await prisma.agentChannel.upsert({
+    const channel = await prisma.agentChannel.upsert({
 		where: { agentId_type: { agentId: params.agentId, type: parsed.data.type } },
 		update: { active: true, config },
 		create: {
@@ -63,12 +65,12 @@ export async function POST(req: Request, { params }: Params) {
 		},
 	})
 
-	await syncOnboarding(user.workspaceId)
+    await syncOnboarding(user.workspaceId)
 
-	// Bust the cached public widget config so new visitors see the change.
-	if (parsed.data.type === 'WEB_WIDGET') {
+    // Bust the cached public widget config so new visitors see the change.
+    if (parsed.data.type === 'WEB_WIDGET') {
 		void invalidateWidgetConfig(params.agentId).catch(() => {})
 	}
 
-	return NextResponse.json({ channel }, { status: 201 })
+    return NextResponse.json({ channel }, { status: 201 })
 }

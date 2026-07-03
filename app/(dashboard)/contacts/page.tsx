@@ -9,11 +9,12 @@ import { Pagination } from '@/components/ui/pagination'
 
 const PAGE_SIZE = 100
 
-export default async function ContactsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string }
-}) {
+export default async function ContactsPage(
+  props: {
+    searchParams: Promise<{ page?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 

@@ -5,10 +5,8 @@ import { prisma } from '@/lib/prisma'
 
 const bodySchema = z.object({ rating: z.union([z.literal(1), z.literal(-1)]) })
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { messageId: string } },
-) {
+export async function PATCH(req: Request, props: { params: Promise<{ messageId: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

@@ -10,11 +10,12 @@ import { Pagination } from '@/components/ui/pagination'
 
 const PAGE_SIZE = 50
 
-export default async function ConversationsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string }
-}) {
+export default async function ConversationsPage(
+  props: {
+    searchParams: Promise<{ page?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('conversations')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'

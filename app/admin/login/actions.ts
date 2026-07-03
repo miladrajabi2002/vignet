@@ -22,7 +22,8 @@ export async function adminLogin(
 	}
 
 	const { value, maxAge } = createSessionToken()
-	cookies().set(ADMIN_COOKIE, value, {
+	const cookieStore = await cookies()
+	cookieStore.set(ADMIN_COOKIE, value, {
 		httpOnly: true,
 		secure: process.env.NODE_ENV === 'production',
 		sameSite: 'lax',
@@ -34,6 +35,7 @@ export async function adminLogin(
 }
 
 export async function adminLogout(): Promise<void> {
-	cookies().delete(ADMIN_COOKIE)
+	const cookieStore = await cookies()
+	cookieStore.delete(ADMIN_COOKIE)
 	redirect('/admin/login')
 }

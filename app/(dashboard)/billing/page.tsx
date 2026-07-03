@@ -15,11 +15,12 @@ const PLAN_KEY: Record<string, string> = {
   BUSINESS: 'planBusiness',
 }
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams?: { payment?: string }
-}) {
+export default async function BillingPage(
+  props: {
+    searchParams?: Promise<{ payment?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('billing')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'

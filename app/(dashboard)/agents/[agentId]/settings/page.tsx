@@ -7,11 +7,12 @@ import {
   type AgentSettingsData,
 } from '@/components/agents/agent-settings-form'
 
-export default async function AgentSettingsPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentSettingsPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('agents.settingsForm')
 

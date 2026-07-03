@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
-type Params = { params: { contactId: string } }
+type Params = { params: Promise<{ contactId: string }> }
 
 const updateSchema = z.object({
   stage: z.enum(['lead', 'qualified', 'customer', 'lost']).optional(),
@@ -19,7 +19,8 @@ async function ownContact(workspaceId: string, contactId: string) {
   })
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownContact(user.workspaceId, params.contactId)))
@@ -37,7 +38,8 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json({ contact })
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownContact(user.workspaceId, params.contactId)))

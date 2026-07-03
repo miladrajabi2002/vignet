@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendOutbound } from '@/lib/channels/outbound'
 import { captureError } from '@/lib/errors/capture'
 
-type Params = { params: { conversationId: string } }
+type Params = { params: Promise<{ conversationId: string }> }
 
 const bodySchema = z.object({ text: z.string().min(1).max(4000) })
 
@@ -14,7 +14,8 @@ const bodySchema = z.object({ text: z.string().min(1).max(4000) })
  * operator-authored and pushes it to the contact on messenger channels. The
  * conversation is marked HANDED_OFF so the AI stays out of the thread.
  */
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 

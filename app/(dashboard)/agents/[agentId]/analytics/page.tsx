@@ -24,11 +24,12 @@ import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 
 const DAYS = 14
 
-export default async function AgentAnalyticsPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentAnalyticsPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('analytics')
   const ta = await getTranslations('agents')

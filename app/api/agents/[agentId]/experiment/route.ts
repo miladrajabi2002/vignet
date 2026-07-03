@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
-type Params = { params: { agentId: string } }
+type Params = { params: Promise<{ agentId: string }> }
 
 async function ownAgent(workspaceId: string, agentId: string) {
   return prisma.agent.findFirst({
@@ -27,7 +27,8 @@ interface VariantStat {
 }
 
 /** Return experiment config + per-variant outcome comparison. */
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const agent = await ownAgent(user.workspaceId, params.agentId)
@@ -87,7 +88,8 @@ const updateSchema = z.object({
 })
 
 /** Update the A/B experiment config. */
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(req: Request, props: Params) {
+  const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await ownAgent(user.workspaceId, params.agentId)))

@@ -17,11 +17,12 @@ const WEBHOOK_PATH: Record<MessengerKind, string> = {
   INSTAGRAM: 'instagram',
 }
 
-export default async function AgentChannelsPage({
-  params,
-}: {
-  params: { agentId: string }
-}) {
+export default async function AgentChannelsPage(
+  props: {
+    params: Promise<{ agentId: string }>
+  }
+) {
+  const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('channels')
 
