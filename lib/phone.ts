@@ -42,4 +42,4 @@ export const phoneSchema = z
 export const otpCodeSchema = z
   .string()
   .transform(toEnglishDigits)
-  .pipe(z.string().regex(/^\d{6}$/, 'INVALID_CODE'))
+  .pipe(z.string().regex(/^\d{5}$/, 'INVALID_CODE'))

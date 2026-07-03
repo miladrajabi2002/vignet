@@ -15,11 +15,11 @@ export class OtpRateLimitError extends Error {
 }
 
 function generateCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  return Math.floor(10000 + Math.random() * 90000).toString()
 }
 
 /**
- * Send a 6-digit OTP via sms.ir. Stores the code in Redis (TTL 5m) and
+ * Send a 5-digit OTP via sms.ir. Stores the code in Redis (TTL 5m) and
  * rate-limits to 3 per hour per phone.
  *
  * In dev (no SMS_IR_API_KEY), the code is logged to the server console
