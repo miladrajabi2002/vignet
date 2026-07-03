@@ -54,19 +54,6 @@ function PlanBadge({ plan }: { plan: string }) {
   return <Badge tone={cfg.tone}>{cfg.label}</Badge>
 }
 
-// ─── COMPACT FORMATTERS ───────────────────────────────────────────
-//
-// Chart axis labels need to be short — a full fmtIRR ("۸٬۹۰۰٬۰۰۰ تومان")
-// would overflow the Y axis. We render millions as "X م" and let the
-// tooltip fall back to the same formatter for a compact view.
-
-const irrCompact = (v: number) =>
-  v >= 1_000_000
-    ? `${(v / 1_000_000).toLocaleString('fa-IR')} م`
-    : v.toLocaleString('fa-IR')
-
-const usdCompact = (v: number) => `$${v.toLocaleString('en-US')}`
-
 // ─── PAGE ─────────────────────────────────────────────────────────
 
 export default async function AdminRevenuePage() {
@@ -174,7 +161,7 @@ export default async function AdminRevenuePage() {
         title="درآمد ماهانه (تومان) — ۱۲ ماه اخیر"
         data={irrMonthly}
         color="#18181b"
-        formatter={irrCompact}
+        format="compact-irr"
       />
 
       {/* Charts row — IRR USD + payments count */}
@@ -183,13 +170,13 @@ export default async function AdminRevenuePage() {
           title="درآمد دلاری ماهانه"
           data={usdMonthly}
           color="#3b82f6"
-          formatter={usdCompact}
+          format="usd"
         />
         <MonthlyBarChart
           title="تعداد پرداخت‌های ماهانه"
           data={paysMonthly}
           color="#22c55e"
-          formatter={(v) => fa(v)}
+          format="number"
         />
       </div>
 
@@ -199,7 +186,7 @@ export default async function AdminRevenuePage() {
           title="ثبت‌نام کاربران ماهانه"
           data={usersMonthly}
           color="#a855f7"
-          formatter={(v) => fa(v)}
+          format="number"
         />
         <DonutChart
           title="توزیع پلن‌ها"
@@ -214,7 +201,7 @@ export default async function AdminRevenuePage() {
         <BarList
           title="پردرآمدترین کسب‌وکارها"
           data={barListData}
-          formatter={(v) => fmtIRR(v)}
+          format="irr"
           color="#18181b"
         />
 

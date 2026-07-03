@@ -175,13 +175,14 @@ export default async function AdminOverviewPage() {
           data={revenueTrend}
           color="#18181b"
           variant="area"
-          valueSuffix=" تومان"
+          format="irr"
         />
         <TrendChart
           title="ثبت‌نام کاربران ۱۴ روز اخیر"
           data={usersTrend}
           color="#3b82f6"
           variant="bar"
+          format="number"
         />
       </div>
 
@@ -218,7 +219,7 @@ export default async function AdminOverviewPage() {
         <BarList
           title="پربازدیدترین کانال‌ها"
           data={channels.map((c) => ({ label: c.label, value: c.value }))}
-          formatter={(v) => fa(v)}
+          format="number"
         />
       </div>
 

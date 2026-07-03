@@ -158,7 +158,7 @@ export default async function AdminUsagePage() {
         subtitle="پرکاربردترین مدل‌ها بر اساس توکن"
         data={modelRows}
         color="#18181b"
-        formatter={(v) => `${Number(v).toLocaleString('fa-IR')} توکن`}
+        format="token"
       />
     </div>
   )
