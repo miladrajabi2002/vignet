@@ -12,6 +12,8 @@ import {
   fa,
   fmtDate,
 } from '../ui'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { conversationsDaily, conversationsDailyByChannel } from '@/lib/admin/charts'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +38,17 @@ const CHANNEL_LABEL: Record<string, string> = {
   API: 'API',
 }
 
+// Sparkline colors per channel — distinct but harmonious.
+const CHANNEL_COLOR: Record<string, string> = {
+  TELEGRAM: '#3b82f6',
+  WHATSAPP: '#22c55e',
+  INSTAGRAM: '#ec4899',
+  RUBIKA: '#f59e0b',
+  BALE: '#06b6d4',
+  WEB_WIDGET: '#18181b',
+  API: '#a855f7',
+}
+
 export default async function AdminConversationsPage(
   props: {
     searchParams: Promise<{ page?: string }>
@@ -44,30 +57,40 @@ export default async function AdminConversationsPage(
   const searchParams = await props.searchParams
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const [rows, totalCount, openCount, handedOffCount] = await Promise.all([
-    prisma.conversation.findMany({
-      orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE + 1,
-      select: {
-        id: true,
-        channel: true,
-        status: true,
-        messageCount: true,
-        lastMessageAt: true,
-        createdAt: true,
-        agent: { select: { name: true } },
-        workspace: { select: { name: true } },
-        contact: { select: { name: true, phone: true } },
-      },
-    }),
-    prisma.conversation.count(),
-    prisma.conversation.count({ where: { status: 'OPEN' } }),
-    prisma.conversation.count({ where: { status: 'HANDED_OFF' } }),
-  ])
+  const [rows, totalCount, openCount, handedOffCount, convTrend7, channelSparks] =
+    await Promise.all([
+      prisma.conversation.findMany({
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE + 1,
+        select: {
+          id: true,
+          channel: true,
+          status: true,
+          messageCount: true,
+          lastMessageAt: true,
+          createdAt: true,
+          agent: { select: { name: true } },
+          workspace: { select: { name: true } },
+          contact: { select: { name: true, phone: true } },
+        },
+      }),
+      prisma.conversation.count(),
+      prisma.conversation.count({ where: { status: 'OPEN' } }),
+      prisma.conversation.count({ where: { status: 'HANDED_OFF' } }),
+      conversationsDaily(7),
+      conversationsDailyByChannel(7),
+    ])
 
   const hasNext = rows.length > PAGE_SIZE
   const items = hasNext ? rows.slice(0, PAGE_SIZE) : rows
+
+  // 7-day total from the trend series.
+  const weekTotal = convTrend7.reduce((s, p) => s + p.value, 0)
+  // Channel breakdown sorted by 7-day total desc — top 4 channels.
+  const topChannels = [...channelSparks.values()]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 4)
 
   return (
     <div className="space-y-6">
@@ -80,6 +103,7 @@ export default async function AdminConversationsPage(
         ]}
       />
 
+      {/* Stats row */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           label="کل مکالمات"
@@ -99,6 +123,27 @@ export default async function AdminConversationsPage(
           icon={<Headset className="h-5 w-5" />}
           tone="warning"
         />
+      </div>
+
+      {/* ─── Mini trends: 7-day conversation volume + top channels ─── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <MiniTrend
+          label="مکالمات ۷ روز اخیر"
+          value={weekTotal}
+          series={convTrend7.map((p) => p.value)}
+          color="#3b82f6"
+          hint="میانگین روزانه"
+        />
+        {topChannels.map((ch) => (
+          <MiniTrend
+            key={ch.channel}
+            label={`کانال ${CHANNEL_LABEL[ch.channel] ?? ch.channel}`}
+            value={ch.total}
+            series={ch.series}
+            color={CHANNEL_COLOR[ch.channel] ?? '#18181b'}
+            hint="۷ روز اخیر"
+          />
+        ))}
       </div>
 
       {items.length === 0 ? (

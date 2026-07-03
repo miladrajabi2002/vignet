@@ -3,20 +3,24 @@
 import { cn } from '@/lib/utils'
 
 /**
- * Tiny inline SVG sparkline for table rows.
+ * Tiny inline SVG sparkline for table rows and compact stat cards.
  * Renders a smooth-ish polyline from a small numeric series.
- * Light-themed: green when the series trends upward, red when downward.
  *
- * No CSS-gradient id is used (avoids SSR hydration mismatches from
- * random ids); the soft area fill uses a flat semi-transparent stroke color.
+ * @param data     7 daily counts, oldest → newest
+ * @param color    hex stroke color (default emerald green). When "auto",
+ *                 the line turns green for an up-trend and red for down.
+ * @param width    SVG width in px
+ * @param height   SVG height in px
  */
 export function Sparkline({
   data,
+  color = 'auto',
   width = 96,
   height = 28,
   className,
 }: {
   data: number[]
+  color?: string
   width?: number
   height?: number
   className?: string
@@ -41,11 +45,15 @@ export function Sparkline({
     .map(([x, y], i) => (i === 0 ? `M ${x.toFixed(1)} ${y.toFixed(1)}` : `L ${x.toFixed(1)} ${y.toFixed(1)}`))
     .join(' ')
 
-  // Determine trend color: compare last vs first non-zero.
-  const firstNonZero = data.find((d) => d > 0) ?? 0
-  const last = data[n - 1] ?? 0
-  const trendUp = last >= firstNonZero
-  const stroke = trendUp ? '#22c55e' : '#ef4444'
+  // Determine stroke color.
+  let stroke: string
+  if (color === 'auto') {
+    const firstNonZero = data.find((d) => d > 0) ?? 0
+    const last = data[n - 1] ?? 0
+    stroke = last >= firstNonZero ? '#22c55e' : '#ef4444'
+  } else {
+    stroke = color
+  }
 
   // Build a soft area fill below the line.
   const areaPath =

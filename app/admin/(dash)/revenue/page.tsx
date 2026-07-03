@@ -20,7 +20,9 @@ import {
   fmtUSD,
   fa,
 } from '../ui'
-import { MonthlyBarChart, DonutChart, BarList } from '@/components/admin/trend-chart'
+import { MonthlyBarChart, DonutChart } from '@/components/admin/trend-chart'
+import { Sparkline } from '@/components/admin/sparkline'
+import { MiniTrend } from '@/components/admin/mini-trend'
 import {
   getRevenueKPIs,
   getTopWorkspacesByRevenue,
@@ -32,7 +34,9 @@ import {
   paymentsMonthly,
   newUsersMonthly,
   planDistribution,
-  gatewayBreakdown,
+  revenueIRRDaily,
+  paymentsDaily,
+  paymentsDailyByWorkspace,
 } from '@/lib/admin/charts'
 
 export const dynamic = 'force-dynamic'
@@ -57,9 +61,6 @@ function PlanBadge({ plan }: { plan: string }) {
 // ─── PAGE ─────────────────────────────────────────────────────────
 
 export default async function AdminRevenuePage() {
-  // All nine fetches run in parallel; gatewayBreakdown is included per spec
-  // so the data is ready for future surface, even though this layout doesn't
-  // render it yet (no unused-var warning since we simply don't destructure it).
   const [
     kpi,
     topWorkspaces,
@@ -69,20 +70,22 @@ export default async function AdminRevenuePage() {
     paysMonthly,
     usersMonthly,
     planDist,
+    irrTrend7,
+    paysTrend7,
+    paySparks,
   ] = await Promise.all([
     getRevenueKPIs(),
-    getTopWorkspacesByRevenue(5),
+    getTopWorkspacesByRevenue(6),
     getPlanRevenue(),
     revenueIRRMonthly(12),
     revenueUSDMonthly(12),
     paymentsMonthly(12),
     newUsersMonthly(12),
     planDistribution(),
-    gatewayBreakdown(),
+    revenueIRRDaily(7),
+    paymentsDaily(7),
+    paymentsDailyByWorkspace(7),
   ])
-
-  // Map top workspaces → BarList shape {label, value}
-  const barListData = topWorkspaces.map((w) => ({ label: w.name, value: w.revenueIRR }))
 
   // Map plan distribution slices → DonutChart shape
   const donutData = planDist.map((s) => ({ label: s.label, value: s.value }))
@@ -156,6 +159,24 @@ export default async function AdminRevenuePage() {
         />
       </div>
 
+      {/* ─── Mini trends: 7-day revenue + payments ─── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <MiniTrend
+          label="درآمد ۷ روز اخیر (تومان)"
+          value={fmtIRR(irrTrend7.reduce((s, p) => s + p.value, 0))}
+          series={irrTrend7.map((p) => p.value)}
+          color="#22c55e"
+          hint="روزانه"
+        />
+        <MiniTrend
+          label="پرداخت‌های ۷ روز اخیر"
+          value={paysTrend7.reduce((s, p) => s + p.value, 0)}
+          series={paysTrend7.map((p) => p.value)}
+          color="#3b82f6"
+          hint="تعداد پرداخت موفق"
+        />
+      </div>
+
       {/* Main chart — full width */}
       <MonthlyBarChart
         title="درآمد ماهانه (تومان) — ۱۲ ماه اخیر"
@@ -196,14 +217,54 @@ export default async function AdminRevenuePage() {
         />
       </div>
 
-      {/* Bottom row — top workspaces + plan revenue table */}
+      {/* Bottom row — top workspaces (with sparkline) + plan revenue table */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <BarList
-          title="پردرآمدترین کسب‌وکارها"
-          data={barListData}
-          format="irr"
-          color="#18181b"
-        />
+        <Panel title="پردرآمدترین کسب‌وکارها" subtitle="روند پرداخت ۷ روز اخیر">
+          <TableShell>
+            <thead className="border-b border-zinc-200 bg-zinc-50/50">
+              <tr>
+                <Th>کسب‌وکار</Th>
+                <Th>پلن</Th>
+                <Th>درآمد کل</Th>
+                <Th>روند ۷ روز</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {topWorkspaces.map((w) => {
+                const spark = paySparks.get(w.id)
+                return (
+                  <tr key={w.id} className="hover:bg-zinc-50/60">
+                    <Td className="font-medium text-zinc-900">{w.name}</Td>
+                    <Td>
+                      <PlanBadge plan={w.plan} />
+                    </Td>
+                    <Td className="font-medium tabular-nums">{fmtIRR(w.revenueIRR)}</Td>
+                    <Td>
+                      <div className="flex items-center gap-2">
+                        <Sparkline
+                          data={spark?.series ?? []}
+                          color="#22c55e"
+                          width={72}
+                          height={24}
+                        />
+                        <span className="text-[11px] tabular-nums text-zinc-500">
+                          {spark ? fa(spark.total) : '۰'}
+                        </span>
+                      </div>
+                    </Td>
+                  </tr>
+                )
+              })}
+              {topWorkspaces.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-xs text-zinc-400">
+                    پرداختی ثبت نشده است
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </TableShell>
+        </Panel>
 
         <Panel title="درآمد به تفکیک پلن">
           <TableShell>

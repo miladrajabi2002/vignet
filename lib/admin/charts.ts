@@ -317,3 +317,133 @@ export async function conversationsDailyByWorkspace(days = 7): Promise<Map<strin
   }
   return out
 }
+
+// ─── ERROR SPARKLINE (by source) ───────────────────────────────────
+
+export interface ErrorSpark {
+  source: string
+  series: number[]
+  total: number
+}
+
+/**
+ * Daily error counts for the last N days, grouped by source.
+ * Used for inline sparklines on the errors page and a top-of-page trend.
+ */
+export async function errorsDailyBySource(days = 7): Promise<Map<string, ErrorSpark>> {
+  const since = new Date(Date.now() - days * 86_400_000)
+  const rows = await prisma.$queryRaw<{ source: string | null; d: Date; c: bigint }[]>`
+    SELECT "source", date_trunc('day', "createdAt") AS d, count(*) AS c
+    FROM "ErrorLog"
+    WHERE "createdAt" >= ${since}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `
+
+  const out = new Map<string, ErrorSpark>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (const r of rows) {
+    const key = r.source ?? 'unknown'
+    let entry = out.get(key)
+    if (!entry) {
+      entry = { source: key, series: new Array(days).fill(0), total: 0 }
+      out.set(key, entry)
+    }
+    const d = new Date(r.d)
+    d.setHours(0, 0, 0, 0)
+    const idx = Math.floor((today.getTime() - d.getTime()) / 86_400_000)
+    if (idx >= 0 && idx < days) {
+      const n = Number(r.c)
+      entry.series[days - 1 - idx] = n
+      entry.total += n
+    }
+  }
+  return out
+}
+
+// ─── CONVERSATION SPARKLINE (by channel) ───────────────────────────
+
+export interface ChannelSpark {
+  channel: string
+  series: number[]
+  total: number
+}
+
+/**
+ * Daily conversation counts for the last N days, grouped by channel.
+ * Used for inline sparklines on the conversations page.
+ */
+export async function conversationsDailyByChannel(days = 7): Promise<Map<string, ChannelSpark>> {
+  const since = new Date(Date.now() - days * 86_400_000)
+  const rows = await prisma.$queryRaw<{ channel: string; d: Date; c: bigint }[]>`
+    SELECT "channel", date_trunc('day', "createdAt") AS d, count(*) AS c
+    FROM "Conversation"
+    WHERE "createdAt" >= ${since}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `
+
+  const out = new Map<string, ChannelSpark>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (const r of rows) {
+    let entry = out.get(r.channel)
+    if (!entry) {
+      entry = { channel: r.channel, series: new Array(days).fill(0), total: 0 }
+      out.set(r.channel, entry)
+    }
+    const d = new Date(r.d)
+    d.setHours(0, 0, 0, 0)
+    const idx = Math.floor((today.getTime() - d.getTime()) / 86_400_000)
+    if (idx >= 0 && idx < days) {
+      const n = Number(r.c)
+      entry.series[days - 1 - idx] = n
+      entry.total += n
+    }
+  }
+  return out
+}
+
+// ─── PAYMENT SPARKLINE (by workspace) ──────────────────────────────
+
+export interface PaymentSpark {
+  workspaceId: string
+  series: number[]
+  total: number
+}
+
+/**
+ * Daily PAID payment counts for the last N days, grouped by workspaceId.
+ * Used for inline sparklines next to top workspaces on the revenue page.
+ */
+export async function paymentsDailyByWorkspace(days = 7): Promise<Map<string, PaymentSpark>> {
+  const since = new Date(Date.now() - days * 86_400_000)
+  const rows = await prisma.$queryRaw<{ workspaceId: string; d: Date; c: bigint }[]>`
+    SELECT "workspaceId", date_trunc('day', "paidAt") AS d, count(*) AS c
+    FROM "Payment"
+    WHERE "status" = 'PAID' AND "paidAt" >= ${since}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `
+
+  const out = new Map<string, PaymentSpark>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (const r of rows) {
+    let entry = out.get(r.workspaceId)
+    if (!entry) {
+      entry = { workspaceId: r.workspaceId, series: new Array(days).fill(0), total: 0 }
+      out.set(r.workspaceId, entry)
+    }
+    const d = new Date(r.d)
+    d.setHours(0, 0, 0, 0)
+    const idx = Math.floor((today.getTime() - d.getTime()) / 86_400_000)
+    if (idx >= 0 && idx < days) {
+      const n = Number(r.c)
+      entry.series[days - 1 - idx] = n
+      entry.total += n
+    }
+  }
+  return out
+}

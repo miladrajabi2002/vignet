@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getPlanDefs } from '@/lib/billing/plans'
+import { MiniTrend } from '@/components/admin/mini-trend'
+import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import {
   PageHeader,
   Panel,
@@ -109,7 +111,7 @@ export default async function AdminUserDetailPage(
   const ws = user.workspace
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [conversations, payments, usage] = await Promise.all([
+  const [conversations, payments, usage, convSpark, paySpark] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: 'desc' },
@@ -144,6 +146,8 @@ export default async function AdminUserDetailPage(
       _sum: { promptTokens: true, completionTokens: true, cost: true },
       _count: { _all: true },
     }),
+    conversationsDailyByWorkspace(7),
+    paymentsDailyByWorkspace(7),
   ])
 
   const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
@@ -151,6 +155,12 @@ export default async function AdminUserDetailPage(
   const planDef = getPlanDefs()[ws.plan]
   const totalTokens = (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
   const totalCost = usage._sum.cost ?? 0
+
+  // 7-day sparkline data for this user's workspace.
+  const convSeries = user.workspaceId ? convSpark.get(user.workspaceId)?.series ?? [] : []
+  const convWeekTotal = user.workspaceId ? convSpark.get(user.workspaceId)?.total ?? 0 : 0
+  const paySeries = user.workspaceId ? paySpark.get(user.workspaceId)?.series ?? [] : []
+  const payWeekTotal = user.workspaceId ? paySpark.get(user.workspaceId)?.total ?? 0 : 0
 
   const userName = user.name ?? user.phone
   const memberSince = fmtDay(user.createdAt)
@@ -174,6 +184,24 @@ export default async function AdminUserDetailPage(
           </Link>
         }
       />
+
+      {/* ─── 7-day activity sparklines ─── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <MiniTrend
+          label="مکالمات ۷ روز اخیر"
+          value={convWeekTotal}
+          series={convSeries}
+          color="#3b82f6"
+          hint={`کل: ${fa(ws._count.conversations)}`}
+        />
+        <MiniTrend
+          label="پرداخت‌های ۷ روز اخیر"
+          value={payWeekTotal}
+          series={paySeries}
+          color="#22c55e"
+          hint={`کل: ${fa(ws._count.payments)}`}
+        />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* ─── MAIN COLUMN ─── */}
