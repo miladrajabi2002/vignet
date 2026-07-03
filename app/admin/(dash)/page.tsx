@@ -1,16 +1,53 @@
-import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import {
+  Wallet,
   Building2,
-  Bot,
   MessagesSquare,
+  TrendingUp,
+  Users,
+  Bot,
   AlertTriangle,
+  CreditCard,
 } from 'lucide-react'
-import { LevelBadge, fmtDate } from './ui'
-import { TrendChart } from '@/components/admin/trend-chart'
-import { conversationsDaily, errorsDaily } from '@/lib/admin/charts'
+import {
+  PageHeader,
+  StatCard,
+  Panel,
+  EmptyState,
+  LevelBadge,
+  Badge,
+  fmtDate,
+  fmtIRR,
+  fmtUSD,
+  fa,
+} from './ui'
+import { TrendChart, DonutChart, BarList } from '@/components/admin/trend-chart'
+import {
+  conversationsDaily,
+  errorsDaily,
+  newUsersDaily,
+  revenueIRRDaily,
+  planDistribution,
+  gatewayBreakdown,
+  channelBreakdown,
+} from '@/lib/admin/charts'
+import { getRevenueKPIs } from '@/lib/admin/revenue'
 
 export const dynamic = 'force-dynamic'
+
+const PLAN_LABELS: Record<string, string> = {
+  TRIAL: 'آزمایشی',
+  STARTER: 'استارتر',
+  PRO: 'حرفه‌ای',
+  BUSINESS: 'سازمانی',
+}
+
+const PLAN_TONES: Record<string, 'muted' | 'info' | 'success' | 'default'> = {
+  TRIAL: 'muted',
+  STARTER: 'info',
+  PRO: 'success',
+  BUSINESS: 'default',
+}
 
 function startOfToday(): Date {
   const d = new Date()
@@ -19,99 +56,227 @@ function startOfToday(): Date {
 }
 
 export default async function AdminOverviewPage() {
+  const startToday = startOfToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
   const [
+    revenueKPIs,
     workspaceCount,
+    userCount,
     activeAgents,
     conversationsToday,
     errors24h,
     recentErrors,
-    recentConversations,
+    recentPayments,
+    revenueTrend,
+    usersTrend,
     convTrend,
     errTrend,
+    plans,
+    gateways,
+    channels,
   ] = await Promise.all([
+    getRevenueKPIs(),
     prisma.workspace.count(),
+    prisma.user.count(),
     prisma.agent.count({ where: { active: true } }),
-    prisma.conversation.count({ where: { createdAt: { gte: startOfToday() } } }),
+    prisma.conversation.count({ where: { createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }),
     prisma.errorLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
-      select: { id: true, source: true, message: true, level: true, createdAt: true },
-    }),
-    prisma.conversation.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
       select: {
         id: true,
-        channel: true,
+        source: true,
+        message: true,
+        level: true,
         createdAt: true,
-        agent: { select: { name: true } },
-        workspace: { select: { name: true } },
       },
     }),
+    prisma.payment.findMany({
+      where: { status: 'PAID' },
+      orderBy: { paidAt: 'desc' },
+      take: 5,
+      include: { workspace: { select: { name: true } } },
+    }),
+    revenueIRRDaily(14),
+    newUsersDaily(14),
     conversationsDaily(14),
     errorsDaily(14),
+    planDistribution(),
+    gatewayBreakdown(),
+    channelBreakdown(),
   ])
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-light">نمای کلی</h1>
+      <PageHeader title="داشبورد" subtitle="نمای کلی وضعیت پلتفرم ویجنت" />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="کسب‌وکارها" value={workspaceCount} icon={<Building2 className="h-4 w-4" />} />
-        <Stat label="ایجنت‌های فعال" value={activeAgents} icon={<Bot className="h-4 w-4" />} />
-        <Stat
+      {/* ─── Top KPI row ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="درآمد کل"
+          value={fmtIRR(revenueKPIs.totalIRR)}
+          icon={<Wallet className="h-5 w-5" />}
+          tone="success"
+          trend={{ value: revenueKPIs.momChange, label: 'نسبت به ماه قبل' }}
+        />
+        <StatCard
+          label="کسب‌وکارهای فعال"
+          value={workspaceCount}
+          sub="از کل کاربران"
+          icon={<Building2 className="h-5 w-5" />}
+        />
+        <StatCard
           label="مکالمات امروز"
           value={conversationsToday}
-          icon={<MessagesSquare className="h-4 w-4" />}
+          icon={<MessagesSquare className="h-5 w-5" />}
+          tone="info"
         />
-        <Stat
+        <StatCard
+          label="نرخ تبدیل"
+          value={`${fa(revenueKPIs.conversionRate)}٪`}
+          sub={`${fa(revenueKPIs.payingWorkspaces)} پرداختی`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          tone="success"
+        />
+      </div>
+
+      {/* ─── Second KPI row ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="کاربران کل"
+          value={userCount}
+          icon={<Users className="h-5 w-5" />}
+        />
+        <StatCard
+          label="ایجنت‌های فعال"
+          value={activeAgents}
+          icon={<Bot className="h-5 w-5" />}
+        />
+        <StatCard
           label="خطاهای ۲۴ ساعت"
           value={errors24h}
           tone={errors24h > 0 ? 'danger' : 'default'}
-          icon={<AlertTriangle className="h-4 w-4" />}
+          icon={<AlertTriangle className="h-5 w-5" />}
+        />
+        <StatCard
+          label="MRR"
+          value={fmtIRR(revenueKPIs.mrrIRR)}
+          icon={<CreditCard className="h-5 w-5" />}
+          tone="success"
         />
       </div>
 
+      {/* ─── Charts row 1 ───────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <TrendChart title="مکالمات ۱۴ روز اخیر" data={convTrend} color="#34d399" />
-        <TrendChart title="خطاهای ۱۴ روز اخیر" data={errTrend} color="#f87171" />
+        <TrendChart
+          title="درآمد ۱۴ روز اخیر (تومان)"
+          data={revenueTrend}
+          color="#18181b"
+          variant="area"
+          valueSuffix=" تومان"
+        />
+        <TrendChart
+          title="ثبت‌نام کاربران ۱۴ روز اخیر"
+          data={usersTrend}
+          color="#3b82f6"
+          variant="bar"
+        />
       </div>
 
+      {/* ─── Charts row 2 ───────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TrendChart
+          title="مکالمات ۱۴ روز اخیر"
+          data={convTrend}
+          color="#22c55e"
+          variant="bar"
+        />
+        <TrendChart
+          title="خطاهای ۱۴ روز اخیر"
+          data={errTrend}
+          color="#ef4444"
+          variant="bar"
+        />
+      </div>
+
+      {/* ─── Distribution row ───────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DonutChart
+          title="توزیع پلن‌ها"
+          data={plans}
+          centerValue={workspaceCount}
+          centerLabel="کسب‌وکار"
+        />
+        <DonutChart
+          title="درگاه‌های پرداخت"
+          data={gateways}
+          centerValue={revenueKPIs.paidCount}
+          centerLabel="پرداخت موفق"
+        />
+        <BarList
+          title="پربازدیدترین کانال‌ها"
+          data={channels.map((c) => ({ label: c.label, value: c.value }))}
+          formatter={(v) => fa(v)}
+        />
+      </div>
+
+      {/* ─── Bottom row: recent errors + payments ───────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="آخرین خطاها" href="/admin/errors" linkLabel="همه خطاها">
           {recentErrors.length === 0 ? (
-            <Empty>خطایی ثبت نشده</Empty>
+            <EmptyState icon={<AlertTriangle className="h-8 w-8" />}>
+              خطایی ثبت نشده
+            </EmptyState>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-zinc-100">
               {recentErrors.map((e) => (
-                <li key={e.id} className="py-2.5">
+                <li key={e.id} className="py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-2">
                     <LevelBadge level={e.level} />
-                    <span className="text-xs text-zinc-500">{e.source ?? '—'}</span>
-                    <span className="ms-auto text-[11px] text-zinc-600">
+                    <span className="truncate text-xs text-zinc-500">
+                      {e.source ?? '—'}
+                    </span>
+                    <span className="ms-auto shrink-0 text-[11px] text-zinc-400">
                       {fmtDate(e.createdAt)}
                     </span>
                   </div>
-                  <p className="mt-1 truncate text-sm text-zinc-300">{e.message}</p>
+                  <p className="mt-1 truncate text-sm text-zinc-700">{e.message}</p>
                 </li>
               ))}
             </ul>
           )}
         </Panel>
 
-        <Panel title="آخرین مکالمات" href="/admin/conversations" linkLabel="همه مکالمات">
-          {recentConversations.length === 0 ? (
-            <Empty>مکالمه‌ای نیست</Empty>
+        <Panel title="آخرین پرداخت‌ها" href="/admin/payments" linkLabel="همه پرداخت‌ها">
+          {recentPayments.length === 0 ? (
+            <EmptyState icon={<CreditCard className="h-8 w-8" />}>
+              پرداختی ثبت نشده
+            </EmptyState>
           ) : (
-            <ul className="divide-y divide-zinc-800">
-              {recentConversations.map((c) => (
-                <li key={c.id} className="flex items-center gap-2 py-2.5">
-                  <span className="text-sm text-zinc-300">{c.agent.name}</span>
-                  <span className="text-xs text-zinc-500">· {c.workspace.name}</span>
-                  <span className="ms-auto text-[11px] text-zinc-600">{fmtDate(c.createdAt)}</span>
+            <ul className="divide-y divide-zinc-100">
+              {recentPayments.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-zinc-900">
+                        {p.workspace.name}
+                      </span>
+                      <Badge tone={PLAN_TONES[p.plan] ?? 'muted'}>
+                        {PLAN_LABELS[p.plan] ?? p.plan}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">
+                      {fmtDate(p.paidAt ?? p.createdAt)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-zinc-900">
+                    {p.currency === 'IRR' ? fmtIRR(p.amount) : fmtUSD(p.amount)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -120,60 +285,4 @@ export default async function AdminOverviewPage() {
       </div>
     </div>
   )
-}
-
-function Stat({
-  label,
-  value,
-  icon,
-  tone = 'default',
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  tone?: 'default' | 'danger'
-}) {
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="flex items-center gap-2 text-zinc-500">
-        {icon}
-        <span className="text-xs">{label}</span>
-      </div>
-      <p
-        className={`mt-2 text-2xl font-light ${
-          tone === 'danger' && value > 0 ? 'text-red-400' : 'text-zinc-100'
-        }`}
-      >
-        {value.toLocaleString('fa-IR')}
-      </p>
-    </div>
-  )
-}
-
-function Panel({
-  title,
-  href,
-  linkLabel,
-  children,
-}: {
-  title: string
-  href: string
-  linkLabel: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-zinc-300">{title}</h2>
-        <Link href={href} className="text-xs text-emerald-400 hover:underline">
-          {linkLabel}
-        </Link>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-6 text-center text-sm text-zinc-600">{children}</p>
 }

@@ -1,10 +1,26 @@
+import { Gauge, ArrowDownToLine, ArrowUpFromLine, Coins, DollarSign } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { TrendChart } from '@/components/admin/trend-chart'
+import { TrendChart, BarList } from '@/components/admin/trend-chart'
 import { usageTokensDaily } from '@/lib/admin/charts'
+import {
+  PageHeader,
+  StatCard,
+  Panel,
+  EmptyState,
+  Progress,
+  Badge,
+  fa,
+  fmtUSD,
+} from '../ui'
 
 export const dynamic = 'force-dynamic'
 
-const fa = (n: number) => n.toLocaleString('fa-IR')
+const TYPE_LABEL: Record<string, string> = {
+  CHAT: 'چت',
+  EMBEDDING: 'امبدینگ',
+  TTS: 'تبدیل متن به گفتار',
+  STT: 'تبدیل گفتار به متن',
+}
 
 export default async function AdminUsagePage() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -35,88 +51,115 @@ export default async function AdminUsagePage() {
 
   const totalPrompt = totals._sum.promptTokens ?? 0
   const totalCompletion = totals._sum.completionTokens ?? 0
+  const totalTokens = totalPrompt + totalCompletion
+  const totalCost = totals._sum.cost ?? 0
+
+  const maxTypeTokens = Math.max(
+    1,
+    ...byType.map((r) => (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0)),
+  )
+
+  const typeRows = byType
+    .map((r) => ({
+      type: r.type,
+      label: TYPE_LABEL[r.type] ?? r.type,
+      count: r._count._all,
+      tokens: (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0),
+    }))
+    .sort((a, b) => b.tokens - a.tokens)
+
+  const modelRows = byModel
+    .map((r) => ({
+      label: r.model ?? 'نامشخص',
+      value: (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0),
+    }))
+    .sort((a, b) => b.value - a.value)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-light">مصرف و درخواست‌ها</h1>
-        <p className="mt-1 text-sm text-zinc-500">۳۰ روز اخیر</p>
+      <PageHeader
+        title="مصرف و توکن"
+        subtitle="آمار مصرف AI — ۳۰ روز اخیر"
+        breadcrumbs={[
+          { label: 'داشبورد', href: '/admin' },
+          { label: 'مصرف' },
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <StatCard
+          label="کل درخواست‌ها"
+          value={fa(callCount)}
+          icon={<Gauge className="h-5 w-5" />}
+          tone="default"
+        />
+        <StatCard
+          label="توکن ورودی"
+          value={fa(totalPrompt)}
+          icon={<ArrowDownToLine className="h-5 w-5" />}
+          tone="info"
+        />
+        <StatCard
+          label="توکن خروجی"
+          value={fa(totalCompletion)}
+          icon={<ArrowUpFromLine className="h-5 w-5" />}
+          tone="success"
+        />
+        <StatCard
+          label="کل توکن"
+          value={fa(totalTokens)}
+          icon={<Coins className="h-5 w-5" />}
+          tone="warning"
+        />
+        <StatCard
+          label="هزینه کل"
+          value={fmtUSD(totalCost)}
+          icon={<DollarSign className="h-5 w-5" />}
+          tone="default"
+        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="کل درخواست‌ها" value={fa(callCount)} />
-        <Stat label="توکن ورودی" value={fa(totalPrompt)} />
-        <Stat label="توکن خروجی" value={fa(totalCompletion)} />
-        <Stat label="کل توکن" value={fa(totalPrompt + totalCompletion)} />
-      </div>
+      <TrendChart
+        title="مصرف توکن ۱۴ روز اخیر"
+        subtitle="مجموع توکن ورودی و خروجی روزانه"
+        data={tokenTrend}
+        color="#a855f7"
+        variant="area"
+      />
 
-      <TrendChart title="مصرف توکن ۱۴ روز اخیر" data={tokenTrend} color="#a78bfa" variant="area" />
-
-      <Section title="به تفکیک نوع">
-        {byType.length === 0 ? (
-          <Empty />
+      <Panel title="به تفکیک نوع" subtitle="سهم هر نوع درخواست از مصرف">
+        {typeRows.length === 0 ? (
+          <EmptyState>داده‌ای ثبت نشده است</EmptyState>
         ) : (
-          <div className="divide-y divide-zinc-800">
-            {byType.map((r) => (
-              <Row
+          <div className="divide-y divide-zinc-100">
+            {typeRows.map((r) => (
+              <div
                 key={r.type}
-                label={r.type}
-                count={r._count._all}
-                tokens={(r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0)}
-              />
+                className="flex flex-wrap items-center gap-2 py-3"
+              >
+                <span className="w-32 shrink-0 text-sm font-medium text-zinc-900">
+                  {r.label}
+                </span>
+                <Badge tone="muted">{fa(r.count)} درخواست</Badge>
+                <span className="ms-auto w-24 shrink-0 text-end text-xs text-zinc-500">
+                  {fa(r.tokens)} توکن
+                </span>
+                <div className="w-full">
+                  <Progress value={r.tokens} max={maxTypeTokens} />
+                </div>
+              </div>
             ))}
           </div>
         )}
-      </Section>
+      </Panel>
 
-      <Section title="به تفکیک مدل (پرکاربردترین)">
-        {byModel.length === 0 ? (
-          <Empty />
-        ) : (
-          <div className="divide-y divide-zinc-800">
-            {byModel.map((r) => (
-              <Row
-                key={r.model ?? 'unknown'}
-                label={r.model ?? '—'}
-                count={r._count._all}
-                tokens={(r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0)}
-              />
-            ))}
-          </div>
-        )}
-      </Section>
+      <BarList
+        title="به تفکیک مدل"
+        subtitle="پرکاربردترین مدل‌ها بر اساس توکن"
+        data={modelRows}
+        color="#18181b"
+        formatter={(v) => `${Number(v).toLocaleString('fa-IR')} توکن`}
+      />
     </div>
   )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <span className="text-xs text-zinc-500">{label}</span>
-      <p className="mt-2 text-xl font-light text-zinc-100">{value}</p>
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <h2 className="mb-2 text-sm font-medium text-zinc-300">{title}</h2>
-      {children}
-    </div>
-  )
-}
-
-function Row({ label, count, tokens }: { label: string; count: number; tokens: number }) {
-  return (
-    <div className="flex items-center gap-2 py-2.5 text-sm">
-      <span className="text-zinc-300">{label}</span>
-      <span className="ms-auto text-xs text-zinc-500">{fa(count)} درخواست</span>
-      <span className="w-28 text-end text-xs text-zinc-500">{fa(tokens)} توکن</span>
-    </div>
-  )
-}
-
-function Empty() {
-  return <p className="py-6 text-center text-sm text-zinc-600">داده‌ای ثبت نشده</p>
 }

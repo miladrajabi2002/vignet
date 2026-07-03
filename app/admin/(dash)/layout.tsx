@@ -1,5 +1,7 @@
+import { ShieldCheck } from 'lucide-react'
 import { requireAdmin } from '@/lib/admin/auth'
-import { AdminNav } from './admin-nav'
+import { AdminNavContent, BrandHeader } from './admin-nav'
+import { MobileNavTrigger } from './mobile-nav'
 
 export const metadata = { title: 'پنل مدیریت — ویجنت' }
 export const dynamic = 'force-dynamic'
@@ -9,14 +11,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   requireAdmin()
 
   return (
-    <div dir="rtl" className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        <aside className="sticky top-6 hidden h-fit w-56 shrink-0 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3 md:block">
-          <div className="px-3 pb-4 pt-2">
-            <span className="text-sm font-medium text-zinc-300">مدیریت ویجنت</span>
+    <div dir="rtl" className="min-h-screen bg-zinc-50 text-zinc-900">
+      <MobileNavTrigger />
+      <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 md:px-6">
+        {/* Desktop sidebar */}
+        <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-64 shrink-0 flex-col rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:flex">
+          <div className="px-1 pb-5">
+            <BrandHeader />
           </div>
-          <AdminNav />
+          <div className="flex-1 overflow-y-auto">
+            <AdminNavContent />
+          </div>
+          <div className="mt-3 border-t border-zinc-100 pt-3">
+            <div className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              دسترسی مدیر سیستم
+            </div>
+          </div>
         </aside>
+
+        {/* Main content */}
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>

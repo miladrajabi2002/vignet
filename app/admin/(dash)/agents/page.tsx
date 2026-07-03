@@ -1,71 +1,132 @@
+import { Bot, Cpu, Plug, MessageSquare } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { fmtDate } from '../ui'
+import {
+  PageHeader,
+  StatCard,
+  Card,
+  Badge,
+  EmptyState,
+  fa,
+  fmtDate,
+} from '../ui'
 
 export const dynamic = 'force-dynamic'
 
 const SILENT_AFTER_MS = 48 * 60 * 60 * 1000 // a channel silent >48h is suspect
 
+const CHANNEL_LABEL: Record<string, string> = {
+  TELEGRAM: 'تلگرام',
+  WHATSAPP: 'واتساپ',
+  INSTAGRAM: 'اینستاگرام',
+  RUBIKA: 'روبیکا',
+  BALE: 'بله',
+  WEB_WIDGET: 'ویجت وب',
+  API: 'API',
+}
+
+type Health = { dot: string; label: string }
+
+function channelHealth(active: boolean, lastInboundAt: Date | null): Health {
+  if (!active) return { dot: 'bg-zinc-300', label: 'غیرفعال' }
+  if (!lastInboundAt)
+    return { dot: 'bg-amber-500', label: 'بدون پیام' }
+  const silent = Date.now() - lastInboundAt.getTime() > SILENT_AFTER_MS
+  return silent
+    ? { dot: 'bg-amber-500', label: 'سکوت >۴۸ ساعت' }
+    : { dot: 'bg-emerald-500', label: 'سالم' }
+}
+
 export default async function AdminAgentsPage() {
-  const agents = await prisma.agent.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-    select: {
-      id: true,
-      name: true,
-      active: true,
-      createdAt: true,
-      workspace: { select: { name: true } },
-      _count: { select: { conversations: true } },
-      channels: {
-        select: { id: true, type: true, active: true, lastInboundAt: true },
+  const [agents, totalAgents, activeAgents, channelCount] = await Promise.all([
+    prisma.agent.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        createdAt: true,
+        workspace: { select: { name: true } },
+        _count: { select: { conversations: true } },
+        channels: {
+          select: { id: true, type: true, active: true, lastInboundAt: true },
+        },
       },
-    },
-  })
+    }),
+    prisma.agent.count(),
+    prisma.agent.count({ where: { active: true } }),
+    prisma.agentChannel.count(),
+  ])
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-light">ایجنت‌ها و کانال‌ها</h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="ایجنت‌ها و کانال‌ها"
+        subtitle="وضعیت ایجنت‌ها و کانال‌های متصل"
+        breadcrumbs={[
+          { label: 'داشبورد', href: '/admin' },
+          { label: 'ایجنت‌ها' },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard
+          label="کل ایجنت‌ها"
+          value={fa(totalAgents)}
+          icon={<Bot className="h-5 w-5" />}
+          tone="default"
+        />
+        <StatCard
+          label="ایجنت‌های فعال"
+          value={fa(activeAgents)}
+          icon={<Cpu className="h-5 w-5" />}
+          tone="success"
+        />
+        <StatCard
+          label="کانال‌های متصل"
+          value={fa(channelCount)}
+          icon={<Plug className="h-5 w-5" />}
+          tone="info"
+        />
+      </div>
 
       {agents.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-zinc-800 py-16 text-center text-sm text-zinc-600">
-          ایجنتی ساخته نشده
-        </p>
+        <EmptyState icon={<Bot className="h-8 w-8" />}>
+          ایجنتی ساخته نشده است
+        </EmptyState>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {agents.map((a) => (
-            <div
-              key={a.id}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4"
-            >
+            <Card key={a.id} className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-zinc-200">{a.name}</span>
-                <span className="text-xs text-zinc-500">· {a.workspace.name}</span>
-                <span
-                  className={`rounded-md px-1.5 py-0.5 text-[10px] ${
-                    a.active
-                      ? 'bg-emerald-500/15 text-emerald-400'
-                      : 'bg-zinc-700/40 text-zinc-400'
-                  }`}
-                >
-                  {a.active ? 'فعال' : 'غیرفعال'}
+                <span className="text-sm font-semibold text-zinc-900">
+                  {a.name}
                 </span>
-                <span className="ms-auto text-[11px] text-zinc-600">
-                  {a._count.conversations.toLocaleString('fa-IR')} مکالمه
+                <span className="text-xs text-zinc-500">
+                  · {a.workspace.name}
+                </span>
+                <Badge tone={a.active ? 'success' : 'muted'}>
+                  {a.active ? 'فعال' : 'غیرفعال'}
+                </Badge>
+                <span className="ms-auto inline-flex items-center gap-1 text-[11px] text-zinc-500">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {fa(a._count.conversations)} مکالمه
                 </span>
               </div>
 
               {a.channels.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                   {a.channels.map((ch) => {
                     const health = channelHealth(ch.active, ch.lastInboundAt)
                     return (
                       <span
                         key={ch.id}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-zinc-400"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600"
+                        title={health.label}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${health.dot}`} />
-                        {ch.type}
-                        <span className="text-[10px] text-zinc-600">
+                        {CHANNEL_LABEL[ch.type] ?? ch.type}
+                        <span className="text-[10px] text-zinc-400">
                           {ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : 'بدون پیام'}
                         </span>
                       </span>
@@ -73,19 +134,12 @@ export default async function AdminAgentsPage() {
                   })}
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-zinc-600">بدون کانال متصل</p>
+                <p className="text-xs text-zinc-400">بدون کانال متصل</p>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}
     </div>
   )
-}
-
-function channelHealth(active: boolean, lastInboundAt: Date | null) {
-  if (!active) return { dot: 'bg-zinc-600' }
-  if (!lastInboundAt) return { dot: 'bg-amber-400' }
-  const silent = Date.now() - lastInboundAt.getTime() > SILENT_AFTER_MS
-  return { dot: silent ? 'bg-amber-400' : 'bg-emerald-400' }
 }
