@@ -13,19 +13,14 @@ import {
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import { Sparkline } from '@/components/admin/sparkline'
-import {
-        conversationsDailyByWorkspace,
-        handoffsDailyByWorkspace,
-        conversationsDailyByAgent,
-} from '@/lib/dashboard/charts'
+import { conversationsDailyByAgent } from '@/lib/dashboard/charts'
 
 export default async function AgentsPage() {
         const user = await requireUser()
         const t = await getTranslations('agents')
 
-        const [agents, convTrend7, handoffTrend7, agentSparks] = await Promise.all([
+        const [agents, agentSparks] = await Promise.all([
                 prisma.agent.findMany({
                         where: { workspaceId: user.workspaceId },
                         orderBy: { createdAt: 'desc' },
@@ -45,8 +40,6 @@ export default async function AgentsPage() {
                                 },
                         },
                 }),
-                conversationsDailyByWorkspace(user.workspaceId, 7),
-                handoffsDailyByWorkspace(user.workspaceId, 7),
                 conversationsDailyByAgent(user.workspaceId, 7),
         ])
 
@@ -65,26 +58,6 @@ export default async function AgentsPage() {
                                         {t('new')}
                                 </Link>
                         </div>
-
-                        {/* ─── 7-day MiniTrends ─── */}
-                        {agents.length > 0 && (
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <MiniTrend
-                                                label="مکالمات ۷ روز"
-                                                value={convTrend7.total}
-                                                series={convTrend7.series}
-                                                color="#3b82f6"
-                                                hint="روزانه"
-                                        />
-                                        <MiniTrend
-                                                label="تحویل به اپراتور ۷ روز"
-                                                value={handoffTrend7.total}
-                                                series={handoffTrend7.series}
-                                                color="#f59e0b"
-                                                hint="روزانه"
-                                        />
-                                </div>
-                        )}
 
                         {agents.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">

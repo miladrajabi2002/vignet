@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { MiniTrend } from '@/components/admin/mini-trend'
+import { ConversationFilters } from '@/components/dashboard/conversation-filters'
 import {
   conversationsDailyByWorkspace,
   resolvedDailyByWorkspace,
@@ -27,12 +28,6 @@ const CHANNEL_LABELS_FA: Record<string, string> = {
   BALE: 'بله',
   WEB_WIDGET: 'ویجت وب',
   API: 'API',
-}
-
-const STATUS_LABELS_FA: Record<string, string> = {
-  OPEN: 'باز',
-  RESOLVED: 'بسته‌شده',
-  HANDED_OFF: 'تحویل اپراتور',
 }
 
 export default async function ConversationsPage(
@@ -117,7 +112,6 @@ export default async function ConversationsPage(
 
   // Build filter pill hrefs (resets to page 1).
   const channelLabels = isFa ? CHANNEL_LABELS_FA : null
-  const statusLabels = isFa ? STATUS_LABELS_FA : null
   const availableChannels = channelGroups
     .map((g) => ({ channel: g.channel, count: g._count._all }))
     .sort((a, b) => b.count - a.count)
@@ -164,93 +158,28 @@ export default async function ConversationsPage(
         />
       </div>
 
-      {/* ─── Filters: channel + status (handed-off prioritized) ─── */}
-      <div className="space-y-3">
-        {/* Status filter */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="ms-1 text-[11px] font-medium text-[var(--text-muted)]">
-            {isFa ? 'وضعیت:' : 'Status:'}
-          </span>
-          <Link
-            href={filterHref({ channel: channelFilter })}
-            className={cn(
-              'rounded-lg px-3 py-1 text-xs font-medium transition-colors',
-              !statusFilter
-                ? 'bg-[var(--white)] text-[var(--bg-base)]'
-                : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-            )}
-          >
-            {isFa ? 'همه' : 'All'}
-          </Link>
-          {(['HANDED_OFF', 'OPEN', 'RESOLVED'] as const).map((s) => {
-            const active = statusFilter === s
-            const label = statusLabels?.[s] ?? s
-            const count = s === 'OPEN' ? openCount : s === 'RESOLVED' ? resolvedCount : handedOffCount
-            return (
-              <Link
-                key={s}
-                href={filterHref({ channel: channelFilter, status: s })}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors',
-                  active
-                    ? s === 'HANDED_OFF'
-                      ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
-                      : 'bg-[var(--white)] text-[var(--bg-base)]'
-                    : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                {s === 'HANDED_OFF' && (
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  </span>
-                )}
-                {label}
-                <span className="text-[10px] opacity-60">{count.toLocaleString('fa-IR')}</span>
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Channel filter */}
-        {availableChannels.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="ms-1 text-[11px] font-medium text-[var(--text-muted)]">
-              {isFa ? 'کانال:' : 'Channel:'}
-            </span>
-            <Link
-              href={filterHref({ status: statusFilter })}
-              className={cn(
-                'rounded-lg px-3 py-1 text-xs font-medium transition-colors',
-                !channelFilter
-                  ? 'bg-[var(--white)] text-[var(--bg-base)]'
-                  : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              )}
-            >
-              {isFa ? 'همه' : 'All'}
-            </Link>
-            {availableChannels.map((c) => {
-              const active = channelFilter === c.channel
-              const label = channelLabels?.[c.channel] ?? c.channel
-              return (
-                <Link
-                  key={c.channel}
-                  href={filterHref({ channel: c.channel, status: statusFilter })}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-colors',
-                    active
-                      ? 'bg-[var(--white)] text-[var(--bg-base)]'
-                      : 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  {label}
-                  <span className="text-[10px] opacity-60">{c.count.toLocaleString('fa-IR')}</span>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      {/* ─── Filters: status (handed-off prioritized) + channel ─── */}
+      <ConversationFilters
+        isFa={isFa}
+        activeStatus={statusFilter}
+        activeChannel={channelFilter}
+        makeHref={(o) => filterHref({ channel: o.channel, status: o.status })}
+        clearHref="/conversations"
+        statusOptions={[
+          { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
+          { key: 'HANDED_OFF', label: isFa ? 'تحویل اپراتور' : 'Handed off', count: handedOffCount },
+          { key: 'OPEN', label: isFa ? 'باز' : 'Open', count: openCount },
+          { key: 'RESOLVED', label: isFa ? 'بسته‌شده' : 'Resolved', count: resolvedCount },
+        ]}
+        channelOptions={[
+          { key: 'ALL', label: isFa ? 'همه' : 'All', count: 0 },
+          ...availableChannels.map((c) => ({
+            key: c.channel,
+            label: channelLabels?.[c.channel] ?? c.channel,
+            count: c.count,
+          })),
+        ]}
+      />
 
       {pageItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
@@ -260,14 +189,6 @@ export default async function ConversationsPage(
               ? (isFa ? 'مکالمه‌ای با این فیلتر یافت نشد' : 'No conversations match these filters')
               : t('empty')}
           </p>
-          {(channelFilter || statusFilter) && (
-            <Link
-              href="/conversations"
-              className="mt-4 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              {isFa ? 'حذف فیلترها' : 'Clear filters'}
-            </Link>
-          )}
           {!channelFilter && !statusFilter && (
             <Link
               href="/integrations"
