@@ -272,3 +272,48 @@ export async function channelBreakdown(): Promise<Slice[]> {
     value: r._count._all,
   }))
 }
+
+// ─── PER-WORKSPACE SPARKLINE ──────────────────────────────────────
+
+export interface WorkspaceSpark {
+  workspaceId: string
+  /** 7 daily counts, oldest → newest. */
+  series: number[]
+  total: number
+}
+
+/**
+ * Daily conversation counts for the last 7 days, grouped by workspaceId.
+ * Used to render inline sparklines on the users list without N+1 queries.
+ * Only includes workspaces that had at least one conversation in the window.
+ */
+export async function conversationsDailyByWorkspace(days = 7): Promise<Map<string, WorkspaceSpark>> {
+  const since = new Date(Date.now() - days * 86_400_000)
+  const rows = await prisma.$queryRaw<{ workspaceId: string; d: Date; c: bigint }[]>`
+    SELECT "workspaceId", date_trunc('day', "createdAt") AS d, count(*) AS c
+    FROM "Conversation"
+    WHERE "createdAt" >= ${since}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `
+
+  const out = new Map<string, WorkspaceSpark>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (const r of rows) {
+    let entry = out.get(r.workspaceId)
+    if (!entry) {
+      entry = { workspaceId: r.workspaceId, series: new Array(days).fill(0), total: 0 }
+      out.set(r.workspaceId, entry)
+    }
+    const d = new Date(r.d)
+    d.setHours(0, 0, 0, 0)
+    const idx = Math.floor((today.getTime() - d.getTime()) / 86_400_000)
+    if (idx >= 0 && idx < days) {
+      const n = Number(r.c)
+      entry.series[days - 1 - idx] = n
+      entry.total += n
+    }
+  }
+  return out
+}

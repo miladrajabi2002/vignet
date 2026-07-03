@@ -1,20 +1,10 @@
-import { SystemMonitor } from '@/components/admin/system-monitor'
-import { PageHeader } from '../ui'
+import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-
+/**
+ * The "منابع سرور" page has been removed from the admin nav.
+ * CPU + RAM live charts now live at the bottom of the dashboard.
+ * This route redirects any old bookmarks to the dashboard.
+ */
 export default function AdminSystemPage() {
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="منابع سرور"
-        subtitle="پایش زنده منابع — به‌روزرسانی هر ۵ ثانیه"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'منابع سرور' },
-        ]}
-      />
-      <SystemMonitor />
-    </div>
-  )
+  redirect('/admin')
 }

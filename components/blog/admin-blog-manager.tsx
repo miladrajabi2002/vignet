@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Edit3, Trash2, Loader2, X, FileText, AlertTriangle, Wand2 } from 'lucide-react'
+import { Plus, Edit3, Trash2, Loader2, X, FileText, AlertTriangle, Wand2, Search } from 'lucide-react'
 import {
         BlogEditor,
         type BlogPostData,
@@ -10,6 +10,7 @@ import {
 } from '@/components/blog/blog-editor'
 import { JsonImportDialog } from '@/components/blog/json-import-dialog'
 import { toPersianDigits } from '@/lib/blog/helpers'
+import { cn } from '@/lib/utils'
 
 interface AdminPostRow {
         id: string
@@ -45,11 +46,12 @@ const STATUS_LABELS_EN: Record<string, string> = {
         SCHEDULED: 'Scheduled',
         ARCHIVED: 'Archived',
 }
-const STATUS_COLORS: Record<string, string> = {
-        DRAFT: 'bg-zinc-700/40 text-zinc-300',
-        PUBLISHED: 'bg-emerald-500/15 text-emerald-300',
-        SCHEDULED: 'bg-amber-500/15 text-amber-300',
-        ARCHIVED: 'bg-zinc-700/40 text-zinc-400',
+
+const STATUS_BADGE_CLS: Record<string, string> = {
+        DRAFT: 'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200',
+        PUBLISHED: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+        SCHEDULED: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+        ARCHIVED: 'bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200',
 }
 
 export function AdminBlogManager({
@@ -68,8 +70,6 @@ export function AdminBlogManager({
         const [creating, setCreating] = useState(false)
         const [deleting, setDeleting] = useState<string | null>(null)
         const [search, setSearch] = useState('')
-        // ─ Optional JSON import: when the admin imports a JSON post, we pre-fill
-        //   `creatingInitial` with the parsed fields and open the editor in "create" mode.
         const [jsonImportOpen, setJsonImportOpen] = useState(false)
         const [importedInitial, setImportedInitial] = useState<BlogPostData | null>(null)
 
@@ -127,11 +127,9 @@ export function AdminBlogManager({
                 setEditing(null)
                 setCreating(false)
                 setImportedInitial(null)
-                // Refresh list to reflect any save.
                 void refresh()
         }
 
-        // ─── Editing payload (convert AdminPostRow → BlogPostData) ───
         const editingInitial: BlogPostData | null = editing
                 ? {
                                 id: editing.id,
@@ -170,9 +168,6 @@ export function AdminBlogManager({
         }
 
         function handleJsonImport(data: Partial<BlogPostData>) {
-                // Merge imported fields over the empty defaults so the editor opens
-                // pre-filled. The editor's own save() will slugify + derive excerpt
-                // + seoTitle/seoDescription if they're empty.
                 setImportedInitial({
                         title: '',
                         slug: '',
@@ -196,27 +191,30 @@ export function AdminBlogManager({
 
         return (
                 <div className="space-y-5">
+                        {/* Action bar: search + buttons */}
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                        <h1 className="text-2xl font-light text-zinc-100">{isFa ? 'بلاگ' : 'Blog'}</h1>
-                                        <p className="mt-1 text-xs text-zinc-500">
-                                                {isFa
-                                                        ? 'مدیریت همه پست‌های بلاگ در همه کسب‌وکارها'
-                                                        : 'Manage all blog posts across all workspaces'}
-                                        </p>
+                                <div className="relative min-w-[240px] flex-1">
+                                        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                        <input
+                                                type="text"
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                placeholder={isFa ? 'جستجو در عنوان یا slug…' : 'Search title or slug…'}
+                                                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-800 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                                        />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                         <button
                                                 onClick={() => setJsonImportOpen(true)}
-                                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+                                                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
                                                 title={isFa ? 'JSON خروجی Grok را بچسبانید تا فیلدها خودکار پر شوند' : 'Paste Grok JSON to auto-fill fields'}
                                         >
-                                                <Wand2 className="h-4 w-4 text-emerald-400" />
+                                                <Wand2 className="h-4 w-4 text-emerald-600" />
                                                 {isFa ? 'افزودن از JSON' : 'Import JSON'}
                                         </button>
                                         <button
                                                 onClick={() => setCreating(true)}
-                                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400"
+                                                className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
                                         >
                                                 <Plus className="h-4 w-4" />
                                                 {t('newPost')}
@@ -224,72 +222,66 @@ export function AdminBlogManager({
                                 </div>
                         </div>
 
-                        {/* Filters */}
-                        <div className="flex flex-wrap gap-2">
-                                <input
-                                        type="text"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        placeholder={isFa ? 'جستجو در عنوان یا slug…' : 'Search title or slug…'}
-                                        className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-sm text-zinc-300 outline-none focus:border-zinc-700"
-                                />
-                        </div>
-
                         {/* List */}
                         {filtered.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-zinc-800 p-16 text-center">
-                                        <FileText className="mx-auto h-8 w-8 text-zinc-600" />
-                                        <p className="mt-4 text-sm text-zinc-500">
+                                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-16 text-center">
+                                        <FileText className="h-8 w-8 text-zinc-300" />
+                                        <p className="text-sm text-zinc-500">
                                                 {isFa ? 'هیچ پستی یافت نشد' : 'No posts found'}
                                         </p>
                                 </div>
                         ) : (
-                                <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                                <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
                                         <table className="w-full text-start text-sm">
-                                                <thead className="bg-zinc-900/60 text-xs text-zinc-500">
+                                                <thead className="border-b border-zinc-200 bg-zinc-50/60 text-xs text-zinc-500">
                                                         <tr>
-                                                                <th className="px-4 py-3 text-start font-medium">
+                                                                <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'عنوان' : 'Title'}
                                                                 </th>
-                                                                <th className="px-4 py-3 text-start font-medium">
+                                                                <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'کسب‌وکار' : 'Workspace'}
                                                                 </th>
-                                                                <th className="px-4 py-3 text-start font-medium">
+                                                                <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'وضعیت' : 'Status'}
                                                                 </th>
-                                                                <th className="px-4 py-3 text-start font-medium">
+                                                                <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'بازدید' : 'Views'}
                                                                 </th>
                                                                 <th className="px-4 py-3"></th>
                                                         </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-zinc-800">
+                                                <tbody className="divide-y divide-zinc-100">
                                                         {filtered.map((p) => (
-                                                                <tr key={p.id} className="hover:bg-zinc-900/50">
+                                                                <tr key={p.id} className="transition-colors hover:bg-zinc-50">
                                                                         <td className="px-4 py-3">
                                                                                 <div className="flex items-center gap-2">
-                                                                                        <span className="truncate font-medium text-zinc-200">
-                                                                                                {p.title}
+                                                                                        <span className="max-w-[280px] truncate font-medium text-zinc-900">
+                                                                                                {p.title || (isFa ? 'بدون عنوان' : 'Untitled')}
                                                                                         </span>
                                                                                         {p.featured && (
-                                                                                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">
+                                                                                                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200">
                                                                                                         {isFa ? 'ویژه' : 'Featured'}
                                                                                                 </span>
                                                                                         )}
                                                                                 </div>
-                                                                                <div className="mt-0.5 truncate text-xs text-zinc-500">
+                                                                                <div className="mt-0.5 max-w-[280px] truncate text-xs text-zinc-400" dir="ltr">
                                                                                         /blog/{p.slug}
                                                                                 </div>
                                                                         </td>
-                                                                        <td className="px-4 py-3 text-zinc-400">{p.workspace?.name ?? '—'}</td>
+                                                                        <td className="px-4 py-3 text-zinc-500">
+                                                                                {p.workspace?.name ?? '—'}
+                                                                        </td>
                                                                         <td className="px-4 py-3">
                                                                                 <span
-                                                                                        className={`rounded-full px-2 py-0.5 text-xs ${STATUS_COLORS[p.status]}`}
+                                                                                        className={cn(
+                                                                                                'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium',
+                                                                                                STATUS_BADGE_CLS[p.status],
+                                                                                        )}
                                                                                 >
                                                                                         {statusLabels[p.status]}
                                                                                 </span>
                                                                         </td>
-                                                                        <td className="px-4 py-3 text-zinc-400">
+                                                                        <td className="px-4 py-3 text-zinc-500 tabular-nums">
                                                                                 {isFa ? toPersianDigits(p.views) : p.views.toLocaleString('en-US')}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-end">
@@ -297,20 +289,20 @@ export function AdminBlogManager({
                                                                                         <button
                                                                                                 onClick={() => setEditing(p)}
                                                                                                 title={t('edit')}
-                                                                                                className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                                                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
                                                                                         >
-                                                                                                <Edit3 className="h-3.5 w-3.5" />
+                                                                                                <Edit3 className="h-4 w-4" />
                                                                                         </button>
                                                                                         <button
                                                                                                 onClick={() => handleDelete(p.id)}
                                                                                                 disabled={deleting === p.id}
                                                                                                 title={isFa ? 'حذف' : 'Delete'}
-                                                                                                className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-red-400 disabled:opacity-50"
+                                                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                                                                         >
                                                                                                 {deleting === p.id ? (
-                                                                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                                                        <Loader2 className="h-4 w-4 animate-spin" />
                                                                                                 ) : (
-                                                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                                                        <Trash2 className="h-4 w-4" />
                                                                                                 )}
                                                                                         </button>
                                                                                 </div>
@@ -325,56 +317,50 @@ export function AdminBlogManager({
                         {/* ─── Modal: create or edit ─── */}
                         {(creating || editing) && (
                                 <div
-                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-900/40 p-4 backdrop-blur-sm"
                                         onClick={(e) => {
                                                 if (e.target === e.currentTarget) handleClose()
                                         }}
                                 >
                                         <div
                                                 dir={isFa ? 'rtl' : 'ltr'}
-                                                className="my-8 w-full max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-950"
-                                                style={{
-                                                        boxShadow: '0 28px 80px -18px rgba(0,0,0,.65)',
-                                                        // Re-theme the inner editor (which uses [var(--...)] tokens) so it
-                                                        // matches the admin panel's dark palette.
-                                                }}
+                                                className="my-8 w-full max-w-5xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
                                         >
-                                                <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-                                                        <h2 className="text-sm font-medium text-zinc-200">
+                                                <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
+                                                        <h2 className="text-sm font-semibold text-zinc-900">
                                                                 {editing ? t('editPost') : t('newPost')}
                                                         </h2>
                                                         <button
                                                                 onClick={handleClose}
-                                                                className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+                                                                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
                                                                 aria-label={t('close')}
                                                         >
                                                                 <X className="h-4 w-4" />
                                                         </button>
                                                 </div>
 
-                                                <div className="max-h-[calc(100vh-10rem)] overflow-y-auto p-5">
-                                                        {/* Override CSS vars so the editor (designed for the dashboard theme)
-                  matches the admin dark palette. */}
+                                                <div className="max-h-[calc(100vh-10rem)] overflow-y-auto">
+                                                        {/* Override CSS vars so the editor (designed for the dark dashboard theme)
+                                                            matches the admin panel's light palette. */}
                                                         <div
                                                                 style={{
-                                                                        // Inline CSS-var overrides — keeps the editor reusable.
-                                                                        ['--bg-base' as string]: '#09090b',
-                                                                        ['--bg-surface' as string]: '#18181b',
-                                                                        ['--bg-elevated' as string]: '#1f1f23',
-                                                                        ['--bg-hover' as string]: '#27272a',
-                                                                        ['--bg-muted' as string]: '#1f1f23',
-                                                                        ['--text-primary' as string]: '#f4f4f5',
-                                                                        ['--text-secondary' as string]: '#a1a1aa',
+                                                                        ['--bg-base' as string]: '#ffffff',
+                                                                        ['--bg-surface' as string]: '#ffffff',
+                                                                        ['--bg-elevated' as string]: '#f9fafb',
+                                                                        ['--bg-hover' as string]: '#f4f4f5',
+                                                                        ['--bg-muted' as string]: '#f4f4f5',
+                                                                        ['--text-primary' as string]: '#18181b',
+                                                                        ['--text-secondary' as string]: '#52525b',
                                                                         ['--text-muted' as string]: '#71717a',
-                                                                        ['--text-hint' as string]: '#52525b',
-                                                                        ['--border-default' as string]: 'rgba(255,255,255,.08)',
-                                                                        ['--border-subtle' as string]: 'rgba(255,255,255,.05)',
-                                                                        ['--border-hover' as string]: 'rgba(255,255,255,.18)',
-                                                                        ['--border-strong' as string]: 'rgba(255,255,255,.28)',
-                                                                        ['--white' as string]: '#fafafa',
-                                                                        ['--success' as string]: '#34d399',
-                                                                        ['--warning' as string]: '#fbbf24',
-                                                                        ['--danger' as string]: '#f87171',
+                                                                        ['--text-hint' as string]: '#a1a1aa',
+                                                                        ['--border-default' as string]: '#e4e4e7',
+                                                                        ['--border-subtle' as string]: '#f4f4f5',
+                                                                        ['--border-hover' as string]: '#d4d4d8',
+                                                                        ['--border-strong' as string]: '#a1a1aa',
+                                                                        ['--white' as string]: '#18181b',
+                                                                        ['--success' as string]: '#22c55e',
+                                                                        ['--warning' as string]: '#f59e0b',
+                                                                        ['--danger' as string]: '#ef4444',
                                                                 }}
                                                         >
                                                                 <BlogEditor
@@ -390,11 +376,11 @@ export function AdminBlogManager({
                         )}
 
                         {filtered.length > 0 && (
-                                <div className="flex items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-xs text-zinc-500">
-                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs text-amber-800">
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                                         <div>
-                                                <p className="font-medium text-zinc-300">{isFa ? 'نکته' : 'Note'}</p>
-                                                <p className="mt-1">
+                                                <p className="font-medium text-amber-900">{isFa ? 'نکته' : 'Note'}</p>
+                                                <p className="mt-1 text-amber-700">
                                                         {isFa
                                                                 ? 'پست‌ها با احراز هویت ادمین ذخیره می‌شوند. برای دیدن نسخه عمومی، به /blog بروید. sitemap.xml به‌صورت خودکار همه پست‌های Published را شامل می‌شود.'
                                                                 : 'Posts are saved with admin authentication. To see the public version, visit /blog. sitemap.xml automatically includes all published posts.'}

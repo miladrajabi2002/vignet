@@ -26,6 +26,10 @@ export interface RevenueKPIs {
   thisMonthIRR: number
   /** Last month's IRR revenue. */
   lastMonthIRR: number
+  /** Count of currently ACTIVE subscriptions. */
+  activeSubscriptions: number
+  /** Week-over-week change in successful payment count (%). */
+  subWeekChange: number
 }
 
 /** Aggregate revenue KPIs from the Payment + Subscription + Workspace tables. */
@@ -33,6 +37,8 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const weekAgo = new Date(now.getTime() - 7 * 86_400_000)
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 86_400_000)
 
   const [
     irrAgg,
@@ -44,6 +50,9 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
     payingWorkspaces,
     thisMonthAgg,
     lastMonthAgg,
+    activeSubscriptions,
+    paidThisWeek,
+    paidLastWeek,
   ] = await Promise.all([
     prisma.payment.aggregate({
       where: { status: 'PAID', currency: 'IRR' },
@@ -77,6 +86,13 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
       },
       _sum: { amount: true },
     }),
+    prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+    prisma.payment.count({
+      where: { status: 'PAID', paidAt: { gte: weekAgo } },
+    }),
+    prisma.payment.count({
+      where: { status: 'PAID', paidAt: { gte: twoWeeksAgo, lt: weekAgo } },
+    }),
   ])
 
   const totalIRR = irrAgg._sum.amount ?? 0
@@ -86,6 +102,8 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
   const lastMonthIRR = lastMonthAgg._sum.amount ?? 0
   const momChange =
     lastMonthIRR > 0 ? Math.round(((thisMonthIRR - lastMonthIRR) / lastMonthIRR) * 100) : 0
+  const subWeekChange =
+    paidLastWeek > 0 ? Math.round(((paidThisWeek - paidLastWeek) / paidLastWeek) * 100) : 0
 
   return {
     totalIRR,
@@ -100,6 +118,8 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
     momChange,
     thisMonthIRR,
     lastMonthIRR,
+    activeSubscriptions,
+    subWeekChange,
   }
 }
 

@@ -7,12 +7,9 @@ import {
   AlertTriangle,
   MessagesSquare,
   Bot,
-  Activity,
-  Server,
   LogOut,
   FileText,
   Users,
-  Building2,
   CreditCard,
   TrendingUp,
 } from 'lucide-react'
@@ -40,7 +37,6 @@ const SECTIONS: NavSection[] = [
     title: 'مدیریت کاربران',
     items: [
       { href: '/admin/users', label: 'کاربران', icon: Users },
-      { href: '/admin/workspaces', label: 'کسب‌وکارها', icon: Building2 },
     ],
   },
   {
@@ -55,7 +51,6 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/admin/conversations', label: 'مکالمات', icon: MessagesSquare },
       { href: '/admin/agents', label: 'ایجنت‌ها و کانال‌ها', icon: Bot },
-      { href: '/admin/usage', label: 'مصرف و توکن', icon: Activity },
       { href: '/admin/blog', label: 'بلاگ', icon: FileText },
     ],
   },
@@ -63,7 +58,6 @@ const SECTIONS: NavSection[] = [
     title: 'سیستم',
     items: [
       { href: '/admin/errors', label: 'خطاها', icon: AlertTriangle },
-      { href: '/admin/system', label: 'منابع سرور', icon: Server },
     ],
   },
 ]

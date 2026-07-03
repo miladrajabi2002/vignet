@@ -5,9 +5,10 @@ import {
   MessagesSquare,
   TrendingUp,
   Users,
-  Bot,
   AlertTriangle,
   CreditCard,
+  Repeat,
+  Activity,
 } from 'lucide-react'
 import {
   PageHeader,
@@ -21,7 +22,14 @@ import {
   fmtUSD,
   fa,
 } from './ui'
-import { TrendChart, DonutChart, BarList } from '@/components/admin/trend-chart'
+import {
+  TrendChart,
+  DonutChart,
+  BarList,
+  MonthlyBarChart,
+} from '@/components/admin/trend-chart'
+import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
+import { ServerStatsWidget } from '@/components/admin/server-stats-widget'
 import {
   conversationsDaily,
   errorsDaily,
@@ -30,6 +38,7 @@ import {
   planDistribution,
   gatewayBreakdown,
   channelBreakdown,
+  revenueIRRMonthly,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 
@@ -55,23 +64,47 @@ function startOfToday(): Date {
   return d
 }
 
-export default async function AdminOverviewPage() {
+function parseRange(value: string | undefined): RangeKind {
+  if (value === '30d') return '30d'
+  if (value === 'monthly') return 'monthly'
+  return '7d'
+}
+
+export default async function AdminOverviewPage(
+  props: {
+    searchParams: Promise<{ range?: string }>
+  },
+) {
+  const searchParams = await props.searchParams
+  const range = parseRange(searchParams.range)
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 7
+
   const startToday = startOfToday()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+  // Range-dependent series — only fetch what the selected range needs.
+  const rangeSeriesPromise =
+    range === 'monthly'
+      ? Promise.resolve(revenueIRRMonthly(12)).then((m) => ({ monthly: m, daily: null as null }))
+      : Promise.all([
+          revenueIRRDaily(days),
+          conversationsDaily(days),
+          newUsersDaily(days),
+          errorsDaily(days),
+        ]).then(([rev, conv, users, err]) => ({
+          monthly: null as null,
+          daily: { rev, conv, users, err },
+        }))
 
   const [
     revenueKPIs,
     workspaceCount,
     userCount,
-    activeAgents,
     conversationsToday,
     errors24h,
     recentErrors,
     recentPayments,
-    revenueTrend,
-    usersTrend,
-    convTrend,
-    errTrend,
+    rangeSeries,
     plans,
     gateways,
     channels,
@@ -79,7 +112,6 @@ export default async function AdminOverviewPage() {
     getRevenueKPIs(),
     prisma.workspace.count(),
     prisma.user.count(),
-    prisma.agent.count({ where: { active: true } }),
     prisma.conversation.count({ where: { createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }),
     prisma.errorLog.findMany({
@@ -99,10 +131,7 @@ export default async function AdminOverviewPage() {
       take: 5,
       include: { workspace: { select: { name: true } } },
     }),
-    revenueIRRDaily(14),
-    newUsersDaily(14),
-    conversationsDaily(14),
-    errorsDaily(14),
+    rangeSeriesPromise,
     planDistribution(),
     gatewayBreakdown(),
     channelBreakdown(),
@@ -110,7 +139,11 @@ export default async function AdminOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="داشبورد" subtitle="نمای کلی وضعیت پلتفرم ویجنت" />
+      <PageHeader
+        title="داشبورد"
+        subtitle="نمای کلی وضعیت پلتفرم ویجنت"
+        action={<RangeSwitch current={range} />}
+      />
 
       {/* ─── Top KPI row ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -150,9 +183,12 @@ export default async function AdminOverviewPage() {
           icon={<Users className="h-5 w-5" />}
         />
         <StatCard
-          label="ایجنت‌های فعال"
-          value={activeAgents}
-          icon={<Bot className="h-5 w-5" />}
+          label="اشتراک‌های فعال"
+          value={revenueKPIs.activeSubscriptions}
+          sub="اشتراک‌های در حال اعتبار"
+          icon={<Repeat className="h-5 w-5" />}
+          tone="success"
+          trend={{ value: revenueKPIs.subWeekChange, label: 'هفته اخیر' }}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
@@ -161,46 +197,60 @@ export default async function AdminOverviewPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
         />
         <StatCard
-          label="MRR"
+          label="درآمد ماهانه تکرارشونده"
           value={fmtIRR(revenueKPIs.mrrIRR)}
+          sub="مجموع اشتراک‌های فعال"
           icon={<CreditCard className="h-5 w-5" />}
           tone="success"
         />
       </div>
 
       {/* ─── Charts row 1 ───────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TrendChart
-          title="درآمد ۱۴ روز اخیر (تومان)"
-          data={revenueTrend}
+      {range === 'monthly' && rangeSeries.monthly ? (
+        <MonthlyBarChart
+          title="درآمد ماهانه (تومان)"
+          subtitle="۱۲ ماه اخیر"
+          data={rangeSeries.monthly}
           color="#18181b"
-          variant="area"
           format="irr"
+          height={240}
         />
-        <TrendChart
-          title="ثبت‌نام کاربران ۱۴ روز اخیر"
-          data={usersTrend}
-          color="#3b82f6"
-          variant="bar"
-          format="number"
-        />
-      </div>
+      ) : rangeSeries.daily ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TrendChart
+            title={`درآمد ${fa(days)} روز اخیر (تومان)`}
+            data={rangeSeries.daily.rev}
+            color="#18181b"
+            variant="area"
+            format="irr"
+          />
+          <TrendChart
+            title={`ثبت‌نام کاربران ${fa(days)} روز اخیر`}
+            data={rangeSeries.daily.users}
+            color="#22c55e"
+            variant="bar"
+            format="number"
+          />
+        </div>
+      ) : null}
 
       {/* ─── Charts row 2 ───────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TrendChart
-          title="مکالمات ۱۴ روز اخیر"
-          data={convTrend}
-          color="#22c55e"
-          variant="bar"
-        />
-        <TrendChart
-          title="خطاهای ۱۴ روز اخیر"
-          data={errTrend}
-          color="#ef4444"
-          variant="bar"
-        />
-      </div>
+      {range !== 'monthly' && rangeSeries.daily && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TrendChart
+            title={`مکالمات ${fa(days)} روز اخیر`}
+            data={rangeSeries.daily.conv}
+            color="#3b82f6"
+            variant="bar"
+          />
+          <TrendChart
+            title={`خطاهای ${fa(days)} روز اخیر`}
+            data={rangeSeries.daily.err}
+            color="#ef4444"
+            variant="bar"
+          />
+        </div>
+      )}
 
       {/* ─── Distribution row ───────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -283,6 +333,16 @@ export default async function AdminOverviewPage() {
             </ul>
           )}
         </Panel>
+      </div>
+
+      {/* ─── Live server resources (CPU + RAM) ──────────────────── */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-zinc-500" />
+          <h2 className="text-sm font-semibold text-zinc-900">منابع سرور</h2>
+          <span className="text-[11px] text-zinc-400">به‌روزرسانی هر ۵ ثانیه</span>
+        </div>
+        <ServerStatsWidget />
       </div>
     </div>
   )

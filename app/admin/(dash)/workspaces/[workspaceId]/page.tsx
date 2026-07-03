@@ -170,7 +170,7 @@ export default async function AdminWorkspaceDetailPage(
         action={<PlanBadge plan={workspace.plan} />}
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
-          { label: 'کسب‌وکارها', href: '/admin/workspaces' },
+          { label: 'کاربران', href: '/admin/users' },
           { label: workspace.name },
         ]}
       />
