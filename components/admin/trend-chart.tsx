@@ -16,7 +16,6 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts'
-import { cn } from '@/lib/utils'
 
 export interface DailyPoint {
   day: string
@@ -54,6 +53,33 @@ export const CHART_COLORS = [
 ]
 
 /**
+ * Value format kind. Using a string union (instead of a function) so the prop
+ * is serializable and can be safely passed from a Server Component to this
+ * Client Component. Next.js forbids passing functions across the RSC border.
+ */
+export type FormatKind = 'number' | 'irr' | 'usd' | 'compact-irr' | 'token'
+
+/** Internal value formatter — keeps all Persian/IRR/USD logic in one place. */
+function formatValue(v: number, kind: FormatKind = 'number'): string {
+  const n = Number(v) || 0
+  switch (kind) {
+    case 'irr':
+      return `${n.toLocaleString('fa-IR')} تومان`
+    case 'usd':
+      return `$${n.toLocaleString('en-US')}`
+    case 'compact-irr':
+      return n >= 1_000_000
+        ? `${(n / 1_000_000).toLocaleString('fa-IR')} م`
+        : n.toLocaleString('fa-IR')
+    case 'token':
+      return `${n.toLocaleString('fa-IR')} توکن`
+    case 'number':
+    default:
+      return n.toLocaleString('fa-IR')
+  }
+}
+
+/**
  * Light-themed daily trend chart for the admin area.
  * - `variant="bar"`    suits counts (conversations/errors)
  * - `variant="area"`   suits volumes (tokens)
@@ -66,7 +92,7 @@ export function TrendChart({
   color = '#18181b',
   variant = 'bar',
   height = 176,
-  valueSuffix = '',
+  format = 'number',
 }: {
   title: string
   subtitle?: string
@@ -74,7 +100,7 @@ export function TrendChart({
   color?: string
   variant?: 'bar' | 'area' | 'line'
   height?: number
-  valueSuffix?: string
+  format?: FormatKind
 }) {
   const gradId = `grad-${title.replace(/\s/g, '')}-${variant}`
 
@@ -97,7 +123,7 @@ export function TrendChart({
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
-              <Tooltip {...TOOLTIP} formatter={(v) => [`${Number(v).toLocaleString('fa-IR')}${valueSuffix}`, title]} />
+              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Area
                 type="monotone"
                 dataKey="value"
@@ -114,7 +140,7 @@ export function TrendChart({
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
-              <Tooltip {...TOOLTIP} formatter={(v) => [`${Number(v).toLocaleString('fa-IR')}${valueSuffix}`, title]} />
+              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Line
                 type="monotone"
                 dataKey="value"
@@ -130,7 +156,7 @@ export function TrendChart({
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={false} />
-              <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [`${Number(v).toLocaleString('fa-IR')}${valueSuffix}`, title]} />
+              <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
             </BarChart>
           )}
@@ -185,7 +211,7 @@ export function DonutChart({
               <Tooltip
                 {...TOOLTIP}
                 formatter={(v, n) => [
-                  `${Number(v).toLocaleString('fa-IR')} (${total > 0 ? Math.round((Number(v) / total) * 100) : 0}٪)`,
+                  `${formatValue(Number(v), 'number')} (${total > 0 ? Math.round((Number(v) / total) * 100) : 0}٪)`,
                   n,
                 ]}
               />
@@ -228,13 +254,13 @@ export function BarList({
   title,
   subtitle,
   data,
-  formatter,
+  format = 'number',
   color = '#18181b',
 }: {
   title: string
   subtitle?: string
   data: NamedPoint[]
-  formatter?: (v: number) => string
+  format?: FormatKind
   color?: string
 }) {
   const max = Math.max(1, ...data.map((d) => d.value))
@@ -251,7 +277,7 @@ export function BarList({
             <div className="mb-1 flex items-center justify-between gap-2 text-xs">
               <span className="truncate text-zinc-700">{d.label}</span>
               <span className="shrink-0 font-semibold text-zinc-900">
-                {formatter ? formatter(d.value) : d.value.toLocaleString('fa-IR')}
+                {formatValue(d.value, format)}
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
@@ -268,21 +294,21 @@ export function BarList({
   )
 }
 
-/** Multi-series monthly chart (revenue IRR + USD as separate lines, for example). */
+/** Monthly bar chart for revenue/payment/user trends over N months. */
 export function MonthlyBarChart({
   title,
   subtitle,
   data,
   color = '#18181b',
   height = 220,
-  formatter,
+  format = 'number',
 }: {
   title: string
   subtitle?: string
   data: { month: string; value: number }[]
   color?: string
   height?: number
-  formatter?: (v: number) => string
+  format?: FormatKind
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -301,12 +327,12 @@ export function MonthlyBarChart({
               tickLine={false}
               width={48}
               allowDecimals={false}
-              tickFormatter={(v: number) => (formatter ? formatter(v) : v.toLocaleString('fa-IR'))}
+              tickFormatter={(v: number) => formatValue(v, format)}
             />
             <Tooltip
               {...TOOLTIP}
               cursor={{ fill: '#f4f4f5' }}
-              formatter={(v) => [formatter ? formatter(Number(v)) : Number(v).toLocaleString('fa-IR'), title]}
+              formatter={(v) => [formatValue(Number(v), format), title]}
             />
             <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
           </BarChart>
