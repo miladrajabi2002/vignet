@@ -93,7 +93,7 @@ export function ModelSelect({
                   </span>
                 )}
                 {m.tier === 'free' && (
-                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
                     {t('free')}
                   </span>
                 )}

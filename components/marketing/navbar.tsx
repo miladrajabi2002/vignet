@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Logo } from '@/components/ui/logo'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
@@ -113,7 +112,6 @@ export function Navbar() {
 
                                 <div className="hidden items-center gap-3 md:flex">
                                         <SocialLinks variant="compact" />
-                                        <ThemeToggle />
                                         <LanguageSwitcher />
                                         <Link
                                                 href="/login"
@@ -158,7 +156,6 @@ export function Navbar() {
                                                 ))}
                                                 <div className="flex items-center gap-3 pt-3">
                                                         <SocialLinks variant="compact" />
-                                                        <ThemeToggle />
                                                         <LanguageSwitcher />
                                                         <Link
                                                                 href="/login"

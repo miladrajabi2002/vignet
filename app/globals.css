@@ -3,43 +3,43 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────────
-   VIGENT — Pure Black & White Monochrome Design System
-   Default theme: dark. Light theme via .light class (next-themes).
+   VIGENT — Monochrome Design System (single light theme)
+   White base, near-black ink. There is no dark mode — the whole site
+   (marketing, dashboard, admin, auth) uses this one theme. The legacy
+   `--white*` tokens are kept as names but now hold the *ink* (black)
+   spectrum, so existing usages read as foreground-on-white.
    ─────────────────────────────────────────────────────────────── */
 
-:root,
-.dark {
+:root {
 	/* Backgrounds */
-	--bg-base: #000000;
-	--bg-surface: #0a0a0a;
-	--bg-elevated: #111111;
-	--bg-hover: #161616;
-	--bg-muted: #1a1a1a;
+	--bg-base: #ffffff;
+	--bg-surface: #fafafa;
+	--bg-elevated: #f4f4f4;
+	--bg-hover: #efefef;
+	--bg-muted: #e8e8e8;
 
 	/* Borders */
-	--border-subtle: rgba(255, 255, 255, 0.04);
-	--border-default: rgba(255, 255, 255, 0.08);
-	--border-hover: rgba(255, 255, 255, 0.16);
-	--border-strong: rgba(255, 255, 255, 0.25);
+	--border-subtle: rgba(0, 0, 0, 0.04);
+	--border-default: rgba(0, 0, 0, 0.1);
+	--border-hover: rgba(0, 0, 0, 0.18);
+	--border-strong: rgba(0, 0, 0, 0.28);
 
 	/* Text */
-	--text-primary: #ffffff;
-	--text-secondary: rgba(255, 255, 255, 0.55);
-	--text-muted: rgba(255, 255, 255, 0.25);
-	--text-hint: rgba(255, 255, 255, 0.12);
+	--text-primary: #0a0a0a;
+	--text-secondary: rgba(0, 0, 0, 0.6);
+	--text-muted: rgba(0, 0, 0, 0.4);
+	--text-hint: rgba(0, 0, 0, 0.16);
 
-	/* White spectrum */
-	--white: #ffffff;
-	--white-90: rgba(255, 255, 255, 0.9);
-	--white-60: rgba(255, 255, 255, 0.6);
-	--white-30: rgba(255, 255, 255, 0.3);
-	--white-10: rgba(255, 255, 255, 0.1);
-	--white-05: rgba(255, 255, 255, 0.05);
+	/* Ink spectrum (historically named "white"; now the black foreground) */
+	--white: #0a0a0a;
+	--white-90: rgba(0, 0, 0, 0.9);
+	--white-60: rgba(0, 0, 0, 0.6);
+	--white-30: rgba(0, 0, 0, 0.3);
+	--white-10: rgba(0, 0, 0, 0.1);
+	--white-05: rgba(0, 0, 0, 0.05);
 
-	/* Foreground "ink" channels for charts/canvas drawing that needs variable
-     opacity. Flips to near-black in the light theme so monochrome charts,
-     heatmaps and gradients invert correctly. */
-	--ink-rgb: 255, 255, 255;
+	/* Foreground "ink" channel for charts/canvas that need variable opacity. */
+	--ink-rgb: 10, 10, 10;
 
 	/* Semantic (dashboard states only) */
 	--green: #22c55e;
@@ -50,34 +50,6 @@
 	/* Spotlight cursor position (updated by JS) */
 	--mx: 50%;
 	--my: 50%;
-}
-
-/* Light theme — inverted monochrome (dashboard only; marketing stays black) */
-.light {
-	--bg-base: #ffffff;
-	--bg-surface: #fafafa;
-	--bg-elevated: #f4f4f4;
-	--bg-hover: #efefef;
-	--bg-muted: #e8e8e8;
-
-	--border-subtle: rgba(0, 0, 0, 0.04);
-	--border-default: rgba(0, 0, 0, 0.1);
-	--border-hover: rgba(0, 0, 0, 0.18);
-	--border-strong: rgba(0, 0, 0, 0.28);
-
-	--text-primary: #0a0a0a;
-	--text-secondary: rgba(0, 0, 0, 0.6);
-	--text-muted: rgba(0, 0, 0, 0.4);
-	--text-hint: rgba(0, 0, 0, 0.16);
-
-	--white: #0a0a0a;
-	--white-90: rgba(0, 0, 0, 0.9);
-	--white-60: rgba(0, 0, 0, 0.6);
-	--white-30: rgba(0, 0, 0, 0.3);
-	--white-10: rgba(0, 0, 0, 0.1);
-	--white-05: rgba(0, 0, 0, 0.05);
-
-	--ink-rgb: 10, 10, 10;
 }
 
 @layer base {
@@ -168,9 +140,6 @@
 	html[dir='rtl'] select.input {
 		/* RTL: arrow flips to the left edge. */
 		background-position: left 0.85rem center;
-	}
-	.dark select.input {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.45)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 	}
 	select.input option {
 		background: var(--bg-elevated);

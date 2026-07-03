@@ -221,19 +221,18 @@ export default async function AdminOverviewPage(
         />
       </div>
 
-      {/* ─── Trends strip: 8 sparklines in one row ──────────────── */}
+      {/* ─── Trends strip: distinct 7-day sparklines ────────────── */}
       {/*    Shows site-wide momentum at a glance: green = progressing,
-            gray = flat, red = declining. Errors are inverted (up = bad). */}
+            gray = flat, red = declining. Errors are inverted (up = bad).
+            One tile per distinct series — no duplicated charts. */}
       <TrendsStrip
         tiles={[
           { label: 'درآمد', series: kpiTrends.rev.map((p) => p.value) },
           { label: 'کسب‌وکار جدید', series: kpiTrends.ws.map((p) => p.value) },
-          { label: 'مکالمات', series: kpiTrends.conv.map((p) => p.value) },
-          { label: 'تبدیل جدید', series: kpiTrends.pays.map((p) => p.value) },
           { label: 'کاربر جدید', series: kpiTrends.users.map((p) => p.value) },
+          { label: 'مکالمات', series: kpiTrends.conv.map((p) => p.value) },
           { label: 'پرداخت جدید', series: kpiTrends.pays.map((p) => p.value) },
           { label: 'خطاها', series: kpiTrends.err.map((p) => p.value), invert: true },
-          { label: 'MRR روند', series: kpiTrends.rev.map((p) => p.value) },
         ]}
       />
 

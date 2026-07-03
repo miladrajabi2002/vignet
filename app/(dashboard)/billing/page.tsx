@@ -88,17 +88,17 @@ export default async function BillingPage(
 
       {/* Payment result banner (after gateway redirect) */}
       {paymentStatus === 'success' && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600">
           {t('paymentSuccess')}
         </div>
       )}
       {(paymentStatus === 'failed' || paymentStatus === 'cancelled') && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600">
           {paymentStatus === 'failed' ? t('paymentFailed') : t('paymentCancelled')}
         </div>
       )}
       {trialExpired && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-600">
           {t('trialExpiredNotice')}
         </div>
       )}
@@ -217,7 +217,7 @@ export default async function BillingPage(
                 </ul>
                 <div className="mt-5">
                   {isCurrent ? (
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-center text-sm text-emerald-600 dark:text-emerald-400">
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-center text-sm text-emerald-600">
                       {t('currentPlanBadge')}
                     </div>
                   ) : (

@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { useTheme } from 'next-themes'
 import {
 	ReactFlow,
 	Background,
@@ -51,8 +50,8 @@ export function FlowEditor({
 	const locale = useLocale()
 	const isFa = locale !== 'en'
 	const router = useRouter()
-	const { resolvedTheme } = useTheme()
-	const isLight = resolvedTheme === 'light'
+	// Single light theme site-wide.
+	const isLight = true
 	const [nodes, setNodes, onNodesChange] = useNodesState(
 		initialNodes.length ? initialNodes : DEFAULT_NODES,
 	)

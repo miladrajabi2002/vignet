@@ -698,7 +698,7 @@ function LearningView({ onDone }: { onDone: () => void }) {
 								<motion.span
 									initial={{ opacity: 0, scale: 0.9 }}
 									animate={{ opacity: 1, scale: 1 }}
-									className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400"
+									className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600"
 								>
 									<CheckCircle2 className="h-3.5 w-3.5" />
 									{t('approved')}
