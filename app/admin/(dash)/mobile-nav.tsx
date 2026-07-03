@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, LogOut } from 'lucide-react'
 import { AdminNavContent, BrandHeader } from './admin-nav'
+import { adminLogout } from '../login/actions'
 
-/** Top bar with mobile menu trigger — shown on small screens. */
+/** Top bar with mobile menu trigger + logout — shown on small screens. */
 export function MobileNavTrigger() {
   const [open, setOpen] = useState(false)
 
@@ -17,14 +18,25 @@ export function MobileNavTrigger() {
           </div>
           <span className="text-sm font-bold text-zinc-900">پنل مدیریت ویجنت</span>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700"
-          aria-label="منو"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <form action={adminLogout}>
+            <button
+              type="submit"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              aria-label="خروج"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700"
+            aria-label="منو"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {open && (

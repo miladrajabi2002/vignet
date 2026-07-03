@@ -1,5 +1,6 @@
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, LogOut } from 'lucide-react'
 import { requireAdmin } from '@/lib/admin/auth'
+import { adminLogout } from '../login/actions'
 import { AdminNavContent, BrandHeader } from './admin-nav'
 import { MobileNavTrigger } from './mobile-nav'
 
@@ -31,7 +32,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Main content */}
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          {/* Top-left logout (desktop) — in RTL, justify-end = left side */}
+          <div className="mb-4 hidden items-center justify-end md:flex">
+            <form action={adminLogout}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-600 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                <LogOut className="h-4 w-4" />
+                خروج
+              </button>
+            </form>
+          </div>
+          {children}
+        </main>
       </div>
     </div>
   )

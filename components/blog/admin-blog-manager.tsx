@@ -190,7 +190,7 @@ export function AdminBlogManager({
         }
 
         return (
-                <div className="space-y-5">
+                <div className="space-y-4 p-5">
                         {/* Action bar: search + buttons */}
                         <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="relative min-w-[240px] flex-1">
