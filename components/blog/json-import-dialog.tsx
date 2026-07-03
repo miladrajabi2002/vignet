@@ -15,22 +15,10 @@ import type { BlogPostData } from '@/components/blog/blog-editor'
 import { slugify } from '@/lib/blog/helpers'
 
 /**
- * JSON Import Dialog (اختیاری)
- * ==============================
+ * JSON Import Dialog (LIGHT theme — admin panel)
  *
  * A modal that lets the admin paste a JSON object (the kind Grok produces)
- * and auto-fills the blog editor fields from it. Solves two pain points:
- *   1. `\n` literals in JSON content render as text — we convert them to
- *      real newlines so Markdown renders correctly in the editor preview.
- *   2. Copy-pasting field-by-field is tedious — one click fills everything.
- *
- * Also shows a live SEO check (mirrors lib/blog/helpers.ts analyzeSeo) so
- * the admin sees at-a-glance whether the imported post passes the blog
- * editor's quality bar.
- *
- * The dialog is optional — opened via the "افزودن از JSON" button next to
- * the "افزودن پست" button in the admin blog manager. It returns a partial
- * BlogPostData that the parent merges into its `creatingInitial`.
+ * and auto-fills the blog editor fields from it.
  */
 
 // ── SEO validation (mirrors lib/blog/helpers.ts analyzeSeo) ──────────
@@ -48,63 +36,66 @@ function validateSeo(post: Partial<BlogPostData>): SeoCheck[] {
     .split(/\s+/)
     .filter(Boolean).length
 
-  // Title 30-60
-  const tl = (post.title || '').length
-  if (tl >= 30 && tl <= 60) checks.push({ label: 'عنوان: ۳۰–۶۰ کاراکتر', status: 'pass' })
-  else if (tl > 0) checks.push({ label: 'عنوان: ۳۰–۶۰ کاراکتر', status: 'warn', hint: `${tl} کاراکتر` })
-  else checks.push({ label: 'عنوان: ۳۰–۶۰ کاراکتر', status: 'fail' })
+  if (post.title && post.title.length >= 30 && post.title.length <= 60) {
+    checks.push({ label: 'عنوان ۳۰ تا ۶۰ کاراکتر', status: 'pass' })
+  } else if (post.title && post.title.length > 0) {
+    checks.push({
+      label: 'عنوان ۳۰ تا ۶۰ کاراکتر',
+      status: 'warn',
+      hint: `${post.title.length} کاراکتر`,
+    })
+  } else {
+    checks.push({ label: 'عنوان ۳۰ تا ۶۰ کاراکتر', status: 'fail' })
+  }
 
-  // SEO title
-  const st = (post.seoTitle || post.title || '').length
-  if (st >= 30 && st <= 60) checks.push({ label: 'متا عنوان سئو', status: 'pass' })
-  else checks.push({ label: 'متا عنوان سئو', status: 'warn', hint: `${st} کاراکتر` })
+  if (wordCount >= 300) {
+    checks.push({ label: `محتوا ${wordCount} کلمه`, status: 'pass' })
+  } else if (wordCount >= 100) {
+    checks.push({ label: `محتوا ${wordCount} کلمه`, status: 'warn', hint: 'حداقل ۳۰۰ توصیه می‌شود' })
+  } else {
+    checks.push({ label: `محتوا ${wordCount} کلمه`, status: 'fail' })
+  }
 
-  // Meta description
-  const sd = (post.seoDescription || '').length
-  if (sd >= 70 && sd <= 160) checks.push({ label: 'متا توضیحات (۷۰–۱۶۰)', status: 'pass' })
-  else if (sd > 0) checks.push({ label: 'متا توضیحات (۷۰–۱۶۰)', status: 'warn', hint: `${sd} کاراکتر` })
-  else checks.push({ label: 'متا توضیحات (۷۰–۱۶۰)', status: 'fail' })
+  if (post.excerpt && post.excerpt.length >= 50) {
+    checks.push({ label: 'خلاصه حداقل ۵۰ کاراکتر', status: 'pass' })
+  } else {
+    checks.push({ label: 'خلاصه حداقل ۵۰ کاراکتر', status: 'fail' })
+  }
 
-  // Slug — must be English (a-z 0-9 -)
-  const slug = post.slug || ''
-  const slugOk = slug && /^[a-z0-9-]+$/.test(slug) && slug.length >= 3
-  if (slugOk) checks.push({ label: 'نامک انگلیبی', status: 'pass' })
-  else checks.push({ label: 'نامک انگلیبی', status: 'fail', hint: slug ? 'فقط a-z 0-9 -' : 'خالی' })
+  if (post.seoDescription && post.seoDescription.length >= 120 && post.seoDescription.length <= 160) {
+    checks.push({ label: 'متا توضیحات ۱۲۰-۱۶۰', status: 'pass' })
+  } else if (post.seoDescription && post.seoDescription.length > 0) {
+    checks.push({ label: 'متا توضیحات ۱۲۰-۱۶۰', status: 'warn', hint: `${post.seoDescription.length}` })
+  } else {
+    checks.push({ label: 'متا توضیحات ۱۲۰-۱۶۰', status: 'fail' })
+  }
 
-  // Word count
-  if (wordCount >= 800) checks.push({ label: `طول محتوا (${wordCount} کلمه)`, status: 'pass' })
-  else if (wordCount >= 300) checks.push({ label: `طول محتوا (${wordCount} کلمه)`, status: 'warn', hint: 'حداقل ۸۰۰ توصیه می‌شود' })
-  else checks.push({ label: `طول محتوا (${wordCount} کلمه)`, status: 'fail' })
+  if ((post.seoKeywords?.length ?? 0) >= 3) {
+    checks.push({ label: `${post.seoKeywords?.length} کلمه کلیدی`, status: 'pass' })
+  } else if ((post.seoKeywords?.length ?? 0) > 0) {
+    checks.push({ label: `${post.seoKeywords?.length} کلمه کلیدی`, status: 'warn' })
+  } else {
+    checks.push({ label: 'کلمات کلیدی', status: 'fail' })
+  }
 
-  // H2 count
-  const h2 = ((post.content || '').match(/^##\s/gm) || []).length
-  if (h2 >= 4) checks.push({ label: `زیرعنوان‌ها (${h2} H2)`, status: 'pass' })
-  else if (h2 >= 2) checks.push({ label: `زیرعنوان‌ها (${h2} H2)`, status: 'warn' })
-  else checks.push({ label: 'زیرعنوان‌ها', status: 'fail' })
-
-  // Keywords
-  const kw = (post.seoKeywords || []).length
-  if (kw >= 5) checks.push({ label: `کلمات کلیدی (${kw})`, status: 'pass' })
-  else if (kw >= 3) checks.push({ label: `کلمات کلیدی (${kw})`, status: 'warn' })
-  else checks.push({ label: 'کلمات کلیدی', status: 'fail' })
+  if (post.slug && /^[a-z0-9-]+$/i.test(post.slug)) {
+    checks.push({ label: 'slug انگلیسی امن', status: 'pass' })
+  } else {
+    checks.push({ label: 'slug انگلیسی امن', status: 'fail' })
+  }
 
   return checks
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
-
-/** Convert literal `\n` (backslash-n) to real newlines. Also `\t`. */
 function fixNewlines(s: string): string {
-  return s.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+  return s.replace(/\\n/g, '\n').replace(/\\r/g, '')
 }
 
 /** Parse JSON with leniency: strip ```json fences, fix trailing commas, smart quotes. */
 function lenientParse(raw: string): unknown {
   let s = raw.trim()
-  // Strip markdown code fence if present
   const fence = s.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
   if (fence) s = fence[1].trim()
-  // Common fixes
   s = s
     .replace(/,\s*}/g, '}')
     .replace(/,\s*]/g, ']')
@@ -127,14 +118,10 @@ const EMPTY_POST: Partial<BlogPostData> = {
 export interface JsonImportDialogProps {
   open: boolean
   onClose: () => void
-  /** Called with the parsed post data when the user confirms. */
   onImport: (data: Partial<BlogPostData>) => void
 }
 
-// ── Poster color variants (3 fixed palettes, no auto-pick) ────────────
-//   The admin gets 3 ready-to-copy prompts — one per accent color — and
-//   picks whichever fits the post's mood. Each prompt pins exactly ONE
-//   accent color so the model never mixes them.
+// ── Poster color variants (3 fixed palettes) ────────────────────────
 interface PosterColor {
   key: string
   labelFa: string
@@ -180,11 +167,8 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
   const [raw, setRaw] = useState('')
   const [parsed, setParsed] = useState<Partial<BlogPostData> | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // The imagePrompt field from Grok's JSON (not a BlogPostData field, kept separate).
   const [imagePrompt, setImagePrompt] = useState<string | null>(null)
-  // The 3 generated Vigent-branded poster prompts (one per accent color).
   const [posterVariants, setPosterVariants] = useState<PosterVariant[] | null>(null)
-  // Track which variant was just copied (by color key) for the ✓ feedback.
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   const checks = useMemo(() => (parsed ? validateSeo(parsed) : []), [parsed])
@@ -203,11 +187,9 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
     }
     try {
       const obj = lenientParse(raw) as Record<string, unknown>
-      // Build a partial BlogPostData, fixing newlines + ensuring slug is English.
       const out: Partial<BlogPostData> = { ...EMPTY_POST }
       if (typeof obj.title === 'string') out.title = obj.title
       if (typeof obj.slug === 'string') {
-        // Force slug to english-safe (in case Grok sent Persian)
         out.slug = /^[a-z0-9-]+$/i.test(obj.slug)
           ? obj.slug.toLowerCase()
           : slugify(obj.slug) || obj.slug
@@ -223,8 +205,6 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
       if (typeof obj.coverImage === 'string') out.coverImage = obj.coverImage
       if (typeof obj.canonicalUrl === 'string') out.canonicalUrl = obj.canonicalUrl
       if (typeof obj.ogImage === 'string') out.ogImage = obj.ogImage
-      // imagePrompt from Grok — stored separately so we can render it + build
-      // a Vigent-branded poster prompt from it.
       setParsed(out)
       setImagePrompt(typeof obj.imagePrompt === 'string' ? obj.imagePrompt : null)
     } catch (e) {
@@ -236,7 +216,6 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
   function handleConfirm() {
     if (!parsed) return
     onImport(parsed)
-    // reset
     setRaw('')
     setParsed(null)
     setError(null)
@@ -256,14 +235,6 @@ export function JsonImportDialog({ open, onClose, onImport }: JsonImportDialogPr
     onClose()
   }
 
-  /**
-   * Build a single Vigent-branded poster prompt for a given accent color.
-   * Uses the FULL base prompt template (all sections: MANDATORY ELEMENTS,
-   * VISUAL STYLE, TECHNICAL SPECS, NEGATIVE PROMPT, OUTPUT FORMAT, EXAMPLE)
-   * with only the "Color palette" line swapped to pin exactly ONE accent
-   * color — mirroring the golden `vignet-poster-prompt.md` spec the user
-   * provided as the reference quality bar.
-   */
   function buildPromptForColor(color: PosterColor, topic: string, summary: string): string {
     const colorName = color.labelEn.toLowerCase()
     const colorHex = color.hex
@@ -341,10 +312,6 @@ EXAMPLE OUTPUT PROMPT (for reference)
 NOW: design the poster for the topic above with the ${colorName} (${colorHex}) accent color. Output the image + description + the prompt you used.`
   }
 
-  /**
-   * Build 3 poster prompts — one per accent color in POSTER_COLORS. The admin
-   * picks whichever fits the post's mood and copies only that one.
-   */
   function buildPosterPrompts() {
     if (!parsed) return
     const topic = parsed.title || 'موضوع پست وبلاگ ویجنت'
@@ -407,27 +374,26 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-zinc-900/40 p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose()
       }}
     >
       <div
         dir="rtl"
-        className="my-8 w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-950"
-        style={{ boxShadow: '0 28px 80px -18px rgba(0,0,0,.65)' }}
+        className="my-8 w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <Wand2 className="h-4 w-4 text-emerald-400" />
-            <h2 className="text-sm font-medium text-zinc-200">
+            <Wand2 className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm font-semibold text-zinc-900">
               {t('jsonImportTitle') || 'افزودن پست از JSON'}
             </h2>
           </div>
           <button
             onClick={handleClose}
-            className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
             aria-label={t('close')}
           >
             <X className="h-4 w-4" />
@@ -438,27 +404,27 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
           {/* Intro */}
           <p className="text-xs leading-relaxed text-zinc-500">
             JSON خروجی Grok (یا هر ابزار AI) را اینجا بچسبانید. سیستم خودکار
-            <strong className="text-zinc-300"> newline‌های واقعی</strong> را از
-            <code className="mx-1 rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] text-zinc-400">{'\\n'}</code>
-            استخراج می‌کند و <strong className="text-zinc-300">slug</strong> را
+            <strong className="text-zinc-700"> newline‌های واقعی</strong> را از
+            <code className="mx-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600">{'\\n'}</code>
+            استخراج می‌کند و <strong className="text-zinc-700">slug</strong> را
             به انگلیسی امن تبدیل می‌کند. سپس با یک کلیک همه فیلدهای ادیتور پر می‌شوند.
           </p>
 
           {/* Input */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-medium text-zinc-400">JSON</label>
+              <label className="text-xs font-medium text-zinc-600">JSON</label>
               <div className="flex gap-1.5">
                 <button
                   onClick={handlePaste}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50"
                 >
                   <ClipboardPaste className="h-3 w-3" />
                   جای‌گذاری
                 </button>
                 <button
                   onClick={handleLoadExample}
-                  className="inline-flex items-center gap-1 rounded-md border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                  className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 transition-colors hover:bg-zinc-50"
                 >
                   <Sparkles className="h-3 w-3" />
                   نمونه
@@ -471,14 +437,14 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
               dir="ltr"
               rows={8}
               placeholder={'{\n  "title": "...",\n  "slug": "english-slug",\n  "content": "# عنوان\\n\\nمتن...",\n  ...\n}'}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 font-mono text-xs text-zinc-300 outline-none focus:border-zinc-700"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 font-mono text-xs text-zinc-800 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
               style={{ minHeight: 180 }}
             />
           </div>
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-300">
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span className="break-words">{error}</span>
             </div>
@@ -488,7 +454,7 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
           <button
             onClick={handleParse}
             disabled={!raw.trim()}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-white disabled:opacity-40"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-40"
           >
             <Wand2 className="h-4 w-4" />
             بررسی و تبدیل JSON
@@ -496,17 +462,17 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
 
           {/* Parsed preview + SEO checks */}
           {parsed && (
-            <div className="space-y-4 border-t border-zinc-800 pt-4">
+            <div className="space-y-4 border-t border-zinc-200 pt-4">
               {/* Score */}
-              <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-                <span className="text-xs text-zinc-400">امتیاز سئو</span>
+              <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                <span className="text-xs text-zinc-600">امتیاز سئو</span>
                 <span
                   className={`text-lg font-bold ${
                     score >= 80
-                      ? 'text-emerald-400'
+                      ? 'text-emerald-600'
                       : score >= 50
-                        ? 'text-amber-400'
-                        : 'text-red-400'
+                        ? 'text-amber-500'
+                        : 'text-red-500'
                   }`}
                 >
                   {score}٪
@@ -518,19 +484,19 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                 {checks.map((c, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5 text-[11px]"
+                    className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px]"
                   >
                     {c.status === 'pass' && (
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                     )}
                     {c.status === 'warn' && (
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                     )}
                     {c.status === 'fail' && (
-                      <XCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                      <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                     )}
-                    <span className="flex-1 text-zinc-300">{c.label}</span>
-                    {c.hint && <span className="text-zinc-500">{c.hint}</span>}
+                    <span className="flex-1 text-zinc-700">{c.label}</span>
+                    {c.hint && <span className="text-zinc-400">{c.hint}</span>}
                   </div>
                 ))}
               </div>
@@ -549,7 +515,7 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                   value={parsed.seoDescription || ''}
                   maxLength={160}
                 />
-                <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
                   <div className="mb-1 text-[10px] font-medium uppercase text-zinc-500">
                     کلمات کلیدی ({parsed.seoKeywords?.length || 0})
                   </div>
@@ -557,7 +523,7 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                     {(parsed.seoKeywords || []).map((k, i) => (
                       <span
                         key={i}
-                        className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[10px] text-zinc-400"
+                        className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-600"
                       >
                         {k}
                       </span>
@@ -572,15 +538,15 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
               </div>
 
               {/* ── Poster prompt builder (3 color variants) ──────────── */}
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-3">
+              <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-300">
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-800">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                     ساخت پرامپت پوستر وبلاگ
                   </div>
                   <button
                     onClick={buildPosterPrompts}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-[11px] text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-700"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] text-zinc-700 transition-colors hover:bg-zinc-100"
                   >
                     <Wand2 className="h-3 w-3" />
                     ساخت ۳ پرامپت رنگی
@@ -593,11 +559,11 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                 </p>
 
                 {imagePrompt && (
-                  <details className="rounded-md border border-zinc-800 bg-zinc-950/50 p-2">
-                    <summary className="cursor-pointer text-[11px] text-zinc-500 hover:text-zinc-300">
+                  <details className="rounded-md border border-zinc-200 bg-white p-2">
+                    <summary className="cursor-pointer text-[11px] text-zinc-500 hover:text-zinc-700">
                       پرامپت عکس خروجی Grok (اصل) — {imagePrompt.length} کاراکتر
                     </summary>
-                    <p dir="ltr" className="mt-2 whitespace-pre-wrap break-words font-mono text-[10px] text-zinc-500 ltr text-left">
+                    <p dir="ltr" className="mt-2 whitespace-pre-wrap break-words font-mono text-[10px] text-zinc-500 text-left">
                       {imagePrompt}
                     </p>
                   </details>
@@ -610,25 +576,24 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                       return (
                         <div
                           key={v.color.key}
-                          className="rounded-md border border-zinc-800 bg-zinc-950/50 p-2.5 space-y-2"
+                          className="space-y-2 rounded-md border border-zinc-200 bg-white p-2.5"
                         >
                           {/* Color header + copy button */}
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              {/* Color swatch */}
                               <span
-                                className="inline-block h-4 w-4 shrink-0 rounded-full border border-zinc-700"
+                                className="inline-block h-4 w-4 shrink-0 rounded-full border border-zinc-300"
                                 style={{ backgroundColor: v.color.hex }}
                                 title={v.color.hex}
                               />
-                              <span className="text-[11px] font-medium text-zinc-200">
+                              <span className="text-[11px] font-medium text-zinc-800">
                                 {v.color.labelFa}
                               </span>
-                              <span className="text-[10px] text-zinc-500" dir="ltr">
+                              <span className="text-[10px] text-zinc-400" dir="ltr">
                                 {v.color.hex}
                               </span>
-                              <span className="text-[10px] text-zinc-600">·</span>
-                              <span className="text-[10px] text-zinc-500">
+                              <span className="text-[10px] text-zinc-300">·</span>
+                              <span className="text-[10px] text-zinc-400">
                                 {v.color.moodFa}
                               </span>
                             </div>
@@ -636,8 +601,8 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                               onClick={() => copyPosterPrompt(v.color.key, v.prompt)}
                               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
                                 isCopied
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-zinc-100 text-zinc-950 hover:bg-white'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-zinc-900 text-white hover:bg-zinc-800'
                               }`}
                             >
                               {isCopied ? (
@@ -652,12 +617,12 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
                           </div>
                           {/* Prompt text (collapsible) */}
                           <details>
-                            <summary className="cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-300">
+                            <summary className="cursor-pointer text-[10px] text-zinc-400 hover:text-zinc-600">
                               نمایش پرامپت — {v.prompt.length} کاراکتر
                             </summary>
                             <pre
                               dir="ltr"
-                              className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-800 bg-zinc-950 p-2 font-mono text-[10px] leading-relaxed text-zinc-400 ltr text-left"
+                              className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-zinc-200 bg-zinc-50 p-2 font-mono text-[10px] leading-relaxed text-zinc-600 text-left"
                             >
                               {v.prompt}
                             </pre>
@@ -673,17 +638,17 @@ NOW: design the poster for the topic above with the ${colorName} (${colorHex}) a
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-zinc-800 p-4">
+        <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-5 py-3.5">
           <button
             onClick={handleClose}
-            className="rounded-lg px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+            className="rounded-lg px-4 py-2 text-sm text-zinc-500 transition-colors hover:text-zinc-800"
           >
             {t('close') || 'بستن'}
           </button>
           <button
             onClick={handleConfirm}
             disabled={!parsed}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400 disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-40"
           >
             <CheckCircle2 className="h-4 w-4" />
             پر کردن فیلدها
@@ -707,16 +672,16 @@ function FieldPreview({
 }) {
   const display = maxLength ? value.slice(0, maxLength) : value
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
       <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase text-zinc-500">
         <span>{label}</span>
         <span>{value.length} کاراکتر</span>
       </div>
       <p
-        className={`text-xs text-zinc-300 ${mono ? 'font-mono ltr text-left' : ''}`}
+        className={`text-xs text-zinc-700 ${mono ? 'font-mono text-left' : ''}`}
         style={mono ? { direction: 'ltr', textAlign: 'left' } : undefined}
       >
-        {display || <span className="text-zinc-600">—</span>}
+        {display || <span className="text-zinc-400">—</span>}
       </p>
     </div>
   )

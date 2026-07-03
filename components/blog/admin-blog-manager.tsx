@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Edit3, Trash2, Loader2, X, FileText, AlertTriangle, Wand2, Search } from 'lucide-react'
+import { Plus, Edit3, Trash2, Loader2, X, FileText, Wand2, Search } from 'lucide-react'
 import {
         BlogEditor,
         type BlogPostData,
@@ -236,6 +236,9 @@ export function AdminBlogManager({
                                                 <thead className="border-b border-zinc-200 bg-zinc-50/60 text-xs text-zinc-500">
                                                         <tr>
                                                                 <th className="px-4 py-3 text-start font-semibold">
+                                                                        {isFa ? 'پوستر' : 'Cover'}
+                                                                </th>
+                                                                <th className="px-4 py-3 text-start font-semibold">
                                                                         {isFa ? 'عنوان' : 'Title'}
                                                                 </th>
                                                                 <th className="px-4 py-3 text-start font-semibold">
@@ -253,6 +256,20 @@ export function AdminBlogManager({
                                                 <tbody className="divide-y divide-zinc-100">
                                                         {filtered.map((p) => (
                                                                 <tr key={p.id} className="transition-colors hover:bg-zinc-50">
+                                                                        <td className="px-4 py-3">
+                                                                                {p.coverImage ? (
+                                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                                        <img
+                                                                                                src={p.coverImage}
+                                                                                                alt=""
+                                                                                                className="h-12 w-16 shrink-0 rounded-lg border border-zinc-200 object-cover"
+                                                                                        />
+                                                                                ) : (
+                                                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50">
+                                                                                                <FileText className="h-4 w-4 text-zinc-300" />
+                                                                                        </div>
+                                                                                )}
+                                                                        </td>
                                                                         <td className="px-4 py-3">
                                                                                 <div className="flex items-center gap-2">
                                                                                         <span className="max-w-[280px] truncate font-medium text-zinc-900">
@@ -340,51 +357,13 @@ export function AdminBlogManager({
                                                 </div>
 
                                                 <div className="max-h-[calc(100vh-10rem)] overflow-y-auto">
-                                                        {/* Override CSS vars so the editor (designed for the dark dashboard theme)
-                                                            matches the admin panel's light palette. */}
-                                                        <div
-                                                                style={{
-                                                                        ['--bg-base' as string]: '#ffffff',
-                                                                        ['--bg-surface' as string]: '#ffffff',
-                                                                        ['--bg-elevated' as string]: '#f9fafb',
-                                                                        ['--bg-hover' as string]: '#f4f4f5',
-                                                                        ['--bg-muted' as string]: '#f4f4f5',
-                                                                        ['--text-primary' as string]: '#18181b',
-                                                                        ['--text-secondary' as string]: '#52525b',
-                                                                        ['--text-muted' as string]: '#71717a',
-                                                                        ['--text-hint' as string]: '#a1a1aa',
-                                                                        ['--border-default' as string]: '#e4e4e7',
-                                                                        ['--border-subtle' as string]: '#f4f4f5',
-                                                                        ['--border-hover' as string]: '#d4d4d8',
-                                                                        ['--border-strong' as string]: '#a1a1aa',
-                                                                        ['--white' as string]: '#18181b',
-                                                                        ['--success' as string]: '#22c55e',
-                                                                        ['--warning' as string]: '#f59e0b',
-                                                                        ['--danger' as string]: '#ef4444',
-                                                                }}
-                                                        >
-                                                                <BlogEditor
-                                                                        initial={editing ? editingInitial! : creatingInitial}
-                                                                        categories={categories}
-                                                                        isEdit={!!editing}
-                                                                        onClose={handleClose}
-                                                                />
-                                                        </div>
+                                                        <BlogEditor
+                                                                initial={editing ? editingInitial! : creatingInitial}
+                                                                categories={categories}
+                                                                isEdit={!!editing}
+                                                                onClose={handleClose}
+                                                        />
                                                 </div>
-                                        </div>
-                                </div>
-                        )}
-
-                        {filtered.length > 0 && (
-                                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs text-amber-800">
-                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                                        <div>
-                                                <p className="font-medium text-amber-900">{isFa ? 'نکته' : 'Note'}</p>
-                                                <p className="mt-1 text-amber-700">
-                                                        {isFa
-                                                                ? 'پست‌ها با احراز هویت ادمین ذخیره می‌شوند. برای دیدن نسخه عمومی، به /blog بروید. sitemap.xml به‌صورت خودکار همه پست‌های Published را شامل می‌شود.'
-                                                                : 'Posts are saved with admin authentication. To see the public version, visit /blog. sitemap.xml automatically includes all published posts.'}
-                                                </p>
                                         </div>
                                 </div>
                         )}

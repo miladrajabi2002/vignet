@@ -52,6 +52,12 @@ export interface BlogCategory {
 	name: string
 }
 
+/**
+ * Blog editor — LIGHT theme (admin panel).
+ * Replaces the previous CSS-variable-based theme so the editor matches the
+ * admin panel's white/zinc palette regardless of the user dashboard's dark
+ * theme. The editor is only used inside the admin blog manager.
+ */
 export function BlogEditor({
 	initial,
 	categories,
@@ -73,7 +79,7 @@ export function BlogEditor({
 	const [keywordInput, setKeywordInput] = useState('')
 	const [uploading, setUploading] = useState(false)
 
-	//Image dialog state (insert inline image)
+	// Image dialog state (insert inline image)
 	const [imgDialog, setImgDialog] = useState(false)
 	const [imgUrl, setImgUrl] = useState('')
 	const [imgAlt, setImgAlt] = useState('')
@@ -124,7 +130,6 @@ export function BlogEditor({
 		}
 	}
 
-	// ─── Cover image upload ───
 	async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
 		const file = e.target.files?.[0]
 		if (!file) return
@@ -133,7 +138,6 @@ export function BlogEditor({
 		e.target.value = ''
 	}
 
-	// ─── Insert inline image at cursor ───
 	function insertImageAtCursor(url: string, alt: string) {
 		const ta = textareaRef.current
 		const md = `![${alt}](${url})`
@@ -145,7 +149,6 @@ export function BlogEditor({
 		const end = ta.selectionEnd ?? post.content.length
 		const next = post.content.slice(0, start) + md + post.content.slice(end)
 		patch({ content: next })
-		// restore cursor just after inserted image
 		requestAnimationFrame(() => {
 			ta.focus()
 			const pos = start + md.length
@@ -225,15 +228,19 @@ export function BlogEditor({
 		patch({ seoKeywords: post.seoKeywords.filter((k) => k !== kw) })
 	}
 
+	// Shared input class — light theme.
+	const inputCls =
+		'w-full rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100'
+
 	return (
-		<div className="mx-auto max-w-6xl space-y-5">
-			<div className="flex items-center justify-between gap-3">
-				<h1 className="text-2xl font-light text-[var(--text-primary)]">
+		<div className="mx-auto max-w-6xl space-y-5 p-5">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<h1 className="text-xl font-bold text-zinc-900">
 					{isEdit ? t('editPost') : t('newPost')}
 				</h1>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					{saved && (
-						<span className="inline-flex items-center gap-1 text-sm text-success">
+						<span className="inline-flex items-center gap-1 text-sm text-emerald-600">
 							<Check className="h-4 w-4" />
 							{t('saved')}
 						</span>
@@ -242,7 +249,7 @@ export function BlogEditor({
 						<button
 							onClick={onClose}
 							disabled={saving}
-							className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+							className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50"
 						>
 							{t('close')}
 						</button>
@@ -250,7 +257,7 @@ export function BlogEditor({
 					<button
 						onClick={() => save('DRAFT')}
 						disabled={saving}
-						className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+						className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
 					>
 						{saving ? (
 							<Loader2 className="h-4 w-4 animate-spin" />
@@ -262,7 +269,7 @@ export function BlogEditor({
 					<button
 						onClick={() => save('PUBLISHED')}
 						disabled={saving}
-						className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+						className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
 					>
 						{saving ? (
 							<Loader2 className="h-4 w-4 animate-spin" />
@@ -275,7 +282,7 @@ export function BlogEditor({
 			</div>
 
 			{error && (
-				<div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+				<div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
 					<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
 					{error}
 				</div>
@@ -289,11 +296,11 @@ export function BlogEditor({
 						value={post.title}
 						onChange={(e) => patch({ title: e.target.value })}
 						placeholder={t('titlePh')}
-						className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-lg font-medium text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+						className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-lg font-medium text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
 					/>
 
 					<div className="flex items-center gap-2">
-						<span className="text-xs text-[var(--text-muted)]">/blog/</span>
+						<span className="text-xs text-zinc-400">/blog/</span>
 						<input
 							type="text"
 							value={post.slug}
@@ -301,20 +308,20 @@ export function BlogEditor({
 							onBlur={(e) => patch({ slug: slugify(e.target.value) })}
 							placeholder="slug"
 							dir="ltr"
-							className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+							className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
 						/>
 					</div>
 
 					{/* Editor tabs + image toolbar */}
-					<div className="overflow-hidden rounded-xl border border-[var(--border-default)]">
-						<div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
+					<div className="overflow-hidden rounded-xl border border-zinc-200">
+						<div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/60">
 							<div className="flex">
 								<button
 									onClick={() => setView('write')}
-									className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
+									className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors ${
 										view === 'write'
-											? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
-											: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+											? 'bg-white text-zinc-900'
+											: 'text-zinc-500 hover:text-zinc-800'
 									}`}
 								>
 									<Code className="h-3.5 w-3.5" />
@@ -322,10 +329,10 @@ export function BlogEditor({
 								</button>
 								<button
 									onClick={() => setView('preview')}
-									className={`flex items-center gap-1.5 px-4 py-2 text-xs ${
+									className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors ${
 										view === 'preview'
-											? 'bg-[var(--bg-surface)] text-[var(--text-primary)]'
-											: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+											? 'bg-white text-zinc-900'
+											: 'text-zinc-500 hover:text-zinc-800'
 									}`}
 								>
 									<Eye className="h-3.5 w-3.5" />
@@ -347,7 +354,7 @@ export function BlogEditor({
 										onClick={() => inlineUploadRef.current?.click()}
 										disabled={uploading}
 										title={isFa(t) ? 'آپلود عکس در متن' : 'Upload image inline'}
-										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:opacity-50"
+										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50"
 									>
 										{uploading ? (
 											<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -360,7 +367,7 @@ export function BlogEditor({
 										type="button"
 										onClick={() => setImgDialog(true)}
 										title={isFa(t) ? 'درج عکس با لینک' : 'Insert image by URL'}
-										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+										className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
 									>
 										<Link2 className="h-3.5 w-3.5" />
 										{isFa(t) ? 'لینک عکس' : 'URL'}
@@ -370,7 +377,7 @@ export function BlogEditor({
 										onClick={() => inlineUploadRef.current?.click()}
 										disabled={uploading}
 										title={isFa(t) ? 'درج عکس' : 'Insert image'}
-										className="flex items-center gap-1.5 rounded-md bg-[var(--white)] px-2.5 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
+										className="flex items-center gap-1.5 rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
 									>
 										<ImagePlus className="h-3.5 w-3.5" />
 										{isFa(t) ? 'درج عکس' : 'Image'}
@@ -385,16 +392,16 @@ export function BlogEditor({
 								onChange={(e) => patch({ content: e.target.value })}
 								placeholder={t('contentPh')}
 								dir="auto"
-								className="h-[460px] w-full resize-none bg-[var(--bg-surface)] p-4 font-mono text-sm leading-relaxed text-[var(--text-primary)] outline-none"
+								className="h-[460px] w-full resize-none bg-white p-4 font-mono text-sm leading-relaxed text-zinc-900 outline-none"
 							/>
 						) : (
 							<div
 								dir="auto"
-								className="prose prose-sm max-w-none whitespace-pre-wrap p-4 text-[var(--text-primary)]"
+								className="prose prose-sm max-w-none whitespace-pre-wrap p-4 text-zinc-900"
 								style={{ minHeight: 460 }}
 							>
 								{post.content || (
-									<span className="text-[var(--text-muted)]">{t('previewEmpty')}</span>
+									<span className="text-zinc-400">{t('previewEmpty')}</span>
 								)}
 							</div>
 						)}
@@ -402,12 +409,12 @@ export function BlogEditor({
 
 					{/* Excerpt */}
 					<div>
-						<label className="mb-1.5 block text-sm text-[var(--text-secondary)]">
+						<label className="mb-1.5 block text-sm text-zinc-700">
 							{t('excerpt')}{' '}
 							<button
 								type="button"
 								onClick={() => patch({ excerpt: deriveExcerpt(post.content) })}
-								className="ms-1 text-[11px] text-[var(--text-muted)] underline hover:text-[var(--text-secondary)]"
+								className="ms-1 text-[11px] text-zinc-400 underline hover:text-zinc-600"
 							>
 								{t('autoFill')}
 							</button>
@@ -418,7 +425,7 @@ export function BlogEditor({
 							rows={2}
 							placeholder={t('excerptPh')}
 							dir="auto"
-							className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+							className="w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
 						/>
 					</div>
 				</div>
@@ -426,19 +433,19 @@ export function BlogEditor({
 				{/* Sidebar — SEO + meta */}
 				<div className="space-y-4">
 					{/* SEO score */}
-					<div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+					<div className="rounded-2xl border border-zinc-200 bg-white p-4">
 						<div className="flex items-center justify-between">
-							<h3 className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
-								<Sparkles className="h-4 w-4 text-warning" />
+							<h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900">
+								<Sparkles className="h-4 w-4 text-amber-500" />
 								{t('seoScore')}
 							</h3>
 							<span
-								className={`text-2xl font-light ${
+								className={`text-2xl font-bold ${
 									seo.score >= 70
-										? 'text-success'
+										? 'text-emerald-600'
 										: seo.score >= 40
-											? 'text-warning'
-											: 'text-danger'
+											? 'text-amber-500'
+											: 'text-red-500'
 								}`}
 							>
 								{toPersianDigits(seo.score)}
@@ -448,16 +455,16 @@ export function BlogEditor({
 							{seo.checks.map((c, i) => (
 								<li key={i} className="flex items-start gap-2 text-xs">
 									{c.status === 'pass' ? (
-										<CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+										<CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
 									) : c.status === 'warn' ? (
-										<AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+										<AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
 									) : (
-										<XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" />
+										<XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
 									)}
-									<span className="text-[var(--text-secondary)]">
+									<span className="text-zinc-600">
 										{c.label}
 										{c.hint ? (
-											<span className="ms-1 text-[var(--text-muted)]">· {c.hint}</span>
+											<span className="ms-1 text-zinc-400">· {c.hint}</span>
 										) : null}
 									</span>
 								</li>
@@ -466,19 +473,15 @@ export function BlogEditor({
 					</div>
 
 					{/* SEO fields */}
-					<div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-						<h3 className="text-sm font-medium text-[var(--text-primary)]">
-							{t('seoFields')}
-						</h3>
+					<div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
+						<h3 className="text-sm font-semibold text-zinc-900">{t('seoFields')}</h3>
 						<label className="block">
 							<div className="mb-1 flex items-center justify-between">
-								<span className="text-xs text-[var(--text-secondary)]">
-									{t('seoTitle')}
-								</span>
+								<span className="text-xs text-zinc-600">{t('seoTitle')}</span>
 								<button
 									type="button"
 									onClick={() => patch({ seoTitle: deriveSeoTitle(post.title) })}
-									className="text-[10px] text-[var(--text-muted)] underline hover:text-[var(--text-secondary)]"
+									className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
 								>
 									{t('autoFill')}
 								</button>
@@ -489,17 +492,15 @@ export function BlogEditor({
 								onChange={(e) => patch({ seoTitle: e.target.value || null })}
 								placeholder={deriveSeoTitle(post.title)}
 								dir="auto"
-								className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								className={inputCls}
 							/>
-							<div className="mt-0.5 text-end text-[10px] text-[var(--text-muted)]">
+							<div className="mt-0.5 text-end text-[10px] text-zinc-400">
 								{(post.seoTitle ?? deriveSeoTitle(post.title)).length} / 60
 							</div>
 						</label>
 						<label className="block">
 							<div className="mb-1 flex items-center justify-between">
-								<span className="text-xs text-[var(--text-secondary)]">
-									{t('seoDescription')}
-								</span>
+								<span className="text-xs text-zinc-600">{t('seoDescription')}</span>
 								<button
 									type="button"
 									onClick={() =>
@@ -507,7 +508,7 @@ export function BlogEditor({
 											seoDescription: deriveSeoDescription(post.excerpt, post.content),
 										})
 									}
-									className="text-[10px] text-[var(--text-muted)] underline hover:text-[var(--text-secondary)]"
+									className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
 								>
 									{t('autoFill')}
 								</button>
@@ -518,9 +519,9 @@ export function BlogEditor({
 								rows={3}
 								placeholder={deriveSeoDescription(post.excerpt, post.content)}
 								dir="auto"
-								className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								className={`w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100`}
 							/>
-							<div className="mt-0.5 text-end text-[10px] text-[var(--text-muted)]">
+							<div className="mt-0.5 text-end text-[10px] text-zinc-400">
 								{
 									(
 										post.seoDescription ??
@@ -533,9 +534,7 @@ export function BlogEditor({
 						{/* Keywords */}
 						<div>
 							<div className="mb-1 flex items-center justify-between">
-								<span className="text-xs text-[var(--text-secondary)]">
-									{t('keywords')}
-								</span>
+								<span className="text-xs text-zinc-600">{t('keywords')}</span>
 								{suggestedKeywords.length > 0 && (
 									<button
 										type="button"
@@ -545,7 +544,7 @@ export function BlogEditor({
 											].slice(0, 20)
 											patch({ seoKeywords: merged })
 										}}
-										className="text-[10px] text-[var(--text-muted)] underline hover:text-[var(--text-secondary)]"
+										className="text-[10px] text-zinc-400 underline hover:text-zinc-600"
 									>
 										{t('addSuggested')}
 									</button>
@@ -555,13 +554,13 @@ export function BlogEditor({
 								{post.seoKeywords.map((kw) => (
 									<span
 										key={kw}
-										className="inline-flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-0.5 text-xs text-[var(--text-secondary)]"
+										className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-700"
 									>
 										{kw}
 										<button
 											type="button"
 											onClick={() => removeKeyword(kw)}
-											className="text-[var(--text-muted)] hover:text-danger"
+											className="text-zinc-400 hover:text-red-500"
 										>
 											×
 										</button>
@@ -579,13 +578,11 @@ export function BlogEditor({
 									}
 								}}
 								placeholder={t('keywordsPh')}
-								className="mt-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								className={`mt-2 ${inputCls}`}
 							/>
 							{suggestedKeywords.length > 0 && (
 								<div className="mt-2">
-									<div className="mb-1 text-[10px] text-[var(--text-muted)]">
-										{t('suggested')}:
-									</div>
+									<div className="mb-1 text-[10px] text-zinc-400">{t('suggested')}:</div>
 									<div className="flex flex-wrap gap-1">
 										{suggestedKeywords
 											.filter((k) => !post.seoKeywords.includes(k))
@@ -595,7 +592,7 @@ export function BlogEditor({
 													key={k}
 													type="button"
 													onClick={() => addKeyword(k)}
-													className="rounded-full border border-dashed border-[var(--border-default)] px-2 py-0.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+													className="rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-800"
 												>
 													+ {k}
 												</button>
@@ -607,18 +604,14 @@ export function BlogEditor({
 					</div>
 
 					{/* Publish settings */}
-					<div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-						<h3 className="text-sm font-medium text-[var(--text-primary)]">
-							{t('publishSettings')}
-						</h3>
+					<div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
+						<h3 className="text-sm font-semibold text-zinc-900">{t('publishSettings')}</h3>
 						<label className="block">
-							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
-								{t('category')}
-							</span>
+							<span className="mb-1 block text-xs text-zinc-600">{t('category')}</span>
 							<select
 								value={post.categoryId ?? ''}
 								onChange={(e) => patch({ categoryId: e.target.value || null })}
-								className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+								className={inputCls}
 							>
 								<option value="">{t('noCategory')}</option>
 								{categories.map((c) => (
@@ -631,9 +624,7 @@ export function BlogEditor({
 
 						{/* Cover image: URL + Upload + preview */}
 						<div>
-							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
-								{t('coverImage')}
-							</span>
+							<span className="mb-1 block text-xs text-zinc-600">{t('coverImage')}</span>
 							<div className="flex gap-2">
 								<input
 									type="url"
@@ -641,7 +632,7 @@ export function BlogEditor({
 									onChange={(e) => patch({ coverImage: e.target.value || null })}
 									placeholder="https://…"
 									dir="ltr"
-									className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+									className={inputCls}
 								/>
 								<input
 									ref={coverInputRef}
@@ -654,7 +645,7 @@ export function BlogEditor({
 									type="button"
 									onClick={() => coverInputRef.current?.click()}
 									disabled={uploading}
-									className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+									className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50"
 								>
 									{uploading ? (
 										<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -665,7 +656,7 @@ export function BlogEditor({
 								</button>
 							</div>
 							{post.coverImage && (
-								<div className="relative mt-2 overflow-hidden rounded-lg border border-[var(--border-default)]">
+								<div className="relative mt-2 overflow-hidden rounded-lg border border-zinc-200">
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img
 										src={post.coverImage}
@@ -675,7 +666,7 @@ export function BlogEditor({
 									<button
 										type="button"
 										onClick={() => patch({ coverImage: null })}
-										className="absolute top-1.5 end-1.5 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+										className="absolute top-1.5 end-1.5 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black/80"
 									>
 										<X className="h-3.5 w-3.5" />
 									</button>
@@ -684,16 +675,14 @@ export function BlogEditor({
 						</div>
 
 						<label className="block">
-							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
-								{t('canonicalUrl')}
-							</span>
+							<span className="mb-1 block text-xs text-zinc-600">{t('canonicalUrl')}</span>
 							<input
 								type="url"
 								value={post.canonicalUrl ?? ''}
 								onChange={(e) => patch({ canonicalUrl: e.target.value || null })}
 								placeholder="https://…"
 								dir="ltr"
-								className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+								className={inputCls}
 							/>
 						</label>
 						<label className="flex items-center gap-2">
@@ -701,16 +690,12 @@ export function BlogEditor({
 								type="checkbox"
 								checked={post.featured}
 								onChange={(e) => patch({ featured: e.target.checked })}
-								className="h-4 w-4 accent-[var(--white)]"
+								className="h-4 w-4 accent-zinc-900"
 							/>
-							<span className="text-xs text-[var(--text-secondary)]">
-								{t('featured')}
-							</span>
+							<span className="text-xs text-zinc-600">{t('featured')}</span>
 						</label>
 						<div>
-							<span className="mb-1 block text-xs text-[var(--text-secondary)]">
-								{t('status')}
-							</span>
+							<span className="mb-1 block text-xs text-zinc-600">{t('status')}</span>
 							<div className="flex flex-wrap gap-1">
 								{(['DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED'] as const).map((s) => (
 									<button
@@ -719,8 +704,8 @@ export function BlogEditor({
 										onClick={() => patch({ status: s })}
 										className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
 											post.status === s
-												? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
-												: 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+												? 'border-zinc-900 bg-zinc-900 text-white'
+												: 'border-zinc-200 text-zinc-600 hover:text-zinc-900'
 										}`}
 									>
 										{t(`status_${s}`)}
@@ -735,27 +720,27 @@ export function BlogEditor({
 			{/* ─── Insert-image-by-URL dialog ─── */}
 			{imgDialog && (
 				<div
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+					className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm"
 					onClick={(e) => {
 						if (e.target === e.currentTarget) setImgDialog(false)
 					}}
 				>
-					<div className="w-full max-w-md rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-5">
+					<div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
 						<div className="mb-3 flex items-center justify-between">
-							<h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+							<h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
 								<Link2 className="h-4 w-4" />
 								{isFa(t) ? 'درج عکس با لینک' : 'Insert image by URL'}
 							</h3>
 							<button
 								onClick={() => setImgDialog(false)}
-								className="rounded-md p-1 text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+								className="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
 							>
 								<X className="h-4 w-4" />
 							</button>
 						</div>
 						<div className="space-y-3">
 							<label className="block">
-								<span className="mb-1 block text-xs text-[var(--text-secondary)]">
+								<span className="mb-1 block text-xs text-zinc-600">
 									{isFa(t) ? 'آدرس عکس' : 'Image URL'}
 								</span>
 								<input
@@ -765,11 +750,11 @@ export function BlogEditor({
 									placeholder="https://example.com/image.jpg"
 									dir="ltr"
 									autoFocus
-									className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+									className={inputCls}
 								/>
 							</label>
 							<label className="block">
-								<span className="mb-1 block text-xs text-[var(--text-secondary)]">
+								<span className="mb-1 block text-xs text-zinc-600">
 									{isFa(t) ? 'متن جایگزین (اختیاری)' : 'Alt text (optional)'}
 								</span>
 								<input
@@ -777,7 +762,7 @@ export function BlogEditor({
 									value={imgAlt}
 									onChange={(e) => setImgAlt(e.target.value)}
 									dir="auto"
-									className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+									className={inputCls}
 								/>
 							</label>
 							{imgUrl && (
@@ -785,20 +770,20 @@ export function BlogEditor({
 								<img
 									src={imgUrl}
 									alt=""
-									className="max-h-40 w-full rounded-lg border border-[var(--border-default)] object-contain"
+									className="max-h-40 w-full rounded-lg border border-zinc-200 object-contain"
 								/>
 							)}
 							<div className="flex justify-end gap-2">
 								<button
 									onClick={() => setImgDialog(false)}
-									className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+									className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
 								>
 									{isFa(t) ? 'انصراف' : 'Cancel'}
 								</button>
 								<button
 									onClick={confirmInsertImageLink}
 									disabled={!imgUrl.trim()}
-									className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
+									className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
 								>
 									<ImagePlus className="h-3.5 w-3.5" />
 									{isFa(t) ? 'درج' : 'Insert'}
@@ -814,8 +799,6 @@ export function BlogEditor({
 
 // Tiny locale helper so we don't depend on a hook outside the component body.
 function isFa(t: (k: string) => string): boolean {
-	// The 'blog' namespace is rendered in the active locale; if the 'newPost'
-	// label starts with a Persian letter we treat the locale as fa.
 	const label = t('newPost')
 	return /[\u0600-\u06FF]/.test(label)
 }
