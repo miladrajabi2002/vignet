@@ -12,7 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   requireAdmin()
 
   return (
-    <div dir="rtl" className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div dir="rtl" className="min-h-screen bg-zinc-50 font-fa text-zinc-900">
       <MobileNavTrigger />
       <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 md:px-6">
         {/* Desktop sidebar */}

@@ -19,6 +19,23 @@ interface ChannelOption {
 }
 
 /**
+ * Build a filter URL from the active status + channel.
+ * This stays inside the Client Component so we don't pass a function
+ * across the RSC border.
+ */
+function buildHref(
+  basePath: string,
+  status: string | undefined,
+  channel: string | undefined,
+): string {
+  const sp = new URLSearchParams()
+  if (status) sp.set('status', status)
+  if (channel) sp.set('channel', channel)
+  const qs = sp.toString()
+  return qs ? `${basePath}?${qs}` : basePath
+}
+
+/**
  * Conversation filter bar — status pills (with handed-off highlighted) +
  * channel pills + active-filter chip with clear button.
  *
@@ -29,16 +46,14 @@ export function ConversationFilters({
   channelOptions,
   activeStatus,
   activeChannel,
-  makeHref,
-  clearHref,
+  basePath = '/conversations',
   isFa,
 }: {
   statusOptions: StatusOption[]
   channelOptions: ChannelOption[]
   activeStatus: string | undefined
   activeChannel: string | undefined
-  makeHref: (overrides: { status?: string; channel?: string }) => string
-  clearHref: string
+  basePath?: string
   isFa: boolean
 }) {
   const hasActiveFilter = !!activeStatus || !!activeChannel
@@ -75,10 +90,11 @@ export function ConversationFilters({
             return (
               <Link
                 key={opt.key}
-                href={makeHref({
-                  status: isAll ? undefined : opt.key,
-                  channel: activeChannel,
-                })}
+                href={buildHref(
+                  basePath,
+                  isAll ? undefined : opt.key,
+                  activeChannel,
+                )}
                 className={cn(
                   'group inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                   active
@@ -150,10 +166,11 @@ export function ConversationFilters({
               return (
                 <Link
                   key={opt.key}
-                  href={makeHref({
-                    status: activeStatus,
-                    channel: isAll ? undefined : opt.key,
-                  })}
+                  href={buildHref(
+                    basePath,
+                    activeStatus,
+                    isAll ? undefined : opt.key,
+                  )}
                   className={cn(
                     'group inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                     active
@@ -198,7 +215,7 @@ export function ConversationFilters({
             </span>
           )}
           <Link
-            href={clearHref}
+            href={basePath}
             className="ms-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
             <X className="h-3 w-3" />

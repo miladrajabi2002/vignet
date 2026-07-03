@@ -116,16 +116,6 @@ export default async function ConversationsPage(
     .map((g) => ({ channel: g.channel, count: g._count._all }))
     .sort((a, b) => b.count - a.count)
 
-  function filterHref(overrides: { channel?: string; status?: string }): string {
-    const sp = new URLSearchParams()
-    const ch = overrides.channel ?? ''
-    const st = overrides.status ?? ''
-    if (ch) sp.set('channel', ch)
-    if (st) sp.set('status', st)
-    const qs = sp.toString()
-    return qs ? `/conversations?${qs}` : '/conversations'
-  }
-
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
@@ -163,8 +153,7 @@ export default async function ConversationsPage(
         isFa={isFa}
         activeStatus={statusFilter}
         activeChannel={channelFilter}
-        makeHref={(o) => filterHref({ channel: o.channel, status: o.status })}
-        clearHref="/conversations"
+        basePath="/conversations"
         statusOptions={[
           { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
           { key: 'HANDED_OFF', label: isFa ? 'تحویل اپراتور' : 'Handed off', count: handedOffCount },

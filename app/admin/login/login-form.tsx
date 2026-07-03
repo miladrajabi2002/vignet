@@ -24,7 +24,7 @@ export function AdminLoginForm() {
   const [state, formAction] = useFormState(adminLogin, initial)
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4">
+    <div dir="rtl" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 font-fa">
       {/* Decorative grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.04]"
