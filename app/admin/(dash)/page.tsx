@@ -30,6 +30,7 @@ import {
 } from '@/components/admin/trend-chart'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import { ServerStatsWidget } from '@/components/admin/server-stats-widget'
+import { TrendsStrip } from '@/components/admin/trends-strip'
 import {
   conversationsDaily,
   errorsDaily,
@@ -168,21 +169,18 @@ export default async function AdminOverviewPage(
           icon={<Wallet className="h-5 w-5" />}
           tone="success"
           trend={{ value: revenueKPIs.momChange, label: 'نسبت به ماه قبل' }}
-          series={kpiTrends.rev.map((p) => p.value)}
         />
         <StatCard
           label="کسب‌وکارهای فعال"
           value={workspaceCount}
           sub="از کل کاربران"
           icon={<Building2 className="h-5 w-5" />}
-          series={kpiTrends.ws.map((p) => p.value)}
         />
         <StatCard
           label="مکالمات امروز"
           value={conversationsToday}
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="info"
-          series={kpiTrends.conv.map((p) => p.value)}
         />
         <StatCard
           label="نرخ تبدیل"
@@ -199,7 +197,6 @@ export default async function AdminOverviewPage(
           label="کاربران کل"
           value={userCount}
           icon={<Users className="h-5 w-5" />}
-          series={kpiTrends.users.map((p) => p.value)}
         />
         <StatCard
           label="اشتراک‌های فعال"
@@ -208,14 +205,12 @@ export default async function AdminOverviewPage(
           icon={<Repeat className="h-5 w-5" />}
           tone="success"
           trend={{ value: revenueKPIs.subWeekChange, label: 'هفته اخیر' }}
-          series={kpiTrends.pays.map((p) => p.value)}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
           value={errors24h}
           tone={errors24h > 0 ? 'danger' : 'default'}
           icon={<AlertTriangle className="h-5 w-5" />}
-          series={kpiTrends.err.map((p) => p.value)}
         />
         <StatCard
           label="درآمد ماهانه تکرارشونده"
@@ -223,9 +218,24 @@ export default async function AdminOverviewPage(
           sub="مجموع اشتراک‌های فعال"
           icon={<CreditCard className="h-5 w-5" />}
           tone="success"
-          series={kpiTrends.rev.map((p) => p.value)}
         />
       </div>
+
+      {/* ─── Trends strip: 8 sparklines in one row ──────────────── */}
+      {/*    Shows site-wide momentum at a glance: green = progressing,
+            gray = flat, red = declining. Errors are inverted (up = bad). */}
+      <TrendsStrip
+        tiles={[
+          { label: 'درآمد', series: kpiTrends.rev.map((p) => p.value) },
+          { label: 'کسب‌وکار جدید', series: kpiTrends.ws.map((p) => p.value) },
+          { label: 'مکالمات', series: kpiTrends.conv.map((p) => p.value) },
+          { label: 'تبدیل جدید', series: kpiTrends.pays.map((p) => p.value) },
+          { label: 'کاربر جدید', series: kpiTrends.users.map((p) => p.value) },
+          { label: 'پرداخت جدید', series: kpiTrends.pays.map((p) => p.value) },
+          { label: 'خطاها', series: kpiTrends.err.map((p) => p.value), invert: true },
+          { label: 'MRR روند', series: kpiTrends.rev.map((p) => p.value) },
+        ]}
+      />
 
       {/* ─── Charts row 1 ───────────────────────────────────────── */}
       {range === 'monthly' && rangeSeries.monthly ? (
