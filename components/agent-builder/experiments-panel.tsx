@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, Save, RotateCcw, Trash2, FlaskConical } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 interface VariantStat {
   variant: string
@@ -138,14 +139,10 @@ export function ExperimentsPanel({ agentId }: { agentId: string }) {
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-            />
+          <div className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+            <Switch checked={active} onChange={setActive} aria-label={t('enable')} />
             {t('enable')}
-          </label>
+          </div>
           <button
             onClick={saveExperiment}
             disabled={savingExp}

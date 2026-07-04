@@ -61,7 +61,7 @@ export function Sidebar() {
 							className={cn(
 								'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
 								active
-									? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+									? 'bg-[var(--white)] font-medium text-[var(--bg-base)]'
 									: 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
 							)}
 						>

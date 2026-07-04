@@ -1,5 +1,5 @@
 import { sendEmail, notifyOps } from '@/lib/email/resend'
-import { sendSms } from '@/lib/sms/smsir'
+import { sendSms } from '@/lib/sms/ippanel'
 
 /**
  * A unified notification job. The dispatcher routes to email, SMS, or the ops

@@ -660,15 +660,17 @@ function Toggle({
 				<div className="text-xs text-[var(--text-secondary)]">{hint}</div>
 			</div>
 			<span
-				className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-					checked ? 'bg-[var(--white)]' : 'bg-[var(--border-default)]'
+				className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
+					checked
+						? 'border-[var(--white)] bg-[var(--white)]'
+						: 'border-[var(--border-hover)] bg-[var(--bg-muted)]'
 				}`}
 			>
 				<span
-					className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
+					className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full shadow-sm transition-all ${
 						checked
 							? 'start-[18px] bg-[var(--bg-base)]'
-							: 'start-0.5 bg-[var(--text-secondary)]'
+							: 'start-0.5 border border-[var(--border-hover)] bg-[var(--bg-base)]'
 					}`}
 				/>
 			</span>

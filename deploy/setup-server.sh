@@ -277,7 +277,7 @@ cat <<DONE
      grep -E '^ADMIN_(USER|PASS)=' ${ENV_FILE}
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
-   • SMS_IR_API_KEY / SMS_IR_TEMPLATE_ID   (برای OTP)
+   • IPPANEL_API_KEY / IPPANEL_PATTERN_CODE / IPPANEL_FROM_NUMBER   (برای OTP)
    • RESEND_API_KEY                        (اختیاری، ایمیل)
 
  ویرایش:  nano ${ENV_FILE}

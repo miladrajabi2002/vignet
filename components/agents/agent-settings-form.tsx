@@ -918,17 +918,23 @@ function Toggle({
       onClick={() => onChange(!checked)}
       className="flex w-full items-center justify-between"
     >
-      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+      <span
+        className={`text-sm ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}
+      >
+        {label}
+      </span>
       <span
         className={`relative h-6 w-11 rounded-full border transition-colors ${
           checked
-            ? 'border-[rgba(var(--ink-rgb),0.3)] bg-[rgba(var(--ink-rgb),0.2)]'
-            : 'border-[var(--border-default)] bg-[var(--bg-muted)]'
+            ? 'border-[var(--white)] bg-[var(--white)]'
+            : 'border-[var(--border-hover)] bg-[var(--bg-muted)]'
         }`}
       >
         <span
-          className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[var(--white)] transition-all ${
-            checked ? 'start-6' : 'start-1'
+          className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full shadow-sm transition-all ${
+            checked
+              ? 'start-6 bg-[var(--bg-base)]'
+              : 'start-1 border border-[var(--border-hover)] bg-[var(--bg-base)]'
           }`}
         />
       </span>

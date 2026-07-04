@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendOTP, OtpRateLimitError } from '@/lib/sms/smsir'
+import { sendOTP, OtpRateLimitError } from '@/lib/sms/ippanel'
 import { phoneSchema } from '@/lib/phone'
 import { rateLimit } from '@/lib/ratelimit'
 

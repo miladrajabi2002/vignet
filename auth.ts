@@ -2,7 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { authConfig } from '@/auth.config'
 import { prisma } from '@/lib/prisma'
-import { verifyOTP } from '@/lib/sms/smsir'
+import { verifyOTP } from '@/lib/sms/ippanel'
 import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
 

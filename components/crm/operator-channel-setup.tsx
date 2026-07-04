@@ -12,6 +12,7 @@ import {
         CheckCircle2,
         ExternalLink,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 /**
  * OperatorChannelSetup (F3) — settings card that lets the workspace owner
@@ -178,15 +179,18 @@ export function OperatorChannelSetup({
                                                         </span>
                                                 </div>
                                         )}
-                                        <label className="flex items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3 text-sm">
-                                                <span className="text-[var(--text-secondary)]">{t('active')}</span>
-                                                <input
-                                                        type="checkbox"
+                                        <div className="flex items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3 text-sm">
+                                                <span
+                                                        className={active ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}
+                                                >
+                                                        {t('active')}
+                                                </span>
+                                                <Switch
                                                         checked={active}
                                                         onChange={toggleActive}
-                                                        className="h-4 w-4"
+                                                        aria-label={t('active')}
                                                 />
-                                        </label>
+                                        </div>
                                         {info.lastError && (
                                                 <div className="flex items-start gap-2 rounded-xl border border-[var(--amber)] bg-[var(--white-05)] px-4 py-3 text-xs text-[var(--text-secondary)]">
                                                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--amber)]" />
