@@ -89,12 +89,23 @@ export async function sendOTP(mobile: string): Promise<void> {
   const patternCode = process.env.IPPANEL_PATTERN_CODE
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
-  if (!apiKey || !patternCode || !fromNumber) {
-    // Dev fallback — no SMS provider configured.
+  if (!apiKey) {
+    // Dev fallback — no SMS provider configured at all.
     console.warn(
-      `[ippanel] DEV MODE — no IPPANEL_API_KEY/PATTERN_CODE/FROM_NUMBER. OTP for ${normalized} is: ${code}`,
+      `[ippanel] DEV MODE — IPPANEL_API_KEY not set. OTP for ${normalized} is: ${code}`,
     )
     return
+  }
+
+  // API key is set → we're meant to send real SMS. Missing pattern/sender is a
+  // misconfiguration, not dev mode — fail loudly instead of leaking the OTP.
+  const missing = [
+    !patternCode && 'IPPANEL_PATTERN_CODE',
+    !fromNumber && 'IPPANEL_FROM_NUMBER',
+  ].filter(Boolean)
+  if (missing.length) {
+    console.error(`[ippanel] cannot send OTP — missing env: ${missing.join(', ')}`)
+    throw new Error('SMS_FAILED')
   }
 
   const ok = await ippanelSend({
