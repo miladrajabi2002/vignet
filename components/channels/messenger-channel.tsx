@@ -15,6 +15,7 @@ import {
   Copy,
   CheckCheck,
   AlertTriangle,
+  Settings2,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -93,6 +94,119 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
+/** Platforms that render quick-reply buttons (Rubika's bot API has no keyboard support we rely on). */
+const SUPPORTS_QUICK_REPLIES: Record<MessengerKind, boolean> = {
+  TELEGRAM: true,
+  BALE: true,
+  RUBIKA: false,
+  WHATSAPP: true,
+  INSTAGRAM: true,
+}
+
+/**
+ * Behavior settings editor for a connected messenger channel. Currently:
+ * quick-reply suggestion buttons shown under every agent reply.
+ */
+function ChannelSettings({
+  agentId,
+  channelId,
+  type,
+  initialQuickReplies,
+}: {
+  agentId: string
+  channelId: string
+  type: MessengerKind
+  initialQuickReplies: string[]
+}) {
+  const t = useTranslations('channels')
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<string[]>(
+    initialQuickReplies.length ? initialQuickReplies : [''],
+  )
+  const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function save() {
+    setBusy(true)
+    setSaved(false)
+    try {
+      const quickReplies = items.map((s) => s.trim()).filter(Boolean).slice(0, 4)
+      const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quickReplies }),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <Settings2 className="h-3.5 w-3.5" />
+          {t('channelSettings')}
+        </span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="space-y-3 px-3 pb-3">
+          <div>
+            <p className="text-xs font-medium text-[var(--text-primary)]">
+              {t('msgrQuickRepliesLabel')}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+              {type === 'WHATSAPP' ? t('msgrQuickRepliesHintWa') : t('msgrQuickRepliesHint')}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {items.map((val, i) => (
+              <input
+                key={i}
+                value={val}
+                maxLength={type === 'TELEGRAM' || type === 'BALE' ? 40 : 20}
+                placeholder={t('msgrQuickRepliesPh')}
+                onChange={(e) =>
+                  setItems((arr) => arr.map((v, j) => (j === i ? e.target.value : v)))
+                }
+                className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+              />
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              disabled={items.length >= 4}
+              onClick={() => setItems((arr) => [...arr, ''])}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+            >
+              + {t('msgrQuickRepliesAdd')}
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {saved ? t('saved') : t('save')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000 // 3 days with no inbound = likely broken
 
 /**
@@ -154,6 +268,7 @@ export function MessengerChannel({
   callbackUrl,
   verifyToken,
   lastInboundAt,
+  quickReplies = [],
 }: {
   agentId: string
   type: MessengerKind
@@ -168,6 +283,8 @@ export function MessengerChannel({
   verifyToken?: string | null
   /** ISO timestamp of the last inbound webhook message, or null if none yet. */
   lastInboundAt?: string | null
+  /** Saved quick-reply suggestion buttons (config.settings.quickReplies). */
+  quickReplies?: string[]
 }) {
   const t = useTranslations('channels')
   const router = useRouter()
@@ -251,6 +368,16 @@ export function MessengerChannel({
       </div>
 
       {enabled && <WebhookHealth lastInboundAt={lastInboundAt} />}
+
+      {/* Behavior settings for connected channels that support them. */}
+      {enabled && channelId && SUPPORTS_QUICK_REPLIES[type] && (
+        <ChannelSettings
+          agentId={agentId}
+          channelId={channelId}
+          type={type}
+          initialQuickReplies={quickReplies}
+        />
+      )}
 
       {/* Connected Meta channels: show the webhook callback URL + verify token to finish dashboard setup. */}
       {enabled && isMeta && callbackUrl && verifyToken && (

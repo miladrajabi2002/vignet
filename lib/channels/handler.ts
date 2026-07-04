@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
 import { synthesizeSpeech } from '@/lib/voice/tts'
-import { readBotToken } from '@/lib/channels/config'
+import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
         contactIdField,
@@ -61,6 +61,7 @@ async function resolveChannel(type: MessengerType, webhookToken: string) {
                 channelId: channel.id,
                 agent: channel.agent,
                 adapter: getAdapter(type, token),
+                settings: normalizeMessengerSettings(channel.config),
         }
 }
 
@@ -162,7 +163,7 @@ export async function handleInbound(
 
         const resolved = await resolveChannel(type, webhookToken)
         if (!resolved) return
-        const { channelId, agent, adapter } = resolved
+        const { channelId, agent, adapter, settings } = resolved
 
         // Stamp the channel's last-inbound time so the dashboard can surface webhook
         // health ("last message 2m ago" vs. a silent/broken hook). Fire-and-forget.
@@ -216,7 +217,9 @@ export async function handleInbound(
                         })
                         if ('error' in result) continue
 
-                        await adapter.sendText(msg.chatId, result.reply)
+                        await adapter.sendText(msg.chatId, result.reply, {
+                                quickReplies: settings.quickReplies,
+                        })
 
                         // Optional voice reply when the agent has TTS enabled.
                         if (agent.voiceEnabled && adapter.sendVoice) {

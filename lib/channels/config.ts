@@ -41,6 +41,37 @@ export function readBotToken(config: Prisma.JsonValue): string | null {
   }
 }
 
+/**
+ * Optional per-channel behavior settings, stored under `config.settings` on the
+ * same AgentChannel row (so no migration is needed). Edited from the dashboard
+ * channel card; consumed by the inbound handler on every reply.
+ */
+export interface MessengerSettings {
+	/**
+	 * Suggested questions shown as tappable buttons under the agent's replies
+	 * (Telegram/Bale reply keyboard, WhatsApp reply buttons, Instagram quick
+	 * replies). Tapping one sends its text as a normal user message. Max 4;
+	 * WhatsApp shows the first 3 (platform limit).
+	 */
+	quickReplies: string[]
+}
+
+/** Coerce the `settings` blob of a channel config into a safe settings object. */
+export function normalizeMessengerSettings(config: Prisma.JsonValue): MessengerSettings {
+	const c = config && typeof config === 'object' ? (config as Record<string, unknown>) : {}
+	const s =
+		c.settings && typeof c.settings === 'object'
+			? (c.settings as Record<string, unknown>)
+			: {}
+	const quickReplies = Array.isArray(s.quickReplies)
+		? s.quickReplies
+				.filter((q): q is string => typeof q === 'string' && !!q.trim())
+				.map((q) => q.trim().slice(0, 40))
+				.slice(0, 4)
+		: []
+	return { quickReplies }
+}
+
 /** Read the webhook token from a stored config, or null. */
 export function readWebhookToken(config: Prisma.JsonValue): string | null {
   const c = config as Partial<MessengerConfig> | null

@@ -7,6 +7,7 @@ import {
   MessengerChannel,
   type MessengerKind,
 } from '@/components/channels/messenger-channel'
+import { normalizeMessengerSettings } from '@/lib/channels/config'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -104,6 +105,7 @@ export default async function AgentChannelsPage(
             callbackUrl={callbackUrl}
             verifyToken={isMeta ? webhookToken || null : null}
             lastInboundAt={ch?.lastInboundAt ? ch.lastInboundAt.toISOString() : null}
+            quickReplies={ch ? normalizeMessengerSettings(ch.config).quickReplies : []}
           />
         )
       })}

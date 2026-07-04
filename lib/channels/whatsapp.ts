@@ -1,4 +1,4 @@
-import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
+import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
 
 /**
  * WhatsApp Cloud API (Meta Graph API) adapter.
@@ -41,7 +41,12 @@ export function whatsappAdapter(token: string): MessengerAdapter {
           senderId: m.from,
           senderName: profileName,
           senderPhone: m.from,
-          text: m.text?.body ?? m.button?.text ?? '',
+          // Plain text, template button tap, or interactive reply-button tap.
+          text:
+            m.text?.body ??
+            m.button?.text ??
+            m.interactive?.button_reply?.title ??
+            '',
           // Voice is intentionally unsupported: WA media needs an authed
           // two-step fetch the shared downloader can't perform.
         })
@@ -49,21 +54,53 @@ export function whatsappAdapter(token: string): MessengerAdapter {
       return out
     },
 
-    async sendText(chatId: string, text: string): Promise<void> {
+    async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
       if (!creds) throw new Error('WHATSAPP invalid credentials')
-      const res = await fetch(`${GRAPH_BASE}/${creds.phoneNumberId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${creds.accessToken}`,
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: chatId,
-          type: 'text',
-          text: { body: text, preview_url: false },
-        }),
+
+      async function post(payload: Record<string, unknown>): Promise<Response> {
+        return fetch(`${GRAPH_BASE}/${creds!.phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${creds!.accessToken}`,
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: chatId,
+            ...payload,
+          }),
+        })
+      }
+
+      // Quick replies → interactive reply buttons (Cloud API limits: max 3
+      // buttons, titles ≤20 chars, body ≤1024 chars). Falls back to plain text
+      // on any rejection so the reply is never lost.
+      const buttons = (opts?.quickReplies ?? []).slice(0, 3)
+      if (buttons.length && text.length <= 1024) {
+        const res = await post({
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text },
+            action: {
+              buttons: buttons.map((q, i) => ({
+                type: 'reply',
+                reply: { id: `qr_${i}`, title: q.slice(0, 20) },
+              })),
+            },
+          },
+        })
+        if (res.ok) return
+        console.error(
+          '[whatsapp] interactive send rejected, falling back to text:',
+          await res.text().catch(() => ''),
+        )
+      }
+
+      const res = await post({
+        type: 'text',
+        text: { body: text, preview_url: false },
       })
       if (!res.ok) {
         const detail = await res.text().catch(() => '')
@@ -113,6 +150,7 @@ interface WaWebhook {
           from?: string
           text?: { body?: string }
           button?: { text?: string }
+          interactive?: { button_reply?: { id?: string; title?: string } }
           type?: string
         }[]
       }

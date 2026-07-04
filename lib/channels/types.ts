@@ -30,12 +30,24 @@ export interface OutboundVoice {
   mime: string
 }
 
+/**
+ * Optional extras for an outbound text reply. Adapters use what their platform
+ * supports and silently ignore the rest, so callers can always pass them.
+ */
+export interface SendOptions {
+  /**
+   * Suggested-question buttons shown with the reply. Tapping one sends its
+   * text back as a normal user message (no callback handling needed).
+   */
+  quickReplies?: string[]
+}
+
 export interface MessengerAdapter {
   readonly channel: ChannelType
   /** Parse a raw webhook body into normalized messages (0..n). */
   parseUpdate(body: unknown): InboundMessage[]
-  /** Send a plain text reply. */
-  sendText(chatId: string, text: string): Promise<void>
+  /** Send a plain text reply (with optional platform extras). */
+  sendText(chatId: string, text: string, opts?: SendOptions): Promise<void>
   /**
    * Show a "typing…" indicator while the reply is being generated. Optional and
    * best-effort — platforms that don't support it simply omit this method, and

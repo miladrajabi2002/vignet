@@ -3,6 +3,7 @@ import type {
   InboundMessage,
   MessengerAdapter,
   OutboundVoice,
+  SendOptions,
 } from '@/lib/channels/types'
 
 /**
@@ -54,8 +55,22 @@ export function createTelegramLikeAdapter(opts: {
       ]
     },
 
-    async sendText(chatId: string, text: string): Promise<void> {
-      await call('sendMessage', { chat_id: chatId, text })
+    async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
+      const payload: Record<string, unknown> = { chat_id: chatId, text }
+      // Quick replies → a one-time reply keyboard: tapping a button sends its
+      // text as a regular message, so no callback_query handling is needed.
+      if (opts?.quickReplies?.length) {
+        const rows: { text: string }[][] = []
+        for (let i = 0; i < opts.quickReplies.length; i += 2) {
+          rows.push(opts.quickReplies.slice(i, i + 2).map((q) => ({ text: q })))
+        }
+        payload.reply_markup = {
+          keyboard: rows,
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        }
+      }
+      await call('sendMessage', payload)
     },
 
     async sendTyping(chatId: string): Promise<void> {

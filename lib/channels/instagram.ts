@@ -1,4 +1,4 @@
-import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
+import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
 import { GRAPH_BASE } from '@/lib/channels/whatsapp'
 
 /**
@@ -66,7 +66,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
       return out
     },
 
-    async sendText(chatId: string, text: string): Promise<void> {
+    async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
       if (!token) throw new Error('INSTAGRAM invalid credentials')
 
       // Public reply to a post/reel comment.
@@ -87,7 +87,17 @@ export function instagramAdapter(token: string): MessengerAdapter {
         return
       }
 
-      // Direct message reply.
+      // Direct message reply. Quick replies (tappable suggestion chips) are
+      // supported on IG DMs — tapping one sends its title as a normal message.
+      // Platform limits: max 13 replies, titles ≤20 chars.
+      const message: Record<string, unknown> = { text }
+      if (opts?.quickReplies?.length) {
+        message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
+          content_type: 'text',
+          title: q.slice(0, 20),
+          payload: `qr_${i}`,
+        }))
+      }
       const res = await fetch(`${GRAPH_BASE}/me/messages`, {
         method: 'POST',
         headers: {
@@ -96,7 +106,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
         },
         body: JSON.stringify({
           recipient: { id: chatId },
-          message: { text },
+          message,
           messaging_type: 'RESPONSE',
         }),
       })

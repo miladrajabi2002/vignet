@@ -421,6 +421,42 @@ export const DOCS: DocPage[] = [
                                 fa: 'فقط ایجنت‌های فعال در ویجت پاسخ می‌دهند. اگر ایجنت را غیرفعال کنید، ویجت نیز پاسخ نمی‌دهد.',
                                 en: 'Only active agents respond in the widget. If you deactivate an agent, the widget stops responding too.',
                         },
+                        {
+                                type: 'h2',
+                                fa: 'کانال‌های پیام‌رسان چه می‌کنند؟',
+                                en: 'What the messenger channels can do',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'تلگرام و بله: پاسخ متنی، دکمه‌های سؤال پیشنهادی، نمایش «در حال نوشتن»، دریافت و پاسخ صوتی',
+                                                en: 'Telegram & Bale: text replies, suggested-question buttons, typing indicator, inbound & outbound voice',
+                                        },
+                                        {
+                                                fa: 'واتساپ: پاسخ متنی + دکمه‌های پاسخ سریع (حداکثر ۳ دکمه)',
+                                                en: 'WhatsApp: text replies + quick-reply buttons (max 3)',
+                                        },
+                                        {
+                                                fa: 'اینستاگرام: پاسخ خودکار به دایرکت‌ها با چیپ‌های سؤال پیشنهادی، و پاسخ عمومی خودکار به کامنت پست‌ها و ریلزها',
+                                                en: 'Instagram: auto-replies to DMs with suggested-question chips, plus automatic public replies to post/reel comments',
+                                        },
+                                        {
+                                                fa: 'روبیکا: پاسخ متنی و دریافت پیام صوتی',
+                                                en: 'Rubika: text replies and inbound voice messages',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'دکمه‌های سؤال پیشنهادی',
+                                en: 'Suggested-question buttons',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'در تنظیمات هر کانال (کارت کانال ← تنظیمات کانال) می‌توانید تا ۴ سؤال پرتکرار تعریف کنید. این سؤالات زیر پاسخ‌های ایجنت به‌صورت دکمه ظاهر می‌شوند و مشتری با یک لمس آن‌ها را می‌پرسد — بدون تایپ. در واتساپ حداکثر ۳ دکمه با متن حداکثر ۲۰ کاراکتر نمایش داده می‌شود.',
+                                en: 'In each channel\'s settings (channel card → Channel settings) you can define up to 4 common questions. They appear as buttons under the agent\'s replies so customers ask with one tap — no typing. WhatsApp shows at most 3 buttons with 20-character titles.',
+                        },
                 ],
         },
         {

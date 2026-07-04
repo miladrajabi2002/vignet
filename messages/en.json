@@ -378,6 +378,12 @@
                 "embedCode": "Embed code",
                 "copy": "Copy",
                 "copied": "Copied",
+                "channelSettings": "Channel settings",
+                "msgrQuickRepliesLabel": "Suggested questions (buttons)",
+                "msgrQuickRepliesHint": "Define up to 4 common questions; they appear as tappable buttons under every agent reply.",
+                "msgrQuickRepliesHintWa": "WhatsApp shows at most 3 buttons with titles up to 20 characters.",
+                "msgrQuickRepliesPh": "e.g. Price list",
+                "msgrQuickRepliesAdd": "Add question",
                 "comingSoon": "Coming soon",
                 "widgetSettings": "Widget settings & customization",
                 "widgetSettingsHint": "Configure the widget's appearance, color and security",
@@ -845,7 +851,7 @@
                                 },
                                 "channels": {
                                         "title": "All connections",
-                                        "desc": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — one agent, answering everywhere"
+                                        "desc": "Telegram, WhatsApp, Instagram (DMs & comments), Rubika, Bale and a web widget — with quick-reply buttons and voice; one agent, answering everywhere"
                                 },
                                 "voice": {
                                         "title": "Voice understanding",
