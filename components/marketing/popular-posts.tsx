@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
 import { Eye, ArrowLeft, Flame, TrendingUp } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
+import { TrendSpark } from '@/components/blog/trend-spark'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -144,66 +145,6 @@ function RankBadge({ rank, isFa }: { rank: number; isFa: boolean }) {
 			<TrendingUp className="h-3 w-3" />
 			{label}
 		</span>
-	)
-}
-
-/**
- * TrendSpark — tiny decorative sparkline for the card footer. The series is
- * derived deterministically from the post id (seeded LCG with upward drift),
- * so it is stable across renders and unique per post. Single monochrome
- * series drawn from the theme's ink tokens: no axes, no legend, aria-hidden.
- */
-function TrendSpark({ seed }: { seed: string }) {
-	let h = 0
-	for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
-	const rand = () => {
-		h = (h * 1664525 + 1013904223) >>> 0
-		return h / 2 ** 32
-	}
-
-	const n = 12
-	const values: number[] = []
-	let v = 30 + rand() * 20
-	for (let i = 0; i < n; i++) {
-		v += rand() * 14 - 5 // random walk with upward drift
-		values.push(v)
-	}
-
-	const w = 64
-	const hgt = 22
-	const pad = 3
-	const min = Math.min(...values)
-	const range = Math.max(...values) - min || 1
-	const pts = values.map((val, i) => [
-		pad + (i * (w - pad * 2)) / (n - 1),
-		hgt - pad - ((val - min) / range) * (hgt - pad * 2),
-	])
-	const line = pts
-		.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`)
-		.join(' ')
-	const area = `${line} L${(w - pad).toFixed(1)} ${hgt - pad} L${pad} ${hgt - pad} Z`
-	const [lastX, lastY] = pts[n - 1]
-
-	return (
-		<svg
-			width={w}
-			height={hgt}
-			viewBox={`0 0 ${w} ${hgt}`}
-			aria-hidden
-			className="shrink-0"
-			style={{ direction: 'ltr' }}
-		>
-			<path d={area} fill="rgba(var(--ink-rgb),0.06)" />
-			<path
-				d={line}
-				fill="none"
-				stroke="rgba(var(--ink-rgb),0.4)"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-			<circle cx={lastX} cy={lastY} r="2" fill="var(--text-primary)" />
-		</svg>
 	)
 }
 

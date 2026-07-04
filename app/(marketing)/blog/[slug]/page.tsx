@@ -12,6 +12,7 @@ import {
 import { Calendar, Clock, ArrowLeft, ArrowRight } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { SocialLinks } from '@/components/marketing/social-links'
+import { TrendSpark } from '@/components/blog/trend-spark'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -187,17 +188,20 @@ export default async function PublicBlogPostPage(props: Props) {
 					{post.title}
 				</h1>
 				<p className="mt-4 text-[var(--text-secondary)]">{plainExcerpt}</p>
-				<div className="mt-5 flex items-center gap-4 text-xs text-[var(--text-muted)]">
-					<span className="inline-flex items-center gap-1">
-						<Calendar className="h-3.5 w-3.5" />
-						{relativeTime(post.publishedAt ?? post.createdAt, locale)}
-					</span>
-					<span className="inline-flex items-center gap-1">
-						<Clock className="h-3.5 w-3.5" />
-						{locale === 'fa'
-							? `${toPersianDigits(post.readingMinutes)} دقیقه مطالعه`
-							: `${post.readingMinutes} min read`}
-					</span>
+				<div className="mt-5 flex items-center justify-between gap-4">
+					<div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+						<span className="inline-flex items-center gap-1">
+							<Calendar className="h-3.5 w-3.5" />
+							{relativeTime(post.publishedAt ?? post.createdAt, locale)}
+						</span>
+						<span className="inline-flex items-center gap-1">
+							<Clock className="h-3.5 w-3.5" />
+							{locale === 'fa'
+								? `${toPersianDigits(post.readingMinutes)} دقیقه مطالعه`
+								: `${post.readingMinutes} min read`}
+						</span>
+					</div>
+					<TrendSpark seed={post.id} width={80} height={26} />
 				</div>
 			</header>
             {post.coverImage && (

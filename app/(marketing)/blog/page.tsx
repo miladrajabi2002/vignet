@@ -5,6 +5,7 @@ import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
 import { Calendar, Clock } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { SocialLinks } from '@/components/marketing/social-links'
+import { TrendSpark } from '@/components/blog/trend-spark'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -124,17 +125,20 @@ export default async function PublicBlogIndexPage() {
 								<p className="mt-2 flex-1 text-sm text-[var(--text-secondary)] line-clamp-3">
 									{p.excerpt || deriveExcerpt(p.content)}
 								</p>
-								<div className="mt-3 flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
-									<span className="inline-flex items-center gap-1">
-										<Calendar className="h-3 w-3" />
-										{relativeTime(p.publishedAt ?? p.createdAt, locale)}
-									</span>
-									<span className="inline-flex items-center gap-1">
-										<Clock className="h-3 w-3" />
-										{locale === 'fa'
-											? `${toPersianDigits(p.readingMinutes)} دقیقه`
-											: `${p.readingMinutes} min`}
-									</span>
+								<div className="mt-3 flex items-center justify-between gap-3">
+									<div className="flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
+										<span className="inline-flex items-center gap-1">
+											<Calendar className="h-3 w-3" />
+											{relativeTime(p.publishedAt ?? p.createdAt, locale)}
+										</span>
+										<span className="inline-flex items-center gap-1">
+											<Clock className="h-3 w-3" />
+											{locale === 'fa'
+												? `${toPersianDigits(p.readingMinutes)} دقیقه`
+												: `${p.readingMinutes} min`}
+										</span>
+									</div>
+									<TrendSpark seed={p.id} />
 								</div>
 							</div>
 						</article>
