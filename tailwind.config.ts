@@ -9,7 +9,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        base: 'var(--bg-base)',
+        // NOTE: no `base` key here — it would collide with the `base` fontSize
+        // and generate `.text-base { color: var(--bg-base) }` (white), silently
+        // overriding text color on any element using the `text-base` size class.
+        // Backgrounds are referenced via arbitrary values, e.g. bg-[var(--bg-base)].
         surface: 'var(--bg-surface)',
         elevated: 'var(--bg-elevated)',
         hover: 'var(--bg-hover)',
