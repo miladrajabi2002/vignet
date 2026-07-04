@@ -106,7 +106,7 @@ export function Hero() {
 				{/* Subtitle */}
 				<motion.p
 					{...rise(0.16, reduce)}
-					className="mx-auto mt-7 max-w-xl text-balance text-base leading-relaxed text-[var(--text-primary)] opacity-80 md:text-lg"
+					className="mx-auto mt-7 max-w-xl text-balance text-base leading-relaxed text-[var(--text-secondary)] md:text-lg"
 				>
 					{t('subtitle')}
 				</motion.p>

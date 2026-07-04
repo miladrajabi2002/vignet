@@ -80,7 +80,7 @@ export default async function SolutionPage(
 					</Link>
 				</div>
 				<p className="mt-4 text-xs text-[var(--text-muted)]">
-					بدون نیاز به کارت بانکی · راه‌اندازی در کمتر از ۵ دقیقه
+					راه‌اندازی در کمتر از ۵ دقیقه · بدون نیاز به دانش فنی
 				</p>
 			</section>
 
