@@ -39,12 +39,22 @@ export function Navbar() {
                 )
                 if (sections.length === 0) return
 
+                // Track every section's visibility, not just the entries that changed:
+                // when the last section leaves the middle band (user scrolled back to
+                // the hero) we must clear the highlight so "home" becomes active again.
+                const visible = new Map<string, number>()
                 const observer = new IntersectionObserver(
                         (entries) => {
-                                const visible = entries
-                                        .filter((e) => e.isIntersecting)
-                                        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
-                                if (visible) setActiveSection(visible.target.id)
+                                for (const e of entries) {
+                                        if (e.isIntersecting) visible.set(e.target.id, e.intersectionRatio)
+                                        else visible.delete(e.target.id)
+                                }
+                                if (visible.size === 0) {
+                                        setActiveSection('')
+                                        return
+                                }
+                                const top = [...visible.entries()].sort((a, b) => b[1] - a[1])[0]
+                                setActiveSection(top[0])
                         },
                         { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.25, 0.5, 1] },
                 )
@@ -98,6 +108,13 @@ export function Navbar() {
                                                 <Link
                                                         key={l.href}
                                                         href={l.href}
+                                                        onClick={() => {
+                                                                // Clicking "home" while already on / should return to the top
+                                                                // (Next.js won't re-navigate to the same route on its own).
+                                                                if (l.id === 'home' && pathname === '/') {
+                                                                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                                                                }
+                                                        }}
                                                         className={cn(
                                                                 'rounded-full px-3.5 py-1.5 text-sm transition-colors',
                                                                 active === l.id
@@ -115,7 +132,7 @@ export function Navbar() {
                                         <LanguageSwitcher />
                                         <Link
                                                 href="/login"
-                                                className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                                                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]"
                                         >
                                                 {t('login')}
                                         </Link>

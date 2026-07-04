@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
-import { Eye, ArrowLeft } from 'lucide-react'
+import { Eye, ArrowLeft, Flame, TrendingUp } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
@@ -125,11 +125,85 @@ type PostPreview = {
 	category: { name: string; slug: string } | null
 }
 
-function RankBadge({ rank }: { rank: number }) {
+function RankBadge({ rank, isFa }: { rank: number; isFa: boolean }) {
+	const labels = isFa
+		? ['داغ‌ترین مقاله', 'رتبه دوم', 'رتبه سوم']
+		: ['Top read', '2nd most read', '3rd most read']
+	const label = labels[rank - 1] ?? labels[2]
+
+	if (rank === 1) {
+		return (
+			<span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--white)] px-2.5 py-1 text-[10px] font-semibold text-[var(--bg-base)]">
+				<Flame className="h-3 w-3" />
+				{label}
+			</span>
+		)
+	}
 	return (
-		<span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[var(--white)] px-2 text-xs font-semibold text-[var(--bg-base)]">
-			{toPersianDigits(String(rank).padStart(2, '0'))}
+		<span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
+			<TrendingUp className="h-3 w-3" />
+			{label}
 		</span>
+	)
+}
+
+/**
+ * TrendSpark — tiny decorative sparkline for the card footer. The series is
+ * derived deterministically from the post id (seeded LCG with upward drift),
+ * so it is stable across renders and unique per post. Single monochrome
+ * series drawn from the theme's ink tokens: no axes, no legend, aria-hidden.
+ */
+function TrendSpark({ seed }: { seed: string }) {
+	let h = 0
+	for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+	const rand = () => {
+		h = (h * 1664525 + 1013904223) >>> 0
+		return h / 2 ** 32
+	}
+
+	const n = 12
+	const values: number[] = []
+	let v = 30 + rand() * 20
+	for (let i = 0; i < n; i++) {
+		v += rand() * 14 - 5 // random walk with upward drift
+		values.push(v)
+	}
+
+	const w = 64
+	const hgt = 22
+	const pad = 3
+	const min = Math.min(...values)
+	const range = Math.max(...values) - min || 1
+	const pts = values.map((val, i) => [
+		pad + (i * (w - pad * 2)) / (n - 1),
+		hgt - pad - ((val - min) / range) * (hgt - pad * 2),
+	])
+	const line = pts
+		.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`)
+		.join(' ')
+	const area = `${line} L${(w - pad).toFixed(1)} ${hgt - pad} L${pad} ${hgt - pad} Z`
+	const [lastX, lastY] = pts[n - 1]
+
+	return (
+		<svg
+			width={w}
+			height={hgt}
+			viewBox={`0 0 ${w} ${hgt}`}
+			aria-hidden
+			className="shrink-0"
+			style={{ direction: 'ltr' }}
+		>
+			<path d={area} fill="rgba(var(--ink-rgb),0.06)" />
+			<path
+				d={line}
+				fill="none"
+				stroke="rgba(var(--ink-rgb),0.4)"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+			<circle cx={lastX} cy={lastY} r="2" fill="var(--text-primary)" />
+		</svg>
 	)
 }
 
@@ -178,7 +252,7 @@ function PopularCard({
 			)}
 			<div className="flex flex-1 flex-col p-5">
 				<div className="flex items-center justify-between gap-3">
-					<RankBadge rank={rank} />
+					<RankBadge rank={rank} isFa={isFa} />
 					{post.category && (
 						<span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
 							{post.category.name}
@@ -191,14 +265,17 @@ function PopularCard({
 				<p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2">
 					{excerpt}
 				</p>
-				<div className="mt-4 flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-					<ViewsLabel views={post.views} isFa={isFa} />
-					<span>{time}</span>
-					<span>
-						{isFa
-							? `${toPersianDigits(post.readingMinutes)} دقیقه`
-							: `${post.readingMinutes} min`}
-					</span>
+				<div className="mt-4 flex items-center justify-between gap-3">
+					<div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
+						<ViewsLabel views={post.views} isFa={isFa} />
+						<span>{time}</span>
+						<span>
+							{isFa
+								? `${toPersianDigits(post.readingMinutes)} دقیقه`
+								: `${post.readingMinutes} min`}
+						</span>
+					</div>
+					<TrendSpark seed={post.id} />
 				</div>
 			</div>
 		</Link>

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Play } from 'lucide-react'
 import { Spotlight } from './spotlight'
 
 function useTypewriter(words: string[], typing = 90, deleting = 45, hold = 1600) {
@@ -114,7 +114,7 @@ export function Hero() {
 				{/* CTAs — one dominant, one quiet */}
 				<motion.div
 					{...rise(0.24, reduce)}
-					className="mt-10 flex w-full flex-col items-center justify-center gap-x-8 gap-y-5 sm:w-auto sm:flex-row"
+					className="mt-10 flex w-full flex-col items-center justify-center gap-x-4 gap-y-4 sm:w-auto sm:flex-row"
 				>
 					<Link
 						href="/login"
@@ -124,10 +124,10 @@ export function Hero() {
 					</Link>
 					<Link
 						href="#demo"
-						className="group relative text-sm font-medium text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--text-primary)]"
+						className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] px-8 py-3.5 text-sm font-medium text-[var(--text-primary)] transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)] sm:w-auto"
 					>
+						<Play className="h-3.5 w-3.5 fill-current" />
 						{t('ctaSecondary')}
-						<span className="absolute inset-x-0 -bottom-1 h-px origin-center scale-x-0 bg-[var(--text-primary)] transition-transform duration-300 ease-smooth group-hover:scale-x-100" />
 					</Link>
 				</motion.div>
 
