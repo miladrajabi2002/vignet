@@ -832,6 +832,12 @@
                         "title": "Everything a professional agent needs",
                         "subtitle": "From personality design and knowledge to selling and supporting on every channel — without a single line of code.",
                         "learningBadge": "What sets Vigent apart",
+                        "eyebrow": "Capabilities",
+                        "visLearning": {
+                                "q": "Do you take cash on delivery?",
+                                "a": "Suggested answer",
+                                "ok": "Approved & learned"
+                        },
                         "items": {
                                 "learning": {
                                         "title": "Self-learning agent",
@@ -879,10 +885,30 @@
                 },
                 "channels": {
                         "title": "All your connections, one dashboard",
-                        "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard."
+                        "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard.",
+                        "eyebrow": "One agent, everywhere",
+                        "items": {
+                                "telegram": "Buttons & quick replies",
+                                "whatsapp": "Text & voice replies",
+                                "instagram": "DMs & comments",
+                                "rubika": "Iranian messenger",
+                                "bale": "Buttons & quick replies",
+                                "widget": "Lead form & custom look"
+                        },
+                        "hubTitle": "Vigent dashboard",
+                        "hubDesc": "Every message, every channel — one inbox",
+                        "customTitle": "Tune every connection to your taste",
+                        "custom": [
+                                "Quick-reply buttons per channel",
+                                "Name & phone lead form on the widget",
+                                "Voice replies to voice notes",
+                                "Full widget appearance customization",
+                                "Official WordPress & WooCommerce plugin"
+                        ]
                 },
                 "demo": {
                         "title": "See the product in action",
+                        "eyebrow": "Live interactive demo",
                         "subtitle": "A real tour of Vigent — from a customer conversation to the management dashboard and the agent's self-learning.",
                         "views": {
                                 "chat": "Live chat",
@@ -980,37 +1006,42 @@
                                 "note": "The agent gets smarter with every approval — no manual training needed."
                         },
                         "capabilities": {
-                                "title": "Every capability you need, right here",
-                                "subtitle": "What you just saw in the demo and more — agent skills, connections and management tools, all in one platform.",
-                                "groups": {
-                                        "agent": {
-                                                "title": "Smart agent",
-                                                "items": [
-                                                        "Learns automatically from conversations, with your approval",
-                                                        "Full personalization of brand tone and personality",
-                                                        "Visual conversation flow builder — no code",
-                                                        "Understands and answers customer voice notes",
-                                                        "Consults, compares and sells from your product catalog"
-                                                ]
+                                "title": "Watch capabilities light up live",
+                                "subtitle": "As the demo plays, whatever the agent is using lights up right here — and everything you've seen gets a check.",
+                                "seen": "Seen in the demo",
+                                "footnote": "And more: visual flow builder, full brand-tone personalization, official WordPress & WooCommerce plugin, and a weekly performance report in your inbox.",
+                                "items": {
+                                        "catalog": {
+                                                "title": "Sells from your catalog",
+                                                "desc": "Prices, stock and product suggestions inside the chat"
                                         },
-                                        "channels": {
-                                                "title": "Connections",
-                                                "items": [
-                                                        "Telegram, WhatsApp and Instagram",
-                                                        "Rubika and Bale",
-                                                        "Web widget for your site",
-                                                        "Official WordPress & WooCommerce plugin"
-                                                ]
+                                        "knowledge": {
+                                                "title": "Answers from your knowledge",
+                                                "desc": "Precise answers from your own documents and store policies"
                                         },
-                                        "management": {
-                                                "title": "Management & control",
-                                                "items": [
-                                                        "Unified inbox and CRM across every channel",
-                                                        "Smart handoff of conversations to human operators",
-                                                        "Real-time stats on conversations and sales",
-                                                        "Learning center with your final approval",
-                                                        "Weekly performance report by email"
-                                                ]
+                                        "voice": {
+                                                "title": "Understands voice notes",
+                                                "desc": "Hears the customer's voice and replies instantly"
+                                        },
+                                        "buttons": {
+                                                "title": "Product cards & buttons",
+                                                "desc": "Buy, reserve and compare with one tap — no typing"
+                                        },
+                                        "handoff": {
+                                                "title": "Smart human handoff",
+                                                "desc": "Whenever it's needed, the conversation reaches a human"
+                                        },
+                                        "crm": {
+                                                "title": "Unified inbox",
+                                                "desc": "Every channel in one place, with CRM and follow-up"
+                                        },
+                                        "analytics": {
+                                                "title": "Real-time analytics",
+                                                "desc": "Conversations, automation rate and orders at a glance"
+                                        },
+                                        "learning": {
+                                                "title": "Self-learning agent",
+                                                "desc": "With every approval, it learns for good"
                                         }
                                 }
                         },

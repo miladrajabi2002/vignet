@@ -106,6 +106,17 @@
 	}
 }
 
+@layer utilities {
+	/* Scrollable area with no visible scrollbar (demo chat body etc.) */
+	.no-scrollbar {
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+}
+
 @layer components {
 	.input {
 		width: 100%;

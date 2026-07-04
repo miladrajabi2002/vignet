@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
@@ -11,7 +11,6 @@ import {
 	Mic,
 	RotateCcw,
 	GraduationCap,
-	Share2,
 	ShoppingCart,
 	ArrowRight,
 	UserCog,
@@ -22,18 +21,18 @@ import {
 	Check,
 	MessageSquare,
 	LayoutDashboard,
-	Bot,
 	Inbox,
 	TrendingUp,
 	Zap,
 	CheckCircle2,
+	MousePointerClick,
 	type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* ───────────────────────────────────────────────────────────────────────
    Static configuration — view tabs, scenario tabs, source badges and
-   capability groups. Keyed by strings that also live in the i18n file.
+   the live capability rail. Keyed by strings that also live in i18n.
    ─────────────────────────────────────────────────────────────────────── */
 
 type ViewId = 'chat' | 'dashboard' | 'learning'
@@ -66,10 +65,26 @@ const BUTTON_META: Record<string, { icon: LucideIcon; primary?: boolean }> = {
 	reserve: { icon: Check, primary: true },
 }
 
-const CAPABILITY_GROUPS: { key: string; icon: LucideIcon }[] = [
-	{ key: 'agent', icon: Bot },
-	{ key: 'channels', icon: Share2 },
-	{ key: 'management', icon: LayoutDashboard },
+/** Capabilities narrated live by the demo — order follows the tour. */
+type CapKey =
+	| 'catalog'
+	| 'knowledge'
+	| 'voice'
+	| 'buttons'
+	| 'handoff'
+	| 'crm'
+	| 'analytics'
+	| 'learning'
+
+const CAP_ITEMS: { key: CapKey; icon: LucideIcon }[] = [
+	{ key: 'catalog', icon: Package },
+	{ key: 'knowledge', icon: BookOpen },
+	{ key: 'voice', icon: AudioLines },
+	{ key: 'buttons', icon: MousePointerClick },
+	{ key: 'handoff', icon: UserCog },
+	{ key: 'crm', icon: Inbox },
+	{ key: 'analytics', icon: TrendingUp },
+	{ key: 'learning', icon: GraduationCap },
 ]
 
 // Channel accent dots for the mock inbox — fixed brand-ish hues on purpose.
@@ -121,6 +136,14 @@ const sleep = (ms: number, signal: AbortSignal) =>
 			reject(new DOMException('aborted', 'AbortError'))
 		})
 	})
+
+// Springy entrance shared by every bubble — feels like a real chat push.
+const BUBBLE_SPRING = {
+	type: 'spring' as const,
+	stiffness: 420,
+	damping: 32,
+	mass: 0.8,
+}
 
 /* ───────────────────────────────────────────────────────────────────────
    Small presentational helpers
@@ -245,18 +268,21 @@ function BubbleButtons({
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   View 1 — live chat. Plays a scenario automatically, lets the visitor
-   switch scenarios, and reports back when the conversation finishes.
+   View 1 — live chat. Plays a scenario automatically inside a fixed-height,
+   self-scrolling body (the frame never grows), reports which capability is
+   on display, and lets the visitor switch scenarios.
    ─────────────────────────────────────────────────────────────────────── */
 
 function ChatView({
 	play,
 	onDone,
 	onInteract,
+	onSpot,
 }: {
 	play: boolean
 	onDone: () => void
 	onInteract: () => void
+	onSpot: (key: CapKey) => void
 }) {
 	const t = useTranslations('marketing.demo')
 	const tSrc = useTranslations('marketing.demo.sources')
@@ -273,6 +299,15 @@ function ChatView({
 	const [runId, setRunId] = useState(0)
 	const doneRef = useRef(onDone)
 	doneRef.current = onDone
+	const spotRef = useRef(onSpot)
+	spotRef.current = onSpot
+
+	// Keep the newest bubble in view — the body scrolls, the frame stays put.
+	const bodyRef = useRef<HTMLDivElement>(null)
+	useEffect(() => {
+		const el = bodyRef.current
+		if (el) el.scrollTop = el.scrollHeight
+	}, [done, phase, partial])
 
 	const pickScenario = (id: ScenarioId) => {
 		onInteract()
@@ -293,20 +328,29 @@ function ChatView({
 				for (let i = 0; i < bubbles.length; i++) {
 					const b = bubbles[i]
 					if (b.role === 'user') {
-						await sleep(i === 0 ? 400 : 750, signal)
+						await sleep(i === 0 ? 400 : 700, signal)
+						if (b.voice) spotRef.current('voice')
 						setDone(i + 1)
 					} else {
+						if (b.source) spotRef.current(b.source)
 						setPhase('typing')
-						await sleep(950, signal)
+						await sleep(900, signal)
 						setPhase('writing')
-						for (let c = 1; c <= b.text.length; c++) {
+						// Two characters per tick — snappy but still legible.
+						for (let c = 2; c < b.text.length + 2; c += 2) {
 							setPartial(b.text.slice(0, c))
-							await sleep(16, signal)
+							await sleep(26, signal)
 						}
-						await sleep(700, signal)
+						await sleep(300, signal)
 						setPhase('idle')
 						setPartial('')
 						setDone(i + 1)
+						if (b.buttons?.length || b.product) {
+							spotRef.current('buttons')
+							await sleep(500, signal)
+						} else {
+							await sleep(350, signal)
+						}
 					}
 				}
 				doneRef.current()
@@ -332,9 +376,9 @@ function ChatView({
 		return (
 			<motion.div
 				key={key}
-				initial={{ opacity: 0, y: 10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.3, ease: 'easeOut' }}
+				initial={{ opacity: 0, y: 16, scale: 0.97 }}
+				animate={{ opacity: 1, y: 0, scale: 1 }}
+				transition={BUBBLE_SPRING}
 				className={isUser ? 'flex justify-start' : 'flex justify-end'}
 			>
 				<div
@@ -411,12 +455,12 @@ function ChatView({
 	const inFlight = bubbles[done]
 
 	return (
-		<div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+		<div className="flex h-full w-full flex-col">
 			{/* Chat header + scenario pills */}
-			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-default)] px-5 py-3.5">
+			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-default)] px-4 py-3 sm:px-5">
 				<div className="flex items-center gap-3">
 					<div className="relative">
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[var(--white-30)] to-[var(--white-05)] text-sm font-medium text-[var(--text-primary)]">
+						<div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--white-30)] to-[var(--white-05)] text-sm font-medium text-[var(--text-primary)] sm:h-10 sm:w-10">
 							و
 						</div>
 						<span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg-surface)] bg-emerald-500" />
@@ -456,36 +500,48 @@ function ChatView({
 				</div>
 			</div>
 
-			{/* Chat body */}
-			<div className="flex flex-1 flex-col justify-end gap-3 px-5 py-5">
-				{bubbles.slice(0, done).map((b, i) => renderBubble(b, i, b.text))}
+			{/* Chat body — fixed height, scrolls internally, older messages fade at the top */}
+			<div className="relative min-h-0 flex-1">
+				<div
+					aria-hidden
+					className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[var(--bg-surface)] to-transparent"
+				/>
+				<div
+					ref={bodyRef}
+					className="no-scrollbar h-full overflow-y-auto px-4 py-5 sm:px-5"
+				>
+					<div className="flex min-h-full flex-col justify-end gap-3">
+						{bubbles.slice(0, done).map((b, i) => renderBubble(b, i, b.text))}
 
-				{phase === 'writing' &&
-					inFlight &&
-					renderBubble(inFlight, 'writing', partial, { cursor: true })}
+						{phase === 'writing' &&
+							inFlight &&
+							renderBubble(inFlight, 'writing', partial, { cursor: true })}
 
-				{phase === 'typing' && (
-					<motion.div
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						className="flex justify-end"
-					>
-						<div className="flex items-center gap-1.5 rounded-2xl bg-[var(--white)] px-4 py-3">
-							{[0, 1, 2].map((d) => (
-								<motion.span
-									key={d}
-									className="h-1.5 w-1.5 rounded-full bg-[var(--bg-base)]/50"
-									animate={{ opacity: [0.3, 1, 0.3] }}
-									transition={{
-										duration: 1,
-										repeat: Infinity,
-										delay: d * 0.18,
-									}}
-								/>
-							))}
-						</div>
-					</motion.div>
-				)}
+						{phase === 'typing' && (
+							<motion.div
+								initial={{ opacity: 0, y: 12 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={BUBBLE_SPRING}
+								className="flex justify-end"
+							>
+								<div className="flex items-center gap-1.5 rounded-2xl bg-[var(--white)] px-4 py-3">
+									{[0, 1, 2].map((d) => (
+										<motion.span
+											key={d}
+											className="h-1.5 w-1.5 rounded-full bg-[var(--bg-base)]/50"
+											animate={{ opacity: [0.3, 1, 0.3] }}
+											transition={{
+												duration: 1,
+												repeat: Infinity,
+												delay: d * 0.18,
+											}}
+										/>
+									))}
+								</div>
+							</motion.div>
+						)}
+					</div>
+				</div>
 			</div>
 		</div>
 	)
@@ -498,15 +554,28 @@ function ChatView({
 
 const CHART_BARS = [38, 55, 30, 68, 48, 74, 42, 88, 58, 72, 50, 95]
 
-function DashboardView({ onDone }: { onDone: () => void }) {
+function DashboardView({
+	onDone,
+	onSpot,
+}: {
+	onDone: () => void
+	onSpot: (key: CapKey) => void
+}) {
 	const t = useTranslations('marketing.demo.dashboard')
 	const inbox = t.raw('inbox') as InboxItem[]
 	const doneRef = useRef(onDone)
 	doneRef.current = onDone
+	const spotRef = useRef(onSpot)
+	spotRef.current = onSpot
 
 	useEffect(() => {
+		spotRef.current('analytics')
+		const spotTimer = setTimeout(() => spotRef.current('crm'), 2200)
 		const id = setTimeout(() => doneRef.current(), 5600)
-		return () => clearTimeout(id)
+		return () => {
+			clearTimeout(spotTimer)
+			clearTimeout(id)
+		}
 	}, [])
 
 	const stats: { key: string; icon: LucideIcon; to: number; suffix?: string }[] = [
@@ -516,7 +585,7 @@ function DashboardView({ onDone }: { onDone: () => void }) {
 	]
 
 	return (
-		<div className="flex flex-1 flex-col gap-4 p-5">
+		<div className="no-scrollbar flex h-full flex-col gap-4 overflow-y-auto p-4 sm:p-5">
 			{/* Stat tiles */}
 			<div className="grid grid-cols-3 gap-3">
 				{stats.map(({ key, icon: Icon, to, suffix }, i) => (
@@ -590,7 +659,7 @@ function DashboardView({ onDone }: { onDone: () => void }) {
 				</div>
 
 				{/* Mini bar chart */}
-				<div className="flex flex-col rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] p-3.5">
+				<div className="flex min-h-[120px] flex-col rounded-xl border border-[var(--border-default)] bg-[var(--white-05)] p-3.5">
 					<div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-primary)]">
 						<TrendingUp className="h-3.5 w-3.5" />
 						{t('chartTitle')}
@@ -621,13 +690,22 @@ function DashboardView({ onDone }: { onDone: () => void }) {
    the agent proposes an answer, the owner approves it, done.
    ─────────────────────────────────────────────────────────────────────── */
 
-function LearningView({ onDone }: { onDone: () => void }) {
+function LearningView({
+	onDone,
+	onSpot,
+}: {
+	onDone: () => void
+	onSpot: (key: CapKey) => void
+}) {
 	const t = useTranslations('marketing.demo.learningView')
 	const [step, setStep] = useState(0)
 	const doneRef = useRef(onDone)
 	doneRef.current = onDone
+	const spotRef = useRef(onSpot)
+	spotRef.current = onSpot
 
 	useEffect(() => {
+		spotRef.current('learning')
 		const timers = [
 			setTimeout(() => setStep(1), 400),
 			setTimeout(() => setStep(2), 1700),
@@ -639,7 +717,7 @@ function LearningView({ onDone }: { onDone: () => void }) {
 	}, [])
 
 	return (
-		<div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3 p-5">
+		<div className="mx-auto flex h-full w-full max-w-md flex-col justify-center gap-3 p-5">
 			<div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
 				<GraduationCap className="h-4 w-4" />
 				{t('badge')}
@@ -727,20 +805,129 @@ function LearningView({ onDone }: { onDone: () => void }) {
 }
 
 /* ───────────────────────────────────────────────────────────────────────
-   DemoSection — a full product tour inside one browser-style frame.
-   Autoplays chat → dashboard → learning; the visitor can take over
-   with the view tabs at any time. A categorized capability list sits
-   beside the frame.
+   Capability rail — the live "subtitle track" of the demo. Whatever the
+   agent is doing inside the frame lights up here, and everything the
+   visitor has already seen keeps a check mark.
+   ─────────────────────────────────────────────────────────────────────── */
+
+function CapabilityRail({
+	spot,
+	seen,
+}: {
+	spot: CapKey | null
+	seen: Set<CapKey>
+}) {
+	const tCap = useTranslations('marketing.demo.capabilities')
+
+	return (
+		<div className="lg:sticky lg:top-24">
+			<h3 className="text-2xl font-light text-[var(--text-primary)] md:text-3xl">
+				{tCap('title')}
+			</h3>
+			<p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+				{tCap('subtitle')}
+			</p>
+
+			<div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+				{CAP_ITEMS.map(({ key, icon: Icon }, i) => {
+					const isActive = spot === key
+					const isSeen = seen.has(key)
+					return (
+						<motion.div
+							key={key}
+							initial={{ opacity: 0, x: 20 }}
+							whileInView={{ opacity: 1, x: 0 }}
+							viewport={{ once: true, margin: '-40px' }}
+							transition={{ duration: 0.45, delay: 0.1 + i * 0.06 }}
+							className={cn(
+								'relative flex items-center gap-3 rounded-xl border p-3 transition-all duration-300',
+								isActive
+									? 'border-[var(--border-strong)] bg-[var(--white-05)] shadow-[0_4px_20px_rgba(var(--ink-rgb),0.08)]'
+									: 'border-[var(--border-default)] bg-transparent',
+							)}
+						>
+							{isActive && (
+								<motion.span
+									layoutId="cap-glow"
+									aria-hidden
+									className="absolute inset-0 rounded-xl border border-[var(--border-strong)]"
+									transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+								/>
+							)}
+							<span
+								className={cn(
+									'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all duration-300',
+									isActive
+										? 'border-transparent bg-[var(--white)] text-[var(--bg-base)]'
+										: 'border-[var(--border-default)] bg-[var(--white-05)] text-[var(--text-secondary)]',
+								)}
+							>
+								<Icon className="h-4 w-4" />
+							</span>
+							<span className="min-w-0 flex-1">
+								<span className="block text-[13px] font-medium leading-snug text-[var(--text-primary)]">
+									{tCap(`items.${key}.title`)}
+								</span>
+								<span className="mt-0.5 block text-[11px] leading-relaxed text-[var(--text-muted)]">
+									{tCap(`items.${key}.desc`)}
+								</span>
+							</span>
+							<AnimatePresence>
+								{isSeen && (
+									<motion.span
+										initial={{ opacity: 0, scale: 0.5 }}
+										animate={{ opacity: 1, scale: 1 }}
+										transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+										title={tCap('seen')}
+										className={cn(
+											'flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors duration-300',
+											isActive
+												? 'bg-[var(--white)] text-[var(--bg-base)]'
+												: 'bg-[var(--white-10)] text-[var(--text-secondary)]',
+										)}
+									>
+										<Check className="h-3 w-3" />
+									</motion.span>
+								)}
+							</AnimatePresence>
+						</motion.div>
+					)
+				})}
+			</div>
+
+			<p className="mt-5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+				{tCap('footnote')}
+			</p>
+		</div>
+	)
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   DemoSection — a full product tour inside one fixed-size browser frame.
+   Autoplays chat → dashboard → learning; the visitor can take over with
+   the view tabs at any time. The capability rail narrates the tour live.
    ─────────────────────────────────────────────────────────────────────── */
 
 export function DemoSection() {
 	const t = useTranslations('marketing.demo')
-	const tCap = useTranslations('marketing.demo.capabilities')
 
 	const [view, setView] = useState<ViewId>('chat')
 	const [autopilot, setAutopilot] = useState(true)
 	const [cycle, setCycle] = useState(0)
 	const advanceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+	// Live capability narration
+	const [spot, setSpot] = useState<CapKey | null>(null)
+	const [seen, setSeen] = useState<Set<CapKey>>(new Set())
+	const handleSpot = useCallback((key: CapKey) => {
+		setSpot(key)
+		setSeen((prev) => {
+			if (prev.has(key)) return prev
+			const next = new Set(prev)
+			next.add(key)
+			return next
+		})
+	}, [])
 
 	const ref = useRef<HTMLDivElement>(null)
 	const inView = useInView(ref, { once: true, margin: '-120px' })
@@ -775,6 +962,8 @@ export function DemoSection() {
 	const replayAll = () => {
 		clearTimeout(advanceTimer.current)
 		setCycle((n) => n + 1)
+		setSeen(new Set())
+		setSpot(null)
 		setAutopilot(true)
 		setView('chat')
 	}
@@ -789,14 +978,23 @@ export function DemoSection() {
 			/>
 
 			<div className="relative mx-auto max-w-7xl px-6">
-				<h2 className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+				<div className="text-center">
+					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+						<span className="relative flex h-1.5 w-1.5">
+							<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+							<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+						</span>
+						{t('eyebrow')}
+					</span>
+				</div>
+				<h2 className="mt-6 text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
 					{t('title')}
 				</h2>
 				<p className="mx-auto mt-4 max-w-lg text-center text-[var(--text-secondary)]">
 					{t('subtitle')}
 				</p>
 
-				<div className="mt-16 grid grid-cols-1 items-start gap-10 lg:grid-cols-[7fr_4fr] lg:gap-12">
+				<div className="mt-14 grid grid-cols-1 items-start gap-10 lg:grid-cols-[7fr_4fr] lg:gap-12">
 					{/* ─── Product frame ──────────────────────────────────────── */}
 					<motion.div
 						ref={ref}
@@ -875,8 +1073,8 @@ export function DemoSection() {
 								)}
 							</div>
 
-							{/* View content */}
-							<div className="relative">
+							{/* View content — fixed height so the section never jumps */}
+							<div className="relative h-[480px] sm:h-[500px]">
 								<AnimatePresence mode="wait">
 									<motion.div
 										key={`${view}-${cycle}`}
@@ -884,20 +1082,27 @@ export function DemoSection() {
 										animate={{ opacity: 1, y: 0 }}
 										exit={{ opacity: 0, y: -12 }}
 										transition={{ duration: 0.35, ease: 'easeOut' }}
-										className="flex min-h-[460px] flex-col"
+										className="flex h-full flex-col"
 									>
 										{view === 'chat' && (
 											<ChatView
 												play={inView}
 												onDone={() => handleViewDone('chat')}
 												onInteract={stopAutopilot}
+												onSpot={handleSpot}
 											/>
 										)}
 										{view === 'dashboard' && (
-											<DashboardView onDone={() => handleViewDone('dashboard')} />
+											<DashboardView
+												onDone={() => handleViewDone('dashboard')}
+												onSpot={handleSpot}
+											/>
 										)}
 										{view === 'learning' && (
-											<LearningView onDone={() => handleViewDone('learning')} />
+											<LearningView
+												onDone={() => handleViewDone('learning')}
+												onSpot={handleSpot}
+											/>
 										)}
 									</motion.div>
 								</AnimatePresence>
@@ -926,55 +1131,14 @@ export function DemoSection() {
 						</motion.div>
 					</motion.div>
 
-					{/* ─── Capability list ─────────────────────────────────────── */}
+					{/* ─── Live capability rail ────────────────────────────────── */}
 					<motion.div
 						initial={{ opacity: 0, y: 30 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-80px' }}
 						transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
 					>
-						<h3 className="text-2xl font-light text-[var(--text-primary)] md:text-3xl">
-							{tCap('title')}
-						</h3>
-						<p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
-							{tCap('subtitle')}
-						</p>
-
-						<div className="mt-8 space-y-5">
-							{CAPABILITY_GROUPS.map(({ key, icon: Icon }, gi) => {
-								const items = tCap.raw(`groups.${key}.items`) as string[]
-								return (
-									<motion.div
-										key={key}
-										initial={{ opacity: 0, x: 20 }}
-										whileInView={{ opacity: 1, x: 0 }}
-										viewport={{ once: true, margin: '-40px' }}
-										transition={{ duration: 0.5, delay: 0.15 + gi * 0.1 }}
-										className="rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-5"
-									>
-										<div className="flex items-center gap-2.5">
-											<div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--white-05)]">
-												<Icon className="h-4 w-4 text-[var(--text-secondary)]" />
-											</div>
-											<h4 className="text-sm font-medium text-[var(--text-primary)]">
-												{tCap(`groups.${key}.title`)}
-											</h4>
-										</div>
-										<ul className="mt-3.5 space-y-2">
-											{items.map((item, i) => (
-												<li
-													key={i}
-													className="flex items-start gap-2 text-[13px] leading-relaxed text-[var(--text-secondary)]"
-												>
-													<Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-													{item}
-												</li>
-											))}
-										</ul>
-									</motion.div>
-								)
-							})}
-						</div>
+						<CapabilityRail spot={spot} seen={seen} />
 					</motion.div>
 				</div>
 			</div>
