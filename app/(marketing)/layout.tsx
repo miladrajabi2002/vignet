@@ -9,6 +9,12 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
 	// the dashboard and admin.
 	return (
 		<div className="bg-[var(--bg-base)] text-[var(--text-primary)]">
+			{/* Entrance animations SSR with opacity:0 and only reveal after JS runs.
+			    Without JS (or if hydration fails) that text would stay invisible on
+			    the white page — force it visible. */}
+			<noscript>
+				<style>{`[style*="opacity:0"]{opacity:1!important;transform:none!important}`}</style>
+			</noscript>
 			<Navbar />
 			<main>{children}</main>
 			<Footer />

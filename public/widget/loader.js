@@ -53,6 +53,10 @@
 	var teaserShown = false
 	var welcomeShown = false
 	var leadCaptured = false
+	// Identity from the pre-chat lead form; sent with the first message.
+	var visitorName = null
+	var visitorPhone = null
+	var visitorSent = false
 	var config = {
 		name: 'Vigent',
 		welcomeMessage: '',
@@ -552,59 +556,106 @@
 		introVisible = false
 	}
 
-	// ---- Lead capture ----
+	// ---- Lead capture (pre-chat form: introduce the assistant, ask name + phone) ----
+	function leadStorageKey() {
+		return 'vgt:lead:' + agentId
+	}
+	function loadStoredLead() {
+		try {
+			var raw = localStorage.getItem(leadStorageKey())
+			if (!raw) return null
+			return JSON.parse(raw)
+		} catch (e) {
+			return null
+		}
+	}
+	function saveStoredLead(lead) {
+		try {
+			localStorage.setItem(leadStorageKey(), JSON.stringify(lead))
+		} catch (e) {
+			/* private mode */
+		}
+	}
+
 	function renderLeadCapture() {
 		if (leadCaptured || !config.leadCapture) return false
+		var stored = loadStoredLead()
+		if (stored) {
+			// Returning visitor — don't ask again.
+			visitorName = stored.name || null
+			visitorPhone = stored.phone || null
+			leadCaptured = true
+			return false
+		}
 		body.innerHTML = ''
 		var lead = el('div', 'vgt-lead')
-		lead.appendChild(el('div', 'vgt-lead-ava', svg('phone')))
+		lead.appendChild(el('div', 'vgt-lead-ava', svg('bot')))
 		var msg =
 			config.leadCaptureMessage ||
 			t(
-				'برای اینکه بتونیم بهتر کمکتون کنیم، لطفاً شماره موبایلتون رو وارد کنید.',
-				'To help you better, please enter your mobile number.',
+				'سلام! من ' +
+					config.name +
+					' هستم، دستیار هوش مصنوعی این مجموعه و آماده‌ام به سؤالات شما پاسخ بدهم. برای شروع گفتگو لطفاً خودتان را معرفی کنید.',
+				"Hi! I'm " +
+					config.name +
+					', the AI assistant here, ready to answer your questions. To start, please introduce yourself.',
 			)
 		lead.appendChild(el('div', 'vgt-lead-text', msg))
 		var form = el('form', 'vgt-lead-form')
+		var nameInput = el('input', 'vgt-lead-input')
+		nameInput.type = 'text'
+		nameInput.placeholder = t('نام و نام خانوادگی', 'Full name')
+		nameInput.autocomplete = 'name'
+		nameInput.maxLength = 60
 		var phoneInput = el('input', 'vgt-lead-input')
 		phoneInput.type = 'tel'
-		phoneInput.placeholder = t('۰۹۱۲ ۳۴۵ ۶۷۸۹', '0912 345 6789')
+		phoneInput.placeholder = t('شماره موبایل — ۰۹۱۲ ۳۴۵ ۶۷۸۹', 'Mobile — 0912 345 6789')
 		phoneInput.inputMode = 'tel'
 		phoneInput.autocomplete = 'tel'
 		var submit = el('button', 'vgt-lead-btn', t('شروع گفتگو', 'Start chat'))
 		submit.type = 'submit'
 		var skip = el('button', 'vgt-lead-skip', t('رد کردن', 'Skip'))
 		skip.type = 'button'
+		form.appendChild(nameInput)
 		form.appendChild(phoneInput)
 		form.appendChild(submit)
 		form.appendChild(skip)
 		lead.appendChild(form)
 		body.appendChild(lead)
 		setTimeout(function () {
-			phoneInput.focus()
+			nameInput.focus()
 		}, 80)
 
 		form.addEventListener('submit', function (e) {
 			e.preventDefault()
-			var v = (phoneInput.value || '').trim()
+			var name = (nameInput.value || '').trim()
+			var phone = (phoneInput.value || '').trim()
+			var ok = true
+			if (name.length < 2) {
+				nameInput.style.borderColor = '#ef4444'
+				ok = false
+			} else {
+				nameInput.style.borderColor = ''
+			}
 			// Permissive: accept digits, +, spaces, dashes; min 6 digits.
-			var digits = v.replace(/\D/g, '')
+			var digits = phone.replace(/\D/g, '')
 			if (digits.length < 6) {
 				phoneInput.style.borderColor = '#ef4444'
-				phoneInput.focus()
+				ok = false
+			} else {
+				phoneInput.style.borderColor = ''
+			}
+			if (!ok) {
+				;(name.length < 2 ? nameInput : phoneInput).focus()
 				return
 			}
-			submit.disabled = true
-			submit.textContent = t('یک لحظه…', 'One moment…')
-			// Stash phone as the first user message so the agent sees it in context.
-			var introMsg = t('شماره تماس من: ' + v, 'My contact number: ' + v)
+			visitorName = name
+			visitorPhone = phone
+			saveStoredLead({ name: name, phone: phone, ts: Date.now() })
 			leadCaptured = true
 			body.innerHTML = ''
 			introVisible = false
-			// Show welcome intro then immediately fire the phone as the first message.
 			renderIntro()
-			// Fire-and-forget — the agent's reply will appear normally.
-			send(introMsg)
 		})
 		skip.addEventListener('click', function () {
 			leadCaptured = true
@@ -837,6 +888,13 @@
 
 		var payload = { message: text }
 		if (conversationId) payload.conversationId = conversationId
+		// Attach the lead-form identity to the first message so the server can
+		// create/attach the CRM contact and greet the visitor by name.
+		if (!visitorSent && (visitorName || visitorPhone)) {
+			if (visitorName) payload.visitorName = visitorName
+			if (visitorPhone) payload.visitorPhone = visitorPhone
+			visitorSent = true
+		}
 		fetch(base + '/api/widget/' + agentId + '/chat', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },

@@ -38,9 +38,9 @@ export const AGENT_MODELS: AgentModel[] = [
   //   ~20 req/min and ~50 req/day (≈1000/day once the account holds $10+
   //   credit) — fine for building/testing, not for production traffic.
   {
-    id: 'deepseek/deepseek-chat-v3-0324:free',
-    name: 'DeepSeek V3 (رایگان)',
-    provider: 'DeepSeek',
+    id: 'openai/gpt-oss-120b:free',
+    name: 'GPT-OSS 120B (رایگان)',
+    provider: 'OpenAI',
     tier: 'free',
     quality: 4,
     cost: 0,
@@ -75,8 +75,8 @@ export const AGENT_MODELS: AgentModel[] = [
     descEn: 'Best value: high quality at the lowest cost. Great default for most businesses.',
   },
   {
-    id: 'google/gemini-flash-1.5',
-    name: 'Gemini 1.5 Flash',
+    id: 'google/gemini-2.5-flash-lite',
+    name: 'Gemini 2.5 Flash Lite',
     provider: 'Google',
     tier: 'economy',
     quality: 3,
@@ -97,8 +97,8 @@ export const AGENT_MODELS: AgentModel[] = [
     descEn: 'A solid quality/price balance; stable and reliable.',
   },
   {
-    id: 'anthropic/claude-3.5-haiku',
-    name: 'Claude 3.5 Haiku',
+    id: 'anthropic/claude-haiku-4.5',
+    name: 'Claude Haiku 4.5',
     provider: 'Anthropic',
     tier: 'balanced',
     quality: 4,
@@ -108,19 +108,8 @@ export const AGENT_MODELS: AgentModel[] = [
     descEn: 'Fast and precise at following instructions; natural tone.',
   },
   {
-    id: 'qwen/qwen-2.5-72b-instruct',
-    name: 'Qwen 2.5 72B',
-    provider: 'Qwen',
-    tier: 'balanced',
-    quality: 4,
-    cost: 2,
-    goodForPersian: true,
-    descFa: 'چندزبانه و قوی در فارسی؛ گزینهٔ خوب برای محتوای بومی.',
-    descEn: 'Strong multilingual model with good Persian; great for local content.',
-  },
-  {
-    id: 'anthropic/claude-3.5-sonnet',
-    name: 'Claude 3.5 Sonnet',
+    id: 'anthropic/claude-sonnet-5',
+    name: 'Claude Sonnet 5',
     provider: 'Anthropic',
     tier: 'premium',
     quality: 5,
@@ -146,4 +135,22 @@ export const AGENT_MODELS: AgentModel[] = [
 export function findModel(id: string | null | undefined): AgentModel | undefined {
   if (!id) return undefined
   return AGENT_MODELS.find((m) => m.id === id)
+}
+
+/**
+ * Slugs that were once in the catalog but have since been removed from
+ * OpenRouter. Agents saved with one of these would 404 (the request never
+ * reaches a provider), so we transparently remap them at call time.
+ */
+const LEGACY_MODEL_MAP: Record<string, string> = {
+  'deepseek/deepseek-chat-v3-0324:free': 'openai/gpt-oss-120b:free',
+  'google/gemini-flash-1.5': 'google/gemini-2.5-flash-lite',
+  'anthropic/claude-3.5-haiku': 'anthropic/claude-haiku-4.5',
+  'anthropic/claude-3.5-sonnet': 'anthropic/claude-sonnet-5',
+  'qwen/qwen-2.5-72b-instruct': 'openai/gpt-4o-mini',
+}
+
+/** Map a stored model slug to its current OpenRouter equivalent. */
+export function resolveModelId(id: string): string {
+  return LEGACY_MODEL_MAP[id] ?? id
 }

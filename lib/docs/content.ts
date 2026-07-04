@@ -11,6 +11,9 @@ import {
         UserCheck,
         ShoppingCart,
         KeyRound,
+        Cpu,
+        CreditCard,
+        MessageCircle,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -773,6 +776,152 @@ export const DOCS: DocPage[] = [
                                 type: 'callout',
                                 fa: 'نکته: اگر Redis قطع شود، ویجنت همچنان کار می‌کند — فقط کمی کندتر. هیچ داده‌ای از بین نمی‌رود چون PostgreSQL منبع اصلی است.',
                                 en: 'Note: if Redis goes down, Vigent still works — just slightly slower. No data is lost because Postgres remains the source of truth.',
+                        },
+                ],
+        },
+        {
+                slug: 'models',
+                icon: Cpu,
+                title: { fa: 'انتخاب مدل هوش مصنوعی', en: 'Choosing an AI model' },
+                description: {
+                        fa: 'مدل‌های رایگان و پولی، کیفیت و هزینه',
+                        en: 'Free vs paid models, quality and cost',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'هر ایجنت با یکی از مدل‌های OpenRouter پاسخ می‌دهد. ویجنت یک فهرست منتخب از مدل‌ها را در چهار سطح ارائه می‌کند: رایگان، اقتصادی، متعادل و حرفه‌ای. مدل را می‌توانید هنگام ساخت ایجنت یا از تنظیمات ایجنت تغییر دهید.',
+                                en: 'Each agent answers with one of the OpenRouter models. Vigent curates a short list in four tiers: free, economy, balanced and premium. You can change the model when creating an agent or later in its settings.',
+                        },
+                        { type: 'h2', fa: 'مدل‌های رایگان', en: 'Free models' },
+                        {
+                                type: 'p',
+                                fa: 'مدل‌های رایگان (با پسوند :free) هیچ هزینه‌ای از حساب OpenRouter شما کم نمی‌کنند، اما محدودیت نرخ سراسری دارند: حدود ۲۰ درخواست در دقیقه و ۵۰ درخواست در روز (اگر حساب شما ۱۰ دلار یا بیشتر شارژ داشته باشد، حدود ۱۰۰۰ درخواست در روز). این مدل‌ها برای تست و راه‌اندازی اولیه عالی‌اند ولی برای ترافیک واقعی مشتری توصیه نمی‌شوند.',
+                                en: 'Free models (the :free suffix) cost nothing on your OpenRouter account, but have account-wide rate limits: about 20 requests/minute and 50 requests/day (roughly 1000/day once your account holds $10+ credit). Great for testing, not recommended for production traffic.',
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'اگر مدل رایگان پاسخ نمی‌دهد، در پنل OpenRouter به Settings ← Privacy بروید و گزینهٔ استفاده از مدل‌های رایگان (اشتراک داده برای آموزش) را فعال کنید؛ بدون آن، OpenRouter درخواست مدل‌های رایگان را رد می‌کند.',
+                                en: "If a free model never answers, open your OpenRouter panel → Settings → Privacy and enable free-model usage (training data sharing); without it OpenRouter rejects free-model requests.",
+                        },
+                        { type: 'h2', fa: 'کدام مدل را انتخاب کنم؟', en: 'Which model should I pick?' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'شروع و تست: مدل‌های رایگان (GPT-OSS 120B یا Llama 3.3 70B)',
+                                                en: 'Testing: the free models (GPT-OSS 120B or Llama 3.3 70B)',
+                                        },
+                                        {
+                                                fa: 'اکثر کسب‌وکارها: DeepSeek V3 — کیفیت بالا با کمترین هزینه',
+                                                en: 'Most businesses: DeepSeek V3 — high quality at the lowest cost',
+                                        },
+                                        {
+                                                fa: 'حجم پیام بالا و پاسخ کوتاه: Gemini 2.5 Flash Lite',
+                                                en: 'High message volume, short replies: Gemini 2.5 Flash Lite',
+                                        },
+                                        {
+                                                fa: 'گفتگوهای حساس و پیچیده: Claude Sonnet 5 یا GPT-4o',
+                                                en: 'Complex, sensitive conversations: Claude Sonnet 5 or GPT-4o',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'p',
+                                fa: 'هزینهٔ توکن‌ها مستقیماً از حساب OpenRouter شما کسر می‌شود (مدل BYOK)، بنابراین همیشه می‌توانید در پنل OpenRouter مصرف دقیق را ببینید.',
+                                en: 'Token costs are billed straight to your OpenRouter account (BYOK), so you can always see exact usage in the OpenRouter panel.',
+                        },
+                ],
+        },
+        {
+                slug: 'billing',
+                icon: CreditCard,
+                title: { fa: 'پلن‌ها و پرداخت', en: 'Plans & billing' },
+                description: {
+                        fa: 'دورهٔ آزمایشی، پلن‌ها، سهمیهٔ پیام و روش‌های پرداخت',
+                        en: 'Trial, plans, message quota and payment methods',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'با اولین ورود، یک دورهٔ آزمایشی ۱۴ روزه فعال می‌شود. پس از آن برای ادامهٔ کار یکی از پلن‌های استارتر، حرفه‌ای یا سازمانی را از بخش «صورتحساب» داشبورد تهیه کنید. هر پلن، سقف پیام ماهانه و تعداد ایجنت مشخصی دارد.',
+                                en: 'Your first login starts a 14-day trial. Afterwards, pick the Starter, Pro or Business plan from the Billing page. Each plan sets a monthly message quota and a max number of agents.',
+                        },
+                        { type: 'h2', fa: 'سهمیهٔ پیام ماهانه', en: 'Monthly message quota' },
+                        {
+                                type: 'p',
+                                fa: 'هر پاسخ ایجنت (در هر کانالی) یک پیام از سهمیهٔ ماهانه حساب می‌شود. مصرف فعلی را در صفحهٔ نمای کلی و صورتحساب می‌بینید. با پر شدن سهمیه، ایجنت تا شروع ماه بعد یا ارتقای پلن پاسخ نمی‌دهد.',
+                                en: 'Every agent reply (on any channel) counts as one message against the monthly quota. Current usage is shown on the Overview and Billing pages. When the quota is exhausted, agents stop replying until the next month or a plan upgrade.',
+                        },
+                        { type: 'h2', fa: 'روش‌های پرداخت', en: 'Payment methods' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'پرداخت ریالی از طریق درگاه زرین‌پی (کارت‌های شتاب)',
+                                                en: 'Rial payments via the ZarinPay gateway (Shetab cards)',
+                                        },
+                                        {
+                                                fa: 'پرداخت ارز دیجیتال (تتر و…) از طریق NowPayments',
+                                                en: 'Crypto payments (USDT and more) via NowPayments',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'p',
+                                fa: 'هر پرداخت موفق، اشتراک را ۳۰ روز تمدید می‌کند. اگر قبل از پایان دوره تمدید کنید، روزهای باقی‌مانده از بین نمی‌روند و به انتهای دوره اضافه می‌شوند.',
+                                en: 'Each successful payment extends the subscription by 30 days. Renewing early never loses paid days — the new period is appended to the current one.',
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'هزینهٔ پلتفرم جدا از هزینهٔ توکن‌های هوش مصنوعی است؛ توکن‌ها با کلید OpenRouter خودتان و از حساب خودتان پرداخت می‌شوند.',
+                                en: 'The platform fee is separate from AI token costs; tokens are paid from your own OpenRouter account (BYOK).',
+                        },
+                ],
+        },
+        {
+                slug: 'widget',
+                icon: MessageCircle,
+                title: { fa: 'ویجت چت وب‌سایت', en: 'Website chat widget' },
+                description: {
+                        fa: 'نصب، شخصی‌سازی و فرم معرفی قبل از چت',
+                        en: 'Install, customize, and the pre-chat form',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'ویجت چت، ایجنت شما را روی هر وب‌سایتی قرار می‌دهد. کافی است از صفحهٔ کانال‌ها ← ویجت وب، کد اسکریپت را کپی و قبل از بستهٔ </body> سایت خود بچسبانید.',
+                                en: 'The chat widget puts your agent on any website. Copy the script tag from Channels → Web Widget and paste it before your site\'s closing </body> tag.',
+                        },
+                        { type: 'h2', fa: 'شخصی‌سازی ظاهر', en: 'Appearance' },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'رنگ اصلی، آیکون، فونت فارسی، گردی گوشه‌ها و محل قرارگیری',
+                                                en: 'Accent color, icon, Persian fonts, corner radius and position',
+                                        },
+                                        {
+                                                fa: 'عنوان و زیرعنوان هدر، پیام خوش‌آمد و سؤالات پیشنهادی (چیپ‌ها)',
+                                                en: 'Header title/subtitle, welcome message and suggested quick replies',
+                                        },
+                                        {
+                                                fa: 'خوش‌آمد خودکار: باز شدن حباب پیام بعد از چند ثانیه',
+                                                en: 'Auto-greet: a teaser bubble pops after a few seconds',
+                                        },
+                                ],
+                        },
+                        { type: 'h2', fa: 'فرم معرفی قبل از چت', en: 'Pre-chat form' },
+                        {
+                                type: 'p',
+                                fa: 'با فعال کردن «فرم معرفی قبل از چت» در تنظیمات ویجت، دستیار قبل از شروع گفتگو خودش را معرفی می‌کند و نام و شمارهٔ موبایل بازدیدکننده را می‌گیرد. این اطلاعات به‌صورت خودکار به‌عنوان مخاطب در CRM ثبت می‌شود و ایجنت مشتری را با نامش خطاب می‌کند. متن معرفی قابل‌ویرایش است و بازدیدکننده می‌تواند فرم را رد کند.',
+                                en: 'Enable the pre-chat form in widget settings and the assistant introduces itself, then asks for the visitor\'s name and mobile number before the chat starts. The visitor is saved to your CRM automatically and the agent addresses them by name. The intro text is editable, and the visitor can skip the form.',
+                        },
+                        { type: 'h2', fa: 'امنیت دامنه', en: 'Domain security' },
+                        {
+                                type: 'p',
+                                fa: 'در تنظیمات ویجت می‌توانید فهرست دامنه‌های مجاز را مشخص کنید تا ویجت فقط روی سایت‌های خودتان کار کند. فهرست خالی یعنی بدون محدودیت (با هشدار در داشبورد).',
+                                en: 'Set an allowlist of domains in the widget settings so the widget only works on your own sites. An empty list means unrestricted (the dashboard warns about this).',
                         },
                 ],
         },

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getWorkspaceOpenRouterKey, chatCompletion } from '@/lib/ai/openrouter'
+import { resolveModelId } from '@/lib/ai/models'
 
 export interface SummaryJobData {
   conversationId: string
@@ -39,8 +40,9 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
     where: { id: conversation.workspaceId },
     select: { defaultModel: true },
   })
-  const model =
-    conversation.agent.model || ws?.defaultModel || 'deepseek/deepseek-chat'
+  const model = resolveModelId(
+    conversation.agent.model || ws?.defaultModel || 'deepseek/deepseek-chat',
+  )
   const language = conversation.agent.language
 
   const transcript = turns

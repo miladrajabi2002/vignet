@@ -4,6 +4,7 @@ import {
   type ChatMessage,
 } from '@/lib/ai/openrouter'
 import { retrieveContext } from '@/lib/ai/rag'
+import { resolveModelId } from '@/lib/ai/models'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -45,7 +46,7 @@ export async function draftAnswer(
     where: { id: workspaceId },
     select: { defaultModel: true },
   })
-  const model = agent.model || ws?.defaultModel || 'deepseek/deepseek-chat'
+  const model = resolveModelId(agent.model || ws?.defaultModel || 'deepseek/deepseek-chat')
 
   const { contextText } = await retrieveContext({
     workspaceId,

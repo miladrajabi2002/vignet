@@ -13,6 +13,9 @@ const bodySchema = z.object({
   // Accept null too: older/embedded widgets send `conversationId: null` on the
   // first turn, which `.optional()` alone would reject as INVALID.
   conversationId: z.string().nullish(),
+  // Pre-chat lead form (sent with the first message when lead capture is on).
+  visitorName: z.string().max(60).nullish(),
+  visitorPhone: z.string().max(30).nullish(),
 })
 
 export function OPTIONS() {
@@ -123,6 +126,8 @@ export async function POST(req: Request, props: Params) {
     message: parsed.data.message,
     conversationId: parsed.data.conversationId ?? undefined,
     channel: 'WEB_WIDGET',
+    contactName: parsed.data.visitorName ?? undefined,
+    contactPhone: parsed.data.visitorPhone ?? undefined,
   })
 
   if ('error' in result) {

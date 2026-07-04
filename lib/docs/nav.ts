@@ -11,6 +11,9 @@ import {
         UserCheck,
         ShoppingCart,
         KeyRound,
+        Cpu,
+        CreditCard,
+        MessageCircle,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -82,6 +85,24 @@ export const DOCS_NAV: DocNavItem[] = [
                 href: '/docs/woocommerce',
                 icon: ShoppingCart,
                 title: { fa: 'اتصال ووکامرس', en: 'WooCommerce integration' },
+        },
+        {
+                slug: 'models',
+                href: '/docs/models',
+                icon: Cpu,
+                title: { fa: 'انتخاب مدل هوش مصنوعی', en: 'Choosing a model' },
+        },
+        {
+                slug: 'billing',
+                href: '/docs/billing',
+                icon: CreditCard,
+                title: { fa: 'پلن‌ها و پرداخت', en: 'Plans & billing' },
+        },
+        {
+                slug: 'widget',
+                href: '/docs/widget',
+                icon: MessageCircle,
+                title: { fa: 'ویجت چت وب‌سایت', en: 'Chat widget' },
         },
         {
                 slug: 'caching',

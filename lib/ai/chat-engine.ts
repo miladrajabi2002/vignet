@@ -22,6 +22,7 @@ import { shouldHandoff, notifyHandoff, detectUnanswered } from '@/lib/ai/handoff
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
+import { resolveModelId } from '@/lib/ai/models'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
@@ -157,18 +158,61 @@ async function prepareTurn(params: StartChatParams): Promise<
         if (!key) return { error: 'NO_KEY' }
 
         const runtime = await loadAgentRuntime(workspaceId, agent.id)
-        const model = agent.model || runtime.defaultModel || 'deepseek/deepseek-chat'
+        const model = resolveModelId(
+                agent.model || runtime.defaultModel || 'deepseek/deepseek-chat',
+        )
 
         // Resolve (or create) the conversation, scoped to the workspace.
         const conversation = await resolveConversation(params, runtime.exp)
         const conversationId = conversation.id
 
-        // F3: best-effort identity extraction from the inbound user message.
+        // F3: best-effort identity extraction from the inbound user message,
+        // merged with structured identity from the widget's pre-chat lead form.
         const extracted = extractIdentity(message)
+        if (!extracted.name && params.contactName?.trim()) {
+                extracted.name = params.contactName.trim().slice(0, 60)
+        }
+        if (!extracted.phone && params.contactPhone?.trim()) {
+                // Reuse the extractor so the phone gets the same +98 normalization.
+                extracted.phone =
+                        extractIdentity(params.contactPhone).phone ?? params.contactPhone.trim().slice(0, 30)
+        }
+
+        // Widget visitors have no platform identity — when the lead form gave us
+        // a name/phone, find-or-create a CRM contact and attach it.
+        let contactId = params.contactId ?? null
+        if (!contactId && (extracted.name || extracted.phone)) {
+                try {
+                        const existing = extracted.phone
+                                ? await prisma.contact.findFirst({
+                                          where: { workspaceId, phone: extracted.phone },
+                                          select: { id: true },
+                                  })
+                                : null
+                        const contact =
+                                existing ??
+                                (await prisma.contact.create({
+                                        data: {
+                                                workspaceId,
+                                                name: extracted.name,
+                                                phone: extracted.phone,
+                                        },
+                                        select: { id: true },
+                                }))
+                        contactId = contact.id
+                        await prisma.conversation.update({
+                                where: { id: conversationId },
+                                data: { contactId },
+                        })
+                } catch (e) {
+                        console.error('[chat-engine] lead contact attach failed:', e)
+                }
+        }
+
         if (extracted.name || extracted.phone) {
                 await applyExtractedIdentity({
                         conversationId,
-                        contactId: params.contactId ?? null,
+                        contactId,
                         extracted,
                 }).catch(() => {})
         }

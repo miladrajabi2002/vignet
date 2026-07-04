@@ -83,7 +83,7 @@ function TrendBadge({
  */
 export function TrendsStrip({ tiles }: { tiles: TrendTile[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {tiles.map((tile, i) => {
         const { direction, pct } = computeTrend(tile.series)
         // Sparkline color follows the trend (respecting invert).

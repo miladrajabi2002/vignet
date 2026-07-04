@@ -36,6 +36,8 @@ export interface StartChatParams {
 	externalId?: string
 	/** Customer display name — when present, replaces {customer_name} in the system prompt. */
 	contactName?: string | null
+	/** Customer phone, e.g. from the widget's pre-chat lead form. */
+	contactPhone?: string | null
 }
 
 export interface ExperimentConfig {

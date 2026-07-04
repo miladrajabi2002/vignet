@@ -15,6 +15,7 @@ import {
         PiggyBank,
         Clock,
         Wallet,
+        Sparkles,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -32,6 +33,9 @@ import {
         getSavingsEstimate,
 } from '@/lib/dashboard/charts'
 import { computeOnboarding } from '@/lib/onboarding'
+import { getPlanDefs } from '@/lib/billing/plans'
+import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
+import { formatDateTime } from '@/lib/format'
 import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
         ConversationChart,
@@ -215,6 +219,35 @@ export default async function OverviewPage() {
 
         const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
+        // ── Plan status (plan, remaining days, monthly quota) ──
+        const [wsPlanRow, subscription, messagesUsed] = await Promise.all([
+                prisma.workspace.findUnique({
+                        where: { id: ws },
+                        select: { plan: true, trialEndsAt: true },
+                }),
+                prisma.subscription.findUnique({
+                        where: { workspaceId: ws },
+                        select: { status: true, currentPeriodEnd: true },
+                }),
+                getMonthlyMessageCount(ws),
+        ])
+        const plan = wsPlanRow?.plan ?? 'TRIAL'
+        const planDef = getPlanDefs()[plan]
+        const planEnd =
+                plan === 'TRIAL' ? wsPlanRow?.trialEndsAt ?? null : subscription?.currentPeriodEnd ?? null
+        const daysLeft = planEnd
+                ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
+                : null
+        const quotaPct = Math.min(100, Math.round((messagesUsed / planDef.monthlyMessages) * 100))
+        const planNamesFa: Record<string, string> = {
+                TRIAL: 'آزمایشی',
+                STARTER: 'استارتر',
+                PRO: 'حرفه‌ای',
+                BUSINESS: 'سازمانی',
+        }
+        const planName =
+                locale === 'fa' ? planNamesFa[plan] ?? plan : plan.charAt(0) + plan.slice(1).toLowerCase()
+
         return (
                 <div className="mx-auto max-w-6xl space-y-6">
                         <div>
@@ -222,6 +255,74 @@ export default async function OverviewPage() {
                                         {t('overview')}
                                 </h1>
                         </div>
+
+                        {/* ─── Plan status: current plan, days left, monthly quota ─── */}
+                        <Link
+                                href="/billing"
+                                className="block rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]"
+                        >
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                                        <div className="flex items-center gap-2.5">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-primary)]">
+                                                        <Sparkles className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                                                {locale === 'fa' ? 'پلن فعلی' : 'Current plan'}
+                                                        </p>
+                                                        <p className="text-base font-medium text-[var(--text-primary)]">{planName}</p>
+                                                </div>
+                                        </div>
+                                        <div>
+                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                        {locale === 'fa' ? 'اعتبار باقی‌مانده' : 'Time left'}
+                                                </p>
+                                                <p
+                                                        className={`text-base font-medium ${
+                                                                daysLeft !== null && daysLeft <= 3
+                                                                        ? 'text-red-500'
+                                                                        : 'text-[var(--text-primary)]'
+                                                        }`}
+                                                >
+                                                        {daysLeft === null
+                                                                ? '—'
+                                                                : locale === 'fa'
+                                                                        ? `${nf.format(daysLeft)} روز`
+                                                                        : `${nf.format(daysLeft)} days`}
+                                                        {planEnd && (
+                                                                <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">
+                                                                        ({locale === 'fa' ? 'تا' : 'until'} {formatDateTime(planEnd, locale)})
+                                                                </span>
+                                                        )}
+                                                </p>
+                                        </div>
+                                        <div className="min-w-[180px] flex-1">
+                                                <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                                                        <span className="text-[var(--text-muted)]">
+                                                                {locale === 'fa' ? 'پیام‌های این ماه' : 'Messages this month'}
+                                                        </span>
+                                                        <span className="text-[var(--text-secondary)]">
+                                                                {nf.format(messagesUsed)} / {nf.format(planDef.monthlyMessages)}
+                                                        </span>
+                                                </div>
+                                                <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+                                                        <div
+                                                                className={`h-full rounded-full ${
+                                                                        quotaPct >= 90
+                                                                                ? 'bg-red-500'
+                                                                                : quotaPct >= 70
+                                                                                        ? 'bg-amber-500'
+                                                                                        : 'bg-emerald-500'
+                                                                }`}
+                                                                style={{ width: `${quotaPct}%` }}
+                                                        />
+                                                </div>
+                                        </div>
+                                        <span className="text-xs text-[var(--text-secondary)] underline-offset-2 hover:underline">
+                                                {locale === 'fa' ? 'جزئیات و ارتقا ←' : 'Details & upgrade →'}
+                                        </span>
+                                </div>
+                        </Link>
 
                         {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}
 
