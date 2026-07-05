@@ -12,13 +12,48 @@ function appUrl(): string {
 /**
  * ZarinPay return URL. We passed `?pid=<paymentId>` in the callback URL at
  * checkout, so verification uses our stored authority — nothing from the
- * query string is trusted beyond the payment lookup.
+ * request is trusted beyond the payment lookup.
+ *
+ * ZarinPay delivers the callback as a POST (`{ authority, order_id }` body),
+ * so both handlers share one implementation. When arriving via POST we redirect
+ * with 303 so the browser follows up with a GET to /billing.
  */
 export async function GET(req: Request) {
+  return handleCallback(req, false)
+}
+
+export async function POST(req: Request) {
+  return handleCallback(req, true)
+}
+
+async function readPid(req: Request): Promise<string | null> {
   const url = new URL(req.url)
-  const pid = url.searchParams.get('pid')
+  const fromQuery = url.searchParams.get('pid')
+  if (fromQuery) return fromQuery
+
+  // Fallback: ZarinPay's POST body carries order_id, which is our payment id.
+  const ct = req.headers.get('content-type') ?? ''
+  try {
+    if (ct.includes('application/json')) {
+      const body = (await req.json().catch(() => null)) as { order_id?: unknown } | null
+      const oid = body?.order_id
+      return typeof oid === 'string' && oid ? oid : null
+    }
+    if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
+      const form = await req.formData().catch(() => null)
+      const oid = form?.get('order_id')
+      return typeof oid === 'string' && oid ? oid : null
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+async function handleCallback(req: Request, isPost: boolean) {
+  const pid = await readPid(req)
   const to = (status: string) =>
-    NextResponse.redirect(`${appUrl()}/billing?payment=${status}`)
+    NextResponse.redirect(`${appUrl()}/billing?payment=${status}`, isPost ? 303 : 307)
 
   if (!pid) return to('failed')
 
