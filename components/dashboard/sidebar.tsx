@@ -3,30 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import {
-	LayoutDashboard,
-	Bot,
-	Package,
-	MessagesSquare,
-	Users,
-	Plug,
-	CreditCard,
-	Settings,
-	Rocket,
-} from 'lucide-react'
+import { Rocket } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
-
-const NAV = [
-	{ key: 'overview', href: '/overview', icon: LayoutDashboard },
-	{ key: 'agents', href: '/agents', icon: Bot },
-	{ key: 'products', href: '/products', icon: Package },
-	{ key: 'conversations', href: '/conversations', icon: MessagesSquare },
-	{ key: 'contacts', href: '/contacts', icon: Users },
-	{ key: 'integrations', href: '/integrations', icon: Plug },
-	{ key: 'billing', href: '/billing', icon: CreditCard },
-	{ key: 'settings', href: '/settings', icon: Settings },
-] as const
+import { NAV } from '@/components/dashboard/nav-items'
 
 export function Sidebar() {
 	const t = useTranslations('dashboard')

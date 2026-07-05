@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { LogOut } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
+import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
 
 export async function Header({ name }: { name?: string | null }) {
@@ -9,8 +10,11 @@ export async function Header({ name }: { name?: string | null }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-base)]/80 px-6 backdrop-blur">
-      <div className="text-sm text-[var(--text-secondary)]">
-        {name ? t('greeting', { name }) : t('welcome')}
+      <div className="flex items-center gap-3">
+        <MobileNav />
+        <div className="text-sm text-[var(--text-secondary)]">
+          {name ? t('greeting', { name }) : t('welcome')}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
