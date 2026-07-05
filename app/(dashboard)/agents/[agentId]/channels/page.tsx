@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { Store, ArrowRight } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { WebWidgetChannel } from '@/components/channels/web-widget-channel'
@@ -140,6 +142,29 @@ export default async function AgentChannelsPage(
           />
         )
       })}
+
+      {/* Not a chat channel — a data source. Point users to Store Integrations
+          without cluttering the channel list with a toggle that doesn't belong. */}
+      <Link
+        href="/integrations"
+        className="group flex items-start gap-4 rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-strong)]"
+      >
+        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
+          <Store className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-[var(--text-primary)]">
+            {t('storeTitle')}
+          </span>
+          <span className="mt-1 block text-xs leading-relaxed text-[var(--text-secondary)]">
+            {t('storeDesc')}
+          </span>
+        </span>
+        <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">
+          {t('storeCta')}
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
+        </span>
+      </Link>
     </div>
   )
 }

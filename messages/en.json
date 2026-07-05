@@ -502,7 +502,10 @@
                 "whatsapp": "WhatsApp",
                 "whatsappHint": "WhatsApp Cloud API — auto-reply to direct messages",
                 "instagram": "Instagram",
-                "instagramHint": "Instagram DMs and comment replies via the Meta API"
+                "instagramHint": "Instagram DMs and comment replies via the Meta API",
+                "storeTitle": "Have a WordPress site or WooCommerce store?",
+                "storeDesc": "Connect your WordPress or WooCommerce site from Store Integrations to sync products and content automatically so the agent can recommend products to customers.",
+                "storeCta": "Connect store"
         },
         "conversations": {
                 "title": "Conversations",
