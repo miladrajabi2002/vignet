@@ -7,6 +7,12 @@ import { normalizePhone } from '@/lib/phone'
  *  - "pattern"    → pre-approved template with variables (used for OTP)
  *  - "webservice" → free-form message (used for notifications)
  * Auth is the panel API key / token in the `Authorization` header.
+ *
+ * IPPanel only accepts requests from an Iranian IP, but the app server is
+ * hosted abroad — so sends go through a small PHP proxy on Iranian hosting
+ * (see deploy/ippanel-proxy/index.php) instead of calling IPPanel directly.
+ * The proxy holds the real IPPANEL_API_KEY; this app only needs
+ * IPPANEL_PROXY_URL + IPPANEL_PROXY_SECRET.
  */
 const IPPANEL_SEND_URL = 'https://edge.ippanel.com/v1/api/send'
 
@@ -31,17 +37,35 @@ interface IppanelMeta {
   message_code?: string
 }
 
-async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
-  const apiKey = process.env.IPPANEL_API_KEY
-  if (!apiKey) return false
+/** True once either a direct API key or the Iranian proxy is configured. */
+function isSmsConfigured(): boolean {
+  return Boolean(process.env.IPPANEL_PROXY_URL || process.env.IPPANEL_API_KEY)
+}
 
-  const res = await fetch(IPPANEL_SEND_URL, {
+async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
+  const proxyUrl = process.env.IPPANEL_PROXY_URL
+  const apiKey = process.env.IPPANEL_API_KEY
+
+  let url: string
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  }
+
+  if (proxyUrl) {
+    url = proxyUrl
+    const proxySecret = process.env.IPPANEL_PROXY_SECRET
+    if (proxySecret) headers['X-Proxy-Secret'] = proxySecret
+  } else if (apiKey) {
+    url = IPPANEL_SEND_URL
+    headers.Authorization = apiKey
+  } else {
+    return false
+  }
+
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: apiKey,
-    },
+    headers,
     body: JSON.stringify(body),
   })
 
@@ -65,11 +89,13 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
  * Send a 5-digit OTP via an IPPanel pattern. Stores the code in Redis (TTL 5m)
  * and rate-limits to 3 per hour per phone.
  *
- * Requires IPPANEL_API_KEY, IPPANEL_PATTERN_CODE and IPPANEL_FROM_NUMBER. The
- * pattern must contain a `code` variable (e.g. "کد ورود شما: %code%").
+ * Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL), IPPANEL_PATTERN_CODE and
+ * IPPANEL_FROM_NUMBER. The pattern must contain a `code` variable (e.g.
+ * "کد ورود شما: %code%").
  *
- * In dev (no IPPANEL_API_KEY), the code is logged to the server console
- * instead of being sent, so local auth works without an SMS provider.
+ * In dev (neither IPPANEL_API_KEY nor IPPANEL_PROXY_URL set), the code is
+ * logged to the server console instead of being sent, so local auth works
+ * without an SMS provider.
  */
 export async function sendOTP(mobile: string): Promise<void> {
   const normalized = normalizePhone(mobile)
@@ -85,14 +111,13 @@ export async function sendOTP(mobile: string): Promise<void> {
   const code = generateCode()
   await redis.set(`otp:${normalized}`, code, 'EX', OTP_TTL_SECONDS)
 
-  const apiKey = process.env.IPPANEL_API_KEY
   const patternCode = process.env.IPPANEL_PATTERN_CODE
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
-  if (!apiKey) {
+  if (!isSmsConfigured()) {
     // Dev fallback — no SMS provider configured at all.
     console.warn(
-      `[ippanel] DEV MODE — IPPANEL_API_KEY not set. OTP for ${normalized} is: ${code}`,
+      `[ippanel] DEV MODE — IPPANEL_API_KEY/IPPANEL_PROXY_URL not set. OTP for ${normalized} is: ${code}`,
     )
     return
   }
@@ -120,18 +145,18 @@ export async function sendOTP(mobile: string): Promise<void> {
 
 /**
  * Send a free-form SMS via IPPanel's webservice mode (used for notifications,
- * not OTP). Requires IPPANEL_API_KEY and IPPANEL_FROM_NUMBER. In dev (no API
- * key) the message is logged to the console instead. Never throws —
- * notifications must not break the caller; returns false when not delivered.
+ * not OTP). Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL) and
+ * IPPANEL_FROM_NUMBER. In dev (neither set) the message is logged to the
+ * console instead. Never throws — notifications must not break the caller;
+ * returns false when not delivered.
  */
 export async function sendSms(mobile: string, message: string): Promise<boolean> {
   const normalized = normalizePhone(mobile)
   if (!normalized) return false
 
-  const apiKey = process.env.IPPANEL_API_KEY
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
-  if (!apiKey || !fromNumber) {
+  if (!isSmsConfigured() || !fromNumber) {
     console.warn(`[ippanel] DEV MODE — SMS to ${normalized}: ${message}`)
     return false
   }

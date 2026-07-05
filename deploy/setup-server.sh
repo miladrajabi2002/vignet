@@ -277,7 +277,9 @@ cat <<DONE
      grep -E '^ADMIN_(USER|PASS)=' ${ENV_FILE}
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
-   • IPPANEL_API_KEY / IPPANEL_PATTERN_CODE / IPPANEL_FROM_NUMBER   (برای OTP)
+   • IPPANEL_PROXY_URL / IPPANEL_PROXY_SECRET / IPPANEL_PATTERN_CODE / IPPANEL_FROM_NUMBER
+     (پیامک OTP — کلید واقعی IPPANEL_API_KEY فقط روی پروکسی PHP ایرانی ست می‌شود،
+      نه اینجا؛ راهنما: deploy/ippanel-proxy/index.php)
    • RESEND_API_KEY                        (اختیاری، ایمیل)
 
  ویرایش:  nano ${ENV_FILE}
