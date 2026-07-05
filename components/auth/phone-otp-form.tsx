@@ -222,7 +222,7 @@ export function PhoneOtpForm() {
                 autoComplete="tel"
                 autoFocus
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(toEnglishDigits(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && requestOtp()}
                 placeholder={t('phonePlaceholder')}
                 className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3 text-center font-mono text-lg tracking-wider text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)]"
