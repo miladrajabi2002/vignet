@@ -28,8 +28,10 @@ STUDIO_PASS="$(openssl rand -hex 12)"
 sudo htpasswd -bc "${HTPASSWD_FILE}" "${STUDIO_USER}" "${STUDIO_PASS}"
 
 # مسیر گواهی SSL فعلی دامنه را از کانفیگ nginx موجود پیدا می‌کنیم تا دوباره‌ استفاده شود.
-CERT_LINE="$(sudo grep -rh 'ssl_certificate ' /etc/nginx/sites-enabled/ 2>/dev/null | grep -v _key | head -1 | xargs)"
-KEY_LINE="$(sudo grep -rh 'ssl_certificate_key ' /etc/nginx/sites-enabled/ 2>/dev/null | head -1 | xargs)"
+# «|| true» لازم است چون وقتی چیزی پیدا نشود grep کد خطا می‌دهد و با set -e
+# کل اسکریپت بی‌صدا می‌میرد (این باگ باعث شد قبلاً بعد از htpasswd متوقف شود).
+CERT_LINE="$(sudo grep -rh 'ssl_certificate ' /etc/nginx/sites-enabled/ 2>/dev/null | grep -v _key | head -1 | xargs || true)"
+KEY_LINE="$(sudo grep -rh 'ssl_certificate_key ' /etc/nginx/sites-enabled/ 2>/dev/null | head -1 | xargs || true)"
 
 cat <<DONE
 
