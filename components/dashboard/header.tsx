@@ -9,15 +9,15 @@ export async function Header({ name }: { name?: string | null }) {
   const t = await getTranslations('dashboard')
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-base)]/80 px-6 backdrop-blur">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-[var(--border-default)] bg-[var(--bg-base)]/80 px-4 backdrop-blur sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         <MobileNav />
-        <div className="text-sm text-[var(--text-secondary)]">
+        <div className="truncate text-sm text-[var(--text-secondary)]">
           {name ? t('greeting', { name }) : t('welcome')}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <NotificationBell />
         <LanguageSwitcher />
         <form action={logout}>

@@ -74,67 +74,68 @@ export function MobileNav() {
 
 						{/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
 						<aside className="absolute inset-y-0 start-0 flex w-72 max-w-[80vw] flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
-						<div className="mb-6 flex items-center justify-between px-2">
-							<Link href="/overview" onClick={() => setOpen(false)}>
-								<Logo className="h-5 w-auto text-[var(--text-primary)]" />
-							</Link>
-							<button
+							<div className="mb-6 flex items-center justify-between px-2">
+								<Link href="/overview" onClick={() => setOpen(false)}>
+									<Logo className="h-5 w-auto text-[var(--text-primary)]" />
+								</Link>
+								<button
+									onClick={() => setOpen(false)}
+									aria-label="Close menu"
+									className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+
+							<Link
+								href="/onboarding"
 								onClick={() => setOpen(false)}
-								aria-label="Close menu"
-								className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+								className={cn(
+									'mb-4 flex items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2.5 text-sm transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]',
+									pathname.startsWith('/onboarding')
+										? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+										: 'text-[var(--text-secondary)]',
+								)}
 							>
-								<X className="h-5 w-5" />
-							</button>
-						</div>
+								<Rocket className="h-4 w-4" />
+								{t('onboarding')}
+							</Link>
 
-						<Link
-							href="/onboarding"
-							onClick={() => setOpen(false)}
-							className={cn(
-								'mb-4 flex items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2.5 text-sm transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]',
-								pathname.startsWith('/onboarding')
-									? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-									: 'text-[var(--text-secondary)]',
-							)}
-						>
-							<Rocket className="h-4 w-4" />
-							{t('onboarding')}
-						</Link>
+							<nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
+								{NAV.map(({ key, href, icon: Icon }) => {
+									const active = pathname === href || pathname.startsWith(`${href}/`)
+									return (
+										<Link
+											key={key}
+											href={href}
+											onClick={() => setOpen(false)}
+											className={cn(
+												'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
+												active
+													? 'bg-[var(--white)] font-medium text-[var(--bg-base)]'
+													: 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+											)}
+										>
+											<Icon className="h-4 w-4" />
+											{t(key)}
+										</Link>
+									)
+								})}
+							</nav>
 
-						<nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-							{NAV.map(({ key, href, icon: Icon }) => {
-								const active = pathname === href || pathname.startsWith(`${href}/`)
-								return (
-									<Link
-										key={key}
-										href={href}
-										onClick={() => setOpen(false)}
-										className={cn(
-											'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
-											active
-												? 'bg-[var(--white)] font-medium text-[var(--bg-base)]'
-												: 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-										)}
-									>
-										<Icon className="h-4 w-4" />
-										{t(key)}
-									</Link>
-								)
-							})}
-						</nav>
-
-						<form action={logout} className="mt-2 border-t border-[var(--border-default)] pt-3">
-							<button
-								type="submit"
-								className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-danger"
-							>
-								<LogOut className="h-4 w-4 rtl:rotate-180" />
-								{t('logout')}
-							</button>
-						</form>
-					</aside>
-				</div>
-			)}
+							<form action={logout} className="mt-2 border-t border-[var(--border-default)] pt-3">
+								<button
+									type="submit"
+									className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-danger"
+								>
+									<LogOut className="h-4 w-4 rtl:rotate-180" />
+									{t('logout')}
+								</button>
+							</form>
+						</aside>
+					</div>,
+					document.body,
+				)}
 		</div>
 	)
 }
