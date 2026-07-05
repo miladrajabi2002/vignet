@@ -63,14 +63,18 @@ export type FormatKind = 'number' | 'irr' | 'usd' | 'compact-irr' | 'token'
 function formatValue(v: number, kind: FormatKind = 'number'): string {
   const n = Number(v) || 0
   switch (kind) {
-    case 'irr':
-      return `${n.toLocaleString('fa-IR')} تومان`
+    case 'irr': {
+      const toman = n / 10
+      return `${toman.toLocaleString('fa-IR')} تومان`
+    }
     case 'usd':
       return `$${n.toLocaleString('en-US')}`
-    case 'compact-irr':
-      return n >= 1_000_000
-        ? `${(n / 1_000_000).toLocaleString('fa-IR')} م`
-        : n.toLocaleString('fa-IR')
+    case 'compact-irr': {
+      const toman = n / 10
+      return toman >= 1_000_000
+        ? `${(toman / 1_000_000).toLocaleString('fa-IR')} م`
+        : toman.toLocaleString('fa-IR')
+    }
     case 'token':
       return `${n.toLocaleString('fa-IR')} توکن`
     case 'number':
