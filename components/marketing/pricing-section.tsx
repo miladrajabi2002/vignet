@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TrendSpark } from '@/components/blog/trend-spark'
 
 interface Plan {
   name: string
@@ -60,15 +61,21 @@ export function PricingSection() {
   return (
     <section id="pricing" className="bg-[var(--bg-base)] py-20 md:py-28">
       <div className="mx-auto max-w-6xl px-6">
-        <motion.h2
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl"
+          className="mx-auto max-w-2xl text-center"
         >
-          {t('title')}
-        </motion.h2>
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+            {t('eyebrow')}
+          </span>
+          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+            {t('title')}
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-[var(--text-secondary)]">{t('subtitle')}</p>
+        </motion.div>
 
         {/* Billing toggle */}
         <div className="mt-8 flex items-center justify-center gap-3">
@@ -96,6 +103,7 @@ export function PricingSection() {
             const price = annual
               ? Math.round(plan.monthly * 0.8)
               : plan.monthly
+            const isFree = plan.monthly === 0
             return (
               <motion.div
                 key={plan.name}
@@ -104,25 +112,49 @@ export function PricingSection() {
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className={cn(
-                  'flex flex-col rounded-2xl border bg-[var(--bg-surface)] p-6',
+                  'relative flex flex-col rounded-2xl border p-6 transition-colors duration-300',
                   plan.featured
-                    ? 'border-[var(--border-strong)] shadow-[0_0_50px_rgba(var(--ink-rgb),0.06)]'
-                    : 'border-[var(--border-default)]',
+                    ? 'border-[var(--border-strong)] bg-[var(--white-05)] shadow-[0_0_50px_rgba(var(--ink-rgb),0.08)]'
+                    : 'border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]',
                 )}
               >
                 {plan.featured && (
-                  <span className="mb-3 self-start rounded-full border border-[var(--border-hover)] px-2.5 py-0.5 text-xs text-[var(--text-secondary)]">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--white)] px-3 py-1 text-[11px] font-medium text-[var(--bg-base)]">
                     {t('popular')}
                   </span>
                 )}
-                <h3 className="text-lg font-medium text-[var(--text-primary)]">{plan.name}</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-light text-[var(--text-primary)]">
-                    {fmt(price)}
-                  </span>
-                  <span className="text-sm text-[var(--text-muted)]">
-                    {t('perMonth')}
-                  </span>
+
+                {/* Plan name + a small growth spark — steeper tiers, same idea */}
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-medium text-[var(--text-primary)]">{plan.name}</h3>
+                  <TrendSpark seed={plan.name} width={plan.featured ? 64 : 56} height={20} />
+                </div>
+
+                <div className="mt-4 flex items-baseline gap-1.5">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={price}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25, ease: 'easeOut' }}
+                      className="text-3xl font-light tabular-nums text-[var(--text-primary)]"
+                    >
+                      {isFree ? t('free') : fmt(price)}
+                    </motion.span>
+                  </AnimatePresence>
+                  {!isFree && (
+                    <span className="text-sm text-[var(--text-muted)]">{t('perMonth')}</span>
+                  )}
+                  {!isFree && annual && (
+                    <motion.s
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-xs text-[var(--text-muted)]"
+                    >
+                      {fmt(plan.monthly)}
+                    </motion.s>
+                  )}
                 </div>
 
                 <ul className="mt-6 flex-1 space-y-3">

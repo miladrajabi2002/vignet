@@ -871,6 +871,7 @@
                 },
                 "how": {
                         "title": "Your agent, live in three steps",
+                        "eyebrow": "Quick start",
                         "subtitle": "No code and no technical team — from sign-up to the first conversation in under 5 minutes.",
                         "step1Title": "Create your agent",
                         "step1": "Pick the template that fits your business and connect your OpenRouter key",
@@ -1009,6 +1010,7 @@
                                 "title": "Watch capabilities light up live",
                                 "subtitle": "As the demo plays, whatever the agent is using lights up right here — and everything you've seen gets a check.",
                                 "seen": "Seen in the demo",
+                                "live": "Showing now",
                                 "footnote": "And more: visual flow builder, full brand-tone personalization, official WordPress & WooCommerce plugin, and a weekly performance report in your inbox.",
                                 "items": {
                                         "catalog": {
@@ -1173,6 +1175,9 @@
                 },
                 "pricing": {
                         "title": "Pricing for every business",
+                        "eyebrow": "Pricing",
+                        "subtitle": "Start with 14 free days and every feature — no card required; upgrade whenever you're ready.",
+                        "free": "Free",
                         "monthly": "Monthly",
                         "annual": "Annual",
                         "discount": "20% off",
@@ -1183,6 +1188,7 @@
                 "faq": {
                         "title": "Frequently asked questions",
                         "subtitle": "Short, clear answers to the questions everyone asks before getting started.",
+                        "eyebrow": "Q&A",
                         "moreQuestion": "Didn't find your answer?",
                         "contact": "Browse the docs",
                         "items": [

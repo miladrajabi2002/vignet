@@ -58,7 +58,7 @@ function FaqCard({
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <p className="px-5 pb-5 text-sm leading-relaxed text-[var(--text-secondary)]">
+            <p className="mx-5 mb-5 border-s-2 border-[var(--border-hover)] ps-4 text-sm leading-relaxed text-[var(--text-secondary)]">
               {item.a}
             </p>
           </motion.div>
@@ -88,7 +88,10 @@ export function FaqSection() {
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <h2 className="text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+            {t('eyebrow')}
+          </span>
+          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-[var(--text-secondary)]">{t('subtitle')}</p>
@@ -119,15 +122,15 @@ export function FaqSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-12 flex flex-col items-center justify-center gap-3 text-center sm:flex-row"
+          className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] px-6 py-5 text-center sm:flex-row sm:text-start"
         >
-          <span className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
-            <MessagesSquare className="h-4 w-4" />
+          <span className="inline-flex items-center gap-2.5 text-sm text-[var(--text-secondary)]">
+            <MessagesSquare className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
             {t('moreQuestion')}
           </span>
           <Link
             href="/docs"
-            className="group inline-flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-secondary)]"
+            className="group inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--border-hover)] px-5 py-2.5 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
           >
             {t('contact')}
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

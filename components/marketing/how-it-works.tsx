@@ -3,9 +3,140 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
-import { KeyRound, Database, Rocket, Clock, ArrowRight, type LucideIcon } from 'lucide-react'
+import {
+  KeyRound,
+  Database,
+  Rocket,
+  Clock,
+  ArrowRight,
+  Check,
+  Bot,
+  FileText,
+  Package,
+  Send,
+  MessageCircle,
+  Globe,
+  type LucideIcon,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const STEPS: { icon: LucideIcon; titleKey: string; descKey: string; timeKey: string }[] = [
+/* ───────────────────────────────────────────────────────────────────────
+   Micro-visuals — one tiny monochrome scene per step, same language as
+   the features bento: divs + theme tokens, nothing external.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/** Step 1 — pick a template: three tiles, the middle one selected. */
+function VisPickTemplate() {
+  return (
+    <div className="flex items-center gap-2.5">
+      {[0, 1, 2].map((i) => {
+        const selected = i === 1
+        return (
+          <div
+            key={i}
+            className={cn(
+              'relative flex h-16 w-[52px] flex-col items-center justify-center gap-1.5 rounded-lg border transition-colors',
+              selected
+                ? 'border-[var(--border-strong)] bg-[var(--bg-base)]'
+                : 'border-[var(--border-default)] bg-[var(--bg-elevated)]',
+            )}
+          >
+            <Bot
+              className={cn(
+                'h-4 w-4',
+                selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]',
+              )}
+            />
+            <span className="h-1 w-6 rounded-full bg-[var(--white-10)]" />
+            <span className="h-1 w-4 rounded-full bg-[var(--white-05)]" />
+            {selected && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.4 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ type: 'spring', stiffness: 420, damping: 22, delay: 0.5 }}
+                className="absolute -end-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)]"
+              >
+                <Check className="h-2.5 w-2.5" />
+              </motion.span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Step 2 — feed it data: docs and catalog chips dropping into a dropzone. */
+function VisFeedData() {
+  const chip = (Icon: LucideIcon, w: string, delay: number) => (
+    <motion.span
+      initial={{ opacity: 0, y: -10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.45, delay }}
+      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hover)] bg-[var(--bg-base)] px-2.5 py-1.5"
+    >
+      <Icon className="h-3 w-3 text-[var(--text-secondary)]" />
+      <span className={cn('h-1 rounded-full bg-[var(--white-10)]', w)} />
+    </motion.span>
+  )
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex items-center gap-2">
+        {chip(FileText, 'w-7', 0.35)}
+        {chip(Package, 'w-9', 0.55)}
+      </div>
+      <div className="flex h-9 w-36 items-center justify-center rounded-lg border border-dashed border-[var(--border-hover)] bg-[var(--white-05)]">
+        <span className="h-1 w-16 rounded-full bg-[var(--white-10)]" />
+      </div>
+    </div>
+  )
+}
+
+/** Step 3 — connect & go live: channels flip on, agent comes online. */
+function VisGoLive({ label }: { label: string }) {
+  const icons: LucideIcon[] = [Send, MessageCircle, Globe]
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex items-center" dir="ltr">
+        {icons.map((Icon, i) => (
+          <div key={i} className="flex items-center">
+            {i > 0 && <span className="h-px w-2.5 bg-[var(--border-hover)]" />}
+            <motion.span
+              initial={{ opacity: 0.4 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.35 + i * 0.18 }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </motion.span>
+          </div>
+        ))}
+      </div>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-600">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        </span>
+        {label}
+      </span>
+    </div>
+  )
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+   Section — number badges on an animated connector line, and under each
+   badge a card that *shows* the step instead of only telling it.
+   ─────────────────────────────────────────────────────────────────────── */
+
+const STEPS: {
+  icon: LucideIcon
+  titleKey: string
+  descKey: string
+  timeKey: string
+}[] = [
   { icon: KeyRound, titleKey: 'step1Title', descKey: 'step1', timeKey: 'step1Time' },
   { icon: Database, titleKey: 'step2Title', descKey: 'step2', timeKey: 'step2Time' },
   { icon: Rocket, titleKey: 'step3Title', descKey: 'step3', timeKey: 'step3Time' },
@@ -13,6 +144,7 @@ const STEPS: { icon: LucideIcon; titleKey: string; descKey: string; timeKey: str
 
 export function HowItWorks() {
   const t = useTranslations('marketing.how')
+  const tDemo = useTranslations('marketing.demo')
 
   return (
     <section id="how" className="bg-[var(--bg-base)] py-20 md:py-28">
@@ -24,13 +156,16 @@ export function HowItWorks() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <h2 className="text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+            {t('eyebrow')}
+          </span>
+          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[var(--text-secondary)]">{t('subtitle')}</p>
         </motion.div>
 
-        <div className="relative mt-20">
+        <div className="relative mt-16">
           {/* Animated connector line that draws as it enters view (LTR & RTL). */}
           <motion.div
             aria-hidden
@@ -49,7 +184,7 @@ export function HowItWorks() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.55, delay: 0.15 + i * 0.15 }}
-                className="group relative flex flex-col items-center text-center"
+                className="group relative flex flex-col items-center"
               >
                 {/* Number badge with icon on hover */}
                 <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-base)] transition-all duration-300 group-hover:scale-105 group-hover:border-[var(--border-strong)]">
@@ -59,24 +194,27 @@ export function HowItWorks() {
                   <Icon className="absolute h-6 w-6 text-[var(--text-primary)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                 </div>
 
-                <h3 className="mt-6 text-base font-medium text-[var(--text-primary)]">
-                  {t(titleKey)}
-                </h3>
-                <p className="mt-2 max-w-[16rem] text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {t(descKey)}
-                </p>
+                {/* Step card — visual first, words second */}
+                <div className="mt-6 flex w-full flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-5 text-center transition-all duration-300 group-hover:-translate-y-1 group-hover:border-[var(--border-hover)] group-hover:bg-[var(--white-10)]">
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)]">
+                    {i === 0 && <VisPickTemplate />}
+                    {i === 1 && <VisFeedData />}
+                    {i === 2 && <VisGoLive label={tDemo('online')} />}
+                  </div>
 
-                {/* Time-to-complete chip */}
-                <motion.span
-                  initial={{ opacity: 0, y: 8 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ duration: 0.4, delay: 0.45 + i * 0.15 }}
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--white-05)] px-3 py-1 text-[11px] text-[var(--text-muted)]"
-                >
-                  <Clock className="h-3 w-3" />
-                  {t(timeKey)}
-                </motion.span>
+                  <h3 className="mt-5 text-base font-medium text-[var(--text-primary)]">
+                    {t(titleKey)}
+                  </h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {t(descKey)}
+                  </p>
+
+                  {/* Time-to-complete chip */}
+                  <span className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1 text-[11px] text-[var(--text-muted)]">
+                    <Clock className="h-3 w-3" />
+                    {t(timeKey)}
+                  </span>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -88,7 +226,7 @@ export function HowItWorks() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="mt-16 flex justify-center"
+          className="mt-14 flex justify-center"
         >
           <Link
             href="/login"

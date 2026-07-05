@@ -872,23 +872,34 @@ function CapabilityRail({
 									{tCap(`items.${key}.desc`)}
 								</span>
 							</span>
-							<AnimatePresence>
-								{isSeen && (
+							<AnimatePresence mode="wait" initial={false}>
+								{isActive ? (
 									<motion.span
+										key="live"
+										initial={{ opacity: 0, scale: 0.8 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.8 }}
+										transition={{ duration: 0.25 }}
+										className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--white)] px-2.5 py-1 text-[9px] font-medium text-[var(--bg-base)]"
+									>
+										<span className="relative flex h-1.5 w-1.5">
+											<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+											<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+										</span>
+										{tCap('live')}
+									</motion.span>
+								) : isSeen ? (
+									<motion.span
+										key="seen"
 										initial={{ opacity: 0, scale: 0.5 }}
 										animate={{ opacity: 1, scale: 1 }}
 										transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 										title={tCap('seen')}
-										className={cn(
-											'flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors duration-300',
-											isActive
-												? 'bg-[var(--white)] text-[var(--bg-base)]'
-												: 'bg-[var(--white-10)] text-[var(--text-secondary)]',
-										)}
+										className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--white-10)] text-[var(--text-secondary)]"
 									>
 										<Check className="h-3 w-3" />
 									</motion.span>
-								)}
+								) : null}
 							</AnimatePresence>
 						</motion.div>
 					)
@@ -916,17 +927,17 @@ export function DemoSection() {
 	const [cycle, setCycle] = useState(0)
 	const advanceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-	// Live capability narration
+	// Live capability narration. The tour only moves *forward*: a capability
+	// lights up the first time it appears and then keeps its check mark —
+	// re-using it later never yanks the highlight backwards.
 	const [spot, setSpot] = useState<CapKey | null>(null)
 	const [seen, setSeen] = useState<Set<CapKey>>(new Set())
+	const seenRef = useRef<Set<CapKey>>(new Set())
 	const handleSpot = useCallback((key: CapKey) => {
+		if (seenRef.current.has(key)) return
+		seenRef.current.add(key)
+		setSeen(new Set(seenRef.current))
 		setSpot(key)
-		setSeen((prev) => {
-			if (prev.has(key)) return prev
-			const next = new Set(prev)
-			next.add(key)
-			return next
-		})
 	}, [])
 
 	const ref = useRef<HTMLDivElement>(null)
@@ -962,6 +973,7 @@ export function DemoSection() {
 	const replayAll = () => {
 		clearTimeout(advanceTimer.current)
 		setCycle((n) => n + 1)
+		seenRef.current = new Set()
 		setSeen(new Set())
 		setSpot(null)
 		setAutopilot(true)
