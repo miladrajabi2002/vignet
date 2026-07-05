@@ -45,6 +45,7 @@ model Workspace {
   storeIntegrations StoreIntegration[]
   handoffAlerts     HandoffAlert[]
   payments          Payment[]
+  chatLinks         ChatLink[]
 
   @@index([slug])
 }
@@ -140,6 +141,29 @@ model Agent {
   catalogItems    AgentCatalog[]
   versions        AgentVersion[]
   handoffAlerts   HandoffAlert[]
+  chatLink        ChatLink?
+
+  @@index([workspaceId])
+}
+
+// ─── CHAT LINK (public standalone chat page, link-in-bio) ─────────────
+//   A shareable slug (`/c/my-shop`) that opens a full-screen mobile-first chat
+//   with the agent — no embed needed (e.g. Instagram bio "مشاوره آنلاین فوری").
+//   Appearance/behavior settings live in the `settings` JSON, normalized by
+//   lib/chat-link/config.ts (same pattern as the web widget).
+model ChatLink {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentId     String   @unique
+  slug        String   @unique
+  enabled     Boolean  @default(true)
+  settings    Json?
+  views       Int      @default(0) // page opens (lightweight funnel signal)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }

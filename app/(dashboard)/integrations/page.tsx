@@ -9,6 +9,7 @@ import {
         MessageCircle,
         Camera,
         ArrowRight,
+        Link2,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -43,6 +44,12 @@ export default async function IntegrationsPage() {
         const counts = new Map<ChannelType, number>(
                 groups.map((g) => [g.type, g._count._all]),
         )
+
+        // Chat Link isn't a ChannelType — count active public links separately so
+        // its card shows the same connected/not-connected state as the others.
+        const chatLinkCount = await prisma.chatLink.count({
+                where: { workspaceId: user.workspaceId, enabled: true },
+        })
 
         // F2: load the workspace's store integrations + the last few sync-log entries
         // for each so the dashboard section can render without an extra round-trip.
@@ -134,6 +141,39 @@ export default async function IntegrationsPage() {
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {/* Chat Link — a Vigent-native channel (public standalone chat page). */}
+                                <Link
+                                        href="/agents"
+                                        className="group flex flex-col gap-3 rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--text-secondary)]"
+                                >
+                                        <div className="flex items-center justify-between">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)]">
+                                                        <Link2 className="h-5 w-5" />
+                                                </div>
+                                                <span
+                                                        className={
+                                                                chatLinkCount > 0
+                                                                        ? 'inline-flex items-center gap-1.5 text-xs text-[var(--green)]'
+                                                                        : 'text-xs text-[var(--text-muted)]'
+                                                        }
+                                                >
+                                                        {chatLinkCount > 0
+                                                                ? `● ${t('connected')}`
+                                                                : t('notConnected')}
+                                                </span>
+                                        </div>
+                                        <div>
+                                                <p className="text-sm font-medium text-[var(--text-primary)]">
+                                                        {t('chatLinkName')}
+                                                </p>
+                                                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                                                        {chatLinkCount > 0
+                                                                ? `${chatLinkCount} ${t('connected').toLowerCase()}`
+                                                                : t('chatLinkDesc')}
+                                                </p>
+                                        </div>
+                                </Link>
+
                                 {CHANNELS.map(({ type, name, icon: Icon, available }) => {
                                         const count = counts.get(type) ?? 0
                                         const connected = count > 0

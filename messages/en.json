@@ -647,7 +647,9 @@
                 "configure": "Configure",
                 "manageInAgent": "Connections are configured per agent",
                 "openAgents": "Open agents",
-                "comingSoon": "Coming soon"
+                "comingSoon": "Coming soon",
+                "chatLinkName": "Chat Link",
+                "chatLinkDesc": "A dedicated link for your Instagram bio"
         },
         "builder": {
                 "title": "Conversation design (flow)",
@@ -896,7 +898,10 @@
                                 "Name & phone lead form on the widget",
                                 "Full widget appearance customization",
                                 "Official WordPress & WooCommerce plugin"
-                        ]
+                        ],
+                        "chatLinkTitle": "Your own Chat Link",
+                        "chatLinkDesc": "One link for your Instagram bio — visitors open it and chat with your agent instantly.",
+                        "chatLinkCta": "Instant online consultation"
                 },
                 "demo": {
                         "title": "See the product in action",
@@ -1207,7 +1212,6 @@
                                         "q": "How well does the agent understand Persian?",
                                         "a": "Vigent is built and optimized for Persian — from casual to formal, even Persian voice notes. English is fully supported too."
                                 },
-
                                 {
                                         "q": "Can I try it for free?",
                                         "a": "Yes — a 14-day free trial with every feature, no credit card required. Upgrade whenever you're ready."
@@ -1283,5 +1287,48 @@
                 "errSlugTaken": "This slug is already used. Pick another.",
                 "errWorkspaceRequired": "Please select a workspace.",
                 "jsonImportTitle": "Import post from JSON"
+        },
+        "chatLink": {
+                "title": "Chat Link",
+                "desc": "A ready-to-share standalone chat page — no website needed.",
+                "live": "Live",
+                "create": "Create link",
+                "remove": "Remove",
+                "confirmRemove": "Remove this chat link? The current URL will stop working.",
+                "publish": "Publish link",
+                "save": "Save",
+                "saving": "Saving…",
+                "saved": "Saved",
+                "saveError": "Could not save. Please try again.",
+                "yourLink": "Your link",
+                "slugHint": "Lowercase letters, digits and hyphens only (3–32 chars).",
+                "slugInvalid": "That link is not valid.",
+                "slugTaken": "That link is already taken. Choose another.",
+                "copyLink": "Copy link",
+                "copied": "Copied",
+                "openLink": "Open",
+                "qrCode": "QR code",
+                "qrHint": "For stories, business cards or in-store print.",
+                "downloadQr": "Download QR",
+                "appearance": "Appearance",
+                "displayName": "Display name",
+                "tagline": "Tagline",
+                "taglinePh": "e.g. Instant online consultation",
+                "optional": "optional",
+                "brandColor": "Brand color",
+                "background": "Background",
+                "aiBadge": "AI badge",
+                "aiBadgeHint": "Show the \"Instant AI answers\" badge on the page.",
+                "interaction": "Interaction",
+                "quickReplies": "Suggested questions",
+                "quickRepliesHint": "One-tap prompts the visitor can send (max 6).",
+                "quickRepliesPh": "e.g. What are your prices?",
+                "quickRepliesAdd": "Add question",
+                "leadCapture": "Collect contact info",
+                "leadCaptureHint": "Ask for name and phone before the chat starts.",
+                "leadCaptureMessage": "Form message",
+                "leadCaptureMessagePh": "Please share your contact info to start the chat.",
+                "livePreview": "Live preview",
+                "views": "{count} views"
         }
 }

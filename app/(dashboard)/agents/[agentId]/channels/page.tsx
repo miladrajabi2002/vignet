@@ -3,11 +3,17 @@ import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { WebWidgetChannel } from '@/components/channels/web-widget-channel'
+import { ChatLinkChannel } from '@/components/channels/chat-link-channel'
 import {
   MessengerChannel,
   type MessengerKind,
 } from '@/components/channels/messenger-channel'
 import { normalizeMessengerSettings } from '@/lib/channels/config'
+import {
+  normalizeChatLinkSettings,
+  normalizeSlug,
+  chatLinkUrl,
+} from '@/lib/chat-link/config'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -36,17 +42,34 @@ export default async function AgentChannelsPage(
         channels: {
           select: { id: true, type: true, config: true, lastInboundAt: true },
         },
+        chatLink: {
+          select: { slug: true, enabled: true, settings: true, views: true },
+        },
       },
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { openrouterKeyEnc: true },
+      select: { openrouterKeyEnc: true, slug: true },
     }),
   ])
   if (!agent) notFound()
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
   const hasApiKey = !!workspace?.openrouterKeyEnc
+
+  // Chat Link: existing config, or a sensible suggested slug for first-time setup.
+  const chatLink = agent.chatLink
+    ? {
+        slug: agent.chatLink.slug,
+        enabled: agent.chatLink.enabled,
+        settings: normalizeChatLinkSettings(agent.chatLink.settings),
+        views: agent.chatLink.views,
+        url: chatLinkUrl(agent.chatLink.slug),
+      }
+    : null
+  const suggestedSlug =
+    normalizeSlug(workspace?.slug ?? '') ??
+    `chat-${agent.id.slice(-6).toLowerCase()}`
   const baseUrl = process.env.NEXT_PUBLIC_WIDGET_URL ?? 'http://localhost:3000'
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
@@ -76,6 +99,14 @@ export default async function AgentChannelsPage(
         channelId={widget?.id ?? null}
         config={(widget?.config as Record<string, unknown> | null) ?? null}
         hasApiKey={hasApiKey}
+      />
+
+      <ChatLinkChannel
+        agentId={agent.id}
+        agentName={agent.name}
+        appUrl={appUrl}
+        initialLink={chatLink}
+        suggestedSlug={suggestedSlug}
       />
 
       {messengers.map((m) => {

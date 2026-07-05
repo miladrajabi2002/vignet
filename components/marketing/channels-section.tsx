@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 import {
   Send,
   MessageCircle,
@@ -16,6 +17,9 @@ import {
   UserPlus,
   Palette,
   Plug,
+  Link2,
+  Sparkles,
+  ArrowUp,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -165,7 +169,105 @@ export function ChannelsSection() {
             })}
           </div>
         </motion.div>
+
+        <ChatLinkHighlight />
       </div>
     </section>
+  )
+}
+
+/** Featured "Chat Link" block — the link-in-bio use case with a phone mock. */
+function ChatLinkHighlight() {
+  const t = useTranslations('marketing.channels')
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.6 }}
+      className="mt-16 overflow-hidden rounded-3xl border border-[var(--border-hover)] bg-[var(--bg-surface)]"
+    >
+      <div className="grid items-center gap-8 p-7 md:grid-cols-2 md:p-10">
+        {/* Copy */}
+        <div className="text-center md:text-start">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--white-05)] px-3.5 py-1.5 text-xs text-[var(--text-secondary)]">
+            <Link2 className="h-3.5 w-3.5" />
+            {t('chatLinkTitle')}
+          </span>
+          <p className="mx-auto mt-5 max-w-md text-lg font-light leading-8 text-[var(--text-primary)] md:mx-0">
+            {t('chatLinkDesc')}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="h-4 w-4" />
+              {t('chatLinkCta')}
+            </Link>
+            <span
+              dir="ltr"
+              className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-2.5 text-xs text-[var(--text-muted)]"
+            >
+              vigent.ir/c/your-shop
+            </span>
+          </div>
+        </div>
+
+        {/* Phone mock */}
+        <div className="flex justify-center">
+          <div className="relative w-[210px] overflow-hidden rounded-[2rem] border-[6px] border-[var(--border-strong)] bg-[var(--bg-base)] shadow-[0_20px_60px_rgba(var(--ink-rgb),0.12)]">
+            <div className="flex h-[380px] flex-col">
+              {/* header */}
+              <div className="flex items-center gap-2 border-b border-[var(--border-default)] px-3 py-2.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--white)] text-[10px] font-semibold text-[var(--bg-base)]">
+                  V
+                </span>
+                <div>
+                  <div className="text-[11px] font-semibold text-[var(--text-primary)]">
+                    Vigent
+                  </div>
+                  <div className="flex items-center gap-1 text-[8px] text-[var(--text-muted)]">
+                    <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                    آنلاین
+                  </div>
+                </div>
+              </div>
+              {/* body */}
+              <div className="flex flex-1 flex-col justify-end gap-2 p-3">
+                <div className="max-w-[80%] self-start rounded-2xl rounded-ss-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[10px] leading-5 text-[var(--text-primary)]">
+                  سلام! چطور می‌تونم کمکتون کنم؟
+                </div>
+                <div className="max-w-[80%] self-end rounded-2xl rounded-ee-md bg-[var(--white)] px-3 py-2 text-[10px] leading-5 text-[var(--bg-base)]">
+                  قیمت اشتراک چنده؟
+                </div>
+                <motion.div
+                  className="flex w-11 items-center justify-center gap-1 self-start rounded-2xl rounded-ss-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5"
+                  aria-hidden
+                >
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="h-1 w-1 rounded-full bg-[var(--text-muted)]"
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
+                    />
+                  ))}
+                </motion.div>
+              </div>
+              {/* composer */}
+              <div className="flex items-center gap-1.5 border-t border-[var(--border-default)] p-2.5">
+                <div className="flex-1 rounded-full border border-[var(--border-default)] px-3 py-1.5 text-[9px] text-[var(--text-muted)]">
+                  پیام خود را بنویسید…
+                </div>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)]">
+                  <ArrowUp className="h-3 w-3" />
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   )
 }
