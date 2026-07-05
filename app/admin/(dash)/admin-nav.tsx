@@ -11,6 +11,8 @@ import {
   Users,
   CreditCard,
   TrendingUp,
+  Database,
+  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -62,6 +64,16 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           </Link>
         )
       })}
+      <a
+        href={process.env.NEXT_PUBLIC_DB_STUDIO_URL || '/db-studio/'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group mt-1 flex items-center gap-3 rounded-xl border-t border-zinc-100 px-3 py-2 pt-3 text-sm font-medium text-zinc-600 transition-all hover:bg-zinc-100 hover:text-zinc-900"
+      >
+        <Database className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-700" />
+        دیتابیس (Studio)
+        <ExternalLink className="ms-auto h-3.5 w-3.5 text-zinc-300" />
+      </a>
     </nav>
   )
 }

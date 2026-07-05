@@ -18,5 +18,16 @@ module.exports = {
       env: { NODE_ENV: "production" },
       max_memory_restart: "512M",
     },
+    {
+      // Prisma Studio (DB browser) — only reachable via the nginx
+      // /db-studio/ location, itself protected by HTTP Basic Auth.
+      // See deploy/setup-db-studio.sh for the one-time server setup.
+      name: "vignet-studio",
+      script: "npx",
+      args: "prisma studio --port 5555 --browser none",
+      cwd: __dirname + "/..",
+      env: { NODE_ENV: "production" },
+      max_memory_restart: "512M",
+    },
   ],
 };

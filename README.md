@@ -1,1 +1,69 @@
-# vignet
+# Vigent
+
+پلتفرم ایجنت هوش مصنوعی چندکاناله (وب‌سایت، واتس‌اپ، تلگرام، بله، اینستاگرام) با پایگاه دانش، اتوماسیون فروشگاهی و صورتحساب.
+
+## پیش‌نیازها
+
+- Node.js 20+
+- PostgreSQL 16 با extension `pgvector`
+- Redis
+- ذخیره‌سازی S3-سازگار (پیش‌فرض: MinIO خودمیزبان)
+
+## راه‌اندازی توسعه (لوکال)
+
+```bash
+npm install
+cp .env.example .env   # مقادیر را پر کن — جزئیات هر متغیر داخل همین فایل توضیح داده شده
+npx prisma migrate dev
+npm run dev             # http://localhost:3003
+```
+
+برای پردازش پس‌زمینه (ایندکس دانش، امبدینگ و…) در یک ترمینال جدا:
+
+```bash
+npm run worker
+```
+
+یا برای توسعه‌ی سریع بدون صف، در `.env` بگذار `DISABLE_QUEUE="1"` تا پردازش‌ها بدون نیاز به `worker` به‌صورت درجا انجام شوند.
+
+## اسکریپت‌های مفید
+
+| دستور | کاربرد |
+|---|---|
+| `npm run dev` | اجرای Next.js در حالت توسعه |
+| `npm run build` / `npm run start` | build و اجرای production |
+| `npm run worker` | پردازشگر پس‌زمینه (BullMQ) |
+| `npm run db:migrate` | ساخت/اجرای migration در توسعه |
+| `npm run db:deploy` | اعمال migration‌ها در production |
+| `npm run db:studio` | باز کردن Prisma Studio (مرور/ویرایش دیتابیس) به‌صورت لوکال |
+| `npm test` | اجرای تست‌ها (Vitest) |
+
+## استقرار روی سرور (production)
+
+اسکریپت‌های زیر داخل پوشه‌ی [`deploy/`](deploy/) قرار دارند:
+
+1. **اولین بار روی سرور تازه** (Ubuntu 22.04/24.04):
+   ```bash
+   bash deploy/setup-server.sh
+   ```
+   PostgreSQL + pgvector، Redis، Node.js، PM2 و MinIO را نصب و `.env` را خودکار پر می‌کند (شامل اعتبارنامه‌ی پنل ادمین `/admin`). idempotent است — اگر سرویسی از قبل نصب باشد رد می‌شود.
+
+2. **هر بار که کد جدید push شد**، روی سرور:
+   ```bash
+   bash deploy/deploy.sh
+   ```
+   `git pull` → نصب پکیج‌ها → `prisma migrate deploy` → `build` → ری‌استارت بدون قطعی با PM2.
+
+3. **بک‌آپ شبانه‌ی دیتابیس** به‌صورت خودکار توسط `setup-server.sh` روی cron تنظیم می‌شود (هر شب ساعت ۳، اسکریپت [`deploy/backup.sh`](deploy/backup.sh)).
+
+4. **دسترسی وب به دیتابیس (اختیاری)** — اگر می‌خواهی مثل phpMyAdmin از مرورگر به دیتابیس production دسترسی داشته باشی، یک‌بار روی سرور:
+   ```bash
+   bash deploy/setup-db-studio.sh
+   ```
+   یک رمز جدا (مستقل از پنل ادمین) می‌سازد و اسنیپت nginx لازم را چاپ می‌کند. لینک نتیجه از داخل پنل ادمین («دیتابیس (Studio)») در دسترس است. این مرحله اختیاری است و در راه‌اندازی اصلی نقشی ندارد.
+
+پیامک OTP از طریق پروکسی PHP روی هاست ایرانی ارسال می‌شود چون IPPanel فقط IP ایران را می‌پذیرد — جزئیات در [`deploy/ippanel-proxy/`](deploy/ippanel-proxy/) و کامنت‌های `.env.example`.
+
+## متغیرهای محیطی
+
+همه‌ی متغیرهای لازم و توضیح هرکدام در [`.env.example`](.env.example) مستندند (دیتابیس، Auth، SMS/OTP، رمزنگاری، Redis، S3، ایمیل، درگاه‌های پرداخت ZarinPay/NowPayments، قیمت‌گذاری و محدودیت پلن‌ها).
