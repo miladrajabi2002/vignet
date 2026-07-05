@@ -3,22 +3,33 @@
 #  Vignet — راه‌اندازی یک‌بارهٔ دسترسی امن به Prisma Studio از پشت nginx
 #  این اسکریپت رمز Basic Auth جدا می‌سازد (کاملاً مستقل از ADMIN_USER/PASS پنل)
 #  و اسنیپت nginx لازم را چاپ می‌کند — خودش nginx را ادیت نمی‌کند.
+#
+#  نکته: از یک پورت HTTPS جدا (پیش‌فرض 8443) روی همان دامنه استفاده می‌کنیم،
+#  نه یک مسیر فرعی مثل /db-studio/ و نه یک ساب‌دامین جدید. دلیل رد کردن
+#  مسیر فرعی: Prisma Studio یک SPA است که آدرس فایل‌های خودش (JS/CSS) را
+#  مطلق از ریشه‌ی دامنه می‌خواند؛ پشت یک مسیر فرعی این فایل‌ها ۴۰۴ می‌خورند.
+#  با یک پورت جدا روی همان دامنه، هم آن مشکل نیست و هم نیازی به DNS/گواهی
+#  SSL جدید نداریم — همان گواهی فعلی دامنه (Let's Encrypt) را دوباره‌استفاده
+#  می‌کنیم.
 # ============================================================================
 set -euo pipefail
 
 HTPASSWD_FILE="/etc/nginx/.htpasswd-studio"
 STUDIO_USER="${1:-studio}"
+STUDIO_PORT="${2:-8443}"
 
 if ! command -v htpasswd >/dev/null 2>&1; then
   echo "==> نصب apache2-utils (برای htpasswd)"
-  # apt update ممکن است به‌خاطر مخزن‌های جانبی خراب (PPAها) خطا بدهد؛
-  # این خطا را نادیده می‌گیریم چون مخزن اصلی اوبونتو (لازم برای apache2-utils) سالم است.
   sudo apt-get update -y || echo "⚠ بعضی مخزن‌ها به‌روز نشدند (نادیده گرفته شد) — ادامه می‌دهیم"
   sudo apt-get install -y apache2-utils
 fi
 
 STUDIO_PASS="$(openssl rand -hex 12)"
 sudo htpasswd -bc "${HTPASSWD_FILE}" "${STUDIO_USER}" "${STUDIO_PASS}"
+
+# مسیر گواهی SSL فعلی دامنه را از کانفیگ nginx موجود پیدا می‌کنیم تا دوباره‌ استفاده شود.
+CERT_LINE="$(sudo grep -rh 'ssl_certificate ' /etc/nginx/sites-enabled/ 2>/dev/null | grep -v _key | head -1 | xargs)"
+KEY_LINE="$(sudo grep -rh 'ssl_certificate_key ' /etc/nginx/sites-enabled/ 2>/dev/null | head -1 | xargs)"
 
 cat <<DONE
 
@@ -29,36 +40,56 @@ cat <<DONE
  پسورد: ${STUDIO_PASS}
  (این پسورد جداست از ADMIN_USER/ADMIN_PASS پنل — همین‌جا یادداشتش کن)
 
- حالا این بلوک را داخل فایل کانفیگ nginx سایت (همان server{} که پورت
- 443/80 دامنه vigent.ir را serve می‌کند) اضافه کن، جایی قبل از
- location / {:
+ ── قدم ۱: پاک‌کردن پردازش گیرکرده (اگر EADDRINUSE داشتی) ──
+    pm2 delete vignet-studio
+    sudo lsof -i :5555   # اگر چیزی نشان داد، آن PID را: sudo kill -9 <PID>
 
-    location /db-studio/ {
+ ── قدم ۲: باز کردن پورت در فایروال ─────────────────────────
+    sudo ufw allow ${STUDIO_PORT}/tcp
+
+ ── قدم ۳: server block جدید در nginx ───────────────────────
+ یک فایل جدید بساز (یا به همون فایل کانفیگ فعلی سایت اضافه کن):
+
+    sudo nano /etc/nginx/sites-available/vignet-studio
+
+ و این را داخلش بریز (مسیر گواهی زیر را از کانفیگ فعلی سایت پیدا کردم؛
+ اگر خالی/اشتباه بود، دستی از فایل کانفیگ اصلی vigent.ir کپی کن):
+
+    server {
+        listen ${STUDIO_PORT} ssl;
+        server_name vigent.ir;
+
+        ${CERT_LINE:-ssl_certificate     /etc/letsencrypt/live/vigent.ir/fullchain.pem;}
+        ${KEY_LINE:-ssl_certificate_key /etc/letsencrypt/live/vigent.ir/privkey.pem;}
+
         auth_basic           "DB Studio";
         auth_basic_user_file ${HTPASSWD_FILE};
 
-        proxy_pass http://127.0.0.1:5555/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        location / {
+            proxy_pass http://127.0.0.1:5555;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+        }
     }
 
- بعد از اضافه‌کردن:
+ فعالش کن و nginx را reload کن:
+    sudo ln -sf /etc/nginx/sites-available/vignet-studio /etc/nginx/sites-enabled/vignet-studio
     sudo nginx -t && sudo systemctl reload nginx
 
- سپس پردازش Studio را با pm2 بالا بیاور (اگر قبلاً بالا نیامده):
+ ── قدم ۴: پردازش Studio با pm2 ────────────────────────────
     pm2 start deploy/ecosystem.config.js --only vignet-studio
     pm2 save
 
- حالا از داخل پنل ادمین (/admin) روی «دیتابیس (Studio)» بزن — یک تب
- جدید با https://vigent.ir/db-studio/ باز می‌شه و مرورگر پسورد بالا رو
- می‌خواد (جدا از لاگین پنل ادمین).
+ ── نتیجه ───────────────────────────────────────────────────
+ آدرس نهایی: https://vigent.ir:${STUDIO_PORT}
+ در .env این را ست کن تا لینک پنل ادمین درست باشد:
+    NEXT_PUBLIC_DB_STUDIO_URL="https://vigent.ir:${STUDIO_PORT}"
+ و بعد از تغییر .env: npm run build && pm2 reload vignet-web
 
- نکته امنیتی: پورت 5555 فقط باید از 127.0.0.1 در دسترس باشه. با
- firewall فعلی (ufw) که فقط 22/80/443 باز است، از بیرون قابل دسترسی
- نیست؛ همین را با دستور زیر دوباره چک کن:
-    sudo ufw status
+ نکته امنیتی: پورت 5555 (خود Studio) فقط باید از 127.0.0.1 در دسترس
+ باشد — همان‌طور که هست، الان فقط ${STUDIO_PORT} در فایروال باز می‌شود.
 ============================================================
 DONE
