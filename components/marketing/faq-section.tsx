@@ -42,11 +42,16 @@ function FaqCard({
           className={cn(
             'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all duration-300',
             isOpen
-              ? 'rotate-45 border-[var(--border-strong)] bg-[var(--white-10)]'
+              ? 'rotate-45 border-transparent bg-[var(--white)]'
               : 'border-[var(--border-default)]',
           )}
         >
-          <Plus className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+          <Plus
+            className={cn(
+              'h-3.5 w-3.5 transition-colors duration-300',
+              isOpen ? 'text-[var(--bg-base)]' : 'text-[var(--text-secondary)]',
+            )}
+          />
         </span>
       </button>
       <AnimatePresence initial={false}>

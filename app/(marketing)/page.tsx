@@ -1,13 +1,31 @@
+import dynamicImport from 'next/dynamic'
 import { getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
+import { SocialProof } from '@/components/marketing/social-proof'
 import { DemoSection } from '@/components/marketing/demo-section'
-import { ChannelsSection } from '@/components/marketing/channels-section'
-import { FeaturesSection } from '@/components/marketing/features-section'
-import { HowItWorks } from '@/components/marketing/how-it-works'
 import { PopularPosts } from '@/components/marketing/popular-posts'
-import { PricingSection } from '@/components/marketing/pricing-section'
-import { FaqSection } from '@/components/marketing/faq-section'
-import { CtaSection } from '@/components/marketing/cta-section'
+
+// Below-the-fold sections are code-split so the first paint only ships the
+// hero + demo bundles; each section's JS loads as the visitor approaches it.
+// They still render on the server (SSR default), so SEO is unaffected.
+const ChannelsSection = dynamicImport(() =>
+	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
+)
+const FeaturesSection = dynamicImport(() =>
+	import('@/components/marketing/features-section').then((m) => m.FeaturesSection),
+)
+const HowItWorks = dynamicImport(() =>
+	import('@/components/marketing/how-it-works').then((m) => m.HowItWorks),
+)
+const PricingSection = dynamicImport(() =>
+	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
+)
+const FaqSection = dynamicImport(() =>
+	import('@/components/marketing/faq-section').then((m) => m.FaqSection),
+)
+const CtaSection = dynamicImport(() =>
+	import('@/components/marketing/cta-section').then((m) => m.CtaSection),
+)
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
 
@@ -63,6 +81,7 @@ export default async function HomePage() {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 			/>
 			<Hero />
+			<SocialProof />
 			<DemoSection />
 			<ChannelsSection />
 			<FeaturesSection />

@@ -26,6 +26,7 @@ import {
 	Zap,
 	CheckCircle2,
 	MousePointerClick,
+	Send,
 	type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -65,25 +66,24 @@ const BUTTON_META: Record<string, { icon: LucideIcon; primary?: boolean }> = {
 	reserve: { icon: Check, primary: true },
 }
 
-/** Capabilities narrated live by the demo — order follows the tour. */
+/** Capabilities narrated live by the demo — listed in tour order, so the
+    highlight walks straight down the rail: chat → dashboard → learning. */
 type CapKey =
 	| 'catalog'
-	| 'knowledge'
-	| 'voice'
 	| 'buttons'
-	| 'handoff'
-	| 'crm'
+	| 'voice'
 	| 'analytics'
+	| 'crm'
+	| 'handoff'
 	| 'learning'
 
 const CAP_ITEMS: { key: CapKey; icon: LucideIcon }[] = [
 	{ key: 'catalog', icon: Package },
-	{ key: 'knowledge', icon: BookOpen },
-	{ key: 'voice', icon: AudioLines },
 	{ key: 'buttons', icon: MousePointerClick },
-	{ key: 'handoff', icon: UserCog },
-	{ key: 'crm', icon: Inbox },
+	{ key: 'voice', icon: AudioLines },
 	{ key: 'analytics', icon: TrendingUp },
+	{ key: 'crm', icon: Inbox },
+	{ key: 'handoff', icon: UserCog },
 	{ key: 'learning', icon: GraduationCap },
 ]
 
@@ -332,7 +332,8 @@ function ChatView({
 						if (b.voice) spotRef.current('voice')
 						setDone(i + 1)
 					} else {
-						if (b.source) spotRef.current(b.source)
+						// 'knowledge' answers are not a rail item; every other source is.
+						if (b.source && b.source !== 'knowledge') spotRef.current(b.source)
 						setPhase('typing')
 						await sleep(900, signal)
 						setPhase('writing')
@@ -488,7 +489,7 @@ function ChatView({
 								className={cn(
 									'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
 									isActive
-										? 'border-[var(--border-strong)] bg-[var(--white-10)] text-[var(--text-primary)]'
+										? 'border-transparent bg-[var(--white)] text-[var(--bg-base)]'
 										: 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
 								)}
 							>
@@ -563,6 +564,7 @@ function DashboardView({
 }) {
 	const t = useTranslations('marketing.demo.dashboard')
 	const inbox = t.raw('inbox') as InboxItem[]
+	const [showHandoff, setShowHandoff] = useState(false)
 	const doneRef = useRef(onDone)
 	doneRef.current = onDone
 	const spotRef = useRef(onSpot)
@@ -570,12 +572,17 @@ function DashboardView({
 
 	useEffect(() => {
 		spotRef.current('analytics')
-		const spotTimer = setTimeout(() => spotRef.current('crm'), 2200)
-		const id = setTimeout(() => doneRef.current(), 5600)
-		return () => {
-			clearTimeout(spotTimer)
-			clearTimeout(id)
-		}
+		const timers = [
+			setTimeout(() => spotRef.current('crm'), 1800),
+			// The operator alert lands last: the agent asked for a human and
+			// pinged the owner on Telegram — this is what checks off "handoff".
+			setTimeout(() => {
+				setShowHandoff(true)
+				spotRef.current('handoff')
+			}, 3600),
+			setTimeout(() => doneRef.current(), 6600),
+		]
+		return () => timers.forEach(clearTimeout)
 	}, [])
 
 	const stats: { key: string; icon: LucideIcon; to: number; suffix?: string }[] = [
@@ -585,7 +592,8 @@ function DashboardView({
 	]
 
 	return (
-		<div className="no-scrollbar flex h-full flex-col gap-4 overflow-y-auto p-4 sm:p-5">
+		<div className="relative h-full">
+			<div className="no-scrollbar flex h-full flex-col gap-4 overflow-y-auto p-4 sm:p-5">
 			{/* Stat tiles */}
 			<div className="grid grid-cols-3 gap-3">
 				{stats.map(({ key, icon: Icon, to, suffix }, i) => (
@@ -681,6 +689,30 @@ function DashboardView({
 					</div>
 				</div>
 			</div>
+			</div>
+
+			{/* Operator handoff toast — floats over the dashboard like a real
+			    notification: the agent asked for a human and pinged Telegram. */}
+			<AnimatePresence>
+				{showHandoff && (
+					<motion.div
+						initial={{ opacity: 0, y: 16, scale: 0.97 }}
+						animate={{ opacity: 1, y: 0, scale: 1 }}
+						transition={BUBBLE_SPRING}
+						className="absolute inset-x-4 bottom-4 z-10 flex items-center gap-3 rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)] px-3.5 py-2.5 shadow-[0_8px_30px_rgba(var(--ink-rgb),0.12)] sm:inset-x-5"
+					>
+						<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--white)] text-[var(--bg-base)]">
+							<UserCog className="h-4 w-4" />
+						</span>
+						<p className="min-w-0 flex-1 text-xs leading-relaxed text-[var(--text-primary)]">
+							{t('handoffAlert')}
+						</p>
+						<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
+							<Send className="h-3 w-3" />
+						</span>
+					</motion.div>
+				)}
+			</AnimatePresence>
 		</div>
 	)
 }
@@ -895,7 +927,7 @@ function CapabilityRail({
 										animate={{ opacity: 1, scale: 1 }}
 										transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 										title={tCap('seen')}
-										className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--white-10)] text-[var(--text-secondary)]"
+										className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)]"
 									>
 										<Check className="h-3 w-3" />
 									</motion.span>
@@ -905,10 +937,6 @@ function CapabilityRail({
 					)
 				})}
 			</div>
-
-			<p className="mt-5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-				{tCap('footnote')}
-			</p>
 		</div>
 	)
 }
@@ -1058,14 +1086,14 @@ export function DemoSection() {
 											className={cn(
 												'relative inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
 												isActive
-													? 'text-[var(--text-primary)]'
+													? 'text-[var(--bg-base)]'
 													: 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
 											)}
 										>
 											{isActive && (
 												<motion.span
 													layoutId="demo-view-pill"
-													className="absolute inset-0 rounded-lg bg-[var(--white-10)]"
+													className="absolute inset-0 rounded-lg bg-[var(--white)]"
 													transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
 												/>
 											)}

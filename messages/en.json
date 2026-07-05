@@ -888,21 +888,12 @@
                         "title": "All your connections, one dashboard",
                         "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard.",
                         "eyebrow": "One agent, everywhere",
-                        "items": {
-                                "telegram": "Buttons & quick replies",
-                                "whatsapp": "Text & voice replies",
-                                "instagram": "DMs & comments",
-                                "rubika": "Iranian messenger",
-                                "bale": "Buttons & quick replies",
-                                "widget": "Lead form & custom look"
-                        },
                         "hubTitle": "Vigent dashboard",
                         "hubDesc": "Every message, every channel — one inbox",
                         "customTitle": "Tune every connection to your taste",
                         "custom": [
                                 "Quick-reply buttons per channel",
                                 "Name & phone lead form on the widget",
-                                "Voice replies to voice notes",
                                 "Full widget appearance customization",
                                 "Official WordPress & WooCommerce plugin"
                         ]
@@ -960,6 +951,7 @@
                                 "viewAll": "View all",
                                 "tagAgent": "Agent reply",
                                 "tagHuman": "Operator",
+                                "handoffAlert": "Operator needed — we pinged you on Telegram",
                                 "inbox": [
                                         {
                                                 "name": "Maryam Ahmadi",
@@ -1007,19 +999,14 @@
                                 "note": "The agent gets smarter with every approval — no manual training needed."
                         },
                         "capabilities": {
-                                "title": "Watch capabilities light up live",
+                                "title": "See it happen live",
                                 "subtitle": "As the demo plays, whatever the agent is using lights up right here — and everything you've seen gets a check.",
                                 "seen": "Seen in the demo",
                                 "live": "Showing now",
-                                "footnote": "And more: visual flow builder, full brand-tone personalization, official WordPress & WooCommerce plugin, and a weekly performance report in your inbox.",
                                 "items": {
                                         "catalog": {
                                                 "title": "Sells from your catalog",
                                                 "desc": "Prices, stock and product suggestions inside the chat"
-                                        },
-                                        "knowledge": {
-                                                "title": "Answers from your knowledge",
-                                                "desc": "Precise answers from your own documents and store policies"
                                         },
                                         "voice": {
                                                 "title": "Understands voice notes",
@@ -1220,10 +1207,7 @@
                                         "q": "How well does the agent understand Persian?",
                                         "a": "Vigent is built and optimized for Persian — from casual to formal, even Persian voice notes. English is fully supported too."
                                 },
-                                {
-                                        "q": "Can I change the agent's tone and personality?",
-                                        "a": "Absolutely. Tone, personality, answering boundaries and even the conversation path are all adjustable with the visual builder, so the agent talks exactly like your team."
-                                },
+
                                 {
                                         "q": "Can I try it for free?",
                                         "a": "Yes — a 14-day free trial with every feature, no credit card required. Upgrade whenever you're ready."

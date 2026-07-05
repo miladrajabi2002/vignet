@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 import {
   Send,
   MessageCircle,
@@ -9,10 +10,10 @@ import {
   Radio,
   MessageSquare,
   Globe,
+  ShoppingBag,
   LayoutDashboard,
   MousePointerClick,
   UserPlus,
-  AudioLines,
   Palette,
   Plug,
   type LucideIcon,
@@ -25,10 +26,14 @@ const CHANNELS: { key: string; name: string; icon: LucideIcon }[] = [
   { key: 'rubika', name: 'Rubika', icon: Radio },
   { key: 'bale', name: 'Bale', icon: MessageSquare },
   { key: 'widget', name: 'Web Widget', icon: Globe },
+  { key: 'woocommerce', name: 'WooCommerce', icon: ShoppingBag },
 ]
 
+// Column centers for the converge SVG — 7 equal columns in a 600-unit box.
+const BEAM_XS = [43, 129, 214, 300, 386, 471, 557]
+
 // Per-connection customization chips — icons zip with the i18n `custom` array.
-const CUSTOM_ICONS: LucideIcon[] = [MousePointerClick, UserPlus, AudioLines, Palette, Plug]
+const CUSTOM_ICONS: LucideIcon[] = [MousePointerClick, UserPlus, Palette, Plug]
 
 // Merged message streams shown as tiny channel dots inside the hub card.
 const HUB_DOTS = ['bg-sky-500', 'bg-emerald-500', 'bg-pink-500', 'bg-violet-500']
@@ -56,8 +61,8 @@ export function ChannelsSection() {
           <p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">{t('subtitle')}</p>
         </motion.div>
 
-        {/* Channel cards — each names what can be customized on it */}
-        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6 md:gap-4">
+        {/* Channel cards — one agent behind every one of them */}
+        <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-7 md:gap-4">
           {CHANNELS.map(({ key, name, icon: Icon }, i) => (
             <motion.div
               key={key}
@@ -65,13 +70,13 @@ export function ChannelsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
+              className={cn(
+                'group flex flex-col items-center gap-2.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]',
+                i === CHANNELS.length - 1 && 'col-span-2 sm:col-span-1',
+              )}
             >
               <Icon className="h-6 w-6 text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]" />
               <span className="text-xs font-medium text-[var(--text-primary)]">{name}</span>
-              <span className="text-[10px] leading-snug text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-secondary)]">
-                {t(`items.${key}`)}
-              </span>
             </motion.div>
           ))}
         </div>
@@ -84,7 +89,7 @@ export function ChannelsSection() {
             fill="none"
             className="h-24 w-full"
           >
-            {[50, 150, 250, 350, 450, 550].map((x, i) => (
+            {BEAM_XS.map((x, i) => (
               <motion.path
                 key={x}
                 d={`M ${x} 2 C ${x} 52, 300 40, 300 94`}

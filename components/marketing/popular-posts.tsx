@@ -72,11 +72,11 @@ export async function PopularPosts() {
 			<div className="mx-auto max-w-6xl px-6">
 				{/* Heading */}
 				<div className="mx-auto max-w-2xl text-center">
-					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1 text-[11px] tracking-wide text-[var(--text-secondary)]">
+					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
 						<Eye className="h-3.5 w-3.5" />
 						{isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}
 					</span>
-					<h2 className="mt-5 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+					<h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
 						{isFa ? 'محبوب‌ترین مقالات' : 'Popular articles'}
 					</h2>
 					<p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">

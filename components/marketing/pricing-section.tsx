@@ -3,10 +3,9 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { TrendSpark } from '@/components/blog/trend-spark'
 
 interface Plan {
   name: string
@@ -124,36 +123,22 @@ export function PricingSection() {
                   </span>
                 )}
 
-                {/* Plan name + a small growth spark — steeper tiers, same idea */}
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-lg font-medium text-[var(--text-primary)]">{plan.name}</h3>
-                  <TrendSpark seed={plan.name} width={plan.featured ? 64 : 56} height={20} />
-                </div>
+                <h3 className="text-lg font-medium text-[var(--text-primary)]">{plan.name}</h3>
 
                 <div className="mt-4 flex items-baseline gap-1.5">
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.span
-                      key={price}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.25, ease: 'easeOut' }}
-                      className="text-3xl font-light tabular-nums text-[var(--text-primary)]"
-                    >
-                      {isFree ? t('free') : fmt(price)}
-                    </motion.span>
-                  </AnimatePresence>
+                  {/* Keyed remount fades the new price in without an exiting
+                      ghost widening the row mid-transition. */}
+                  <motion.span
+                    key={price}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="text-3xl font-light tabular-nums text-[var(--text-primary)]"
+                  >
+                    {isFree ? t('free') : fmt(price)}
+                  </motion.span>
                   {!isFree && (
                     <span className="text-sm text-[var(--text-muted)]">{t('perMonth')}</span>
-                  )}
-                  {!isFree && annual && (
-                    <motion.s
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-xs text-[var(--text-muted)]"
-                    >
-                      {fmt(plan.monthly)}
-                    </motion.s>
                   )}
                 </div>
 
