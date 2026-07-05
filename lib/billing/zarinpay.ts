@@ -14,6 +14,14 @@ function getToken(): string {
   return t
 }
 
+function getStoreId(): number {
+  const raw = process.env.ZARINPAY_STORE_ID
+  if (!raw) throw new Error('ZARINPAY_STORE_ID is not set')
+  const id = Number.parseInt(raw, 10)
+  if (!Number.isInteger(id)) throw new Error('ZARINPAY_STORE_ID must be an integer')
+  return id
+}
+
 export interface ZarinPayCreateResult {
   success: boolean
   paymentLink?: string
@@ -36,6 +44,7 @@ export async function createZarinPayPayment(params: {
     },
     body: JSON.stringify({
       amount: Math.round(params.amount),
+      store_id: getStoreId(),
       order_id: params.orderId,
       callback_url: params.callbackUrl,
       type: 'card',
