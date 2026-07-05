@@ -11,7 +11,9 @@ STUDIO_USER="${1:-studio}"
 
 if ! command -v htpasswd >/dev/null 2>&1; then
   echo "==> نصب apache2-utils (برای htpasswd)"
-  sudo apt-get update -y
+  # apt update ممکن است به‌خاطر مخزن‌های جانبی خراب (PPAها) خطا بدهد؛
+  # این خطا را نادیده می‌گیریم چون مخزن اصلی اوبونتو (لازم برای apache2-utils) سالم است.
+  sudo apt-get update -y || echo "⚠ بعضی مخزن‌ها به‌روز نشدند (نادیده گرفته شد) — ادامه می‌دهیم"
   sudo apt-get install -y apache2-utils
 fi
 

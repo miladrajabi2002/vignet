@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { Menu, X, Rocket, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,13 @@ export function MobileNav() {
 	const t = useTranslations('dashboard')
 	const pathname = usePathname()
 	const [open, setOpen] = useState(false)
+	const [mounted, setMounted] = useState(false)
+
+	// The drawer is portaled to <body>. Portals require the DOM, so only enable
+	// after mount to stay SSR-safe.
+	useEffect(() => {
+		setMounted(true)
+	}, [])
 
 	// Close the drawer whenever the route changes (link tapped).
 	useEffect(() => {
@@ -46,17 +54,26 @@ export function MobileNav() {
 				<Menu className="h-5 w-5" />
 			</button>
 
-			{open && (
-				<div className="fixed inset-0 z-50">
-					{/* Backdrop */}
-					<button
-						aria-label="Close menu"
-						onClick={() => setOpen(false)}
-						className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-					/>
+			{/*
+			 * Portaled to <body> on purpose. The dashboard Header wrapping this
+			 * component uses `backdrop-blur`, and a `backdrop-filter` ancestor
+			 * becomes the containing block for `position: fixed` descendants — so
+			 * without the portal the drawer would be trapped inside the 64px-tall
+			 * header and render as a broken sliver on mobile.
+			 */}
+			{mounted &&
+				open &&
+				createPortal(
+					<div className="fixed inset-0 z-[100]">
+						{/* Backdrop */}
+						<button
+							aria-label="Close menu"
+							onClick={() => setOpen(false)}
+							className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+						/>
 
-					{/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
-					<aside className="absolute inset-y-0 start-0 flex w-72 max-w-[80vw] flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
+						{/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
+						<aside className="absolute inset-y-0 start-0 flex w-72 max-w-[80vw] flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
 						<div className="mb-6 flex items-center justify-between px-2">
 							<Link href="/overview" onClick={() => setOpen(false)}>
 								<Logo className="h-5 w-auto text-[var(--text-primary)]" />
