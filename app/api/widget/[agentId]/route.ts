@@ -11,18 +11,18 @@ export function OPTIONS() {
 // Public widget config — only safe, non-sensitive fields + appearance settings.
 // Reads through the cache (60s TTL, invalidated on dashboard save).
 export async function GET(_req: Request, props: Params) {
-    const params = await props.params;
-    const cached = await getCachedWidgetConfig(params.agentId)
-    if (!cached) {
+	const params = await props.params
+	const cached = await getCachedWidgetConfig(params.agentId)
+	if (!cached) {
 		return NextResponse.json(
 			{ error: 'NOT_FOUND' },
 			{ status: 404, headers: corsHeaders },
 		)
 	}
-    // Cache hit returns the same shape as a fresh fetch.
-    const { agent, settings } = cached
+	// Cache hit returns the same shape as a fresh fetch.
+	const { agent, settings } = cached
 
-    return NextResponse.json(
+	return NextResponse.json(
 		{
 			id: agent.id,
 			name: settings.headerTitle ?? agent.name,
