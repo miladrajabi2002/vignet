@@ -78,6 +78,7 @@
 		autoGreetDelayMs: 4000,
 		leadCapture: false,
 		leadCaptureMessage: null,
+		leadCaptureSkippable: true,
 	}
 
 	function isRtl() {
@@ -328,6 +329,9 @@
 			'box-shadow:0 6px 18px -6px var(--vgt-accent-shadow);}' +
 			'.vgt-lead-btn:hover{transform:translateY(-1px);}.vgt-lead-btn:active{transform:translateY(0);}' +
 			'.vgt-lead-btn:disabled{opacity:.5;cursor:default;}' +
+			'.vgt-lead-skip{border:none;background:transparent;color:var(--vgt-muted);cursor:pointer;' +
+			'font-family:inherit;font-size:12px;padding:4px 0 0;transition:color .15s;}' +
+			'.vgt-lead-skip:hover{color:var(--vgt-text);}' +
 			// markdown rendering inside bot bubbles
 			'.vgt-msg strong,.vgt-msg b{font-weight:700;}' +
 			'.vgt-msg em,.vgt-msg i{font-style:italic;}' +
@@ -625,6 +629,23 @@
 		form.appendChild(phoneInput)
 		form.appendChild(submit)
 		lead.appendChild(form)
+		if (config.leadCaptureSkippable !== false) {
+			var skip = el(
+				'button',
+				'vgt-lead-skip',
+				t('رد کردن و شروع گفتگو', 'Skip and start chat'),
+			)
+			skip.type = 'button'
+			skip.addEventListener('click', function () {
+				visitorName = null
+				visitorPhone = null
+				leadCaptured = true
+				body.innerHTML = ''
+				introVisible = false
+				renderIntro()
+			})
+			lead.appendChild(skip)
+		}
 		body.appendChild(lead)
 		setTimeout(function () {
 			nameInput.focus()
