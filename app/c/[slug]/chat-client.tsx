@@ -528,6 +528,7 @@ function Intro(props: {
 	leadName: string
 	leadPhone: string
 	leadMessage: string | null
+	leadRequired: boolean
 	setLeadName: (v: string) => void
 	setLeadPhone: (v: string) => void
 	submitLead: () => void
@@ -547,6 +548,7 @@ function Intro(props: {
 		leadName,
 		leadPhone,
 		leadMessage,
+		leadRequired,
 		setLeadName,
 		setLeadPhone,
 		submitLead,
@@ -636,14 +638,14 @@ function Intro(props: {
 						>
 							شروع گفتگو
 						</button>
-							{!leadRequired && (
-								<button
-									onClick={onSkip}
-									className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
-								>
-									رد کردن و شروع گفتگو
-								</button>
-							)}
+						{!leadRequired && (
+							<button
+								onClick={onSkip}
+								className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
+							>
+								رد کردن و شروع گفتگو
+							</button>
+						)}
 					</div>
 				</motion.div>
 			) : (
