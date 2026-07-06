@@ -27,8 +27,9 @@ export class OtpRateLimitError extends Error {
   }
 }
 
+/** Generate a 6-digit OTP code. */
 function generateCode(): string {
-  return Math.floor(10000 + Math.random() * 90000).toString()
+  return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
 interface IppanelMeta {
@@ -86,7 +87,7 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
 }
 
 /**
- * Send a 5-digit OTP via an IPPanel pattern. Stores the code in Redis (TTL 5m)
+ * Send a 6-digit OTP via an IPPanel pattern. Stores the code in Redis (TTL 5m)
  * and rate-limits to 3 per hour per phone.
  *
  * Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL), IPPANEL_PATTERN_CODE and
