@@ -358,7 +358,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 					ref={scrollerRef}
 					className="flex-1 overflow-y-auto overscroll-contain px-4 py-5"
 				>
-					{empty ? (
+					{/* Lead form (if pending) takes priority over messages so returning
+                                            visitors who haven't yet given their info are still gated. */}
+					{empty || leadPending ? (
 						<Intro
 							name={name}
 							avatar={avatar}

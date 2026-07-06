@@ -489,8 +489,9 @@
 			"INSTAGRAM": [
 				"Convert your Instagram account to a Professional (Business/Creator) account and link it to a Facebook Page.",
 				"Create a Meta app and add the Instagram (Messenger) product.",
-				"Generate a Page access token with instagram_basic, instagram_manage_messages and instagram_manage_comments permissions.",
-				"Paste the page access token below and connect.",
+				"For full DM + comment replies: generate a Page access token with instagram_basic, instagram_manage_messages and instagram_manage_comments permissions.",
+				"For comment replies only: you may instead use an Instagram Graph API user token (prefixed IGAA, from the Instagram Graph API Explorer).",
+				"Paste the access token below and connect (both token types are accepted).",
 				"After connecting, copy the callback URL and verify token into the app's Webhooks, and subscribe to the messages and comments fields."
 			]
 		},

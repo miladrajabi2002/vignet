@@ -489,8 +489,9 @@
 			"INSTAGRAM": [
 				"حساب اینستاگرام را به حساب حرفه‌ای (Business/Creator) تبدیل و به یک صفحهٔ فیسبوک متصل کنید.",
 				"یک اپ متا بسازید و محصول Instagram (Messenger) را اضافه کنید.",
-				"یک Page access token با دسترسی‌های instagram_basic، instagram_manage_messages و instagram_manage_comments بسازید.",
-				"توکن دسترسی صفحه را در کادر زیر وارد و متصل کنید.",
+				"برای پاسخ به دایرکت و کامنت: یک Page access token با دسترسی‌های instagram_basic، instagram_manage_messages و instagram_manage_comments بسازید.",
+				"برای پاسخ فقط به کامنت: می‌توانید به‌جای آن از توکن کاربری Instagram Graph API (با پیشوند IGAA، از Instagram Graph API Explorer) استفاده کنید.",
+				"توکن دسترسی را در کادر زیر وارد و متصل کنید (هر دو نوع توکن پذیرفته می‌شود).",
 				"پس از اتصال، آدرس Callback و توکن تأیید را در بخش Webhooks اپ وارد کنید و فیلدهای messages و comments را مشترک شوید."
 			]
 		},
