@@ -96,6 +96,12 @@ export interface WidgetSettings {
 	leadCapture: boolean
 	leadCaptureMessage: string | null
 	/**
+	 * When true (default), a "skip" button appears on the lead-capture form so
+	 * visitors can bypass it. When false, filling the form is mandatory and the
+	 * skip button is hidden.
+	 */
+	leadCaptureSkippable: boolean
+	/**
 	 * Hostnames allowed to embed the widget. Empty = allow everywhere (with an
 	 * "unprotected" warning shown in the dashboard).
 	 */
@@ -119,6 +125,7 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
 	autoGreetDelayMs: 4000,
 	leadCapture: false,
 	leadCaptureMessage: null,
+	leadCaptureSkippable: true,
 	allowedDomains: [],
 }
 
@@ -212,6 +219,8 @@ export function normalizeWidgetSettings(raw: unknown): WidgetSettings {
 		autoGreetDelayMs,
 		leadCapture: c.leadCapture === true,
 		leadCaptureMessage,
+		// Default true: existing configs without this key keep the skip button.
+		leadCaptureSkippable: c.leadCaptureSkippable !== false,
 		allowedDomains: normalizeDomains(c.allowedDomains),
 	}
 }
@@ -286,7 +295,7 @@ export function resolveCornerRadii(s: Pick<WidgetSettings, 'corners' | 'cornerRa
 }
 
 /**
- * Strip machine-readable `[[product:{…}]]` card tokens from a persisted
+ * Strip machine-readable `[[product:{...}]]` card tokens from a persisted
  * assistant message so dashboard/CRM views show clean text. The widget itself
  * parses these tokens into rich product cards.
  */
