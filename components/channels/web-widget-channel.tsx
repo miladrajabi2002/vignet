@@ -542,8 +542,9 @@ export function WebWidgetChannel({
 										onChange={(v) => patch({ leadCapture: v })}
 									/>
 									{settings.leadCapture && (
-										<Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
-											<textarea
+										<>
+											<Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
+												<textarea
 												rows={2}
 												value={settings.leadCaptureMessage ?? ''}
 												placeholder={t('leadCaptureMessagePh')}
@@ -551,8 +552,15 @@ export function WebWidgetChannel({
 													patch({ leadCaptureMessage: e.target.value || null })
 												}
 												className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+												/>
+											</Field>
+											<Toggle
+												label={t('leadCaptureRequiredLabel')}
+												hint={t('leadCaptureRequiredHint')}
+												checked={settings.leadCaptureRequired}
+												onChange={(v) => patch({ leadCaptureRequired: v })}
 											/>
-										</Field>
+										</>
 									)}
 								</section>
 

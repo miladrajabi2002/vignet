@@ -29,7 +29,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const phone = normalizePhone(String(credentials?.phone ?? ''))
         const code = String(credentials?.code ?? '')
         const name = credentials?.name ? String(credentials.name) : null
-        if (!phone || !/^\d{5}$/.test(code)) return null
+        if (!phone || !/^\d{6}$/.test(code)) return null
 
         // Verify (and consume) the OTP from Redis.
         const valid = await verifyOTP(phone, code)

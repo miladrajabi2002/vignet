@@ -373,13 +373,14 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							leadName={leadName}
 							leadPhone={leadPhone}
 							leadMessage={settings.leadCaptureMessage}
-							leadSkippable={settings.leadCaptureSkippable}
+							leadRequired={settings.leadCaptureRequired}
 							setLeadName={setLeadName}
 							setLeadPhone={setLeadPhone}
 							submitLead={submitLead}
 							onSkip={() => {
 								// Allow skipping — the AI agent will then try to extract name/phone
 								// from the conversation (smart identification).
+								// Only reachable when leadCaptureRequired is false.
 								leadRef.current = null
 								setLeadPending(false)
 							}}
@@ -527,7 +528,6 @@ function Intro(props: {
 	leadName: string
 	leadPhone: string
 	leadMessage: string | null
-	leadSkippable: boolean
 	setLeadName: (v: string) => void
 	setLeadPhone: (v: string) => void
 	submitLead: () => void
@@ -547,7 +547,6 @@ function Intro(props: {
 		leadName,
 		leadPhone,
 		leadMessage,
-		leadSkippable,
 		setLeadName,
 		setLeadPhone,
 		submitLead,
@@ -637,14 +636,14 @@ function Intro(props: {
 						>
 							شروع گفتگو
 						</button>
-						{leadSkippable && (
-							<button
-								onClick={onSkip}
-								className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
-							>
-								رد کردن و شروع گفتگو
-							</button>
-						)}
+							{!leadRequired && (
+								<button
+									onClick={onSkip}
+									className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
+								>
+									رد کردن و شروع گفتگو
+								</button>
+							)}
 					</div>
 				</motion.div>
 			) : (

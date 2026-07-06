@@ -99,8 +99,8 @@ export const DOCS: DocPage[] = [
                         { type: 'h2', fa: '۱. ورود با شماره موبایل', en: '1. Sign in with your phone' },
                         {
                                 type: 'p',
-                                fa: 'ویجنت رمز عبور ندارد. کافی است شماره موبایل خود را وارد کنید تا یک کد تأیید پنج‌رقمی دریافت کنید. با اولین ورود، یک فضای کاری (Workspace) به‌طور خودکار برای شما ساخته می‌شود.',
-                                en: 'Vigent has no passwords. Enter your mobile number to receive a 5-digit verification code. On your first login, a workspace is created for you automatically.',
+                                fa: 'ویجنت رمز عبور ندارد. کافی است شماره موبایل خود را وارد کنید تا یک کد تأیید شش‌رقمی دریافت کنید. با اولین ورود، یک فضای کاری (Workspace) به‌طور خودکار برای شما ساخته می‌شود.',
+                                en: 'Vigent has no passwords. Enter your mobile number to receive a 6-digit verification code. On your first login, a workspace is created for you automatically.',
                         },
                         {
                                 type: 'steps',

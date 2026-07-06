@@ -18,7 +18,7 @@ import {
         loadHistory,
         fetchCatalogProducts,
 } from '@/lib/ai/conversation'
-import { shouldHandoff, notifyHandoff, detectUnanswered } from '@/lib/ai/handoff'
+import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from '@/lib/ai/handoff'
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
@@ -395,7 +395,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         // Smart handoff: check before calling AI
                         const handoffCheck = await shouldHandoff(agent, conversationId, message)
                         if (handoffCheck.handoff) {
-                                const handoffText = agent.handoffMessage || 'در حال اتصال به پشتیبانی انسانی...'
+                                const handoffText = handoffReplyText(handoffCheck, agent)
                                 send({ type: 'delta', text: handoffText })
                                 const persisted = await persistHandoff({
                                         workspaceId,
@@ -487,7 +487,7 @@ export async function generateReply(
         // Smart handoff: check before calling AI
         const handoffCheck = await shouldHandoff(agent, conversationId, message)
         if (handoffCheck.handoff) {
-                const reply = agent.handoffMessage || 'در حال اتصال به پشتیبانی انسانی...'
+                const reply = handoffReplyText(handoffCheck, agent)
                 await persistHandoff({
                         workspaceId,
                         agent,

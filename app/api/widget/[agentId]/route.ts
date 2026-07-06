@@ -5,48 +5,48 @@ import { getCachedWidgetConfig } from '@/lib/widget/cache'
 type Params = { params: Promise<{ agentId: string }> }
 
 export function OPTIONS() {
-	return corsOptions()
+        return corsOptions()
 }
 
 // Public widget config — only safe, non-sensitive fields + appearance settings.
 // Reads through the cache (60s TTL, invalidated on dashboard save).
 export async function GET(_req: Request, props: Params) {
-	const params = await props.params
-	const cached = await getCachedWidgetConfig(params.agentId)
-	if (!cached) {
-		return NextResponse.json(
-			{ error: 'NOT_FOUND' },
-			{ status: 404, headers: corsHeaders },
-		)
-	}
-	// Cache hit returns the same shape as a fresh fetch.
-	const { agent, settings } = cached
+    const params = await props.params;
+    const cached = await getCachedWidgetConfig(params.agentId)
+    if (!cached) {
+                return NextResponse.json(
+                        { error: 'NOT_FOUND' },
+                        { status: 404, headers: corsHeaders },
+                )
+        }
+    // Cache hit returns the same shape as a fresh fetch.
+    const { agent, settings } = cached
 
-	return NextResponse.json(
-		{
-			id: agent.id,
-			name: settings.headerTitle ?? agent.name,
-			welcomeMessage: agent.welcomeMessage,
-			language: agent.language,
-			avatar: agent.avatar,
-			// Appearance — consumed by loader.js to theme the widget.
-			theme: settings.theme,
-			primaryColor: settings.primaryColor,
-			position: settings.position,
-			launcherLabel: settings.launcherLabel,
-			font: settings.font,
-			icon: settings.icon,
-			subtitle: settings.subtitle,
-			headerStyle: settings.headerStyle,
-			quickReplies: settings.quickReplies,
-			corners: settings.corners,
-			cornerRadius: settings.cornerRadius,
-			autoGreet: settings.autoGreet,
-			autoGreetDelayMs: settings.autoGreetDelayMs,
-			leadCapture: settings.leadCapture,
-			leadCaptureMessage: settings.leadCaptureMessage,
-			leadCaptureSkippable: settings.leadCaptureSkippable,
-		},
-		{ headers: corsHeaders },
-	)
+    return NextResponse.json(
+                {
+                        id: agent.id,
+                        name: settings.headerTitle ?? agent.name,
+                        welcomeMessage: agent.welcomeMessage,
+                        language: agent.language,
+                        avatar: agent.avatar,
+                        // Appearance — consumed by loader.js to theme the widget.
+                        theme: settings.theme,
+                        primaryColor: settings.primaryColor,
+                        position: settings.position,
+                        launcherLabel: settings.launcherLabel,
+                        font: settings.font,
+                        icon: settings.icon,
+                        subtitle: settings.subtitle,
+                        headerStyle: settings.headerStyle,
+                        quickReplies: settings.quickReplies,
+                        corners: settings.corners,
+                        cornerRadius: settings.cornerRadius,
+                        autoGreet: settings.autoGreet,
+                        autoGreetDelayMs: settings.autoGreetDelayMs,
+                        leadCapture: settings.leadCapture,
+                        leadCaptureRequired: settings.leadCaptureRequired,
+                        leadCaptureMessage: settings.leadCaptureMessage,
+                },
+                { headers: corsHeaders },
+        )
 }
