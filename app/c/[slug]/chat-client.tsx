@@ -376,6 +376,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							setLeadName={setLeadName}
 							setLeadPhone={setLeadPhone}
 							submitLead={submitLead}
+							onSkip={() => {
+								// Allow skipping — the AI agent will then try to extract name/phone
+								// from the conversation (smart identification).
+								leadRef.current = null
+								setLeadPending(false)
+							}}
 							onPick={(q) => void send(q)}
 						/>
 					) : (
@@ -523,6 +529,7 @@ function Intro(props: {
 	setLeadName: (v: string) => void
 	setLeadPhone: (v: string) => void
 	submitLead: () => void
+	onSkip: () => void
 	onPick: (q: string) => void
 }) {
 	const {
@@ -541,6 +548,7 @@ function Intro(props: {
 		setLeadName,
 		setLeadPhone,
 		submitLead,
+		onSkip,
 		onPick,
 	} = props
 
@@ -627,12 +635,7 @@ function Intro(props: {
 							شروع گفتگو
 						</button>
 						<button
-							onClick={() => {
-								// Allow skipping — the AI agent will then try to extract name/phone
-								// from the conversation (smart identification).
-								leadRef.current = null
-								setLeadPending(false)
-							}}
+							onClick={onSkip}
 							className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
 						>
 							رد کردن و شروع گفتگو
