@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import localFont from 'next/font/local'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
@@ -76,7 +77,6 @@ export default async function RootLayout({
 						{children}
 					</NextIntlClientProvider>
 				</Providers>
-				{/* Vigent AI Widget — on all pages */}
 				<script
 					src="https://vigent.ir/widget/loader.js"
 					data-agent-id="cmr8eo5xs0001eoa9mxurm3an"
