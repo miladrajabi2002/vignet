@@ -267,4 +267,3 @@ interface IgWebhook {
 		}[]
 	}[]
 }
-fix instagra
