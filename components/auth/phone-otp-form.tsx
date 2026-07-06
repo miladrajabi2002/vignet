@@ -8,7 +8,7 @@ import { ArrowLeft, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { toEnglishDigits } from '@/lib/phone'
 
 type Step = 'phone' | 'otp'
-const OTP_LENGTH = 5
+const OTP_LENGTH = 6
 const RESEND_SECONDS = 120
 
 const EASE = [0.16, 1, 0.3, 1] as const
