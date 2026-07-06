@@ -35,6 +35,12 @@ export interface ChatLinkSettings {
 	/** Ask for name + phone before the first message (feeds CRM contact). */
 	leadCapture: boolean
 	leadCaptureMessage: string | null
+	/**
+	 * When true (default), a "skip" button appears on the lead-capture form so
+	 * visitors can bypass it. When false, filling the form is mandatory and the
+	 * skip button is hidden.
+	 */
+	leadCaptureSkippable: boolean
 	/** Show the eyebrow «پاسخ فوری با هوش مصنوعی» badge on the intro state. */
 	showAiBadge: boolean
 }
@@ -47,6 +53,7 @@ export const DEFAULT_CHAT_LINK_SETTINGS: ChatLinkSettings = {
 	quickReplies: [],
 	leadCapture: false,
 	leadCaptureMessage: null,
+	leadCaptureSkippable: true,
 	showAiBadge: true,
 }
 
@@ -96,6 +103,8 @@ export function normalizeChatLinkSettings(raw: unknown): ChatLinkSettings {
 		quickReplies,
 		leadCapture: c.leadCapture === true,
 		leadCaptureMessage,
+		// Default true: existing configs without this key keep the skip button.
+		leadCaptureSkippable: c.leadCaptureSkippable !== false,
 		showAiBadge: c.showAiBadge !== false,
 	}
 }
