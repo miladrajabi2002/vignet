@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
 import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
+import { stripProductTokens } from '@/lib/widget/config'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -14,6 +15,65 @@ const bodySchema = z.object({
 	visitorName: z.string().max(60).nullish(),
 	visitorPhone: z.string().max(30).nullish(),
 })
+
+/**
+ * GET — fetch the persisted message history for a conversation.
+ *
+ * This lets the public /c/[slug] page restore the transcript after a refresh
+ * or a tab close (the client stores a local copy too, but this is the source
+ * of truth — works across devices and survives localStorage being cleared).
+ *
+ * Query: ?conversationId=<cuid>
+ * Returns: { messages: [{ id, role: 'USER'|'ASSISTANT', content }] }
+ */
+export async function GET(req: Request, props: Params) {
+	const params = await props.params
+	const url = new URL(req.url)
+	const conversationId = url.searchParams.get('conversationId')
+	if (!conversationId) {
+		return NextResponse.json({ error: 'INVALID' }, { status: 400 })
+	}
+
+	// Resolve the chat link → its agent, then verify the conversation belongs
+	// to that agent (so a visitor can't read another link's messages by
+	// guessing a conversationId).
+	const link = await prisma.chatLink.findUnique({
+		where: { slug: params.slug },
+		select: { id: true, agentId: true },
+	})
+	if (!link) {
+		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	}
+
+	const conversation = await prisma.conversation.findFirst({
+		where: {
+			id: conversationId,
+			agentId: link.agentId,
+			channel: 'WEB_WIDGET',
+		},
+		select: {
+			id: true,
+			messages: {
+				orderBy: { createdAt: 'asc' },
+				take: 100,
+				select: { id: true, role: true, content: true },
+			},
+		},
+	})
+	if (!conversation) {
+		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	}
+
+	const messages = conversation.messages
+		.filter((m) => m.role !== 'SYSTEM')
+		.map((m) => ({
+			id: m.id,
+			role: m.role === 'USER' ? 'user' : 'assistant',
+			content: stripProductTokens(m.content),
+		}))
+
+	return NextResponse.json({ messages })
+}
 
 // Public standalone chat page (/c/[slug]) — same engine as the web widget but
 // addressed by slug, so the agent id never appears in the shareable URL.
@@ -71,12 +131,9 @@ export async function POST(req: Request, props: Params) {
 	// Per-agent daily ceiling as a second abuse backstop (IP keys are spoofable
 	// behind some proxies). Shares the widget cap env knob.
 	const dailyCap = Number(process.env.WIDGET_DAILY_MESSAGE_CAP || 1000)
-	const underDailyCap = await rateLimit(
-		`chatlink-daily:${agent.id}`,
-		dailyCap,
-		86_400,
-		{ failClosed: true },
-	)
+	const underDailyCap = await rateLimit(`chatlink-daily:${agent.id}`, dailyCap, 86_400, {
+		failClosed: true,
+	})
 	if (!underDailyCap) {
 		return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
 	}
@@ -95,8 +152,12 @@ export async function POST(req: Request, props: Params) {
 		message: parsed.data.message,
 		conversationId: parsed.data.conversationId ?? undefined,
 		channel: 'WEB_WIDGET',
-		contactName: settings.leadCapture ? (parsed.data.visitorName ?? undefined) : undefined,
-		contactPhone: settings.leadCapture ? (parsed.data.visitorPhone ?? undefined) : undefined,
+		contactName: settings.leadCapture
+			? (parsed.data.visitorName ?? undefined)
+			: undefined,
+		contactPhone: settings.leadCapture
+			? (parsed.data.visitorPhone ?? undefined)
+			: undefined,
 	})
 
 	if ('error' in result) {

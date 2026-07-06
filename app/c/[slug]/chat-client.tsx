@@ -7,18 +7,13 @@
  * 16px inputs (no iOS zoom), streaming replies with product cards.
  */
 
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowUp, RotateCcw, Sparkles, User, Phone } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
+import { Markdown } from '@/lib/markdown'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,7 +36,10 @@ type Props = {
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 
-function parseAssistant(raw: string, done: boolean): { text: string; cards: ProductCard[] } {
+function parseAssistant(
+	raw: string,
+	done: boolean,
+): { text: string; cards: ProductCard[] } {
 	const cards: ProductCard[] = []
 	let text = raw.replace(PRODUCT_TOKEN, (_m, json: string) => {
 		try {
@@ -107,28 +105,70 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	const inputRef = useRef<HTMLTextAreaElement>(null)
 
 	// Restore conversation + transcript + lead across reloads.
+	// Messages are now stored in localStorage (not sessionStorage) so the
+	// transcript survives a full tab close / browser restart. We also try
+	// to fetch the server-side history when we have a conversationId but no
+	// local cache (e.g. first visit on a new device).
 	useEffect(() => {
-		try {
-			convIdRef.current = localStorage.getItem(convKey)
-			const storedLead = localStorage.getItem(leadKey)
-			if (storedLead) leadRef.current = JSON.parse(storedLead)
-			const storedMsgs = sessionStorage.getItem(msgsKey)
-			if (storedMsgs) {
-				const parsed = JSON.parse(storedMsgs) as Msg[]
-				if (Array.isArray(parsed)) setMessages(parsed.slice(-60))
+		let cancelled = false
+		async function hydrate() {
+			try {
+				convIdRef.current = localStorage.getItem(convKey)
+				const storedLead = localStorage.getItem(leadKey)
+				if (storedLead) leadRef.current = JSON.parse(storedLead)
+				const storedMsgs = localStorage.getItem(msgsKey)
+				if (storedMsgs) {
+					const parsed = JSON.parse(storedMsgs) as Msg[]
+					if (Array.isArray(parsed)) setMessages(parsed.slice(-60))
+				}
+				// If we have a conversation but no local transcript, fetch from server.
+				if (convIdRef.current && !storedMsgs) {
+					try {
+						const res = await fetch(
+							`/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convIdRef.current)}`,
+							{ headers: { Accept: 'application/json' } },
+						)
+						if (res.ok) {
+							const data = await res.json()
+							if (!cancelled && Array.isArray(data.messages)) {
+								const restored: Msg[] = data.messages
+									.map((m: { id?: string; role: string; content: string }) => {
+										const id = m.id || nextId()
+										if (m.role === 'user')
+											return { id, role: 'user', text: m.content } as Msg
+										return {
+											id,
+											role: 'assistant',
+											text: m.content,
+											cards: [],
+											done: true,
+										} as Msg
+									})
+									.slice(-60)
+								if (restored.length) setMessages(restored)
+							}
+						}
+					} catch {
+						/* network/parse error — continue with empty transcript */
+					}
+				}
+				if (settings.leadCapture && !storedLead) setLeadPending(true)
+			} catch {
+				/* storage unavailable (private mode) — chat still works in-memory */
 			}
-			if (settings.leadCapture && !storedLead) setLeadPending(true)
-		} catch {
-			/* storage unavailable (private mode) — chat still works in-memory */
+			if (!cancelled) setHydrated(true)
 		}
-		setHydrated(true)
-	}, [convKey, leadKey, msgsKey, settings.leadCapture])
+		void hydrate()
+		return () => {
+			cancelled = true
+		}
+	}, [convKey, leadKey, msgsKey, settings.leadCapture, slug])
 
-	// Persist transcript (errors excluded from restore noise is fine to keep).
+	// Persist transcript to localStorage so it survives a tab close / refresh.
 	useEffect(() => {
 		if (!hydrated) return
 		try {
-			sessionStorage.setItem(msgsKey, JSON.stringify(messages.slice(-60)))
+			localStorage.setItem(msgsKey, JSON.stringify(messages.slice(-60)))
 		} catch {
 			/* ignore quota */
 		}
@@ -167,7 +207,13 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				const { text: parsed, cards } = parseAssistant(raw, done)
 				setMessages((m) => {
 					const idx = m.findIndex((x) => x.id === assistantId)
-					const msg: Msg = { id: assistantId, role: 'assistant', text: parsed, cards, done }
+					const msg: Msg = {
+						id: assistantId,
+						role: 'assistant',
+						text: parsed,
+						cards,
+						done,
+					}
 					if (idx === -1) return [...m, msg]
 					const copy = m.slice()
 					copy[idx] = msg
@@ -263,7 +309,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 		setMessages([])
 		try {
 			localStorage.removeItem(convKey)
-			sessionStorage.removeItem(msgsKey)
+			localStorage.removeItem(msgsKey)
 		} catch {}
 	}, [convKey, msgsKey])
 
@@ -308,7 +354,10 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				</header>
 
 				{/* Messages / intro */}
-				<div ref={scrollerRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5">
+				<div
+					ref={scrollerRef}
+					className="flex-1 overflow-y-auto overscroll-contain px-4 py-5"
+				>
 					{empty ? (
 						<Intro
 							name={name}
@@ -334,10 +383,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							{messages.map((m) => (
 								<MessageRow key={m.id} msg={m} accent={accent} onAccent={onAccent} />
 							))}
-							{streaming &&
-								messages[messages.length - 1]?.role === 'user' && (
-									<TypingDots accent={accent} />
-								)}
+							{streaming && messages[messages.length - 1]?.role === 'user' && (
+								<TypingDots accent={accent} />
+							)}
 						</div>
 					)}
 				</div>
@@ -367,7 +415,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 										void send(input)
 									}
 								}}
-								placeholder={leadPending ? 'اول معرفی کوتاه را کامل کنید…' : 'پیام خود را بنویسید…'}
+								placeholder={
+									leadPending ? 'اول معرفی کوتاه را کامل کنید…' : 'پیام خود را بنویسید…'
+								}
 								className="max-h-[120px] w-full resize-none bg-transparent py-1 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
 							/>
 						</div>
@@ -476,9 +526,22 @@ function Intro(props: {
 	onPick: (q: string) => void
 }) {
 	const {
-		name, avatar, monogram, accent, tagline, welcomeMessage, quickReplies,
-		showAiBadge, leadPending, leadName, leadPhone, leadMessage,
-		setLeadName, setLeadPhone, submitLead, onPick,
+		name,
+		avatar,
+		monogram,
+		accent,
+		tagline,
+		welcomeMessage,
+		quickReplies,
+		showAiBadge,
+		leadPending,
+		leadName,
+		leadPhone,
+		leadMessage,
+		setLeadName,
+		setLeadPhone,
+		submitLead,
+		onPick,
 	} = props
 
 	return (
@@ -540,7 +603,8 @@ function Intro(props: {
 								value={leadName}
 								onChange={(e) => setLeadName(e.target.value)}
 								placeholder="نام شما"
-								className="w-full bg-transparent text-[16px] outline-none placeholder:text-neutral-400"
+								dir="rtl"
+								className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-400"
 							/>
 						</label>
 						<label className="flex items-center gap-2.5 rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 focus-within:border-black/25">
@@ -550,7 +614,7 @@ function Intro(props: {
 								onChange={(e) => setLeadPhone(e.target.value)}
 								placeholder="شماره موبایل"
 								inputMode="tel"
-								dir="ltr"
+								dir="rtl"
 								className="w-full bg-transparent text-start text-[16px] outline-none placeholder:text-neutral-400"
 							/>
 						</label>
@@ -561,6 +625,17 @@ function Intro(props: {
 							style={{ backgroundColor: accent, color: props.onAccent }}
 						>
 							شروع گفتگو
+						</button>
+						<button
+							onClick={() => {
+								// Allow skipping — the AI agent will then try to extract name/phone
+								// from the conversation (smart identification).
+								leadRef.current = null
+								setLeadPending(false)
+							}}
+							className="w-full py-1.5 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
+						>
+							رد کردن و شروع گفتگو
 						</button>
 					</div>
 				</motion.div>
@@ -599,7 +674,15 @@ function Intro(props: {
 	)
 }
 
-function MessageRow({ msg, accent, onAccent }: { msg: Msg; accent: string; onAccent: string }) {
+function MessageRow({
+	msg,
+	accent,
+	onAccent,
+}: {
+	msg: Msg
+	accent: string
+	onAccent: string
+}) {
 	if (msg.role === 'error') {
 		return (
 			<motion.div
@@ -626,11 +709,17 @@ function MessageRow({ msg, accent, onAccent }: { msg: Msg; accent: string; onAcc
 						className={
 							isUser
 								? 'rounded-3xl rounded-ee-lg px-4 py-2.5 text-[15px] leading-7 shadow-sm'
-								: 'whitespace-pre-wrap rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
+								: 'rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
 						}
 						style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
 					>
-						{msg.text}
+						{isUser ? (
+							<span className="whitespace-pre-wrap">{msg.text}</span>
+						) : (
+							<div className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap">
+								<Markdown>{msg.text}</Markdown>
+							</div>
+						)}
 					</div>
 				)}
 				{!isUser &&
@@ -700,7 +789,13 @@ function TypingDots({ accent }: { accent: string }) {
 }
 
 /** Ambient page background — quiet, slow, never competing with the chat. */
-function Background({ kind, accent }: { kind: ChatLinkSettings['background']; accent: string }) {
+function Background({
+	kind,
+	accent,
+}: {
+	kind: ChatLinkSettings['background']
+	accent: string
+}) {
 	if (kind === 'minimal') return null
 
 	if (kind === 'dots') {
@@ -732,7 +827,7 @@ function Background({ kind, accent }: { kind: ChatLinkSettings['background']; ac
 			/>
 			<motion.div
 				className="absolute bottom-[-20%] end-[-10%] h-[380px] w-[380px] rounded-full blur-[110px]"
-				style={{ backgroundColor: blobB, opacity: 0.10 }}
+				style={{ backgroundColor: blobB, opacity: 0.1 }}
 				animate={{ x: [0, -32, 0], y: [0, -20, 0] }}
 				transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
 			/>

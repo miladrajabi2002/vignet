@@ -53,6 +53,7 @@
 	var teaserShown = false
 	var welcomeShown = false
 	var leadCaptured = false
+	var historyLoaded = false
 	// Identity from the pre-chat lead form; sent with the first message.
 	var visitorName = null
 	var visitorPhone = null
@@ -319,7 +320,7 @@
 			'.vgt-lead-form{width:100%;display:flex;flex-direction:column;gap:8px;}' +
 			'.vgt-lead-input{width:100%;border:1.5px solid var(--vgt-border);background:var(--vgt-surface);color:var(--vgt-text);' +
 			'border-radius:var(--vgt-r-input);padding:11px 14px;font-family:inherit;font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s;' +
-			'text-align:center;direction:ltr;}' +
+			'text-align:right;direction:rtl;}' +
 			'.vgt-lead-input:focus{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);}' +
 			'.vgt-lead-btn{border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:11px;' +
 			'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -327,8 +328,13 @@
 			'box-shadow:0 6px 18px -6px var(--vgt-accent-shadow);}' +
 			'.vgt-lead-btn:hover{transform:translateY(-1px);}.vgt-lead-btn:active{transform:translateY(0);}' +
 			'.vgt-lead-btn:disabled{opacity:.5;cursor:default;}' +
-			'.vgt-lead-skip{background:transparent;border:none;color:var(--vgt-muted);font-family:inherit;font-size:12px;cursor:pointer;padding:4px;}' +
-			'.vgt-lead-skip:hover{color:var(--vgt-text);}' +
+			// markdown rendering inside bot bubbles
+			'.vgt-msg strong,.vgt-msg b{font-weight:700;}' +
+			'.vgt-msg em,.vgt-msg i{font-style:italic;}' +
+			'.vgt-msg code{background:var(--vgt-surface);border:1px solid var(--vgt-border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:.88em;}' +
+			'.vgt-msg ul,.vgt-msg ol{margin:4px 0;padding-inline-start:20px;}' +
+			'.vgt-msg li{margin:2px 0;}' +
+			'.vgt-msg.vgt-bot ul,.vgt-msg.vgt-bot ol{white-space:normal;}' +
 			// typing
 			'.vgt-typing{display:flex!important;flex-direction:row!important;gap:4px;align-items:center;padding:14px 16px;}' +
 			'.vgt-typing span{width:7px;height:7px;border-radius:50%;background:var(--vgt-accent);opacity:.7;animation:vgt-bounce 1.2s infinite;}' +
@@ -492,7 +498,8 @@
 
 		headTitle.textContent = config.name || 'Vigent'
 		var dot = el('span', 'vgt-ava-dot')
-		headSub.textContent = config.subtitle || t('آنلاین — پاسخ فوری', 'Online — instant replies')
+		headSub.textContent =
+			config.subtitle || t('آنلاین — پاسخ فوری', 'Online — instant replies')
 		ava.innerHTML = ''
 		if (config.avatar) {
 			var img = el('img')
@@ -614,12 +621,9 @@
 		phoneInput.autocomplete = 'tel'
 		var submit = el('button', 'vgt-lead-btn', t('شروع گفتگو', 'Start chat'))
 		submit.type = 'submit'
-		var skip = el('button', 'vgt-lead-skip', t('رد کردن', 'Skip'))
-		skip.type = 'button'
 		form.appendChild(nameInput)
 		form.appendChild(phoneInput)
 		form.appendChild(submit)
-		form.appendChild(skip)
 		lead.appendChild(form)
 		body.appendChild(lead)
 		setTimeout(function () {
@@ -657,16 +661,55 @@
 			introVisible = false
 			renderIntro()
 		})
-		skip.addEventListener('click', function () {
-			leadCaptured = true
-			body.innerHTML = ''
-			introVisible = false
-			renderIntro()
-		})
 		return true
 	}
 
 	// ---- Messages ----
+
+	/**
+	 * Minimal, safe Markdown → HTML converter for bot replies.
+	 * Escapes HTML first (XSS-safe), then applies inline + block markers:
+	 *   **bold**  __bold__  *italic*  _italic_  `code`
+	 *   # / ## / ### headings  → <strong>
+	 *   - / * / • unordered lists  → <ul><li>
+	 *   1. ordered lists  → <ol><li>
+	 * Newlines are preserved by the container's white-space:pre-wrap.
+	 */
+	function renderMarkdown(text) {
+		var s = String(text == null ? '' : text)
+		// Escape HTML entities first.
+		s = s
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+		// Headings → bold (single line, ^#...)
+		s = s.replace(/^#{1,6}\s+(.+)$/gm, '<strong>$1</strong>')
+		// Bold
+		s = s.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+		s = s.replace(/__([^_]+?)__/g, '<strong>$1</strong>')
+		// Inline code (do before italic so `*` inside code is untouched)
+		s = s.replace(/`([^`]+?)`/g, '<code>$1</code>')
+		// Italic
+		s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>')
+		s = s.replace(/_([^_\n]+?)_/g, '<em>$1</em>')
+		// List items (capture consecutive lines into <ul>)
+		s = s.replace(/^[-*•]\s+(.+)$/gm, '\u0001LI\u0001$1')
+		s = s.replace(/^\d+[.)]\s+(.+)$/gm, '\u0001LI\u0001$1')
+		// Wrap consecutive list-item markers in <ul>…</ul>
+		s = s.replace(/(\u0001LI\u0001[^\n]*(\n|$))+/g, function (block) {
+			var items = block
+				.trim()
+				.split('\n')
+				.map(function (l) {
+					return '<li>' + l.replace(/^\u0001LI\u0001/, '') + '</li>'
+				})
+				.join('')
+			return '<ul>' + items + '</ul>'
+		})
+		return s
+	}
+
 	function bubble(role, text) {
 		var cls =
 			role === 'user'
@@ -675,7 +718,11 @@
 					? 'vgt-msg vgt-err'
 					: 'vgt-msg vgt-bot'
 		var b = el('div', cls)
-		b.textContent = text
+		if (role === 'bot') {
+			b.innerHTML = renderMarkdown(text)
+		} else {
+			b.textContent = text
+		}
 		body.appendChild(b)
 		scrollDown()
 		return b
@@ -702,7 +749,7 @@
 	var PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 
 	/** Split a raw assistant string into visible text + parsed product cards,
-	    holding back a trailing partial token while streaming. */
+            holding back a trailing partial token while streaming. */
 	function parseAssistant(raw, done) {
 		var cards = []
 		var text = raw.replace(PRODUCT_TOKEN, function (m, json) {
@@ -790,17 +837,22 @@
 				msg = el('div', 'vgt-msg vgt-bot')
 				group.appendChild(msg)
 			}
-			if (msg.textContent !== parsed.text) msg.textContent = parsed.text
+			// Render markdown (bold, italic, lists, headings) — safe because
+			// renderMarkdown() escapes HTML before applying markers.
+			var html = renderMarkdown(parsed.text)
+			if (msg.getAttribute('data-raw') !== parsed.text) {
+				msg.innerHTML = html
+				msg.setAttribute('data-raw', parsed.text)
+			}
 		}
 
 		// source chip — appears once the first card is complete
 		if (parsed.cards.length > 0 && !group.querySelector('.vgt-source')) {
-			var chip = el(
-				'div',
-				'vgt-source',
-				svg('box') + '<span>' + '</span>',
+			var chip = el('div', 'vgt-source', svg('box') + '<span>' + '</span>')
+			chip.querySelector('span').textContent = t(
+				'از کاتالوگ محصول',
+				'From the product catalog',
 			)
-			chip.querySelector('span').textContent = t('از کاتالوگ محصول', 'From the product catalog')
 			group.insertBefore(chip, group.firstChild)
 		}
 
@@ -820,7 +872,10 @@
 			actions.appendChild(
 				actionChip(
 					t('دیدن مشخصات', 'View specs'),
-					t('مشخصات کامل «' + name + '» را بگو', 'Show me the full specs of "' + name + '"'),
+					t(
+						'مشخصات کامل «' + name + '» را بگو',
+						'Show me the full specs of "' + name + '"',
+					),
 				),
 			)
 			actions.appendChild(
@@ -833,7 +888,10 @@
 				),
 			)
 			actions.appendChild(
-				actionChip(t('موجودیه؟', 'In stock?'), t('موجودی «' + name + '» چطوره؟', 'Is "' + name + '" in stock?')),
+				actionChip(
+					t('موجودیه؟', 'In stock?'),
+					t('موجودی «' + name + '» چطوره؟', 'Is "' + name + '" in stock?'),
+				),
 			)
 			group.appendChild(actions)
 		}
@@ -984,6 +1042,51 @@
 		root.appendChild(tz)
 	}
 
+	/**
+	 * Fetch the persisted message history from the server and replay it into
+	 * the chat body so the visitor doesn't lose their conversation on refresh.
+	 * Only runs once per page load (guarded by `historyLoaded`).
+	 */
+	function loadHistory() {
+		if (historyLoaded || !conversationId) return
+		historyLoaded = true
+		fetch(
+			base +
+				'/api/widget/' +
+				agentId +
+				'/chat?conversationId=' +
+				encodeURIComponent(conversationId),
+			{
+				method: 'GET',
+				headers: { Accept: 'application/json' },
+			},
+		)
+			.then(function (r) {
+				return r.ok ? r.json() : null
+			})
+			.then(function (data) {
+				if (!data || !Array.isArray(data.messages) || data.messages.length === 0) return
+				// Don't replay if the body already has bubbles (e.g. lead form still showing).
+				if (body.querySelector('.vgt-msg') || body.querySelector('.vgt-lead')) return
+				clearIntro()
+				introVisible = false
+				welcomeShown = true
+				data.messages.forEach(function (m) {
+					if (m.role === 'user') {
+						bubble('user', m.content)
+					} else {
+						var g = el('div', 'vgt-group')
+						body.appendChild(g)
+						renderAssistantGroup(g, m.content, true)
+					}
+				})
+				scrollDown()
+			})
+			.catch(function () {
+				/* network error — continue with empty transcript */
+			})
+	}
+
 	function toggle(force) {
 		isOpen = force != null ? force : !isOpen
 		panel.classList.toggle('vgt-show', isOpen)
@@ -998,6 +1101,9 @@
 				welcomeShown = true
 				renderIntro()
 			}
+			// If the lead form isn't showing and we have a prior conversation,
+			// restore its transcript from the server.
+			if (!showedLead) loadHistory()
 			setTimeout(function () {
 				input.focus()
 			}, 80)
