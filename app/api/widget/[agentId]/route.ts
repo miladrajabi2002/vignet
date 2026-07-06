@@ -45,6 +45,7 @@ export async function GET(_req: Request, props: Params) {
 			autoGreetDelayMs: settings.autoGreetDelayMs,
 			leadCapture: settings.leadCapture,
 			leadCaptureMessage: settings.leadCaptureMessage,
+			leadCaptureSkippable: settings.leadCaptureSkippable,
 		},
 		{ headers: corsHeaders },
 	)
