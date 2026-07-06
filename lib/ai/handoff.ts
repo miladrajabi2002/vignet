@@ -58,15 +58,13 @@ export async function shouldHandoff(
 		conv.status !== 'HANDED_OFF' &&
 		conv.messageCount >= LONG_CHAT_THRESHOLD
 	) {
-		// Fire an additional bell notification so the operator sees the warning
-		// in the dashboard even before opening the conversation.
+		// Bell notification only — no SMS (SMS is reserved for OTP only).
 		void notifyWorkspace({
 			workspaceId: conv.workspaceId,
 			type: 'HANDOFF',
 			title: '⚠️ مکالمه طولانی — نیاز به بررسی اپراتور',
 			body: `این مکالمه بیش از ${LONG_CHAT_THRESHOLD} پیام داشته و به اپراتور منتقل شد.`,
 			link: `/conversations/${conversationId}`,
-			sms: true,
 		})
 		return {
 			handoff: true,
