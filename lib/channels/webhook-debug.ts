@@ -49,11 +49,13 @@ function categorizePayload(type: string, body: unknown): string {
 	// Instagram / Messenger messaging events
 	const messaging = (entry.messaging as Array<Record<string, unknown>>) ?? []
 	if (messaging.length) {
-		const m = messaging[0]
+		const m = messaging[0] as Record<string, unknown>
+		// Cast message once so TS doesn't complain about property access on `unknown`.
+		const msg = (m.message as Record<string, unknown> | undefined) ?? undefined
 		if (m.message_edit) return 'message_edit (ویرایش پیام — بدون متن، قابل‌پاسخ نیست)'
-		if (m.message?.is_echo) return 'echo (پیام ارسالی خودمان — نادیده گرفته می‌شود)'
-		if (m.message?.text)
-			return `message (پیام جدید: "${String(m.message.text).slice(0, 50)}")`
+		if (msg?.is_echo) return 'echo (پیام ارسالی خودمان — نادیده گرفته می‌شود)'
+		if (typeof msg?.text === 'string')
+			return `message (پیام جدید: "${msg.text.slice(0, 50)}")`
 		if (m.delivery) return 'delivery_receipt (رسید تحویل — بدون متن)'
 		if (m.read) return 'read_receipt (رسید خوانده‌شدن — بدون متن)'
 		if (m.postback) return 'postback (کلیک دکمه — بدون متن)'
@@ -64,9 +66,9 @@ function categorizePayload(type: string, body: unknown): string {
 	// Instagram comment events
 	const changes = (entry.changes as Array<Record<string, unknown>>) ?? []
 	if (changes.length) {
-		const c = changes[0]
+		const c = changes[0] as Record<string, unknown>
 		if (c.field === 'comments') return 'comment (کامنت روی پست/ریلز)'
-		return `change:${c.field ?? 'unknown'}`
+		return `change:${String(c.field ?? 'unknown')}`
 	}
 	return 'unknown'
 }
