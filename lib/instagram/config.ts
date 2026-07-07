@@ -191,3 +191,59 @@ export function normalizeInstagramSettings(config: Prisma.JsonValue): {
     : []
   return { quickReplies }
 }
+
+/**
+ * Channel-level reply policy for the Instagram automation engine.
+ *
+ *   ALL_AGENT              — the AI agent replies to every inbound message
+ *                            (scenarios still run first; AI is the fallback)
+ *   AGENT_EXCEPT_SCENARIOS — the AI agent replies UNLESS a scenario matched
+ *                            (default; backwards-compatible with v1)
+ *   AUTOMATION_ONLY        — the AI agent is OFF; only scenarios reply. When
+ *                            no scenario matches, the inbound is recorded
+ *                            silently with no outbound reply.
+ *
+ * The canonical source is the `InstagramAutomationSettings` table. This reader
+ * is a FALLBACK that reads a stale snapshot embedded in `AgentChannel.config`
+ * (kept so that channels connected before the settings table existed still
+ * have a policy without a backfill migration).
+ */
+export type InstagramReplyPolicy =
+  | 'ALL_AGENT'
+  | 'AGENT_EXCEPT_SCENARIOS'
+  | 'AUTOMATION_ONLY'
+
+export interface AutomationPolicySnapshot {
+  replyPolicy: InstagramReplyPolicy
+  stopWords: string[]
+  aiEnabled: boolean
+}
+
+/** Read an inline automation policy snapshot from the channel config (fallback). */
+export function readAutomationPolicy(
+  config: Prisma.JsonValue,
+): AutomationPolicySnapshot | null {
+  const c =
+    config && typeof config === 'object'
+      ? (config as Record<string, unknown>)
+      : {}
+  const a =
+    c.automationSettings && typeof c.automationSettings === 'object'
+      ? (c.automationSettings as Record<string, unknown>)
+      : null
+  if (!a) return null
+  const policy =
+    a.replyPolicy === 'ALL_AGENT' ||
+    a.replyPolicy === 'AGENT_EXCEPT_SCENARIOS' ||
+    a.replyPolicy === 'AUTOMATION_ONLY'
+      ? (a.replyPolicy as InstagramReplyPolicy)
+      : 'AGENT_EXCEPT_SCENARIOS'
+  const stopWords = Array.isArray(a.stopWords)
+    ? a.stopWords.filter((w): w is string => typeof w === 'string' && !!w.trim())
+    : []
+  return {
+    replyPolicy: policy,
+    stopWords,
+    aiEnabled: a.aiEnabled !== false,
+  }
+}

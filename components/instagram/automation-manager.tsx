@@ -8,13 +8,26 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  Bot,
+  Shield,
+  Zap,
+  Settings2,
+  Save,
+  X,
+  Sparkles,
+  Clock,
   type LucideIcon,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { AutomationCard } from '@/components/instagram/automation-card'
 import { AutomationForm } from '@/components/instagram/automation-form'
 import {
   type Automation,
   type AutomationType,
+  type InstagramAutomationSettings,
+  type ReplyPolicy,
+  DEFAULT_SETTINGS,
+  REPLY_POLICY_LABEL,
 } from '@/components/instagram/types'
 
 interface TabDef {
@@ -55,17 +68,30 @@ type DialogState =
 
 export function InstagramAutomationManager({
   agentId,
+  channelId,
+  accountUsername,
+  accountAvatarUrl,
   initialAutomations,
+  initialSettings,
+  connected: _connected,
 }: {
   agentId: string
-  /** Instagram channel id (the page only mounts this component when connected). */
   channelId: string
+  accountUsername: string
+  accountAvatarUrl?: string
   initialAutomations: Automation[]
-  /** Always true when this component is mounted — the page handles the
-   *  not-connected empty state. Kept in the prop signature for clarity. */
+  initialSettings?: InstagramAutomationSettings
   connected: boolean
 }) {
+  // `_connected` is part of the public prop contract (the parent page only
+  // mounts this manager when Instagram is connected) but isn't read inside
+  // the component. Void it to satisfy the unused-vars rule.
+  void _connected
+
   const [automations, setAutomations] = useState<Automation[]>(initialAutomations)
+  const [settings, setSettings] = useState<InstagramAutomationSettings>(
+    initialSettings ?? DEFAULT_SETTINGS,
+  )
   const [activeTab, setActiveTab] = useState<AutomationType>('DIRECT_MESSAGE')
   const [dialog, setDialog] = useState<DialogState>(null)
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
@@ -102,7 +128,6 @@ export function InstagramAutomationManager({
   }
 
   async function handleToggleActive(a: Automation, next: boolean) {
-    // Optimistic update for snappy UX; revert on failure.
     setAutomations((arr) =>
       arr.map((x) => (x.id === a.id ? { ...x, active: next } : x)),
     )
@@ -147,8 +172,26 @@ export function InstagramAutomationManager({
     }
   }
 
+  async function saveSettings(next: InstagramAutomationSettings) {
+    setSettings(next)
+    try {
+      const res = await fetch(`/api/agents/${agentId}/instagram/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      if (!res.ok) throw new Error('SETTINGS_FAILED')
+      flash('ok', 'تنظیمات ذخیره شد.')
+    } catch {
+      // The settings endpoint is provided by BACKEND-AUTO-V2 (running in
+      // parallel). If it isn't deployed yet, the local state still updates
+      // so the operator can keep working — we just flag the error.
+      flash('err', 'ذخیره تنظیمات ناموفق بود (هنوز پیاده‌سازی نشده؟).')
+    }
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Page header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -159,15 +202,24 @@ export function InstagramAutomationManager({
             سناریوهای خودکار برای دایرکت، کامنت و استوری بسازید.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setDialog({ mode: 'create', type: activeTab })}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          افزودن سناریو
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDialog({ mode: 'create', type: activeTab })}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-all hover:opacity-90 hover:shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            افزودن سناریو
+          </button>
+        </div>
       </header>
+
+      {/* Channel settings */}
+      <ChannelSettingsCard
+        settings={settings}
+        onSave={saveSettings}
+        accountUsername={accountUsername}
+      />
 
       {/* Sub-tabs */}
       <nav
@@ -213,7 +265,7 @@ export function InstagramAutomationManager({
             onCreate={() => setDialog({ mode: 'create', type: activeTab })}
           />
         ) : (
-          <div className="max-h-96 space-y-3 overflow-y-auto pe-1">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {current.map((a) => (
               <AutomationCard
                 key={a.id}
@@ -233,6 +285,9 @@ export function InstagramAutomationManager({
       {dialog && (
         <AutomationForm
           agentId={agentId}
+          channelId={channelId}
+          accountUsername={accountUsername}
+          accountAvatarUrl={accountAvatarUrl}
           type={dialog.type}
           mode={dialog.mode}
           initial={dialog.mode === 'edit' ? dialog.automation : undefined}
@@ -310,6 +365,299 @@ export function InstagramAutomationManager({
   )
 }
 
+// ── Channel settings card ───────────────────────────────────────────────
+function ChannelSettingsCard({
+  settings,
+  onSave,
+  accountUsername,
+}: {
+  settings: InstagramAutomationSettings
+  onSave: (next: InstagramAutomationSettings) => void
+  accountUsername: string
+}) {
+  const [draft, setDraft] = useState<InstagramAutomationSettings>(settings)
+  const [stopWordInput, setStopWordInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [open, setOpen] = useState(true)
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
+
+  function set<K extends keyof InstagramAutomationSettings>(
+    k: K,
+    v: InstagramAutomationSettings[K],
+  ) {
+    setDraft((d) => ({ ...d, [k]: v }))
+  }
+
+  function addStopWord(raw: string) {
+    const pieces = raw
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (pieces.length === 0) return
+    set(
+      'stopWords',
+      Array.from(new Set([...draft.stopWords, ...pieces])),
+    )
+    setStopWordInput('')
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await onSave(draft)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const POLICIES: { value: ReplyPolicy; label: string; desc: string; Icon: LucideIcon }[] = [
+    {
+      value: 'ALL_AGENT',
+      label: 'همه پیام‌ها توسط ایجنت',
+      desc: 'هر پیامی که دریافت شود به ایجنت هوش مصنوعی سپرده می‌شود.',
+      Icon: Bot,
+    },
+    {
+      value: 'AGENT_EXCEPT_SCENARIOS',
+      label: 'ایجنت به جز سناریوها',
+      desc: 'ایجنت پاسخ می‌دهد مگر اینکه یک سناریوی منطبق پیدا شود.',
+      Icon: Shield,
+    },
+    {
+      value: 'AUTOMATION_ONLY',
+      label: 'فقط اتوماسیون (بدون ایجنت)',
+      desc: 'فقط سناریوها پاسخ می‌دهند؛ ایجنت هوش مصنوعی خاموش است.',
+      Icon: Zap,
+    },
+  ]
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-start transition-colors hover:bg-[var(--bg-hover)]"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
+            <Settings2 className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-[var(--text-primary)]">
+              تنظیمات کانال
+              <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">
+                @{accountUsername || 'vigent.bot'}
+              </span>
+            </p>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              حالت پاسخ‌دهی، کلمات توقف و پیام خوش‌آمدگویی
+            </p>
+          </div>
+        </div>
+        <span className="text-[var(--text-muted)]">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="space-y-5 border-t border-[var(--border-subtle)] px-5 py-5">
+          {/* Reply policy — segmented control */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              حالت پاسخ‌دهی
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {POLICIES.map(({ value, label, desc, Icon }) => {
+                const active = draft.replyPolicy === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set('replyPolicy', value)}
+                    className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-start transition-all ${
+                      active
+                        ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
+                        : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                        active
+                          ? 'bg-[var(--text-primary)] text-[var(--bg-base)]'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-[var(--text-primary)]">{label}</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                        {desc}
+                      </p>
+                    </div>
+                    {active && (
+                      <span className="text-[10px] font-medium text-[var(--text-primary)]">
+                        ✓ فعال
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Stop words */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              کلمات توقف AI
+            </label>
+            <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-2 focus-within:border-[var(--border-strong)]">
+              {draft.stopWords.map((k) => (
+                <span
+                  key={k}
+                  className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-muted)] px-2 py-0.5 text-xs text-[var(--text-primary)]"
+                >
+                  {k}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      set(
+                        'stopWords',
+                        draft.stopWords.filter((x) => x !== k),
+                      )
+                    }
+                    className="text-[var(--text-muted)] hover:text-[var(--danger)]"
+                    aria-label={`حذف ${k}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                value={stopWordInput}
+                onChange={(e) => setStopWordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault()
+                    addStopWord(stopWordInput)
+                  } else if (
+                    e.key === 'Backspace' &&
+                    stopWordInput === '' &&
+                    draft.stopWords.length > 0
+                  ) {
+                    set('stopWords', draft.stopWords.slice(0, -1))
+                  }
+                }}
+                onBlur={() => addStopWord(stopWordInput)}
+                placeholder={draft.stopWords.length ? '' : 'کلمه را بنویس و Enter بزن…'}
+                className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+              />
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              کلماتی که با دریافتشان، پاسخ‌گویی هوش مصنوعی متوقف می‌شود.
+            </p>
+          </div>
+
+          {/* Welcome message */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-secondary)]">
+              پیام خوش‌آمدگویی (اختیاری)
+            </label>
+            <textarea
+              value={draft.welcomeMessage}
+              onChange={(e) => set('welcomeMessage', e.target.value)}
+              placeholder="مثلاً سلام! به پیج ما خوش آمدی. چطور می‌تونم کمکت کنم؟"
+              rows={2}
+              className="input resize-none"
+            />
+            <p className="text-[11px] text-[var(--text-muted)]">
+              برای کاربرانی که اولین بار دایرکت می‌زنند ارسال می‌شود.
+            </p>
+          </div>
+
+          {/* Follow-up */}
+          <div className="space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    پیام پیگیری
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    اگر کاربر پس از پاسخ ایجنت دیگر پیامی نداد، یک پیام پیگیری ارسال کن.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={draft.followUpEnabled}
+                onChange={(v) => set('followUpEnabled', v)}
+                aria-label="پیام پیگیری"
+              />
+            </div>
+            {draft.followUpEnabled && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_1fr] sm:items-start">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    تأخیر (دقیقه)
+                  </label>
+                  <div className="relative">
+                    <Clock className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={draft.followUpDelayMin}
+                      onChange={(e) =>
+                        set(
+                          'followUpDelayMin',
+                          Math.max(1, Number(e.target.value) || 1),
+                        )
+                      }
+                      className="input pe-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-secondary)]">
+                    متن پیام
+                  </label>
+                  <textarea
+                    value={draft.followUpMessage}
+                    onChange={(e) => set('followUpMessage', e.target.value)}
+                    placeholder="مثلاً هنوز سوالی هست؟ در خدمتم."
+                    rows={2}
+                    className="input resize-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Save bar */}
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-4">
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {dirty
+                ? 'تغییرات ذخیره نشده است.'
+                : `حالت فعلی: ${REPLY_POLICY_LABEL[draft.replyPolicy]}`}
+            </p>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              ذخیره تنظیمات
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Empty state ─────────────────────────────────────────────────────────
 function EmptyState({
   Icon,
   text,

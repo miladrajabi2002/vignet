@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Camera,
@@ -12,6 +12,8 @@ import {
   BookOpen,
   Smartphone,
   Monitor,
+  ShieldAlert,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -43,6 +45,33 @@ export function InstagramConnectFlow({
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [vpnModalOpen, setVpnModalOpen] = useState(false)
+
+  // VPN warning modal: BEFORE the OAuth flow starts, the operator must
+  // confirm their VPN is on. Instagram's OAuth + Graph servers are blocked
+  // from Iranian IPs without a VPN, so the flow will silently fail (the
+  // Instagram dialog page won't even load). The modal intercepts the
+  // "اتصال اینستاگرام" click and only proceeds once the user confirms.
+  useEffect(() => {
+    if (!vpnModalOpen) return
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') setVpnModalOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [vpnModalOpen])
+
+  // Intercept the connect button: open the VPN modal first instead of
+  // starting OAuth directly. The actual OAuth start happens in `confirmVpn`.
+  function onConnectClick() {
+    setVpnModalOpen(true)
+  }
+
+  // User confirmed VPN is on → close the modal and start the OAuth flow.
+  function confirmVpn() {
+    setVpnModalOpen(false)
+    void startOAuth()
+  }
 
   async function startOAuth() {
     setBusy(true)
@@ -178,7 +207,7 @@ export function InstagramConnectFlow({
           </button>
           <button
             type="button"
-            onClick={startOAuth}
+            onClick={onConnectClick}
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
@@ -191,6 +220,77 @@ export function InstagramConnectFlow({
           </button>
         </div>
       </div>
+
+      {/* VPN warning modal — shown when the user clicks "اتصال اینستاگرام".
+          Must be confirmed before the OAuth flow starts. */}
+      {vpnModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="هشدار VPN"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setVpnModalOpen(false)}
+            aria-hidden
+          />
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl">
+            {/* Header strip */}
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--amber)]/20 text-[var(--amber)]">
+                  <ShieldAlert className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                  قبل از اتصال، VPN خود را روشن کنید
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVpnModalOpen(false)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                aria-label="بستن"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="px-5 py-5">
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                اتصال به اینستاگرام از سرورهای متا رد می‌شود که در ایران بدون VPN باز
+                نمی‌شوند. اگه VPN روشن نباشه، صفحه اینستاگرام بالا نمیاد. روشنش کن،
+                بعد ادامه بده.
+              </p>
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                  اگر قبلاً VPN روشن کرده‌اید و صفحه اینستاگرام در مرورگر باز می‌شود،
+                  می‌توانید ادامه دهید.
+                </p>
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setVpnModalOpen(false)}
+                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={confirmVpn}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                روشنه
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Trust note */}
       <p className="text-center text-[11px] leading-relaxed text-[var(--text-tertiary)]">

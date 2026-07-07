@@ -14,17 +14,35 @@ const triggerSchema = z.object({
   postIds: z.array(z.string()).default([]),
 })
 
+const messageEntrySchema = z.object({
+        type: z.enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT']).default('TEXT'),
+        text: z.string().optional(),
+        mediaUrl: z.string().optional(),
+        productId: z.string().optional(),
+})
+
 const actionSchema = z.object({
-  replyMode: z.enum(['STATIC', 'AI', 'FLOW']).default('STATIC'),
-  replyText: z.string().default(''),
-  dmOnComment: z.boolean().default(false),
-  followGate: z.boolean().default(false),
-  gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
-  gatePrompt: z.string().default(''),
-  gateConfirmKeyword: z.string().default(''),
-  gateQuickReply: z.string().default(''),
-  contentText: z.string().default(''),
-  aiAgentEnabled: z.boolean().default(false),
+        replyMode: z
+                .enum(['STATIC', 'AI', 'FLOW', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
+                .default('STATIC'),
+        replyText: z.string().default(''),
+        messages: z.array(messageEntrySchema).default([]),
+        mediaType: z
+                .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT'])
+                .default('TEXT'),
+        mediaUrl: z.string().default(''),
+        productId: z.string().default(''),
+        dmOnComment: z.boolean().default(false),
+        followGate: z.boolean().default(false),
+        gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
+        gatePrompt: z.string().default(''),
+        gateConfirmKeyword: z.string().default(''),
+        gateQuickReply: z.string().default(''),
+        contentText: z.string().default(''),
+        aiAgentEnabled: z.boolean().default(false),
+        followUpEnabled: z.boolean().default(false),
+        followUpDelayMin: z.number().int().min(1).default(60),
+        followUpMessage: z.string().default(''),
 })
 
 const createSchema = z.object({

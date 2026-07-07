@@ -21,8 +21,25 @@ const updateSchema = z.object({
     .optional(),
   action: z
     .object({
-      replyMode: z.enum(['STATIC', 'AI', 'FLOW']).optional(),
+      replyMode: z
+        .enum(['STATIC', 'AI', 'FLOW', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
+        .optional(),
       replyText: z.string().optional(),
+      messages: z
+        .array(
+          z.object({
+            type: z.enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT']).optional(),
+            text: z.string().optional(),
+            mediaUrl: z.string().optional(),
+            productId: z.string().optional(),
+          }),
+        )
+        .optional(),
+      mediaType: z
+        .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT'])
+        .optional(),
+      mediaUrl: z.string().optional(),
+      productId: z.string().optional(),
       dmOnComment: z.boolean().optional(),
       followGate: z.boolean().optional(),
       gateMode: z.enum(['SOFT', 'STORY_MENTION']).optional(),
@@ -31,6 +48,9 @@ const updateSchema = z.object({
       gateQuickReply: z.string().optional(),
       contentText: z.string().optional(),
       aiAgentEnabled: z.boolean().optional(),
+      followUpEnabled: z.boolean().optional(),
+      followUpDelayMin: z.number().int().min(1).optional(),
+      followUpMessage: z.string().optional(),
     })
     .optional(),
 })

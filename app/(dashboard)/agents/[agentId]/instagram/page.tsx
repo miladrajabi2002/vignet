@@ -4,21 +4,23 @@ import { Camera, ArrowLeft } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { InstagramAutomationManager } from '@/components/instagram/automation-manager'
-import type {
-  Automation,
-  AutomationTrigger,
-  AutomationAction,
+import {
+  DEFAULT_SETTINGS,
+  type Automation,
+  type AutomationTrigger,
+  type AutomationAction,
+  type InstagramAutomationSettings,
+  type ReplyPolicy,
 } from '@/components/instagram/types'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Per-agent Instagram automation dashboard. Mirrors Vardast's panel: the
- * operator builds scenarios for DMs, comments and stories. The page is a
- * server component that verifies workspace ownership, loads the Instagram
- * channel + its automations, and delegates the interactive UI to the client
- * manager. When Instagram is not connected, a friendly empty state points the
- * user to the channels tab.
+ * Per-agent Instagram automation dashboard (v2). Loads the connected IG
+ * channel + its automation scenarios + (when BACKEND-AUTO-V2 has deployed it)
+ * the channel-level `InstagramAutomationSettings`. Passes everything to the
+ * client manager which renders the premium two-pane UI with the live iPhone
+ * preview.
  */
 export default async function InstagramAutomationPage(
   props: {
@@ -69,10 +71,34 @@ export default async function InstagramAutomationPage(
     )
   }
 
-  const rows = await prisma.instagramAutomation.findMany({
-    where: { agentId: agent.id, channelId: igChannel.id },
-    orderBy: [{ type: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
-  })
+  // Pull the connected IG account's display info from the channel config.
+  const cfg = (igChannel.config ?? {}) as {
+    botUsername?: string
+    igProfilePictureUrl?: string
+  }
+  const accountUsername = cfg.botUsername ?? 'vigent.bot'
+  const accountAvatarUrl = cfg.igProfilePictureUrl || undefined
+
+  const [rows, settingsRow] = await Promise.all([
+    prisma.instagramAutomation.findMany({
+      where: { agentId: agent.id, channelId: igChannel.id },
+      orderBy: [{ type: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
+    }),
+    // InstagramAutomationSettings is a new model added by BACKEND-AUTO-V2.
+    // We look it up by the model's @unique `agentId` field. If the Prisma
+    // client hasn't been regenerated yet for this model (backend still in
+    // progress), the access is wrapped in optional chaining so we degrade
+    // gracefully to DEFAULT_SETTINGS.
+    (prisma as unknown as {
+      instagramAutomationSettings?: {
+        findUnique: (args: {
+          where: { agentId: string }
+        }) => Promise<Record<string, unknown> | null>
+      }
+    }).instagramAutomationSettings?.findUnique({
+      where: { agentId: agent.id },
+    }),
+  ])
 
   const automations: Automation[] = rows.map((r) => ({
     id: r.id,
@@ -88,14 +114,45 @@ export default async function InstagramAutomationPage(
     updatedAt: r.updatedAt.toISOString(),
   }))
 
+  const settings = normalizeSettings(settingsRow)
+
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-6xl">
       <InstagramAutomationManager
         agentId={agent.id}
         channelId={igChannel.id}
+        accountUsername={accountUsername}
+        accountAvatarUrl={accountAvatarUrl}
         initialAutomations={automations}
+        initialSettings={settings}
         connected
       />
     </div>
   )
+}
+
+/** Coerce an unknown settings blob into a fully-typed InstagramAutomationSettings. */
+function normalizeSettings(raw: unknown): InstagramAutomationSettings {
+  if (!raw || typeof raw !== 'object') return DEFAULT_SETTINGS
+  const s = raw as Record<string, unknown>
+  const replyPolicy = (
+    ['ALL_AGENT', 'AGENT_EXCEPT_SCENARIOS', 'AUTOMATION_ONLY'].includes(
+      String(s.replyPolicy ?? ''),
+    )
+      ? s.replyPolicy
+      : 'AGENT_EXCEPT_SCENARIOS'
+  ) as ReplyPolicy
+  return {
+    replyPolicy,
+    stopWords: Array.isArray(s.stopWords)
+      ? s.stopWords.filter((x): x is string => typeof x === 'string')
+      : [],
+    welcomeMessage: typeof s.welcomeMessage === 'string' ? s.welcomeMessage : '',
+    followUpEnabled: typeof s.followUpEnabled === 'boolean' ? s.followUpEnabled : false,
+    followUpDelayMin:
+      typeof s.followUpDelayMin === 'number' && s.followUpDelayMin > 0
+        ? s.followUpDelayMin
+        : 60,
+    followUpMessage: typeof s.followUpMessage === 'string' ? s.followUpMessage : '',
+  }
 }

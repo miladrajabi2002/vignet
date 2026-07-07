@@ -4,6 +4,18 @@ import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
 import { captureError } from '@/lib/errors/capture'
+import {
+        sendImage,
+        sendAudio,
+        sendVideo,
+        sendProductCard,
+        sendRichEntry,
+        type ProductShowcase,
+} from '@/lib/instagram/media'
+import {
+        readAutomationPolicy,
+        type InstagramReplyPolicy,
+} from '@/lib/instagram/config'
 
 /**
  * Instagram automation engine.
@@ -45,8 +57,38 @@ export interface AutomationTrigger {
 }
 
 export interface AutomationAction {
-  replyMode?: 'STATIC' | 'AI' | 'FLOW'
+  replyMode?: 'STATIC' | 'AI' | 'FLOW' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
+  /**
+   * SILENT   — don't reply at all (skip; used for "no reply" comment scenarios).
+   * STOP_AI  — pause AI for this conversation (sets conversation.metadata.aiPaused)
+   *             and reply with `replyText` (or just ack silently when empty).
+   * MULTI_MESSAGE — pick ONE entry from `messages[]` at random and send it.
+   *             Mirrors Vardast's "یکی از پیام‌های زیر" (one of these messages).
+   */
   replyText?: string
+  /**
+   * `messages[]` is used by MULTI_MESSAGE. Each entry is a typed payload that
+   * the media helpers know how to send (TEXT/IMAGE/AUDIO/VIDEO/PRODUCT).
+   */
+  messages?: Array<{
+    type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT'
+    text?: string
+    mediaUrl?: string
+    productId?: string
+  }>
+  /**
+   * For STATIC rich replies, the kind of media to send instead of plain text.
+   *   TEXT    — send `replyText` (default; equivalent to v1 STATIC)
+   *   IMAGE   — send `mediaUrl` (with optional `replyText` caption)
+   *   AUDIO   — send `mediaUrl` as a voice note
+   *   VIDEO   — send `mediaUrl` as a video
+   *   PRODUCT — send a catalog card for `productId`
+   */
+  mediaType?: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT'
+  /** URL for IMAGE/AUDIO/VIDEO. */
+  mediaUrl?: string
+  /** Product id for PRODUCT (resolved via AgentCatalog at send time). */
+  productId?: string
   /** COMMENT: also send a DM to the commenter. */
   dmOnComment?: boolean
   /** Require a follow before sending the content. */
@@ -58,6 +100,26 @@ export interface AutomationAction {
   contentText?: string
   /** Route through the agent's AI engine (replyMode='AI'). */
   aiAgentEnabled?: boolean
+  /** Story-only: send a delayed follow-up after `followUpDelayMin` minutes. */
+  followUpEnabled?: boolean
+  followUpDelayMin?: number
+  followUpMessage?: string
+}
+
+/** Discriminated reader: the action's replyMode (default STATIC). */
+type ReplyMode = NonNullable<AutomationAction['replyMode']>
+
+const VALID_REPLY_MODES: ReplyMode[] = [
+  'STATIC',
+  'AI',
+  'FLOW',
+  'SILENT',
+  'STOP_AI',
+  'MULTI_MESSAGE',
+]
+
+function isReplyMode(v: unknown): v is ReplyMode {
+  return typeof v === 'string' && (VALID_REPLY_MODES as string[]).includes(v)
 }
 
 interface AutomationRow {
@@ -93,9 +155,41 @@ function readTrigger(t: Prisma.JsonValue): AutomationTrigger {
 function readAction(a: Prisma.JsonValue): AutomationAction {
   const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>
   return {
-    replyMode:
-      o.replyMode === 'AI' || o.replyMode === 'FLOW' ? o.replyMode : 'STATIC',
+    replyMode: isReplyMode(o.replyMode) ? o.replyMode : 'STATIC',
     replyText: typeof o.replyText === 'string' ? o.replyText : '',
+    messages: Array.isArray(o.messages)
+      ? (o.messages
+          .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
+          .map((m) => ({
+            type: (
+              m.type === 'IMAGE' ||
+              m.type === 'AUDIO' ||
+              m.type === 'VIDEO' ||
+              m.type === 'PRODUCT'
+                ? m.type
+                : 'TEXT'
+            ) as 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT',
+            text: typeof m.text === 'string' ? m.text : undefined,
+            mediaUrl: typeof m.mediaUrl === 'string' ? m.mediaUrl : undefined,
+            productId: typeof m.productId === 'string' ? m.productId : undefined,
+          }))
+          .filter((m) =>
+            m.type === 'TEXT'
+              ? !!m.text
+              : m.type === 'PRODUCT'
+                ? !!m.productId
+                : !!m.mediaUrl,
+          ))
+      : [],
+    mediaType:
+      o.mediaType === 'IMAGE' ||
+      o.mediaType === 'AUDIO' ||
+      o.mediaType === 'VIDEO' ||
+      o.mediaType === 'PRODUCT'
+        ? o.mediaType
+        : 'TEXT',
+    mediaUrl: typeof o.mediaUrl === 'string' ? o.mediaUrl : '',
+    productId: typeof o.productId === 'string' ? o.productId : '',
     dmOnComment: o.dmOnComment === true,
     followGate: o.followGate === true,
     gateMode: o.gateMode === 'STORY_MENTION' ? 'STORY_MENTION' : 'SOFT',
@@ -105,6 +199,13 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
     gateQuickReply: typeof o.gateQuickReply === 'string' ? o.gateQuickReply : '',
     contentText: typeof o.contentText === 'string' ? o.contentText : '',
     aiAgentEnabled: o.aiAgentEnabled === true,
+    followUpEnabled: o.followUpEnabled === true,
+    followUpDelayMin:
+      typeof o.followUpDelayMin === 'number' && o.followUpDelayMin > 0
+        ? o.followUpDelayMin
+        : 60,
+    followUpMessage:
+      typeof o.followUpMessage === 'string' ? o.followUpMessage : '',
   }
 }
 
@@ -157,6 +258,8 @@ const GATE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 export interface AutomationContext {
   agent: ChatAgent & { workspaceId: string }
   channelId: string
+  /** Raw channel config — used by the media helpers to resolve the IG token. */
+  channelConfig?: Prisma.JsonValue
   adapter: MessengerAdapter
   msg: InboundMessage
   contactId: string | null
@@ -247,14 +350,38 @@ async function executeAction(
   row: AutomationRow,
   action: AutomationAction,
 ): Promise<void> {
-  const { adapter, msg, agent, contactId, contactName, quickReplies } = ctx
+  const {
+    adapter,
+    msg,
+    agent,
+    contactId,
+    contactName,
+    quickReplies,
+    channelConfig,
+  } = ctx
   const isComment = msg.kind === 'COMMENT'
+
+  // ─── SILENT: skip the reply entirely ("no reply" comment scenario) ───
+  // We still mark the inbound as handled so the AI fallback doesn't fire.
+  if (action.replyMode === 'SILENT') return
+
+  // ─── STOP_AI: pause the agent AI for this conversation, then ack ───
+  // Sets conversation.metadata.aiPaused = true. The handler's
+  // shouldAgentReply() reads this flag and refuses to invoke the AI engine
+  // until the operator resumes it (clears the flag) from the inbox.
+  if (action.replyMode === 'STOP_AI') {
+    await pauseAiForConversation(agent.id, msg.chatId)
+    if (action.replyText) {
+      await adapter.sendText(msg.chatId, action.replyText, {
+        quickReplies: isComment ? undefined : quickReplies,
+      })
+    }
+    return
+  }
 
   // ─── Follow-gate: send the gate prompt + create a pending gate ───
   if (action.followGate && action.gatePrompt) {
-    const qr = action.gateQuickReply
-      ? [action.gateQuickReply]
-      : quickReplies
+    const qr = action.gateQuickReply ? [action.gateQuickReply] : quickReplies
     // Reply publicly for comments, DM for DMs/stories.
     await adapter.sendText(msg.chatId, action.gatePrompt, {
       quickReplies: isComment ? undefined : qr,
@@ -281,7 +408,61 @@ async function executeAction(
     return
   }
 
-  // ─── STATIC reply ───
+  // ─── MULTI_MESSAGE: pick one of `messages[]` at random and send it ───
+  if (action.replyMode === 'MULTI_MESSAGE' && action.messages?.length) {
+    const entry = action.messages[
+      Math.floor(Math.random() * action.messages.length)
+    ]
+    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    await sendRichEntry(
+      channelConfig ?? null,
+      target,
+      entry,
+      async (cid, text) =>
+        adapter.sendText(cid, text, {
+          quickReplies: isComment ? undefined : quickReplies,
+        }),
+      (productId) => resolveProduct(agent.id, productId),
+      agent.workspaceId,
+    )
+    // Optionally also push the public reply text on a comment→DM funnel.
+    if (
+      isComment &&
+      action.dmOnComment &&
+      entry.type === 'TEXT' &&
+      entry.text
+    ) {
+      await adapter.sendText(msg.chatId, entry.text).catch(() => undefined)
+    }
+    return
+  }
+
+  // ─── STATIC rich reply (IMAGE / AUDIO / VIDEO / PRODUCT) ───
+  if (
+    action.replyMode === 'STATIC' &&
+    action.mediaType &&
+    action.mediaType !== 'TEXT' &&
+    channelConfig
+  ) {
+    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    if (action.mediaType === 'IMAGE' && action.mediaUrl) {
+      await sendImage(channelConfig, target, action.mediaUrl, action.replyText || undefined)
+    } else if (action.mediaType === 'AUDIO' && action.mediaUrl) {
+      await sendAudio(channelConfig, target, action.mediaUrl)
+    } else if (action.mediaType === 'VIDEO' && action.mediaUrl) {
+      await sendVideo(channelConfig, target, action.mediaUrl)
+    } else if (action.mediaType === 'PRODUCT' && action.productId) {
+      const product = await resolveProduct(agent.id, action.productId)
+      if (product) await sendProductCard(channelConfig, target, product)
+    }
+    // For comment→DM funnels, also leave a public ack on the comment.
+    if (isComment && action.dmOnComment && action.replyText) {
+      await adapter.sendText(msg.chatId, action.replyText).catch(() => undefined)
+    }
+    return
+  }
+
+  // ─── STATIC reply (text) ───
   if (action.replyMode === 'STATIC' && action.replyText) {
     if (isComment && action.dmOnComment) {
       // Public acknowledgment + private DM with the real content.
@@ -422,4 +603,205 @@ async function tryFulfillGateByMention(
     }
   }
   return true
+}
+
+// ─── CHANNEL REPLY POLICY + STOP-WORD / STOP_AI EVALUATION ────────────
+//
+// The handler (lib/channels/handler.ts) calls `shouldAgentReply()` AFTER
+// running the automation engine. The decision combines:
+//   1. the channel-level reply policy (default AGENT_EXCEPT_SCENARIOS)
+//   2. the master AI toggle on InstagramAutomationSettings
+//   3. the per-conversation `metadata.aiPaused` flag (set by STOP_AI scenarios)
+//   4. whether the inbound text matches a stop-word (also pauses AI)
+//
+// When this returns false, the handler records the inbound (still happens in
+// generateReply — see handler) but SKIPS the AI turn / outbound reply.
+
+/** Snapshot of the per-(agent × channel) automation policy + toggles. */
+export interface AutomationPolicy {
+  replyPolicy: InstagramReplyPolicy
+  stopWords: string[]
+  aiEnabled: boolean
+}
+
+/** Default policy when no InstagramAutomationSettings row exists yet. */
+export const DEFAULT_AUTOMATION_POLICY: AutomationPolicy = {
+  replyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+  stopWords: [],
+  aiEnabled: true,
+}
+
+function isReplyPolicy(v: unknown): v is InstagramReplyPolicy {
+  return (
+    v === 'ALL_AGENT' ||
+    v === 'AGENT_EXCEPT_SCENARIOS' ||
+    v === 'AUTOMATION_ONLY'
+  )
+}
+
+/**
+ * Load the automation policy for a channel. Reads the canonical
+ * InstagramAutomationSettings row first; falls back to the inline snapshot
+ * in AgentChannel.config.automationSettings (legacy channels); finally falls
+ * back to the v1 default (AGENT_EXCEPT_SCENARIOS, AI on).
+ */
+export async function loadAutomationPolicy(
+  agentId: string,
+  channelId: string,
+  channelConfig?: Prisma.JsonValue,
+): Promise<AutomationPolicy> {
+  const row = await prisma.instagramAutomationSettings.findUnique({
+    where: { agentId },
+    select: {
+      replyPolicy: true,
+      stopWords: true,
+      aiEnabled: true,
+    },
+  })
+  if (row) {
+    const policy = isReplyPolicy(row.replyPolicy)
+      ? row.replyPolicy
+      : 'AGENT_EXCEPT_SCENARIOS'
+    return {
+      replyPolicy: policy,
+      stopWords: row.stopWords ?? [],
+      aiEnabled: row.aiEnabled,
+    }
+  }
+  // Legacy / pre-settings-table fallback.
+  if (channelConfig !== undefined) {
+    const snap = readAutomationPolicy(channelConfig)
+    if (snap) return snap
+  }
+  return DEFAULT_AUTOMATION_POLICY
+}
+
+/**
+ * Decide whether the AI agent should reply to this inbound Instagram message.
+ *
+ *   AUTOMATION_ONLY        → never (scenarios only; AI is OFF)
+ *   ALL_AGENT              → yes, unless AI was paused per-conversation OR the
+ *                            message matched a stop-word OR the master AI
+ *                            toggle is off.
+ *   AGENT_EXCEPT_SCENARIOS → same as ALL_AGENT, but the caller has ALREADY run
+ *                            the scenarios and tells us via `scenarioHandled`.
+ *                            When a scenario handled it, the AI must NOT reply
+ *                            (we'd double-send). When no scenario matched, the
+ *                            AI replies (subject to the stop-word / paused
+ *                            checks).
+ *
+ * `conversationMetadata` is optional — when present, the per-conversation pause
+ * flag is read from `Conversation.metadata.aiPaused`. When absent, only the
+ * channel-level checks run.
+ */
+export async function shouldAgentReply(args: {
+  policy: AutomationPolicy
+  scenarioHandled: boolean
+  text: string
+  conversationMetadata?: Prisma.JsonValue
+}): Promise<boolean> {
+  const { policy, scenarioHandled, text } = args
+
+  // Master toggle off → never.
+  if (!policy.aiEnabled) return false
+
+  // Automation-only channels never invoke the AI.
+  if (policy.replyPolicy === 'AUTOMATION_ONLY') return false
+
+  // Per-conversation pause flag (set by STOP_AI scenarios, or by the operator).
+  if (args.conversationMetadata !== undefined) {
+    const m =
+      args.conversationMetadata && typeof args.conversationMetadata === 'object'
+        ? (args.conversationMetadata as Record<string, unknown>)
+        : {}
+    if (m.aiPaused === true) return false
+  }
+
+  // Stop-word match pauses AI for this single turn (we don't persist the flag
+  // here — that's the STOP_AI scenario's job; stop-words just suppress one
+  // reply so the operator can pick up the conversation manually).
+  if (policy.stopWords.length && text) {
+    const hay = text.trim().toLowerCase()
+    if (hay) {
+      for (const w of policy.stopWords) {
+        const needle = w.trim().toLowerCase()
+        if (needle && hay.includes(needle)) return false
+      }
+    }
+  }
+
+  // AGENT_EXCEPT_SCENARIOS: when a scenario already replied, the AI must not
+  // double-send. ALL_AGENT: the AI ALWAYS replies in addition (use this for
+  // "AI augments every message" flows).
+  if (policy.replyPolicy === 'AGENT_EXCEPT_SCENARIOS' && scenarioHandled) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Set `conversation.metadata.aiPaused = true` for the conversation identified
+ * by (agentId, externalId). Used by the STOP_AI scenario mode. The metadata
+ * blob is merged (so other fields are preserved) — and the unique constraint
+ * on (agentId, channel, externalId) makes the lookup safe.
+ */
+export async function pauseAiForConversation(
+  agentId: string,
+  externalId: string,
+): Promise<void> {
+  const conv = await prisma.conversation.findFirst({
+    where: { agentId, externalId, channel: 'INSTAGRAM' },
+    select: { id: true, metadata: true },
+  })
+  if (!conv) return
+  const existing =
+    conv.metadata && typeof conv.metadata === 'object'
+      ? (conv.metadata as Record<string, unknown>)
+      : {}
+  if (existing.aiPaused === true) return
+  await prisma.conversation.update({
+    where: { id: conv.id },
+    data: {
+      metadata: {
+        ...existing,
+        aiPaused: true,
+        pausedAt: new Date().toISOString(),
+      } as Prisma.InputJsonValue,
+    },
+  })
+}
+
+/**
+ * Look up a product assigned to the agent's catalog and shape it as a
+ * showcase card. Returns null when the product isn't in the agent's catalog
+ * (so a misconfigured PRODUCT scenario degrades gracefully — we just skip).
+ */
+async function resolveProduct(
+  agentId: string,
+  productId: string,
+): Promise<ProductShowcase | null> {
+  const row = await prisma.agentCatalog.findFirst({
+    where: { agentId, productId },
+    select: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          images: true,
+        },
+      },
+    },
+  })
+  if (!row) return null
+  const p = row.product
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    imageUrl: p.images?.[0] ?? null,
+    productUrl: null,
+  }
 }

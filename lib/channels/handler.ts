@@ -12,7 +12,11 @@ import {
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import { captureError } from '@/lib/errors/capture'
-import { runInstagramAutomation } from '@/lib/instagram/automation'
+import {
+        runInstagramAutomation,
+        shouldAgentReply,
+        loadAutomationPolicy,
+} from '@/lib/instagram/automation'
 import {
         readPageToken,
         normalizeInstagramSettings,
@@ -290,17 +294,76 @@ async function processChannelInbound(
                         // Keyword scenarios, comment→DM funnels, follow-gates, and smart story
                         // replies run here. When a scenario handles the message, we skip the
                         // default AI turn entirely.
+                        let scenarioHandled = false
                         if (type === 'INSTAGRAM') {
                                 const auto = await runInstagramAutomation({
                                         agent: { ...chatAgent, workspaceId: agent.workspaceId },
                                         channelId,
+                                        channelConfig: resolved.config,
                                         adapter,
                                         msg,
                                         contactId,
                                         contactName,
                                         quickReplies: settings.quickReplies,
                                 })
-                                if (auto.handled) continue
+                                scenarioHandled = auto.handled
+                                if (scenarioHandled) continue
+                        }
+
+                        // ─── Channel reply policy gate (Instagram only) ────────────
+                        // Even when no scenario matched, the channel-level policy can
+                        // suppress the AI turn: AUTOMATION_ONLY turns AI off entirely,
+                        // STOP_AI scenarios set conversation.metadata.aiPaused, and
+                        // stop-words pause AI for this single turn. We load the policy
+                        // from InstagramAutomationSettings (with a fallback to the inline
+                        // snapshot in AgentChannel.config.automationSettings).
+                        if (type === 'INSTAGRAM') {
+                                const policy = await loadAutomationPolicy(
+                                        agent.id,
+                                        channelId,
+                                        resolved.config,
+                                )
+                                // Look up the conversation's pause flag (best-effort; the
+                                // conversation may not exist yet — that's fine, the
+                                // metadata just isn't set).
+                                const conv = await prisma.conversation.findFirst({
+                                        where: {
+                                                agentId: agent.id,
+                                                channel: 'INSTAGRAM',
+                                                externalId: msg.chatId,
+                                        },
+                                        orderBy: { createdAt: 'desc' },
+                                        select: { id: true, metadata: true },
+                                })
+                                const allow = await shouldAgentReply({
+                                        policy,
+                                        scenarioHandled,
+                                        text,
+                                        conversationMetadata: conv?.metadata ?? undefined,
+                                })
+                                if (!allow) {
+                                        // Record the inbound so the operator can see it in the
+                                        // inbox, but skip the AI outbound. We do this by calling
+                                        // generateReply and discarding the reply — that helper
+                                        // persists the inbound USER message either way.
+                                        try {
+                                                await generateReply({
+                                                        workspaceId: agent.workspaceId,
+                                                        agent: chatAgent,
+                                                        message: text,
+                                                        channel: type,
+                                                        contactId,
+                                                        contactName,
+                                                        externalId: msg.chatId,
+                                                })
+                                        } catch (e) {
+                                                console.error(
+                                                        '[handler] instagram inbound-only persist failed:',
+                                                        e,
+                                                )
+                                        }
+                                        continue
+                                }
                         }
 
                         // generateReply stores the inbound message in the conversation AND

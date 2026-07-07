@@ -142,8 +142,9 @@ model Agent {
   versions        AgentVersion[]
   handoffAlerts   HandoffAlert[]
   chatLink        ChatLink?
-  instagramAutomations InstagramAutomation[]
-  instagramFollowGates InstagramFollowGate[]
+  instagramAutomations         InstagramAutomation[]
+  instagramFollowGates         InstagramFollowGate[]
+  instagramAutomationSettings  InstagramAutomationSettings?
 
   @@index([workspaceId])
 }
@@ -383,6 +384,11 @@ model Conversation {
   //   the platform identity is already trusted (messenger bots).
   customerInfoState String  @default("pending")
   identifiedAt      DateTime?
+  // ─ Channel-automation flags. Currently used by the Instagram automation
+  //   engine to mark a conversation as "AI paused" (e.g. when a STOP_AI scenario
+  //   matches, or when an operator wants only scenarios to reply). Shape:
+  //   { aiPaused?: boolean, pausedAt?: string, pausedBy?: string }
+  metadata          Json?
   createdAt     DateTime    @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
@@ -834,4 +840,45 @@ model InstagramFollowGate {
   @@index([automationId, igSenderId])
   @@index([status])
   @@index([agentId, status])
+}
+
+// ─── INSTAGRAM AUTOMATION SETTINGS (channel-level policy) ───────────
+//   Per-(agent × Instagram channel) automation policy + master toggles.
+//   Mirrors Vardast's "channel reply policy" selector:
+//
+//     replyPolicy:
+//       ALL_AGENT              — the AI agent replies to every inbound message
+//                                (scenarios still run first; AI is the fallback)
+//       AGENT_EXCEPT_SCENARIOS — the AI agent replies UNLESS a scenario matched
+//                                (default; backwards-compatible with v1)
+//       AUTOMATION_ONLY        — the AI agent is OFF; only scenarios reply. When
+//                                no scenario matches, the inbound is recorded
+//                                silently with no outbound reply.
+//
+//   `stopWords` are keywords that — when present in an inbound DM — pause the AI
+//   for that conversation (sets conversation.metadata.aiPaused = true). Typical
+//   use: "stop", "توقف", "تماس با اپراتور". The operator can resume AI from the
+//   inbox (which clears the flag).
+//
+//   `welcomeMessage` is sent once on the user's first DM to the account.
+//
+//   `followUp*` configure the "no reply after N minutes" follow-up nudges that
+//   Vardast sends from the operator's account.
+model InstagramAutomationSettings {
+  id               String   @id @default(cuid())
+  agentId          String   @unique
+  channelId        String   @unique
+  replyPolicy      String   @default("AGENT_EXCEPT_SCENARIOS") // ALL_AGENT | AGENT_EXCEPT_SCENARIOS | AUTOMATION_ONLY
+  stopWords        String[] @default([]) // keywords that pause AI for this conversation
+  welcomeMessage   String?  @db.Text // sent on the user's first DM
+  followUpEnabled  Boolean  @default(false)
+  followUpDelayMin Int      @default(60) // minutes after no reply
+  followUpMessage  String?  @db.Text
+  aiEnabled        Boolean  @default(true) // master toggle for AI replies
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
 }
