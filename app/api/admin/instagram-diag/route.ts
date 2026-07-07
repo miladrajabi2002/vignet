@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isAdminAuthed } from '@/lib/admin/auth'
+import { isAdminAuthedRequest } from '@/lib/admin/auth'
 import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { resolveInstagramHost } from '@/lib/channels/instagram'
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
  *                       do the static host probe (no /me/messages call).
  */
 export async function GET(req: Request) {
-        if (!isAdminAuthed()) {
+        if (!isAdminAuthedRequest(req)) {
                 return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
         }
 

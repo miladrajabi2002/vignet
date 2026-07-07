@@ -278,6 +278,266 @@ export async function getInstagramTokenDiagnostics(
         }
 }
 
+// ─── INSTAGRAM CONNECTION WIZARD ────────────────────────────────────
+//
+// The Instagram channel needs a Page Access Token (EAA…) to send DMs. Most
+// operators only have a User Access Token (also EAA…, but issued to their
+// Facebook user, not to a Page) from the Graph API Explorer. The wizard below
+// bridges that gap:
+//
+//   1. operator pastes a User Access Token (EAA…)
+//   2. listFacebookPagesWithInstagram() → GET /me/accounts returns the Pages
+//      they administer, plus each Page's Page Access Token
+//   3. for each Page, GET /{page-id}?fields=instagram_business_account tells
+//      us whether an Instagram account is linked
+//   4. for each linked IG account, GET /{ig-id}?fields=username,name,... gives
+//      a human-readable label so the operator can confirm "yes, that's my page"
+//   5. the operator picks a Page → we store that Page's Page Access Token
+//
+// This removes the #1 source of "my Instagram DMs don't work" reports: using
+// the wrong token type.
+
+export interface InstagramPageOption {
+        pageId: string
+        pageName: string
+        pageAccessToken: string // EAA… — the token to store for DM replies
+        pageCategory?: string
+        instagram: {
+                igBusinessAccountId: string
+                username: string
+                name?: string
+                profilePictureUrl?: string
+                followersCount?: number
+                biography?: string
+        } | null
+        /** Why we couldn't read the IG account for this page, when applicable. */
+        instagramError?: string
+}
+
+export interface FacebookPagesResult {
+        tokenType:
+                | 'PAGE' // already a Page token — /me/accounts will still work
+                | 'USER' // a User token — exactly what the wizard is for
+                | 'INSTAGRAM_USER' // IGAA… — wrong host entirely, can't list FB pages
+                | 'UNKNOWN'
+        pages: InstagramPageOption[]
+        /** Present when the token is fundamentally wrong for this flow. */
+        error?: string
+        /** What the token resolved to (for display). */
+        resolvedUsername?: string
+        resolvedHost?: IgHost
+}
+
+/**
+ * List the Facebook Pages the token-holder can administer, enriched with the
+ * Instagram account linked to each page (if any). This is the data behind the
+ * page-picker step of the connection wizard.
+ *
+ * Accepts either a User Access Token (EAA… from Graph API Explorer, the
+ * intended use) or an already-issued Page Access Token (also EAA… — /me/accounts
+ * still works, returning the same page). Rejects IGAA… tokens with a clear
+ * error since those live on graph.instagram.com and can't see FB pages at all.
+ *
+ * Required permissions on the token (the wizard shows these in the UI):
+ *   pages_show_list, pages_read_engagement, instagram_basic,
+ *   instagram_manage_messages (for DM), instagram_manage_comments (for comments)
+ */
+export async function listFacebookPagesWithInstagram(
+        token: string,
+): Promise<FacebookPagesResult> {
+        if (!token) {
+                return { tokenType: 'UNKNOWN', pages: [], error: 'توکن خالی است.' }
+        }
+
+        // Reject IGAA/IGQ tokens upfront — they can't reach /me/accounts at all.
+        if (/^(IGAA|IGQ)/i.test(token)) {
+                return {
+                        tokenType: 'INSTAGRAM_USER',
+                        pages: [],
+                        error:
+                                'این توکن از نوع Instagram User (graph.instagram.com) است و نمی‌تواند صفحه‌های فیسبوک را ببیند. ' +
+                                'برای اتصال اینستاگرام، یک User Access Token از Graph API Explorer (با پیشوند EAA) وارد کنید — ' +
+                                'راهنما در کادر راه‌اندازی.',
+                }
+        }
+
+        // Resolve the host (should be facebook for any EAA token) and read /me so we
+        // can show who the token belongs to. We don't fail the whole call if /me
+        // 401s — /me/accounts might still work for a Page token whose /me is
+        // restricted; surface whatever we can.
+        const resolved = await resolveInstagramHost(token)
+        const tokenType: FacebookPagesResult['tokenType'] = resolved
+                ? resolved.host === 'facebook'
+                        ? /^(EAA)/i.test(token)
+                                ? 'USER' // could be PAGE — /me/accounts below disambiguates; treat as USER for UI
+                                : 'UNKNOWN'
+                        : 'INSTAGRAM_USER'
+                : 'UNKNOWN'
+
+        // Step 1: list Pages the token-holder administers.
+        let pagesRaw: Array<{
+                id: string
+                name: string
+                access_token: string
+                category?: string
+                tasks?: string[]
+        }> = []
+        try {
+                const res = await fetch(
+                        `${FB_BASE}/me/accounts?fields=id,name,access_token,category,tasks&limit=100`,
+                        { headers: { Authorization: `Bearer ${token}` } },
+                )
+                if (!res.ok) {
+                        const detail = await res.text().catch(() => '')
+                        return {
+                                tokenType,
+                                pages: [],
+                                resolvedHost: resolved?.host,
+                                resolvedUsername: resolved?.username,
+                                error: `GET /me/accounts ناموفق (${res.status}): ${detail.slice(0, 400)}. ` +
+                                        'علل رایج: توکن دسترسی pages_show_list ندارد، یا منقضی شده. ' +
+                                        'در Graph API Explorer، قبل از Generate Token، تیک pages_show_list و pages_read_engagement را بزنید.',
+                        }
+                }
+                const json = (await res.json()) as { data?: typeof pagesRaw }
+                pagesRaw = json.data ?? []
+        } catch (e) {
+                return {
+                        tokenType,
+                        pages: [],
+                        error: `خطای شبکه در GET /me/accounts: ${e instanceof Error ? e.message : String(e)}`,
+                }
+        }
+
+        if (!pagesRaw.length) {
+                return {
+                        tokenType,
+                        pages: [],
+                        resolvedHost: resolved?.host,
+                        resolvedUsername: resolved?.username,
+                        error:
+                                'هیچ صفحه‌ی فیسبوکی برای این توکن پیدا نشد. مطمئن شوید: ۱) اکانت فیسبوک شما admin یک Page است، ' +
+                                '۲) توکن دسترسی pages_show_list دارد. برای ساخت Page: facebook.com/pages/create.',
+                }
+        }
+
+        // Step 2: for each Page, find the linked Instagram Business/Creator account
+        // and read its public profile. Parallelized for speed.
+        const pages: InstagramPageOption[] = await Promise.all(
+                pagesRaw.map(async (p): Promise<InstagramPageOption> => {
+                        // We use the PAGE's access token for the IG lookup so we get the IG id
+                        // even when the User token's permissions are narrower.
+                        const pageToken = p.access_token
+                        // 2a) instagram_business_account on the Page node.
+                        let igAccountId: string | null = null
+                        try {
+                                const r = await fetch(
+                                        `${FB_BASE}/${p.id}?fields=instagram_business_account`,
+                                        { headers: { Authorization: `Bearer ${pageToken}` } },
+                                )
+                                if (r.ok) {
+                                        const j = (await r.json()) as {
+                                                instagram_business_account?: { id?: string }
+                                        }
+                                        igAccountId = j.instagram_business_account?.id ?? null
+                                }
+                        } catch {
+                                /* fall through to "no IG linked" */
+                        }
+
+                        if (!igAccountId) {
+                                return {
+                                        pageId: p.id,
+                                        pageName: p.name,
+                                        pageAccessToken: pageToken,
+                                        pageCategory: p.category,
+                                        instagram: null,
+                                        instagramError:
+                                                'این Page هیچ اکانت اینستاگرام Business/Creator متصل ندارد. ' +
+                                                'برای وصل کردن: اپ اینستاگرام → Settings → Business → Connect a Facebook Page.',
+                                }
+                        }
+
+                        // 2b) read the IG account profile (username, name, followers, avatar).
+                        try {
+                                const r = await fetch(
+                                        `${FB_BASE}/${igAccountId}?fields=username,name,profile_picture_url,followers_count,biography`,
+                                        { headers: { Authorization: `Bearer ${pageToken}` } },
+                                )
+                                if (!r.ok) {
+                                        const detail = await r.text().catch(() => '')
+                                        return {
+                                                pageId: p.id,
+                                                pageName: p.name,
+                                                pageAccessToken: pageToken,
+                                                pageCategory: p.category,
+                                                instagram: {
+                                                        igBusinessAccountId: igAccountId,
+                                                        username: '(unknown)',
+                                                },
+                                                instagramError: `خواندن پروفایل IG ناموفق (${r.status}): ${detail.slice(0, 300)}`,
+                                        }
+                                }
+                                const j = (await r.json()) as {
+                                        username?: string
+                                        name?: string
+                                        profile_picture_url?: string
+                                        followers_count?: number
+                                        biography?: string
+                                        id?: string
+                                }
+                                return {
+                                        pageId: p.id,
+                                        pageName: p.name,
+                                        pageAccessToken: pageToken,
+                                        pageCategory: p.category,
+                                        instagram: {
+                                                igBusinessAccountId: igAccountId,
+                                                username: j.username ?? '(unknown)',
+                                                name: j.name,
+                                                profilePictureUrl: j.profile_picture_url,
+                                                followersCount: j.followers_count,
+                                                biography: j.biography,
+                                        },
+                                }
+                        } catch (e) {
+                                return {
+                                        pageId: p.id,
+                                        pageName: p.name,
+                                        pageAccessToken: pageToken,
+                                        pageCategory: p.category,
+                                        instagram: {
+                                                igBusinessAccountId: igAccountId,
+                                                username: '(unknown)',
+                                        },
+                                        instagramError: `خطای شبکه در خواندن پروفایل IG: ${e instanceof Error ? e.message : String(e)}`,
+                                }
+                        }
+                }),
+        )
+
+        return {
+                tokenType,
+                pages,
+                resolvedHost: resolved?.host,
+                resolvedUsername: resolved?.username,
+        }
+}
+
+/**
+ * Sanity-check a chosen Page Access Token + IG account by reading the IG
+ * profile with it. Used as the final verification step before we persist the
+ * token to the DB — returns the IG username so the dashboard can show
+ * "Connected to @vigent.ir" instead of an opaque id.
+ */
+export async function verifyInstagramPageToken(
+        pageAccessToken: string,
+): Promise<{ username: string; igBusinessAccountId?: string } | null> {
+        const resolved = await resolveInstagramHost(pageAccessToken)
+        if (!resolved || resolved.host !== 'facebook') return null
+        return { username: resolved.username }
+}
+
 /**
  * Instagram webhooks are registered in the Meta App dashboard, not via API.
  * No-op so the shared create flow can still call it uniformly.

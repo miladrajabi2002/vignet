@@ -65,6 +65,39 @@ export function isAdminAuthed(): boolean {
   return isValidToken((cookies() as unknown as UnsafeUnwrappedCookies).get(COOKIE_NAME)?.value);
 }
 
+/**
+ * Auth check for API route handlers. Accepts the admin session cookie (from the
+ * normal /admin login flow) AND, as a fallback for direct API calls (fresh tab,
+ * Postman, curl — where the cookie isn't sent), an `admin_token` supplied via
+ * either the `?admin_token=…` query parameter or the `X-Admin-Token` header.
+ *
+ * The fallback token must equal the ADMIN_PASS env var — the same secret the
+ * operator typed at the /admin login screen. This keeps diagnostics gated
+ * behind a secret without forcing the operator to manage a second credential.
+ *
+ * Usage in a route handler:
+ *   if (!isAdminAuthedRequest(req)) return NextResponse.json({error:'UNAUTHORIZED'},{status:401})
+ */
+export function isAdminAuthedRequest(req: Request): boolean {
+  // 1) Cookie-based session.
+  if (isAdminAuthed()) return true
+  // 2) Header-based token (X-Admin-Token).
+  const headerTok = req.headers.get('x-admin-token')
+  if (headerTok && process.env.ADMIN_PASS && safeEqual(headerTok, process.env.ADMIN_PASS)) {
+    return true
+  }
+  // 3) Query-param token (?admin_token=…).
+  try {
+    const q = new URL(req.url).searchParams.get('admin_token')
+    if (q && process.env.ADMIN_PASS && safeEqual(q, process.env.ADMIN_PASS)) {
+      return true
+    }
+  } catch {
+    /* req.url malformed — ignore */
+  }
+  return false
+}
+
 /** Guard for admin server components/layouts. Redirects to login when absent. */
 export function requireAdmin(): void {
   if (!isAdminAuthed()) redirect('/admin/login')

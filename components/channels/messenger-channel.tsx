@@ -18,6 +18,7 @@ import {
   Settings2,
   type LucideIcon,
 } from 'lucide-react'
+import { InstagramConnectWizard } from '@/components/channels/instagram-connect-wizard'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -406,54 +407,69 @@ export function MessengerChannel({
 
       {!enabled && open && (
         <div className="mt-4 space-y-3">
-          {steps.length > 0 && (
-            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-              <button
-                type="button"
-                onClick={() => setShowGuide((v) => !v)}
-                className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
-              >
-                {t('setupGuide')}
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${showGuide ? 'rotate-180' : ''}`}
-                />
-              </button>
-              {showGuide && (
-                <ol className="list-decimal space-y-1.5 px-6 pb-3 text-xs text-[var(--text-secondary)] marker:text-[var(--text-tertiary)]">
-                  {steps.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ol>
+          {type === 'INSTAGRAM' ? (
+            // Instagram uses a guided wizard (User Token → pick Page → Page
+            // Access Token) instead of the single-field form, because the #1
+            // Instagram support issue is using the wrong token type.
+            <InstagramConnectWizard
+              agentId={agentId}
+              onDone={() => {
+                setOpen(false)
+                router.refresh()
+              }}
+            />
+          ) : (
+            <>
+              {steps.length > 0 && (
+                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowGuide((v) => !v)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                  >
+                    {t('setupGuide')}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${showGuide ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {showGuide && (
+                    <ol className="list-decimal space-y-1.5 px-6 pb-3 text-xs text-[var(--text-secondary)] marker:text-[var(--text-tertiary)]">
+                      {steps.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
               )}
-            </div>
+
+              {fields.map((f) => (
+                <div key={f.key} className="space-y-1">
+                  <label className="text-xs text-[var(--text-secondary)]">{t(f.labelKey)}</label>
+                  <input
+                    dir="ltr"
+                    value={values[f.key] ?? ''}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [f.key]: e.target.value }))
+                    }
+                    placeholder={t(f.placeholderKey)}
+                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+                  />
+                </div>
+              ))}
+
+              {error && <p className="text-xs text-danger">{error}</p>}
+              <div className="flex justify-end">
+                <button
+                  onClick={connect}
+                  disabled={busy || !isComplete(type, values)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {t('connectConfirm')}
+                </button>
+              </div>
+            </>
           )}
-
-          {fields.map((f) => (
-            <div key={f.key} className="space-y-1">
-              <label className="text-xs text-[var(--text-secondary)]">{t(f.labelKey)}</label>
-              <input
-                dir="ltr"
-                value={values[f.key] ?? ''}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [f.key]: e.target.value }))
-                }
-                placeholder={t(f.placeholderKey)}
-                className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
-              />
-            </div>
-          ))}
-
-          {error && <p className="text-xs text-danger">{error}</p>}
-          <div className="flex justify-end">
-            <button
-              onClick={connect}
-              disabled={busy || !isComplete(type, values)}
-              className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {t('connectConfirm')}
-            </button>
-          </div>
         </div>
       )}
     </div>
