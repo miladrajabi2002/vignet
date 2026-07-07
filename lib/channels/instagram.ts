@@ -29,6 +29,14 @@ import { GRAPH_BASE } from '@/lib/channels/whatsapp'
  * Comment replies are routed by encoding the target in the chatId as
  * `comment:<commentId>`; {@link sendText} detects that prefix and posts a public
  * reply instead of a DM. This keeps the shared inbound pipeline untouched.
+ *
+ * Message-request folder: Instagram routes DMs from non-followers into a
+ * "Message Requests" folder; the recipient must accept (move to primary) before
+ * the conversation is considered active. Meta still delivers these via webhook
+ * (field `message` with `is_unsupported_message: true` on some payloads, or
+ * with `tag: "folder"` / a `delivery` field carrying the `folder` value). They
+ * are parsed here so the dashboard can surface them; {@link sendText} will
+ * surface a clear error if a reply is attempted with an IG-user token.
  */
 const COMMENT_PREFIX = 'comment:'
 
@@ -40,9 +48,9 @@ const IG_BASE = 'https://graph.instagram.com/v21.0'
 type IgHost = 'facebook' | 'instagram'
 
 interface ResolvedHost {
-	host: IgHost
-	base: string
-	username: string
+        host: IgHost
+        base: string
+        username: string
 }
 
 /**
@@ -56,175 +64,202 @@ interface ResolvedHost {
  *   - anything else                     → try graph.facebook.com first
  */
 export async function resolveInstagramHost(token: string): Promise<ResolvedHost | null> {
-	if (!token) return null
+        if (!token) return null
 
-	const looksLikeIgToken = /^(IGAA|IGQ)/i.test(token)
-	const order: IgHost[] = looksLikeIgToken
-		? ['instagram', 'facebook']
-		: ['facebook', 'instagram']
+        const looksLikeIgToken = /^(IGAA|IGQ)/i.test(token)
+        const order: IgHost[] = looksLikeIgToken ? ['instagram', 'facebook'] : ['facebook', 'instagram']
 
-	for (const host of order) {
-		const base = host === 'facebook' ? FB_BASE : IG_BASE
-		try {
-			const res = await fetch(`${base}/me?fields=username,name`, {
-				headers: { Authorization: `Bearer ${token}` },
-			})
-			if (!res.ok) continue
-			const json = (await res.json()) as { username?: string; name?: string }
-			const username = json.username || json.name
-			if (username) return { host, base, username }
-		} catch {
-			/* network / transient error — fall through to the other host */
-		}
-	}
-	return null
+        for (const host of order) {
+                const base = host === 'facebook' ? FB_BASE : IG_BASE
+                try {
+                        const res = await fetch(`${base}/me?fields=username,name`, {
+                                headers: { Authorization: `Bearer ${token}` },
+                        })
+                        if (!res.ok) continue
+                        const json = (await res.json()) as { username?: string; name?: string }
+                        const username = json.username || json.name
+                        if (username) return { host, base, username }
+                } catch {
+                        /* network / transient error — fall through to the other host */
+                }
+        }
+        return null
 }
 
 export function instagramAdapter(token: string): MessengerAdapter {
-	// Lazily resolve the working host on the first outbound call, then cache it
-	// for the adapter's lifetime so we don't re-probe /me on every message.
-	let resolved: ResolvedHost | null | undefined
+        // Lazily resolve the working host on the first outbound call, then cache it
+        // for the adapter's lifetime so we don't re-probe /me on every message.
+        let resolved: ResolvedHost | null | undefined
 
-	async function host(): Promise<ResolvedHost | null> {
-		if (resolved !== undefined) return resolved
-		resolved = await resolveInstagramHost(token)
-		return resolved
-	}
+        async function host(): Promise<ResolvedHost | null> {
+                if (resolved !== undefined) return resolved
+                resolved = await resolveInstagramHost(token)
+                return resolved
+        }
 
-	return {
-		channel: 'INSTAGRAM',
+        return {
+                channel: 'INSTAGRAM',
 
-		parseUpdate(body: unknown): InboundMessage[] {
-			const entries = (body as IgWebhook)?.entry
-			if (!entries?.length) return []
-			const out: InboundMessage[] = []
-			for (const entry of entries) {
-				// For Instagram, entry.id is the connected account's own id — used to
-				// skip echoes of our own DMs and our own comment replies (loop guard).
-				const selfId = entry.id
+                parseUpdate(body: unknown): InboundMessage[] {
+                        const entries = (body as IgWebhook)?.entry
+                        if (!entries?.length) return []
+                        const out: InboundMessage[] = []
+                        for (const entry of entries) {
+                                // For Instagram, entry.id is the connected account's own id — used to
+                                // skip echoes of our own DMs and our own comment replies (loop guard).
+                                const selfId = entry.id
 
-				for (const m of entry.messaging ?? []) {
-					if (m.message?.is_echo) continue
-					const senderId = m.sender?.id
-					const text = m.message?.text
-					if (!senderId || !text) continue
-					out.push({
-						chatId: senderId,
-						senderId,
-						text,
-						// Voice/media intentionally unsupported: IG media needs an authed
-						// fetch the shared downloader can't perform.
-					})
-				}
+                                for (const m of entry.messaging ?? []) {
+                                        if (m.message?.is_echo) continue
 
-				for (const change of entry.changes ?? []) {
-					if (change.field !== 'comments') continue
-					const v = change.value
-					const commentId = v?.id
-					const text = v?.text
-					if (!commentId || !text) continue
-					// Skip the account's own comments/replies to avoid an answer loop.
-					if (v?.from?.id && selfId && v.from.id === selfId) continue
-					out.push({
-						chatId: `${COMMENT_PREFIX}${commentId}`,
-						senderId: v?.from?.id ?? commentId,
-						senderName: v?.from?.username,
-						text,
-					})
-				}
-			}
-			return out
-		},
+                                        // Meta can deliver a `delivery` or `read` or `postback`/`referral`
+                                        // event instead of a real message; only `message` with text is a
+                                        // reply-able inbound. Empty text → skip, but it is NOT an error.
+                                        const text = m.message?.text
+                                        const senderId = m.sender?.id
+                                        if (!senderId || !text) continue
 
-		async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
-			if (!token) throw new Error('INSTAGRAM invalid credentials')
-			const h = await host()
-			if (!h) {
-				throw new Error(
-					'INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)',
-				)
-			}
+                                        // Message-request / pending folder. Meta flags a DM from a
+                                        // non-follower (not yet accepted) in a few ways depending on API
+                                        // version:
+                                        //   - m.message.is_unsupported_message === true
+                                        //   - m.message.tag === 'folder' with m.message.folder = 'pending'/'request'
+                                        //   - m.delivery?.folder ('pending'/'request')
+                                        // When we detect this, we still surface the inbound so the operator
+                                        // can see it in the conversations inbox; the reply (if attempted)
+                                        // will fail with a clear reason from sendText below.
+                                        const isPending =
+                                                m.message?.is_unsupported_message === true ||
+                                                (m.message as { tag?: string })?.tag === 'folder' ||
+                                                m.delivery?.folder === 'pending' ||
+                                                m.delivery?.folder === 'request' ||
+                                                // Some API versions expose the folder at the message level.
+                                                (m.message as { folder?: string })?.folder === 'pending' ||
+                                                (m.message as { folder?: string })?.folder === 'request'
 
-			// Public reply to a post/reel comment. Both hosts expose
-			// `/{comment-id}/replies`, so comment replies work with either token type.
-			if (chatId.startsWith(COMMENT_PREFIX)) {
-				const commentId = chatId.slice(COMMENT_PREFIX.length)
-				const res = await fetch(`${h.base}/${commentId}/replies`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ message: text }),
-				})
-				if (!res.ok) {
-					const detail = await res.text().catch(() => '')
-					throw new Error(`INSTAGRAM comment reply failed (${res.status}): ${detail}`)
-				}
-				return
-			}
+                                        out.push({
+                                                chatId: senderId,
+                                                senderId,
+                                                text,
+                                                // Carry the pending flag through the shared pipeline so the
+                                                // handler can skip a doomed auto-reply and instead surface the
+                                                // inbound for an operator to accept manually.
+                                                pendingFolder: isPending || undefined,
+                                        })
+                                }
 
-			// Direct message reply. `/me/messages` exists only on graph.facebook.com
-			// and requires a Page Access Token. An Instagram User token
-			// (graph.instagram.com) cannot send arbitrary DMs — surface a clear,
-			// actionable error instead of an opaque failure from the IG host.
-			if (h.host === 'instagram') {
-				throw new Error(
-					'INSTAGRAM DM send unavailable: this token is an Instagram User Access Token ' +
-						'(graph.instagram.com) which cannot send DMs. Reconnect the channel with a ' +
-						'Facebook Page Access Token (linked to the Instagram account) to enable DM ' +
-						'replies. Public comment replies still work with the current token.',
-				)
-			}
+                                for (const change of entry.changes ?? []) {
+                                        if (change.field !== 'comments') continue
+                                        const v = change.value
+                                        const commentId = v?.id
+                                        const text = v?.text
+                                        if (!commentId || !text) continue
+                                        // Skip the account's own comments/replies to avoid an answer loop.
+                                        if (v?.from?.id && selfId && v.from.id === selfId) continue
+                                        out.push({
+                                                chatId: `${COMMENT_PREFIX}${commentId}`,
+                                                senderId: v?.from?.id ?? commentId,
+                                                senderName: v?.from?.username,
+                                                text,
+                                        })
+                                }
+                        }
+                        return out
+                },
 
-			// Facebook host (Page token) — full DM support. Quick replies (tappable
-			// suggestion chips) are supported on IG DMs; tapping one sends its title
-			// as a normal message. Platform limits: max 13 replies, titles ≤20 chars.
-			const message: Record<string, unknown> = { text }
-			if (opts?.quickReplies?.length) {
-				message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
-					content_type: 'text',
-					title: q.slice(0, 20),
-					payload: `qr_${i}`,
-				}))
-			}
-			const res = await fetch(`${h.base}/me/messages`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					recipient: { id: chatId },
-					message,
-					messaging_type: 'RESPONSE',
-				}),
-			})
-			if (!res.ok) {
-				const detail = await res.text().catch(() => '')
-				throw new Error(`INSTAGRAM sendText failed (${res.status}): ${detail}`)
-			}
-		},
+                async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
+                        if (!token) throw new Error('INSTAGRAM invalid credentials')
+                        const h = await host()
+                        if (!h) {
+                                throw new Error('INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)')
+                        }
 
-		async sendTyping(chatId: string): Promise<void> {
-			// Comments have no typing state, and typing_on is a Messenger Platform
-			// sender action that only exists on graph.facebook.com.
-			if (!token || chatId.startsWith(COMMENT_PREFIX)) return
-			const h = await host()
-			if (!h || h.host === 'instagram') return
-			await fetch(`${h.base}/me/messages`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					recipient: { id: chatId },
-					sender_action: 'typing_on',
-				}),
-			})
-		},
-	}
+                        // Public reply to a post/reel comment. Both hosts expose
+                        // `/{comment-id}/replies`, so comment replies work with either token type.
+                        if (chatId.startsWith(COMMENT_PREFIX)) {
+                                const commentId = chatId.slice(COMMENT_PREFIX.length)
+                                const res = await fetch(`${h.base}/${commentId}/replies`, {
+                                        method: 'POST',
+                                        headers: {
+                                                'Content-Type': 'application/json',
+                                                Authorization: `Bearer ${token}`,
+                                        },
+                                        body: JSON.stringify({ message: text }),
+                                })
+                                if (!res.ok) {
+                                        const detail = await res.text().catch(() => '')
+                                        throw new Error(`INSTAGRAM comment reply failed (${res.status}): ${detail}`)
+                                }
+                                return
+                        }
+
+                        // Direct message reply. `/me/messages` exists only on graph.facebook.com
+                        // and requires a Page Access Token. An Instagram User token
+                        // (graph.instagram.com) cannot send arbitrary DMs — surface a clear,
+                        // actionable error instead of an opaque failure from the IG host.
+                        if (h.host === 'instagram') {
+                                throw new Error(
+                                        'INSTAGRAM_DM_UNAVAILABLE: این توکن از نوع Instagram User Access Token (graph.instagram.com) است ' +
+                                                'که نمی‌تواند دایرکت ارسال کند. برای پاسخ به دایرکت، کانال را با یک Page Access Token ' +
+                                                '(صادرشده از صفحه فیسبوک متصل به اکانت اینستاگرام) دوباره وصل کنید. ' +
+                                                'پاسخ به کامنت‌ها با همین توکن کار می‌کند.',
+                                )
+                        }
+
+                        // Facebook host (Page token) — full DM support. Quick replies (tappable
+                        // suggestion chips) are supported on IG DMs; tapping one sends its title
+                        // as a normal message. Platform limits: max 13 replies, titles ≤20 chars.
+                        const message: Record<string, unknown> = { text }
+                        if (opts?.quickReplies?.length) {
+                                message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
+                                        content_type: 'text',
+                                        title: q.slice(0, 20),
+                                        payload: `qr_${i}`,
+                                }))
+                        }
+                        const res = await fetch(`${h.base}/me/messages`, {
+                                method: 'POST',
+                                headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                        recipient: { id: chatId },
+                                        message,
+                                        messaging_type: 'RESPONSE',
+                                }),
+                        })
+                        if (!res.ok) {
+                                const detail = await res.text().catch(() => '')
+                                // 10 (permission), 200-299 (permission/rate), 613 (capability) — the
+                                // most common causes of a "valid token but reply refused" failure.
+                                throw new Error(
+                                        `INSTAGRAM sendText failed (${res.status}): ${detail}. ` +
+                                                'علل رایج: گیرنده هنوز مکالمه را accept نکرده، توکن دسترسی instagram_manage_messages ندارد، ' +
+                                                'یا پنجرهٔ ۲۴ساعتهٔ پاسخ‌دهی بسته شده است.',
+                                )
+                        }
+                },
+
+                async sendTyping(chatId: string): Promise<void> {
+                        // Comments have no typing state, and typing_on is a Messenger Platform
+                        // sender action that only exists on graph.facebook.com.
+                        if (!token || chatId.startsWith(COMMENT_PREFIX)) return
+                        const h = await host()
+                        if (!h || h.host === 'instagram') return
+                        await fetch(`${h.base}/me/messages`, {
+                                method: 'POST',
+                                headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                        recipient: { id: chatId },
+                                        sender_action: 'typing_on',
+                                }),
+                        })
+                },
+        }
 }
 
 /**
@@ -234,10 +269,25 @@ export function instagramAdapter(token: string): MessengerAdapter {
  * Returns null when neither host recognizes the token.
  */
 export async function getInstagramInfo(
-	token: string,
+        token: string,
 ): Promise<{ username: string } | null> {
-	const resolved = await resolveInstagramHost(token)
-	return resolved ? { username: resolved.username } : null
+        const resolved = await resolveInstagramHost(token)
+        return resolved ? { username: resolved.username } : null
+}
+
+/**
+ * Return which Meta host a token resolved to (for diagnostics: the dashboard
+ * uses this to show the operator whether DMs will work or only comments will).
+ */
+export async function getInstagramTokenDiagnostics(
+        token: string,
+): Promise<{ host: IgHost | null; username: string | null; canSendDms: boolean }> {
+        const r = await resolveInstagramHost(token)
+        return {
+                host: r?.host ?? null,
+                username: r?.username ?? null,
+                canSendDms: r?.host === 'facebook',
+        }
 }
 
 /**
@@ -245,25 +295,33 @@ export async function getInstagramInfo(
  * No-op so the shared create flow can still call it uniformly.
  */
 export async function setInstagramWebhook(): Promise<boolean> {
-	return true
+        return true
 }
 
 interface IgWebhook {
-	entry?: {
-		id?: string
-		messaging?: {
-			sender?: { id?: string }
-			recipient?: { id?: string }
-			message?: { text?: string; mid?: string; is_echo?: boolean }
-		}[]
-		changes?: {
-			field?: string
-			value?: {
-				id?: string
-				text?: string
-				from?: { id?: string; username?: string }
-				media?: { id?: string; media_product_type?: string }
-			}
-		}[]
-	}[]
+        entry?: {
+                id?: string
+                messaging?: {
+                        sender?: { id?: string }
+                        recipient?: { id?: string }
+                        message?: {
+                                text?: string
+                                mid?: string
+                                is_echo?: boolean
+                                is_unsupported_message?: boolean
+                                tag?: string
+                                folder?: string
+                        }
+                        delivery?: { folder?: string }
+                }[]
+                changes?: {
+                        field?: string
+                        value?: {
+                                id?: string
+                                text?: string
+                                from?: { id?: string; username?: string }
+                                media?: { id?: string; media_product_type?: string }
+                        }
+                }[]
+        }[]
 }

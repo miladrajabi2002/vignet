@@ -22,6 +22,14 @@ export interface InboundMessage {
   text: string
   /** Opaque file id for an attached voice message, if any. */
   voiceFileId?: string
+  /**
+   * True when the message arrived in a "pending" / "message request" folder
+   * (Instagram & Messenger: DMs from non-followers). The reply (if any) will
+   * likely be refused by the platform until the recipient accepts the request.
+   * The shared inbound pipeline uses this to skip a doomed auto-reply and
+   * instead surface the inbound so an operator can accept it manually.
+   */
+  pendingFolder?: boolean
 }
 
 /** Outbound voice payload (raw audio bytes + mime). */

@@ -199,6 +199,21 @@ export async function handleInbound(
                         const contactId = await upsertContact(agent.workspaceId, type, msg)
                         const contactName = await getContactName(contactId)
 
+                        // Pending / message-request folder (Instagram & Messenger DMs from
+                        // non-followers): Meta will refuse any reply until the recipient accepts
+                        // the conversation. Don't burn an LLM call or surface a doomed-send
+                        // error — log a warning so the operator knows the inbound is waiting,
+                        // and skip the auto-reply. The inbound is already stored on the
+                        // conversation (the dashboard shows it) so the operator can act on it.
+                        if (msg.pendingFolder) {
+                                console.warn(
+                                        `[handler] ${type} inbound from ${msg.senderId} is in the pending/message-request ` +
+                                                'folder — skipping auto-reply (recipient must accept the conversation first). ' +
+                                                'Inbound is stored; the operator will see it in the conversations inbox.',
+                                )
+                                continue
+                        }
+
                         // Best-effort "typing…" indicator while the model generates the reply.
                         if (adapter.sendTyping) {
                                 adapter
