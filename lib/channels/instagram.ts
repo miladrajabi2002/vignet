@@ -119,32 +119,20 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         const senderId = m.sender?.id
                                         if (!senderId || !text) continue
 
-                                        // Message-request / pending folder. Meta flags a DM from a
-                                        // non-follower (not yet accepted) in a few ways depending on API
-                                        // version:
-                                        //   - m.message.is_unsupported_message === true
-                                        //   - m.message.tag === 'folder' with m.message.folder = 'pending'/'request'
-                                        //   - m.delivery?.folder ('pending'/'request')
-                                        // When we detect this, we still surface the inbound so the operator
-                                        // can see it in the conversations inbox; the reply (if attempted)
-                                        // will fail with a clear reason from sendText below.
-                                        const isPending =
-                                                m.message?.is_unsupported_message === true ||
-                                                (m.message as { tag?: string })?.tag === 'folder' ||
-                                                m.delivery?.folder === 'pending' ||
-                                                m.delivery?.folder === 'request' ||
-                                                // Some API versions expose the folder at the message level.
-                                                (m.message as { folder?: string })?.folder === 'pending' ||
-                                                (m.message as { folder?: string })?.folder === 'request'
-
+                                        // IMPORTANT: do NOT skip messages based on folder flags.
+                                        // Instagram delivers messages from ALL folders (Primary, General,
+                                        // Message Requests) via the same webhook payload shape — the
+                                        // folder is a UI concept, not a payload flag. The webhook may
+                                        // include `is_unsupported_message` for content the API can't fully
+                                        // represent (a like, sticker, share) — but if `text` is present we
+                                        // still process it; if text is absent we already skipped above.
+                                        // Replying to a message-request via the API auto-accepts it and
+                                        // moves it to Primary, so we WANT to attempt the reply (the handler
+                                        // captures any send failure gracefully).
                                         out.push({
                                                 chatId: senderId,
                                                 senderId,
                                                 text,
-                                                // Carry the pending flag through the shared pipeline so the
-                                                // handler can skip a doomed auto-reply and instead surface the
-                                                // inbound for an operator to accept manually.
-                                                pendingFolder: isPending || undefined,
                                         })
                                 }
 

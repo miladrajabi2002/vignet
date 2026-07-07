@@ -54,15 +54,39 @@ export async function GET(req: Request) {
                         continue
                 }
 
+                // Token-type detection by prefix. This is the single most important
+                // diagnostic: most "Instagram DMs don't work" reports come from using
+                // an Instagram User Access Token (IGAA/IGQ) when a Page Access Token
+                // (EAA…) is required. Tell the user upfront which one they have.
+                const tokenType =
+                        /^(IGAA|IGQ)/i.test(token)
+                                ? 'INSTAGRAM_USER'
+                                : /^EAA/i.test(token)
+                                        ? 'PAGE'
+                                        : 'UNKNOWN'
+                const tokenTypeLabel =
+                        tokenType === 'INSTAGRAM_USER'
+                                ? 'Instagram User Access Token (IGAA) — از "API Setup with Instagram Login"'
+                                : tokenType === 'PAGE'
+                                        ? 'Page Access Token (EAA) — از Messenger product'
+                                        : 'نوع توکن نامشخص'
+                const tokenTypeCanDm = tokenType === 'PAGE'
+
                 // Static probe: which host accepts the token, and what's the username?
                 const resolved = await resolveInstagramHost(token)
                 if (!resolved) {
                         results.push({
                                 channelId: ch.id,
                                 agentId: ch.agentId,
+                                tokenType,
+                                tokenTypeLabel,
                                 error: 'TOKEN_REJECTED_BY_BOTH_HOSTS',
-                                hint: 'توکن نه روی graph.facebook.com کار می‌کند نه روی graph.instagram.com. ' +
-                                        'احتمالاً منقضی شده یا از اکانت اشتباه صادر شده.',
+                                hint:
+                                        'توکن نه روی graph.facebook.com کار می‌کند نه روی graph.instagram.com. ' +
+                                        'احتمالاً منقضی شده یا از اکانت اشتباه صادر شده. ' +
+                                        (tokenType === 'INSTAGRAM_USER'
+                                                ? 'توکن‌های IGAA معمولاً ۱ ساعته‌اند و منقضی می‌شوند — باید توکن دائمی Page بسازید.'
+                                                : ''),
                                 lastInboundAt: ch.lastInboundAt,
                         })
                         continue
@@ -128,16 +152,35 @@ export async function GET(req: Request) {
                 results.push({
                         channelId: ch.id,
                         agentId: ch.agentId,
+                        tokenType,
+                        tokenTypeLabel,
+                        tokenTypeCanDm,
                         host: resolved.host,
                         hostUrl: resolved.base,
                         username: resolved.username,
-                        canSendDms: resolved.host === 'facebook' && (probeSend ? dmCapability === 'yes' : true),
+                        canSendDms:
+                                resolved.host === 'facebook' &&
+                                (probeSend ? dmCapability === 'yes' : true),
                         ...(probeSend ? { dmProbe: dmCapability, dmProbeDetail } : {}),
                         lastInboundAt: ch.lastInboundAt,
-                        note:
-                                resolved.host === 'instagram'
-                                        ? 'این توکن فقط می‌تواند به کامنت‌ها پاسخ بدهد. DM نمی‌فرستد. برای DM از Page Access Token استفاده کنید.'
-                                        : 'توکن Page است — هم DM و هم کامنت پشتیبانی می‌شود (اگر دسترسی instagram_manage_messages داشته باشد).',
+                        verdict:
+                                tokenType === 'INSTAGRAM_USER'
+                                        ? '❌ این توکن IGAA است و نمی‌تواند دایرکت بفرستد. ' +
+                                                'برای پاسخ به دایرکت باید یک Page Access Token بسازید (راهنما در README). ' +
+                                                'پاسخ به کامنت‌ها با همین توکن کار می‌کند.'
+                                        : tokenType === 'PAGE' && resolved.host === 'facebook'
+                                                ? '✅ این توکن Page است و می‌تواند دایرکت بفرستد (اگر دسترسی instagram_manage_messages داشته باشد).'
+                                                : '⚠️ نوع توکن نامشخص — نتایج probe را بررسی کنید.',
+                        howToFixDms:
+                                'برای ساخت Page Access Token:\n' +
+                                '1. در developers.facebook.com → اپ شما\n' +
+                                '2. در منوی سمت چپ، محصول Messenger را پیدا کنید (نه Instagram Graph API).\n' +
+                                '   اگر Messenger را ندارید: Add Product → Messenger → Set Up\n' +
+                                '3. در Messenger → Settings → بخش "Instagram Settings" → اکانت اینستاگرام را وصل کنید\n' +
+                                '4. در بخش "Access Tokens" → روی Page خود "Generate Access Token" بزنید\n' +
+                                '5. توکن جدید (با پیشوند EAA) را کپی کنید\n' +
+                                '6. در پنل vigent، کانال اینستاگرام را disconnect و با توکن جدید وصل کنید\n' +
+                                'پیش‌نیاز: اکانت اینستاگرام باید Business/Creator باشد و به یک Facebook Page متصل باشد.',
                 })
         }
 

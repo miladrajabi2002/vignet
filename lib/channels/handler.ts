@@ -199,21 +199,6 @@ export async function handleInbound(
                         const contactId = await upsertContact(agent.workspaceId, type, msg)
                         const contactName = await getContactName(contactId)
 
-                        // Pending / message-request folder (Instagram & Messenger DMs from
-                        // non-followers): Meta will refuse any reply until the recipient accepts
-                        // the conversation. Don't burn an LLM call or surface a doomed-send
-                        // error — log a warning so the operator knows the inbound is waiting,
-                        // and skip the auto-reply. The inbound is already stored on the
-                        // conversation (the dashboard shows it) so the operator can act on it.
-                        if (msg.pendingFolder) {
-                                console.warn(
-                                        `[handler] ${type} inbound from ${msg.senderId} is in the pending/message-request ` +
-                                                'folder — skipping auto-reply (recipient must accept the conversation first). ' +
-                                                'Inbound is stored; the operator will see it in the conversations inbox.',
-                                )
-                                continue
-                        }
-
                         // Best-effort "typing…" indicator while the model generates the reply.
                         if (adapter.sendTyping) {
                                 adapter
@@ -221,6 +206,12 @@ export async function handleInbound(
                                         .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
                         }
 
+                        // generateReply stores the inbound message in the conversation AND
+                        // generates the reply. We ALWAYS call it so the inbound is persisted —
+                        // even if the outbound reply will fail (e.g. IG-user token can't send
+                        // DMs, or the message came from the request folder and hasn't been
+                        // accepted yet). A failed send is captured below; the stored inbound
+                        // remains visible to the operator in the conversations inbox.
                         const result = await generateReply({
                                 workspaceId: agent.workspaceId,
                                 agent: chatAgent,
@@ -232,6 +223,10 @@ export async function handleInbound(
                         })
                         if ('error' in result) continue
 
+                        // Attempt the outbound reply. For Instagram DMs with an IG-user token
+                        // (IGAA…) or for messages still in the request folder, this will throw
+                        // — the catch below captures it to /admin/errors so the operator sees
+                        // a clear reason. The inbound is already stored at this point.
                         await adapter.sendText(msg.chatId, result.reply, {
                                 quickReplies: settings.quickReplies,
                         })
