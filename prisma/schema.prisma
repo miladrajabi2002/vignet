@@ -142,6 +142,8 @@ model Agent {
   versions        AgentVersion[]
   handoffAlerts   HandoffAlert[]
   chatLink        ChatLink?
+  instagramAutomations InstagramAutomation[]
+  instagramFollowGates InstagramFollowGate[]
 
   @@index([workspaceId])
 }
@@ -759,4 +761,77 @@ model StoreSyncLog {
 
   @@index([integrationId, createdAt])
   @@index([workspaceId])
+}
+
+// ─── INSTAGRAM AUTOMATION (DM / Comment / Story) ─────────────────────
+//   Per-agent automation scenarios for a connected Instagram channel.
+//   Replaces the "reply-only" model with keyword triggers, follow-gating,
+//   comment→DM funnels, and smart (AI) replies to story mentions/replies.
+//
+//   `trigger` JSON shape:
+//     { keywords: string[], matchMode: 'EXACT'|'CONTAINS'|'STARTS_WITH',
+//       storyScope: 'ALL'|'KEYWORD', postIds?: string[] }
+//
+//   `action` JSON shape:
+//     { replyMode: 'STATIC'|'AI'|'FLOW',
+//       replyText?: string,            // STATIC reply (or AI fallback context)
+//       dmOnComment?: boolean,         // COMMENT type: also send a DM
+//       followGate?: boolean,          // require follow before sending content
+//       gateMode?: 'SOFT'|'STORY_MENTION',
+//       gatePrompt?: string,           // "follow us and reply 'done'"
+//       gateConfirmKeyword?: string,   // e.g. "done" / "فالو کردم"
+//       gateQuickReply?: string,       // button label e.g. "فالو کردم"
+//       contentText?: string,          // sent after gate fulfilled
+//       aiAgentEnabled?: boolean }     // route through the agent's AI engine
+model InstagramAutomation {
+  id        String   @id @default(cuid())
+  agentId   String
+  channelId String   // the INSTAGRAM AgentChannel this scenario belongs to
+  type      InstagramAutomationType
+  name      String
+  active    Boolean  @default(true)
+  priority  Int      @default(0) // higher = evaluated first when multiple match
+  trigger   Json
+  action    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  followGates InstagramFollowGate[]
+
+  @@index([agentId, type, active])
+  @@index([channelId])
+  @@index([agentId, active, priority])
+}
+
+enum InstagramAutomationType {
+  DIRECT_MESSAGE
+  COMMENT
+  STORY
+}
+
+// ─── INSTAGRAM FOLLOW-GATE STATE ─────────────────────────────────────
+//   Tracks a pending follow-gate for a user who triggered a gated automation.
+//   Created when the user comments/DMs the keyword; fulfilled when they reply
+//   the confirm keyword (SOFT gate) or mention the account in a story
+//   (STORY_MENTION gate, verified via the story_mention webhook).
+model InstagramFollowGate {
+  id           String   @id @default(cuid())
+  automationId String
+  agentId      String
+  contactId    String?
+  igSenderId   String   // IG-scoped id of the user who triggered the gate
+  chatId       String   // messaging chat id to address the DM reply
+  status       String   @default("PENDING") // PENDING | FULFILLED | EXPIRED
+  payload      Json?    // snapshot (keyword, postId, etc.) for debugging
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  fulfilledAt  DateTime?
+
+  automation InstagramAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  agent      Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([automationId, igSenderId])
+  @@index([status])
+  @@index([agentId, status])
 }

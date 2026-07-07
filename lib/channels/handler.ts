@@ -12,6 +12,11 @@ import {
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import { captureError } from '@/lib/errors/capture'
+import { runInstagramAutomation } from '@/lib/instagram/automation'
+import {
+        readPageToken,
+        normalizeInstagramSettings,
+} from '@/lib/instagram/config'
 
 const AGENT_SELECT = {
         id: true,
@@ -35,11 +40,41 @@ const AGENT_SELECT = {
         customerInfoPrompt: true,
 } satisfies Prisma.AgentSelect
 
+interface ResolvedChannel {
+        channelId: string
+        config: Prisma.JsonValue
+        agent: {
+                id: string
+                workspaceId: string
+                systemPrompt: string
+                language: string
+                model: string | null
+                temperature: number
+                maxTokens: number
+                fallbackMessage: string | null
+                handoffEnabled: boolean
+                handoffMessage: string | null
+                handoffKeywords: string[]
+                voiceEnabled: boolean
+                ttsVoice: string
+                active: boolean
+                promptConfig: unknown
+                roleTemplate: string | null
+                requireCustomerInfo: boolean
+                customerInfoPrompt: string | null
+        }
+        adapter: MessengerAdapter
+        settings: { quickReplies: string[] }
+}
+
 /**
  * Locate the active messenger channel for a webhook token, returning the
  * channel, its parent agent, and a ready-to-use adapter. Null when not found.
  */
-async function resolveChannel(type: MessengerType, webhookToken: string) {
+async function resolveChannel(
+        type: MessengerType,
+        webhookToken: string,
+): Promise<ResolvedChannel | null> {
         const channel = await prisma.agentChannel.findFirst({
                 where: {
                         type,
@@ -59,9 +94,44 @@ async function resolveChannel(type: MessengerType, webhookToken: string) {
 
         return {
                 channelId: channel.id,
+                config: channel.config,
                 agent: channel.agent,
                 adapter: getAdapter(type, token),
                 settings: normalizeMessengerSettings(channel.config),
+        }
+}
+
+/**
+ * Resolve an Instagram channel by its Facebook Page id — used by the GLOBAL
+ * webhook (`/api/webhook/instagram`) which receives all events for the
+ * platform's single Meta App and demultiplexes them by page.
+ */
+async function resolveInstagramChannelByPageId(
+        pageId: string,
+): Promise<ResolvedChannel | null> {
+        const channel = await prisma.agentChannel.findFirst({
+                where: {
+                        type: 'INSTAGRAM',
+                        active: true,
+                        config: { path: ['pageId'], equals: pageId },
+                },
+                select: {
+                        id: true,
+                        config: true,
+                        agent: { select: { ...AGENT_SELECT, workspaceId: true } },
+                },
+        })
+        if (!channel?.agent?.active) return null
+
+        const token = readPageToken(channel.config)
+        if (!token) return null
+
+        return {
+                channelId: channel.id,
+                config: channel.config,
+                agent: channel.agent,
+                adapter: getAdapter('INSTAGRAM', token),
+                settings: normalizeInstagramSettings(channel.config),
         }
 }
 
@@ -150,28 +220,9 @@ async function resolveText(
         return ''
 }
 
-/**
- * Process a raw webhook body for a messenger channel. Designed to run after
- * the HTTP response is returned (fire-and-forget) so platforms don't time out.
- */
-export async function handleInbound(
-        type: MessengerType,
-        webhookToken: string,
-        body: unknown,
-): Promise<void> {
-        if (!isMessengerType(type)) return
-
-        const resolved = await resolveChannel(type, webhookToken)
-        if (!resolved) return
-        const { channelId, agent, adapter, settings } = resolved
-
-        // Stamp the channel's last-inbound time so the dashboard can surface webhook
-        // health ("last message 2m ago" vs. a silent/broken hook). Fire-and-forget.
-        prisma.agentChannel
-                .update({ where: { id: channelId }, data: { lastInboundAt: new Date() } })
-                .catch((e) => console.error('[handler] lastInboundAt update failed:', e))
-
-        const chatAgent: ChatAgent = {
+/** Build the ChatAgent payload handed to the AI engine. */
+function toChatAgent(agent: ResolvedChannel['agent']): ChatAgent {
+        return {
                 id: agent.id,
                 systemPrompt: agent.systemPrompt,
                 language: agent.language,
@@ -182,13 +233,34 @@ export async function handleInbound(
                 handoffEnabled: agent.handoffEnabled,
                 handoffMessage: agent.handoffMessage,
                 handoffKeywords: agent.handoffKeywords,
-                // ─ F1: layered prompt
                 promptConfig: agent.promptConfig as ChatAgent['promptConfig'],
                 roleTemplate: agent.roleTemplate,
-                // ─ F3: customer identification
                 requireCustomerInfo: agent.requireCustomerInfo,
                 customerInfoPrompt: agent.customerInfoPrompt,
         }
+}
+
+/**
+ * Core per-channel inbound processor. Shared by the token-based webhook
+ * (legacy + other messengers) and the global Instagram webhook. Runs the
+ * Instagram automation engine BEFORE the default AI reply so keyword scenarios
+ * (and follow-gates) take precedence; falls through to the agent AI when no
+ * scenario matches.
+ */
+async function processChannelInbound(
+        type: MessengerType,
+        resolved: ResolvedChannel,
+        body: unknown,
+): Promise<void> {
+        const { channelId, agent, adapter, settings } = resolved
+
+        // Stamp the channel's last-inbound time so the dashboard can surface webhook
+        // health ("last message 2m ago" vs. a silent/broken hook). Fire-and-forget.
+        prisma.agentChannel
+                .update({ where: { id: channelId }, data: { lastInboundAt: new Date() } })
+                .catch((e) => console.error('[handler] lastInboundAt update failed:', e))
+
+        const chatAgent = toChatAgent(agent)
 
         const messages = adapter.parseUpdate(body)
         for (const msg of messages) {
@@ -204,6 +276,23 @@ export async function handleInbound(
                                 adapter
                                         .sendTyping(msg.chatId)
                                         .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
+                        }
+
+                        // ─── Instagram automation layer ─────────────────────────────
+                        // Keyword scenarios, comment→DM funnels, follow-gates, and smart story
+                        // replies run here. When a scenario handles the message, we skip the
+                        // default AI turn entirely.
+                        if (type === 'INSTAGRAM') {
+                                const auto = await runInstagramAutomation({
+                                        agent: { ...chatAgent, workspaceId: agent.workspaceId },
+                                        channelId,
+                                        adapter,
+                                        msg,
+                                        contactId,
+                                        contactName,
+                                        quickReplies: settings.quickReplies,
+                                })
+                                if (auto.handled) continue
                         }
 
                         // generateReply stores the inbound message in the conversation AND
@@ -252,4 +341,58 @@ export async function handleInbound(
                         })
                 }
         }
+}
+
+/**
+ * Process a raw webhook body for a messenger channel. Designed to run after
+ * the HTTP response is returned (fire-and-forget) so platforms don't time out.
+ */
+export async function handleInbound(
+        type: MessengerType,
+        webhookToken: string,
+        body: unknown,
+): Promise<void> {
+        if (!isMessengerType(type)) return
+
+        const resolved = await resolveChannel(type, webhookToken)
+        if (!resolved) return
+        await processChannelInbound(type, resolved, body)
+}
+
+/**
+ * Process a raw webhook body received by the GLOBAL Instagram webhook
+ * (`/api/webhook/instagram`). The platform owns a single Meta App, so all IG
+ * events arrive at one URL; we demultiplex them by the Facebook Page id carried
+ * in every entry (`entry.id` for page-scoped events, or the recipient id for
+ * messaging events) and route each to the channel that owns that page.
+ */
+export async function handleInstagramGlobalInbound(
+        body: unknown,
+): Promise<void> {
+        const entries = (body as { entry?: { id?: string }[] })?.entry
+        if (!entries?.length) return
+
+        // Collect the distinct page ids mentioned in this batch. `entry.id` is the
+        // Page id for both messaging and change events on Instagram.
+        const pageIds = new Set<string>()
+        for (const e of entries) {
+                if (e.id) pageIds.add(e.id)
+        }
+        if (!pageIds.size) return
+
+        // Resolve each page to its channel and process. Multiple pages in one batch
+        // (rare) are handled independently.
+        await Promise.all(
+                Array.from(pageIds).map(async (pageId) => {
+                        try {
+                                const resolved = await resolveInstagramChannelByPageId(pageId)
+                                if (!resolved) return
+                                await processChannelInbound('INSTAGRAM', resolved, body)
+                        } catch (e) {
+                                captureError('webhook:INSTAGRAM:global', e, {
+                                        metadata: { pageId },
+                                })
+                        }
+                }),
+        )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -16,9 +17,10 @@ import {
   CheckCheck,
   AlertTriangle,
   Settings2,
+  ArrowLeft,
   type LucideIcon,
 } from 'lucide-react'
-import { InstagramConnectWizard } from '@/components/channels/instagram-connect-wizard'
+import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -270,6 +272,7 @@ export function MessengerChannel({
   verifyToken,
   lastInboundAt,
   quickReplies = [],
+  botAvatar,
 }: {
   agentId: string
   type: MessengerKind
@@ -286,6 +289,8 @@ export function MessengerChannel({
   lastInboundAt?: string | null
   /** Saved quick-reply suggestion buttons (config.settings.quickReplies). */
   quickReplies?: string[]
+  /** For Instagram OAuth channels: the IG profile picture URL (display). */
+  botAvatar?: string | null
 }) {
   const t = useTranslations('channels')
   const router = useRouter()
@@ -297,7 +302,7 @@ export function MessengerChannel({
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
-  const isMeta = type === 'WHATSAPP' || type === 'INSTAGRAM'
+  const isInstagram = type === 'INSTAGRAM'
   const guideSteps = t.raw(`guide.${type}`) as unknown
   const steps = Array.isArray(guideSteps) ? (guideSteps as string[]) : []
 
@@ -336,9 +341,21 @@ export function MessengerChannel({
   return (
     <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
-          <Icon className="h-5 w-5" />
-        </div>
+        {enabled && isInstagram && botAvatar ? (
+          // Connected Instagram OAuth channel — show the IG profile avatar
+          // instead of the generic camera icon. Makes it obvious at a glance
+          // which account is wired up.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={botAvatar}
+            alt={botUsername ?? ''}
+            className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
+            <Icon className="h-5 w-5" />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 font-medium text-[var(--text-primary)]">
             {label}
@@ -349,14 +366,27 @@ export function MessengerChannel({
           </div>
         </div>
         {enabled ? (
-          <button
-            onClick={disable}
-            disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {t('disable')}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Connected Instagram: link into the automation management page.
+                This is the entry point to DM/comment triggers, follow-gate, etc. */}
+            {isInstagram && (
+              <Link
+                href={`/agents/${agentId}/instagram`}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-base)]"
+              >
+                مدیریت اتوماسیون
+                <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+              </Link>
+            )}
+            <button
+              onClick={disable}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t('disable')}
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => setOpen((v) => !v)}
@@ -370,11 +400,10 @@ export function MessengerChannel({
 
       {enabled && <WebhookHealth lastInboundAt={lastInboundAt} />}
 
-      {/* Instagram-only: persistent reminder about Development Mode / App Review
-          limitation. Shown for every connected Instagram channel because the
-          symptom ("messages arrive but no reply goes out") only appears AFTER
-          connecting, and is the #1 Instagram support ticket. */}
-      {enabled && type === 'INSTAGRAM' && <InstagramDevModeReminder />}
+      {/* Instagram no longer needs the Development Mode / App Review reminder:
+          the platform app is Live + reviewed, and new connections are OAuth
+          (mode='OAUTH'). Legacy token-paste channels are also covered because
+          the new connections are the dominant path. */}
 
       {/* Behavior settings for connected channels that support them. */}
       {enabled && channelId && SUPPORTS_QUICK_REPLIES[type] && (
@@ -386,8 +415,11 @@ export function MessengerChannel({
         />
       )}
 
-      {/* Connected Meta channels: show the webhook callback URL + verify token to finish dashboard setup. */}
-      {enabled && isMeta && callbackUrl && verifyToken && (
+      {/* Connected WhatsApp channels: show the webhook callback URL + verify
+          token to finish Meta dashboard setup. Instagram OAuth channels no
+          longer need this — the platform app manages the webhook globally
+          (callback /api/webhook/instagram, demuxed by pageId). */}
+      {enabled && type === 'WHATSAPP' && callbackUrl && verifyToken && (
         <div className="mt-4 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
           <p className="text-xs text-[var(--text-secondary)]">{t('webhookSetupNote')}</p>
           <div className="space-y-1">
@@ -414,15 +446,12 @@ export function MessengerChannel({
       {!enabled && open && (
         <div className="mt-4 space-y-3">
           {type === 'INSTAGRAM' ? (
-            // Instagram uses a guided wizard (User Token → pick Page → Page
-            // Access Token) instead of the single-field form, because the #1
-            // Instagram support issue is using the wrong token type.
-            <InstagramConnectWizard
+            // Instagram uses the platform-managed OAuth flow (one click →
+            // Facebook Login dialog → callback → channel persisted). No token
+            // pasting, no webhook configuration, no Meta dashboard visit.
+            <InstagramConnectFlow
               agentId={agentId}
-              onDone={() => {
-                setOpen(false)
-                router.refresh()
-              }}
+              onClose={() => setOpen(false)}
             />
           ) : (
             <>
@@ -476,59 +505,6 @@ export function MessengerChannel({
               </div>
             </>
           )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/**
- * Inline reminder shown on every connected Instagram channel: Meta's
- * Development Mode lets you RECEIVE DMs but blocks REPLYING to them until the
- * app passes App Review (instagram_manage_messages → Advanced Access). This is
- * the #1 Instagram support ticket, so we surface it permanently on the channel
- * card rather than burying it in a help page.
- */
-function InstagramDevModeReminder() {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-50/80 p-3 dark:bg-amber-950/30">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start gap-2 text-right"
-      >
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-        <span className="flex-1 text-xs font-medium leading-relaxed text-amber-900 dark:text-amber-200">
-          پاسخ به دایرکت کار نمی‌کند؟ محدودیت Development Mode را بخوانید
-        </span>
-        <span className="text-[10px] text-amber-700 dark:text-amber-400">
-          {open ? 'بستن' : 'بیشتر'}
-        </span>
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2 border-t border-amber-300/50 pt-2 text-[11px] leading-relaxed text-amber-900 dark:text-amber-200">
-          <p>
-            اگر پیام‌ها در داشبورد می‌آیند ولی <b>پاسخ خودکار ارسال نمی‌شود</b>، علت محدودیت Development Mode متاست:
-          </p>
-          <p>
-            متا برای ارسال پاسخ به DM نیاز به دسترسی <code dir="ltr">instagram_manage_messages</code> با
-            <b> Advanced Access</b> دارد که فقط با <b>App Review</b> به‌دست می‌آید (۲-۵ روز کاری).
-          </p>
-          <p className="mt-1.5"><b>راه‌حل کامل:</b></p>
-          <ol className="list-decimal space-y-0.5 ps-4">
-            <li>developers.facebook.com → اپ شما → <b>App Review</b> → Permissions and Features</li>
-            <li><code dir="ltr">instagram_manage_messages</code> → «Request Advanced Access»</li>
-            <li>Use case + اسکرین‌شات پنل vigent → Submit</li>
-            <li>بعد از approval: اپ را <b>Live</b> کنید</li>
-          </ol>
-          <p className="mt-1.5"><b>تست موقت تا approval:</b></p>
-          <p>
-            App Roles → Instagram Testers → اکانت تست را اضافه کنید. فقط tester/admin می‌تواند پیام بفرستد و پاسخ بگیرد.
-          </p>
-          <p className="mt-1.5 text-amber-700 dark:text-amber-400">
-            💡 پاسخ به کامنت‌ها با Standard Access هم کار می‌کند — نیازی به App Review ندارد.
-          </p>
         </div>
       )}
     </div>

@@ -1,0 +1,45 @@
+import { NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/session'
+import { prisma } from '@/lib/prisma'
+import { buildInstagramAuthUrl, signState, type OAuthState } from '@/lib/instagram/oauth'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * Start the Instagram OAuth flow. The operator clicked "Connect" — we verify
+ * they own the agent, build a signed state token (so the callback can trust the
+ * redirect), and send the browser to Facebook's OAuth dialog. After the user
+ * authorizes, Meta redirects to `/api/instagram/oauth/callback`.
+ *
+ * The agent id is read from the JSON body (NOT the URL path) so this single
+ * route can serve any agent without a dynamic segment.
+ */
+export async function POST(req: Request) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const json = (await req.json().catch(() => null)) as {
+    agentId?: string
+    returnTo?: string
+  }
+  const agentId = json?.agentId
+  if (!agentId) {
+    return NextResponse.json({ error: 'MISSING_AGENT_ID' }, { status: 400 })
+  }
+
+  const agent = await prisma.agent.findFirst({
+    where: { id: agentId, workspaceId: user.workspaceId },
+    select: { id: true },
+  })
+  if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  const state: OAuthState = {
+    agentId: agent.id,
+    workspaceId: user.workspaceId,
+    nonce: crypto.randomUUID(),
+    returnTo: json.returnTo,
+  }
+
+  const url = buildInstagramAuthUrl(signState(state))
+  return NextResponse.json({ url })
+}

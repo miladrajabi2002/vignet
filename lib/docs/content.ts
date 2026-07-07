@@ -14,6 +14,9 @@ import {
         Cpu,
         CreditCard,
         MessageCircle,
+        Camera,
+        Wrench,
+        Settings,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -27,6 +30,7 @@ export type DocBlock =
         | { type: 'steps'; items: T[] }
         | { type: 'code'; code: string; caption?: T }
         | { type: 'callout'; fa: string; en: string }
+        | { type: 'image'; src: string; alt: T; caption?: T }
 
 export interface DocPage {
         slug: string
@@ -456,6 +460,671 @@ export const DOCS: DocPage[] = [
                                 type: 'p',
                                 fa: 'در تنظیمات هر کانال (کارت کانال ← تنظیمات کانال) می‌توانید تا ۴ سؤال پرتکرار تعریف کنید. این سؤالات زیر پاسخ‌های ایجنت به‌صورت دکمه ظاهر می‌شوند و مشتری با یک لمس آن‌ها را می‌پرسد — بدون تایپ. در واتساپ حداکثر ۳ دکمه با متن حداکثر ۲۰ کاراکتر نمایش داده می‌شود.',
                                 en: 'In each channel\'s settings (channel card → Channel settings) you can define up to 4 common questions. They appear as buttons under the agent\'s replies so customers ask with one tap — no typing. WhatsApp shows at most 3 buttons with 20-character titles.',
+                        },
+                ],
+        },
+        {
+                slug: 'instagram-connection',
+                icon: Camera,
+                title: {
+                        fa: 'اتصال اینستاگرام به ویجنت (راهنمای گام‌به‌گام)',
+                        en: 'Connect Your Instagram Account to Vigent (Step-by-Step Guide)',
+                },
+                description: {
+                        fa: 'راهنمای کامل اتصال اکانت اینستاگرام Business یا Creator به ویجنت برای پاسخ خودکار به دایرکت، کامنت و استوری',
+                        en: 'A clear, step-by-step walkthrough for connecting your Instagram Business or Creator account to Vigent',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'ویجنت به دایرکت‌ها، کامنت‌ها و استوری‌های اینستاگرام شما به‌صورت خودکار و در چند ثانیه پاسخ می‌دهد. برای شروع فقط یک‌بار اکانت اینستاگرام خود را وصل کنید.',
+                                en: 'Vigent replies to your Instagram DMs, comments, and story mentions automatically, in seconds. To get started, you only need to connect your Instagram account once.',
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'برای اتصال فقط روی دکمه «اتصال» بزنید — نیازی به ساخت اپ متا یا کپی توکن نیست. ویجنت اپ خود را دارد و شما فقط اجازه دسترسی می‌دهید.',
+                                en: 'To connect, just click the “Connect” button — no need to create a Meta app or copy any tokens. Vigent already has its own app; you only grant access.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'قبل از شروع',
+                                en: 'Before you begin',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'اکانت شما باید از نوع Business یا Creator باشد. اکانت شخصی قابل اتصال نیست. برای تغییر: اپ اینستاگرام ← تنظیمات ← Account type and tools ← Switch to professional account.',
+                                                en: 'You’ll need a Business or Creator account. Personal accounts can’t connect. Switch in the Instagram app: Settings → Account type and tools → Switch to professional account.',
+                                        },
+                                        {
+                                                fa: 'اتصال را حتماً در مرورگر انجام دهید، نه داخل اپلیکیشن اینستاگرام. اپ موبایل مسیر ورود را قطع می‌کند.',
+                                                en: 'Do the connection in a web browser — not inside the Instagram app. The app intercepts the login flow and breaks the connection.',
+                                        },
+                                        {
+                                                fa: 'در موبایل، لینک را همیشه در مرورگر (مثل Chrome) باز کنید — داخل اپ باز نشود.',
+                                                en: 'On mobile, always open the link in a browser (such as Chrome) — never inside the Instagram app.',
+                                        },
+                                        {
+                                                fa: 'توصیه: اتصال را روی دسکتاپ انجام دهید؛ در گوشی ممکن است لینک داخل اپ باز شود و فرآیند قطع شود.',
+                                                en: 'Tip: Connecting on a desktop computer is easier than on mobile, where the link may open inside the app and break the flow.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'مراحل اتصال',
+                                en: 'Steps to connect',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۱ — در پنل ویجنت، به صفحه کانال‌های ایجنت بروید و روی دکمه سیاه «اتصال» بزنید.',
+                                en: 'Step 1 — In your Vigent panel, go to the agent channels page and click the black “Connect” button.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/2c27c891-051b-4236-ae07-122ba247f362',
+                                alt: {
+                                        fa: 'دکمه اتصال اینستاگرام در پنل',
+                                        en: 'Instagram connect button in the panel',
+                                },
+                                caption: {
+                                        fa: 'صفحه اتصال اینستاگرام با دکمه اتصال',
+                                        en: 'Vigent Instagram connect page',
+                                },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۲ — (در موبایل) اگر منوی «Open with…» باز شد، یک مرورگر (مثلاً Chrome) را انتخاب کنید و «Just once» را بزنید — اینستاگرام را انتخاب نکنید.',
+                                en: 'Step 2 — (Mobile) If an “Open with…” menu appears, pick a browser (e.g. Chrome) and tap “Just once” — do not choose Instagram.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/7490adda-d12c-49b5-8757-c36ff6b426fc',
+                                alt: { fa: 'انتخاب مرورگر Chrome', en: 'Choosing Chrome browser' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۳ — در مرورگر، روی «Log in» بزنید (اپ را باز نکنید). ممکن است صفحه‌ای با دکمه «Log in» یا صفحه «Sorry, this page isn’t available» ببینید — در هر دو روی «Log in» بزنید. اگر پاپ‌آپ «Open Instagram app» ظاهر شد، با ✕ آن را ببندید.',
+                                en: 'Step 3 — In the browser, tap “Log in” (don’t open the app). You may see a “Log in” button or a “page isn’t available” screen — tap “Log in” on both. Dismiss any “Open Instagram app” pop-up with ✕.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/56d0c9fc-d3df-4435-9e74-5c32c1029365',
+                                alt: { fa: 'صفحه ورود اینستاگرام', en: 'Instagram login page' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/10a23732-ffd6-437e-a42f-4392aedf4727',
+                                alt: { fa: 'بستن پاپ‌آپ باز کردن اپ', en: 'Dismissing the open-app pop-up' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۴ — نام کاربری و رمز عبور اینستاگرام را وارد کنید و «Log in» بزنید.',
+                                en: 'Step 4 — Enter your Instagram username and password, then tap “Log in”.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/dd8b18df-2e00-4459-8c4f-a3cf7c594440',
+                                alt: { fa: 'فرم ورود اینستاگرام', en: 'Instagram login form' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۵ — صفحه دسترسی‌ها باز می‌شود و نشان می‌دهد vigent-IG درخواست دسترسی به پروفایل، کامنت‌ها و پیام‌های شما را دارد. روی «Allow» بزنید. همه این دسترسی‌ها برای کارکرد ویجنت ضروری هستند.',
+                                en: 'Step 5 — A permissions screen opens showing what vigent-IG is requesting access to (your profile, comments, and messages). Tap “Allow”. All permissions are required.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/5235b323-c884-4b04-ac57-94286e91c3aa',
+                                alt: { fa: 'اجازه دسترسی به vigent-IG', en: 'Allowing vigent-IG permissions' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گام ۶ — تمام! به ویجنت برمی‌گردید و تأیید موفقیت را می‌بینید. روی ادامه بزنید — کانال اینستاگرام شما فعال شد و ویجنت به‌صورت خودکار دایرکت، کامنت و استوری‌های شما را مدیریت می‌کند.',
+                                en: 'Step 6 — Done! You return to Vigent and see a success confirmation. Click continue — your Instagram channel is live and Vigent now handles your DMs, comments, and stories automatically.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/6855cc9a-b165-4543-86d5-bb79c2725817',
+                                alt: { fa: 'تأیید اتصال موفق', en: 'Successful connection confirmation' },
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'مشکلات رایج اتصال',
+                                en: 'Common connection problems',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'اگر هنگام یا بعد از اتصال به یکی از این مشکلات برخوردید، راه‌حل هرکدام در صفحه رفع اشکال هست:',
+                                en: 'If you hit one of these during or after connecting, find a fix in the troubleshooting guide:',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'اپلیکیشن اینستاگرام به‌جای مرورگر باز می‌شود.',
+                                                en: 'The Instagram app opens instead of a browser.',
+                                        },
+                                        {
+                                                fa: 'خطای «future activity» هنگام اتصال.',
+                                                en: 'You get a “future activity” error while connecting.',
+                                        },
+                                        {
+                                                fa: 'بعد از اتصال، پیام‌ها در پنل نمی‌رسند.',
+                                                en: 'After connecting, messages don’t arrive in your panel.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'راهنمای رفع اشکال کامل را در صفحه «رفع اشکال اتصال اینستاگرام» (slug: instagram-troubleshooting) بخوانید.',
+                                en: 'Read the full troubleshooting guide on the “Instagram troubleshooting” page (slug: instagram-troubleshooting).',
+                        },
+                ],
+        },
+        {
+                slug: 'instagram-troubleshooting',
+                icon: Wrench,
+                title: {
+                        fa: 'رفع اشکال اتصال اینستاگرام به ویجنت',
+                        en: 'Troubleshooting Instagram Connection Issues with Vigent',
+                },
+                description: {
+                        fa: 'راه‌حل سه مشکل رایج اتصال اینستاگرام: باز شدن اپ به‌جای مرورگر، خطای future activity، و نرسیدن پیام‌ها بعد از اتصال',
+                        en: 'Fixes for the three most common Instagram connection problems',
+                },
+                blocks: [
+                        {
+                                type: 'p',
+                                fa: 'اگر هنگام اتصال اینستاگرام یا بلافاصله بعد از آن به مشکلی برخوردید، تقریباً همیشه یکی از سه مورد زیر است. هرکدام راه‌حل ساده‌ای دارد.',
+                                en: 'If you hit a problem while connecting Instagram — or right after — it’s almost always one of these three. Each has a simple fix.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱) اپلیکیشن اینستاگرام به‌جای مرورگر باز می‌شود',
+                                en: '1) The Instagram app opens instead of the browser',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گاهی لینک اتصال به‌جای مرورگر، داخل اپ اینستاگرام باز می‌شود و صفحه‌ای مثل «Sorry, this page isn’t available» یا پروفایل ناموجود می‌بینید. دلیلش این است که اندروید لینک‌های اینستاگرام را به‌صورت پیش‌فرض به اپ می‌سپارد.',
+                                en: 'Sometimes the connect link opens inside the Instagram app instead of a browser, and you see a “Sorry, this page isn’t available” or a missing-profile screen. Android sends Instagram links to the app by default.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/dbb6754e-3250-4548-a4c5-c891032998f3',
+                                alt: { fa: 'صفحه پروفایل ناموجود', en: 'Profile doesn’t exist page' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'برای رفع این مشکل در اندروید، باید باز شدن خودکار لینک‌های اینستاگرام توسط اپ را غیرفعال کنید:',
+                                en: 'To fix this on Android, disable Instagram’s automatic link-opening:',
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'از بالا Swipe پایین بکشید، روی آیکون چرخ‌دنده (Settings) بزنید.',
+                                                en: 'Swipe down from the top and tap the gear (Settings) icon.',
+                                        },
+                                        {
+                                                fa: 'در نوار جستجو «apps» را سرچ کنید و روی Apps بزنید.',
+                                                en: 'Search “apps” in the bar and tap Apps.',
+                                        },
+                                        {
+                                                fa: 'در لیست اپ‌ها، Instagram را پیدا کنید.',
+                                                en: 'Find Instagram in the app list.',
+                                        },
+                                        {
+                                                fa: 'به بخش Defaults بروید و Set as default را بزنید.',
+                                                en: 'Go to Defaults and tap Set as default.',
+                                        },
+                                        {
+                                                fa: 'گزینه Open supported links را خاموش کنید.',
+                                                en: 'Turn off “Open supported links”.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/d9760dee-5953-4bd0-a1a4-2bf87b2b06b0',
+                                alt: { fa: 'تنظیمات اندروید', en: 'Android settings' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/66210237-bcaf-440b-80f2-e76fc83c4b4b',
+                                alt: { fa: 'جستجوی apps', en: 'Searching apps' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/7cad74ab-d08e-4165-808d-465d6765d08a',
+                                alt: { fa: 'انتخاب اینستاگرام', en: 'Selecting Instagram' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/b7c643df-d757-45da-bc79-031da3be87ea',
+                                alt: { fa: 'تنظیم به‌عنوان پیش‌فرض', en: 'Set as default' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/22c88ee6-c2ce-480d-969c-4a2e2237fe82',
+                                alt: { fa: 'خاموش کردن Open supported links', en: 'Turn off Open supported links' },
+                        },
+                        {
+                                type: 'p',
+                                fa: 'راه‌حل جایگزین: اتصال را روی دسکتاپ انجام دهید، یا از گوشی‌ای بدون اپ اینستاگرام استفاده کنید، یا از حالت Incognito مرورگر بهره بگیرید. در صورت لزوم می‌توانید اپ را موقتاً حذف و بعد از اتصال دوباره نصب کنید.',
+                                en: 'Alternative: connect on a desktop, use a phone without the Instagram app, or open the link in an incognito browser window. You can also temporarily uninstall and reinstall the app after connecting.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۲) خطای «future activity» هنگام اتصال',
+                                en: '2) The “future activity” error',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'گاهی متا هنگام اتصال پیامی نشان می‌دهد که می‌گوید باید «future activity» را روشن کنید. در این صورت باید از داخل تنظیمات اینستاگرام این گزینه را فعال کنید.',
+                                en: 'Sometimes Meta shows a message during connection asking you to enable “future activity”. You need to turn it on from inside the Instagram app settings.',
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/a58e3075-5312-49a3-a657-9c9d54a209b3',
+                                alt: { fa: 'خطای future activity', en: 'Future activity error' },
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'در اپ اینستاگرام، به Settings and activity بروید.',
+                                                en: 'In the Instagram app, go to Settings and activity.',
+                                        },
+                                        {
+                                                fa: 'روی Accounts Centre بزنید.',
+                                                en: 'Tap Accounts Centre.',
+                                        },
+                                        {
+                                                fa: 'به بخش Your information and permissions بروید.',
+                                                en: 'Go to Your information and permissions.',
+                                        },
+                                        {
+                                                fa: 'روی Your activity off Meta technologies بزنید.',
+                                                en: 'Tap Your activity off Meta technologies.',
+                                        },
+                                        {
+                                                fa: 'روی Manage future activity بزنید و گزینه Connect future activity را انتخاب کنید.',
+                                                en: 'Tap Manage future activity and select Connect future activity.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/790d1232-28db-4796-af63-0c2a3f6f4dca',
+                                alt: { fa: 'Accounts Centre', en: 'Accounts Centre' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/1ad16238-7cb2-4bfc-a941-de5006200803',
+                                alt: { fa: 'Your information and permissions', en: 'Your information and permissions' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/febc511a-0378-4bdb-acaf-58cb3e4cde2e',
+                                alt: { fa: 'Your activity off Meta', en: 'Your activity off Meta' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/31ea9359-ddbf-4923-96ec-518058d7c63a',
+                                alt: { fa: 'Manage future activity', en: 'Manage future activity' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/bad0ac08-2e4d-4b2e-adf3-868c2124d0d9',
+                                alt: { fa: 'روشن کردن Connect future activity', en: 'Connect future activity on' },
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۳) پیام‌ها بعد از اتصال نمی‌رسند',
+                                en: '3) Messages don’t arrive after connecting',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'اگر اتصال با موفقیت انجام شده ولی پیام‌ها در پنل ویجنت نمی‌رسند، باید دو تنظیم را بررسی کنید: دسترسی به پیام‌ها و دسترسی‌های اپ vigent-IG.',
+                                en: 'If the connection succeeded but messages aren’t arriving in your Vigent panel, check two settings: message access and the vigent-IG app permissions.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'بخش اول: روشن کردن دسترسی به پیام‌ها',
+                                en: 'Part 1: Enable message access',
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'در اپ اینستاگرام، به Settings and activity ← Messages and story replies بروید.',
+                                                en: 'In the Instagram app, go to Settings and activity → Messages and story replies.',
+                                        },
+                                        {
+                                                fa: 'روی Message requests بزنید.',
+                                                en: 'Tap Message requests.',
+                                        },
+                                        {
+                                                fa: 'گزینه Allow access to messages را روشن کنید و برای Potential connections گزینه Everyone را انتخاب کنید.',
+                                                en: 'Turn on “Allow access to messages” and choose “Everyone” for Potential connections.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/3317ca3d-8edc-436c-a835-ad53ffc10882',
+                                alt: { fa: 'Messages and story replies', en: 'Messages and story replies' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/d1d09fc2-1087-4fc2-b502-a23cae72ce6a',
+                                alt: { fa: 'Message requests', en: 'Message requests' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/d64a1754-21ea-45b5-8a5c-7e10f7230b20',
+                                alt: { fa: 'اجازه دسترسی به پیام‌ها', en: 'Allow access to messages' },
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'بخش دوم: بررسی دسترسی‌های اپ vigent-IG',
+                                en: 'Part 2: Check the vigent-IG app permissions',
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'در اپ اینستاگرام، به Settings and activity ← Website permissions بروید.',
+                                                en: 'In the Instagram app, go to Settings and activity → Website permissions.',
+                                        },
+                                        {
+                                                fa: 'روی Apps and websites بزنید و به تب Active بروید.',
+                                                en: 'Tap Apps and websites and go to the Active tab.',
+                                        },
+                                        {
+                                                fa: 'vigent-IG را پیدا کنید و روی View and Edit بزنید.',
+                                                en: 'Find vigent-IG and click View and Edit.',
+                                        },
+                                        {
+                                                fa: 'هر دو گزینه Access your business message information و Access your business comment information را روشن کنید.',
+                                                en: 'Enable both “Access your business message information” and “Access your business comment information”.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/5be0dca7-55ad-480c-a4f8-5612201ddc05',
+                                alt: { fa: 'Website permissions', en: 'Website permissions' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/7a9731e0-a3e9-484c-9fae-3c3acf29a0de',
+                                alt: { fa: 'Apps and websites', en: 'Apps and websites' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/e98d0e82-6ea1-4fb4-b22c-b210b7dc149',
+                                alt: { fa: 'vigent-IG در تب Active', en: 'vigent-IG in the Active tab' },
+                        },
+                        {
+                                type: 'image',
+                                src: 'https://apigw.vardast.chat/file-server/view/a9e8a55b-50cb-4cc5-a3ff-386610477983',
+                                alt: { fa: 'View and Edit دسترسی‌ها', en: 'View and Edit permissions' },
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'اگر باز هم پیام نیامد، اکانت را یک‌بار قطع و دوباره وصل کنید.',
+                                en: 'If messages still don’t arrive, disconnect and reconnect the account.',
+                        },
+                ],
+        },
+        {
+                slug: 'meta-app-setup',
+                icon: Settings,
+                title: {
+                        fa: 'راهنمای صفر تا صد تنظیم اپ متا برای ویجنت',
+                        en: 'Complete Meta App setup guide for Vigent',
+                },
+                description: {
+                        fa: 'تنظیمات اپ متا (فیس‌بوک) برای پلتفرم ویجنت: ساخت اپ، افزودن محصولات، App Review، OAuth، وب‌هوک، Data Deletion و واتساپ',
+                        en: 'Meta (Facebook) app configuration for the Vigent platform: app creation, products, App Review, OAuth, webhook, data deletion, WhatsApp',
+                },
+                blocks: [
+                        {
+                                type: 'callout',
+                                fa: 'این راهنما فقط برای تیم ویجنت (مالک اپ متا) است — کاربران نهایی نیازی به این تنظیمات ندارند و فقط دکمه «اتصال» را می‌زنند.',
+                                en: 'This guide is only for the Vigent team (the Meta app owner). End users don’t need any of this — they just click “Connect”.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: 'پیش‌نیازها',
+                                en: 'Prerequisites',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'یک اکانت Facebook Developer',
+                                                en: 'A Facebook Developer account',
+                                        },
+                                        {
+                                                fa: 'یک دامنه با HTTPS (مثلاً vigent.ir)',
+                                                en: 'A domain with HTTPS (e.g. vigent.ir)',
+                                        },
+                                        {
+                                                fa: 'سرور با قابلیت دریافت وب‌هوک عمومی',
+                                                en: 'A server that can receive public webhooks',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱. ساخت اپ',
+                                en: '1. Create the app',
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'به developers.facebook.com ← My Apps بروید و روی Create App بزنید.',
+                                                en: 'Go to developers.facebook.com → My Apps and click Create App.',
+                                        },
+                                        {
+                                                fa: 'نوع اپ را Business انتخاب کنید.',
+                                                en: 'Choose the “Business” app type.',
+                                        },
+                                        {
+                                                fa: 'نام اپ را vigent-IG (یا نام برند خود) وارد کنید و ایمیل تماس را بنویسید.',
+                                                en: 'Set the app name to vigent-IG (or your brand name) and provide a contact email.',
+                                        },
+                                        {
+                                                fa: 'روی Create App بزنید.',
+                                                en: 'Click Create App.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۲. افزودن محصولات',
+                                en: '2. Add products',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'Instagram Graph API', en: 'Instagram Graph API' },
+                                        {
+                                                fa: 'Messenger (برای Instagram Messaging)',
+                                                en: 'Messenger (for Instagram Messaging)',
+                                        },
+                                        { fa: 'Facebook Login', en: 'Facebook Login' },
+                                        {
+                                                fa: 'WhatsApp Business API (برای واتساپ)',
+                                                en: 'WhatsApp Business API (for WhatsApp)',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۳. تنظیمات Basic',
+                                en: '3. Basic settings',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'Display Name: vigent-IG', en: 'Display Name: vigent-IG' },
+                                        { fa: 'App Domains: vigent.ir', en: 'App Domains: vigent.ir' },
+                                        {
+                                                fa: 'Privacy Policy URL: https://vigent.ir/privacy',
+                                                en: 'Privacy Policy URL: https://vigent.ir/privacy',
+                                        },
+                                        {
+                                                fa: 'Terms of Service URL: https://vigent.ir/terms',
+                                                en: 'Terms of Service URL: https://vigent.ir/terms',
+                                        },
+                                        { fa: 'App Icon (1024×1024)', en: 'App Icon (1024×1024)' },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۴. تنظیمات Facebook Login',
+                                en: '4. Facebook Login settings',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'Valid OAuth Redirect URIs: https://vigent.ir/api/instagram/oauth/callback (و برای واتساپ: https://vigent.ir/api/whatsapp/oauth/callback)',
+                                                en: 'Valid OAuth Redirect URIs: https://vigent.ir/api/instagram/oauth/callback (and for WhatsApp: https://vigent.ir/api/whatsapp/oauth/callback)',
+                                        },
+                                        { fa: 'Client OAuth Login: Yes', en: 'Client OAuth Login: Yes' },
+                                        { fa: 'Web OAuth Login: Yes', en: 'Web OAuth Login: Yes' },
+                                        {
+                                                fa: 'Force Web OAuth Reauthentication: Yes (تا کاربر هربار اجازه دهد)',
+                                                en: 'Force Web OAuth Reauthentication: Yes (so the user grants permission each time)',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۵. تنظیمات وب‌هوک (Webhook)',
+                                en: '5. Webhook configuration',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'وب‌هوک را یک‌بار در اپ تنظیم کنید. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: مقدار META_APP_VERIFY_TOKEN که در env تنظیم کرده‌اید. فیلدهای subscribe: messages، messaging_postbacks، feed، story_mention، mentions.',
+                                en: 'Configure the webhook once in the app. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: the value of META_APP_VERIFY_TOKEN from your env. Subscribe to fields: messages, messaging_postbacks, feed, story_mention, mentions.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۶. App Review (برای Advanced Access)',
+                                en: '6. App Review (for Advanced Access)',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'برای اینکه همه کاربران (نه فقط tester) بتوانند دایرکت بفرستند/بگیرند، باید دسترسی‌های زیر را به Advanced Access ارتقا دهید:',
+                                en: 'So that all users (not just testers) can send and receive DMs, you need to upgrade the following permissions to Advanced Access:',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        { fa: 'instagram_basic', en: 'instagram_basic' },
+                                        {
+                                                fa: 'instagram_manage_messages — نیاز به App Review و screencast',
+                                                en: 'instagram_manage_messages — requires App Review + screencast',
+                                        },
+                                        {
+                                                fa: 'instagram_manage_comments — نیاز به App Review',
+                                                en: 'instagram_manage_comments — requires App Review',
+                                        },
+                                        { fa: 'pages_show_list', en: 'pages_show_list' },
+                                        {
+                                                fa: 'pages_messaging — نیاز به App Review',
+                                                en: 'pages_messaging — requires App Review',
+                                        },
+                                        { fa: 'pages_read_engagement', en: 'pages_read_engagement' },
+                                        { fa: 'pages_manage_metadata', en: 'pages_manage_metadata' },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'برای هر permission که App Review می‌زنید، باید screencast (ویدئو) ضبط کنید که نشان می‌دهد اپ چطور از آن دسترسی استفاده می‌کند. در توضیحات بنویسید: «کاربر با دکمه Connect اکانت اینستاگرام خود را وصل می‌کند و اپ پیام‌ها/کامنت‌های او را برای پاسخ خودکار می‌خواند.»',
+                                en: 'For each permission submitted for App Review, you must record a screencast video showing how the app uses that permission. In the description, write: “The user clicks Connect to link their Instagram account, and the app reads their messages/comments to reply automatically.”',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۷. App Mode: Live',
+                                en: '7. App Mode: Live',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'بعد از تکمیل App Review و تنظیم Privacy Policy + Data Deletion، اپ را از Development به Live ببرید. تا زمان Live بودن، فقط tester/admin می‌توانند اتصال را تست کنند.',
+                                en: 'After completing App Review and setting up Privacy Policy + Data Deletion, switch the app from Development to Live. Until it’s Live, only testers/admins can test the connection.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۸. Data Deletion Callback',
+                                en: '8. Data Deletion Callback',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'متا الزام می‌کند که URLی برای حذف داده کاربر تعریف کنید. در App Settings ← Advanced ← Data Deletion Callback URL: https://vigent.ir/api/instagram/data-deletion. این endpoint باید POST با signed_request دریافت کند و یک confirmation code برگرداند. (این endpoint توسط تیم ویجنت پیاده‌سازی می‌شود.)',
+                                en: 'Meta requires a URL for user data deletion. In App Settings → Advanced → Data Deletion Callback URL, set https://vigent.ir/api/instagram/data-deletion. This endpoint must receive a POST with signed_request and return a confirmation code. (This endpoint is implemented by the Vigent team.)',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۹. متغیرهای محیطی (env)',
+                                en: '9. Environment variables',
+                        },
+                        {
+                                type: 'code',
+                                caption: { fa: 'متغیرهای لازم در .env', en: 'Required env vars' },
+                                code: `META_APP_ID=1234567890
+META_APP_SECRET=abcdef1234567890...
+META_APP_VERIFY_TOKEN=your_random_verify_token_string
+NEXT_PUBLIC_APP_URL=https://vigent.ir
+ENCRYPTION_KEY=<openssl rand -hex 32>`,
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱۰. واتساپ (WhatsApp Cloud API)',
+                                en: '10. WhatsApp (WhatsApp Cloud API)',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'واتساپ هم چون محصول متا است، از همان اپ و Facebook Login با Embedded Signup استفاده می‌کند. محصول WhatsApp Business API را به اپ اضافه کنید، شماره تلفن config کنید، و permission‌های whatsapp_business_messaging و whatsapp_business_management را App Review بزنید. Redirect URI واتساپ: https://vigent.ir/api/whatsapp/oauth/callback.',
+                                en: 'WhatsApp is also a Meta product, so it uses the same app and Facebook Login with Embedded Signup. Add the WhatsApp Business API product to the app, configure a phone number, and submit whatsapp_business_messaging and whatsapp_business_management for App Review. The WhatsApp redirect URI is https://vigent.ir/api/whatsapp/oauth/callback.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱۱. تست اتصال',
+                                en: '11. Test the connection',
+                        },
+                        {
+                                type: 'steps',
+                                items: [
+                                        {
+                                                fa: 'در اپ متا، Roles ← Instagram Testers ← خودتان را اضافه کنید (در حال Development).',
+                                                en: 'In the Meta app, go to Roles → Instagram Testers and add yourself (during Development).',
+                                        },
+                                        {
+                                                fa: 'اکانت اینستاگرام تست خود را به یک صفحه فیسبوک متصل کنید.',
+                                                en: 'Connect your test Instagram account to a Facebook Page.',
+                                        },
+                                        {
+                                                fa: 'در پنل ویجنت، دکمه اتصال را بزنید و فرآیند OAuth را طی کنید.',
+                                                en: 'In the Vigent panel, click Connect and go through the OAuth flow.',
+                                        },
+                                        {
+                                                fa: 'یک پیام تست بفرستید و در پنل ویجنت ببینید.',
+                                                en: 'Send a test message and watch it appear in the Vigent panel.',
+                                        },
+                                ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'بعد از Live شدن اپ و تکمیل App Review، testerها دیگر لازم نیستند — هر کاربری می‌تواند وصل شود.',
+                                en: 'After the app is Live and App Review is complete, testers are no longer needed — any user can connect.',
                         },
                 ],
         },

@@ -30,6 +30,23 @@ export interface InboundMessage {
    * instead surface the inbound so an operator can accept it manually.
    */
   pendingFolder?: boolean
+  /**
+   * Logical message kind — primarily for Instagram automation routing. Other
+   * channels default to 'DM'. Instagram sets COMMENT for public post/reel
+   * comments, STORY_REPLY for a DM that quotes a story, and STORY_MENTION when
+   * the account is mentioned in a user's story.
+   */
+  kind?: 'DM' | 'COMMENT' | 'STORY_REPLY' | 'STORY_MENTION'
+  /** Instagram only: the post/reel media id a comment was left on. */
+  postId?: string
+  /** Instagram only: the comment id (for public replies). */
+  commentId?: string
+  /** Instagram only: the story id a reply/mention refers to. */
+  storyId?: string
+  /** Instagram only: story media type ('IMAGE' | 'VIDEO'). */
+  storyMediaType?: string
+  /** Instagram only: story media URL (expires quickly). */
+  storyUrl?: string
 }
 
 /** Outbound voice payload (raw audio bytes + mime). */

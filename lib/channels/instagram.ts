@@ -112,12 +112,57 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 for (const m of entry.messaging ?? []) {
                                         if (m.message?.is_echo) continue
 
+                                        const senderId = m.sender?.id
+                                        if (!senderId) continue
+                                        const text = m.message?.text ?? ''
+
+                                        // ─── Story mention ───
+                                        // When a user mentions the connected IG account in their story,
+                                        // Meta delivers a messaging event whose message has an attachment
+                                        // of type 'story_mention' (carrying the story id/media). There is
+                                        // usually no text, so we synthesize a marker the automation engine
+                                        // can match on for the STORY_MENTION kind.
+                                        const mention = m.message?.attachments?.find(
+                                                (a) => a?.type === 'story_mention',
+                                        )
+                                        if (mention) {
+                                                out.push({
+                                                        chatId: senderId,
+                                                        senderId,
+                                                        senderName: m.sender?.username,
+                                                        text: text || '[story mention]',
+                                                        kind: 'STORY_MENTION',
+                                                        storyId: mention.payload?.story_id,
+                                                        storyMediaType: mention.payload?.media_type,
+                                                        storyUrl: mention.payload?.url,
+                                                })
+                                                continue
+                                        }
+
+                                        // ─── Story reply ───
+                                        // A DM that quotes one of the account's stories carries
+                                        // `message.reply_to.story` with the story id + media. We tag it
+                                        // STORY_REPLY so the automation engine can run story scenarios.
+                                        const story = m.message?.reply_to?.story
+                                        if (story?.id) {
+                                                if (!text) continue
+                                                out.push({
+                                                        chatId: senderId,
+                                                        senderId,
+                                                        senderName: m.sender?.username,
+                                                        text,
+                                                        kind: 'STORY_REPLY',
+                                                        storyId: story.id,
+                                                        storyMediaType: story.media_type,
+                                                        storyUrl: story.url,
+                                                })
+                                                continue
+                                        }
+
                                         // Meta can deliver a `delivery` or `read` or `postback`/`referral`
                                         // event instead of a real message; only `message` with text is a
                                         // reply-able inbound. Empty text → skip, but it is NOT an error.
-                                        const text = m.message?.text
-                                        const senderId = m.sender?.id
-                                        if (!senderId || !text) continue
+                                        if (!text) continue
 
                                         // IMPORTANT: do NOT skip messages based on folder flags.
                                         // Instagram delivers messages from ALL folders (Primary, General,
@@ -132,7 +177,9 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         out.push({
                                                 chatId: senderId,
                                                 senderId,
+                                                senderName: m.sender?.username,
                                                 text,
+                                                kind: 'DM',
                                         })
                                 }
 
@@ -150,6 +197,27 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         senderId: v?.from?.id ?? commentId,
                                                         senderName: v?.from?.username,
                                                         text,
+                                                        kind: 'COMMENT',
+                                                        commentId,
+                                                        postId: v?.media?.id,
+                                                })
+                                                continue
+                                        }
+                                        // ─── Mentions: account mentioned in a comment ───
+                                        if (change.field === 'mentions') {
+                                                const v = change.value
+                                                const commentId = v?.comment_id ?? v?.id
+                                                const text = v?.text ?? ''
+                                                if (!commentId) continue
+                                                if (v?.from?.id && selfId && v.from.id === selfId) continue
+                                                out.push({
+                                                        chatId: `${COMMENT_PREFIX}${commentId}`,
+                                                        senderId: v?.from?.id ?? commentId,
+                                                        senderName: v?.from?.username,
+                                                        text: text || '[mention]',
+                                                        kind: 'COMMENT',
+                                                        commentId,
+                                                        postId: v?.media?.id,
                                                 })
                                                 continue
                                         }
@@ -178,6 +246,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         chatId: senderId,
                                                         senderId,
                                                         text,
+                                                        kind: 'DM',
                                                 })
                                         }
                                 }
@@ -599,7 +668,7 @@ interface IgWebhook {
         entry?: {
                 id?: string
                 messaging?: {
-                        sender?: { id?: string }
+                        sender?: { id?: string; username?: string }
                         recipient?: { id?: string }
                         message?: {
                                 text?: string
@@ -608,6 +677,21 @@ interface IgWebhook {
                                 is_unsupported_message?: boolean
                                 tag?: string
                                 folder?: string
+                                reply_to?: {
+                                        story?: {
+                                                id?: string
+                                                url?: string
+                                                media_type?: string
+                                        }
+                                }
+                                attachments?: Array<{
+                                        type?: string
+                                        payload?: {
+                                                story_id?: string
+                                                media_type?: string
+                                                url?: string
+                                        }
+                                }>
                         }
                         delivery?: { folder?: string }
                 }[]
@@ -616,6 +700,7 @@ interface IgWebhook {
                         value?: {
                                 // Comment fields
                                 id?: string
+                                comment_id?: string
                                 text?: string
                                 from?: { id?: string; username?: string }
                                 media?: { id?: string; media_product_type?: string }

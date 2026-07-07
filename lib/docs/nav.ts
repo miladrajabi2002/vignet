@@ -14,6 +14,9 @@ import {
         Cpu,
         CreditCard,
         MessageCircle,
+        Camera,
+        Wrench,
+        Settings,
         type LucideIcon,
 } from 'lucide-react'
 
@@ -67,6 +70,24 @@ export const DOCS_NAV: DocNavItem[] = [
                 href: '/docs/channels',
                 icon: Share2,
                 title: { fa: 'کانال‌ها و ویجت', en: 'Channels & widget' },
+        },
+        {
+                slug: 'instagram-connection',
+                href: '/docs/instagram-connection',
+                icon: Camera,
+                title: { fa: 'اتصال اینستاگرام', en: 'Connecting Instagram' },
+        },
+        {
+                slug: 'instagram-troubleshooting',
+                href: '/docs/instagram-troubleshooting',
+                icon: Wrench,
+                title: { fa: 'رفع اشکال اینستاگرام', en: 'Instagram troubleshooting' },
+        },
+        {
+                slug: 'meta-app-setup',
+                href: '/docs/meta-app-setup',
+                icon: Settings,
+                title: { fa: 'تنظیم اپ متا (تیم ویجنت)', en: 'Meta App setup (Vigent team)' },
         },
         {
                 slug: 'handoff',

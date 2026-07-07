@@ -84,6 +84,22 @@ export function DocContent({
                   {pick(block, locale)}
                 </div>
               )
+            case 'image':
+              return (
+                <figure key={i} className="my-4">
+                  <img
+                    src={block.src}
+                    alt={pick(block.alt, locale)}
+                    loading="lazy"
+                    className="my-4 rounded-xl border border-[var(--border-default)] w-full"
+                  />
+                  {block.caption && (
+                    <figcaption className="text-xs text-[var(--text-secondary)] mt-1">
+                      {pick(block.caption, locale)}
+                    </figcaption>
+                  )}
+                </figure>
+              )
             default:
               return null
           }

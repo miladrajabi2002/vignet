@@ -42,6 +42,7 @@ export default async function AgentLayout(
     { key: 'knowledge', href: `/agents/${agent.id}/knowledge`, label: t('knowledge') },
     { key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('products') },
     { key: 'channels', href: `/agents/${agent.id}/channels`, label: t('channels') },
+    { key: 'instagram', href: `/agents/${agent.id}/instagram`, label: 'اینستاگرام' },
     { key: 'learning', href: `/agents/${agent.id}/learning`, label: t('learning'), badge: learningCount },
     { key: 'analytics', href: `/agents/${agent.id}/analytics`, label: t('analytics') },
   ]
