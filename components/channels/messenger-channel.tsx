@@ -370,6 +370,12 @@ export function MessengerChannel({
 
       {enabled && <WebhookHealth lastInboundAt={lastInboundAt} />}
 
+      {/* Instagram-only: persistent reminder about Development Mode / App Review
+          limitation. Shown for every connected Instagram channel because the
+          symptom ("messages arrive but no reply goes out") only appears AFTER
+          connecting, and is the #1 Instagram support ticket. */}
+      {enabled && type === 'INSTAGRAM' && <InstagramDevModeReminder />}
+
       {/* Behavior settings for connected channels that support them. */}
       {enabled && channelId && SUPPORTS_QUICK_REPLIES[type] && (
         <ChannelSettings
@@ -470,6 +476,59 @@ export function MessengerChannel({
               </div>
             </>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Inline reminder shown on every connected Instagram channel: Meta's
+ * Development Mode lets you RECEIVE DMs but blocks REPLYING to them until the
+ * app passes App Review (instagram_manage_messages → Advanced Access). This is
+ * the #1 Instagram support ticket, so we surface it permanently on the channel
+ * card rather than burying it in a help page.
+ */
+function InstagramDevModeReminder() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-50/80 p-3 dark:bg-amber-950/30">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start gap-2 text-right"
+      >
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="flex-1 text-xs font-medium leading-relaxed text-amber-900 dark:text-amber-200">
+          پاسخ به دایرکت کار نمی‌کند؟ محدودیت Development Mode را بخوانید
+        </span>
+        <span className="text-[10px] text-amber-700 dark:text-amber-400">
+          {open ? 'بستن' : 'بیشتر'}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2 border-t border-amber-300/50 pt-2 text-[11px] leading-relaxed text-amber-900 dark:text-amber-200">
+          <p>
+            اگر پیام‌ها در داشبورد می‌آیند ولی <b>پاسخ خودکار ارسال نمی‌شود</b>، علت محدودیت Development Mode متاست:
+          </p>
+          <p>
+            متا برای ارسال پاسخ به DM نیاز به دسترسی <code dir="ltr">instagram_manage_messages</code> با
+            <b> Advanced Access</b> دارد که فقط با <b>App Review</b> به‌دست می‌آید (۲-۵ روز کاری).
+          </p>
+          <p className="mt-1.5"><b>راه‌حل کامل:</b></p>
+          <ol className="list-decimal space-y-0.5 ps-4">
+            <li>developers.facebook.com → اپ شما → <b>App Review</b> → Permissions and Features</li>
+            <li><code dir="ltr">instagram_manage_messages</code> → «Request Advanced Access»</li>
+            <li>Use case + اسکرین‌شات پنل vigent → Submit</li>
+            <li>بعد از approval: اپ را <b>Live</b> کنید</li>
+          </ol>
+          <p className="mt-1.5"><b>تست موقت تا approval:</b></p>
+          <p>
+            App Roles → Instagram Testers → اکانت تست را اضافه کنید. فقط tester/admin می‌تواند پیام بفرستد و پاسخ بگیرد.
+          </p>
+          <p className="mt-1.5 text-amber-700 dark:text-amber-400">
+            💡 پاسخ به کامنت‌ها با Standard Access هم کار می‌کند — نیازی به App Review ندارد.
+          </p>
         </div>
       )}
     </div>

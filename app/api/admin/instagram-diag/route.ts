@@ -187,6 +187,40 @@ export async function GET(req: Request) {
 					: tokenType === 'PAGE' && resolved.host === 'facebook'
 						? '✅ این توکن Page است و می‌تواند دایرکت بفرستد (اگر دسترسی instagram_manage_messages داشته باشد).'
 						: '⚠️ نوع توکن نامشخص — نتایج probe را بررسی کنید.',
+			// If the live probe returned "refused" specifically because of error
+			// code 230, surface the App Review guidance — this is THE most common
+			// reason "DMs don't work" for a correctly-connected Page token.
+			...(probeSend &&
+			dmCapability === 'refused' &&
+			/"code"\s*:\s*230/.test(dmProbeDetail)
+				? {
+						needsAppReview: true,
+						appReviewGuidance: {
+							problem:
+								'اپ شما در Development Mode است و فقط Standard Access به instagram_manage_messages دارد. ' +
+								'در این حالت متا پیام‌ها را دریافت می‌کند ولی اجازه پاسخ‌دهی (send) نمی‌دهد — خطای 230.',
+							solution:
+								'برای پاسخ به دایرکت، باید App Review بزنید و Advanced Access بگیرید. ' +
+								'تا Approval (معمولاً ۲-۵ روز)، فقط اکانت‌های tester/admin می‌توانند پیام بفرستند و پاسخ بگیرند.',
+							steps: [
+								'developers.facebook.com → اپ شما → App Review → Permissions and Features',
+								'این موارد را پیدا کنید و «Request Advanced Access» بزنید:',
+								'  • instagram_manage_messages (مهم‌ترین — برای پاسخ به دایرکت)',
+								'  • instagram_manage_comments (برای پاسخ به کامنت)',
+								'  • instagram_basic',
+								'  • pages_messaging',
+								'برای هر کدام use case بنویسید: «Vigent is an AI customer service platform. We use instagram_manage_messages to let businesses auto-reply to their Instagram DMs through our dashboard.»',
+								'اسکرین‌شات از پنل vigent (صفحه Channels + یک گفتگو) آپلود کنید',
+								'Submit — معمولاً ۲-۵ روز کاری طول می‌کشد',
+								'بعد از approval: اپ را Live کنید (toggle بالای صفحه)',
+							],
+							testingWithoutReview:
+								'تا Approval: فقط اکانت‌هایی که tester/admin اپ هستند می‌توانند پیام بفرستند و پاسخ بگیرند. ' +
+								'برای تست: App Roles → Instagram Testers → اکانت تست را اضافه کنید، ' +
+								'آن شخص در اپ اینستاگرامش Settings → Business → Invitations → دعوت را قبول کند.',
+						},
+					}
+				: {}),
 			howToFixDms:
 				'برای ساخت Page Access Token:\n' +
 				'1. در developers.facebook.com → اپ شما\n' +
