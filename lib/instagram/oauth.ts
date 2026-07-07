@@ -18,10 +18,16 @@ import crypto from 'crypto'
  *
  * Required env vars (same Meta App, just with the "Instagram Platform" product
  * added and "Instagram API with Instagram Login" enabled):
- *   META_APP_ID              — the App ID
- *   META_APP_SECRET          — the App Secret
- *   META_APP_VERIFY_TOKEN    — arbitrary string for webhook verification
- *   NEXT_PUBLIC_APP_URL      — public base URL (e.g. https://vigent.ir)
+ *   INSTAGRAM_APP_ID          — the Instagram App ID (DIFFERENT from Facebook App ID!)
+ *                              Found in App Dashboard → Instagram → API Setup with Instagram Login
+ *   INSTAGRAM_APP_SECRET      — the Instagram App Secret (DIFFERENT from Facebook App Secret!)
+ *   META_APP_VERIFY_TOKEN     — arbitrary string for webhook verification
+ *   NEXT_PUBLIC_APP_URL       — public base URL (e.g. https://vigent.ir)
+ *
+ * IMPORTANT: For Instagram Login, you MUST use the Instagram App ID/Secret from the
+ * "API Setup with Instagram Login" page — NOT the Facebook App ID from App Settings → Basic.
+ * Using the Facebook App ID causes the error:
+ *   "Invalid Request: Request parameters are invalid: Invalid platform app"
  *
  * The OAuth redirect URI is `${APP_URL}/api/instagram/oauth/callback`.
  *
@@ -70,8 +76,15 @@ export interface OAuthState {
 }
 
 function stateSecret(): string {
-  const s = process.env.META_APP_SECRET ?? process.env.ENCRYPTION_KEY
-  if (!s) throw new Error('META_APP_SECRET (or ENCRYPTION_KEY) is not set')
+  // For HMAC state signing we can use either secret — they're both app secrets.
+  const s =
+    process.env.INSTAGRAM_APP_SECRET ??
+    process.env.META_APP_SECRET ??
+    process.env.ENCRYPTION_KEY
+  if (!s)
+    throw new Error(
+      'INSTAGRAM_APP_SECRET (or META_APP_SECRET or ENCRYPTION_KEY) is not set',
+    )
   return s
 }
 
@@ -115,12 +128,39 @@ export function instagramRedirectUri(): string {
 }
 
 /**
+ * The Instagram App ID — DIFFERENT from the Facebook App ID.
+ * Found in App Dashboard → Instagram → API Setup with Instagram Login.
+ * Falls back to META_APP_ID for backward compatibility (but that will cause
+ * "Invalid platform app" errors with Instagram Login — use INSTAGRAM_APP_ID).
+ */
+function instagramAppId(): string {
+  const id = process.env.INSTAGRAM_APP_ID ?? process.env.META_APP_ID
+  if (!id)
+    throw new Error(
+      'INSTAGRAM_APP_ID is not set. ' +
+        'Find it in App Dashboard → Instagram → API Setup with Instagram Login. ' +
+        '(NOTE: this is DIFFERENT from the Facebook App ID in App Settings → Basic.)',
+    )
+  return id
+}
+
+/** The Instagram App Secret (DIFFERENT from Facebook App Secret). */
+function instagramAppSecret(): string {
+  const s = process.env.INSTAGRAM_APP_SECRET ?? process.env.META_APP_SECRET
+  if (!s)
+    throw new Error(
+      'INSTAGRAM_APP_SECRET is not set. ' +
+        'Find it in App Dashboard → Instagram → API Setup with Instagram Login.',
+    )
+  return s
+}
+
+/**
  * Build the Instagram Login authorization URL — the direct Instagram consent
  * screen. This is NOT Facebook; the user sees Instagram's UI.
  */
 export function buildInstagramAuthUrl(state: string): string {
-  const clientId = process.env.META_APP_ID
-  if (!clientId) throw new Error('META_APP_ID is not set')
+  const clientId = instagramAppId()
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: instagramRedirectUri(),
@@ -156,11 +196,8 @@ interface LongTokenResponse {
 export async function exchangeCodeForUserToken(
   code: string,
 ): Promise<{ token: string; igUserId: string }> {
-  const clientId = process.env.META_APP_ID
-  const clientSecret = process.env.META_APP_SECRET
-  if (!clientId || !clientSecret) {
-    throw new Error('META_APP_ID / META_APP_SECRET not set')
-  }
+  const clientId = instagramAppId()
+  const clientSecret = instagramAppSecret()
   const res = await fetch(OAUTH_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -191,8 +228,7 @@ export async function exchangeCodeForUserToken(
 export async function exchangeForLongLivedToken(
   shortToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
-  const clientSecret = process.env.META_APP_SECRET
-  if (!clientSecret) throw new Error('META_APP_SECRET is not set')
+  const clientSecret = instagramAppSecret()
   const url = new URL('https://graph.instagram.com/access_token')
   url.searchParams.set('grant_type', 'ig_exchange_token')
   url.searchParams.set('client_secret', clientSecret)
