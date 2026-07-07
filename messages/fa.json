@@ -497,7 +497,8 @@
                                 "دسترسی‌های زیر را تیک بزنید: pages_show_list, pages_read_engagement, pages_messaging, instagram_basic, instagram_manage_messages, instagram_manage_comments.",
                                 "روی «Generate Access Token» کلیک کنید، با فیسبوک لاگین کنید و همه دسترسی‌ها را Accept کنید.",
                                 "توکن (با پیشوند EAA…) را کپی کنید و در کادر زیر بچسبانید. ما خودکار Page Access Token درست را از روی آن می‌سازیم.",
-                                "پس از اتصال، آدرس Callback و توکن تأیید نمایش‌داده‌شده را در اپ Meta → Webhooks وارد کنید و فیلدهای messages و comments را مشترک شوید."
+                                "پس از اتصال، آدرس Callback و توکن تأیید نمایش‌داده‌شده را در اپ Meta → Webhooks وارد کنید و فیلدهای messages و comments را مشترک شوید.",
+                                "مهم — حالت Development: تا وقتی اپ publish نشده، فقط app admins/developers/testers می‌توانند پیام بفرستند که webhook دریافت شود. برای تست از اکانت دیگر: App Roles → Instagram Testers → اکانت تست را اضافه کنید و او در اپ اینستاگرامش دعوت را قبول کند (Settings → Business → Invitations)."
                         ]
                 },
                 "telegram": "تلگرام",

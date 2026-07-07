@@ -497,7 +497,8 @@
                                 "Select these permissions: pages_show_list, pages_read_engagement, pages_messaging, instagram_basic, instagram_manage_messages, instagram_manage_comments.",
                                 "Click \"Generate Access Token\", log in with Facebook, and Accept all permissions.",
                                 "Copy the token (prefixed EAA…) and paste it below. We automatically derive the correct Page Access Token from it.",
-                                "After connecting, copy the callback URL and verify token into your Meta app's Webhooks, and subscribe to the messages and comments fields."
+                                "After connecting, copy the callback URL and verify token into your Meta app's Webhooks, and subscribe to the messages and comments fields.",
+                                "Important — Development mode: until your app is published, only app admins/developers/testers can send messages that trigger webhooks. To test from another account: App Roles → Instagram Testers → add the test account; they must accept the invitation in their Instagram app (Settings → Business → Invitations)."
                         ]
                 },
                 "telegram": "Telegram",

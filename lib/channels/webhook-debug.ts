@@ -45,7 +45,7 @@ function categorizePayload(type: string, body: unknown): string {
 	const entries = (b.entry as Array<Record<string, unknown>>) ?? []
 	if (!entries.length) return 'empty'
 
-	const entry = entries[0]
+	const entry = entries[0] as Record<string, unknown>
 	// Instagram / Messenger messaging events
 	const messaging = (entry.messaging as Array<Record<string, unknown>>) ?? []
 	if (messaging.length) {
@@ -63,11 +63,26 @@ function categorizePayload(type: string, body: unknown): string {
 		if (m.message) return 'message (پیام بدون متن — احتمالاً مدیا/استیکر)'
 		return 'messaging_event (نوع نامشخص)'
 	}
-	// Instagram comment events
+	// Instagram comment/change events. The `messages` field's TEST button sends
+	// a synthetic payload in this changes[] shape with placeholder ids — detect
+	// it so the admin doesn't confuse it with a real inbound message.
 	const changes = (entry.changes as Array<Record<string, unknown>>) ?? []
 	if (changes.length) {
 		const c = changes[0] as Record<string, unknown>
+		const v = (c.value as Record<string, unknown> | undefined) ?? undefined
+		const msg = (v?.message as Record<string, unknown> | undefined) ?? undefined
+		// Test payloads use id "0" and literal "random_*" placeholders.
+		const isTestPayload =
+			entry.id === '0' ||
+			(typeof msg?.mid === 'string' && msg.mid === 'random_mid') ||
+			(typeof msg?.text === 'string' && msg.text === 'random_text')
+		if (isTestPayload) {
+			return 'TEST payload (دکمه Test در پنل Meta — پیام واقعی نیست)'
+		}
 		if (c.field === 'comments') return 'comment (کامنت روی پست/ریلز)'
+		if (c.field === 'messages' && msg?.text) {
+			return `message_via_changes (پیام در فرمت changes: "${String(msg.text).slice(0, 50)}")`
+		}
 		return `change:${String(c.field ?? 'unknown')}`
 	}
 	return 'unknown'
