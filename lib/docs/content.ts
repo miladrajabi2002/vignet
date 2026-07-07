@@ -482,8 +482,8 @@ export const DOCS: DocPage[] = [
                         },
                         {
                                 type: 'callout',
-                                fa: 'برای اتصال فقط روی دکمه «اتصال» بزنید — نیازی به ساخت اپ متا یا کپی توکن نیست. ویجنت اپ خود را دارد و شما فقط اجازه دسترسی می‌دهید.',
-                                en: 'To connect, just click the “Connect” button — no need to create a Meta app or copy any tokens. Vigent already has its own app; you only grant access.',
+                                fa: 'برای اتصال فقط روی دکمه «اتصال» بزنید — مستقیم به اینستاگرام می‌روید (نه فیسبوک)، اجازه می‌دهید و تمام. نیازی به ساخت اپ متا یا کپی توکن نیست. ویجنت اپ خود را دارد و شما فقط اجازه دسترسی می‌دهید.',
+                                en: 'To connect, just click the “Connect” button — you go directly to Instagram (not Facebook), grant access, and that’s it. No need to create a Meta app or copy any tokens. Vigent already has its own app; you only grant access.',
                         },
                         {
                                 type: 'h2',
@@ -493,6 +493,10 @@ export const DOCS: DocPage[] = [
                         {
                                 type: 'list',
                                 items: [
+                                        {
+                                                fa: 'برخلاف روش قدیمی، این جریان به هیچ اکانت یا صفحه فیسبوک نیاز ندارد — مستقیم با اکانت اینستاگرام وصل می‌شوید (جریان Instagram Login).',
+                                                en: 'Unlike the old flow, this connection does NOT need any Facebook account or Page — you connect directly with your Instagram account (the Instagram Login flow).',
+                                        },
                                         {
                                                 fa: 'اکانت شما باید از نوع Business یا Creator باشد. اکانت شخصی قابل اتصال نیست. برای تغییر: اپ اینستاگرام ← تنظیمات ← Account type and tools ← Switch to professional account.',
                                                 en: 'You’ll need a Business or Creator account. Personal accounts can’t connect. Switch in the Instagram app: Settings → Account type and tools → Switch to professional account.',
@@ -887,14 +891,14 @@ export const DOCS: DocPage[] = [
                         en: 'Complete Meta App setup guide for Vigent',
                 },
                 description: {
-                        fa: 'تنظیمات اپ متا (فیس‌بوک) برای پلتفرم ویجنت: ساخت اپ، افزودن محصولات، App Review، OAuth، وب‌هوک، Data Deletion و واتساپ',
-                        en: 'Meta (Facebook) app configuration for the Vigent platform: app creation, products, App Review, OAuth, webhook, data deletion, WhatsApp',
+                        fa: 'تنظیمات اپ متا برای پلتفرم ویجنت با جریان Instagram Login (Business Login for Instagram): ساخت اپ، افزودن محصول Instagram، App Review، OAuth، وب‌هوک، Data Deletion و واتساپ',
+                        en: 'Meta app configuration for the Vigent platform using the Instagram Login flow (Business Login for Instagram): app creation, Instagram product, App Review, OAuth, webhook, data deletion, WhatsApp',
                 },
                 blocks: [
                         {
                                 type: 'callout',
-                                fa: 'این راهنما فقط برای تیم ویجنت (مالک اپ متا) است — کاربران نهایی نیازی به این تنظیمات ندارند و فقط دکمه «اتصال» را می‌زنند.',
-                                en: 'This guide is only for the Vigent team (the Meta app owner). End users don’t need any of this — they just click “Connect”.',
+                                fa: 'این راهنما فقط برای تیم ویجنت (مالک اپ متا) است — کاربران نهایی نیازی به این تنظیمات ندارند و فقط دکمه «اتصال» را می‌زنند. ویجنت از جریان «Instagram API with Instagram Login» استفاده می‌کند — همان Business Login for Instagram که در ژوئیه ۲۰۲۴ معرفی شد و روشی است که Vardast و ManyChat هم به کار می‌برند. در این جریان کاربر مستقیم به api.instagram.com می‌رود، نه فیسبوک؛ بدون ورود به فیسبوک و بدون انتخاب صفحه فیسبوک.',
+                                en: 'This guide is only for the Vigent team (the Meta app owner). End users don’t need any of this — they just click “Connect”. Vigent uses the “Instagram API with Instagram Login” flow — the Business Login for Instagram introduced in July 2024, which is what Vardast and ManyChat use too. With this flow the user goes directly to api.instagram.com, not Facebook; no Facebook login and no Facebook Page picker.',
                         },
                         {
                                 type: 'h2',
@@ -905,8 +909,8 @@ export const DOCS: DocPage[] = [
                                 type: 'list',
                                 items: [
                                         {
-                                                fa: 'یک اکانت Facebook Developer',
-                                                en: 'A Facebook Developer account',
+                                                fa: 'یک اکانت Meta Developer (از developers.facebook.com)',
+                                                en: 'A Meta Developer account (from developers.facebook.com)',
                                         },
                                         {
                                                 fa: 'یک دامنه با HTTPS (مثلاً vigent.ir)',
@@ -946,23 +950,18 @@ export const DOCS: DocPage[] = [
                         },
                         {
                                 type: 'h2',
-                                fa: '۲. افزودن محصولات',
-                                en: '2. Add products',
+                                fa: '۲. افزودن محصول Instagram',
+                                en: '2. Add the Instagram product',
                         },
                         {
-                                type: 'list',
-                                items: [
-                                        { fa: 'Instagram Graph API', en: 'Instagram Graph API' },
-                                        {
-                                                fa: 'Messenger (برای Instagram Messaging)',
-                                                en: 'Messenger (for Instagram Messaging)',
-                                        },
-                                        { fa: 'Facebook Login', en: 'Facebook Login' },
-                                        {
-                                                fa: 'WhatsApp Business API (برای واتساپ)',
-                                                en: 'WhatsApp Business API (for WhatsApp)',
-                                        },
-                                ],
+                                type: 'p',
+                                fa: 'در داشبورد اپ، از بخش Add Products، محصول Instagram Platform را پیدا کنید و Set Up را بزنید. سپس در بین گزینه‌ها، «Instagram API with Instagram Login» را انتخاب کنید — نه Facebook Login. این همان جریان Business Login for Instagram است که از ژوئیه ۲۰۲۴ در دسترس است و به کاربر اجازه می‌دهد مستقیم با اکانت اینستاگرام خود وارد شود، بدون اینکه به فیسبوک برود یا صفحه فیسبوک انتخاب کند.',
+                                en: 'In the app dashboard, under Add Products, find the Instagram Platform product and click Set Up. Then choose “Instagram API with Instagram Login” — not Facebook Login. This is the Business Login for Instagram flow available since July 2024, which lets the user sign in directly with their Instagram account, without going to Facebook or picking a Facebook Page.',
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'مهم: در این جریان هیچ صفحه فیسبوکی (Facebook Page) لازم نیست و کاربر هرگز وارد فیسبوک نمی‌شود. scope‌های pages_show_list و pages_messaging هم دیگر لازم نیستند و نباید درخواست App Review بزنید.',
+                                en: 'Important: with this flow no Facebook Page is required and the user never logs into Facebook. The pages_show_list and pages_messaging scopes are no longer needed — do not submit them for App Review.',
                         },
                         {
                                 type: 'h2',
@@ -987,23 +986,36 @@ export const DOCS: DocPage[] = [
                         },
                         {
                                 type: 'h2',
-                                fa: '۴. تنظیمات Facebook Login',
-                                en: '4. Facebook Login settings',
+                                fa: '۴. تنظیمات OAuth (Instagram Login)',
+                                en: '4. OAuth settings (Instagram Login)',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'در منوی سمت چپ اپ، به Instagram ← API Setup with Instagram Login بروید. در این صفحه بخش «Valid OAuth Redirect URIs» را پیدا کنید و آدرس زیر را اضافه کنید:',
+                                en: 'In the app’s left-hand menu, go to Instagram → API Setup with Instagram Login. Find the “Valid OAuth Redirect URIs” section there and add the following URL:',
+                        },
+                        {
+                                type: 'code',
+                                caption: { fa: 'OAuth Redirect URI اینستاگرام', en: 'Instagram OAuth Redirect URI' },
+                                code: `https://vigent.ir/api/instagram/oauth/callback`,
                         },
                         {
                                 type: 'list',
                                 items: [
                                         {
-                                                fa: 'Valid OAuth Redirect URIs: https://vigent.ir/api/instagram/oauth/callback (و برای واتساپ: https://vigent.ir/api/whatsapp/oauth/callback)',
-                                                en: 'Valid OAuth Redirect URIs: https://vigent.ir/api/instagram/oauth/callback (and for WhatsApp: https://vigent.ir/api/whatsapp/oauth/callback)',
+                                                fa: 'Deauthorize Callback URL: https://vigent.ir/api/instagram/deauthorize',
+                                                en: 'Deauthorize Callback URL: https://vigent.ir/api/instagram/deauthorize',
                                         },
-                                        { fa: 'Client OAuth Login: Yes', en: 'Client OAuth Login: Yes' },
-                                        { fa: 'Web OAuth Login: Yes', en: 'Web OAuth Login: Yes' },
                                         {
-                                                fa: 'Force Web OAuth Reauthentication: Yes (تا کاربر هربار اجازه دهد)',
-                                                en: 'Force Web OAuth Reauthentication: Yes (so the user grants permission each time)',
+                                                fa: 'Data Deletion Request URL: https://vigent.ir/api/instagram/data-deletion',
+                                                en: 'Data Deletion Request URL: https://vigent.ir/api/instagram/data-deletion',
                                         },
                                 ],
+                        },
+                        {
+                                type: 'callout',
+                                fa: 'این آدرس redirect را حتماً زیر Instagram ← API Setup with Instagram Login وارد کنید — نه زیر Facebook Login. اگر اشتباهاً در Facebook Login وارد شده باشد، جریان OAuth اینستاگرام کار نخواهد کرد.',
+                                en: 'This redirect URI must be entered under Instagram → API Setup with Instagram Login — not under Facebook Login. If it is mistakenly entered under Facebook Login, the Instagram OAuth flow will not work.',
                         },
                         {
                                 type: 'h2',
@@ -1012,8 +1024,8 @@ export const DOCS: DocPage[] = [
                         },
                         {
                                 type: 'p',
-                                fa: 'وب‌هوک را یک‌بار در اپ تنظیم کنید. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: مقدار META_APP_VERIFY_TOKEN که در env تنظیم کرده‌اید. فیلدهای subscribe: messages، messaging_postbacks، feed، story_mention، mentions.',
-                                en: 'Configure the webhook once in the app. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: the value of META_APP_VERIFY_TOKEN from your env. Subscribe to fields: messages, messaging_postbacks, feed, story_mention, mentions.',
+                                fa: 'وب‌هوک را یک‌بار در اپ تنظیم کنید. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: مقدار META_APP_VERIFY_TOKEN که در env تنظیم کرده‌اید. فیلدهای subscribe: messages، messaging_postbacks، feed، story_mention، mentions. در جریان Instagram Login، وقتی کاربر اکانت خود را وصل می‌کند، اکانت اینستاگرام او به‌صورت خودکار به این وب‌هوک subscribe می‌شود — هیچ فراخوانی subscribePageToApp لازم نیست (برخلاف جریان قدیمی فیسبوک).',
+                                en: 'Configure the webhook once in the app. Callback URL: https://vigent.ir/api/webhook/instagram — Verify Token: the value of META_APP_VERIFY_TOKEN from your env. Subscribe to fields: messages, messaging_postbacks, feed, story_mention, mentions. With the Instagram Login flow, when the user connects their account, their Instagram account is automatically subscribed to this webhook — no subscribePageToApp call is needed (unlike the old Facebook flow).',
                         },
                         {
                                 type: 'h2',
@@ -1022,34 +1034,30 @@ export const DOCS: DocPage[] = [
                         },
                         {
                                 type: 'p',
-                                fa: 'برای اینکه همه کاربران (نه فقط tester) بتوانند دایرکت بفرستند/بگیرند، باید دسترسی‌های زیر را به Advanced Access ارتقا دهید:',
-                                en: 'So that all users (not just testers) can send and receive DMs, you need to upgrade the following permissions to Advanced Access:',
+                                fa: 'برای اینکه همه کاربران (نه فقط tester) بتوانند اکانت خود را وصل کنند و دایرکت/کامنت بگیرند، باید scope‌های زیر را به Advanced Access ارتقا دهید. توجه کنید که نام scope‌ها از ۲۷ ژانویه ۲۰۲۵ تغییر کرده و نسخه‌های قدیمی (مثل instagram_basic، instagram_manage_messages و instagram_manage_comments) منسوخ شده‌اند — حالا همه با پیشوند instagram_business_ شروع می‌شوند:',
+                                en: 'So that all users (not just testers) can connect their account and send/receive DMs and comments, you need to upgrade the following scopes to Advanced Access. Note that the scope names changed on January 27, 2025 — the old names (e.g. instagram_basic, instagram_manage_messages, instagram_manage_comments) are deprecated and now all start with the instagram_business_ prefix:',
                         },
                         {
                                 type: 'list',
                                 items: [
-                                        { fa: 'instagram_basic', en: 'instagram_basic' },
                                         {
-                                                fa: 'instagram_manage_messages — نیاز به App Review و screencast',
-                                                en: 'instagram_manage_messages — requires App Review + screencast',
+                                                fa: 'instagram_business_basic — دسترسی پایه به پروفایل و اطلاعات اکانت',
+                                                en: 'instagram_business_basic — basic access to profile and account info',
                                         },
                                         {
-                                                fa: 'instagram_manage_comments — نیاز به App Review',
-                                                en: 'instagram_manage_comments — requires App Review',
+                                                fa: 'instagram_business_manage_messages — نیاز به App Review و screencast (خواندن و پاسخ به دایرکت)',
+                                                en: 'instagram_business_manage_messages — requires App Review + screencast (read and reply to DMs)',
                                         },
-                                        { fa: 'pages_show_list', en: 'pages_show_list' },
                                         {
-                                                fa: 'pages_messaging — نیاز به App Review',
-                                                en: 'pages_messaging — requires App Review',
+                                                fa: 'instagram_business_manage_comments — نیاز به App Review (خواندن و پاسخ به کامنت‌ها)',
+                                                en: 'instagram_business_manage_comments — requires App Review (read and reply to comments)',
                                         },
-                                        { fa: 'pages_read_engagement', en: 'pages_read_engagement' },
-                                        { fa: 'pages_manage_metadata', en: 'pages_manage_metadata' },
                                 ],
                         },
                         {
                                 type: 'callout',
-                                fa: 'برای هر permission که App Review می‌زنید، باید screencast (ویدئو) ضبط کنید که نشان می‌دهد اپ چطور از آن دسترسی استفاده می‌کند. در توضیحات بنویسید: «کاربر با دکمه Connect اکانت اینستاگرام خود را وصل می‌کند و اپ پیام‌ها/کامنت‌های او را برای پاسخ خودکار می‌خواند.»',
-                                en: 'For each permission submitted for App Review, you must record a screencast video showing how the app uses that permission. In the description, write: “The user clicks Connect to link their Instagram account, and the app reads their messages/comments to reply automatically.”',
+                                fa: 'برای هر scope که App Review می‌زنید، باید screencast (ویدئو) ضبط کنید که نشان می‌دهد اپ چطور از آن دسترسی استفاده می‌کند. در توضیحات بنویسید: «کاربر با دکمه Connect اکانت اینستاگرام خود را مستقیم از طریق Instagram Login وصل می‌کند (بدون فیسبوک و بدون صفحه فیسبوک) و اپ پیام‌ها/کامنت‌های او را برای پاسخ خودکار می‌خواند.»',
+                                en: 'For each scope submitted for App Review, you must record a screencast video showing how the app uses that permission. In the description, write: “The user clicks Connect to link their Instagram account directly through Instagram Login (no Facebook, no Facebook Page), and the app reads their messages/comments to reply automatically.”',
                         },
                         {
                                 type: 'h2',
@@ -1087,18 +1095,66 @@ ENCRYPTION_KEY=<openssl rand -hex 32>`,
                         },
                         {
                                 type: 'h2',
-                                fa: '۱۰. واتساپ (WhatsApp Cloud API)',
-                                en: '10. WhatsApp (WhatsApp Cloud API)',
+                                fa: '۱۰. جزئیات فنی جریان OAuth',
+                                en: '10. OAuth flow technical details',
                         },
                         {
                                 type: 'p',
-                                fa: 'واتساپ هم چون محصول متا است، از همان اپ و Facebook Login با Embedded Signup استفاده می‌کند. محصول WhatsApp Business API را به اپ اضافه کنید، شماره تلفن config کنید، و permission‌های whatsapp_business_messaging و whatsapp_business_management را App Review بزنید. Redirect URI واتساپ: https://vigent.ir/api/whatsapp/oauth/callback.',
-                                en: 'WhatsApp is also a Meta product, so it uses the same app and Facebook Login with Embedded Signup. Add the WhatsApp Business API product to the app, configure a phone number, and submit whatsapp_business_messaging and whatsapp_business_management for App Review. The WhatsApp redirect URI is https://vigent.ir/api/whatsapp/oauth/callback.',
+                                fa: 'ویجنت از endpointهای رسمی Instagram Login استفاده می‌کند (نه endpointهای فیسبوک):',
+                                en: 'Vigent uses the official Instagram Login endpoints (not the Facebook endpoints):',
+                        },
+                        {
+                                type: 'code',
+                                caption: { fa: 'Endpointهای Instagram Login', en: 'Instagram Login endpoints' },
+                                code: `# 1) Authorize (browser)
+GET https://api.instagram.com/oauth/authorize
+    ?client_id={META_APP_ID}
+    &redirect_uri=https://vigent.ir/api/instagram/oauth/callback
+    &scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments
+    &response_type=code
+
+# 2) Exchange code for short-lived token
+POST https://api.instagram.com/oauth/access_token
+
+# 3) Exchange to long-lived token (60 days)
+GET https://graph.instagram.com/access_token
+    ?grant_type=ig_exchange_token
+    &client_secret={META_APP_SECRET}
+
+# 4) Send a DM (Instagram Messaging API, Messenger Platform format)
+POST https://graph.instagram.com/v21.0/me/messages`,
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'تمام فراخوانی‌های Graph به graph.instagram.com می‌روند، نه graph.facebook.com.',
+                                                en: 'All Graph API calls go to graph.instagram.com, not graph.facebook.com.',
+                                        },
+                                        {
+                                                fa: 'دایرکت‌ها از طریق Instagram Messaging API با همان فرمت Messenger Platform ارسال می‌شوند (POST /me/messages).',
+                                                en: 'DMs are sent via the Instagram Messaging API using the same format as the Messenger Platform (POST /me/messages).',
+                                        },
+                                        {
+                                                fa: 'توکن بلندمدت هر ۶۰ روز یک‌بار باید refresh شود (GET graph.instagram.com/refresh_access_token).',
+                                                en: 'The long-lived token must be refreshed every 60 days (GET graph.instagram.com/refresh_access_token).',
+                                        },
+                                ],
                         },
                         {
                                 type: 'h2',
-                                fa: '۱۱. تست اتصال',
-                                en: '11. Test the connection',
+                                fa: '۱۱. واتساپ (WhatsApp Cloud API)',
+                                en: '11. WhatsApp (WhatsApp Cloud API)',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'واتساپ هم چون محصول متا است، از همان اپ استفاده می‌کند. محصول WhatsApp Business API را به اپ اضافه کنید، شماره تلفن config کنید، و permission‌های whatsapp_business_messaging و whatsapp_business_management را App Review بزنید. Redirect URI واتساپ: https://vigent.ir/api/whatsapp/oauth/callback. (واتساپ از Facebook Login با Embedded Signup استفاده می‌کند — این جریان جدا از Instagram Login است.)',
+                                en: 'WhatsApp is also a Meta product, so it uses the same app. Add the WhatsApp Business API product to the app, configure a phone number, and submit whatsapp_business_messaging and whatsapp_business_management for App Review. The WhatsApp redirect URI is https://vigent.ir/api/whatsapp/oauth/callback. (WhatsApp uses Facebook Login with Embedded Signup — this is a separate flow from Instagram Login.)',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱۲. تست اتصال',
+                                en: '12. Test the connection',
                         },
                         {
                                 type: 'steps',
@@ -1108,12 +1164,12 @@ ENCRYPTION_KEY=<openssl rand -hex 32>`,
                                                 en: 'In the Meta app, go to Roles → Instagram Testers and add yourself (during Development).',
                                         },
                                         {
-                                                fa: 'اکانت اینستاگرام تست خود را به یک صفحه فیسبوک متصل کنید.',
-                                                en: 'Connect your test Instagram account to a Facebook Page.',
+                                                fa: 'درخواست tester را در اپ اینستاگرام تست خود تأیید کنید (Settings and activity ← Apps and websites).',
+                                                en: 'Accept the tester invitation in your test Instagram account (Settings and activity → Apps and websites).',
                                         },
                                         {
-                                                fa: 'در پنل ویجنت، دکمه اتصال را بزنید و فرآیند OAuth را طی کنید.',
-                                                en: 'In the Vigent panel, click Connect and go through the OAuth flow.',
+                                                fa: 'در پنل ویجنت، دکمه اتصال را بزنید — مستقیم به Instagram Login می‌روید و فرآیند OAuth را طی می‌کنید.',
+                                                en: 'In the Vigent panel, click Connect — you go directly to Instagram Login and complete the OAuth flow.',
                                         },
                                         {
                                                 fa: 'یک پیام تست بفرستید و در پنل ویجنت ببینید.',
@@ -1125,6 +1181,33 @@ ENCRYPTION_KEY=<openssl rand -hex 32>`,
                                 type: 'callout',
                                 fa: 'بعد از Live شدن اپ و تکمیل App Review، testerها دیگر لازم نیستند — هر کاربری می‌تواند وصل شود.',
                                 en: 'After the app is Live and App Review is complete, testers are no longer needed — any user can connect.',
+                        },
+                        {
+                                type: 'h2',
+                                fa: '۱۳. ویدئوهای آموزشی',
+                                en: '13. Tutorial videos',
+                        },
+                        {
+                                type: 'p',
+                                fa: 'این ویدئوها برای درک بهتر فرآیند راه‌اندازی مفید هستند:',
+                                en: 'These videos are helpful for understanding the setup process:',
+                        },
+                        {
+                                type: 'list',
+                                items: [
+                                        {
+                                                fa: 'Instagram Graph API | Setup Tutorial — https://www.youtube.com/watch?v=BuF9g9_QC04',
+                                                en: 'Instagram Graph API | Setup Tutorial — https://www.youtube.com/watch?v=BuF9g9_QC04',
+                                        },
+                                        {
+                                                fa: 'Get started with the Messenger API for Instagram — https://www.youtube.com/watch?v=Pi2KxYeGMXo',
+                                                en: 'Get started with the Messenger API for Instagram — https://www.youtube.com/watch?v=Pi2KxYeGMXo',
+                                        },
+                                        {
+                                                fa: 'Connect Meta Graph API (Facebook/Instagram) To n8n — https://www.youtube.com/watch?v=6XAErS9Q0oY',
+                                                en: 'Connect Meta Graph API (Facebook/Instagram) To n8n — https://www.youtube.com/watch?v=6XAErS9Q0oY',
+                                        },
+                                ],
                         },
                 ],
         },

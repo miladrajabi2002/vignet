@@ -6,9 +6,7 @@ import {
   verifyState,
   exchangeCodeForUserToken,
   exchangeForLongLivedToken,
-  listFacebookPagesWithInstagram,
-  subscribePageToApp,
-  type InstagramPage,
+  getInstagramProfile,
 } from '@/lib/instagram/oauth'
 import { buildInstagramOAuthConfig } from '@/lib/instagram/config'
 
@@ -23,15 +21,20 @@ function appUrl(): string {
 }
 
 /**
- * OAuth callback. Meta redirects here with `?code=...&state=...`. We:
+ * Instagram Login OAuth callback. Meta redirects here with `?code=...&state=...`.
+ *
+ * The Instagram Login flow (Business Login for Instagram) is much simpler than
+ * Facebook Login:
  *   1. verify the signed state (agentId + workspaceId + nonce)
- *   2. exchange the code for a short-lived user token, then a long-lived one
- *   3. list the user's FB Pages + linked IG accounts
- *   4a. if exactly one page has IG → connect immediately (zero extra clicks)
- *   4b. if multiple → stash the resolved pages in a short-lived cookie and send
- *       the user to the page-picker step in the dashboard
- *   5. subscribe the page to the app webhook so events start flowing
- *   6. persist the channel + redirect back to the channels page
+ *   2. exchange the code for a short-lived IG token
+ *   3. exchange for a long-lived IG token (60 days, refreshable)
+ *   4. fetch the IG profile (username, avatar, followers)
+ *   5. persist the channel — NO page picker needed (the IG account IS the
+ *      identity, unlike Facebook Login which required choosing a Page)
+ *   6. redirect back to the channels page with ?ig_connected=1
+ *
+ * With Instagram Login, the IG account is automatically subscribed to the app's
+ * webhook when the user authorizes — no need to call subscribePageToApp.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -63,59 +66,46 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1) code → short-lived user token → long-lived user token
+    // 1) code → short-lived IG token (+ igUserId)
     const shortTok = await exchangeCodeForUserToken(code)
+
+    // 2) short-lived → long-lived (60 days)
     const longTok = await exchangeForLongLivedToken(shortTok.token)
 
-    // 2) list pages + IG accounts
-    const pages = await listFacebookPagesWithInstagram(longTok.token)
-    const igPages = pages.filter((p) => p.instagram)
+    // 3) fetch the IG profile (username, avatar, followers)
+    const profile = await getInstagramProfile(longTok.token)
 
-    if (!igPages.length) {
-      return NextResponse.redirect(
-        new URL(`${channelsPath(state.agentId)}?ig_error=no_page`, base),
-        { status: 303 },
-      )
-    }
-
-    // 3a) single IG page → connect now
-    if (igPages.length === 1) {
-      const page = igPages[0] as InstagramPage
-      await connectPage(state.agentId, longTok.token, longTok.expiresAt, page)
-      return NextResponse.redirect(
-        new URL(`${channelsPath(state.agentId)}?ig_connected=1`, base),
-        { status: 303 },
-      )
-    }
-
-    // 3b) multiple IG pages → stash + redirect to picker
-    const payload = {
-      agentId: state.agentId,
+    // 4) persist the channel — single IG account, no page picker
+    const config = buildInstagramOAuthConfig({
       userToken: longTok.token,
-      userTokenExpiresAt: longTok.expiresAt.toISOString(),
-      pages: igPages.map((p) => ({
-        pageId: p.pageId,
-        pageName: p.pageName,
-        pageAccessToken: p.pageAccessToken,
-        instagram: p.instagram,
-      })),
-    }
-    const cookieVal = Buffer.from(JSON.stringify(payload)).toString('base64url')
-    const res = NextResponse.redirect(
-      new URL(
-        `${channelsPath(state.agentId)}?ig_pick=1`,
-        base,
-      ),
+      userTokenExpiresAt: longTok.expiresAt,
+      igUserId: profile.igUserId,
+      username: profile.username,
+      profilePictureUrl: profile.profilePictureUrl,
+      followersCount: profile.followersCount,
+      biography: profile.biography,
+    })
+    const configJson = config as unknown as Prisma.InputJsonValue
+
+    const webhookUrl = `${base.replace(/\/$/, '')}/api/webhook/instagram`
+
+    await prisma.agentChannel.upsert({
+      where: { agentId_type: { agentId: state.agentId, type: 'INSTAGRAM' } },
+      update: { active: true, config: configJson, webhookUrl },
+      create: {
+        agentId: state.agentId,
+        type: 'INSTAGRAM',
+        config: configJson,
+        webhookUrl,
+      },
+    })
+
+    await syncOnboarding(state.workspaceId)
+
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?ig_connected=1`, base),
       { status: 303 },
     )
-    res.cookies.set('ig_oauth_pending', cookieVal, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 10 * 60, // 10 min to pick a page
-      secure: process.env.NODE_ENV === 'production',
-    })
-    return res
   } catch (e) {
     console.error('[instagram:oauth:callback] failed:', e)
     return NextResponse.redirect(
@@ -123,55 +113,4 @@ export async function GET(req: Request) {
       { status: 303 },
     )
   }
-}
-
-/** Persist a chosen page as the agent's INSTAGRAM channel + subscribe to webhook. */
-async function connectPage(
-  agentId: string,
-  userToken: string,
-  userTokenExpiresAt: Date,
-  page: InstagramPage,
-): Promise<void> {
-  const ig = page.instagram!
-  const config = buildInstagramOAuthConfig({
-    userToken,
-    userTokenExpiresAt,
-    pageId: page.pageId,
-    pageToken: page.pageAccessToken,
-    igBusinessAccountId: ig.igBusinessAccountId,
-    username: ig.username,
-    profilePictureUrl: ig.profilePictureUrl,
-    followersCount: ig.followersCount,
-    biography: ig.biography,
-  })
-  const configJson = config as unknown as Prisma.InputJsonValue
-
-  // Subscribe the page to the app webhook so Meta starts sending events for it
-  // to the global webhook. Best-effort: if it fails the channel is still stored
-  // and the operator can retry from the diagnostics panel.
-  await subscribePageToApp(page.pageId, page.pageAccessToken).catch((e) =>
-    console.error('[instagram:oauth] page subscribe failed:', e),
-  )
-
-  const webhookUrl = `${appUrl().replace(/\/$/, '')}/api/webhook/instagram`
-
-  await prisma.agentChannel.upsert({
-    where: { agentId_type: { agentId, type: 'INSTAGRAM' } },
-    update: { active: true, config: configJson, webhookUrl },
-    create: {
-      agentId,
-      type: 'INSTAGRAM',
-      config: configJson,
-      webhookUrl,
-    },
-  })
-
-  await syncOnboarding(
-    (
-      await prisma.agent.findUnique({
-        where: { id: agentId },
-        select: { workspaceId: true },
-      })
-    )?.workspaceId ?? '',
-  )
 }

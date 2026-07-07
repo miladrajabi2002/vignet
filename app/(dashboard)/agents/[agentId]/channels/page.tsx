@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import {
@@ -7,7 +6,6 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
-  AlertTriangle,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -17,10 +15,6 @@ import {
   MessengerChannel,
   type MessengerKind,
 } from '@/components/channels/messenger-channel'
-import {
-  InstagramPagePicker,
-  type PickerPage,
-} from '@/components/channels/instagram-page-picker'
 import { normalizeMessengerSettings } from '@/lib/channels/config'
 import {
   normalizeChatLinkSettings,
@@ -35,14 +29,6 @@ const WEBHOOK_PATH: Record<MessengerKind, string> = {
   RUBIKA: 'rubika',
   WHATSAPP: 'whatsapp',
   INSTAGRAM: 'instagram',
-}
-
-/** Shape of the `ig_oauth_pending` cookie stashed by the OAuth callback. */
-interface IgOauthPending {
-  agentId: string
-  userToken: string
-  userTokenExpiresAt: string
-  pages: PickerPage[]
 }
 
 export default async function AgentChannelsPage(
@@ -100,42 +86,12 @@ export default async function AgentChannelsPage(
     'http://localhost:3000'
 
   // ── Instagram OAuth redirect-back handling ──────────────────────────────
-  // The OAuth callback (/api/instagram/oauth/callback) redirects back to this
-  // page with one of three query shapes:
-  //   ?ig_connected=1  → single IG page was auto-connected (success)
-  //   ?ig_pick=1       → multiple IG pages found; we stashed them in a cookie
-  //                       and the operator needs to pick one (render the picker)
-  //   ?ig_error=no_page|exchange|denied|state → failure with a specific reason
+  // With Instagram Login (Business Login for Instagram), the flow is:
+  //   ?ig_connected=1  → IG account connected successfully (single account, no picker)
+  //   ?ig_error=exchange|denied|state → failure with a specific reason
   const igConnected = !!searchParams.ig_connected
-  const igPick = !!searchParams.ig_pick
   const igError =
     typeof searchParams.ig_error === 'string' ? searchParams.ig_error : null
-
-  // When picking, read the httpOnly `ig_oauth_pending` cookie server-side
-  // (the client can't) and pass the page list to the picker. The cookie is
-  // base64url-encoded JSON.
-  let pickPages: PickerPage[] = []
-  let pickExpired = false
-  if (igPick) {
-    const cookieStore = await cookies()
-    const raw = cookieStore.get('ig_oauth_pending')?.value
-    if (raw) {
-      try {
-        const decoded = JSON.parse(
-          Buffer.from(raw, 'base64url').toString('utf8'),
-        ) as IgOauthPending
-        if (decoded && Array.isArray(decoded.pages) && decoded.pages.length) {
-          pickPages = decoded.pages
-        } else {
-          pickExpired = true
-        }
-      } catch {
-        pickExpired = true
-      }
-    } else {
-      pickExpired = true
-    }
-  }
 
   const messengers: { type: MessengerKind; label: string; hint: string }[] = [
     { type: 'TELEGRAM', label: t('telegram'), hint: t('telegramHint') },
@@ -175,51 +131,7 @@ export default async function AgentChannelsPage(
         </div>
       )}
 
-      {igPick && (
-        <>
-          {pickExpired ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-400/40 bg-amber-50/80 p-4 dark:bg-amber-950/30">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                  نشست انتخاب صفحه منقضی شده است.
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80 dark:text-amber-200/80">
-                  لطفاً دوباره از ابتدا اتصال اینستاگرام را شروع کنید.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <InstagramPagePicker agentId={agent.id} pages={pickPages} />
-          )}
-        </>
-      )}
-
-      {igError === 'no_page' && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-400/40 bg-amber-50/80 p-4 dark:bg-amber-950/30">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-              هیچ صفحه فیسبوکی با اکانت اینستاگرام متصل پیدا نشد.
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80 dark:text-amber-200/80">
-              ابتدا اکانت اینستاگرام خود را به یک صفحه فیسبوک متصل کنید، سپس
-              دوباره تلاش کنید.
-            </p>
-            <a
-              href="/docs/instagram-connection"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
-            >
-              راهنمای اتصال اینستاگرام به فیسبوک
-              <ArrowRight className="h-3 w-3 rtl:rotate-180" />
-            </a>
-          </div>
-        </div>
-      )}
-
-      {igError && igError !== 'no_page' && (
+      {igError && (
         <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
           <div className="min-w-0 flex-1">

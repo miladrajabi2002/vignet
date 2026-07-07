@@ -280,22 +280,19 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 return
                         }
 
-                        // Direct message reply. `/me/messages` exists only on graph.facebook.com
-                        // and requires a Page Access Token. An Instagram User token
-                        // (graph.instagram.com) cannot send arbitrary DMs — surface a clear,
-                        // actionable error instead of an opaque failure from the IG host.
-                        if (h.host === 'instagram') {
-                                throw new Error(
-                                        'INSTAGRAM_DM_UNAVAILABLE: این توکن از نوع Instagram User Access Token (graph.instagram.com) است ' +
-                                                'که نمی‌تواند دایرکت ارسال کند. برای پاسخ به دایرکت، کانال را با یک Page Access Token ' +
-                                                '(صادرشده از صفحه فیسبوک متصل به اکانت اینستاگرام) دوباره وصل کنید. ' +
-                                                'پاسخ به کامنت‌ها با همین توکن کار می‌کند.',
-                                )
-                        }
-
-                        // Facebook host (Page token) — full DM support. Quick replies (tappable
-                        // suggestion chips) are supported on IG DMs; tapping one sends its title
-                        // as a normal message. Platform limits: max 13 replies, titles ≤20 chars.
+                        // Direct message reply. The `/me/messages` endpoint exists on BOTH
+                        // hosts:
+                        //   - graph.facebook.com/me/messages  (Messenger Platform, Page token)
+                        //   - graph.instagram.com/me/messages  (Instagram Messaging API, IG token)
+                        //
+                        // With Instagram Login (Business Login for Instagram, July 2024+), the
+                        // IG User Access Token (graph.instagram.com) CAN send DMs as long as the
+                        // app has the instagram_business_manage_messages permission. This is the
+                        // same flow Vardast uses.
+                        //
+                        // Quick replies (tappable suggestion chips) are supported on IG DMs;
+                        // tapping one sends its title as a normal message. Platform limits:
+                        // max 13 replies, titles ≤20 chars.
                         const message: Record<string, unknown> = { text }
                         if (opts?.quickReplies?.length) {
                                 message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
@@ -348,11 +345,12 @@ export function instagramAdapter(token: string): MessengerAdapter {
                 },
 
                 async sendTyping(chatId: string): Promise<void> {
-                        // Comments have no typing state, and typing_on is a Messenger Platform
-                        // sender action that only exists on graph.facebook.com.
+                        // Comments have no typing state. The typing_on sender action works
+                        // on both graph.facebook.com (Messenger Platform) and
+                        // graph.instagram.com (Instagram Messaging API).
                         if (!token || chatId.startsWith(COMMENT_PREFIX)) return
                         const h = await host()
-                        if (!h || h.host === 'instagram') return
+                        if (!h) return
                         await fetch(`${h.base}/me/messages`, {
                                 method: 'POST',
                                 headers: {

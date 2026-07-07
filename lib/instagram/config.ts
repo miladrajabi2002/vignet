@@ -29,16 +29,15 @@ export interface InstagramOAuthConfig {
   webhookToken: string
   /** Connection model: 'OAUTH' (platform-managed) | 'LEGACY' (user-pasted token). */
   mode: 'OAUTH' | 'LEGACY'
-  /** Encrypted long-lived User Access Token (60-day, refreshed by the worker). */
+  /** Encrypted long-lived Instagram User Access Token (60-day, refreshed by the worker). */
   userTokenEnc?: string
   /** ISO time when the long-lived user token expires (≈ now + 60 days). */
   userTokenExpiresAt?: string
-  /** Facebook Page id the IG account is linked to. */
-  pageId?: string
-  /** Encrypted Page Access Token (used for all Graph API calls). */
-  pageTokenEnc?: string
-  /** Instagram Business Account id (the `instagram_business_account` of the page). */
-  igBusinessAccountId?: string
+  /**
+   * Instagram user id — the identity of the connected account. Used as the
+   * webhook demux key (the global webhook's `entry[].id` is this id).
+   */
+  igUserId?: string
   /** IG @username (display). */
   botUsername?: string
   /** IG profile picture URL. */
@@ -47,19 +46,24 @@ export interface InstagramOAuthConfig {
   igFollowersCount?: number
   /** IG biography. */
   igBiography?: string
+  /** ── Legacy Facebook Login fields (kept for backward compat with old channels) ── */
+  /** Facebook Page id (legacy FB Login only). */
+  pageId?: string
+  /** Encrypted Page Access Token (legacy FB Login only). */
+  pageTokenEnc?: string
+  /** Instagram Business Account id (legacy FB Login only). */
+  igBusinessAccountId?: string
   /** For LEGACY mode: the encrypted bot token (old single-token field). */
   botTokenEnc?: string
   /** Optional per-channel behavior settings (quick replies). */
   settings?: { quickReplies: string[] }
 }
 
-/** Build a fresh OAuth config from the OAuth callback's resolved credentials. */
+/** Build a fresh OAuth config from the Instagram Login callback. */
 export function buildInstagramOAuthConfig(input: {
   userToken: string
   userTokenExpiresAt: Date
-  pageId: string
-  pageToken: string
-  igBusinessAccountId: string
+  igUserId: string
   username: string
   profilePictureUrl?: string
   followersCount?: number
@@ -70,9 +74,7 @@ export function buildInstagramOAuthConfig(input: {
     mode: 'OAUTH',
     userTokenEnc: encrypt(input.userToken),
     userTokenExpiresAt: input.userTokenExpiresAt.toISOString(),
-    pageId: input.pageId,
-    pageTokenEnc: encrypt(input.pageToken),
-    igBusinessAccountId: input.igBusinessAccountId,
+    igUserId: input.igUserId,
     botUsername: input.username,
     igProfilePictureUrl: input.profilePictureUrl,
     igFollowersCount: input.followersCount,
@@ -80,9 +82,23 @@ export function buildInstagramOAuthConfig(input: {
   }
 }
 
-/** Decrypt the Page Access Token from a stored OAuth config. */
+/**
+ * Decrypt the access token from a stored config. For Instagram Login OAuth
+ * channels, this is the IG User Access Token (works on graph.instagram.com).
+ * For legacy FB Login channels, this is the Page Access Token (graph.facebook.com).
+ * For legacy manual-token channels, this is the old botTokenEnc.
+ */
 export function readPageToken(config: Prisma.JsonValue): string | null {
   const c = config as Partial<InstagramOAuthConfig> | null
+  // Instagram Login OAuth: the user token IS the access token.
+  if (c?.mode === 'OAUTH' && c.userTokenEnc) {
+    try {
+      return decrypt(c.userTokenEnc)
+    } catch {
+      return null
+    }
+  }
+  // Legacy FB Login OAuth: Page token.
   if (c?.mode === 'OAUTH' && c.pageTokenEnc) {
     try {
       return decrypt(c.pageTokenEnc)
@@ -118,7 +134,16 @@ export function readWebhookToken(config: Prisma.JsonValue): string | null {
   return c?.webhookToken ?? null
 }
 
-/** Read the IG Business Account id (routing key for the global webhook). */
+/** Read the IG user id — the routing key for the global webhook (Instagram Login). */
+export function readIgUserId(
+  config: Prisma.JsonValue,
+): string | null {
+  const c = config as Partial<InstagramOAuthConfig> | null
+  // Instagram Login stores igUserId; legacy FB Login stores igBusinessAccountId.
+  return c?.igUserId ?? c?.igBusinessAccountId ?? null
+}
+
+/** Read the IG Business Account id (legacy FB Login only). */
 export function readIgBusinessAccountId(
   config: Prisma.JsonValue,
 ): string | null {
@@ -126,7 +151,7 @@ export function readIgBusinessAccountId(
   return c?.igBusinessAccountId ?? null
 }
 
-/** Read the Facebook Page id (alternate routing key for the global webhook). */
+/** Read the Facebook Page id (legacy FB Login only). */
 export function readPageId(config: Prisma.JsonValue): string | null {
   const c = config as Partial<InstagramOAuthConfig> | null
   return c?.pageId ?? null

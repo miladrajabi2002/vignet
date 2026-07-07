@@ -1,50 +1,63 @@
 import crypto from 'crypto'
 
 /**
- * Instagram OAuth (Facebook Login) flow — the "one click connect" model.
+ * Instagram Login flow (Business Login for Instagram / "Instagram API with
+ * Instagram Login") — the direct-Instagram OAuth flow that launched July 2024.
  *
- * vigent owns a single Meta App. An operator clicks "Connect Instagram" and is
- * sent to Facebook's OAuth dialog. After they authorize, Meta redirects back
- * with a `code` which we exchange for a long-lived User Access Token, then use
- * that to fetch their Facebook Pages + the Instagram Business Account linked to
- * each Page. The chosen Page's Page Access Token is what we actually use to
- * send/receive DMs and reply to comments.
+ * This is the flow Vardast uses: the user clicks "Connect" and is sent directly
+ * to Instagram (api.instagram.com/oauth/authorize), NOT to Facebook. If they're
+ * already logged into Instagram in their browser, no login form appears — they
+ * go straight to the consent screen ("vigent-IG is requesting access to…").
  *
- * Required env vars (set once by the platform operator — see the Meta App
- * setup guide):
- *   META_APP_ID              — the App ID of vigent's Meta App
+ * The previous Facebook Login flow showed Facebook's UI, required the user to
+ * pick a Facebook Page, and was confusing. Instagram Login is simpler:
+ *   - Direct Instagram authentication (no Facebook involved)
+ *   - No Page picker (the IG account IS the identity)
+ *   - The returned Instagram User Access Token works on graph.instagram.com
+ *     for ALL operations: profile, comments, AND messages (DMs)
+ *
+ * Required env vars (same Meta App, just with the "Instagram Platform" product
+ * added and "Instagram API with Instagram Login" enabled):
+ *   META_APP_ID              — the App ID
  *   META_APP_SECRET          — the App Secret
- *   META_APP_VERIFY_TOKEN    — arbitrary string set on the App webhook config
+ *   META_APP_VERIFY_TOKEN    — arbitrary string for webhook verification
  *   NEXT_PUBLIC_APP_URL      — public base URL (e.g. https://vigent.ir)
  *
- * The OAuth redirect URI is `${APP_URL}/api/instagram/oauth/callback` and must
- * be added to "Valid OAuth Redirect URIs" in the App dashboard (Basic settings).
+ * The OAuth redirect URI is `${APP_URL}/api/instagram/oauth/callback`.
+ *
+ * IMPORTANT: In the Meta App dashboard, you must:
+ *   1. Add the "Instagram Platform" product
+ *   2. Choose "Instagram API with Instagram Login"
+ *   3. Add the redirect URI to "Valid OAuth Redirect URIs" (under Instagram →
+ *      API Setup with Instagram Login, NOT under Facebook Login)
+ *   4. The webhook is configured at the app level (Callback URL:
+ *      /api/webhook/instagram, same as before)
  */
 
 const GRAPH_VERSION = 'v21.0'
-export const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`
-const OAUTH_DIALOG = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`
+/** Instagram Graph API base — all API calls with IG tokens go here. */
+export const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_VERSION}`
+/** OAuth authorization endpoint — the consent screen URL. */
+const OAUTH_DIALOG = 'https://api.instagram.com/oauth/authorize'
+/** OAuth token exchange endpoint. */
+const OAUTH_TOKEN_URL = 'https://api.instagram.com/oauth/access_token'
 
 /**
- * Scopes requested at connect time. These map exactly to the permission lines
- * the user sees on the consent screen ("vardast-IG is requesting access to…"):
+ * Scopes requested at connect time. These use the NEW scope names (the old
+ * `instagram_basic` / `instagram_manage_messages` etc. were deprecated
+ * Jan 27, 2025).
  *
- *   instagram_basic            → "View profile and access media (required)"
- *   instagram_manage_comments  → "Access and manage comments"
- *   instagram_manage_messages  → "Access and manage messages"
- *   pages_show_list            → list the user's Pages (to find the IG account)
- *   pages_read_engagement      → read comments/mentions
- *   pages_messaging            → send/receive DMs via the Page
- *   pages_manage_metadata      → mark messages as read (typing/read state)
+ * The consent screen the user sees maps to:
+ *   instagram_business_basic          → "View profile and access media (required)"
+ *   instagram_business_manage_messages → "Access and manage messages"
+ *   instagram_business_manage_comments → "Access and manage comments"
+ *
+ * This EXACTLY matches Vardast's permission screen.
  */
 export const INSTAGRAM_OAUTH_SCOPES = [
-  'instagram_basic',
-  'instagram_manage_comments',
-  'instagram_manage_messages',
-  'pages_show_list',
-  'pages_read_engagement',
-  'pages_messaging',
-  'pages_manage_metadata',
+  'instagram_business_basic',
+  'instagram_business_manage_messages',
+  'instagram_business_manage_comments',
 ] as const
 
 /** A pending OAuth handshake, signed with HMAC so it can't be tampered with. */
@@ -92,7 +105,7 @@ export function verifyState(raw: string): OAuthState | null {
   }
 }
 
-/** The public callback URL Meta redirects to after the user authorizes. */
+/** The public callback URL Instagram redirects to after the user authorizes. */
 export function instagramRedirectUri(): string {
   const base =
     process.env.NEXT_PUBLIC_APP_URL ??
@@ -101,7 +114,10 @@ export function instagramRedirectUri(): string {
   return `${base.replace(/\/$/, '')}/api/instagram/oauth/callback`
 }
 
-/** Build the Facebook OAuth dialog URL the user is sent to. */
+/**
+ * Build the Instagram Login authorization URL — the direct Instagram consent
+ * screen. This is NOT Facebook; the user sees Instagram's UI.
+ */
 export function buildInstagramAuthUrl(state: string): string {
   const clientId = process.env.META_APP_ID
   if (!clientId) throw new Error('META_APP_ID is not set')
@@ -111,8 +127,6 @@ export function buildInstagramAuthUrl(state: string): string {
     response_type: 'code',
     scope: INSTAGRAM_OAUTH_SCOPES.join(','),
     state,
-    // Force a re-authorization prompt when reconnecting a different account.
-    auth_type: 'rerequest',
   })
   return `${OAUTH_DIALOG}?${params.toString()}`
 }
@@ -124,61 +138,72 @@ export function metaVerifyToken(): string {
   return t
 }
 
-interface TokenResponse {
+interface ShortTokenResponse {
   access_token: string
-  token_type: string
-  expires_in?: number
+  user_id: number
 }
 
-/** Exchange the OAuth `code` for a short-lived User Access Token. */
+interface LongTokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+}
+
+/**
+ * Exchange the OAuth `code` for a short-lived Instagram User Access Token.
+ * The response also includes the IG user id.
+ */
 export async function exchangeCodeForUserToken(
   code: string,
-): Promise<{ token: string; expiresIn: number }> {
+): Promise<{ token: string; igUserId: string }> {
   const clientId = process.env.META_APP_ID
   const clientSecret = process.env.META_APP_SECRET
   if (!clientId || !clientSecret) {
     throw new Error('META_APP_ID / META_APP_SECRET not set')
   }
-  const url = new URL(`${GRAPH_BASE}/oauth/access_token`)
-  url.searchParams.set('client_id', clientId)
-  url.searchParams.set('client_secret', clientSecret)
-  url.searchParams.set('redirect_uri', instagramRedirectUri())
-  url.searchParams.set('code', code)
-  const res = await fetch(url, { method: 'GET' })
-  const data = (await res.json()) as TokenResponse & { error?: unknown }
+  const res = await fetch(OAUTH_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'authorization_code',
+      redirect_uri: instagramRedirectUri(),
+      code,
+    }),
+  })
+  const data = (await res.json()) as ShortTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(
       `Instagram OAuth code exchange failed: ${JSON.stringify(data)}`,
     )
   }
-  return { token: data.access_token, expiresIn: data.expires_in ?? 3600 }
+  return {
+    token: data.access_token,
+    igUserId: String(data.user_id),
+  }
 }
 
 /**
- * Exchange a short-lived User Token for a long-lived one (~60 days).
- * Long-lived tokens can be refreshed indefinitely (see `refreshLongLivedToken`).
+ * Exchange a short-lived IG token for a long-lived one (~60 days).
+ * Long-lived tokens can be refreshed indefinitely (see {@link refreshLongLivedToken}).
  */
 export async function exchangeForLongLivedToken(
   shortToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
-  const clientId = process.env.META_APP_ID
   const clientSecret = process.env.META_APP_SECRET
-  if (!clientId || !clientSecret) {
-    throw new Error('META_APP_ID / META_APP_SECRET not set')
-  }
-  const url = new URL(`${GRAPH_BASE}/oauth/access_token`)
-  url.searchParams.set('grant_type', 'fb_exchange_token')
-  url.searchParams.set('client_id', clientId)
+  if (!clientSecret) throw new Error('META_APP_SECRET is not set')
+  const url = new URL('https://graph.instagram.com/access_token')
+  url.searchParams.set('grant_type', 'ig_exchange_token')
   url.searchParams.set('client_secret', clientSecret)
-  url.searchParams.set('fb_exchange_token', shortToken)
+  url.searchParams.set('access_token', shortToken)
   const res = await fetch(url, { method: 'GET' })
-  const data = (await res.json()) as TokenResponse & { error?: unknown }
+  const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(
       `Long-lived token exchange failed: ${JSON.stringify(data)}`,
     )
   }
-  // Long-lived user tokens are ~60 days. expires_in is in seconds.
   const ttl = data.expires_in ?? 60 * 24 * 60 * 60
   return {
     token: data.access_token,
@@ -187,24 +212,17 @@ export async function exchangeForLongLivedToken(
 }
 
 /**
- * Refresh a long-lived User Token. Returns a fresh ~60-day token. Should be
+ * Refresh a long-lived IG Token. Returns a fresh ~60-day token. Should be
  * called well before expiry (the worker does this daily for all OAuth channels).
  */
 export async function refreshLongLivedToken(
   longToken: string,
 ): Promise<{ token: string; expiresAt: Date }> {
-  const clientId = process.env.META_APP_ID
-  const clientSecret = process.env.META_APP_SECRET
-  if (!clientId || !clientSecret) {
-    throw new Error('META_APP_ID / META_APP_SECRET not set')
-  }
-  const url = new URL(`${GRAPH_BASE}/oauth/access_token`)
-  url.searchParams.set('grant_type', 'fb_exchange_token')
-  url.searchParams.set('client_id', clientId)
-  url.searchParams.set('client_secret', clientSecret)
-  url.searchParams.set('fb_exchange_token', longToken)
+  const url = new URL('https://graph.instagram.com/refresh_access_token')
+  url.searchParams.set('grant_type', 'ig_refresh_token')
+  url.searchParams.set('access_token', longToken)
   const res = await fetch(url, { method: 'GET' })
-  const data = (await res.json()) as TokenResponse & { error?: unknown }
+  const data = (await res.json()) as LongTokenResponse & { error?: unknown }
   if (!res.ok || !data.access_token) {
     throw new Error(`Token refresh failed: ${JSON.stringify(data)}`)
   }
@@ -215,153 +233,55 @@ export async function refreshLongLivedToken(
   }
 }
 
-/** A Facebook Page owned by the user, with its linked IG account (if any). */
-export interface InstagramPage {
-  pageId: string
-  pageName: string
-  pageAccessToken: string
-  pageCategory?: string
-  instagram: {
-    igBusinessAccountId: string
-    username: string
-    name?: string
-    profilePictureUrl?: string
-    followersCount?: number
-    biography?: string
-  } | null
-  instagramError?: string
+/** Instagram profile snapshot fetched right after OAuth. */
+export interface InstagramProfile {
+  igUserId: string
+  username: string
+  name?: string
+  profilePictureUrl?: string
+  followersCount?: number
+  mediaCount?: number
+  accountType?: string
+  biography?: string
 }
 
 /**
- * List the user's Facebook Pages + the Instagram Business Account linked to
- * each. Only Pages with a linked IG account can be used for messaging.
+ * Fetch the connected Instagram account's profile using the IG token. This
+ * replaces the old `listFacebookPagesWithInstagram` — there's no Page picker
+ * because Instagram Login connects directly to the IG account.
  */
-export async function listFacebookPagesWithInstagram(
-  longUserToken: string,
-): Promise<InstagramPage[]> {
-  // 1) Get the user's Pages.
-  const pagesUrl = new URL(`${GRAPH_BASE}/me/accounts`)
-  pagesUrl.searchParams.set('access_token', longUserToken)
-  pagesUrl.searchParams.set(
+export async function getInstagramProfile(
+  igToken: string,
+): Promise<InstagramProfile> {
+  const url = new URL(`${GRAPH_BASE}/me`)
+  url.searchParams.set(
     'fields',
-    'id,name,access_token,category',
+    'id,username,name,profile_picture_url,followers_count,media_count,account_type,biography',
   )
-  pagesUrl.searchParams.set('limit', '100')
-  const pagesRes = await fetch(pagesUrl)
-  const pagesJson = (await pagesRes.json()) as {
-    data?: Array<{
-      id: string
-      name: string
-      access_token: string
-      category?: string
-    }>
+  url.searchParams.set('access_token', igToken)
+  const res = await fetch(url)
+  const data = (await res.json()) as {
+    id?: string
+    username?: string
+    name?: string
+    profile_picture_url?: string
+    followers_count?: number
+    media_count?: number
+    account_type?: string
+    biography?: string
     error?: unknown
   }
-  if (!pagesRes.ok) {
-    throw new Error(
-      `Failed to list Facebook Pages: ${JSON.stringify(pagesJson)}`,
-    )
+  if (!res.ok || !data.id || !data.username) {
+    throw new Error(`Instagram profile fetch failed: ${JSON.stringify(data)}`)
   }
-  const pages = pagesJson.data ?? []
-
-  // 2) For each page, resolve its linked Instagram Business Account + profile.
-  const out: InstagramPage[] = []
-  for (const p of pages) {
-    const page: InstagramPage = {
-      pageId: p.id,
-      pageName: p.name,
-      pageAccessToken: p.access_token,
-      pageCategory: p.category,
-      instagram: null,
-    }
-    try {
-      const igIdUrl = new URL(`${GRAPH_BASE}/${p.id}`)
-      igIdUrl.searchParams.set('fields', 'instagram_business_account')
-      igIdUrl.searchParams.set('access_token', p.access_token)
-      const igIdRes = await fetch(igIdUrl)
-      const igIdJson = (await igIdRes.json()) as {
-        instagram_business_account?: { id: string }
-        error?: unknown
-      }
-      const igId = igIdJson.instagram_business_account?.id
-      if (!igId) {
-        out.push(page)
-        continue
-      }
-      // Fetch the IG profile snapshot.
-      const profUrl = new URL(`${GRAPH_BASE}/${igId}`)
-      profUrl.searchParams.set(
-        'fields',
-        'username,name,profile_picture_url,followers_count,biography',
-      )
-      profUrl.searchParams.set('access_token', p.access_token)
-      const profRes = await fetch(profUrl)
-      const profJson = (await profRes.json()) as {
-        username?: string
-        name?: string
-        profile_picture_url?: string
-        followers_count?: number
-        biography?: string
-        error?: unknown
-      }
-      if (!profRes.ok || !profJson.username) {
-        page.instagramError = `IG profile fetch failed: ${JSON.stringify(
-          profJson,
-        )}`
-        out.push(page)
-        continue
-      }
-      page.instagram = {
-        igBusinessAccountId: igId,
-        username: profJson.username,
-        name: profJson.name,
-        profilePictureUrl: profJson.profile_picture_url,
-        followersCount: profJson.followers_count,
-        biography: profJson.biography,
-      }
-    } catch (e) {
-      page.instagramError = e instanceof Error ? e.message : String(e)
-    }
-    out.push(page)
+  return {
+    igUserId: data.id,
+    username: data.username,
+    name: data.name,
+    profilePictureUrl: data.profile_picture_url,
+    followersCount: data.followers_count,
+    mediaCount: data.media_count,
+    accountType: data.account_type,
+    biography: data.biography,
   }
-  return out
-}
-
-/**
- * Subscribe a Page to the App's webhook subscriptions so Meta starts sending
- * DM/comment/story events for that Page to our global webhook. Called once per
- * connection right after we persist the channel.
- */
-export async function subscribePageToApp(
-  pageId: string,
-  pageToken: string,
-): Promise<boolean> {
-  const url = new URL(`${GRAPH_BASE}/${pageId}/subscribed_apps`)
-  url.searchParams.set('access_token', pageToken)
-  url.searchParams.set(
-    'subscribed_fields',
-    'messages,messaging_postbacks,feed,story_mention,mentions',
-  )
-  const res = await fetch(url, { method: 'POST' })
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    console.error(
-      `[instagram] subscribePageToApp(${pageId}) failed:`,
-      body,
-    )
-    return false
-  }
-  return true
-}
-
-/**
- * Check whether a user follows the connected account. The Graph API does NOT
- * expose a "is this user a follower" check for arbitrary users — so the
- * follow-gate is implemented as a SOFT trust gate (the user taps "I followed")
- * or, for a hard gate, a STORY_MENTION gate (the user must mention the account
- * in a story, which fires a verifiable webhook). This helper exists for the
- * future and currently returns null (unknown).
- */
-export async function checkFollowStatus(): Promise<boolean | null> {
-  return null
 }

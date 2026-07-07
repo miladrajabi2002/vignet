@@ -102,18 +102,26 @@ async function resolveChannel(
 }
 
 /**
- * Resolve an Instagram channel by its Facebook Page id — used by the GLOBAL
- * webhook (`/api/webhook/instagram`) which receives all events for the
- * platform's single Meta App and demultiplexes them by page.
+ * Resolve an Instagram channel by its identity id — used by the GLOBAL webhook
+ * (`/api/webhook/instagram`) which receives all events for the platform's
+ * single Meta App. The `entry[].id` in the webhook payload is:
+ *   - For Instagram Login channels: the IG user id (config.igUserId)
+ *   - For legacy FB Login channels: the Facebook Page id (config.pageId)
+ * We try both fields to cover both connection models.
  */
-async function resolveInstagramChannelByPageId(
-        pageId: string,
+async function resolveInstagramChannelById(
+        entityId: string,
 ): Promise<ResolvedChannel | null> {
+        // Try Instagram Login first (igUserId), then legacy FB Login (pageId).
         const channel = await prisma.agentChannel.findFirst({
                 where: {
                         type: 'INSTAGRAM',
                         active: true,
-                        config: { path: ['pageId'], equals: pageId },
+                        OR: [
+                                { config: { path: ['igUserId'], equals: entityId } },
+                                { config: { path: ['pageId'], equals: entityId } },
+                                { config: { path: ['igBusinessAccountId'], equals: entityId } },
+                        ],
                 },
                 select: {
                         id: true,
@@ -380,17 +388,17 @@ export async function handleInstagramGlobalInbound(
         }
         if (!pageIds.size) return
 
-        // Resolve each page to its channel and process. Multiple pages in one batch
-        // (rare) are handled independently.
+        // Resolve each entity to its channel and process. Multiple entities in one
+        // batch (rare) are handled independently.
         await Promise.all(
-                Array.from(pageIds).map(async (pageId) => {
+                Array.from(pageIds).map(async (entityId) => {
                         try {
-                                const resolved = await resolveInstagramChannelByPageId(pageId)
+                                const resolved = await resolveInstagramChannelById(entityId)
                                 if (!resolved) return
                                 await processChannelInbound('INSTAGRAM', resolved, body)
                         } catch (e) {
                                 captureError('webhook:INSTAGRAM:global', e, {
-                                        metadata: { pageId },
+                                        metadata: { entityId },
                                 })
                         }
                 }),
