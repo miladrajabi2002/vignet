@@ -303,14 +303,13 @@ export default async function ConversationThreadPage(props: {
                                         )}
                                 </div>
 
-                                {/* Composer pinned to the bottom of the chat card. When the panel
-                                    is shown, it already renders its own reply box; otherwise show the
-                                    standalone reply box here. */}
-                                {!showPanel && (
-                                        <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
-                                                <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
-                                        </div>
-                                )}
+                                {/* Composer pinned to the bottom of the chat card.
+                                    Always shown — whether or not the handoff panel
+                                    is visible — so the reply box never jumps
+                                    position when the conversation status flips. */}
+                                <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
+                                        <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
+                                </div>
                         </div>
                 </div>
         )

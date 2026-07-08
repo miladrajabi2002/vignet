@@ -18,7 +18,6 @@ import {
         Sparkles,
 } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
-import { OperatorReply } from '@/components/crm/operator-reply'
 import { cn } from '@/lib/utils'
 import { relativeTime } from '@/lib/format'
 
@@ -31,11 +30,11 @@ import { relativeTime } from '@/lib/format'
  *   2. A customer snapshot card (name / phone / channel / agent / summary).
  *   3. A "بریم سمت کارشناس" section listing the agent's connected messenger
  *      channels so the operator can see where the customer is reachable.
- *   4. The OperatorReply box (reused) for sending an answer to the customer.
- *   5. A "بستن هشدار" button that PATCHes the alert state to 'resolved'.
+ *   4. A "بستن هشدار" button that PATCHes the alert state to 'resolved'.
  *
- * The parent page only mounts this component when there IS a handoff state —
- * either `status === 'HANDED_OFF'` or a non-null `handoffAlert`.
+ * The reply box is NOT rendered here — it lives at the bottom of the chat
+ * card in the parent page so it stays in one place (no layout jump when the
+ * conversation flips to HANDED_OFF).
  */
 
 export interface HandoffAlertProp {
@@ -234,9 +233,10 @@ export function ConversationPanel({
                                         </p>
                                 </div>
                         )}
-
-                        {/* Operator reply box (reused) */}
-                        <OperatorReply conversationId={conversationId} canDeliver={canDeliver} />
+                        {/* The reply box lives at the bottom of the chat card
+                           (in the conversation detail page), NOT here. Keeping it
+                           in one place avoids a layout jump when the conversation
+                           flips to HANDED_OFF and this panel appears. */}
                 </div>
         )
 }
