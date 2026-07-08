@@ -58,6 +58,11 @@
         var visitorName = null
         var visitorPhone = null
         var visitorSent = false
+        // Reply-to (quote) state: when `replyToMessageId` is set, the next sent
+        // user message is persisted with that parentId and the LLM is given the
+        // quoted text as context. `replyToSnippet` is shown in the preview bar.
+        var replyToMessageId = null
+        var replyToSnippet = ''
         var config = {
                 name: 'Vigent',
                 welcomeMessage: '',
@@ -86,6 +91,22 @@
         }
         function t(fa, en) {
                 return isRtl() ? fa : en
+        }
+
+        // Convert Persian (۰-۹) and Arabic (٠-٩) digits to ASCII 0-9.
+        // Vanilla-JS mirror of lib/phone.ts#toEnglishDigits — the lead-form
+        // phone input runs this live so the submit gate (which counts \d) does
+        // not reject Persian-digit phone numbers.
+        function toEnglishDigits(input) {
+                var PERSIAN = '۰۱۲۳۴۵۶۷۸۹'
+                var ARABIC = '٠١٢٣٤٥٦٧٨٩'
+                return String(input).replace(/[۰-۹٠-٩]/g, function (d) {
+                        var p = PERSIAN.indexOf(d)
+                        if (p > -1) return String(p)
+                        var a = ARABIC.indexOf(d)
+                        if (a > -1) return String(a)
+                        return d
+                })
         }
 
         // ---- Color helpers ----
@@ -139,6 +160,7 @@
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
                 arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+                reply: '<path d="M9 17l-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
         }
         function svg(name, extraClass) {
                 return (
@@ -192,11 +214,13 @@
         function injectStyles() {
                 if (document.getElementById('vgt-styles')) return
                 var css =
-                        '.vgt-root{position:fixed;bottom:20px;z-index:2147483000;direction:ltr;visibility:hidden;opacity:0;' +
+                        // Use env(safe-area-inset-*) so the launcher clears the
+                        // iPhone home indicator and notches on rotated devices.
+                        '.vgt-root{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));z-index:2147483000;direction:ltr;visibility:hidden;opacity:0;' +
                         'transition:opacity .28s ease;font-family:var(--vgt-font);font-size:14px;}' +
                         '.vgt-root.vgt-ready{visibility:visible;opacity:1;}' +
-                        '.vgt-root.vgt-right{inset-inline-end:20px;}' +
-                        '.vgt-root.vgt-left{inset-inline-start:20px;}' +
+                        '.vgt-root.vgt-right{inset-inline-end:max(20px,env(safe-area-inset-right));}' +
+                        '.vgt-root.vgt-left{inset-inline-start:max(20px,env(safe-area-inset-left));}' +
                         '.vgt-root *{box-sizing:border-box;}' +
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
@@ -216,9 +240,10 @@
                         'inset-inline-end:6px;width:10px;height:10px;border-radius:50%;background:#22c55e;' +
                         'border:2px solid var(--vgt-accent);box-shadow:0 0 0 0 rgba(34,197,94,.55);' +
                         'animation:vgt-ping 2.4s cubic-bezier(.66,0,.34,1) infinite;}' +
-                        // panel
+                        // panel — 100dvh avoids the iOS Safari URL-bar jump that 100vh causes;
+                        // box-sizing:border-box so padding/border don't blow out the height.
                         '.vgt-panel{position:absolute;bottom:74px;width:392px;max-width:calc(100vw - 32px);height:620px;' +
-                        'max-height:calc(100vh - 120px);display:flex;flex-direction:column;overflow:hidden;border-radius:var(--vgt-r-panel);' +
+                        'max-height:calc(100dvh - 96px);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;border-radius:var(--vgt-r-panel);' +
                         'background:var(--vgt-bg);color:var(--vgt-text);border:1px solid var(--vgt-border);' +
                         'box-shadow:0 32px 88px -20px rgba(0,0,0,.42),0 8px 24px -12px rgba(0,0,0,.28),0 0 0 1px rgba(0,0,0,.02);' +
                         'opacity:0;transform:translateY(14px) scale(.97);transform-origin:bottom right;pointer-events:none;' +
@@ -239,8 +264,9 @@
                         '.vgt-head-meta{flex:1;min-width:0;}' +
                         '.vgt-head-title{font-weight:700;font-size:15px;line-height:1.25;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-head-sub{font-size:12.5px;color:var(--vgt-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+                        // ≥44px touch target (Apple HIG). display:flex already set.
                         '.vgt-close{background:transparent;border:none;color:var(--vgt-muted);cursor:pointer;padding:7px;border-radius:10px;' +
-                        'display:flex;transition:background .15s,color .15s;}' +
+                        'min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
                         '.vgt-close:hover{background:var(--vgt-surface);color:var(--vgt-text);}' +
                         '.vgt-close svg{width:18px;height:18px;}' +
                         // header (gradient / branded)
@@ -291,10 +317,10 @@
                         'color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);border:1px solid var(--vgt-accent-line);}' +
                         '.vgt-card-desc{margin-top:2px;font-size:11.5px;color:var(--vgt-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-card-price{margin-top:5px;font-size:14px;font-weight:800;color:var(--vgt-text);}' +
-                        // action chips under a bot reply
+                        // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
-                        'background:var(--vgt-bg);color:var(--vgt-text);border-radius:999px;padding:7px 13px;font-family:inherit;' +
+                        'background:var(--vgt-bg);color:var(--vgt-text);border-radius:999px;padding:11px 16px;font-family:inherit;' +
                         'font-size:12px;font-weight:600;transition:border-color .18s,background .18s,transform .15s;}' +
                         '.vgt-action:hover{border-color:var(--vgt-accent);color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);transform:translateY(-1px);}' +
                         '.vgt-action svg{width:12px;height:12px;}' +
@@ -319,8 +345,9 @@
                         '.vgt-lead-ava svg{width:28px;height:28px;}' +
                         '.vgt-lead-text{font-size:14px;line-height:1.7;color:var(--vgt-text);max-width:280px;}' +
                         '.vgt-lead-form{width:100%;display:flex;flex-direction:column;gap:8px;}' +
+                        // font-size:16px prevents iOS Safari auto-zoom on focus (inputs <16px trigger it).
                         '.vgt-lead-input{width:100%;border:1.5px solid var(--vgt-border);background:var(--vgt-surface);color:var(--vgt-text);' +
-                        'border-radius:var(--vgt-r-input);padding:11px 14px;font-family:inherit;font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s;' +
+                        'border-radius:var(--vgt-r-input);padding:11px 14px;font-family:inherit;font-size:16px;outline:none;transition:border-color .18s,box-shadow .18s;' +
                         'text-align:right;direction:rtl;}' +
                         '.vgt-lead-input:focus{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);}' +
                         '.vgt-lead-btn{border:none;cursor:pointer;border-radius:var(--vgt-r-input);padding:11px;' +
@@ -348,10 +375,12 @@
                         '.vgt-inputwrap{display:flex;gap:6px;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
                         'border-radius:var(--vgt-r-input);padding:5px;padding-inline-start:16px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
+                        // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
                         '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
-                        'font-size:14.5px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
+                        'font-size:16px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
                         '.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
-                        '.vgt-send{flex:0 0 40px;width:40px;height:40px;border:none;cursor:pointer;border-radius:50%;' +
+                        // 44px touch target (was 40px).
+                        '.vgt-send{flex:0 0 44px;width:44px;height:44px;border:none;cursor:pointer;border-radius:50%;' +
                         'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;' +
                         'transition:transform .2s cubic-bezier(.34,1.5,.64,1),opacity .15s,box-shadow .2s;' +
@@ -371,7 +400,8 @@
                         'transition:transform .2s;}' +
                         '.vgt-teaser:hover{transform:translateY(-2px);}' +
                         '.vgt-root.vgt-right .vgt-teaser{right:4px;}.vgt-root.vgt-left .vgt-teaser{left:4px;}' +
-                        '.vgt-teaser-x{position:absolute;top:6px;inset-inline-end:6px;width:20px;height:20px;border-radius:50%;border:none;' +
+                        // 32px touch target (was 20px) — teaser close is a frequent tap on mobile.
+                        '.vgt-teaser-x{position:absolute;top:4px;inset-inline-end:4px;width:32px;height:32px;border-radius:50%;border:none;' +
                         'background:var(--vgt-surface);color:var(--vgt-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;' +
                         'box-shadow:0 2px 8px rgba(0,0,0,.2);transition:background .15s,color .15s;}' +
                         '.vgt-teaser-x:hover{background:var(--vgt-border);color:var(--vgt-text);}' +
@@ -384,7 +414,48 @@
                         '@keyframes vgt-ping{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}' +
                         '@keyframes vgt-pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.3);}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1);}}' +
                         '@keyframes vgt-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}' +
-                        '@media (max-width:480px){.vgt-panel{width:calc(100vw - 24px);height:calc(100vh - 100px);}}' +
+                        // ---- Reply-to (quote) UI ----
+                        // Bubble wrapper holds the optional quote block + bubble + reply button.
+                        '.vgt-bubble-wrap{position:relative;display:flex;flex-direction:column;gap:3px;max-width:84%;animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
+                        '.vgt-bubble-wrap.vgt-user{align-self:flex-end;align-items:flex-end;}' +
+                        '.vgt-bubble-wrap.vgt-bot{align-self:flex-start;align-items:flex-start;}' +
+                        // Override .vgt-msg max-width:84% so the bubble fills its wrapper.
+                        '.vgt-bubble-wrap .vgt-msg{max-width:100%;animation:none;}' +
+                        // Quote block rendered above a bubble that is itself a reply.
+                        '.vgt-quote{font-size:12px;line-height:1.45;color:var(--vgt-muted);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);' +
+                        'border-radius:6px;padding:5px 9px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+                        '.vgt-bubble-wrap.vgt-user .vgt-quote{border-inline-start:none;border-inline-end:3px solid var(--vgt-accent);}' +
+                        // Reply affordance button — appears above the bubble on hover (desktop)
+                        // or after a long-press (mobile). Hidden by default to keep the UI calm.
+                        '.vgt-reply-btn{position:absolute;top:-28px;opacity:0;pointer-events:none;' +
+                        'border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-muted);cursor:pointer;' +
+                        'border-radius:8px;width:30px;height:30px;min-width:30px;min-height:30px;padding:0;display:flex;align-items:center;justify-content:center;' +
+                        'box-shadow:0 4px 12px -4px rgba(0,0,0,.25);transition:opacity .15s,background .15s,color .15s;}' +
+                        '.vgt-reply-btn svg{width:14px;height:14px;}' +
+                        '.vgt-bubble-wrap.vgt-user .vgt-reply-btn{inset-inline-end:2px;}' +
+                        '.vgt-bubble-wrap.vgt-bot .vgt-reply-btn{inset-inline-start:2px;}' +
+                        '.vgt-bubble-wrap:hover .vgt-reply-btn,.vgt-reply-btn.vgt-show{opacity:1;pointer-events:auto;}' +
+                        '.vgt-reply-btn:hover{background:var(--vgt-surface);color:var(--vgt-accent);}' +
+                        '.vgt-root.vgt-rtl .vgt-reply-btn svg{transform:scaleX(-1);}' +
+                        // Reply preview bar above the input — shows the quoted snippet + ✕ to cancel.
+                        '.vgt-reply-bar{display:none;align-items:center;gap:8px;margin-bottom:6px;padding:8px 10px;border:1.5px solid var(--vgt-border);' +
+                        'border-radius:var(--vgt-r-input);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);}' +
+                        '.vgt-reply-bar.vgt-show{display:flex;}' +
+                        '.vgt-reply-bar-icon{flex:0 0 18px;color:var(--vgt-accent);}' +
+                        '.vgt-reply-bar-icon svg{width:18px;height:18px;}' +
+                        '.vgt-reply-bar-text{flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--vgt-muted);' +
+                        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+                        '.vgt-reply-bar-x{flex:0 0 28px;width:28px;height:28px;min-width:28px;min-height:28px;border:none;background:transparent;' +
+                        'color:var(--vgt-muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
+                        '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
+                        '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
+                        '@media (max-width:600px){' +
+                        '.vgt-panel{width:100vw!important;height:100dvh!important;max-height:100dvh!important;' +
+                        'top:0!important;left:0!important;right:0!important;bottom:0!important;border-radius:0!important;' +
+                        'padding-bottom:env(safe-area-inset-bottom)!important;}' +
+                        '.vgt-launcher{bottom:max(16px,env(safe-area-inset-bottom))!important;}' +
+                        '.vgt-head{padding-top:env(safe-area-inset-top)!important;}' +
+                        '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
                 var st = document.createElement('style')
                 st.id = 'vgt-styles'
@@ -415,6 +486,20 @@
         var body = el('div', 'vgt-body')
 
         var foot = el('div', 'vgt-foot')
+        // Reply-to preview bar — shown above the input when the visitor has
+        // tapped the reply affordance on a previous message. Mirrors the
+        // WhatsApp/Telegram "replying to…" strip.
+        var replyBar = el('div', 'vgt-reply-bar')
+        var replyBarIcon = el('span', 'vgt-reply-bar-icon', svg('reply'))
+        var replyBarText = el('span', 'vgt-reply-bar-text')
+        var replyBarX = el('button', 'vgt-reply-bar-x', svg('close'))
+        replyBarX.setAttribute('aria-label', t('لغو پاسخ', 'Cancel reply'))
+        replyBarX.addEventListener('click', function () {
+                clearReply()
+        })
+        replyBar.appendChild(replyBarIcon)
+        replyBar.appendChild(replyBarText)
+        replyBar.appendChild(replyBarX)
         var inputWrap = el('div', 'vgt-inputwrap')
         var input = el('textarea', 'vgt-input')
         input.rows = 1
@@ -422,6 +507,7 @@
         sendBtn.setAttribute('aria-label', 'send')
         inputWrap.appendChild(input)
         inputWrap.appendChild(sendBtn)
+        foot.appendChild(replyBar)
         foot.appendChild(inputWrap)
         foot.appendChild(
                 el(
@@ -623,6 +709,12 @@
                 phoneInput.placeholder = t('شماره موبایل — ۰۹۱۲ ۳۴۵ ۶۷۸۹', 'Mobile — 0912 345 6789')
                 phoneInput.inputMode = 'tel'
                 phoneInput.autocomplete = 'tel'
+                // Live-convert Persian/Arabic digits → ASCII so the permissive
+                // submit gate (which counts \d) doesn't reject localized numbers.
+                phoneInput.addEventListener('input', function (e) {
+                        var converted = toEnglishDigits(e.target.value)
+                        if (converted !== e.target.value) e.target.value = converted
+                })
                 var submit = el('button', 'vgt-lead-btn', t('شروع گفتگو', 'Start chat'))
                 submit.type = 'submit'
                 form.appendChild(nameInput)
@@ -654,7 +746,10 @@
                 form.addEventListener('submit', function (e) {
                         e.preventDefault()
                         var name = (nameInput.value || '').trim()
-                        var phone = (phoneInput.value || '').trim()
+                        // Run the phone through toEnglishDigits before validating
+                        // so Persian-digit numbers (۰۹۱۲…) pass the digit-count gate.
+                        var phone = toEnglishDigits(phoneInput.value || '').trim()
+                        phoneInput.value = phone
                         var ok = true
                         if (name.length < 2) {
                                 nameInput.style.borderColor = '#ef4444'
@@ -731,7 +826,8 @@
                 return s
         }
 
-        function bubble(role, text) {
+        function bubble(role, text, opts) {
+                opts = opts || {}
                 var cls =
                         role === 'user'
                                 ? 'vgt-msg vgt-user'
@@ -744,7 +840,25 @@
                 } else {
                         b.textContent = text
                 }
-                body.appendChild(b)
+                // Error banners are full-width stretch toasts — no wrapper.
+                if (role === 'error') {
+                        body.appendChild(b)
+                        scrollDown()
+                        return b
+                }
+                // Wrap user/bot bubbles so we can attach an optional quote block
+                // (when replying) + a reply affordance button + long-press handler.
+                var side = role === 'user' ? 'user' : 'bot'
+                var wrap = el('div', 'vgt-bubble-wrap vgt-' + side)
+                if (opts.id) wrap.setAttribute('data-message-id', opts.id)
+                if (opts.quote) {
+                        var q = el('div', 'vgt-quote')
+                        q.textContent = opts.quote
+                        wrap.appendChild(q)
+                }
+                wrap.appendChild(b)
+                if (opts.id) attachReplyAffordance(wrap, side, opts.id)
+                body.appendChild(wrap)
                 scrollDown()
                 return b
         }
@@ -764,6 +878,106 @@
         function setStreaming(on) {
                 streaming = on
                 sendBtn.disabled = on
+        }
+
+        // ---- Reply-to (quote) helpers ----
+        /** Collapse whitespace and trim to `n` chars with an ellipsis. */
+        function truncate(s, n) {
+                s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
+                return s.length > n ? s.slice(0, n) + '…' : s
+        }
+
+        /** Pull the latest text of a bubble/group container: prefers the raw
+            markdown source (data-raw, set by renderAssistantGroup) and falls
+            back to textContent. */
+        function getMessageText(container) {
+                var msg = container.querySelector('.vgt-msg')
+                if (!msg) return ''
+                var raw = msg.getAttribute('data-raw')
+                if (raw != null && raw !== '') return raw
+                return msg.textContent || ''
+        }
+
+        /** Enter reply mode: stash the target message id + snippet, show the
+            preview bar above the input, and focus the input so the visitor
+            can start typing immediately. */
+        function startReply(messageId, text) {
+                replyToMessageId = messageId
+                replyToSnippet = truncate(text, 60)
+                replyBarText.textContent = replyToSnippet
+                replyBar.classList.add('vgt-show')
+                try {
+                        input.focus()
+                } catch (e) {
+                        /* input may not be focusable yet (panel still closed) */
+                }
+        }
+
+        /** Exit reply mode and hide the preview bar. */
+        function clearReply() {
+                replyToMessageId = null
+                replyToSnippet = ''
+                replyBar.classList.remove('vgt-show')
+                replyBarText.textContent = ''
+                // Also dismiss any reply buttons that were pinned open by a
+                // long-press, so the next bubble starts from a clean state.
+                var pinned = body.querySelectorAll('.vgt-reply-btn.vgt-show')
+                for (var i = 0; i < pinned.length; i++) {
+                        pinned[i].classList.remove('vgt-show')
+                }
+        }
+
+        /** Attach the reply affordance (hover button + long-press) to a bubble
+            wrapper (user) or assistant group (bot). No-op if `messageId` is
+            missing — live user messages don't get an id client-side. */
+        function attachReplyAffordance(container, side, messageId) {
+                if (!messageId || !container) return
+                if (container.getAttribute('data-reply-bound') === '1') return
+                container.setAttribute('data-reply-bound', '1')
+                container.setAttribute('data-message-id', messageId)
+
+                // Hover/tap reply button (desktop).
+                var btn = el('button', 'vgt-reply-btn', svg('reply'))
+                btn.type = 'button'
+                btn.setAttribute('aria-label', t('پاسخ', 'Reply'))
+                btn.addEventListener('click', function (e) {
+                        e.stopPropagation()
+                        startReply(messageId, getMessageText(container))
+                })
+                container.appendChild(btn)
+
+                // Long-press to reply (mobile — no hover available). 500ms holds
+                // the finger down without scrolling; cancels on move/end before
+                // the threshold so a normal tap or scroll never triggers it.
+                var timer = null
+                var longPressFired = false
+                container.addEventListener('touchstart', function () {
+                        longPressFired = false
+                        timer = setTimeout(function () {
+                                timer = null
+                                longPressFired = true
+                                btn.classList.add('vgt-show')
+                                startReply(messageId, getMessageText(container))
+                        }, 500)
+                }, { passive: true })
+                function cancel() {
+                        if (timer) {
+                                clearTimeout(timer)
+                                timer = null
+                        }
+                }
+                container.addEventListener('touchmove', cancel, { passive: true })
+                container.addEventListener('touchend', cancel, { passive: true })
+                container.addEventListener('touchcancel', cancel, { passive: true })
+                // Suppress the native iOS long-press callout/context menu when
+                // our long-press just fired; tap-and-hold text selection still
+                // works otherwise.
+                container.addEventListener('contextmenu', function (e) {
+                        if (longPressFired) {
+                                e.preventDefault()
+                                longPressFired = false
+                        }
+                })
         }
 
         // ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
@@ -945,12 +1159,20 @@
         function send(preset) {
                 var text = (preset != null ? preset : input.value).trim()
                 if (!text || streaming) return
+                // Snapshot the active reply-to state before clearing it: the
+                // user bubble we're about to render needs the quote snippet,
+                // and the POST payload needs the id.
+                var activeReplyId = replyToMessageId
+                var activeReplySnippet = replyToSnippet
                 if (preset == null) {
                         input.value = ''
                         autoGrow()
                 }
                 clearIntro()
-                bubble('user', text)
+                bubble('user', text, {
+                        quote: activeReplyId ? activeReplySnippet : null,
+                })
+                clearReply()
                 setStreaming(true)
                 var typing = showTyping()
                 var group = null
@@ -974,6 +1196,10 @@
                         if (visitorPhone) payload.visitorPhone = visitorPhone
                         visitorSent = true
                 }
+                // Reply-to (quote): when set, the server persists this USER message
+                // with `parentId = replyToMessageId` and includes the quoted text in
+                // the LLM context so the model knows what's being replied to.
+                if (activeReplyId) payload.replyToMessageId = activeReplyId
                 fetch(base + '/api/widget/' + agentId + '/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1020,6 +1246,12 @@
                                                                         renderAssistantGroup(ensureGroup(), raw, false)
                                                                 } else if (evt.type === 'done') {
                                                                         if (group) renderAssistantGroup(group, raw, true)
+                                                                        // The server emits the persisted assistant message id on
+                                                                        // `done`; bind it to the group so the visitor can quote
+                                                                        // this reply in a follow-up.
+                                                                        if (group && evt.messageId) {
+                                                                                attachReplyAffordance(group, 'bot', evt.messageId)
+                                                                        }
                                                                 } else if (evt.type === 'error' && !group) {
                                                                         if (typing.parentNode) typing.remove()
                                                                         bubble('error', errorText(evt.error))
@@ -1094,11 +1326,21 @@
                                 welcomeShown = true
                                 data.messages.forEach(function (m) {
                                         if (m.role === 'user') {
-                                                bubble('user', m.content)
+                                                bubble('user', m.content, {
+                                                        id: m.id,
+                                                        // Show the quoted parent text above this bubble if
+                                                        // the visitor had replied to an earlier message.
+                                                        quote: m.parentId && m.parentContent
+                                                                ? truncate(m.parentContent, 60)
+                                                                : null,
+                                                })
                                         } else {
                                                 var g = el('div', 'vgt-group')
                                                 body.appendChild(g)
                                                 renderAssistantGroup(g, m.content, true)
+                                                // Bind the message id so visitors can quote this
+                                                // assistant reply in a follow-up.
+                                                if (m.id) attachReplyAffordance(g, 'bot', m.id)
                                         }
                                 })
                                 scrollDown()
@@ -1128,7 +1370,16 @@
                         setTimeout(function () {
                                 input.focus()
                         }, 80)
+                } else {
+                        // Drop any inline height set by the visualViewport handler so
+                        // the CSS-defined size takes over again next time the panel opens.
+                        panel.style.height = ''
+                        panel.style.maxHeight = ''
+                        // Also exit reply mode — leaving the panel mid-reply shouldn't
+                        // keep the preview bar pinned open.
+                        clearReply()
                 }
+                applyViewportHeight()
         }
 
         // ---- Events ----
@@ -1151,6 +1402,36 @@
         document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && isOpen) toggle(false)
         })
+
+        // ---- Mobile keyboard / viewport handling ----
+        // When the soft keyboard opens on mobile, `visualViewport.height`
+        // shrinks below layout-viewport height. Pin the panel to that smaller
+        // height so the input stays visible and the message list scrolls
+        // within the unoccluded area. Desktop and tablets (>=600px wide) keep
+        // the CSS-defined size; the handler is a no-op there.
+        function applyViewportHeight() {
+                if (
+                        !isOpen ||
+                        !window.visualViewport ||
+                        typeof window.innerWidth !== 'number' ||
+                        window.innerWidth >= 600
+                ) {
+                        panel.style.height = ''
+                        panel.style.maxHeight = ''
+                        return
+                }
+                var h = window.visualViewport.height
+                if (h > 0) {
+                        panel.style.height = h + 'px'
+                        panel.style.maxHeight = h + 'px'
+                        scrollDown()
+                }
+        }
+        if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', applyViewportHeight)
+                window.visualViewport.addEventListener('scroll', applyViewportHeight)
+        }
+        window.addEventListener('resize', applyViewportHeight)
 
         // ---- Init ----
         var mounted = false

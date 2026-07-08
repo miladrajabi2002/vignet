@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { sendOutbound } from '@/lib/channels/outbound'
 import { captureError } from '@/lib/errors/capture'
+import { bumpContactActivity } from '@/lib/crm/contact-activity'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
@@ -81,6 +82,8 @@ export async function POST(req: Request, props: Params) {
       lastMessageAt: new Date(),
     },
   })
+  // Keep the contact's denormalized last-activity fresh for the CRM list.
+  bumpContactActivity(conversation.id)
 
   return NextResponse.json({ message, delivered })
 }

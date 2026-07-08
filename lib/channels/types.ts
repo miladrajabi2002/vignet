@@ -16,12 +16,18 @@ export interface InboundMessage {
   senderId: string
   /** Display name of the sender, when available. */
   senderName?: string
+  /** Sender's public handle/username (e.g. Telegram @username, IG @handle). Stored separately from the display name so the CRM can show both. */
+  senderUsername?: string
+  /** Sender's profile picture URL (best-effort, fetched via a platform API call). null/undefined when unavailable. */
+  senderAvatarUrl?: string
   /** Sender phone number, when the platform exposes it (e.g. Rubika). */
   senderPhone?: string
   /** Plain text body (empty for pure voice/media messages). */
   text: string
   /** Opaque file id for an attached voice message, if any. */
   voiceFileId?: string
+  /** When the inbound is itself a reply to another message (e.g. Telegram reply_to_message), the platform message id being quoted. */
+  replyToMessageId?: string
   /**
    * True when the message arrived in a "pending" / "message request" folder
    * (Instagram & Messenger: DMs from non-followers). The reply (if any) will
@@ -83,4 +89,11 @@ export interface MessengerAdapter {
   sendVoice?(chatId: string, voice: OutboundVoice): Promise<void>
   /** Resolve a downloadable URL for an inbound voice file. Optional. */
   getVoiceUrl?(fileId: string): Promise<string | null>
+  /**
+   * Fetch the sender's profile picture URL (best-effort). Used to backfill the
+   * contact's per-channel avatar in the CRM. Platforms that don't expose
+   * customer avatars (WhatsApp, Rubika) omit this method. Returns null when the
+   * user has no photo or the platform refuses.
+   */
+  getAvatarUrl?(userId: string): Promise<string | null>
 }

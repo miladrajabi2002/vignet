@@ -484,11 +484,9 @@
                                 "Paste the token below. We register the receive-update endpoint automatically."
                         ],
                         "WHATSAPP": [
-                                "Create a Meta app at developers.facebook.com and add the WhatsApp product.",
-                                "In WhatsApp → API Setup, copy the Phone number ID.",
-                                "Generate a permanent access token (via a System User with whatsapp_business_messaging permission).",
-                                "Paste the access token and phone number ID below and connect.",
-                                "After connecting, copy the callback URL and verify token shown here into WhatsApp → Configuration → Webhook, and subscribe to the messages field."
+                                "One-click connection — no Meta App to create, no token to paste, no webhook to configure.",
+                                "Click \"Connect WhatsApp\" and approve the access in the Meta window. We handle the rest (token, phone number, webhook subscription) for you.",
+                                "If your Meta account has more than one WhatsApp Business number, you'll be asked to pick one after approving."
                         ],
                         "INSTAGRAM": [
                                 "Convert your Instagram account to a Professional (Business or Creator) account: Instagram app → Settings → Account type and tools → Switch to Professional Account.",
@@ -508,7 +506,11 @@
                 "rubika": "Rubika",
                 "rubikaHint": "Connect your Rubika bot with its token",
                 "whatsapp": "WhatsApp",
-                "whatsappHint": "WhatsApp Cloud API — auto-reply to direct messages",
+                "whatsappHint": "One-click OAuth connection via Meta — auto-reply to direct messages",
+                "whatsappConnect": "Connect WhatsApp",
+                "whatsappConnected": "WhatsApp connected successfully.",
+                "whatsappConnectError": "WhatsApp connection failed. Please try again.",
+                "whatsappPickNumber": "Pick your WhatsApp number",
                 "instagram": "Instagram",
                 "instagramHint": "Instagram DMs and comment replies via the Meta API",
                 "storeTitle": "Have a WordPress site or WooCommerce store?",

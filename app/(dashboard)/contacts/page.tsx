@@ -49,7 +49,10 @@ export default async function ContactsPage(
   const [contacts, totalCount, stageGroups, contactTrend7] = await Promise.all([
     prisma.contact.findMany({
       where: { workspaceId: user.workspaceId },
-      orderBy: { updatedAt: 'desc' },
+      // Order by denormalized "last activity" first (bumped on every inbound/
+      // AI/operator message); fall back to updatedAt so rows that predate the
+      // lastActivityAt column still sort deterministically.
+      orderBy: [{ lastActivityAt: 'desc' }, { updatedAt: 'desc' }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE + 1, // one extra row signals whether a next page exists
       select: {
@@ -59,11 +62,22 @@ export default async function ContactsPage(
         stage: true,
         tags: true,
         updatedAt: true,
+        lastActivityAt: true,
         telegramId: true,
         whatsappId: true,
         instagramId: true,
         rubikaId: true,
         baleId: true,
+        telegramUsername: true,
+        telegramAvatarUrl: true,
+        baleUsername: true,
+        baleAvatarUrl: true,
+        rubikaUsername: true,
+        rubikaAvatarUrl: true,
+        whatsappName: true,
+        whatsappAvatarUrl: true,
+        instagramUsername: true,
+        instagramAvatarUrl: true,
         _count: { select: { conversations: true } },
       },
     }),
@@ -86,6 +100,25 @@ export default async function ContactsPage(
     if (c.instagramId) channels.push('INSTAGRAM')
     if (c.rubikaId) channels.push('RUBIKA')
     if (c.baleId) channels.push('BALE')
+    // Fall back to updatedAt for contacts created before lastActivityAt was
+    // backfilled — so we never show a "—" or a 1970 date on the list.
+    const lastActivity = c.lastActivityAt ?? c.updatedAt
+    // Pick the first available avatar across channels (Instagram first since
+    // it has the most useful profile pictures).
+    const avatarUrl =
+      c.instagramAvatarUrl ??
+      c.telegramAvatarUrl ??
+      c.baleAvatarUrl ??
+      c.rubikaAvatarUrl ??
+      c.whatsappAvatarUrl ??
+      null
+    // Per-channel usernames, keyed by ChannelType — only the non-null ones.
+    const channelUsernames: Partial<Record<ChannelType, string | null>> = {}
+    if (c.telegramUsername) channelUsernames.TELEGRAM = c.telegramUsername
+    if (c.baleUsername) channelUsernames.BALE = c.baleUsername
+    if (c.rubikaUsername) channelUsernames.RUBIKA = c.rubikaUsername
+    if (c.whatsappName) channelUsernames.WHATSAPP = c.whatsappName
+    if (c.instagramUsername) channelUsernames.INSTAGRAM = c.instagramUsername
     return {
       id: c.id,
       name: c.name,
@@ -94,7 +127,9 @@ export default async function ContactsPage(
       tags: c.tags,
       channels,
       conversationCount: c._count.conversations,
-      updatedAt: c.updatedAt.toISOString(),
+      lastActivity: lastActivity.toISOString(),
+      avatarUrl,
+      channelUsernames,
     }
   })
 

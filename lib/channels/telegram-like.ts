@@ -49,8 +49,16 @@ export function createTelegramLikeAdapter(opts: {
           chatId: String(msg.chat.id),
           senderId: String(from?.id ?? msg.chat.id),
           senderName: name || undefined,
+          // The @handle is kept separately from the display name so the CRM can
+          // show both (e.g. "میلاد رجبی @miladrajabi"). Previously the handle
+          // was dropped whenever first/last names were present.
+          senderUsername: from?.username || undefined,
           text: msg.text ?? msg.caption ?? '',
           voiceFileId: msg.voice?.file_id ?? msg.audio?.file_id,
+          // Telegram reply_to_message → quote link (best-effort, stringified id).
+          replyToMessageId: msg.reply_to_message?.message_id
+            ? String(msg.reply_to_message.message_id)
+            : undefined,
         },
       ]
     },
@@ -105,6 +113,24 @@ export function createTelegramLikeAdapter(opts: {
         return null
       }
     },
+
+    async getAvatarUrl(userId: string): Promise<string | null> {
+      // getUserProfilePhotos → pick the largest size → getFile → public URL.
+      // Best-effort: returns null when the user has no photo or the API refuses
+      // (e.g. privacy settings). Never throws — avatar is a nice-to-have.
+      try {
+        const result = (await call('getUserProfilePhotos', {
+          user_id: userId,
+          limit: 1,
+        })) as { photos?: { file_id: string }[][] } | null
+        const photo = result?.photos?.[0]?.slice(-1)?.[0]
+        if (!photo?.file_id) return null
+        return await this.getVoiceUrl!(photo.file_id)
+      } catch (e) {
+        console.error(`[${channel}] getAvatarUrl failed:`, e)
+        return null
+      }
+    },
   }
 }
 
@@ -122,4 +148,5 @@ interface TgMessage {
   caption?: string
   voice?: { file_id: string }
   audio?: { file_id: string }
+  reply_to_message?: { message_id: number | string }
 }

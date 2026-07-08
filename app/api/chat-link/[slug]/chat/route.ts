@@ -14,6 +14,8 @@ const bodySchema = z.object({
 	// Pre-chat lead form (sent with the first message when lead capture is on).
 	visitorName: z.string().max(60).nullish(),
 	visitorPhone: z.string().max(30).nullish(),
+	// Quote/reply-to: id of a previous message the visitor is replying to.
+	replyToMessageId: z.string().nullish(),
 })
 
 /**
@@ -49,14 +51,20 @@ export async function GET(req: Request, props: Params) {
 		where: {
 			id: conversationId,
 			agentId: link.agentId,
-			channel: 'WEB_WIDGET',
+			channel: 'CHAT_LINK',
 		},
 		select: {
 			id: true,
 			messages: {
 				orderBy: { createdAt: 'asc' },
 				take: 100,
-				select: { id: true, role: true, content: true },
+				select: {
+					id: true,
+					role: true,
+					content: true,
+					parentId: true,
+					parent: { select: { content: true } },
+				},
 			},
 		},
 	})
@@ -70,6 +78,10 @@ export async function GET(req: Request, props: Params) {
 			id: m.id,
 			role: m.role === 'USER' ? 'user' : 'assistant',
 			content: stripProductTokens(m.content),
+			parentId: m.parentId ?? null,
+			parentContent: m.parent?.content
+				? m.parent.content.slice(0, 200)
+				: null,
 		}))
 
 	return NextResponse.json({ messages })
@@ -151,13 +163,14 @@ export async function POST(req: Request, props: Params) {
 		},
 		message: parsed.data.message,
 		conversationId: parsed.data.conversationId ?? undefined,
-		channel: 'WEB_WIDGET',
+		channel: 'CHAT_LINK',
 		contactName: settings.leadCapture
 			? (parsed.data.visitorName ?? undefined)
 			: undefined,
 		contactPhone: settings.leadCapture
 			? (parsed.data.visitorPhone ?? undefined)
 			: undefined,
+		replyToMessageId: parsed.data.replyToMessageId ?? undefined,
 	})
 
 	if ('error' in result) {

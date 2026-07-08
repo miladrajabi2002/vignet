@@ -36,6 +36,7 @@ const CHANNEL_LABEL: Record<string, string> = {
   BALE: 'بله',
   WEB_WIDGET: 'ویجت وب',
   API: 'API',
+  CHAT_LINK: 'لینک چت',
 }
 
 // Sparkline colors per channel — distinct but harmonious.
@@ -47,6 +48,7 @@ const CHANNEL_COLOR: Record<string, string> = {
   BALE: '#06b6d4',
   WEB_WIDGET: '#18181b',
   API: '#a855f7',
+  CHAT_LINK: '#14b8a6',
 }
 
 export default async function AdminConversationsPage(

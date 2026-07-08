@@ -22,6 +22,7 @@ const CHANNEL_LABEL: Record<string, string> = {
   BALE: 'بله',
   WEB_WIDGET: 'ویجت وب',
   API: 'API',
+  CHAT_LINK: 'لینک چت',
 }
 
 type Health = { dot: string; label: string }

@@ -12,6 +12,7 @@ import {
         MessagesSquare,
         Radio,
         MessageCircle,
+        Link2,
         Loader2,
         CheckCircle2,
         Sparkles,
@@ -58,6 +59,7 @@ const MESSENGER_META: Record<
         INSTAGRAM: { label: 'اینستاگرام', icon: MessageCircle },
         WEB_WIDGET: { label: 'وب‌ویجت', icon: Send },
         API: { label: 'API', icon: Send },
+        CHAT_LINK: { label: 'لینک چت', icon: Link2 },
 }
 
 export function ConversationPanel({

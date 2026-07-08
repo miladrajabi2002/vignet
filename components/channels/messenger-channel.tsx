@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
+import { WhatsAppConnectFlow } from '@/components/channels/whatsapp-connect-wizard'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -457,6 +458,18 @@ export function MessengerChannel({
             // Facebook Login dialog → callback → channel persisted). No token
             // pasting, no webhook configuration, no Meta dashboard visit.
             <InstagramConnectFlow
+              agentId={agentId}
+              onClose={() => setOpen(false)}
+            />
+          ) : type === 'WHATSAPP' ? (
+            // WhatsApp mirrors Instagram: platform-managed OAuth via the
+            // WhatsApp Embedded Signup. The operator clicks "اتصال واتساپ",
+            // authorizes in Facebook's dialog, and the callback either
+            // connects immediately (single number) or stashes a cookie and
+            // shows the number picker on the channels page. No Meta App
+            // creation, no token pasting, no manual webhook setup — the
+            // backend subscribes the WABA to the global webhook for them.
+            <WhatsAppConnectFlow
               agentId={agentId}
               onClose={() => setOpen(false)}
             />

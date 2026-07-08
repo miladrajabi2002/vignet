@@ -7,8 +7,10 @@ import { Send, Loader2 } from 'lucide-react'
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
- * through the conversation's channel. Only messenger channels can be pushed to;
- * for web-widget/API the box is replaced with an explanatory note.
+ * through the conversation's channel. For messenger channels the message is
+ * pushed live; for widget / chat-link / API channels the message is persisted
+ * and shown to the visitor the next time they load the chat (the backend reply
+ * route always persists the operator message regardless of channel).
  */
 export function OperatorReply({
   conversationId,
@@ -22,14 +24,6 @@ export function OperatorReply({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
-
-  if (!canDeliver) {
-    return (
-      <p className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-center text-xs text-[var(--text-muted)]">
-        {t('replyNoChannel')}
-      </p>
-    )
-  }
 
   async function send() {
     const body = text.trim()
@@ -57,19 +51,12 @@ export function OperatorReply({
 
   return (
     <div className="space-y-1.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+      {!canDeliver && (
+        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+          برای کانال‌های ویجت/لینک چت، پیام شما ذخیره می‌شود و در بازدید بعدی کاربر نمایش داده می‌شود.
+        </p>
+      )}
       <div className="flex items-end gap-2">
-        <button
-          onClick={send}
-          disabled={busy || !text.trim()}
-          aria-label={t('send')}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.04] active:scale-95 disabled:opacity-40"
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4 rtl:-scale-x-100" />
-          )}
-        </button>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -80,6 +67,18 @@ export function OperatorReply({
           placeholder={t('replyPlaceholder')}
           className="max-h-40 min-h-[2.5rem] flex-1 resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
         />
+        <button
+          onClick={send}
+          disabled={busy || !text.trim()}
+          className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4 rtl:rotate-180" />
+          )}
+          {busy ? t('sending') : t('send')}
+        </button>
       </div>
       {error ? (
         <p className="text-xs text-danger">{t('replyFailed')}</p>

@@ -24,6 +24,7 @@ import { decrypt } from '@/lib/crypto'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { sendOutbound } from '@/lib/channels/outbound'
 import { captureError } from '@/lib/errors/capture'
+import { bumpContactActivity } from '@/lib/crm/contact-activity'
 
 /**
  * Decrypt the stored OperatorChannel.botToken. The column is TEXT and stores the
@@ -274,6 +275,8 @@ export async function routeOperatorReplyFromTelegram(params: {
                                 lastMessageAt: new Date(),
                         },
                 })
+                // Keep the contact's denormalized last-activity fresh for the CRM list.
+                bumpContactActivity(alert.conversationId)
                 await prisma.handoffAlert.update({
                         where: { id: alert.id },
                         data: { state: 'claimed' },

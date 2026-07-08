@@ -129,7 +129,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 out.push({
                                                         chatId: senderId,
                                                         senderId,
-                                                        senderName: m.sender?.username,
+                                                        senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                         text: text || '[story mention]',
                                                         kind: 'STORY_MENTION',
                                                         storyId: mention.payload?.story_id,
@@ -149,7 +149,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 out.push({
                                                         chatId: senderId,
                                                         senderId,
-                                                        senderName: m.sender?.username,
+                                                        senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                         text,
                                                         kind: 'STORY_REPLY',
                                                         storyId: story.id,
@@ -177,7 +177,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         out.push({
                                                 chatId: senderId,
                                                 senderId,
-                                                senderName: m.sender?.username,
+                                                senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                 text,
                                                 kind: 'DM',
                                         })
@@ -195,7 +195,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 out.push({
                                                         chatId: `${COMMENT_PREFIX}${commentId}`,
                                                         senderId: v?.from?.id ?? commentId,
-                                                        senderName: v?.from?.username,
+                                                        senderName: v?.from?.username, senderUsername: v?.from?.username,
                                                         text,
                                                         kind: 'COMMENT',
                                                         commentId,
@@ -213,7 +213,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 out.push({
                                                         chatId: `${COMMENT_PREFIX}${commentId}`,
                                                         senderId: v?.from?.id ?? commentId,
-                                                        senderName: v?.from?.username,
+                                                        senderName: v?.from?.username, senderUsername: v?.from?.username,
                                                         text: text || '[mention]',
                                                         kind: 'COMMENT',
                                                         commentId,
@@ -362,6 +362,28 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         sender_action: 'typing_on',
                                 }),
                         })
+                },
+
+                async getAvatarUrl(userId: string): Promise<string | null> {
+                        // Best-effort fetch of the DM sender's profile picture. Instagram's
+                        // graph API exposes `profile_picture_url` on a user node; with a Page
+                        // token (graph.facebook.com) this works for messaging senders, while
+                        // with an Instagram-Login user token (graph.instagram.com) it may be
+                        // restricted to the connected account. We probe the resolved host and
+                        // return null on any failure — avatars are a CRM nicety, not critical.
+                        if (!userId || userId.startsWith(COMMENT_PREFIX)) return null
+                        try {
+                                const h = await host()
+                                if (!h) return null
+                                const res = await fetch(`${h.base}/${userId}?fields=profile_picture_url,username`, {
+                                        headers: { Authorization: `Bearer ${token}` },
+                                })
+                                if (!res.ok) return null
+                                const json = (await res.json()) as { profile_picture_url?: string }
+                                return json.profile_picture_url ?? null
+                        } catch {
+                                return null
+                        }
                 },
         }
 }

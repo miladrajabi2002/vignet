@@ -23,6 +23,7 @@ import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
 import { resolveModelId } from '@/lib/ai/models'
+import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
@@ -251,9 +252,34 @@ async function prepareTurn(params: StartChatParams): Promise<
         ])
 
         // Persist the incoming user message.
+        // When the visitor replied to a specific message (quote/reply-to), link it.
         await prisma.message.create({
-                data: { conversationId, role: 'USER', content: message },
+                data: {
+                        conversationId,
+                        role: 'USER',
+                        content: message,
+                        parentId: params.replyToMessageId ?? null,
+                },
         })
+        // Every inbound turn (widget, chat-link, and messengers) keeps the
+        // contact's denormalized last-activity fresh. Messenger inbound is also
+        // bumped in upsertContact; the duplicate is harmless.
+        bumpContactActivity(conversationId)
+
+        // Reply-to context: when the visitor quoted a previous message, fetch its
+        // text and prepend it to the LLM's view of the user message so the model
+        // knows what's being replied to. The persisted USER message keeps only the
+        // raw text (the link is via `parentId`).
+        let llmUserMessage = message
+        if (params.replyToMessageId) {
+                const parent = await prisma.message
+                        .findUnique({ where: { id: params.replyToMessageId }, select: { content: true } })
+                        .catch(() => null)
+                if (parent?.content) {
+                        const snippet = parent.content.slice(0, 500)
+                        llmUserMessage = `در پاسخ به این پیام:\n«${snippet}»\n\n${message}`
+                }
+        }
 
         // Retrieve context and build the prompt.
         const { contextText, chunks } = await retrieveContext({
@@ -269,9 +295,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                 contextText,
                 catalogProducts,
                 history,
-                userMessage: message,
-                // Rich [[product:{…}]] cards are only renderable by the web widget.
-                richCards: params.channel === 'WEB_WIDGET',
+                userMessage: llmUserMessage,
+                // Rich [[product:{…}]] cards are renderable by the web widget AND the
+                // standalone chat-link page (both parse the same token format).
+                richCards: params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK',
         })
 
         return {
@@ -312,6 +339,8 @@ async function persistHandoff(params: {
                                 lastMessageAt: new Date(),
                         },
                 })
+                // Keep the contact's denormalized last-activity fresh for the CRM list.
+                bumpContactActivity(params.conversationId)
                 // Load agent name for the handoff alert snapshot.
                 const agentRow = await prisma.agent.findUnique({
                         where: { id: params.agent.id },
@@ -359,6 +388,8 @@ async function persistAssistantTurn(params: {
                 where: { id: params.conversationId },
                 data: { messageCount: { increment: 2 }, lastMessageAt: new Date() },
         })
+        // Keep the contact's denormalized last-activity fresh for the CRM list.
+        bumpContactActivity(params.conversationId)
         if (params.usage) {
                 logUsage({
                         workspaceId: params.workspaceId,

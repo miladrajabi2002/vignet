@@ -7,41 +7,43 @@ import type { PromptConfig } from '@/lib/ai/prompt-builder'
  */
 
 export interface ChatAgent {
-	id: string
-	systemPrompt: string
-	language: string
-	model: string | null
-	temperature: number
-	maxTokens: number
-	fallbackMessage: string | null
-	handoffEnabled: boolean
-	handoffMessage: string | null
-	handoffKeywords: string[]
-	// ─ F1: layered prompt
-	promptConfig: PromptConfig | null
-	roleTemplate: string | null
-	// ─ F3: customer identification
-	requireCustomerInfo: boolean
-	customerInfoPrompt: string | null
+        id: string
+        systemPrompt: string
+        language: string
+        model: string | null
+        temperature: number
+        maxTokens: number
+        fallbackMessage: string | null
+        handoffEnabled: boolean
+        handoffMessage: string | null
+        handoffKeywords: string[]
+        // ─ F1: layered prompt
+        promptConfig: PromptConfig | null
+        roleTemplate: string | null
+        // ─ F3: customer identification
+        requireCustomerInfo: boolean
+        customerInfoPrompt: string | null
 }
 
 export interface StartChatParams {
-	workspaceId: string
-	agent: ChatAgent
-	message: string
-	conversationId?: string
-	channel: ChannelType
-	contactId?: string
-	/** Platform thread id (e.g. Telegram chat id) used to resume conversations. */
-	externalId?: string
-	/** Customer display name — when present, replaces {customer_name} in the system prompt. */
-	contactName?: string | null
-	/** Customer phone, e.g. from the widget's pre-chat lead form. */
-	contactPhone?: string | null
+        workspaceId: string
+        agent: ChatAgent
+        message: string
+        conversationId?: string
+        channel: ChannelType
+        contactId?: string
+        /** Platform thread id (e.g. Telegram chat id) used to resume conversations. */
+        externalId?: string
+        /** Customer display name — when present, replaces {customer_name} in the system prompt. */
+        contactName?: string | null
+        /** Customer phone, e.g. from the widget's pre-chat lead form. */
+        contactPhone?: string | null
+        /** Id of the message this turn is replying to (quote/reply-to). When set, the quoted message's text is included in the LLM context and the persisted USER message gets `parentId`. */
+        replyToMessageId?: string
 }
 
 export interface ExperimentConfig {
-	active: boolean
-	hasVariant: boolean
-	split: number
+        active: boolean
+        hasVariant: boolean
+        split: number
 }

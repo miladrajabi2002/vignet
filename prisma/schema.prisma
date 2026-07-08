@@ -213,6 +213,7 @@ enum ChannelType {
   RUBIKA
   BALE
   WEB_WIDGET
+  CHAT_LINK
   API
 }
 
@@ -355,6 +356,25 @@ model Contact {
   metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // ─ Denormalized "last activity" timestamp, bumped on every inbound/AI/
+  //   operator message across this contact's conversations. Drives the
+  //   "آخرین فعالیت" column on the contacts list (previously we showed
+  //   `updatedAt`, which only changes when the contact row itself is mutated —
+  //   so it reported stale times even when messages were flowing).
+  lastActivityAt DateTime?
+  // ─ Per-channel profile data captured from inbound webhooks + profile fetches.
+  //   Stored best-effort (backfilled when empty); null when the platform doesn't
+  //   expose it (e.g. WhatsApp customer avatars aren't available via the API).
+  telegramUsername  String?
+  telegramAvatarUrl String?
+  baleUsername      String?
+  baleAvatarUrl     String?
+  rubikaUsername    String?
+  rubikaAvatarUrl   String?
+  whatsappName      String?
+  whatsappAvatarUrl String?
+  instagramUsername String?
+  instagramAvatarUrl String?
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id])
   conversations Conversation[]
@@ -362,6 +382,7 @@ model Contact {
   @@index([workspaceId])
   @@index([telegramId])
   @@index([phone])
+  @@index([lastActivityAt])
 }
 
 // ─── CONVERSATION ─────────────────────────────────────────────────
@@ -422,10 +443,17 @@ model Message {
   rating         Int?
   unanswered     Boolean     @default(false)
   createdAt      DateTime    @default(now())
+  // ─ Reply-to (quote) support. When a visitor replies to a specific message
+  //   (web widget / chat link), this points at the quoted message. The dashboard
+  //   thread renders a small quote block above the bubble when set.
+  parentId       String?
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
+  parent        Message?     @relation("MessageReplies", fields: [parentId], references: [id])
+  replies       Message[]    @relation("MessageReplies")
 
   @@index([conversationId])
+  @@index([parentId])
 }
 
 enum MessageRole {

@@ -48,6 +48,61 @@ export default async function ContactDetailPage(
 
   const who = contact.name || contact.phone || t('anonymous')
 
+  // Pick the first available avatar across channels (Instagram first since it
+  // has the most useful profile pictures).
+  const avatarUrl =
+    contact.instagramAvatarUrl ??
+    contact.telegramAvatarUrl ??
+    contact.baleAvatarUrl ??
+    contact.rubikaAvatarUrl ??
+    contact.whatsappAvatarUrl ??
+    null
+
+  // Build a list of per-channel identities (only channels the contact is
+  // linked to) so the operator can see e.g. "Instagram @foo", "Telegram @bar"
+  // at a glance. Each entry includes the channel, the handle, and the
+  // channel-specific avatar (if any).
+  const identities: Array<{
+    channel: ChannelType
+    handle: string | null
+    avatarUrl: string | null
+  }> = []
+  if (contact.telegramId)
+    identities.push({
+      channel: 'TELEGRAM',
+      handle: contact.telegramUsername,
+      avatarUrl: contact.telegramAvatarUrl,
+    })
+  if (contact.baleId)
+    identities.push({
+      channel: 'BALE',
+      handle: contact.baleUsername,
+      avatarUrl: contact.baleAvatarUrl,
+    })
+  if (contact.rubikaId)
+    identities.push({
+      channel: 'RUBIKA',
+      handle: contact.rubikaUsername,
+      avatarUrl: contact.rubikaAvatarUrl,
+    })
+  if (contact.whatsappId)
+    identities.push({
+      channel: 'WHATSAPP',
+      handle: contact.whatsappName,
+      avatarUrl: contact.whatsappAvatarUrl,
+    })
+  if (contact.instagramId)
+    identities.push({
+      channel: 'INSTAGRAM',
+      handle: contact.instagramUsername,
+      avatarUrl: contact.instagramAvatarUrl,
+    })
+
+  const lastActivity =
+    contact.lastActivityAt ??
+    contact.conversations[0]?.lastMessageAt ??
+    contact.createdAt
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <Link
@@ -60,9 +115,19 @@ export default async function ContactDetailPage(
 
       {/* Header */}
       <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-          <User className="h-6 w-6" />
-        </div>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={who}
+            referrerPolicy="no-referrer"
+            className="h-12 w-12 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
+          />
+        ) : (
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+            <User className="h-6 w-6" />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-light text-[var(--text-primary)]">
@@ -83,6 +148,47 @@ export default async function ContactDetailPage(
           )}
         </div>
       </div>
+
+      {/* Per-channel identities */}
+      {identities.length > 0 && (
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+          <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
+            {locale === 'fa' ? 'هویت در کانال‌ها' : 'Channel identities'}
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {identities.map((id) => (
+              <div
+                key={id.channel}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1.5"
+              >
+                {id.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={id.avatarUrl}
+                    alt={id.handle ?? id.channel}
+                    referrerPolicy="no-referrer"
+                    className="h-6 w-6 rounded-full border border-[var(--border-default)] object-cover"
+                  />
+                ) : null}
+                <ChannelBadge type={id.channel} />
+                {id.handle && (
+                  <span
+                    dir="ltr"
+                    className="text-xs text-[var(--text-primary)]"
+                  >
+                    @{id.handle}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+            {locale === 'fa'
+              ? `آخرین فعالیت: ${relativeTime(lastActivity, locale)}`
+              : `Last activity: ${relativeTime(lastActivity, locale)}`}
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
         {/* Editable details */}

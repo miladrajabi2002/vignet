@@ -9,16 +9,15 @@ import { getAdapter, isMessengerType } from '@/lib/channels/registry'
  * operator (human handoff) replies that originate in the dashboard rather than
  * from the AI pipeline.
  *
- * Returns true when delivered. Web-widget / API channels can't be pushed to
- * (they're request/response), so those return false and the message is only
- * persisted in the thread.
+ * Returns true when delivered to the platform. Web-widget / chat-link / API
+ * channels can't be pushed to (they're request/response), so those return false
+ * and the caller persists the message in the thread only — the visitor sees it
+ * on their next page refresh.
  *
- * Token resolution:
- *   - Telegram / Bale / Rubika / WhatsApp use the legacy `botTokenEnc` field
- *     (read via `readBotToken`).
- *   - Instagram OAuth channels store the access token under `userTokenEnc`
- *     (or `pageTokenEnc` for legacy FB Login) — read via `readPageToken`. We
- *     fall back to it when `readBotToken` returns null.
+ * Instagram token note: OAuth channels (Instagram Login) store the access token
+ * under `userTokenEnc` (read via `readPageToken`), NOT `botTokenEnc`. Using
+ * `readBotToken` here would silently return null for OAuth channels and the
+ * operator's reply would never reach Instagram — so we branch on the channel.
  */
 export async function sendOutbound(
   agentId: string,
@@ -34,9 +33,11 @@ export async function sendOutbound(
   })
   if (!ch) return false
 
+  // Instagram OAuth stores the token under userTokenEnc/pageTokenEnc; legacy
+  // Instagram + other messengers store it under botTokenEnc. readPageToken
+  // handles all three Instagram flavors, so it's the safe choice for IG.
   const token =
-    readBotToken(ch.config) ??
-    (channel === 'INSTAGRAM' ? readPageToken(ch.config) : null)
+    channel === 'INSTAGRAM' ? readPageToken(ch.config) : readBotToken(ch.config)
   if (!token) return false
 
   await getAdapter(channel, token).sendText(externalId, text)

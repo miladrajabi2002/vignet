@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Camera,
   Webhook,
+  Link2,
 } from 'lucide-react'
 
 const ICONS: Record<ChannelType, typeof Globe> = {
@@ -17,16 +18,18 @@ const ICONS: Record<ChannelType, typeof Globe> = {
   WHATSAPP: MessageCircle,
   INSTAGRAM: Camera,
   API: Webhook,
+  CHAT_LINK: Link2,
 }
 
 export const CHANNEL_LABELS: Record<ChannelType, string> = {
-  WEB_WIDGET: 'Web',
+  WEB_WIDGET: 'Widget',
   TELEGRAM: 'Telegram',
   BALE: 'Bale',
   RUBIKA: 'Rubika',
   WHATSAPP: 'WhatsApp',
   INSTAGRAM: 'Instagram',
   API: 'API',
+  CHAT_LINK: 'Link',
 }
 
 export function ChannelBadge({ type }: { type: ChannelType }) {
