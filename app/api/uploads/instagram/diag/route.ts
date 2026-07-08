@@ -16,9 +16,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
         const info: Record<string, unknown> = {
-                routeVersion: 'v4-mp3-all',
-                message: 'ALL audio formats are transcoded to MP3.',
-                voiceFormat: 'mp3 (libmp3lame) — all audio inputs',
+                routeVersion: 'v5-aac-m4a',
+                message: 'Audio transcoded to AAC/m4a (Instagram official format). WAV fallback.',
+                voiceFormat: 'm4a/aac (verified) → wav (fallback)',
         }
 
         // Check ffmpeg

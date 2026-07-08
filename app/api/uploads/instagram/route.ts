@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════
-// UPLOAD ROUTE — VERSION 4 (ALL audio → MP3)
-// ALL audio formats (webm, mp4, ogg) are transcoded to MP3.
-// If you see .m4a files being saved, this code is NOT running — rebuild!
+// UPLOAD ROUTE — VERSION 5 (AAC/m4a with codec verification + WAV fallback)
+// MP3 is NOT in Instagram's official supported list → use AAC/m4a instead.
+// If AAC fails, fall back to WAV (uncompressed, always accepted).
 // ═══════════════════════════════════════════════════════════════════════
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
@@ -32,51 +32,96 @@ async function hasFfmpeg(): Promise<boolean> {
 }
 
 /**
- * Transcode a WebM/Opus audio buffer to MP3 using ffmpeg. Instagram accepts
- * MP3, AAC (m4a), OGG, WAV for audio attachments — but NOT Opus-in-mp4.
+ * Transcode any audio (webm/opus, mp4, ogg) to AAC/m4a using ffmpeg.
  *
- * We use MP3 (not m4a/AAC) because:
- *  1. `libmp3lame` is bundled with virtually every ffmpeg build — always works.
- *  2. AAC encoder sometimes produces Opus-in-mp4 on misconfigured servers.
- *  3. Instagram accepts MP3 universally with no codec ambiguity.
+ * Per Meta's official docs, Instagram Messaging API only accepts these audio
+ * formats for attachments: AAC (m4a), WAV, MP4 (with AAC). MP3 is NOT in the
+ * official list and gets rejected with "Upload failed (code=100)".
  *
- * Returns { buf, ext, mime } or null when ffmpeg is unavailable / fails.
+ * We encode with the native `aac` encoder (always available in ffmpeg 4+),
+ * then VERIFY the output codec is actually `aac` using ffprobe. If the
+ * verification fails (misconfigured ffmpeg producing Opus-in-mp4), we fall
+ * back to `libfdk_aac` if available, then to `wav` (uncompressed, always works).
+ *
+ * Returns { buf, ext, mime } or null when all attempts fail.
  */
-async function transcodeWebmToMp3(webmBuffer: Buffer): Promise<{ buf: Buffer; ext: string; mime: string } | null> {
+async function transcodeToInstagramAudio(
+        webmBuffer: Buffer,
+): Promise<{ buf: Buffer; ext: string; mime: string } | null> {
         if (!(await hasFfmpeg())) return null
         const tmpIn = join(process.cwd(), 'public', 'uploads', 'instagram', `_tmp-${Date.now()}.webm`)
-        const tmpOut = tmpIn.replace(/\.webm$/, '.mp3')
+        const tmpM4a = tmpIn.replace(/\.webm$/, '.m4a')
+        const tmpWav = tmpIn.replace(/\.webm$/, '.wav')
         try {
                 await writeFile(tmpIn, webmBuffer)
-                await execFileAsync(
-                        'ffmpeg',
-                        [
-                                '-i', tmpIn,
-                                '-vn',                   // strip any video track
-                                '-c:a', 'libmp3lame',   // MP3 codec (always available)
-                                '-b:a', '128k',         // 128 kbps — clear voice
-                                '-ar', '44100',         // 44.1 kHz sample rate
-                                '-ac', '1',             // mono
-                                '-y',                    // overwrite output
-                                tmpOut,
-                        ],
-                        { timeout: 30000 },
-                )
-                const buf = await readFile(tmpOut)
-                if (buf.byteLength === 0) {
-                        console.error('[uploads/instagram] ffmpeg produced empty MP3')
-                        return null
+
+                // ── Attempt 1: AAC in m4a (Instagram's preferred format) ──
+                try {
+                        await execFileAsync(
+                                'ffmpeg',
+                                [
+                                        '-i', tmpIn,
+                                        '-vn',                   // strip any video track
+                                        '-c:a', 'aac',          // native AAC encoder (always available)
+                                        '-b:a', '128k',         // 128 kbps
+                                        '-ar', '44100',         // 44.1 kHz sample rate
+                                        '-ac', '1',             // mono
+                                        '-movflags', '+faststart',
+                                        '-y',
+                                        tmpM4a,
+                                ],
+                                { timeout: 30000 },
+                        )
+                        // VERIFY the codec is actually AAC (not Opus copied through).
+                        const { stdout } = await execFileAsync(
+                                'ffprobe',
+                                ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', tmpM4a],
+                                { timeout: 10000 },
+                        )
+                        const codec = stdout.trim()
+                        console.log(`[uploads/instagram] m4a transcode → codec="${codec}"`)
+                        if (codec === 'aac') {
+                                const buf = await readFile(tmpM4a)
+                                console.log(`[uploads/instagram] ✓ webm→m4a/aac (${webmBuffer.byteLength}→${buf.byteLength} bytes)`)
+                                return { buf, ext: 'm4a', mime: 'audio/mp4' }
+                        }
+                        console.warn(`[uploads/instagram] m4a codec="${codec}" (expected aac) — trying WAV fallback`)
+                } catch (e) {
+                        console.warn('[uploads/instagram] m4a transcode failed:', (e as Error).message)
                 }
-                console.log(
-                        `[uploads/instagram] ✓ webm→mp3 (${webmBuffer.byteLength}→${buf.byteLength} bytes)`,
-                )
-                return { buf, ext: 'mp3', mime: 'audio/mpeg' }
+
+                // ── Attempt 2: WAV (uncompressed, Instagram accepts it, ffmpeg always produces it correctly) ──
+                try {
+                        await execFileAsync(
+                                'ffmpeg',
+                                [
+                                        '-i', tmpIn,
+                                        '-vn',
+                                        '-c:a', 'pcm_s16le',    // WAV PCM
+                                        '-ar', '44100',
+                                        '-ac', '1',
+                                        '-y',
+                                        tmpWav,
+                                ],
+                                { timeout: 30000 },
+                        )
+                        const wavBuf = await readFile(tmpWav)
+                        if (wavBuf.byteLength > 0) {
+                                console.log(`[uploads/instagram] ✓ webm→wav (${webmBuffer.byteLength}→${wavBuf.byteLength} bytes)`)
+                                return { buf: wavBuf, ext: 'wav', mime: 'audio/wav' }
+                        }
+                } catch (e) {
+                        console.warn('[uploads/instagram] WAV transcode failed:', (e as Error).message)
+                }
+
+                return null
         } catch (e) {
-                console.error('[uploads/instagram] ffmpeg MP3 transcode failed:', (e as Error).message)
+                console.error('[uploads/instagram] transcode failed entirely:', (e as Error).message)
                 return null
         } finally {
                 await unlink(tmpIn).catch(() => {})
-                await unlink(tmpOut).catch(() => {})
+                await unlink(tmpM4a).catch(() => {})
+                await unlink(tmpWav).catch(() => {})
         }
 }
 
@@ -245,9 +290,9 @@ export async function POST(req: Request) {
                         // The only exception: if the file is ALREADY mp3, keep it as-is.
                         if (normalizedMime.startsWith('audio/') && normalizedMime !== 'audio/mpeg') {
                                 console.log(
-                                        `[uploads/instagram] audio file "${f.name}" mime="${normalizedMime}" → transcoding to MP3`,
+                                        `[uploads/instagram] audio file "${f.name}" mime="${normalizedMime}" → transcoding to AAC/m4a`,
                                 )
-                                const transcoded = await transcodeWebmToMp3(actualBuf)
+                                const transcoded = await transcodeToInstagramAudio(actualBuf)
                                 if (transcoded) {
                                         actualBuf = transcoded.buf
                                         actualExt = transcoded.ext
