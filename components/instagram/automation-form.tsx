@@ -1329,15 +1329,15 @@ function MessageBuilder({
         const addOptions: { value: MessageType; label: string; Icon: LucideIcon }[] = [
                 { value: 'TEXT', label: 'متن', Icon: Type },
                 { value: 'IMAGE', label: 'عکس', Icon: ImagePlus },
-                { value: 'AUDIO', label: 'صوت (Voice)', Icon: Mic },
+                { value: 'AUDIO', label: 'صوت', Icon: Mic },
                 { value: 'VIDEO', label: 'ویدیو', Icon: Film },
                 { value: 'QUICK_REPLY', label: 'کلید', Icon: KeyRound },
-                { value: 'PRODUCT', label: 'ویترین محصولات', Icon: ShoppingBag },
+                { value: 'PRODUCT', label: 'محصول', Icon: ShoppingBag },
         ]
 
         return (
                 <div className="space-y-3">
-                        {/* Header: count + hint — makes it OBVIOUS the user can stack messages. */}
+                        {/* Header: count badge + hint — makes it OBVIOUS the user can stack messages. */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
                                         <MessageCircle className="h-3 w-3" />
@@ -1346,7 +1346,7 @@ function MessageBuilder({
                                                 : 'بدون پیام'}
                                 </span>
                                 <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                        می‌توانید چند پیام پشت‌سر هم بفرستید — به‌ترتیب ارسال می‌شوند.
+                                        چند پیام پشت‌سر هم — به‌ترتیب ارسال می‌شوند.
                                 </p>
                         </div>
 
@@ -1354,7 +1354,7 @@ function MessageBuilder({
                                 <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-6 text-center">
                                         <MessageCircle className="mx-auto h-6 w-6 text-[var(--text-muted)]" />
                                         <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                                                هنوز پیامی اضافه نشده. اولین پیام را اضافه کنید.
+                                                هنوز پیامی اضافه نشده. با یکی از دکمه‌های زیر شروع کنید.
                                         </p>
                                 </div>
                         )}
@@ -1373,54 +1373,29 @@ function MessageBuilder({
                                 />
                         ))}
 
-                        {/* Always-visible add-message split button.
-                            Main click → adds a TEXT message immediately (most common case).
-                            Chevron click → opens a small type-picker popover with all 6 types. */}
-                        <div className="relative">
-                                <div className="flex overflow-hidden rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] transition-colors hover:border-[var(--border-hover)]">
-                                        <button
-                                                type="button"
-                                                onClick={() => onAdd('TEXT')}
-                                                className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-                                        >
-                                                <Plus className="h-3.5 w-3.5" />
-                                                افزودن پیام
-                                        </button>
-                                        <button
-                                                type="button"
-                                                onClick={() => setAddMenuOpen(!addMenuOpen)}
-                                                aria-label="نوع پیام را انتخاب کنید"
-                                                aria-expanded={addMenuOpen}
-                                                className="flex items-center justify-center border-s border-[var(--border-default)] px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${addMenuOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                </div>
-                                {addMenuOpen && (
-                                        <>
+                        {/* Add-message buttons — one per type, always visible. Each button
+                            is a self-contained pill with the type's icon + label, so the user
+                            sees at a glance every kind of message they can add. No hidden
+                            dropdown, no guessing. */}
+                        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
+                                <p className="mb-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                        افزودن پیام
+                                </p>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                        {addOptions.map(({ value, label, Icon }) => (
                                                 <button
+                                                        key={value}
                                                         type="button"
-                                                        aria-label="بستن منو"
-                                                        className="fixed inset-0 z-40 cursor-default"
-                                                        onClick={() => setAddMenuOpen(false)}
-                                                />
-                                                <div className="absolute z-50 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-lg">
-                                                        {addOptions.map(({ value, label, Icon }) => (
-                                                                <button
-                                                                        key={value}
-                                                                        type="button"
-                                                                        onClick={() => onAdd(value)}
-                                                                        className="flex w-full items-center gap-2.5 border-b border-[var(--border-subtle)] px-3 py-2.5 text-start text-xs text-[var(--text-primary)] transition-colors last:border-0 hover:bg-[var(--bg-hover)]"
-                                                                >
-                                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                                                                                <Icon className="h-3.5 w-3.5" />
-                                                                        </div>
-                                                                        {label}
-                                                                </button>
-                                                        ))}
-                                                </div>
-                                        </>
-                                )}
+                                                        onClick={() => onAdd(value)}
+                                                        className="group flex flex-col items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-2.5 text-[10px] font-medium text-[var(--text-secondary)] transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] active:scale-95"
+                                                >
+                                                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg-base)] text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--white)] group-hover:text-[var(--bg-base)]">
+                                                                <Icon className="h-3.5 w-3.5" />
+                                                        </span>
+                                                        {label}
+                                                </button>
+                                        ))}
+                                </div>
                         </div>
                 </div>
         )

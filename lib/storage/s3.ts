@@ -192,16 +192,32 @@ function buildKey(file: File, folder: string): string {
 /**
  * Public HTTPS URL for an object.
  *
- * - If `S3_PUBLIC_URL` is set (e.g. `https://cdn.vigent.ir`), returns
- *   `${S3_PUBLIC_URL}/${key}` — required for the Instagram Messaging API.
- * - Otherwise falls back to `${S3_ENDPOINT}/${S3_BUCKET}/${key}` which works
- *   for local browsing but WILL NOT be accepted by the Instagram API (a
- *   warning is logged the first time this happens).
+ * Two modes:
+ *
+ * 1. **Through the Next.js app (default):** returns
+ *    `${S3_PUBLIC_URL}/uploads/${key}`. The app's `/api/uploads/instagram/[...key]`
+ *    route streams the object from S3 — this works with ANY S3_PUBLIC_URL that
+ *    points at the public app origin (e.g. `https://vigent.ir`) without any
+ *    extra reverse-proxy config. This is the recommended mode because it also
+ *    enforces the route's auth/key-prefix checks.
+ *
+ * 2. **Direct-to-S3 (when `S3_DIRECT_S3=1`):** returns `${S3_PUBLIC_URL}/${key}`.
+ *    Use this ONLY when S3_PUBLIC_URL points directly at a public S3/MinIO endpoint
+ *    (e.g. `https://cdn.vigent.ir` → MinIO). Requires a reverse-proxy from the
+ *    public host to MinIO. Faster (no app hop) but bypasses the route's checks.
+ *
+ * Without `S3_PUBLIC_URL`, falls back to `${S3_ENDPOINT}/${S3_BUCKET}/${key}`
+ * (loopback — fine for local browsing but NOT for the Instagram API, which
+ * requires a publicly reachable HTTPS URL).
  */
 export function publicUrl(key: string): string {
   const publicBase = process.env.S3_PUBLIC_URL
   if (publicBase) {
-    return `${publicBase.replace(/\/+$/, '')}/${key}`
+    const base = publicBase.replace(/\/+$/, '')
+    // Route through the Next.js app's `/uploads/` proxy by default — this is
+    // the mode that works out-of-the-box with `S3_PUBLIC_URL=https://vigent.ir`.
+    const directS3 = process.env.S3_DIRECT_S3 === '1'
+    return directS3 ? `${base}/${key}` : `${base}/uploads/${key}`
   }
   if (!publicUrlWarned) {
     console.warn(

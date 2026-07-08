@@ -94,7 +94,6 @@ export default async function ConversationThreadPage(props: {
                 .map((c) => c.type)
                 .filter((c): c is ChannelType => isMessengerType(c))
 
-        const who = conversation.contact?.name || conversation.contact?.phone || t('anonymous')
         const canDeliver = isMessengerType(conversation.channel) && !!conversation.externalId
 
         // Pick the per-channel avatar + handle for the contact based on the
@@ -124,6 +123,12 @@ export default async function ConversationThreadPage(props: {
                                                 : conversation.channel === 'INSTAGRAM'
                                                         ? conversation.contact?.instagramUsername ?? null
                                                         : null
+
+        const who =
+                conversation.contact?.name ||
+                conversation.contact?.phone ||
+                contactHandle ||
+                t('anonymous')
 
         const latestAlert = conversation.handoffAlerts[0] ?? null
         const handoffAlertProp: HandoffAlertProp | null = latestAlert

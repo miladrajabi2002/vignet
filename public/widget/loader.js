@@ -450,15 +450,26 @@
                         '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
                         '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
                         '@media (max-width:600px){' +
-                        // On mobile the panel becomes a full-screen sheet. We switch
-                        // from position:absolute (relative to the 0×0 .vgt-root point)
-                        // to position:fixed (relative to the viewport) so top:0/bottom:0
-                        // actually stretch to full screen height. Without this, the
-                        // panel renders at 0 height because .vgt-root has no dimensions.
+                        // On mobile the panel becomes a TRUE full-screen sheet. We switch
+                        // from position:absolute (relative to the 0×0 .vgt-root point, which
+                        // would give the panel 0 height) to position:fixed (relative to the
+                        // viewport) so top:0/bottom:0 actually stretch to full screen height.
                         '.vgt-panel{position:fixed!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;' +
                         'top:0!important;left:0!important;right:0!important;bottom:0!important;border-radius:0!important;' +
+                        'border:none!important;box-shadow:none!important;' +
+                        'transform:none!important;transition:opacity .2s ease!important;' +
                         'padding-bottom:env(safe-area-inset-bottom)!important;}' +
-                        '.vgt-head{padding-top:env(safe-area-inset-top)!important;}' +
+                        '.vgt-panel.vgt-show{transform:none!important;}' +
+                        // Header: respect the notch / Dynamic Island.
+                        '.vgt-head{padding-top:max(12px,env(safe-area-inset-top))!important;min-height:56px!important;}' +
+                        // Make the close button bigger and always visible on mobile.
+                        '.vgt-close{padding:10px!important;min-width:44px!important;min-height:44px!important;' +
+                        'display:flex!important;align-items:center!important;justify-content:center!important;}' +
+                        '.vgt-close svg{width:22px!important;height:22px!important;}' +
+                        // Body grows to fill the screen.
+                        '.vgt-body{flex:1!important;min-height:0!important;}' +
+                        // Input bar clears the home indicator.
+                        '.vgt-input-bar{padding-bottom:max(8px,env(safe-area-inset-bottom))!important;}' +
                         // Hide the launcher while the full-screen panel is open so it
                         // doesn't float over the conversation.
                         '.vgt-root.vgt-open .vgt-launcher{display:none!important;}' +
@@ -1426,16 +1437,19 @@
                         typeof window.innerWidth !== 'number' ||
                         window.innerWidth >= 600
                 ) {
+                        // Clear any inline height so CSS (100dvh on mobile, 620px on
+                        // desktop) takes over. On mobile the panel is position:fixed
+                        // with height:100dvh, so we must NOT override it with inline
+                        // styles — let the CSS handle the full-screen sizing.
                         panel.style.height = ''
                         panel.style.maxHeight = ''
                         return
                 }
-                var h = window.visualViewport.height
-                if (h > 0) {
-                        panel.style.height = h + 'px'
-                        panel.style.maxHeight = h + 'px'
-                        scrollDown()
-                }
+                // On mobile, when the keyboard opens, visualViewport.height shrinks.
+                // Instead of overriding the panel height (which fights the 100dvh
+                // CSS), we scroll the message body to keep the latest bubble visible.
+                // The panel stays full-screen; only the body scrolls.
+                scrollDown()
         }
         if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', applyViewportHeight)

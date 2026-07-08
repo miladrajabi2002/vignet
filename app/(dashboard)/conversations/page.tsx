@@ -83,7 +83,22 @@ export default async function ConversationsPage(props: {
                                 lastMessageAt: true,
                                 createdAt: true,
                                 agent: { select: { name: true } },
-                                contact: { select: { name: true, phone: true } },
+                                contact: {
+                                        select: {
+                                                name: true,
+                                                phone: true,
+                                                telegramUsername: true,
+                                                baleUsername: true,
+                                                rubikaUsername: true,
+                                                whatsappName: true,
+                                                instagramUsername: true,
+                                                instagramAvatarUrl: true,
+                                                telegramAvatarUrl: true,
+                                                baleAvatarUrl: true,
+                                                rubikaAvatarUrl: true,
+                                                whatsappAvatarUrl: true,
+                                        },
+                                },
                                 messages: {
                                         orderBy: { createdAt: 'desc' },
                                         take: 1,
@@ -217,7 +232,39 @@ export default async function ConversationsPage(props: {
                                         {pageItems.map((c) => {
                                                 const last = c.messages[0]
                                                 const when = c.lastMessageAt ?? c.createdAt
-                                                const who = c.contact?.name || c.contact?.phone || t('anonymous')
+                                                // Resolve the contact's display name: prefer the explicit name,
+                                                // then phone, then the per-channel username/handle (so Instagram
+                                                // DMs show the @handle instead of "ناشناس" when the webhook
+                                                // only carried the username, not the real name).
+                                                const channelHandle =
+                                                        c.channel === 'INSTAGRAM'
+                                                                ? c.contact?.instagramUsername
+                                                                : c.channel === 'TELEGRAM'
+                                                                        ? c.contact?.telegramUsername
+                                                                        : c.channel === 'BALE'
+                                                                                ? c.contact?.baleUsername
+                                                                                : c.channel === 'RUBIKA'
+                                                                                        ? c.contact?.rubikaUsername
+                                                                                        : c.channel === 'WHATSAPP'
+                                                                                                ? c.contact?.whatsappName
+                                                                                                : null
+                                                const channelAvatar =
+                                                        c.channel === 'INSTAGRAM'
+                                                                ? c.contact?.instagramAvatarUrl
+                                                                : c.channel === 'TELEGRAM'
+                                                                        ? c.contact?.telegramAvatarUrl
+                                                                        : c.channel === 'BALE'
+                                                                                ? c.contact?.baleAvatarUrl
+                                                                                : c.channel === 'RUBIKA'
+                                                                                        ? c.contact?.rubikaAvatarUrl
+                                                                                        : c.channel === 'WHATSAPP'
+                                                                                                ? c.contact?.whatsappAvatarUrl
+                                                                                                : null
+                                                const who =
+                                                        c.contact?.name ||
+                                                        c.contact?.phone ||
+                                                        channelHandle ||
+                                                        t('anonymous')
                                                 return (
                                                         <Link
                                                                 key={c.id}
@@ -227,14 +274,29 @@ export default async function ConversationsPage(props: {
                                                                         c.handedOff && 'bg-amber-500/5',
                                                                 )}
                                                         >
-                                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                                                        <User className="h-4 w-4" />
-                                                                </div>
+                                                                {channelAvatar ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img
+                                                                                src={channelAvatar}
+                                                                                alt={who}
+                                                                                referrerPolicy="no-referrer"
+                                                                                className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
+                                                                        />
+                                                                ) : (
+                                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+                                                                                <User className="h-4 w-4" />
+                                                                        </div>
+                                                                )}
                                                                 <div className="min-w-0 flex-1">
                                                                         <div className="flex items-center gap-2">
                                                                                 <span className="truncate text-sm font-medium text-[var(--text-primary)]">
                                                                                         {who}
                                                                                 </span>
+                                                                                {channelHandle && who !== channelHandle && (
+                                                                                        <span dir="ltr" className="shrink-0 rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                                                                                                @{channelHandle}
+                                                                                        </span>
+                                                                                )}
                                                                                 <ChannelBadge type={c.channel} />
                                                                                 {c.handedOff && (
                                                                                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">
