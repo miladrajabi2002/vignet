@@ -182,7 +182,6 @@ export function AutomationForm({
         const [keywordInput, setKeywordInput] = useState('')
         const [busy, setBusy] = useState(false)
         const [error, setError] = useState<string | null>(null)
-        const [addMenuOpen, setAddMenuOpen] = useState(false)
         const nameRef = useRef<HTMLInputElement>(null)
 
         // Auto-focus name on mount.
@@ -234,7 +233,6 @@ export function AutomationForm({
                                                 : { id: newMessageId(), type: t, text: '' }
                         return { ...f, messages: [...f.messages, msg] }
                 })
-                setAddMenuOpen(false)
         }
 
         function updateMessage(id: string, patch: Partial<AutomationMessage>) {
@@ -667,8 +665,6 @@ export function AutomationForm({
                                                                 onUpdate={updateMessage}
                                                                 onRemove={removeMessage}
                                                                 onMove={moveMessage}
-                                                                addMenuOpen={addMenuOpen}
-                                                                setAddMenuOpen={setAddMenuOpen}
                                                         />
                                                         <p className="text-[11px] text-[var(--text-muted)]">
                                                                 پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.
@@ -1311,8 +1307,6 @@ function MessageBuilder({
         onUpdate,
         onRemove,
         onMove,
-        addMenuOpen,
-        setAddMenuOpen,
 }: {
         messages: AutomationMessage[]
         channelId: string
@@ -1320,8 +1314,6 @@ function MessageBuilder({
         onUpdate: (id: string, patch: Partial<AutomationMessage>) => void
         onRemove: (id: string) => void
         onMove: (id: string, dir: -1 | 1) => void
-        addMenuOpen: boolean
-        setAddMenuOpen: (v: boolean) => void
 }) {
         // All six message types the builder supports. AUDIO and VIDEO are now
         // first-class options (previously only IMAGE existed, with a misleading

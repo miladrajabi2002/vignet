@@ -645,7 +645,7 @@ function scheduleFollowUp(
   target: string,
 ): void {
   if (!action.followUpEnabled || !action.followUpMessage?.trim()) return
-  const { adapter, msg, agent } = ctx
+  const { adapter, agent } = ctx
   const delayMs = Math.max(
     1,
     action.followUpDelayMin ?? 60,

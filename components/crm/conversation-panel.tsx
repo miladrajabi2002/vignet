@@ -61,6 +61,7 @@ const MESSENGER_META: Record<
         CHAT_LINK: { label: 'لینک چت', icon: Link2 },
 }
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export function ConversationPanel({
         conversationId,
         status,

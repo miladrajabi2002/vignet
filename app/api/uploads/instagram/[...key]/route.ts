@@ -28,7 +28,14 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ key?: string[] }> }
 
-/** MIME map from file extension — so images render inline instead of downloading. */
+/** MIME map from file extension — so images render inline instead of downloading.
+ *
+ * Note on `.webm`: in this project, `.webm` files in the instagram/ folder are
+ * ALWAYS voice recordings (the voice recorder outputs WebM/Opus). Video files
+ * use `.mp4` / `.mov`. So we serve `.webm` as `audio/webm` — NOT `video/webm` —
+ * so Meta accepts it as an audio attachment. (The upload route also renames
+ * new voice uploads to `.weba`, but this handles legacy `.webm` files too.)
+ */
 const EXT_TO_MIME: Record<string, string> = {
         jpg: 'image/jpeg',
         jpeg: 'image/jpeg',
@@ -40,10 +47,11 @@ const EXT_TO_MIME: Record<string, string> = {
         m4a: 'audio/mp4',
         wav: 'audio/wav',
         ogg: 'audio/ogg',
+        // `.weba` and `.webm` both serve as audio/webm — voice recordings only.
         weba: 'audio/webm',
+        webm: 'audio/webm',
         mp4: 'video/mp4',
         mov: 'video/quicktime',
-        webm: 'video/webm',
 }
 
 /**

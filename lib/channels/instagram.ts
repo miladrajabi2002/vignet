@@ -382,13 +382,14 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         })
                 },
 
-                async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                async sendVoice(_chatId: string, _voice: OutboundVoice): Promise<void> {
                         // Instagram DMs don't have a native "voice note" type distinct from
                         // audio — both are sent as an `audio` attachment. We reuse the
                         // sendAudio envelope (upload the raw bytes to S3 via the caller, then
                         // send the URL as an audio attachment). The caller (handler.ts) is
                         // responsible for producing an HTTPS URL Meta can fetch.
-                        if (chatId.startsWith(COMMENT_PREFIX)) return
+                        if (_chatId.startsWith(COMMENT_PREFIX)) return
                         const h = await host()
                         if (!h) return
                         // Convert the raw audio buffer to a data URL is NOT viable (Meta
