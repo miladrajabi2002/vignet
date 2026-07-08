@@ -16,9 +16,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
         const info: Record<string, unknown> = {
-                routeVersion: 'v3-mp3',
-                message: 'If you see this, the NEW upload route code is running.',
-                voiceFormat: 'mp3 (libmp3lame)',
+                routeVersion: 'v4-mp3-all',
+                message: 'ALL audio formats are transcoded to MP3.',
+                voiceFormat: 'mp3 (libmp3lame) — all audio inputs',
         }
 
         // Check ffmpeg

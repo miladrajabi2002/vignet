@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════
-// UPLOAD ROUTE — VERSION 3 (MP3 voice transcoding)
+// UPLOAD ROUTE — VERSION 4 (ALL audio → MP3)
+// ALL audio formats (webm, mp4, ogg) are transcoded to MP3.
 // If you see .m4a files being saved, this code is NOT running — rebuild!
-// Voice notes are transcoded to MP3 (libmp3lame) which Instagram accepts.
 // ═══════════════════════════════════════════════════════════════════════
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
@@ -234,26 +234,37 @@ export async function POST(req: Request) {
                         // attachments. MIME_TO_EXT maps "audio/webm" → "weba" which the
                         // GET route serves as "audio/webm" (correct).
                         const mimeExt = MIME_TO_EXT[normalizedMime]
-                        // For audio/webm, we transcode to m4a (Instagram-compatible) using
-                        // ffmpeg when available. The extension + contentType reflect the
-                        // ACTUAL stored file so the GET route serves the right Content-Type.
                         let actualBuf: Buffer = Buffer.from(await f.arrayBuffer())
                         let actualExt: string
                         let actualMime: string
-                        if (normalizedMime === 'audio/webm') {
+                        // ── ALL audio files are transcoded to MP3 ──
+                        // Instagram only accepts AAC (m4a), MP3, OGG, WAV. Browsers produce
+                        // audio/webm (Chrome), audio/mp4 (Safari), or audio/ogg (Firefox) —
+                        // any of these might contain Opus which Instagram rejects. We ALWAYS
+                        // transcode to MP3 (libmp3lame) which Instagram universally accepts.
+                        // The only exception: if the file is ALREADY mp3, keep it as-is.
+                        if (normalizedMime.startsWith('audio/') && normalizedMime !== 'audio/mpeg') {
+                                console.log(
+                                        `[uploads/instagram] audio file "${f.name}" mime="${normalizedMime}" → transcoding to MP3`,
+                                )
                                 const transcoded = await transcodeWebmToMp3(actualBuf)
                                 if (transcoded) {
                                         actualBuf = transcoded.buf
                                         actualExt = transcoded.ext
                                         actualMime = transcoded.mime
                                 } else {
-                                        // ffmpeg unavailable or failed — keep webm but use .weba
-                                        // extension so the GET route serves audio/webm (not video/webm).
-                                        // Instagram may still reject it, but the preflight check will
-                                        // surface a clear error explaining that ffmpeg is needed.
-                                        actualExt = 'weba'
-                                        actualMime = 'audio/webm'
+                                        // ffmpeg unavailable or failed — save with original extension.
+                                        // Instagram will likely reject it, but at least the file is saved.
+                                        console.error(
+                                                `[uploads/instagram] ⚠️ transcode FAILED for "${f.name}" — saving original (Instagram may reject)`,
+                                        )
+                                        actualExt = mimeExt || nameExt || 'bin'
+                                        actualMime = normalizedMime || f.type || 'application/octet-stream'
                                 }
+                        } else if (normalizedMime === 'audio/mpeg') {
+                                // Already MP3 — save as-is.
+                                actualExt = 'mp3'
+                                actualMime = 'audio/mpeg'
                         } else {
                                 actualExt =
                                         (normalizedMime.startsWith('audio/') && mimeExt) || mimeExt || nameExt || 'bin'
