@@ -2,6 +2,8 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3'
 
 /**
@@ -53,6 +55,11 @@ let publicUrlWarned = false
  * Validate that every required S3 env var is present. Throws a clear, actionable
  * error listing exactly what is missing — surfaced as a 500 by the API route so
  * the operator can fix `.env` instead of debugging an opaque SDK stack trace.
+ *
+ * Only 4 vars are strictly required: S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY,
+ * S3_REGION. S3_BUCKET defaults to "vignet-media"; S3_PUBLIC_URL is optional
+ * (without it, URLs fall back to the endpoint — fine for local dev, but
+ * Instagram API requires a public HTTPS URL).
  */
 export function assertS3Configured(): void {
   const required = [
@@ -60,20 +67,13 @@ export function assertS3Configured(): void {
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
     'S3_REGION',
-    'S3_BUCKET',
   ] as const
   const missing = required.filter((k) => !process.env[k])
   if (missing.length > 0) {
     throw new Error(
       'S3 storage not configured. Set ' +
         missing.join(', ') +
-        (missing.includes('S3_BUCKET') ? '' : ', S3_BUCKET') +
-        ' in .env' +
-        // Remind the operator about the public URL (not strictly required for
-        // upload, but without it the URLs won't work with Instagram).
-        (process.env.S3_PUBLIC_URL
-          ? ''
-          : '. Also set S3_PUBLIC_URL to the public HTTPS base of the bucket (e.g. https://cdn.vigent.ir) so Instagram can fetch the media.'),
+        ' in .env. (S3_BUCKET defaults to "vignet-media"; S3_PUBLIC_URL is optional but required for Instagram API.)',
     )
   }
 }
@@ -91,6 +91,36 @@ export function isS3Configured(): boolean {
 /** Get the configured bucket name (defaults to `vignet-media`). */
 export function getBucket(): string {
   return process.env.S3_BUCKET || DEFAULT_BUCKET
+}
+
+let bucketEnsured = false
+
+/**
+ * Ensure the configured bucket exists. Creates it if missing. Idempotent —
+ * checks once per process lifetime. This avoids the "bucket does not exist"
+ * error when the operator hasn't pre-created the bucket in MinIO.
+ */
+export async function ensureBucket(): Promise<void> {
+  if (bucketEnsured) return
+  const client = getS3Client()
+  const bucket = getBucket()
+  try {
+    await client.send(new HeadBucketCommand({ Bucket: bucket }))
+    bucketEnsured = true
+  } catch {
+    // Bucket doesn't exist (or we lack HeadBucket perms). Try to create it.
+    try {
+      await client.send(
+        new CreateBucketCommand({ Bucket: bucket }),
+      )
+      console.log(`[storage/s3] Created bucket "${bucket}"`)
+      bucketEnsured = true
+    } catch (e) {
+      // If creation fails because it already exists (race), treat as success.
+      console.error(`[storage/s3] Failed to create bucket "${bucket}":`, e)
+      bucketEnsured = true // don't retry every request
+    }
+  }
 }
 
 /**
@@ -204,6 +234,7 @@ export async function uploadFile(
 ): Promise<UploadResult> {
   assertS3Configured()
   const client = getS3Client()
+  await ensureBucket()
   const bucket = getBucket()
   const folder = (opts?.folder ?? DEFAULT_FOLDER).replace(/^\/+|\/+$/g, '')
   const key = buildKey(file, folder)

@@ -7,6 +7,7 @@ import {
   getIgUserWebhookSubscription,
   getInstagramProfile,
 } from '@/lib/instagram/oauth'
+import { getWebhookPayloads } from '@/lib/channels/webhook-debug'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,18 +53,46 @@ export async function GET(_req: Request, props: Params) {
     getInstagramProfile(token).catch(() => null),
   ])
 
+  // Pull the last few webhook payloads so the operator can compare the
+  // `entry[].id` Meta sent against the `igUserId` we stored. A mismatch is the
+  // #1 cause of "messages arrive but nothing happens".
+  const recentPayloads = getWebhookPayloads('INSTAGRAM', 5).map((p) => {
+    const body = p.body as { entry?: { id?: string | number }[] } | null
+    const entryIds = (body?.entry ?? [])
+      .map((e) => (e?.id !== undefined && e?.id !== null ? String(e.id) : null))
+      .filter((x): x is string => !!x)
+    return {
+      ts: p.ts,
+      eventType: p.eventType,
+      parsedCount: p.parsedCount,
+      entryIds, // what Meta sent
+      tokenHint: p.tokenHint,
+    }
+  })
+
+  // Check: do any of the recent payloads have an entry id that matches our igUserId?
+  const matchFound = recentPayloads.some((p) => p.entryIds.includes(igUserId))
+
   return NextResponse.json({
     connected: true,
-    igUserId,
+    igUserId, // what we stored
     username: profile?.username ?? null,
     webhookSubscription: subscription,
     subscribed: subscription !== null && subscription.length > 0,
     lastInboundAt: channel.lastInboundAt?.toISOString() ?? null,
     webhookUrl: 'https://vigent.ir/api/webhook/instagram',
-    note:
-      subscription === null
-        ? 'وب‌هوک فعال نیست. روی دکمه «فعال‌سازی مجدد وب‌هوک» بزنید یا در Meta dashboard مطمئن شوید Callback URL تنظیم شده.'
-        : 'وب‌هوک فعال است. اگه پیام نمی‌آید، در /api/admin/webhook-debug?type=INSTAGRAM چک کنید.',
+    recentPayloads,
+    entryIdMatches: matchFound,
+    diagnosis:
+      recentPayloads.length === 0
+        ? 'هیچ وب‌هوکی دریافت نشده. در Meta dashboard → Webhooks مطمئن شوید Callback URL ثبت شده و Subscribe فیلدها فعال است.'
+        : !matchFound
+          ? `وب‌هوک دریافت شده ولی entry.id با igUserId ذخیره‌شده مطابقت نداره! entry.id‌های دریافتی: ${JSON.stringify(
+              recentPayloads.flatMap((p) => p.entryIds),
+            )}. igUserId ذخیره‌شده: "${igUserId}". احتمالاً کانال رو با مدل قدیمی (Facebook Login) وصل کرده‌اید — قطع و با Instagram Login دوباره وصل کنید.`
+          : subscription === null
+            ? 'وب‌هوک میاد و id مطابقت داره، ولی subscription فعال نیست. روی دکمه «فعال‌سازی مجدد» بزنید.'
+            : 'همه‌چیز درسته. اگه بازم پیام نمیاد، /admin/errors رو چک کنید.',
   })
 }
 

@@ -116,8 +116,8 @@ async function resolveChannel(
 async function resolveInstagramChannelById(
         entityId: string,
 ): Promise<ResolvedChannel | null> {
-        // Try Instagram Login first (igUserId), then legacy FB Login (pageId).
-        const channel = await prisma.agentChannel.findFirst({
+        // First try the indexed Prisma JSON path query (fast).
+        let channel = await prisma.agentChannel.findFirst({
                 where: {
                         type: 'INSTAGRAM',
                         active: true,
@@ -133,6 +133,35 @@ async function resolveInstagramChannelById(
                         agent: { select: { ...AGENT_SELECT, workspaceId: true } },
                 },
         })
+
+        // Fallback: Prisma JSON path `equals` can be type-sensitive (number vs
+        // string). If the indexed query missed, load ALL active IG channels and
+        // compare the id fields as strings in memory. This handles the edge case
+        // where Meta sends `entry.id` as a number but config stores it as a string
+        // (or vice versa).
+        if (!channel) {
+                const all = await prisma.agentChannel.findMany({
+                        where: { type: 'INSTAGRAM', active: true },
+                        select: {
+                                id: true,
+                                config: true,
+                                agent: { select: { ...AGENT_SELECT, workspaceId: true } },
+                        },
+                })
+                channel = all.find((c) => {
+                        const cfg = c.config as Record<string, unknown> | null
+                        if (!cfg) return false
+                        const candidates = [
+                                cfg.igUserId,
+                                cfg.pageId,
+                                cfg.igBusinessAccountId,
+                        ]
+                        return candidates.some(
+                                (v) => v !== undefined && v !== null && String(v) === entityId,
+                        )
+                }) ?? null
+        }
+
         if (!channel?.agent?.active) return null
 
         const token = readPageToken(channel.config)
@@ -440,24 +469,44 @@ export async function handleInbound(
 export async function handleInstagramGlobalInbound(
         body: unknown,
 ): Promise<void> {
-        const entries = (body as { entry?: { id?: string }[] })?.entry
+        const entries = (body as { entry?: { id?: string | number }[] })?.entry
         if (!entries?.length) return
 
-        // Collect the distinct page ids mentioned in this batch. `entry.id` is the
-        // Page id for both messaging and change events on Instagram.
-        const pageIds = new Set<string>()
+        // Collect the distinct entity ids mentioned in this batch. `entry.id` is the
+        // IG user id (for Instagram Login channels) or the Facebook Page id (for
+        // legacy FB Login channels). We coerce to string because Meta sometimes
+        // sends `id` as a number in JSON, but our config stores it as a string.
+        const entityIds = new Set<string>()
         for (const e of entries) {
-                if (e.id) pageIds.add(e.id)
+                if (e?.id !== undefined && e?.id !== null) {
+                        entityIds.add(String(e.id))
+                }
         }
-        if (!pageIds.size) return
+        if (!entityIds.size) return
 
         // Resolve each entity to its channel and process. Multiple entities in one
         // batch (rare) are handled independently.
         await Promise.all(
-                Array.from(pageIds).map(async (entityId) => {
+                Array.from(entityIds).map(async (entityId) => {
                         try {
                                 const resolved = await resolveInstagramChannelById(entityId)
-                                if (!resolved) return
+                                if (!resolved) {
+                                        // Channel not found for this entity id. This is the #1 cause of
+                                        // "messages arrive but nothing happens" — log it to /admin/errors
+                                        // so the operator can see exactly which id Meta sent vs. what's
+                                        // stored in the channel config.
+                                        captureError(
+                                                'webhook:INSTAGRAM:no-channel',
+                                                new Error(
+                                                        `No Instagram channel found for entity id "${entityId}". ` +
+                                                                'This means the webhook received an event for an IG account that is not connected to any agent, ' +
+                                                                'OR the connected channel stores a different id (e.g. pageId instead of igUserId). ' +
+                                                                'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
+                                                ),
+                                                { metadata: { entityId, entityIds: Array.from(entityIds) } },
+                                        )
+                                        return
+                                }
                                 await processChannelInbound('INSTAGRAM', resolved, body)
                         } catch (e) {
                                 captureError('webhook:INSTAGRAM:global', e, {
