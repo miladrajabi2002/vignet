@@ -10,7 +10,9 @@ import {
         sendVideo,
         sendProductCard,
         sendRichEntry,
+        sendButtonMessage,
         type ProductShowcase,
+        type ButtonAction,
 } from '@/lib/instagram/media'
 import {
         readAutomationPolicy,
@@ -67,14 +69,17 @@ export interface AutomationAction {
    */
   replyText?: string
   /**
-   * `messages[]` is used by MULTI_MESSAGE. Each entry is a typed payload that
-   * the media helpers know how to send (TEXT/IMAGE/AUDIO/VIDEO/PRODUCT).
+   * `messages[]` is used by STATIC (sent in order) and MULTI_MESSAGE (one
+   * picked at random). Each entry is a typed payload that the media helpers
+   * know how to send (TEXT/IMAGE/AUDIO/VIDEO/QUICK_REPLY/PRODUCT).
    */
   messages?: Array<{
-    type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT'
+    type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
     text?: string
     mediaUrl?: string
     productId?: string
+    /** QUICK_REPLY: up to 3 buttons. Accepts the new object form or legacy strings. */
+    buttons?: Array<{ title: string; url?: string } | string>
   }>
   /**
    * For STATIC rich replies, the kind of media to send instead of plain text.
@@ -160,25 +165,50 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
     messages: Array.isArray(o.messages)
       ? (o.messages
           .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
-          .map((m) => ({
-            type: (
+          .map((m) => {
+            const type = (
               m.type === 'IMAGE' ||
               m.type === 'AUDIO' ||
               m.type === 'VIDEO' ||
+              m.type === 'QUICK_REPLY' ||
               m.type === 'PRODUCT'
                 ? m.type
                 : 'TEXT'
-            ) as 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT',
-            text: typeof m.text === 'string' ? m.text : undefined,
-            mediaUrl: typeof m.mediaUrl === 'string' ? m.mediaUrl : undefined,
-            productId: typeof m.productId === 'string' ? m.productId : undefined,
-          }))
+            ) as 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+            const entry: {
+              type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+              text?: string
+              mediaUrl?: string
+              productId?: string
+              buttons?: Array<{ title: string; url?: string } | string>
+            } = {
+              type,
+              text: typeof m.text === 'string' ? m.text : undefined,
+              mediaUrl: typeof m.mediaUrl === 'string' ? m.mediaUrl : undefined,
+              productId: typeof m.productId === 'string' ? m.productId : undefined,
+            }
+            // Preserve buttons for QUICK_REPLY entries. Accept the new object
+            // form ({title, url?}) or legacy plain strings.
+            if (type === 'QUICK_REPLY' && Array.isArray(m.buttons)) {
+              entry.buttons = m.buttons
+                .filter((b) => typeof b === 'string' || (!!b && typeof b === 'object'))
+                .slice(0, 3) as Array<{ title: string; url?: string } | string>
+            } else if (type === 'QUICK_REPLY' && Array.isArray(m.quickReplies)) {
+              // Legacy alias: quickReplies as string[] → buttons as string[].
+              entry.buttons = m.quickReplies
+                .filter((b): b is string => typeof b === 'string')
+                .slice(0, 3)
+            }
+            return entry
+          })
           .filter((m) =>
             m.type === 'TEXT'
               ? !!m.text
-              : m.type === 'PRODUCT'
-                ? !!m.productId
-                : !!m.mediaUrl,
+              : m.type === 'QUICK_REPLY'
+                ? !!m.text || !!m.buttons?.length
+                : m.type === 'PRODUCT'
+                  ? !!m.productId
+                  : !!m.mediaUrl,
           ))
       : [],
     mediaType:
@@ -380,10 +410,34 @@ async function executeAction(
   }
 
   // ─── Follow-gate: send the gate prompt + create a pending gate ───
-  if (action.followGate && action.gatePrompt) {
-    const qr = action.gateQuickReply ? [action.gateQuickReply] : quickReplies
+  // When the operator enables followGate but leaves gatePrompt empty, fall
+  // back to a sensible default prompt so the toggle actually does something
+  // (the UI only exposes a Switch in the minimal layout; the full form can
+  // override gatePrompt/gateQuickReply/contentText).
+  if (action.followGate) {
+    const gatePrompt =
+      action.gatePrompt ||
+      `برای دریافت محتوا، ابتدا @{username} را فالو کنید و سپس «فالو کردم» را بفرستید.`.replace(
+        '{username}',
+        (channelConfig as { botUsername?: string } | null)?.botUsername ?? '',
+      )
+    const gateQuickReply = action.gateQuickReply || 'فالو کردم'
+    // The confirm keyword is what the user must send to fulfill the gate.
+    // Default it to the quick-reply label so "فالو کردم" works out of the box
+    // even when the operator never fills the keyword field in the form.
+    const gateConfirmKeyword =
+      action.gateConfirmKeyword || gateQuickReply || 'فالو کردم'
+    // The content delivered after the gate is fulfilled. Default to the first
+    // STATIC message text (or replyText) so the user always receives something.
+    const contentText =
+      action.contentText ||
+      action.messages?.find((m) => m.type === 'TEXT' && m.text)?.text ||
+      action.replyText ||
+      ''
+    const qr = [gateQuickReply]
+    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
     // Reply publicly for comments, DM for DMs/stories.
-    await adapter.sendText(msg.chatId, action.gatePrompt, {
+    await adapter.sendText(target, gatePrompt, {
       quickReplies: isComment ? undefined : qr,
     })
     await prisma.instagramFollowGate.create({
@@ -401,7 +455,8 @@ async function executeAction(
           postId: msg.postId,
           storyId: msg.storyId,
           gateMode: action.gateMode,
-          contentText: action.contentText,
+          gateConfirmKeyword,
+          contentText,
         } as Prisma.InputJsonValue,
       },
     })
@@ -437,11 +492,72 @@ async function executeAction(
     return
   }
 
-  // ─── STATIC rich reply (IMAGE / AUDIO / VIDEO / PRODUCT) ───
+  // ─── STATIC rich reply: send the ordered messages[] sequence ───
+  // When the operator builds a sequence of messages (text, image, voice,
+  // video, quick-reply buttons, product card) in the form, we send them all
+  // in order here. This is the fix for "multi-message doesn't work for
+  // DM/STORY STATIC" — previously only `replyText` was sent and `messages[]`
+  // was silently ignored.
+  if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
+    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    for (const entry of action.messages) {
+      // QUICK_REPLY entries carry `buttons` — send as a button template with
+      // the entry's text as the header. Buttons can be the new object form
+      // ({title, url?}) or legacy plain strings (treated as postback).
+      if (entry.type === 'QUICK_REPLY' && entry.buttons?.length) {
+        const buttonActions: ButtonAction[] = entry.buttons.slice(0, 3).map((b) =>
+          typeof b === 'string'
+            ? { title: b }
+            : { title: b.title, url: b.url },
+        )
+        try {
+          await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
+        } catch (e) {
+          captureError('instagram:automation:quick-reply', e, {
+            workspaceId: agent.workspaceId,
+            metadata: { chatId: target },
+          })
+          // Fallback: send the text body so the user isn't left hanging.
+          if (entry.text) {
+            await adapter.sendText(target, entry.text).catch(() => undefined)
+          }
+        }
+        continue
+      }
+      await sendRichEntry(
+        channelConfig ?? null,
+        target,
+        entry,
+        async (cid, text) =>
+          adapter.sendText(cid, text, {
+            quickReplies: isComment ? undefined : quickReplies,
+          }),
+        (productId) => resolveProduct(agent.id, productId),
+        agent.workspaceId,
+      )
+    }
+    // For comment→DM funnels, also leave a public ack on the comment.
+    if (isComment && action.dmOnComment && action.replyText) {
+      await adapter.sendText(msg.chatId, action.replyText).catch(() => undefined)
+    }
+
+    // ─── Follow-up message (delayed) ───
+    // Per-scenario follow-up: send `followUpMessage` after `followUpDelayMin`
+    // minutes. Implemented as an in-process setTimeout — if the server
+    // restarts within the delay window the follow-up is lost (acceptable for
+    // the MVP; a durable BullMQ job would be the production-grade version).
+    scheduleFollowUp(ctx, action, target)
+    return
+  }
+
+  // ─── STATIC rich reply (single IMAGE / AUDIO / VIDEO / PRODUCT) ───
+  // Legacy path: a single media reply configured via action.mediaType /
+  // action.mediaUrl (kept for rows created before the messages[] builder).
   if (
     action.replyMode === 'STATIC' &&
     action.mediaType &&
     action.mediaType !== 'TEXT' &&
+    !action.messages?.length &&
     channelConfig
   ) {
     const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
@@ -459,6 +575,9 @@ async function executeAction(
     if (isComment && action.dmOnComment && action.replyText) {
       await adapter.sendText(msg.chatId, action.replyText).catch(() => undefined)
     }
+    // Per-scenario follow-up applies to single-media STATIC replies too —
+    // previously this branch skipped it, so media scenarios couldn't nudge.
+    scheduleFollowUp(ctx, action, target)
     return
   }
 
@@ -470,11 +589,13 @@ async function executeAction(
       await adapter.sendText(msg.senderId, action.contentText || action.replyText, {
         quickReplies,
       })
+      scheduleFollowUp(ctx, action, msg.senderId)
       return
     }
     await adapter.sendText(msg.chatId, action.replyText, {
       quickReplies: isComment ? undefined : quickReplies,
     })
+    scheduleFollowUp(ctx, action, msg.chatId)
     return
   }
 
@@ -504,6 +625,46 @@ async function executeAction(
       { quickReplies: isComment ? undefined : quickReplies },
     )
   }
+}
+
+/**
+ * Schedule a per-scenario follow-up message.
+ *
+ * Sends `action.followUpMessage` to `target` after `action.followUpDelayMin`
+ * minutes. In-process setTimeout — NOT durable across server restarts. A
+ * production-grade version would enqueue a BullMQ job (the project already
+ * uses BullMQ for knowledge indexing), but the MVP keeps it simple: most
+ * follow-ups fire within minutes-to-an-hour, well within a single server
+ * uptime window.
+ *
+ * Silently no-ops when the follow-up isn't enabled or has no message body.
+ */
+function scheduleFollowUp(
+  ctx: AutomationContext,
+  action: AutomationAction,
+  target: string,
+): void {
+  if (!action.followUpEnabled || !action.followUpMessage?.trim()) return
+  const { adapter, msg, agent } = ctx
+  const delayMs = Math.max(
+    1,
+    action.followUpDelayMin ?? 60,
+  ) * 60 * 1000
+  setTimeout(() => {
+    adapter
+      .sendText(target, action.followUpMessage!, {
+        quickReplies: undefined,
+      })
+      .catch((e) =>
+        console.error('[instagram] follow-up send failed:', e),
+      )
+    void prisma.conversation
+      .updateMany({
+        where: { agentId: agent.id, externalId: target },
+        data: { lastMessageAt: new Date() },
+      })
+      .catch(() => undefined)
+  }, delayMs)
 }
 
 /** Try to fulfill a pending SOFT follow-gate when the user sends the confirm keyword. */
@@ -699,6 +860,7 @@ export async function shouldAgentReply(args: {
   scenarioHandled: boolean
   text: string
   conversationMetadata?: Prisma.JsonValue
+  conversationStatus?: string
 }): Promise<boolean> {
   const { policy, scenarioHandled, text } = args
 
@@ -707,6 +869,12 @@ export async function shouldAgentReply(args: {
 
   // Automation-only channels never invoke the AI.
   if (policy.replyPolicy === 'AUTOMATION_ONLY') return false
+
+  // HANDED_OFF conversations are under operator control — the AI must NOT
+  // interlope. The operator can resume AI via the dashboard "Resume AI" action
+  // (which flips status back to OPEN). This preserves conversation context
+  // (history, contact, customerInfoState) while preventing AI/operator overlap.
+  if (args.conversationStatus === 'HANDED_OFF') return false
 
   // Per-conversation pause flag (set by STOP_AI scenarios, or by the operator).
   if (args.conversationMetadata !== undefined) {
@@ -736,6 +904,42 @@ export async function shouldAgentReply(args: {
   if (policy.replyPolicy === 'AGENT_EXCEPT_SCENARIOS' && scenarioHandled) {
     return false
   }
+  return true
+}
+
+/**
+ * Clear `conversation.metadata.aiPaused` and flip status back to OPEN so the
+ * AI agent resumes replying. Called by the dashboard "Resume AI" action. The
+ * conversation row (history, contact, customerInfoState) is preserved — only
+ * the pause flag is cleared. Returns true on success.
+ */
+export async function resumeAiForConversation(
+  agentId: string,
+  externalId: string,
+): Promise<boolean> {
+  const conv = await prisma.conversation.findFirst({
+    where: { agentId, externalId, channel: 'INSTAGRAM' },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, metadata: true, status: true },
+  })
+  if (!conv) return false
+  const m =
+    conv.metadata && typeof conv.metadata === 'object'
+      ? (conv.metadata as Record<string, unknown>)
+      : {}
+  // Clear the pause flag + reopen the conversation in one update. History is
+  // untouched — the AI continues with full context.
+  const next: Record<string, unknown> = { ...m }
+  delete next.aiPaused
+  delete next.pausedAt
+  delete next.pausedBy
+  await prisma.conversation.update({
+    where: { id: conv.id },
+    data: {
+      metadata: next as Prisma.InputJsonValue,
+      status: 'OPEN',
+    },
+  })
   return true
 }
 

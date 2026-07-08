@@ -353,23 +353,62 @@ async function processChannelInbound(
                         const contactId = await upsertContact(agent.workspaceId, type, msg)
                         const contactName = await getContactName(contactId)
 
-                        // Best-effort backfill of the sender's profile picture. The adapter
-                        // fetches the avatar via a platform API call (Telegram getUserProfilePhotos,
-                        // Instagram graph profile); when it returns a URL we stamp it onto the
-                        // contact's per-channel avatar field (only when empty, so a manually-set
-                        // avatar isn't clobbered). Fire-and-forget — never blocks the reply.
-                        if (adapter.getAvatarUrl && msg.senderId) {
+                        // Best-effort backfill of the sender's profile (name, username, avatar).
+                        // Instagram DM webhooks only carry the sender id + @username (no display
+                        // name or avatar), so we make a separate Graph API call to enrich the
+                        // contact. For Telegram/Bale the webhook already gave us the full name
+                        // + username, so this primarily fetches the avatar. Each field is
+                        // written independently with an "only when empty" guard so manual edits
+                        // and previously-fetched values aren't clobbered. Fire-and-forget.
+                        if (msg.senderId) {
                                 const pf = profileFields(type)
-                                adapter
-                                        .getAvatarUrl(msg.senderId)
-                                        .then((url) => {
-                                                if (!url) return null
-                                                return prisma.contact.updateMany({
-                                                        where: { id: contactId, [pf.avatarField]: null },
-                                                        data: { [pf.avatarField]: url },
-                                                })
+                                const profilePromise: Promise<{
+                                        name?: string
+                                        username?: string
+                                        avatarUrl?: string
+                                } | null> = adapter.getSenderProfile
+                                        ? adapter.getSenderProfile(msg.senderId)
+                                        : adapter.getAvatarUrl
+                                                ? adapter.getAvatarUrl(msg.senderId).then((url) => url ? { avatarUrl: url } : null)
+                                                : Promise.resolve(null)
+                                profilePromise
+                                        .then((profile) => {
+                                                if (!profile) return
+                                                // Avatar — only set when still empty.
+                                                if (profile.avatarUrl) {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: { id: contactId, [pf.avatarField]: null },
+                                                                        data: { [pf.avatarField]: profile.avatarUrl },
+                                                                })
+                                                                .catch(() => {})
+                                                }
+                                                // Username — only set when still empty (skip WhatsApp which
+                                                // uses whatsappName for the display name, not a handle).
+                                                if (profile.username && pf.usernameField !== 'whatsappName') {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: { id: contactId, [pf.usernameField]: null },
+                                                                        data: { [pf.usernameField]: profile.username },
+                                                                })
+                                                                .catch(() => {})
+                                                }
+                                                // Real name — backfill when the contact's name is empty OR
+                                                // still the raw @handle (the webhook sets senderName to the
+                                                // IG @username, so we want to replace it with the real name).
+                                                if (profile.name) {
+                                                        prisma.contact
+                                                                .updateMany({
+                                                                        where: {
+                                                                                id: contactId,
+                                                                                OR: [{ name: null }, { name: msg.senderName ?? '' }],
+                                                                        },
+                                                                        data: { name: profile.name },
+                                                                })
+                                                                .catch(() => {})
+                                                }
                                         })
-                                        .catch((e) => console.error(`[handler] ${type} avatar fetch failed:`, e))
+                                        .catch((e) => console.error(`[handler] ${type} profile fetch failed:`, e))
                         }
 
                         // Best-effort "typing…" indicator while the model generates the reply.
@@ -418,13 +457,14 @@ async function processChannelInbound(
                                                 externalId: msg.chatId,
                                         },
                                         orderBy: { createdAt: 'desc' },
-                                        select: { id: true, metadata: true },
+                                        select: { id: true, metadata: true, status: true },
                                 })
                                 const allow = await shouldAgentReply({
                                         policy,
                                         scenarioHandled,
                                         text,
                                         conversationMetadata: conv?.metadata ?? undefined,
+                                        conversationStatus: conv?.status,
                                 })
                                 if (!allow) {
                                         // Record the inbound so the operator can see it in the

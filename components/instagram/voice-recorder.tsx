@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Mic, Square, Trash2, Upload, Loader2, AlertCircle } from 'lucide-react'
+import { Mic, Square, Trash2, RotateCcw, Check, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -12,13 +12,18 @@ import { cn } from '@/lib/utils'
  * Lifecycle:
  *   idle → recording → ready (with playback) → idle
  *
- * The parent owns the actual upload/storage. This component is intentionally
- * upload-agnostic so it can be reused both for IG DM voice replies and the
- * broader voice-message feature. For IG automation, the parent typically
- * converts the Blob to a data URL and stores it in the form state (the IG
- * Messaging API accepts media via URL or by re-hosting; for the MVP preview we
- * use blob: URLs and the backend media-sender will re-host when the message is
- * actually sent).
+ * Contract:
+ *   - `onRecorded(blob, url)` fires when recording stops (in the `onstop`
+ *     handler). The PARENT owns the actual upload to S3 — this component
+ *     does NOT upload anything. The "استفاده" (Use) button re-fires
+ *     `onRecorded` with the stored blob+url as a final commit signal, then
+ *     resets the widget to idle so the operator can record again.
+ *   - `onCleared?()` fires when the operator discards a recording via the
+ *     "حذف" (Clear) button.
+ *
+ * MIME preference: `audio/mp4` (m4a) is tried FIRST because Instagram
+ * accepts it natively and avoids server-side transcoding. Falls back to
+ * `audio/webm;codecs=opus`, `audio/webm`, `audio/ogg;codecs=opus`.
  */
 export function VoiceRecorder({
   onRecorded,
@@ -36,13 +41,13 @@ export function VoiceRecorder({
   const [state, setState] = useState<'idle' | 'recording' | 'ready' | 'denied'>('idle')
   const [elapsed, setElapsed] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const audioUrlRef = useRef<string | null>(null)
+  const blobRef = useRef<Blob | null>(null)
 
   // Cleanup on unmount
   useEffect(() => {
@@ -77,6 +82,7 @@ export function VoiceRecorder({
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || 'audio/webm',
         })
+        blobRef.current = blob
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
         const url = URL.createObjectURL(blob)
         audioUrlRef.current = url
@@ -116,27 +122,39 @@ export function VoiceRecorder({
     // state will become 'ready' in the onstop handler
   }
 
-  function clear() {
+  /** Discard the current recording and reset to idle without firing callbacks. */
+  function resetToIdle() {
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
     audioUrlRef.current = null
+    blobRef.current = null
     setAudioUrl(null)
     setElapsed(0)
     setState('idle')
-    onCleared?.()
   }
 
-  async function upload() {
-    // No-op placeholder: the parent owns the actual upload. We just expose
-    // the blob via onRecorded on stop. This button exists so the UX matches
-    // the spec (record → preview → upload). For the MVP, the parent treats
-    // the blob: URL as the source of truth and converts/hosts when the form
-    // submits.
-    setUploading(true)
-    try {
-      await new Promise((r) => setTimeout(r, 400))
-    } finally {
-      setUploading(false)
+  /** "استفاده" (Use) — commit the current recording (re-fire onRecorded) and reset. */
+  function useRecording() {
+    if (blobRef.current && audioUrlRef.current) {
+      onRecorded(blobRef.current, audioUrlRef.current)
     }
+    resetToIdle()
+  }
+
+  /** "ضبط دوباره" (Re-record) — discard the current recording and start a new one. */
+  function rerecord() {
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+    audioUrlRef.current = null
+    blobRef.current = null
+    setAudioUrl(null)
+    setElapsed(0)
+    setState('idle')
+    start()
+  }
+
+  /** "حذف" (Clear) — discard the current recording and notify the parent. */
+  function clear() {
+    resetToIdle()
+    onCleared?.()
   }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(1, '0')
@@ -162,12 +180,19 @@ export function VoiceRecorder({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={upload}
-              disabled={uploading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              onClick={useRecording}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
             >
-              {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+              <Check className="h-3 w-3" />
               استفاده
+            </button>
+            <button
+              type="button"
+              onClick={rerecord}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              <RotateCcw className="h-3 w-3" />
+              ضبط دوباره
             </button>
             <button
               type="button"
@@ -231,14 +256,24 @@ export function VoiceRecorder({
   )
 }
 
-/** Pick the best-supported audio mime type the browser will actually record. */
+/**
+ * Pick the best-supported audio mime type the browser will actually record.
+ *
+ * Preference order (maximises the chance Instagram accepts the file natively
+ * without server-side transcoding):
+ *   1. `audio/mp4` (m4a) — Instagram's preferred container; no transcoding.
+ *   2. `audio/webm;codecs=opus` — Chrome/Firefox default; good quality.
+ *   3. `audio/webm` — fallback if the codec-specific string is rejected.
+ *   4. `audio/ogg;codecs=opus` — Firefox fallback.
+ * Returns `undefined` if none are supported (the browser picks a default).
+ */
 function pickMime(): string | undefined {
   if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return undefined
   const candidates = [
+    'audio/mp4',
     'audio/webm;codecs=opus',
     'audio/webm',
     'audio/ogg;codecs=opus',
-    'audio/mp4',
   ]
   for (const c of candidates) {
     try {

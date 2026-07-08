@@ -18,43 +18,42 @@ import {
         type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
+import { useTranslations, useLocale } from 'next-intl'
 import {
         type Automation,
         type AutomationType,
         type InstagramAutomationSettings,
         type ReplyPolicy,
         DEFAULT_SETTINGS,
-        REPLY_POLICY_LABEL,
+        REPLY_POLICY_LABEL_KEY,
+        REPLY_POLICY_DESC_KEY,
 } from '@/components/instagram/types'
 
 interface TabDef {
         key: AutomationType
-        label: string
+        labelKey: string
         Icon: LucideIcon
-        empty: string
+        emptyKey: string
 }
 
 const TABS: TabDef[] = [
         {
                 key: 'DIRECT_MESSAGE',
-                label: 'دایرکت',
+                labelKey: 'manager.tabDm',
                 Icon: MessageCircle,
-                empty:
-                        'هنوز سناریویی برای دایرکت‌ها ندارید. می‌توانید برای پیام‌های پرتکرار یا کلیدواژه‌های مشخص پاسخ خودکار تنظیم کنید.',
+                emptyKey: 'manager.emptyDm',
         },
         {
                 key: 'COMMENT',
-                label: 'کامنت',
+                labelKey: 'manager.tabComment',
                 Icon: MessageSquare,
-                empty:
-                        'هنوز سناریویی برای کامنت‌ها ندارید. برای پست‌های خود پاسخ خودکار و کال‌تو‌اکشن تنظیم کنید — هم به کامنت پاسخ دهید و هم کاربر را به دایرکت هدایت کنید.',
+                emptyKey: 'manager.emptyComment',
         },
         {
                 key: 'STORY',
-                label: 'استوری',
+                labelKey: 'manager.tabStory',
                 Icon: Circle,
-                empty:
-                        'هنوز سناریویی برای استوری‌ها ندارید. برای هر استوری پاسخ خودکار تعریف کنید، یا اجازه دهید ایجنت هوشمند بر اساس محتوای استوری پاسخ دهد.',
+                emptyKey: 'manager.emptyStory',
         },
 ]
 
@@ -85,6 +84,9 @@ export function InstagramAutomationManager({
         void _channelId
         void _accountAvatarUrl
 
+        const t = useTranslations('instagram')
+        const locale = useLocale()
+        const numLocale = locale === 'fa' ? 'fa-IR' : 'en-US'
         const router = useRouter()
         const [automations, setAutomations] = useState<Automation[]>(initialAutomations)
         const [settings, setSettings] = useState<InstagramAutomationSettings>(
@@ -106,7 +108,7 @@ export function InstagramAutomationManager({
         }, [automations])
 
         const current = byType[activeTab]
-        const currentTab = TABS.find((t) => t.key === activeTab)!
+        const currentTab = TABS.find((tab) => tab.key === activeTab)!
 
         function flash(kind: 'ok' | 'err', text: string) {
                 setToast({ kind, text })
@@ -134,7 +136,7 @@ export function InstagramAutomationManager({
                         setAutomations((arr) =>
                                 arr.map((x) => (x.id === a.id ? { ...x, active: a.active } : x)),
                         )
-                        flash('err', 'تغییر وضعیت ناموفق بود.')
+                        flash('err', t('manager.toggleFailToast'))
                 }
         }
 
@@ -149,9 +151,9 @@ export function InstagramAutomationManager({
                         if (!res.ok) throw new Error('DELETE_FAILED')
                         setAutomations((arr) => arr.filter((x) => x.id !== deleteTarget.id))
                         setDeleteTarget(null)
-                        flash('ok', 'سناریو حذف شد.')
+                        flash('ok', t('manager.deleteOkToast'))
                 } catch {
-                        flash('err', 'حذف ناموفق بود.')
+                        flash('err', t('manager.deleteFailToast'))
                 } finally {
                         setDeleting(false)
                 }
@@ -175,9 +177,9 @@ export function InstagramAutomationManager({
                                 }),
                         })
                         if (!res.ok) throw new Error('SETTINGS_FAILED')
-                        flash('ok', 'تنظیمات ذخیره شد.')
+                        flash('ok', t('manager.settingsOkToast'))
                 } catch {
-                        flash('err', 'ذخیره تنظیمات ناموفق بود.')
+                        flash('err', t('manager.settingsFailToast'))
                 }
         }
 
@@ -187,10 +189,10 @@ export function InstagramAutomationManager({
                         <header className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                         <h1 className="text-2xl font-light text-[var(--text-primary)]">
-                                                اتوماسیون اینستاگرام
+                                                {t('manager.title')}
                                         </h1>
                                         <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                                                سناریوهای خودکار برای دایرکت، کامنت و استوری بسازید.
+                                                {t('manager.subtitle')}
                                         </p>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -204,7 +206,7 @@ export function InstagramAutomationManager({
                                                 className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-all hover:opacity-90 hover:shadow-sm"
                                         >
                                                 <Plus className="h-4 w-4" />
-                                                افزودن سناریو
+                                                {t('manager.addScenario')}
                                         </button>
                                 </div>
                         </header>
@@ -219,9 +221,9 @@ export function InstagramAutomationManager({
                         {/* Sub-tabs */}
                         <nav
                                 className="-mx-1 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] px-1"
-                                aria-label="نوع اتوماسیون"
+                                aria-label={t('manager.tabAria')}
                         >
-                                {TABS.map(({ key, label, Icon }) => {
+                                {TABS.map(({ key, labelKey, Icon }) => {
                                         const count = byType[key].length
                                         const activeCount = byType[key].filter((a) => a.active).length
                                         const active = key === activeTab
@@ -237,10 +239,10 @@ export function InstagramAutomationManager({
                                                         }`}
                                                 >
                                                         <Icon className="h-4 w-4" />
-                                                        {label}
+                                                        {t(labelKey)}
                                                         {count > 0 && (
                                                                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-muted)] px-1.5 text-[11px] text-[var(--text-secondary)]">
-                                                                        {activeCount.toLocaleString('fa-IR')}
+                                                                        {activeCount.toLocaleString(numLocale)}
                                                                 </span>
                                                         )}
                                                         {active && (
@@ -256,7 +258,7 @@ export function InstagramAutomationManager({
                                 {current.length === 0 ? (
                                         <EmptyState
                                                 Icon={currentTab.Icon}
-                                                text={currentTab.empty}
+                                                text={t(currentTab.emptyKey)}
                                                 onCreate={() =>
                                                         router.push(`/agents/${agentId}/instagram/new?type=${activeTab}`)
                                                 }
@@ -282,7 +284,7 @@ export function InstagramAutomationManager({
                                         className="fixed inset-0 z-50 flex items-center justify-center p-4"
                                         role="dialog"
                                         aria-modal="true"
-                                        aria-label="تأیید حذف"
+                                        aria-label={t('manager.deleteConfirmAria')}
                                 >
                                         <div
                                                 className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -296,10 +298,10 @@ export function InstagramAutomationManager({
                                                         </div>
                                                         <div className="min-w-0">
                                                                 <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                                                                        حذف سناریو
+                                                                        {t('manager.deleteTitle')}
                                                                 </h3>
                                                                 <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                                                                        سناریو «{deleteTarget.name}» حذف می‌شود. این عمل قابل بازگشت نیست.
+                                                                        {t('manager.deleteConfirmBody', { name: deleteTarget.name })}
                                                                 </p>
                                                         </div>
                                                 </div>
@@ -310,7 +312,7 @@ export function InstagramAutomationManager({
                                                                 disabled={deleting}
                                                                 className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
                                                         >
-                                                                انصراف
+                                                                {t('manager.cancel')}
                                                         </button>
                                                         <button
                                                                 type="button"
@@ -319,7 +321,7 @@ export function InstagramAutomationManager({
                                                                 className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--danger)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                                                         >
                                                                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                                                حذف
+                                                                {t('manager.delete')}
                                                         </button>
                                                 </div>
                                         </div>
@@ -358,6 +360,7 @@ function ChannelSettingsCard({
         onSave: (next: InstagramAutomationSettings) => void
         accountUsername: string
 }) {
+        const t = useTranslations('instagram')
         const [draft, setDraft] = useState<InstagramAutomationSettings>(settings)
         const [stopWordInput, setStopWordInput] = useState('')
         const [saving, setSaving] = useState(false)
@@ -391,23 +394,23 @@ function ChannelSettingsCard({
                 }
         }
 
-        const POLICIES: { value: ReplyPolicy; label: string; desc: string; Icon: LucideIcon }[] = [
+        const POLICIES: { value: ReplyPolicy; labelKey: string; descKey: string; Icon: LucideIcon }[] = [
                 {
                         value: 'ALL_AGENT',
-                        label: 'همه پیام‌ها توسط ایجنت',
-                        desc: 'هر پیامی که دریافت شود به ایجنت هوش مصنوعی سپرده می‌شود.',
+                        labelKey: REPLY_POLICY_LABEL_KEY.ALL_AGENT,
+                        descKey: REPLY_POLICY_DESC_KEY.ALL_AGENT,
                         Icon: Bot,
                 },
                 {
                         value: 'AGENT_EXCEPT_SCENARIOS',
-                        label: 'ایجنت به جز سناریوها',
-                        desc: 'ایجنت پاسخ می‌دهد مگر اینکه یک سناریوی منطبق پیدا شود.',
+                        labelKey: REPLY_POLICY_LABEL_KEY.AGENT_EXCEPT_SCENARIOS,
+                        descKey: REPLY_POLICY_DESC_KEY.AGENT_EXCEPT_SCENARIOS,
                         Icon: Shield,
                 },
                 {
                         value: 'AUTOMATION_ONLY',
-                        label: 'فقط اتوماسیون (بدون ایجنت)',
-                        desc: 'فقط سناریوها پاسخ می‌دهند؛ ایجنت هوش مصنوعی خاموش است.',
+                        labelKey: REPLY_POLICY_LABEL_KEY.AUTOMATION_ONLY,
+                        descKey: REPLY_POLICY_DESC_KEY.AUTOMATION_ONLY,
                         Icon: Zap,
                 },
         ]
@@ -426,13 +429,13 @@ function ChannelSettingsCard({
                                         </div>
                                         <div>
                                                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                        تنظیمات کانال
+                                                        {t('manager.settingsTitle')}
                                                         <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">
                                                                 @{accountUsername || 'vigent.bot'}
                                                         </span>
                                                 </p>
                                                 <p className="text-[11px] text-[var(--text-secondary)]">
-                                                        حالت پاسخ‌دهی و کلمات توقف AI
+                                                        {t('manager.settingsSubtitle')}
                                                 </p>
                                         </div>
                                 </div>
@@ -444,10 +447,10 @@ function ChannelSettingsCard({
                                         {/* Reply policy — segmented control */}
                                         <div className="space-y-2">
                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                        حالت پاسخ‌دهی
+                                                        {t('manager.replyPolicyLabel')}
                                                 </label>
                                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                        {POLICIES.map(({ value, label, desc, Icon }) => {
+                                                        {POLICIES.map(({ value, labelKey, descKey, Icon }) => {
                                                                 const active = draft.replyPolicy === value
                                                                 return (
                                                                         <button
@@ -470,14 +473,14 @@ function ChannelSettingsCard({
                                                                                         <Icon className="h-4 w-4" />
                                                                                 </div>
                                                                                 <div>
-                                                                                        <p className="text-xs font-medium text-[var(--text-primary)]">{label}</p>
+                                                                                        <p className="text-xs font-medium text-[var(--text-primary)]">{t(labelKey)}</p>
                                                                                         <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                                                                                                {desc}
+                                                                                                {t(descKey)}
                                                                                         </p>
                                                                                 </div>
                                                                                 {active && (
                                                                                         <span className="text-[10px] font-medium text-[var(--text-primary)]">
-                                                                                                ✓ فعال
+                                                                                                {t('manager.activeBadge')}
                                                                                         </span>
                                                                                 )}
                                                                         </button>
@@ -489,7 +492,7 @@ function ChannelSettingsCard({
                                         {/* Stop words */}
                                         <div className="space-y-1.5">
                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                        کلمات توقف AI
+                                                        {t('manager.stopWordsLabel')}
                                                 </label>
                                                 <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-2 focus-within:border-[var(--border-strong)]">
                                                         {draft.stopWords.map((k) => (
@@ -507,7 +510,7 @@ function ChannelSettingsCard({
                                                                                         )
                                                                                 }
                                                                                 className="text-[var(--text-muted)] hover:text-[var(--danger)]"
-                                                                                aria-label={`حذف ${k}`}
+                                                                                aria-label={t('manager.stopWordsDeleteAria', { word: k })}
                                                                         >
                                                                                 <X className="h-3 w-3" />
                                                                         </button>
@@ -529,12 +532,12 @@ function ChannelSettingsCard({
                                                                         }
                                                                 }}
                                                                 onBlur={() => addStopWord(stopWordInput)}
-                                                                placeholder={draft.stopWords.length ? '' : 'کلمه را بنویس و Enter بزن…'}
+                                                                placeholder={draft.stopWords.length ? '' : t('manager.stopWordsPlaceholder')}
                                                                 className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
                                                         />
                                                 </div>
                                                 <p className="text-[11px] text-[var(--text-muted)]">
-                                                        کلماتی که با دریافتشان، پاسخ‌گویی هوش مصنوعی متوقف می‌شود.
+                                                        {t('manager.stopWordsHint')}
                                                 </p>
                                         </div>
 
@@ -542,8 +545,10 @@ function ChannelSettingsCard({
                                         <div className="flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-4">
                                                 <p className="text-[11px] text-[var(--text-muted)]">
                                                         {dirty
-                                                                ? 'تغییرات ذخیره نشده است.'
-                                                                : `حالت فعلی: ${REPLY_POLICY_LABEL[draft.replyPolicy]}`}
+                                                                ? t('manager.dirtyHint')
+                                                                : t('manager.currentPolicyHint', {
+                                                                                policy: t(REPLY_POLICY_LABEL_KEY[draft.replyPolicy]),
+                                                                        })}
                                                 </p>
                                                 <button
                                                         type="button"
@@ -552,7 +557,7 @@ function ChannelSettingsCard({
                                                         className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
                                                 >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                        ذخیره تنظیمات
+                                                        {t('manager.saveSettings')}
                                                 </button>
                                         </div>
                                 </div>
@@ -571,6 +576,7 @@ function EmptyState({
         text: string
         onCreate: () => void
 }) {
+        const t = useTranslations('instagram')
         return (
                 <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center sm:p-12">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-muted)]">
@@ -585,7 +591,7 @@ function EmptyState({
                                 className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
                         >
                                 <Plus className="h-4 w-4" />
-                                افزودن سناریو
+                                {t('manager.addScenario')}
                         </button>
                 </div>
         )

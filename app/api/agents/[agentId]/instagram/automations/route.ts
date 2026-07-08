@@ -14,6 +14,18 @@ const triggerSchema = z.object({
   postIds: z.array(z.string()).default([]),
 })
 
+// A quick-reply button can be a plain string (postback — title is sent back as
+// the user's message when tapped) OR an object {title, url?} (web_url button —
+// tapping opens the URL). The form's ButtonBuilder submits the object form.
+const buttonSchema = z.union([
+  z.string(),
+  z.object({
+    title: z.string().min(1).max(20),
+    url: z.string().optional(),
+    payload: z.string().optional(),
+  }),
+])
+
 const messageEntrySchema = z.object({
         type: z
                 .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
@@ -21,7 +33,7 @@ const messageEntrySchema = z.object({
         text: z.string().optional(),
         mediaUrl: z.string().optional(),
         productId: z.string().optional(),
-        buttons: z.array(z.string()).max(3).optional(),
+        buttons: z.array(buttonSchema).max(3).optional(),
 })
 
 const actionSchema = z.object({

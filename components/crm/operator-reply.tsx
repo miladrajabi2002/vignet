@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Send, Loader2 } from 'lucide-react'
+import { ArrowUp, Loader2 } from 'lucide-react'
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
@@ -11,6 +11,11 @@ import { Send, Loader2 } from 'lucide-react'
  * pushed live; for widget / chat-link / API channels the message is persisted
  * and shown to the visitor the next time they load the chat (the backend reply
  * route always persists the operator message regardless of channel).
+ *
+ * Layout: textarea fills the row, send button is a compact icon-only circle on
+ * the RIGHT (matching Instagram/Telegram DM). The textarea auto-grows but the
+ * button stays vertically centered so the row never "jumps up" when typing or
+ * after sending.
  */
 export function OperatorReply({
   conversationId,
@@ -24,6 +29,17 @@ export function OperatorReply({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-grow the textarea to fit content (capped at ~5 lines), then shrink
+  // back when text is cleared. Keeps the reply box compact without making the
+  // button jump around.
+  useEffect(() => {
+    const ta = taRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`
+  }, [text])
 
   async function send() {
     const body = text.trim()
@@ -50,40 +66,48 @@ export function OperatorReply({
   }
 
   return (
-    <div className="space-y-1.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
       {!canDeliver && (
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+        <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
           برای کانال‌های ویجت/لینک چت، پیام شما ذخیره می‌شود و در بازدید بعدی کاربر نمایش داده می‌شود.
         </p>
       )}
-      <div className="flex items-end gap-2">
+      {/* dir="ltr" so the send button is reliably on the RIGHT (visual right)
+          regardless of the page's RTL direction. The textarea itself is
+          dir="auto" so Persian/English text renders correctly inside it. */}
+      <div dir="ltr" className="flex items-end gap-2">
         <textarea
+          ref={taRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              send()
+            }
           }}
-          rows={2}
+          rows={1}
+          dir="auto"
           placeholder={t('replyPlaceholder')}
-          className="max-h-40 min-h-[2.5rem] flex-1 resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
+          className="max-h-[120px] min-h-[40px] flex-1 resize-none rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
         />
         <button
           onClick={send}
           disabled={busy || !text.trim()}
-          className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+          aria-label={t('send')}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4.5 w-4.5 animate-spin" />
           ) : (
-            <Send className="h-4 w-4 rtl:rotate-180" />
+            <ArrowUp className="h-5 w-5" />
           )}
-          {busy ? t('sending') : t('send')}
         </button>
       </div>
       {error ? (
-        <p className="text-xs text-danger">{t('replyFailed')}</p>
+        <p className="mt-1.5 text-xs text-[var(--red)]">{t('replyFailed')}</p>
       ) : (
-        <p className="text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
+        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
       )}
     </div>
   )

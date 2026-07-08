@@ -96,4 +96,14 @@ export interface MessengerAdapter {
    * user has no photo or the platform refuses.
    */
   getAvatarUrl?(userId: string): Promise<string | null>
+  /**
+   * Fetch the sender's full profile (display name, username, avatar URL) in one
+   * call. Used to backfill the contact's per-channel identity in the CRM —
+   * Instagram DM webhooks only carry the sender id + username (no display name
+   * or avatar), so we make a separate Graph API call to enrich the contact.
+   * Returns null when the platform doesn't support it or the API refuses.
+   */
+  getSenderProfile?(
+    userId: string,
+  ): Promise<{ name?: string; username?: string; avatarUrl?: string } | null>
 }

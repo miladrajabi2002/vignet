@@ -450,11 +450,18 @@
                         '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
                         '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
                         '@media (max-width:600px){' +
-                        '.vgt-panel{width:100vw!important;height:100dvh!important;max-height:100dvh!important;' +
+                        // On mobile the panel becomes a full-screen sheet. We switch
+                        // from position:absolute (relative to the 0×0 .vgt-root point)
+                        // to position:fixed (relative to the viewport) so top:0/bottom:0
+                        // actually stretch to full screen height. Without this, the
+                        // panel renders at 0 height because .vgt-root has no dimensions.
+                        '.vgt-panel{position:fixed!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;' +
                         'top:0!important;left:0!important;right:0!important;bottom:0!important;border-radius:0!important;' +
                         'padding-bottom:env(safe-area-inset-bottom)!important;}' +
-                        '.vgt-launcher{bottom:max(16px,env(safe-area-inset-bottom))!important;}' +
                         '.vgt-head{padding-top:env(safe-area-inset-top)!important;}' +
+                        // Hide the launcher while the full-screen panel is open so it
+                        // doesn't float over the conversation.
+                        '.vgt-root.vgt-open .vgt-launcher{display:none!important;}' +
                         '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
                 var st = document.createElement('style')
@@ -1354,6 +1361,9 @@
                 isOpen = force != null ? force : !isOpen
                 panel.classList.toggle('vgt-show', isOpen)
                 launcher.classList.toggle('vgt-open', isOpen)
+                // Also toggle on root so mobile CSS can hide the launcher when
+                // the full-screen panel is open.
+                root.classList.toggle('vgt-open', isOpen)
                 launcher.setAttribute('aria-label', isOpen ? 'close chat' : 'open chat')
                 if (isOpen) {
                         var tz = root.querySelector('.vgt-teaser')

@@ -36,17 +36,24 @@ import {
         ShoppingBag,
         Clock,
         Shield,
+        Mic,
+        Film,
+        Link2,
+        Upload,
         type LucideIcon,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
 import { MediaUploader, type MediaItem } from '@/components/instagram/media-uploader'
+import { VoiceRecorder } from '@/components/instagram/voice-recorder'
 import {
         type Automation,
         type AutomationType,
         type MatchMode,
         type StoryScope,
         type ReplyMode,
+        type GateMode,
+        type QuickReplyButton,
         type AutomationMessage,
         type MessageType,
         type AutomationTrigger,
@@ -75,12 +82,17 @@ interface FormState {
         messages: AutomationMessage[]
         // Comment funnel
         dmOnComment: boolean
-        // Story follow-up (per-automation)
+        // Story follow-up (per-automation) — applies to ALL automation types
         followUpEnabled: boolean
         followUpDelayMin: number
         followUpMessage: string
         // Follow gate (collapsed by default)
         followGate: boolean
+        gateMode: GateMode
+        gatePrompt: string
+        gateQuickReply: string
+        gateConfirmKeyword: string
+        contentText: string
 }
 
 function toFormState(a: Automation | undefined, type: AutomationType): FormState {
@@ -105,6 +117,11 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 followUpDelayMin: a?.action.followUpDelayMin ?? 60,
                 followUpMessage: a?.action.followUpMessage ?? '',
                 followGate: a?.action.followGate ?? false,
+                gateMode: a?.action.gateMode ?? 'SOFT',
+                gatePrompt: a?.action.gatePrompt ?? '',
+                gateQuickReply: a?.action.gateQuickReply ?? '',
+                gateConfirmKeyword: a?.action.gateConfirmKeyword ?? '',
+                contentText: a?.action.contentText ?? '',
         }
         return base
 }
@@ -119,6 +136,18 @@ function emptyTextMessage(): AutomationMessage {
 }
 
 function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
+        // Buttons may be in the new object form ({title, url?}) or the legacy
+        // plain-string form (treated as a postback button with that title).
+        // Normalize everything to the object form so the rest of the UI and
+        // the buildPayload() pipeline can assume `QuickReplyButton[]`.
+        function toButton(b: QuickReplyButton | string): QuickReplyButton {
+                return typeof b === 'string' ? { title: b } : { title: b.title, url: b.url }
+        }
+        const rawButtons: Array<QuickReplyButton | string> = Array.isArray(m.buttons)
+                ? m.buttons
+                : Array.isArray(m.quickReplies)
+                        ? m.quickReplies
+                        : []
         return {
                 id: m.id ?? newMessageId(),
                 type: (m.type as MessageType) ?? 'TEXT',
@@ -126,11 +155,7 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
                 mediaUrl: m.mediaUrl,
                 mediaType: m.mediaType,
                 productId: m.productId,
-                buttons: Array.isArray(m.buttons)
-                        ? m.buttons.slice(0, 3)
-                        : Array.isArray(m.quickReplies)
-                                ? m.quickReplies.slice(0, 3)
-                                : [],
+                buttons: rawButtons.slice(0, 3).map(toButton),
         }
 }
 
@@ -157,6 +182,7 @@ export function AutomationForm({
         const [keywordInput, setKeywordInput] = useState('')
         const [busy, setBusy] = useState(false)
         const [error, setError] = useState<string | null>(null)
+        const [addMenuOpen, setAddMenuOpen] = useState(false)
         const nameRef = useRef<HTMLInputElement>(null)
 
         // Auto-focus name on mount.
@@ -208,6 +234,7 @@ export function AutomationForm({
                                                 : { id: newMessageId(), type: t, text: '' }
                         return { ...f, messages: [...f.messages, msg] }
                 })
+                setAddMenuOpen(false)
         }
 
         function updateMessage(id: string, patch: Partial<AutomationMessage>) {
@@ -257,17 +284,8 @@ export function AutomationForm({
                 trigger: AutomationTrigger
                 action: AutomationAction
         } {
-                // Trigger keywords.
-                //  - DM: keywords are always user-supplied (empty = match all
-                //    messages, per the field description). The keywordFilter
-                //    toggle is NOT shown for DMs, so we must NOT gate on it —
-                //    otherwise every DM save silently strips the keywords
-                //    (keywordFilter defaults to 'ANY' and there is no UI to
-                //    flip it to 'SPECIFIC'). This was the root cause of the
-                //    "شرط اجرا resets on save" bug.
-                //  - COMMENT / STORY: respect the explicit ANY/SPECIFIC toggle.
-                const effectiveKeywords =
-                        isDm || form.keywordFilter === 'SPECIFIC' ? form.keywords : []
+                // Trigger keywords — empty when filter = ANY (matches all messages).
+                const effectiveKeywords = form.keywordFilter === 'SPECIFIC' ? form.keywords : []
                 const effectivePostIds =
                         type === 'COMMENT' && form.postFilter === 'SPECIFIC'
                                 ? splitTags(form.postIdsText)
@@ -301,8 +319,17 @@ export function AutomationForm({
                         if (m.text?.trim()) out.text = m.text
                         if (m.mediaUrl) out.mediaUrl = m.mediaUrl
                         if (m.productId) out.productId = m.productId
-                        if (m.buttons && m.buttons.filter(Boolean).length > 0) {
-                                out.buttons = m.buttons.filter(Boolean).slice(0, 3)
+                        if (m.buttons && m.buttons.length > 0) {
+                                // Drop empty-title buttons; keep at most 3 (Instagram limit).
+                                const cleanButtons = m.buttons
+                                        .filter((b) => b && typeof b === 'object' && b.title && b.title.trim())
+                                        .slice(0, 3)
+                                        .map((b) => {
+                                                const btn: QuickReplyButton = { title: b.title.trim() }
+                                                if (b.url && b.url.trim()) btn.url = b.url.trim()
+                                                return btn
+                                        })
+                                if (cleanButtons.length > 0) out.buttons = cleanButtons
                         }
                         return out as unknown as AutomationMessage
                 })
@@ -315,12 +342,21 @@ export function AutomationForm({
                                         ? form.messages[0].text
                                         : '',
                         dmOnComment: type === 'COMMENT' ? form.dmOnComment : false,
-                        followUpEnabled: type === 'STORY' ? form.followUpEnabled : false,
-                        followUpDelayMin:
-                                type === 'STORY' && form.followUpEnabled ? form.followUpDelayMin : undefined,
-                        followUpMessage:
-                                type === 'STORY' && form.followUpEnabled ? form.followUpMessage : undefined,
+                        // Follow-up is now supported for ALL automation types (DM/COMMENT/STORY),
+                        // not just STORY. The engine's `scheduleFollowUp()` is invoked from the
+                        // STATIC + messages[] and STATIC + replyText branches for every type.
+                        followUpEnabled: form.followUpEnabled,
+                        followUpDelayMin: form.followUpEnabled ? form.followUpDelayMin : undefined,
+                        followUpMessage: form.followUpEnabled ? form.followUpMessage : undefined,
+                        // Follow gate — save all fields so the engine can build the gate row
+                        // and verify fulfillment on the user's reply. When the gate is OFF,
+                        // send the fields anyway so re-enabling later keeps the user's draft.
                         followGate: form.followGate,
+                        gateMode: form.gateMode,
+                        gatePrompt: form.gatePrompt,
+                        gateQuickReply: form.gateQuickReply,
+                        gateConfirmKeyword: form.gateConfirmKeyword,
+                        contentText: form.contentText,
                 }
 
                 return { trigger, action }
@@ -631,9 +667,11 @@ export function AutomationForm({
                                                                 onUpdate={updateMessage}
                                                                 onRemove={removeMessage}
                                                                 onMove={moveMessage}
+                                                                addMenuOpen={addMenuOpen}
+                                                                setAddMenuOpen={setAddMenuOpen}
                                                         />
                                                         <p className="text-[11px] text-[var(--text-muted)]">
-                                                                پیام‌ها به‌ترتیب ارسال می‌شوند. با کلیک روی دکمه‌های بالا، متن، عکس، وویس، ویدیو، کلید یا ویترین محصول را به دنباله اضافه کنید.
+                                                                پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.
                                                         </p>
                                                 </Section>
                                         )}
@@ -712,89 +750,152 @@ export function AutomationForm({
                                                 </Section>
                                         )}
 
-                                        {/* ─── STORY: follow-up ────────────────────────────────── */}
-                                        {isStory && (
-                                                <Section title="پیام پیگیری" Icon={Sparkles}>
-                                                        <div className="flex items-start justify-between gap-3">
-                                                                <div className="flex min-w-0 items-start gap-2.5">
-                                                                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-                                                                        <div className="min-w-0">
-                                                                        <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                                ارسال پیام دوم با تأخیر
-                                                                        </p>
-                                                                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                                                                                یک پیام دوم، با تأخیر، پس از پاسخ اول ارسال می‌شود.
-                                                                        </p>
+                                        {/* ─── Follow-up message (ALL automation types) ────────── */}
+                                        <Section title="پیام پیگیری" Icon={Sparkles}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex min-w-0 items-start gap-2.5">
+                                                                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                                                                <div className="min-w-0">
+                                                                <p className="text-sm font-medium text-[var(--text-primary)]">
+                                                                        ارسال پیام دوم با تأخیر
+                                                                </p>
+                                                                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                                                                        یک پیام دوم، با تأخیر، پس از پاسخ اول ارسال می‌شود.
+                                                                </p>
+                                                                </div>
+                                                        </div>
+                                                        <Switch
+                                                                checked={form.followUpEnabled}
+                                                                onChange={(v) => set('followUpEnabled', v)}
+                                                                aria-label="پیام پیگیری"
+                                                        />
+                                                </div>
+                                                {form.followUpEnabled && (
+                                                        <div className="space-y-4">
+                                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                                        <div className="space-y-1.5">
+                                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                        تأخیر (دقیقه)
+                                                                                </label>
+                                                                                <div className="relative">
+                                                                                        <Clock className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
+                                                                                        <input
+                                                                                                type="number"
+                                                                                                min={1}
+                                                                                                max={1440}
+                                                                                                value={form.followUpDelayMin}
+                                                                                                onChange={(e) =>
+                                                                                                        set('followUpDelayMin', Math.max(1, Number(e.target.value) || 1))
+                                                                                                }
+                                                                                                className="input pe-9"
+                                                                                        />
+                                                                                </div>
                                                                         </div>
                                                                 </div>
-                                                                <Switch
-                                                                        checked={form.followUpEnabled}
-                                                                        onChange={(v) => set('followUpEnabled', v)}
-                                                                        aria-label="پیام پیگیری"
-                                                                />
+                                                                <div className="space-y-1.5">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                متن پیام پیگیری
+                                                                        </label>
+                                                                        <textarea
+                                                                                value={form.followUpMessage}
+                                                                                onChange={(e) => set('followUpMessage', e.target.value)}
+                                                                                placeholder="مثلاً دیدی؟ سوالی بود در خدمتم."
+                                                                                rows={3}
+                                                                                className="input resize-none"
+                                                                        />
+                                                                </div>
                                                         </div>
-                                                        {form.followUpEnabled && (
-                                                                <div className="space-y-4">
-                                                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                                                <div className="space-y-1.5">
-                                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                                تأخیر (دقیقه)
-                                                                                        </label>
-                                                                                        <div className="relative">
-                                                                                                <Clock className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
-                                                                                                <input
-                                                                                                        type="number"
-                                                                                                        min={1}
-                                                                                                        max={1440}
-                                                                                                        value={form.followUpDelayMin}
-                                                                                                        onChange={(e) =>
-                                                                                                                set('followUpDelayMin', Math.max(1, Number(e.target.value) || 1))
-                                                                                                        }
-                                                                                                        className="input pe-9"
-                                                                                                />
-                                                                                        </div>
-                                                                                </div>
+                                                )}
+                                        </Section>
+
+                                        {/* ─── Follow gate (collapsed by default) ─────────────────── */}
+                                        <Section title="شرط دنبال کردن" Icon={Shield} collapsible defaultCollapsed>
+                                                <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex min-w-0 items-start gap-2.5">
+                                                                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                                                                <div className="min-w-0">
+                                                                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                                                                                فقط برای فالوورها
+                                                                        </p>
+                                                                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                                                                                کاربر برای دریافت پاسخ باید پیج را فالو کرده باشد.
+                                                                        </p>
+                                                                        </div>
+                                                        </div>
+                                                        <Switch
+                                                                checked={form.followGate}
+                                                                onChange={(v) => set('followGate', v)}
+                                                                aria-label="دروازه فالو"
+                                                        />
+                                                </div>
+                                                {form.followGate && (
+                                                        <div className="space-y-4">
+                                                                <p className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                                                                        با فعال‌سازی این گزینه، سیستم فقط زمانی به پیام کاربر پاسخ می‌دهد که کاربر صفحه شما را دنبال کرده باشد. اگر کاربر فالوور نباشد، ابتدا از او درخواست می‌شود صفحه را دنبال کند و پس از تأیید، ادامه اتوماسیون اجرا خواهد شد.
+                                                                </p>
+                                                                <SegmentedField
+                                                                        label="نوع دروازه"
+                                                                        value={form.gateMode}
+                                                                        onChange={(v) => set('gateMode', v as GateMode)}
+                                                                        options={[
+                                                                                { value: 'SOFT', label: 'نرم (اعتماد)' },
+                                                                                { value: 'STORY_MENTION', label: 'سخت (منشن استوری)' },
+                                                                        ]}
+                                                                />
+                                                                <div className="space-y-1.5">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                پیام درخواست فالو
+                                                                        </label>
+                                                                        <textarea
+                                                                                value={form.gatePrompt}
+                                                                                onChange={(e) => set('gatePrompt', e.target.value)}
+                                                                                placeholder="برای دریافت محتوا، پیج را فالو کنید و «فالو کردم» بفرستید."
+                                                                                rows={3}
+                                                                                className="input resize-none"
+                                                                        />
+                                                                </div>
+                                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                                        <div className="space-y-1.5">
+                                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                        دکمه سریع (کلمه پیشنهادی)
+                                                                                </label>
+                                                                                <input
+                                                                                        value={form.gateQuickReply}
+                                                                                        onChange={(e) => set('gateQuickReply', e.target.value)}
+                                                                                        placeholder="فالو کردم"
+                                                                                        className="input"
+                                                                                />
                                                                         </div>
                                                                         <div className="space-y-1.5">
                                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                        متن پیام پیگیری
+                                                                                        کلمه تأیید
                                                                                 </label>
-                                                                                <textarea
-                                                                                        value={form.followUpMessage}
-                                                                                        onChange={(e) => set('followUpMessage', e.target.value)}
-                                                                                        placeholder="مثلاً دیدی؟ سوالی بود در خدمتم."
-                                                                                        rows={3}
-                                                                                        className="input resize-none"
+                                                                                <input
+                                                                                        value={form.gateConfirmKeyword}
+                                                                                        onChange={(e) => set('gateConfirmKeyword', e.target.value)}
+                                                                                        placeholder="فالو کردم"
+                                                                                        className="input"
                                                                                 />
-                                                                        </div>
-                                                                </div>
-                                                        )}
-                                                </Section>
-                                        )}
-
-                                        {/* ─── Follow gate (always visible, no collapse) ─────────── */}
-                                        {(isDm || isStory) && (
-                                                <Section title="شرط دنبال کردن" Icon={Shield}>
-                                                        <div className="flex items-start justify-between gap-3">
-                                                                <div className="flex min-w-0 items-start gap-2.5">
-                                                                        <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-                                                                        <div className="min-w-0">
-                                                                                <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                                        فقط برای فالوورها
-                                                                                </p>
-                                                                                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                                                                                        کاربر برای دریافت پاسخ باید پیج را فالو کرده باشد.
+                                                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                                                        وقتی کاربر این کلمه را ارسال کرد، دروازه تأیید می‌شود.
                                                                                 </p>
                                                                         </div>
                                                                 </div>
-                                                                <Switch
-                                                                        checked={form.followGate}
-                                                                        onChange={(v) => set('followGate', v)}
-                                                                        aria-label="دروازه فالو"
-                                                                />
+                                                                <div className="space-y-1.5">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                محتوای ارسالی پس از تأیید
+                                                                        </label>
+                                                                        <textarea
+                                                                                value={form.contentText}
+                                                                                onChange={(e) => set('contentText', e.target.value)}
+                                                                                placeholder="لینک دانلود / کد تخفیف / ..."
+                                                                                rows={3}
+                                                                                className="input resize-none"
+                                                                        />
+                                                                </div>
                                                         </div>
-                                                </Section>
-                                        )}
+                                                )}
+                                        </Section>
 
                                         {error && (
                                                 <p className="flex items-start gap-2 rounded-lg bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
@@ -1210,6 +1311,8 @@ function MessageBuilder({
         onUpdate,
         onRemove,
         onMove,
+        addMenuOpen,
+        setAddMenuOpen,
 }: {
         messages: AutomationMessage[]
         channelId: string
@@ -1217,72 +1320,108 @@ function MessageBuilder({
         onUpdate: (id: string, patch: Partial<AutomationMessage>) => void
         onRemove: (id: string) => void
         onMove: (id: string, dir: -1 | 1) => void
+        addMenuOpen: boolean
+        setAddMenuOpen: (v: boolean) => void
 }) {
+        // All six message types the builder supports. AUDIO and VIDEO are now
+        // first-class options (previously only IMAGE existed, with a misleading
+        // "عکس، وویس، ویدیو" label that only ever created an IMAGE entry).
         const addOptions: { value: MessageType; label: string; Icon: LucideIcon }[] = [
                 { value: 'TEXT', label: 'متن', Icon: Type },
-                { value: 'IMAGE', label: 'عکس، وویس، ویدیو', Icon: ImagePlus },
+                { value: 'IMAGE', label: 'عکس', Icon: ImagePlus },
+                { value: 'AUDIO', label: 'صوت (Voice)', Icon: Mic },
+                { value: 'VIDEO', label: 'ویدیو', Icon: Film },
                 { value: 'QUICK_REPLY', label: 'کلید', Icon: KeyRound },
                 { value: 'PRODUCT', label: 'ویترین محصولات', Icon: ShoppingBag },
         ]
 
         return (
-                <div className="space-y-4">
-                        {/* Type-selector row — always visible, click to add a message of that type */}
-                        <div>
-                                <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                                        افزودن پیام به دنباله
+                <div className="space-y-3">
+                        {/* Header: count + hint — makes it OBVIOUS the user can stack messages. */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+                                        <MessageCircle className="h-3 w-3" />
+                                        {messages.length > 0
+                                                ? `${messages.length.toLocaleString('fa-IR')} پیام`
+                                                : 'بدون پیام'}
+                                </span>
+                                <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                        می‌توانید چند پیام پشت‌سر هم بفرستید — به‌ترتیب ارسال می‌شوند.
                                 </p>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                        {addOptions.map(({ value, label, Icon }) => (
-                                                <button
-                                                        key={value}
-                                                        type="button"
-                                                        onClick={() => onAdd(value)}
-                                                        className="group flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-3 text-center transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface)]"
-                                                >
-                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">
-                                                                <Icon className="h-4 w-4" />
-                                                        </div>
-                                                        <span className="text-[11px] font-medium leading-tight text-[var(--text-primary)]">
-                                                                {label}
-                                                        </span>
-                                                </button>
-                                        ))}
-                                </div>
                         </div>
 
-                        {/* Message cards — connected by a vertical timeline line on the start side */}
-                        {messages.length > 0 ? (
-                                <div className="space-y-3">
-                                        {messages.map((m, idx) => (
-                                                <div key={m.id} className="relative">
-                                                        {idx > 0 && (
-                                                                <div
-                                                                        className="absolute -top-3 start-[23px] h-3 w-px bg-[var(--border-default)]"
-                                                                        aria-hidden
-                                                                />
-                                                        )}
-                                                        <MessageCard
-                                                                message={m}
-                                                                index={idx}
-                                                                total={messages.length}
-                                                                channelId={channelId}
-                                                                onUpdate={(patch) => onUpdate(m.id, patch)}
-                                                                onRemove={() => onRemove(m.id)}
-                                                                onMoveUp={() => onMove(m.id, -1)}
-                                                                onMoveDown={() => onMove(m.id, 1)}
-                                                        />
-                                                </div>
-                                        ))}
-                                </div>
-                        ) : (
+                        {messages.length === 0 && (
                                 <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-6 text-center">
                                         <MessageCircle className="mx-auto h-6 w-6 text-[var(--text-muted)]" />
                                         <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                                                هنوز پیامی اضافه نشده. با کلیک روی یکی از دکمه‌های بالا اولین پیام را اضافه کنید.
+                                                هنوز پیامی اضافه نشده. اولین پیام را اضافه کنید.
                                         </p>
                                 </div>
                         )}
+
+                        {messages.map((m, idx) => (
+                                <MessageCard
+                                        key={m.id}
+                                        message={m}
+                                        index={idx}
+                                        total={messages.length}
+                                        channelId={channelId}
+                                        onUpdate={(patch) => onUpdate(m.id, patch)}
+                                        onRemove={() => onRemove(m.id)}
+                                        onMoveUp={() => onMove(m.id, -1)}
+                                        onMoveDown={() => onMove(m.id, 1)}
+                                />
+                        ))}
+
+                        {/* Always-visible add-message split button.
+                            Main click → adds a TEXT message immediately (most common case).
+                            Chevron click → opens a small type-picker popover with all 6 types. */}
+                        <div className="relative">
+                                <div className="flex overflow-hidden rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] transition-colors hover:border-[var(--border-hover)]">
+                                        <button
+                                                type="button"
+                                                onClick={() => onAdd('TEXT')}
+                                                className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+                                        >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                افزودن پیام
+                                        </button>
+                                        <button
+                                                type="button"
+                                                onClick={() => setAddMenuOpen(!addMenuOpen)}
+                                                aria-label="نوع پیام را انتخاب کنید"
+                                                aria-expanded={addMenuOpen}
+                                                className="flex items-center justify-center border-s border-[var(--border-default)] px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                        >
+                                                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${addMenuOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+                                </div>
+                                {addMenuOpen && (
+                                        <>
+                                                <button
+                                                        type="button"
+                                                        aria-label="بستن منو"
+                                                        className="fixed inset-0 z-40 cursor-default"
+                                                        onClick={() => setAddMenuOpen(false)}
+                                                />
+                                                <div className="absolute z-50 mt-1 w-60 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-lg">
+                                                        {addOptions.map(({ value, label, Icon }) => (
+                                                                <button
+                                                                        key={value}
+                                                                        type="button"
+                                                                        onClick={() => onAdd(value)}
+                                                                        className="flex w-full items-center gap-2.5 border-b border-[var(--border-subtle)] px-3 py-2.5 text-start text-xs text-[var(--text-primary)] transition-colors last:border-0 hover:bg-[var(--bg-hover)]"
+                                                                >
+                                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+                                                                                <Icon className="h-3.5 w-3.5" />
+                                                                        </div>
+                                                                        {label}
+                                                                </button>
+                                                        ))}
+                                                </div>
+                                        </>
+                                )}
+                        </div>
                 </div>
         )
 }
@@ -1306,6 +1445,11 @@ function MessageCard({
         onMoveUp: () => void
         onMoveDown: () => void
 }) {
+        // Voice-recorder upload state — local to this card so each card tracks
+        // its own upload independently.
+        const [voiceUploading, setVoiceUploading] = useState(false)
+        const [voiceError, setVoiceError] = useState<string | null>(null)
+
         const typeLabel =
                 message.type === 'TEXT'
                         ? 'متن'
@@ -1324,12 +1468,62 @@ function MessageCard({
                         : message.type === 'IMAGE'
                                 ? ImagePlus
                                 : message.type === 'AUDIO'
-                                        ? MessageCircle
+                                        ? Mic
                                         : message.type === 'VIDEO'
-                                                ? ImagePlus
+                                                ? Film
                                                 : message.type === 'QUICK_REPLY'
                                                         ? KeyRound
                                                         : ShoppingBag
+
+        // Synthesize a MediaItem[] from the existing `message.mediaUrl` so the
+        // MediaUploader shows a preview on edit instead of rendering empty.
+        // Per the updated MediaItem contract: `file` is null for `initial`
+        // items reconstructed from an existing S3 URL, and `remoteUrl` carries
+        // the real S3 URL (so `item.remoteUrl ?? item.url` is the saved URL).
+        const initialItems: MediaItem[] | undefined = useMemo((): MediaItem[] | undefined => {
+                if (!message.mediaUrl) return undefined
+                const kind: MediaItem['kind'] =
+                        message.type === 'AUDIO' ? 'AUDIO' : message.type === 'VIDEO' ? 'VIDEO' : 'IMAGE'
+                const item: MediaItem = {
+                        id: `existing-${message.id}`,
+                        kind,
+                        file: null,
+                        url: message.mediaUrl,
+                        remoteUrl: message.mediaUrl,
+                        uploaded: true,
+                        progress: 100,
+                        error: null,
+                }
+                return [item]
+        }, [message.id, message.mediaUrl, message.type])
+
+        // Upload a recorded voice blob to S3 via the shared IG uploads endpoint,
+        // then store the returned HTTPS URL in `message.mediaUrl`.
+        async function uploadVoice(blob: Blob) {
+                setVoiceUploading(true)
+                setVoiceError(null)
+                try {
+                        const formData = new FormData()
+                        formData.append(
+                                'files',
+                                new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }),
+                        )
+                        const res = await fetch('/api/uploads/instagram', { method: 'POST', body: formData })
+                        const data = (await res.json().catch(() => ({}))) as {
+                                files?: Array<{ url: string }>
+                                error?: string
+                        }
+                        if (!res.ok || !data.files?.[0]?.url) {
+                                setVoiceError(data?.error || 'آپلود صوت ناموفق بود.')
+                                return
+                        }
+                        onUpdate({ mediaUrl: data.files[0].url })
+                } catch {
+                        setVoiceError('آپلود صوت ناموفق بود.')
+                } finally {
+                        setVoiceUploading(false)
+                }
+        }
 
         return (
                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
@@ -1389,21 +1583,65 @@ function MessageCard({
                                 message.type === 'AUDIO' ||
                                 message.type === 'VIDEO') && (
                                 <div className="space-y-3">
-                                        <MediaUploader
-                                                kind={message.type}
-                                                maxImages={1}
-                                                onChange={(items: MediaItem[]) => {
-                                                        if (items.length === 0) {
-                                                                onUpdate({ mediaUrl: undefined })
-                                                                return
-                                                        }
-                                                        const first = items[0]
-                                                        onUpdate({
-                                                                mediaUrl: first.url,
-                                                                text: first.caption ?? message.text,
-                                                        })
-                                                }}
-                                        />
+                                        {/* AUDIO: stacked "ضبط صدا" (record) section above "آپلود فایل صوتی" (upload) section. */}
+                                        {message.type === 'AUDIO' && (
+                                                <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                                <Mic className="h-3.5 w-3.5" />
+                                                                ضبط صدا
+                                                        </p>
+                                                        <VoiceRecorder
+                                                                onRecorded={(blob) => void uploadVoice(blob)}
+                                                                onCleared={() => onUpdate({ mediaUrl: undefined })}
+                                                                maxSeconds={60}
+                                                        />
+                                                        {voiceUploading && (
+                                                                <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                        در حال آپلود…
+                                                                </p>
+                                                        )}
+                                                        {voiceError && (
+                                                                <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--danger)]">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        {voiceError}
+                                                                </p>
+                                                        )}
+                                                        {message.mediaUrl && (
+                                                                <audio src={message.mediaUrl} controls className="h-9 w-full" />
+                                                        )}
+                                                </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                                {message.type === 'AUDIO' && (
+                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                                <Upload className="h-3.5 w-3.5" />
+                                                                آپلود فایل صوتی
+                                                        </p>
+                                                )}
+                                                <MediaUploader
+                                                        kind={message.type}
+                                                        maxImages={1}
+                                                        initial={initialItems}
+                                                        onChange={(items: MediaItem[]) => {
+                                                                if (items.length === 0) {
+                                                                        onUpdate({ mediaUrl: undefined })
+                                                                        return
+                                                                }
+                                                                const first = items[0]
+                                                                // Per the MediaUploader contract: prefer `remoteUrl`
+                                                                // (the real S3 URL) and fall back to `url` (which
+                                                                // may be a blob: URL while still uploading).
+                                                                const savedUrl = first.remoteUrl ?? first.url
+                                                                onUpdate({
+                                                                        mediaUrl: savedUrl,
+                                                                        text: first.caption ?? message.text,
+                                                                })
+                                                        }}
+                                                />
+                                        </div>
+
                                         {(message.type === 'IMAGE' || message.type === 'VIDEO') && (
                                                 <div className="space-y-1.5">
                                                         <label className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -1436,10 +1674,10 @@ function MessageCard({
                                         </div>
                                         <div className="space-y-1.5">
                                                 <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                                                        دکمه‌های سریع (حداکثر ۳)
+                                                        دکمه‌ها (حداکثر ۳)
                                                 </label>
-                                                <QuickRepliesEditor
-                                                        replies={message.buttons ?? []}
+                                                <ButtonBuilder
+                                                        buttons={message.buttons ?? []}
                                                         onChange={(buttons) => onUpdate({ buttons })}
                                                 />
                                         </div>
@@ -1476,68 +1714,144 @@ function MessageCard({
         )
 }
 
-// ── Quick replies editor (up to 3 chips) ─────────────────────────────────
-function QuickRepliesEditor({
-        replies,
+// ── Button Builder (Vardast-style rows, replaces QuickRepliesEditor) ──────
+//
+// Each row is a single QUICK_REPLY button: title (max 20 chars — IG limit),
+// optional URL (turns the button into a "link" type), up/down arrows to
+// reorder, and a trash button. Max 3 buttons per message (Instagram limit).
+// The buttons prop is the new object form (`QuickReplyButton[]`), which the
+// backend zod schema now accepts alongside the legacy plain-string form.
+function ButtonBuilder({
+        buttons,
         onChange,
 }: {
-        replies: string[]
-        onChange: (r: string[]) => void
+        buttons: QuickReplyButton[]
+        onChange: (b: QuickReplyButton[]) => void
 }) {
-        const [draft, setDraft] = useState('')
-        function add() {
-                const v = draft.trim()
-                if (!v || replies.length >= 3 || replies.includes(v)) return
-                onChange([...replies, v])
-                setDraft('')
+        const MAX = 3
+        const TITLE_MAX = 20
+
+        function update(idx: number, patch: Partial<QuickReplyButton>) {
+                const next = buttons.map((b, i) => (i === idx ? { ...b, ...patch } : b))
+                onChange(next)
         }
+
+        function remove(idx: number) {
+                onChange(buttons.filter((_, i) => i !== idx))
+        }
+
+        function move(idx: number, dir: -1 | 1) {
+                const target = idx + dir
+                if (target < 0 || target >= buttons.length) return
+                const next = buttons.slice()
+                const [item] = next.splice(idx, 1)
+                next.splice(target, 0, item)
+                onChange(next)
+        }
+
+        function add() {
+                if (buttons.length >= MAX) return
+                onChange([...buttons, { title: '' }])
+        }
+
         return (
                 <div className="space-y-2">
-                        <div className="flex flex-wrap gap-1.5">
-                                {replies.map((r) => (
-                                        <span
-                                                key={r}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-[var(--bg-base)] px-2 py-1 text-xs text-[var(--text-primary)] border border-[var(--border-default)]"
+                        {buttons.length === 0 && (
+                                <p className="text-[11px] text-[var(--text-muted)]">
+                                        هنوز دکمه‌ای اضافه نشده.
+                                </p>
+                        )}
+
+                        {buttons.map((b, idx) => {
+                                const isLink = !!(b.url && b.url.trim())
+                                return (
+                                        <div
+                                                key={idx}
+                                                className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-2.5"
                                         >
-                                                {r}
-                                                <button
-                                                        type="button"
-                                                        onClick={() => onChange(replies.filter((x) => x !== r))}
-                                                        className="text-[var(--text-muted)] hover:text-[var(--danger)]"
-                                                        aria-label={`حذف ${r}`}
-                                                >
-                                                        <X className="h-3 w-3" />
-                                                </button>
-                                        </span>
-                                ))}
-                                {replies.length === 0 && (
-                                        <span className="text-[11px] text-[var(--text-muted)]">هنوز دکمه‌ای اضافه نشده.</span>
-                                )}
-                        </div>
-                        {replies.length < 3 && (
-                                <div className="flex gap-2">
-                                        <input
-                                                value={draft}
-                                                onChange={(e) => setDraft(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                                e.preventDefault()
-                                                                add()
-                                                        }
-                                                }}
-                                                placeholder="مثلاً قیمت‌ها"
-                                                maxLength={40}
-                                                className="input"
-                                        />
-                                        <button
-                                                type="button"
-                                                onClick={add}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <Plus className="h-3.5 w-3.5" />
-                                                افزودن
-                                        </button>
-                                </div>
+                                                {/* Row 1: reorder handle + title + type badge + delete */}
+                                                <div className="flex items-center gap-1.5">
+                                                        <div className="flex flex-col">
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={() => move(idx, -1)}
+                                                                        disabled={idx === 0}
+                                                                        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                                        aria-label="بالا"
+                                                                >
+                                                                        <ArrowUp className="h-3 w-3" />
+                                                                </button>
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={() => move(idx, 1)}
+                                                                        disabled={idx === buttons.length - 1}
+                                                                        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                                        aria-label="پایین"
+                                                                >
+                                                                        <ArrowDown className="h-3 w-3" />
+                                                                </button>
+                                                        </div>
+
+                                                        <input
+                                                                value={b.title}
+                                                                onChange={(e) => update(idx, { title: e.target.value.slice(0, TITLE_MAX) })}
+                                                                placeholder="مثلاً قیمت‌ها"
+                                                                maxLength={TITLE_MAX}
+                                                                dir="auto"
+                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+                                                        />
+
+                                                        {/* Type badge — link if URL is set, otherwise postback/text. */}
+                                                        <span
+                                                                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                                                                        isLink
+                                                                                ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
+                                                                                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                                                                }`}
+                                                        >
+                                                                {isLink ? <Link2 className="h-3 w-3" /> : <Type className="h-3 w-3" />}
+                                                                {isLink ? 'لینک' : 'متن'}
+                                                        </span>
+
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => remove(idx)}
+                                                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--danger)]"
+                                                                aria-label="حذف دکمه"
+                                                        >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                </div>
+
+                                                {/* Row 2: URL input — always visible (placeholder "لینک (اختیاری)"). */}
+                                                <div className="mt-2 flex items-center gap-1.5 ps-7">
+                                                        <Link2 className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+                                                        <input
+                                                                value={b.url ?? ''}
+                                                                onChange={(e) => update(idx, { url: e.target.value })}
+                                                                placeholder="لینک (اختیاری)"
+                                                                dir="ltr"
+                                                                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-[11px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+                                                        />
+                                                </div>
+
+                                                {/* Character-count hint for the title. */}
+                                                <div className="mt-1 ps-7 text-[10px] text-[var(--text-muted)]">
+                                                        {b.title.length.toLocaleString('fa-IR')} / {TITLE_MAX.toLocaleString('fa-IR')}
+                                                </div>
+                                        </div>
+                                )
+                        })}
+
+                        {buttons.length < MAX && (
+                                <button
+                                        type="button"
+                                        onClick={add}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border-default)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        افزودن کلید
+                                </button>
                         )}
                 </div>
         )

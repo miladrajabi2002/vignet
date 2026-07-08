@@ -22,7 +22,10 @@ import { cn } from '@/lib/utils'
  *   - Drag-and-drop zone + file picker
  *   - Multiple images (up to `maxImages`, default 5) — single video / single audio
  *   - Per-file upload progress (spinner + percent)
- *   - On success: stores the HTTPS URL returned by S3 in `MediaItem.url`.
+ *   - On success: stores the HTTPS URL returned by S3 in `MediaItem.remoteUrl`
+ *     (the preview `url` stays as the blob URL so it keeps working in the
+ *     operator's browser even when S3 is served from `http://127.0.0.1:9000/...`).
+ *     The parent form reads `item.remoteUrl ?? item.url` for the saved mediaUrl.
  *   - On error: shows a retry button on the failed item.
  *   - Preview grid (image) / video player / audio player.
  *
@@ -39,9 +42,22 @@ export interface MediaItem {
         /** Client-side stable id (NOT persisted). */
         id: string
         kind: MediaKind
-        file: File
-        /** HTTPS URL once uploaded to S3. While uploading or on error, may be a blob: URL for preview. */
+        /** The local File. Null for `initial` items reconstructed from an existing S3 URL. */
+        file: File | null
+        /**
+         * Preview URL used by the <img>/<video>/<audio> elements. While uploading
+         * (and after upload) this stays a `blob:` URL so the preview keeps working
+         * in the operator's browser even when S3 is served from
+         * `http://127.0.0.1:9000/...` (which the operator can't reach). For
+         * `initial` items this is the existing S3 URL (there is no local File).
+         */
         url: string
+        /**
+         * The real S3 HTTPS URL returned by the upload API. Null until the upload
+         * succeeds. This is what gets saved to the automation action and sent to
+         * Instagram. The parent form should read `item.remoteUrl ?? item.url`.
+         */
+        remoteUrl: string | null
         /** True once the S3 upload returned a real HTTPS URL. */
         uploaded: boolean
         /** Upload progress 0..100. */
@@ -134,6 +150,7 @@ export function MediaUploader({
                                 kind: tab,
                                 file: f,
                                 url: rememberUrl(URL.createObjectURL(f)),
+                                remoteUrl: null,
                                 uploaded: false,
                                 progress: 0,
                                 error: null,
@@ -170,13 +187,16 @@ export function MediaUploader({
 
         /** Upload a single file to S3 via the /api/uploads/instagram endpoint. */
         async function uploadItem(item: MediaItem) {
+                // `initial` items (existing S3 URL, no local File) are already uploaded.
+                if (!item.file) return
+                const file = item.file
                 // Mark as uploading.
                 setItems((arr) =>
                         arr.map((x) => (x.id === item.id ? { ...x, progress: 5, error: null } : x)),
                 )
 
                 const formData = new FormData()
-                formData.append('files', item.file, item.file.name)
+                formData.append('files', file, file.name)
 
                 // Use XMLHttpRequest for upload progress events.
                 const xhr = new XMLHttpRequest()
@@ -198,25 +218,25 @@ export function MediaUploader({
                                                         reject(new Error('پاسخ سرور فاقد URL است.'))
                                                         return
                                                 }
-                                                // Swap the blob URL for the real HTTPS URL.
-                                                if (item.url.startsWith('blob:')) {
-                                                        URL.revokeObjectURL(item.url)
-                                                        urlsRef.current.delete(item.url)
-                                                }
+                                                // Store the S3 URL in `remoteUrl` but KEEP `url` as the blob URL so
+                                                // the preview keeps working in the operator's browser (the S3 URL
+                                                // may be `http://127.0.0.1:9000/...` which the operator can't
+                                                // load). Do NOT revoke the blob URL here — it's revoked on
+                                                // unmount or when the item is removed.
                                                 setItems((arr) =>
                                                         arr.map((x) =>
                                                                 x.id === item.id
                                                                         ? {
-                                                                                        ...x,
-                                                                                        url: uploaded.url,
-                                                                                        uploaded: true,
-                                                                                        progress: 100,
-                                                                                        error: null,
-                                                                                }
+                                                                                ...x,
+                                                                                remoteUrl: uploaded.url,
+                                                                                uploaded: true,
+                                                                                progress: 100,
+                                                                                error: null,
+                                                                        }
                                                                         : x,
                                                         ),
                                                 )
-                                                resolve({ ...item, url: uploaded.url, uploaded: true })
+                                                resolve({ ...item, remoteUrl: uploaded.url, uploaded: true })
                                         } catch {
                                                 reject(new Error('پاسخ سرور نامعتبر بود.'))
                                         }
@@ -270,9 +290,27 @@ export function MediaUploader({
         function remove(id: string) {
                 setItems((arr) => {
                         const target = arr.find((x) => x.id === id)
-                        if (target && target.url.startsWith('blob:')) {
-                                URL.revokeObjectURL(target.url)
-                                urlsRef.current.delete(target.url)
+                        if (target) {
+                                // Best-effort DELETE of the S3 object so we don't leak orphaned uploads
+                                // when the operator picks a file then removes it before saving the
+                                // scenario. Failures are swallowed (don't block the UI).
+                                if (target.uploaded && target.remoteUrl) {
+                                        const key = deriveS3Key(target.remoteUrl)
+                                        if (key) {
+                                                const encoded = key
+                                                        .split('/')
+                                                        .map(encodeURIComponent)
+                                                        .join('/')
+                                                fetch(`/api/uploads/instagram/${encoded}`, {
+                                                        method: 'DELETE',
+                                                }).catch(() => {})
+                                        }
+                                }
+                                // Revoke the local blob preview URL.
+                                if (target.url.startsWith('blob:')) {
+                                        URL.revokeObjectURL(target.url)
+                                        urlsRef.current.delete(target.url)
+                                }
                         }
                         return arr.filter((x) => x.id !== id)
                 })
@@ -446,7 +484,7 @@ export function MediaUploader({
                                                                                                 ))}
                                                                                         </div>
                                                                                         <p className="mt-1 truncate text-[10px] text-[var(--text-muted)]" dir="ltr">
-                                                                                                {item.file.name}
+                                                                                                {item.file?.name ?? 'voice memo'}
                                                                                         </p>
                                                                                 </div>
                                                                                 <audio src={item.url} controls className="hidden" />
@@ -562,4 +600,25 @@ function TabButton({
                         )}
                 </button>
         )
+}
+
+
+/**
+ * Extract the S3 object key (`instagram/...`) from a public S3 URL.
+ *
+ * The upload API stores files under the `instagram/` folder, so the key
+ * always starts with `instagram/`. We locate that prefix in the URL and take
+ * everything from there. Query/hash suffixes are stripped and the result is
+ * percent-decoded. Returns null if the URL doesn't contain `instagram/`
+ * (in which case the DELETE call is skipped — best-effort).
+ */
+function deriveS3Key(remoteUrl: string): string | null {
+        const idx = remoteUrl.indexOf('instagram/')
+        if (idx === -1) return null
+        const raw = remoteUrl.slice(idx).split(/[?#]/)[0]
+        try {
+                return decodeURIComponent(raw)
+        } catch {
+                return raw
+        }
 }

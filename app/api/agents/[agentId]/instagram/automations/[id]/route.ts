@@ -7,6 +7,17 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ agentId: string; id: string }> }
 
+// A quick-reply button can be a plain string (postback) OR an object {title,
+// url?} (web_url). Mirror of the create route's schema.
+const buttonSchema = z.union([
+  z.string(),
+  z.object({
+    title: z.string().min(1).max(20),
+    url: z.string().optional(),
+    payload: z.string().optional(),
+  }),
+])
+
 const updateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   active: z.boolean().optional(),
@@ -34,7 +45,7 @@ const updateSchema = z.object({
             text: z.string().optional(),
             mediaUrl: z.string().optional(),
             productId: z.string().optional(),
-            buttons: z.array(z.string()).max(3).optional(),
+            buttons: z.array(buttonSchema).max(3).optional(),
           }),
         )
         .optional(),

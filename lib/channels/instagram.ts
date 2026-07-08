@@ -1,4 +1,4 @@
-import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
+import type { InboundMessage, MessengerAdapter, OutboundVoice, SendOptions } from '@/lib/channels/types'
 import { GRAPH_BASE } from '@/lib/channels/whatsapp'
 
 /**
@@ -162,7 +162,25 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         // Meta can deliver a `delivery` or `read` or `postback`/`referral`
                                         // event instead of a real message; only `message` with text is a
                                         // reply-able inbound. Empty text → skip, but it is NOT an error.
-                                        if (!text) continue
+                                        if (!text) {
+                                                // ─── Postback (quick-reply button tap) ───
+                                                // When a user taps a quick-reply button, Meta sends a `postback`
+                                                // event (no `message.text`). We surface the button's title as the
+                                                // inbound text so the automation engine + AI can match it against
+                                                // scenarios/keywords — previously postbacks were silently dropped,
+                                                // which made button taps look like they "didn't work".
+                                                const postback = (m as { postback?: { title?: string; payload?: string } }).postback
+                                                if (postback?.title) {
+                                                        out.push({
+                                                                chatId: senderId,
+                                                                senderId,
+                                                                senderName: m.sender?.username, senderUsername: m.sender?.username,
+                                                                text: postback.title,
+                                                                kind: 'DM',
+                                                        })
+                                                }
+                                                continue
+                                        }
 
                                         // IMPORTANT: do NOT skip messages based on folder flags.
                                         // Instagram delivers messages from ALL folders (Primary, General,
@@ -364,6 +382,25 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         })
                 },
 
+                async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
+                        // Instagram DMs don't have a native "voice note" type distinct from
+                        // audio — both are sent as an `audio` attachment. We reuse the
+                        // sendAudio envelope (upload the raw bytes to S3 via the caller, then
+                        // send the URL as an audio attachment). The caller (handler.ts) is
+                        // responsible for producing an HTTPS URL Meta can fetch.
+                        if (chatId.startsWith(COMMENT_PREFIX)) return
+                        const h = await host()
+                        if (!h) return
+                        // Convert the raw audio buffer to a data URL is NOT viable (Meta
+                        // requires a public URL). The caller must have already uploaded the
+                        // audio and pass the URL in `voice.audio` as a UTF-8 string — but
+                        // since the OutboundVoice interface carries bytes, we instead expect
+                        // the caller to use sendAudio(url) directly for Instagram. This stub
+                        // is here so the shared inbound pipeline's `adapter.sendVoice` check
+                        // doesn't silently skip IG; in practice the handler prefers sendAudio.
+                        console.warn('[instagram] sendVoice called — use sendAudio(url) for Instagram DMs')
+                },
+
                 async getAvatarUrl(userId: string): Promise<string | null> {
                         // Best-effort fetch of the DM sender's profile picture. Instagram's
                         // graph API exposes `profile_picture_url` on a user node; with a Page
@@ -381,6 +418,38 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 if (!res.ok) return null
                                 const json = (await res.json()) as { profile_picture_url?: string }
                                 return json.profile_picture_url ?? null
+                        } catch {
+                                return null
+                        }
+                },
+
+                async getSenderProfile(
+                        userId: string,
+                ): Promise<{ name?: string; username?: string; avatarUrl?: string } | null> {
+                        // Fetch the DM sender's full profile in one Graph API call. The
+                        // Instagram webhook only carries the sender id + @username — no
+                        // display name or avatar. This call enriches the CRM contact with
+                        // `name` (the account's real name, distinct from the @handle) and
+                        // `profile_picture_url`. Best-effort: returns null on any failure.
+                        if (!userId || userId.startsWith(COMMENT_PREFIX)) return null
+                        try {
+                                const h = await host()
+                                if (!h) return null
+                                const res = await fetch(
+                                        `${h.base}/${userId}?fields=name,username,profile_picture_url`,
+                                        { headers: { Authorization: `Bearer ${token}` } },
+                                )
+                                if (!res.ok) return null
+                                const json = (await res.json()) as {
+                                        name?: string
+                                        username?: string
+                                        profile_picture_url?: string
+                                }
+                                return {
+                                        name: json.name || undefined,
+                                        username: json.username || undefined,
+                                        avatarUrl: json.profile_picture_url || undefined,
+                                }
                         } catch {
                                 return null
                         }

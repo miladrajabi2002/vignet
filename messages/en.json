@@ -1334,5 +1334,121 @@
                 "views": "{count} views",
                 "leadCaptureRequired": "Make the lead form mandatory",
                 "leadCaptureRequiredHint": "When on, the \"skip\" button is hidden and the visitor must fill the form (name + phone) to start chatting. When off, they can skip and the agent will try to extract name/phone from the conversation itself."
+        },
+        "instagram": {
+                "types": {
+                        "DIRECT_MESSAGE": "Direct Message",
+                        "COMMENT": "Comment",
+                        "STORY": "Story"
+                },
+                "matchMode": {
+                        "EXACT": "Exact",
+                        "CONTAINS": "Contains",
+                        "STARTS_WITH": "Starts with"
+                },
+                "matchModeDesc": {
+                        "EXACT": "Exactly matches the keyword",
+                        "CONTAINS": "Contains the keyword anywhere in the text",
+                        "STARTS_WITH": "Starts with the keyword"
+                },
+                "storyScope": {
+                        "ALL": "All stories",
+                        "KEYWORD": "By keyword"
+                },
+                "replyMode": {
+                        "STATIC": "Fixed message",
+                        "AI": "Smart reply",
+                        "FLOW": "Flow",
+                        "SILENT": "No reply",
+                        "STOP_AI": "Stop AI",
+                        "MULTI_MESSAGE": "Multiple messages"
+                },
+                "replyModeShort": {
+                        "STATIC": "Fixed",
+                        "AI": "Smart",
+                        "FLOW": "Flow",
+                        "SILENT": "Silent",
+                        "STOP_AI": "Stop AI",
+                        "MULTI_MESSAGE": "Multi"
+                },
+                "gateMode": {
+                        "SOFT": "Soft (trust)",
+                        "STORY_MENTION": "Hard (story mention)"
+                },
+                "replyPolicy": {
+                        "ALL_AGENT": "All messages by AI agent",
+                        "AGENT_EXCEPT_SCENARIOS": "AI agent except scenarios",
+                        "AUTOMATION_ONLY": "Automation only (no AI)"
+                },
+                "replyPolicyDesc": {
+                        "ALL_AGENT": "Every incoming message is sent to the AI agent.",
+                        "AGENT_EXCEPT_SCENARIOS": "The AI replies unless a matching scenario is found.",
+                        "AUTOMATION_ONLY": "Only scenarios reply; the AI agent is off."
+                },
+                "messageType": {
+                        "TEXT": "Text",
+                        "IMAGE": "Image",
+                        "AUDIO": "Voice",
+                        "VIDEO": "Video",
+                        "QUICK_REPLY": "Button",
+                        "PRODUCT": "Product"
+                },
+                "card": {
+                        "editScenarioAria": "Edit scenario {name}",
+                        "active": "Active",
+                        "inactive": "Inactive",
+                        "noKeyword": "No keyword — applies to all messages",
+                        "messagesCount": "({count} messages)",
+                        "dmToCommenter": "DM to commenter",
+                        "followGate": "Follow gate",
+                        "followUp": "Follow-up",
+                        "storyScopeAll": "All stories",
+                        "storyScopeKeyword": "Specific keywords",
+                        "postsCount": "{count} posts",
+                        "allPosts": "All posts",
+                        "editScenario": "Edit scenario",
+                        "toggleAria": "Active/Inactive",
+                        "deleteAria": "Delete"
+                },
+                "manager": {
+                        "tabDm": "Direct",
+                        "tabComment": "Comment",
+                        "tabStory": "Story",
+                        "emptyDm": "You don't have any DM scenarios yet. You can set up auto-replies for frequent messages or specific keywords.",
+                        "emptyComment": "You don't have any comment scenarios yet. Set up auto-replies and CTAs for your posts — both replying to comments and funneling users to DMs.",
+                        "emptyStory": "You don't have any story scenarios yet. Define auto-replies for each story, or let the smart agent reply based on story content.",
+                        "toggleFailToast": "Failed to toggle.",
+                        "deleteOkToast": "Scenario deleted.",
+                        "deleteFailToast": "Failed to delete.",
+                        "settingsOkToast": "Settings saved.",
+                        "settingsFailToast": "Failed to save settings.",
+                        "title": "Instagram Automation",
+                        "subtitle": "Build automated scenarios for DMs, comments, and stories.",
+                        "addScenario": "New scenario",
+                        "tabAria": "Automation type",
+                        "deleteConfirmAria": "Confirm delete",
+                        "deleteTitle": "Delete scenario",
+                        "deleteConfirmBody": "Scenario \"{name}\" will be deleted. This cannot be undone.",
+                        "cancel": "Cancel",
+                        "delete": "Delete",
+                        "settingsTitle": "Channel settings",
+                        "settingsSubtitle": "Reply mode and AI stop words",
+                        "replyPolicyLabel": "Reply mode",
+                        "activeBadge": "✓ Active",
+                        "stopWordsLabel": "AI stop words",
+                        "stopWordsDeleteAria": "Remove {word}",
+                        "stopWordsPlaceholder": "Type a word and press Enter…",
+                        "stopWordsHint": "Words that, when received, pause AI replies.",
+                        "dirtyHint": "Unsaved changes.",
+                        "currentPolicyHint": "Current mode: {policy}",
+                        "saveSettings": "Save settings"
+                },
+                "common": {
+                        "save": "Save",
+                        "saving": "Saving…",
+                        "saved": "Saved",
+                        "error": "Error",
+                        "loading": "Loading…"
+                }
         }
 }

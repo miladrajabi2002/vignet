@@ -1334,5 +1334,121 @@
                 "views": "{count} بازدید",
                 "leadCaptureRequired": "اجباری کردن فرم معرفی",
                 "leadCaptureRequiredHint": "اگر روشن باشد، دکمه «رد کردن» پنهان می‌شود و بازدیدکننده باید نام و شماره را وارد کند تا گفتگو شروع شود. اگر خاموش باشد، می‌تواند رد کند و ایجنت سعی می‌کند نام/شماره را از خود گفتگو استخراج کند."
+        },
+        "instagram": {
+                "types": {
+                        "DIRECT_MESSAGE": "دایرکت",
+                        "COMMENT": "کامنت",
+                        "STORY": "استوری"
+                },
+                "matchMode": {
+                        "EXACT": "دقیق",
+                        "CONTAINS": "شامل",
+                        "STARTS_WITH": "شروع با"
+                },
+                "matchModeDesc": {
+                        "EXACT": "دقیقاً برابر با کلمه‌کلیدی",
+                        "CONTAINS": "شامل کلمه‌کلیدی در هر جای متن",
+                        "STARTS_WITH": "شروع با کلمه‌کلیدی"
+                },
+                "storyScope": {
+                        "ALL": "همه استوری‌ها",
+                        "KEYWORD": "بر اساس کلمه‌کلیدی"
+                },
+                "replyMode": {
+                        "STATIC": "متن ثابت",
+                        "AI": "پاسخ هوشمند",
+                        "FLOW": "فلو",
+                        "SILENT": "بدون پاسخ",
+                        "STOP_AI": "توقف هوش مصنوعی",
+                        "MULTI_MESSAGE": "چند پیام"
+                },
+                "replyModeShort": {
+                        "STATIC": "ثابت",
+                        "AI": "هوشمند",
+                        "FLOW": "فلو",
+                        "SILENT": "بی‌صدا",
+                        "STOP_AI": "توقف AI",
+                        "MULTI_MESSAGE": "چندگزینه‌ای"
+                },
+                "gateMode": {
+                        "SOFT": "نرم (اعتماد)",
+                        "STORY_MENTION": "سخت (منشن استوری)"
+                },
+                "replyPolicy": {
+                        "ALL_AGENT": "همه پیام‌ها توسط ایجنت",
+                        "AGENT_EXCEPT_SCENARIOS": "ایجنت به جز سناریوها",
+                        "AUTOMATION_ONLY": "فقط اتوماسیون (بدون ایجنت)"
+                },
+                "replyPolicyDesc": {
+                        "ALL_AGENT": "هر پیامی که دریافت شود به ایجنت هوش مصنوعی سپرده می‌شود.",
+                        "AGENT_EXCEPT_SCENARIOS": "ایجنت پاسخ می‌دهد مگر اینکه یک سناریوی منطبق پیدا شود.",
+                        "AUTOMATION_ONLY": "فقط سناریوها پاسخ می‌دهند؛ ایجنت هوش مصنوعی خاموش است."
+                },
+                "messageType": {
+                        "TEXT": "متن",
+                        "IMAGE": "عکس",
+                        "AUDIO": "وویس",
+                        "VIDEO": "ویدیو",
+                        "QUICK_REPLY": "کلید",
+                        "PRODUCT": "محصول"
+                },
+                "card": {
+                        "editScenarioAria": "ویرایش سناریو {name}",
+                        "active": "فعال",
+                        "inactive": "غیرفعال",
+                        "noKeyword": "بدون کلمه‌کلیدی — روی همه پیام‌ها اعمال می‌شود",
+                        "messagesCount": "({count} پیام)",
+                        "dmToCommenter": "دایرکت به کامنت‌گذار",
+                        "followGate": "دروازه فالو",
+                        "followUp": "پیگیری",
+                        "storyScopeAll": "همه استوری‌ها",
+                        "storyScopeKeyword": "کلمات خاص",
+                        "postsCount": "{count} پست",
+                        "allPosts": "همه پست‌ها",
+                        "editScenario": "ویرایش سناریو",
+                        "toggleAria": "فعال/غیرفعال",
+                        "deleteAria": "حذف"
+                },
+                "manager": {
+                        "tabDm": "دایرکت",
+                        "tabComment": "کامنت",
+                        "tabStory": "استوری",
+                        "emptyDm": "هنوز سناریویی برای دایرکت‌ها ندارید. می‌توانید برای پیام‌های پرتکرار یا کلیدواژه‌های مشخص پاسخ خودکار تنظیم کنید.",
+                        "emptyComment": "هنوز سناریویی برای کامنت‌ها ندارید. برای پست‌های خود پاسخ خودکار و کال‌تو‌اکشن تنظیم کنید — هم به کامنت پاسخ دهید و هم کاربر را به دایرکت هدایت کنید.",
+                        "emptyStory": "هنوز سناریویی برای استوری‌ها ندارید. برای هر استوری پاسخ خودکار تعریف کنید، یا اجازه دهید ایجنت هوشمند بر اساس محتوای استوری پاسخ دهد.",
+                        "toggleFailToast": "تغییر وضعیت ناموفق بود.",
+                        "deleteOkToast": "سناریو حذف شد.",
+                        "deleteFailToast": "حذف ناموفق بود.",
+                        "settingsOkToast": "تنظیمات ذخیره شد.",
+                        "settingsFailToast": "ذخیره تنظیمات ناموفق بود.",
+                        "title": "اتوماسیون اینستاگرام",
+                        "subtitle": "سناریوهای خودکار برای دایرکت، کامنت و استوری بسازید.",
+                        "addScenario": "افزودن سناریو",
+                        "tabAria": "نوع اتوماسیون",
+                        "deleteConfirmAria": "تأیید حذف",
+                        "deleteTitle": "حذف سناریو",
+                        "deleteConfirmBody": "سناریو «{name}» حذف می‌شود. این عمل قابل بازگشت نیست.",
+                        "cancel": "انصراف",
+                        "delete": "حذف",
+                        "settingsTitle": "تنظیمات کانال",
+                        "settingsSubtitle": "حالت پاسخ‌دهی و کلمات توقف AI",
+                        "replyPolicyLabel": "حالت پاسخ‌دهی",
+                        "activeBadge": "✓ فعال",
+                        "stopWordsLabel": "کلمات توقف AI",
+                        "stopWordsDeleteAria": "حذف {word}",
+                        "stopWordsPlaceholder": "کلمه را بنویس و Enter بزن…",
+                        "stopWordsHint": "کلماتی که با دریافتشان، پاسخ‌گویی هوش مصنوعی متوقف می‌شود.",
+                        "dirtyHint": "تغییرات ذخیره نشده است.",
+                        "currentPolicyHint": "حالت فعلی: {policy}",
+                        "saveSettings": "ذخیره تنظیمات"
+                },
+                "common": {
+                        "save": "ذخیره",
+                        "saving": "در حال ذخیره…",
+                        "saved": "ذخیره شد",
+                        "error": "خطا",
+                        "loading": "در حال بارگذاری…"
+                }
         }
 }
