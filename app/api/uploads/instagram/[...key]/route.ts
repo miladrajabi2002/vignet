@@ -74,6 +74,19 @@ function resolveFilePath(keySegments: string[] | undefined): string | null {
         return join(process.cwd(), 'public', 'uploads', 'instagram', ...keySegments)
 }
 
+/** Handle CORS preflight requests from Meta's crawler. */
+export async function OPTIONS() {
+        return new NextResponse(null, {
+                status: 204,
+                headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                        'Access-Control-Allow-Headers': '*',
+                        'Access-Control-Max-Age': '86400',
+                },
+        })
+}
+
 /** Stream an uploaded media file from disk to the browser (public). */
 export async function GET(_req: Request, props: Params) {
         const { key: keySegments } = await props.params
@@ -91,12 +104,21 @@ export async function GET(_req: Request, props: Params) {
 
         try {
                 const buf = await readFile(filePath)
+                // Meta's Instagram API crawler fetches media URLs server-side and
+                // REQUIRES an explicit Content-Length header. Without it, Meta treats
+                // the file as 0 bytes and returns "Upload failed (code=100)".
+                // NextResponse doesn't auto-set Content-Length for Buffer bodies, so
+                // we set it explicitly here.
                 return new NextResponse(buf, {
                         headers: {
                                 'Content-Type': contentType,
+                                'Content-Length': String(buf.byteLength),
                                 // Cache for a year — uploaded media is immutable (timestamp + UUID key).
                                 'Cache-Control': 'public, max-age=31536000, immutable',
                                 'Access-Control-Allow-Origin': '*',
+                                // Allow Meta's crawler to fetch with cross-origin requests.
+                                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                                'Access-Control-Allow-Headers': '*',
                         },
                 })
         } catch {
