@@ -779,18 +779,6 @@ export function AutomationForm({
                                                                                 className="input"
                                                                         />
                                                                 </div>
-                                                                <div className="space-y-1.5">
-                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                محتوای ارسالی پس از تأیید
-                                                                        </label>
-                                                                        <textarea
-                                                                                value={form.contentText}
-                                                                                onChange={(e) => set('contentText', e.target.value)}
-                                                                                placeholder="لینک دانلود / کد تخفیف / ..."
-                                                                                rows={3}
-                                                                                className="input resize-none"
-                                                                        />
-                                                                </div>
                                                         </div>
                                                 )}
                                         </Section>

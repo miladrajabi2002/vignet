@@ -16,6 +16,8 @@ import {
 } from '@/lib/instagram/media'
 import {
         readAutomationPolicy,
+        readIgUserId,
+        readUserToken,
         type InstagramReplyPolicy,
 } from '@/lib/instagram/config'
 
@@ -473,6 +475,8 @@ async function executeAction(
           storyId: msg.storyId,
           gateMode: action.gateMode,
           gateConfirmKeyword,
+          gatePrompt,
+          gateQuickReply,
           contentMessages,
         } as Prisma.InputJsonValue,
       },
@@ -684,6 +688,42 @@ function scheduleFollowUp(
   }, delayMs)
 }
 
+/**
+ * Check if a user actually follows the connected Instagram account.
+ * Uses the Graph API: GET /{igUserId}/accounts?fields=follows&user_id={senderId}
+ * Returns true if following, false if not, null if the check failed (treat as following).
+ */
+async function checkUserFollows(
+  channelConfig: Prisma.JsonValue,
+  senderId: string,
+): Promise<boolean | null> {
+  const igUserId = readIgUserId(channelConfig)
+  const token = readUserToken(channelConfig)
+  if (!igUserId || !token) return null
+  try {
+    // The `follows` edge: GET /{igUserId}/accounts?user_id={senderId}&fields=follows
+    // Returns the connected accounts the user follows — if our account is in
+    // the list, they follow us.
+    const url = `https://graph.instagram.com/v21.0/${igUserId}/accounts?user_id=${senderId}&fields=follows&access_token=${token}`
+    console.log(`[ig-gate] checking follow status: ${url}`)
+    const res = await fetch(url)
+    const text = await res.text().catch(() => '')
+    if (!res.ok) {
+      console.warn(`[ig-gate] follow check failed (${res.status}): ${text.slice(0, 300)}`)
+      // If the API call fails (permissions, rate limit), treat as "following"
+      // so we don't block the user — the gate is best-effort.
+      return null
+    }
+    const json = JSON.parse(text) as { data?: Array<{ follows?: boolean }> }
+    const follows = json.data?.[0]?.follows === true
+    console.log(`[ig-gate] follow check result: follows=${follows}`)
+    return follows
+  } catch (e) {
+    console.warn(`[ig-gate] follow check error: ${(e as Error).message}`)
+    return null
+  }
+}
+
 /** Try to fulfill a pending SOFT follow-gate when the user sends the confirm keyword. */
 async function tryFulfillFollowGate(
   ctx: AutomationContext,
@@ -714,16 +754,39 @@ async function tryFulfillFollowGate(
 
   if (!confirmKw || text !== confirmKw.trim().toLowerCase()) return false
 
+  // ── VERIFY the user actually follows the account ──
+  // Before fulfilling the gate, check if the user is really a follower.
+  // If they're NOT following, re-send the gate prompt (don't deliver content).
+  if (channelConfig) {
+    const follows = await checkUserFollows(channelConfig, msg.senderId)
+    if (follows === false) {
+      console.log(`[ig-gate] user ${msg.senderId} clicked "${text}" but does NOT follow — re-sending gate prompt`)
+      const gatePrompt = typeof payload.gatePrompt === 'string'
+        ? payload.gatePrompt
+        : 'لطفاً ابتدا صفحه ما را دنبال کنید و سپس دوباره روی دکمه کلیک کنید.'
+      const gateQuickReply = typeof payload.gateQuickReply === 'string'
+        ? payload.gateQuickReply
+        : 'دنبال کردم'
+      try {
+        await sendButtonMessage(channelConfig, gate.chatId, gatePrompt, [
+          { title: gateQuickReply },
+        ])
+      } catch {
+        await adapter.sendText(gate.chatId, gatePrompt, {
+          quickReplies: [gateQuickReply],
+        })
+      }
+      return true // gate handled (but not fulfilled) — don't fall through to AI
+    }
+  }
+
+  // User follows (or check failed = treat as following) → fulfill the gate.
   await prisma.instagramFollowGate.update({
     where: { id: gate.id },
     data: { status: 'FULFILLED', fulfilledAt: new Date() },
   })
 
-  // Deliver the gated content. This is now the FULL messages[] array
-  // (which may include TEXT, IMAGE, VIDEO, AUDIO, QUICK_REPLY entries),
-  // NOT just a plain text string. This fixes the bug where only text was
-  // sent after gate fulfillment — now media (images, videos, voice) is
-  // also delivered.
+  // Deliver the gated content — the FULL messages[] array.
   const contentMessages = Array.isArray(payload.contentMessages)
     ? (payload.contentMessages as Array<Record<string, unknown>>)
     : []
@@ -756,19 +819,6 @@ async function tryFulfillFollowGate(
         captureError('instagram:gate:deliver', e, {
           workspaceId: agent.workspaceId,
           metadata: { gateId: gate.id, entryType: entry.type },
-        })
-      }
-    }
-  } else {
-    // Fallback: send contentText if no messages[] were stored.
-    const contentText = typeof payload.contentText === 'string' ? payload.contentText : ''
-    if (contentText) {
-      try {
-        await adapter.sendText(gate.chatId, contentText, { quickReplies })
-      } catch (e) {
-        captureError('instagram:gate:deliver', e, {
-          workspaceId: agent.workspaceId,
-          metadata: { gateId: gate.id },
         })
       }
     }
