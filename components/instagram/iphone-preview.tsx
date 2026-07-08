@@ -36,6 +36,11 @@ import type {
  * story background.
  */
 
+// Instagram 2024 colors — DM bubbles are solid (not gradient).
+// User (incoming) bubbles: light gray #efefef.
+// Bot (outgoing) bubbles: Instagram blue #5e5ce6 (iOS system indigo, matches the
+// screenshot from iPhone 16 Pro). The gradient is reserved for avatars + story bg.
+const IG_BLUE = '#5e5ce6'
 const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
 const IG_GRADIENT_SOFT = 'linear-gradient(45deg, rgba(245,133,41,0.15) 0%, rgba(221,42,123,0.15) 50%, rgba(129,52,175,0.15) 100%)'
 
@@ -73,12 +78,13 @@ function IphonePreviewBase(props: IphonePreviewProps) {
 
 export const IphonePreview = memo(IphonePreviewBase)
 
-// ── Phone shell — iPhone 15 Pro (titanium frame, Dynamic Island) ──────────
+// ── Phone shell — iPhone 16 Pro (titanium frame, Dynamic Island). Compact
+// width so the preview doesn't dominate the form column.
 
 function PhoneFrame({ children }: { children: React.ReactNode }) {
         return (
                 <div
-                        className="relative mx-auto aspect-[9/19.5] w-full max-w-[340px] rounded-[3.2rem] p-[6px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_0_0_2px_rgba(0,0,0,0.4)] after:absolute after:inset-0 after:rounded-[3.2rem] after:bg-gradient-to-br after:from-white/5 after:to-transparent after:pointer-events-none"
+                        className="relative mx-auto aspect-[9/19.5] w-full max-w-[270px] rounded-[2.6rem] p-[5px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_0_0_2px_rgba(0,0,0,0.4)] after:absolute after:inset-0 after:rounded-[2.6rem] after:bg-gradient-to-br after:from-white/5 after:to-transparent after:pointer-events-none"
                         style={{
                                 background:
                                         'linear-gradient(180deg, #4a4a4c 0%, #2a2a2c 50%, #1c1c1e 100%)',
@@ -87,23 +93,23 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
                 >
                         {/* Titanium inner rim */}
                         <div
-                                className="pointer-events-none absolute inset-[3px] rounded-[3rem] ring-1 ring-white/5"
+                                className="pointer-events-none absolute inset-[2px] rounded-[2.4rem] ring-1 ring-white/5"
                                 aria-hidden
                         />
 
                         {/* Side buttons — Action button + volume up/down + power */}
-                        <div className="absolute -start-[3px] top-[15%] h-2 w-[4px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[3px] top-[20%] h-8 w-[4px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[3px] top-[27%] h-8 w-[4px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -start-[3px] top-[34%] h-8 w-[4px] rounded-l bg-[#1c1c1e]" />
-                        <div className="absolute -end-[3px] top-[28%] h-16 w-[4px] rounded-r bg-[#1c1c1e]" />
+                        <div className="absolute -start-[2px] top-[15%] h-1.5 w-[3px] rounded-l bg-[#1c1c1e]" />
+                        <div className="absolute -start-[2px] top-[20%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
+                        <div className="absolute -start-[2px] top-[27%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
+                        <div className="absolute -start-[2px] top-[34%] h-6 w-[3px] rounded-l bg-[#1c1c1e]" />
+                        <div className="absolute -end-[2px] top-[28%] h-12 w-[3px] rounded-r bg-[#1c1c1e]" />
 
                         {/* Screen */}
-                        <div className="relative h-full w-full overflow-hidden rounded-[2.6rem] bg-white">
-                                {/* Dynamic Island — black pill, slightly inset */}
-                                <div className="absolute left-1/2 top-[10px] z-30 h-[26px] w-[88px] -translate-x-1/2 rounded-full bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
+                        <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-white">
+                                {/* Dynamic Island — black pill */}
+                                <div className="absolute left-1/2 top-[8px] z-30 h-[22px] w-[72px] -translate-x-1/2 rounded-full bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                                         {/* Tiny camera dot */}
-                                        <div className="absolute end-[10px] top-1/2 h-[8px] w-[8px] -translate-y-1/2 rounded-full bg-[#1c1c1e] ring-2 ring-[#222]" />
+                                        <div className="absolute end-[8px] top-1/2 h-[6px] w-[6px] -translate-y-1/2 rounded-full bg-[#1c1c1e] ring-1 ring-[#222]" />
                                 </div>
                                 {children}
                         </div>
@@ -117,42 +123,24 @@ function StatusBar({ dark = false }: { dark?: boolean }) {
         const fg = dark ? 'text-white' : 'text-black'
         return (
                 <div
-                        className={`relative z-20 flex h-[36px] items-center justify-between px-5 pt-1.5 text-[12px] font-semibold ${fg}`}
+                        className={`relative z-20 flex h-[32px] items-center justify-between px-4 pt-1 text-[11px] font-semibold ${fg}`}
                         style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
                 >
                         <span className="tracking-tight">9:41</span>
-                        <div className="flex items-center gap-[5px]">
+                        <div className="flex items-center gap-[4px]">
                                 {/* Signal — 4 ascending bars */}
-                                <svg width="16" height="11" viewBox="0 0 18 12" fill="currentColor" aria-hidden>
+                                <svg width="14" height="9" viewBox="0 0 18 12" fill="currentColor" aria-hidden>
                                         <rect x="0" y="9" width="3" height="3" rx="0.5" />
                                         <rect x="5" y="6" width="3" height="6" rx="0.5" />
                                         <rect x="10" y="3" width="3" height="9" rx="0.5" />
                                         <rect x="15" y="0" width="3" height="12" rx="0.5" />
                                 </svg>
-                                {/* Wifi — arcs fan downward (iOS style) */}
-                                <svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor" aria-hidden>
-                                        <path
-                                                d="M8 11.2l1.7-2.1a2.2 2.2 0 00-3.4 0L8 11.2z"
-                                        />
-                                        <path
-                                                d="M3.2 5.5a8.2 8.2 0 009.6 0"
-                                                stroke="currentColor"
-                                                strokeWidth="1.6"
-                                                fill="none"
-                                                strokeLinecap="round"
-                                        />
-                                        <path
-                                                d="M5.4 7.7a4.6 4.6 0 005.2 0"
-                                                stroke="currentColor"
-                                                strokeWidth="1.6"
-                                                fill="none"
-                                                strokeLinecap="round"
-                                        />
-                                </svg>
+                                {/* LTE text (matches iPhone 16 Pro screenshot) */}
+                                <span className="text-[9px] font-medium">LTE</span>
                                 {/* Battery — rounded rect with fill */}
                                 <div dir="ltr" className="flex items-center gap-[1px]">
                                         <div
-                                                className={`relative h-[12px] w-[27px] rounded-[3.5px] border ${dark ? 'border-white/50' : 'border-black/40'}`}
+                                                className={`relative h-[11px] w-[24px] rounded-[3px] border ${dark ? 'border-white/50' : 'border-black/40'}`}
                                                 style={{ padding: '1.5px' }}
                                         >
                                                 <div
@@ -205,30 +193,33 @@ function DMScreen(props: ScreenProps) {
                 >
                         <StatusBar />
 
-                        {/* Chat header — IG-style */}
-                        <div className="flex items-center gap-2.5 border-b border-black/[0.06] px-3 py-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-black rtl:rotate-180" aria-hidden>
+                        {/* ── Chat header — IG DM style ──
+                            Back arrow (RTL-aware) + avatar + username + "Business chat"
+                            subtitle + call/video/tag icons on the right. Matches the
+                            iPhone 16 Pro screenshot layout. */}
+                        <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black rtl:rotate-180" aria-hidden>
                                         <polyline points="15 18 9 12 15 6" />
                                 </svg>
-                                <Avatar url={accountAvatarUrl} name={accountUsername} size={36} ring />
+                                <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
                                 <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[13px] font-bold text-black leading-tight">
+                                        <p className="truncate text-[12px] font-bold leading-tight text-black">
                                                 {accountUsername}
                                         </p>
-                                        <p className="text-[10px] text-black/60 leading-tight">Active now</p>
+                                        <p className="text-[9px] leading-tight text-black/50">Business chat</p>
                                 </div>
-                                <Phone className="h-[18px] w-[18px] text-black" strokeWidth={2} />
-                                <Video className="h-[20px] w-[20px] text-black" strokeWidth={2} />
+                                <Phone className="h-[16px] w-[16px] text-black" strokeWidth={2} />
+                                <Video className="h-[17px] w-[17px] text-black" strokeWidth={2} />
                         </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 space-y-1.5 overflow-y-auto px-3 py-3 no-scrollbar">
-                                {/* Profile intro pill */}
-                                <div className="flex flex-col items-center pt-1 pb-3">
-                                        <Avatar url={accountAvatarUrl} name={accountUsername} size={64} ring />
-                                        <p className="mt-2 text-[13px] font-bold text-black">{accountUsername}</p>
-                                        <p className="text-[10px] text-black/50">Instagram</p>
-                                        <button className="mt-2 rounded-lg bg-[#3897f0] px-4 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-transform active:scale-95">
+                        {/* ── Messages ── */}
+                        <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
+                                {/* Profile preview card (large avatar + username + View Profile) */}
+                                <div className="flex flex-col items-center pb-2.5 pt-1">
+                                        <Avatar url={accountAvatarUrl} name={accountUsername} size={56} ring />
+                                        <p className="mt-1.5 text-[12px] font-bold text-black">{accountUsername}</p>
+                                        <p className="text-[9px] text-black/50">Instagram</p>
+                                        <button className="mt-1.5 rounded-md bg-[#efefef] px-3 py-1 text-[10px] font-medium text-black transition-transform active:scale-95">
                                                 View Profile
                                         </button>
                                 </div>
@@ -252,9 +243,9 @@ function DMScreen(props: ScreenProps) {
                                 {/* Follow gate prompt */}
                                 {followGate && (
                                         <Bubble side="bot">
-                                                <span className="text-[10px] text-white/70">دروازه فالو</span>
+                                                <span className="text-[9px] text-white/70">دروازه فالو</span>
                                                 <span className="mt-0.5 block">برای دریافت محتوا، پیج را فالو کنید و «فالو کردم» را بفرستید.</span>
-                                                <button className="mt-1.5 rounded-lg bg-white/20 px-2.5 py-1 text-[10px] text-white">
+                                                <button className="mt-1 rounded-md bg-white/20 px-2 py-0.5 text-[9px] text-white">
                                                         فالو کردم
                                                 </button>
                                         </Bubble>
@@ -263,7 +254,7 @@ function DMScreen(props: ScreenProps) {
                                 {/* Follow-up message */}
                                 {followUpEnabled && followUpMessage?.trim() && (
                                         <>
-                                                <div className="my-1 text-center text-[9px] text-black/30">
+                                                <div className="my-0.5 text-center text-[8px] text-black/30">
                                                         بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
                                                 </div>
                                                 <Bubble side="bot">{followUpMessage}</Bubble>
@@ -271,18 +262,20 @@ function DMScreen(props: ScreenProps) {
                                 )}
                         </div>
 
-                        {/* Input bar — IG-style (new 2024 layout) */}
-                        <div dir="ltr" className="flex items-center gap-2 border-t border-black/[0.06] px-3 py-2.5 pb-4">
-                                <Camera className="h-[22px] w-[22px] shrink-0 text-[#0095f6]" strokeWidth={1.8} />
-                                <div className="flex flex-1 items-center gap-2 rounded-[22px] bg-black/[0.05] px-3.5 py-2">
-                                        <span className="flex-1 text-[12px] text-black/40">Message...</span>
-                                        <Mic className="h-[16px] w-[16px] shrink-0 text-black/50" />
+                        {/* ── Input bar — IG DM 2024 style ──
+                            Blue camera icon + gray pill input (with mic inside) +
+                            blue heart outside. Matches the screenshot. */}
+                        <div dir="ltr" className="flex items-center gap-2 px-2.5 py-2 pb-3">
+                                <Camera className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
+                                <div className="flex flex-1 items-center gap-2 rounded-full bg-black/[0.05] px-3 py-1.5">
+                                        <span className="flex-1 text-[11px] text-black/40">Message...</span>
+                                        <Mic className="h-[14px] w-[14px] shrink-0 text-black/50" />
                                 </div>
-                                <Heart className="h-[22px] w-[22px] shrink-0 text-[#0095f6]" strokeWidth={1.8} />
+                                <Heart className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
                         </div>
 
                         {/* Home indicator */}
-                        <div className="absolute bottom-[6px] left-1/2 z-30 h-[5px] w-[110px] -translate-x-1/2 rounded-full bg-black/30" />
+                        <div className="absolute bottom-[5px] left-1/2 z-30 h-[4px] w-[90px] -translate-x-1/2 rounded-full bg-black/30" />
                 </div>
         )
 }
@@ -556,26 +549,26 @@ function StoryScreen(props: ScreenProps) {
                         {/* ── Bottom 45%: DM conversation thread (story reply + bot responses) ── */}
                         <div className="flex h-[45%] flex-col bg-white">
                                 {/* Separator header */}
-                                <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2">
-                                        <span className="text-[11px] font-semibold text-black/60">پاسخ به استوری</span>
+                                <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
+                                        <span className="text-[10px] font-semibold text-black/60">پاسخ به استوری</span>
                                 </div>
 
                                 {/* Conversation thread */}
-                                <div className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2.5 no-scrollbar">
-                                        {/* User's reply — right-aligned gray bubble */}
+                                <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2 no-scrollbar">
+                                        {/* User's reply — right-aligned gray bubble (#efefef, matches DM) */}
                                         <div className="flex justify-end">
-                                                <div className="max-w-[80%] rounded-2xl rounded-br-md bg-black/[0.06] px-3 py-1.5 text-[11px] text-black">
+                                                <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[#efefef] px-2.5 py-1.5 text-[11px] text-black">
                                                         {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
                                                 </div>
                                         </div>
 
-                                        {/* Bot responses — left-aligned gradient bubbles */}
+                                        {/* Bot responses — left-aligned blue bubbles (#5e5ce6, matches DM) */}
                                         {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0 && (
                                                 visibleMessages.map((m) => (
                                                         <div key={m.id} className="flex justify-start">
                                                                 <div
-                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-3 py-1.5 text-[11px] text-white shadow-sm"
-                                                                        style={{ background: IG_GRADIENT }}
+                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white shadow-sm"
+                                                                        style={{ background: IG_BLUE }}
                                                                 >
                                                                         {m.text?.trim() ? m.text : 'متن پاسخ…'}
                                                                 </div>
@@ -585,8 +578,8 @@ function StoryScreen(props: ScreenProps) {
                                         {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length === 0 && (
                                                 <div className="flex justify-start">
                                                         <div
-                                                                className="max-w-[80%] rounded-2xl rounded-bl-md px-3 py-1.5 text-[11px] text-white/70 shadow-sm"
-                                                                style={{ background: IG_GRADIENT }}
+                                                                className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white/70 shadow-sm"
+                                                                style={{ background: IG_BLUE }}
                                                         >
                                                                 پاسخ خود را بنویسید…
                                                         </div>
@@ -595,8 +588,8 @@ function StoryScreen(props: ScreenProps) {
                                         {replyMode === 'AI' && (
                                                 <div className="flex justify-start">
                                                         <div
-                                                                className="rounded-2xl rounded-bl-md px-3 py-2 text-[11px] text-white shadow-sm"
-                                                                style={{ background: IG_GRADIENT }}
+                                                                className="rounded-2xl rounded-bl-md px-2.5 py-2 text-[11px] text-white shadow-sm"
+                                                                style={{ background: IG_BLUE }}
                                                         >
                                                                 <TypingDots />
                                                         </div>
@@ -612,13 +605,13 @@ function StoryScreen(props: ScreenProps) {
                                         {/* Follow-up message */}
                                         {followUpEnabled && followUpMessage?.trim() && (
                                                 <>
-                                                        <div className="my-1 text-center text-[9px] text-black/30">
+                                                        <div className="my-0.5 text-center text-[8px] text-black/30">
                                                                 بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
                                                         </div>
                                                         <div className="flex justify-start">
                                                                 <div
-                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-3 py-1.5 text-[11px] text-white shadow-sm"
-                                                                        style={{ background: IG_GRADIENT }}
+                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white shadow-sm"
+                                                                        style={{ background: IG_BLUE }}
                                                                 >
                                                                         {followUpMessage}
                                                                 </div>
@@ -657,11 +650,11 @@ function CommentScreen(props: ScreenProps) {
                         <StatusBar />
 
                         {/* Mini post header */}
-                        <div className="flex items-center gap-2.5 border-b border-black/[0.06] px-3 py-2">
-                                <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
-                                <p className="text-[12px] font-semibold text-black">{accountUsername}</p>
-                                <span className="text-[11px] text-[#3897f0] font-semibold">• Follow</span>
-                                <MoreHorizontal className="ms-auto h-4 w-4 text-black/60" />
+                        <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
+                                <Avatar url={accountAvatarUrl} name={accountUsername} size={26} />
+                                <p className="text-[11px] font-semibold text-black">{accountUsername}</p>
+                                <span className="text-[10px] font-semibold text-[#3897f0]">• Follow</span>
+                                <MoreHorizontal className="ms-auto h-3.5 w-3.5 text-black/60" />
                         </div>
 
                         {/* Square post image area */}
@@ -669,32 +662,32 @@ function CommentScreen(props: ScreenProps) {
                                 className="relative flex aspect-square items-center justify-center text-white"
                                 style={{ background: IG_GRADIENT }}
                         >
-                                <ImageIcon className="h-10 w-10 opacity-80" />
-                                <div className="absolute top-2 end-2 rounded-full bg-black/30 px-2 py-0.5 text-[9px] text-white backdrop-blur">
+                                <ImageIcon className="h-8 w-8 opacity-80" />
+                                <div className="absolute top-1.5 end-1.5 rounded-full bg-black/30 px-1.5 py-0.5 text-[8px] text-white backdrop-blur">
                                         ۱/۱
                                 </div>
                         </div>
 
                         {/* Action row — like, comment, share, save */}
-                        <div className="flex items-center gap-3.5 px-3 py-2.5 text-black">
-                                <Heart className="h-6 w-6" strokeWidth={1.8} />
-                                <MessageCircle className="h-6 w-6 -scale-x-100" strokeWidth={1.8} />
-                                <Send className="h-6 w-6 -rotate-12" strokeWidth={1.8} />
-                                <Bookmark className="ms-auto h-6 w-6" strokeWidth={1.8} />
+                        <div className="flex items-center gap-3 px-2.5 py-1.5 text-black">
+                                <Heart className="h-5 w-5" strokeWidth={1.8} />
+                                <MessageCircle className="h-5 w-5 -scale-x-100" strokeWidth={1.8} />
+                                <Send className="h-5 w-5 -rotate-12" strokeWidth={1.8} />
+                                <Bookmark className="ms-auto h-5 w-5" strokeWidth={1.8} />
                         </div>
 
                         {/* Likes count + caption */}
-                        <p className="px-3 text-[11px] font-semibold text-black">
+                        <p className="px-2.5 text-[10px] font-semibold text-black">
                                 {(1247).toLocaleString('fa-IR')} پسند
                         </p>
-                        <p className="px-3 pb-2 text-[11px] text-black leading-snug">
+                        <p className="px-2.5 pb-1.5 text-[10px] text-black leading-snug">
                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                 پست نمونه برای پیش‌نمایش کامنت‌ها
                         </p>
 
                         {/* Comments section */}
-                        <div className="flex-1 space-y-2.5 overflow-y-auto border-t border-black/[0.06] px-3 py-3 no-scrollbar">
-                                <p className="text-[10px] font-semibold text-black/50">کامنت‌ها</p>
+                        <div className="flex-1 space-y-2 overflow-y-auto border-t border-black/[0.06] px-2.5 py-2 no-scrollbar">
+                                <p className="text-[9px] font-semibold text-black/50">کامنت‌ها</p>
 
                                 {/* User's comment (the trigger keyword) */}
                                 <div className="flex gap-2">
@@ -833,14 +826,14 @@ function Bubble({
         return (
                 <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                         <div
-                                className={`max-w-[78%] text-[12.5px] leading-relaxed ${
-                                        flush ? '' : 'px-3 py-2'
+                                className={`max-w-[78%] text-[11.5px] leading-relaxed ${
+                                        flush ? '' : 'px-2.5 py-1.5'
                                 } ${
                                         isUser
-                                                ? `rounded-2xl rounded-br-md bg-black/[0.06] text-black ${muted ? 'opacity-60' : ''}`
+                                                ? `rounded-2xl rounded-br-md bg-[#efefef] text-black ${muted ? 'opacity-60' : ''}`
                                                 : 'rounded-2xl rounded-bl-md text-white shadow-sm'
                                 }`}
-                                style={!isUser ? { background: IG_GRADIENT } : undefined}
+                                style={!isUser ? { background: IG_BLUE } : undefined}
                         >
                                 {children}
                         </div>
