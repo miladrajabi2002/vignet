@@ -7,6 +7,7 @@ import type { ChannelType } from '@prisma/client'
 import { Users, Search, LayoutList, Columns3, User, GripVertical } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
+import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
 
 export interface ContactRow {
@@ -30,6 +31,25 @@ const STAGE_KEY: Record<Stage, string> = {
         qualified: 'stageQualified',
         customer: 'stageCustomer',
         lost: 'stageLost',
+}
+
+/**
+ * Resolve a contact's display name with a per-channel fallback. When the
+ * contact has no name/phone/handle, we show "کاربر اینستاگرام" (etc.) based
+ * on the contact's first channel — so Instagram DMs (which only carry a
+ * sender id) no longer appear as "ناشناس".
+ */
+function rowDisplayName(c: ContactRow, anonymousLabel: string): string {
+        const firstChannel = c.channels[0] ?? null
+        return contactDisplayName({
+                name: c.name,
+                phone: c.phone,
+                // Prefer the username of the first connected channel.
+                handle: firstChannel ? (c.channelUsernames?.[firstChannel] ?? null) : null,
+                channel: firstChannel,
+                channelId: firstChannel ? (firstChannel as string) : null,
+                anonymousLabel,
+        })
 }
 
 export function ContactsView({
@@ -211,13 +231,13 @@ function ListView({
                                         <Link
                                                 href={`/contacts/${c.id}`}
                                                 className="flex min-w-0 flex-1 items-center gap-3"
-                                                aria-label={c.name || c.phone || t('anonymous')}
+                                                aria-label={rowDisplayName(c, t('anonymous'))}
                                         >
                                                 <Avatar url={c.avatarUrl} name={c.name} />
                                                 <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap items-center gap-2">
                                                                 <span className="truncate text-sm font-medium text-[var(--text-primary)] group-hover:underline">
-                                                                        {c.name || c.phone || t('anonymous')}
+                                                                        {rowDisplayName(c, t('anonymous'))}
                                                                 </span>
                                                                 {c.channels.map((ch) => {
                                                                         const handle = c.channelUsernames?.[ch]
@@ -341,13 +361,13 @@ function PipelineView({
                                                                                                 href={`/contacts/${c.id}`}
                                                                                                 className="truncate text-sm font-medium text-[var(--text-primary)] hover:underline"
                                                                                         >
-                                                                                                {c.name || c.phone || t('anonymous')}
+                                                                                                {rowDisplayName(c, t('anonymous'))}
                                                                                         </Link>
                                                                                 </div>
                                                                                 <Link
                                                                                         href={`/contacts/${c.id}`}
                                                                                         className="mt-1 flex flex-wrap items-center gap-1"
-                                                                                        aria-label={c.name || c.phone || t('anonymous')}
+                                                                                        aria-label={rowDisplayName(c, t('anonymous'))}
                                                                                 >
                                                                                         {c.channels.map((ch) => (
                                                                                                 <ChannelBadge key={ch} type={ch} />

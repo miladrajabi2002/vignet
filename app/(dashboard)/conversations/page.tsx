@@ -15,6 +15,11 @@ import {
 } from '@/lib/dashboard/charts'
 import { relativeTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
+import {
+        contactDisplayName,
+        channelHandleFor,
+        channelAvatarFor,
+} from '@/lib/crm/display'
 import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
 
@@ -232,39 +237,41 @@ export default async function ConversationsPage(props: {
                                         {pageItems.map((c) => {
                                                 const last = c.messages[0]
                                                 const when = c.lastMessageAt ?? c.createdAt
-                                                // Resolve the contact's display name: prefer the explicit name,
-                                                // then phone, then the per-channel username/handle (so Instagram
-                                                // DMs show the @handle instead of "ناشناس" when the webhook
-                                                // only carried the username, not the real name).
-                                                const channelHandle =
-                                                        c.channel === 'INSTAGRAM'
-                                                                ? c.contact?.instagramUsername
-                                                                : c.channel === 'TELEGRAM'
-                                                                        ? c.contact?.telegramUsername
-                                                                        : c.channel === 'BALE'
-                                                                                ? c.contact?.baleUsername
-                                                                                : c.channel === 'RUBIKA'
-                                                                                        ? c.contact?.rubikaUsername
-                                                                                        : c.channel === 'WHATSAPP'
-                                                                                                ? c.contact?.whatsappName
-                                                                                                : null
-                                                const channelAvatar =
-                                                        c.channel === 'INSTAGRAM'
-                                                                ? c.contact?.instagramAvatarUrl
-                                                                : c.channel === 'TELEGRAM'
-                                                                        ? c.contact?.telegramAvatarUrl
-                                                                        : c.channel === 'BALE'
-                                                                                ? c.contact?.baleAvatarUrl
-                                                                                : c.channel === 'RUBIKA'
-                                                                                        ? c.contact?.rubikaAvatarUrl
-                                                                                        : c.channel === 'WHATSAPP'
-                                                                                                ? c.contact?.whatsappAvatarUrl
-                                                                                                : null
-                                                const who =
-                                                        c.contact?.name ||
-                                                        c.contact?.phone ||
-                                                        channelHandle ||
-                                                        t('anonymous')
+                                                // Resolve the contact's display name + per-channel handle/avatar.
+                                                // For Instagram DMs the webhook only carries the sender id (no
+                                                // name/username/avatar), so without a fallback these contacts
+                                                // show as "ناشناس". The helper provides a per-channel fallback
+                                                // ("کاربر اینستاگرام", etc.) so the operator always sees something
+                                                // meaningful. When the visitor types their name, extractIdentity
+                                                // backfills it and it takes precedence.
+                                                const channelHandle = channelHandleFor({
+                                                        channel: c.channel,
+                                                        telegramUsername: c.contact?.telegramUsername,
+                                                        baleUsername: c.contact?.baleUsername,
+                                                        rubikaUsername: c.contact?.rubikaUsername,
+                                                        whatsappName: c.contact?.whatsappName,
+                                                        instagramUsername: c.contact?.instagramUsername,
+                                                })
+                                                const channelAvatar = channelAvatarFor({
+                                                        channel: c.channel,
+                                                        telegramAvatarUrl: c.contact?.telegramAvatarUrl,
+                                                        baleAvatarUrl: c.contact?.baleAvatarUrl,
+                                                        rubikaAvatarUrl: c.contact?.rubikaAvatarUrl,
+                                                        whatsappAvatarUrl: c.contact?.whatsappAvatarUrl,
+                                                        instagramAvatarUrl: c.contact?.instagramAvatarUrl,
+                                                })
+                                                // A channelId proxy: if we have a contact at all, it has a
+                                                // channel-specific id. Use the conversation channel as the
+                                                // signal that a fallback label is appropriate.
+                                                const channelId = c.contact ? (c.channel as string) : null
+                                                const who = contactDisplayName({
+                                                        name: c.contact?.name,
+                                                        phone: c.contact?.phone,
+                                                        handle: channelHandle,
+                                                        channel: c.channel,
+                                                        channelId,
+                                                        anonymousLabel: t('anonymous'),
+                                                })
                                                 return (
                                                         <Link
                                                                 key={c.id}

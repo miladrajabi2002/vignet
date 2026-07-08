@@ -14,6 +14,7 @@ import {
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
 import { stripProductTokens } from '@/lib/widget/config'
+import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 import { Markdown } from '@/lib/markdown'
@@ -124,11 +125,17 @@ export default async function ConversationThreadPage(props: {
                                                         ? conversation.contact?.instagramUsername ?? null
                                                         : null
 
-        const who =
-                conversation.contact?.name ||
-                conversation.contact?.phone ||
-                contactHandle ||
-                t('anonymous')
+        // Resolve the contact's display name with a per-channel fallback so
+        // Instagram DMs (which only carry a sender id) show "کاربر اینستاگرام"
+        // instead of "ناشناس" until the visitor types their name.
+        const who = contactDisplayName({
+                name: conversation.contact?.name,
+                phone: conversation.contact?.phone,
+                handle: contactHandle,
+                channel: conversation.channel,
+                channelId: conversation.contact ? (conversation.channel as string) : null,
+                anonymousLabel: t('anonymous'),
+        })
 
         const latestAlert = conversation.handoffAlerts[0] ?? null
         const handoffAlertProp: HandoffAlertProp | null = latestAlert

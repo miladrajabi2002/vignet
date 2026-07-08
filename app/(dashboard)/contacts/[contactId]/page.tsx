@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
+import { contactDisplayName } from '@/lib/crm/display'
 import { relativeTime } from '@/lib/format'
 
 export default async function ContactDetailPage(
@@ -46,7 +47,18 @@ export default async function ContactDetailPage(
   if (contact.rubikaId) channels.push('RUBIKA')
   if (contact.baleId) channels.push('BALE')
 
-  const who = contact.name || contact.phone || t('anonymous')
+  // Resolve the contact's display name with a per-channel fallback. Instagram
+  // DMs only carry a sender id (no name/username), so without this the contact
+  // shows as "ناشناس" until the visitor types their name. The fallback uses the
+  // first connected channel ("کاربر اینستاگرام", "کاربر تلگرام", etc.).
+  const firstChannel = channels[0] ?? null
+  const who = contactDisplayName({
+    name: contact.name,
+    phone: contact.phone,
+    channel: firstChannel,
+    channelId: firstChannel ? (firstChannel as string) : null,
+    anonymousLabel: t('anonymous'),
+  })
 
   // Pick the first available avatar across channels (Instagram first since it
   // has the most useful profile pictures).
