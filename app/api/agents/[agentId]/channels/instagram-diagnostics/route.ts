@@ -4,9 +4,9 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { readPageToken, readIgUserId } from '@/lib/instagram/config'
 import {
-  subscribeIgUserToWebhook,
-  getIgUserWebhookSubscription,
-  getInstagramProfile,
+	subscribeIgUserToWebhook,
+	getIgUserWebhookSubscription,
+	getInstagramProfile,
 } from '@/lib/instagram/oauth'
 import { getWebhookPayloads } from '@/lib/channels/webhook-debug'
 
@@ -24,114 +24,149 @@ type Params = { params: Promise<{ agentId: string }> }
  * subscription is active, and lets you retry it without reconnecting.
  */
 export async function GET(_req: Request, props: Params) {
-  const params = await props.params
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	const params = await props.params
+	const user = await getCurrentUser()
+	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: {
-      id: true,
-      channels: {
-        where: { type: 'INSTAGRAM' },
-        select: { id: true, config: true, lastInboundAt: true },
-      },
-    },
-  })
-  if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  const channel = agent.channels[0]
-  if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
+	const agent = await prisma.agent.findFirst({
+		where: { id: params.agentId, workspaceId: user.workspaceId },
+		select: {
+			id: true,
+			channels: {
+				where: { type: 'INSTAGRAM' },
+				select: { id: true, config: true, lastInboundAt: true },
+			},
+		},
+	})
+	if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	const channel = agent.channels[0]
+	if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
 
-  const token = readPageToken(channel.config)
-  const igUserId = readIgUserId(channel.config)
-  if (!token || !igUserId) {
-    return NextResponse.json({ error: 'NO_OAUTH_TOKEN' }, { status: 400 })
-  }
+	const token = readPageToken(channel.config)
+	const igUserId = readIgUserId(channel.config)
+	if (!token || !igUserId) {
+		return NextResponse.json({ error: 'NO_OAUTH_TOKEN' }, { status: 400 })
+	}
 
-  // Check current subscription + fresh profile in parallel.
-  const [subscription, profile] = await Promise.all([
-    getIgUserWebhookSubscription(igUserId, token),
-    getInstagramProfile(token).catch(() => null),
-  ])
+	// Check current subscription + fresh profile in parallel.
+	const [subscription, profile] = await Promise.all([
+		getIgUserWebhookSubscription(igUserId, token),
+		getInstagramProfile(token).catch(() => null),
+	])
 
-  // Pull the last few webhook payloads so the operator can compare the
-  // `entry[].id` Meta sent against the `igUserId` we stored. A mismatch is the
-  // #1 cause of "messages arrive but nothing happens".
-  const recentPayloads = getWebhookPayloads('INSTAGRAM', 5).map((p) => {
-    const body = p.body as { entry?: { id?: string | number }[] } | null
-    const entryIds = (body?.entry ?? [])
-      .map((e) => (e?.id !== undefined && e?.id !== null ? String(e.id) : null))
-      .filter((x): x is string => !!x)
-    return {
-      ts: p.ts,
-      eventType: p.eventType,
-      parsedCount: p.parsedCount,
-      entryIds, // what Meta sent
-      tokenHint: p.tokenHint,
-    }
-  })
+	// Cast config once for safe property access (Prisma JsonValue is a union).
+	const cfg = (channel.config ?? {}) as Record<string, unknown>
 
-  // Check: do any of the recent payloads have an entry id that matches our igUserId?
-  const matchFound = recentPayloads.some((p) => p.entryIds.includes(igUserId))
+	// Pull the last few webhook payloads so the operator can compare the ids
+	// Meta sent against the ids we stored. A mismatch is the #1 cause of
+	// "messages arrive but nothing happens" — the single-channel fallback in
+	// handleInstagramGlobalInbound self-heals this, but we surface it here so
+	// the operator knows what happened.
+	const storedIds = [
+		String(cfg.igUserId ?? ''),
+		String(cfg.pageId ?? ''),
+		String(cfg.igBusinessAccountId ?? ''),
+		String(cfg.webhookIgId ?? ''),
+	].filter(Boolean)
 
-  return NextResponse.json({
-    connected: true,
-    igUserId, // what we stored
-    username: profile?.username ?? null,
-    webhookSubscription: subscription,
-    subscribed: subscription !== null && subscription.length > 0,
-    lastInboundAt: channel.lastInboundAt?.toISOString() ?? null,
-    webhookUrl: 'https://vigent.ir/api/webhook/instagram',
-    recentPayloads,
-    entryIdMatches: matchFound,
-    diagnosis:
-      recentPayloads.length === 0
-        ? 'هیچ وب‌هوکی دریافت نشده. در Meta dashboard → Webhooks مطمئن شوید Callback URL ثبت شده و Subscribe فیلدها فعال است.'
-        : !matchFound
-          ? `وب‌هوک دریافت شده ولی entry.id با igUserId ذخیره‌شده مطابقت نداره! entry.id‌های دریافتی: ${JSON.stringify(
-              recentPayloads.flatMap((p) => p.entryIds),
-            )}. igUserId ذخیره‌شده: "${igUserId}". احتمالاً کانال رو با مدل قدیمی (Facebook Login) وصل کرده‌اید — قطع و با Instagram Login دوباره وصل کنید.`
-          : subscription === null
-            ? 'وب‌هوک میاد و id مطابقت داره، ولی subscription فعال نیست. روی دکمه «فعال‌سازی مجدد» بزنید.'
-            : 'همه‌چیز درسته. اگه بازم پیام نمیاد، /admin/errors رو چک کنید.',
-  })
+	const recentPayloads = getWebhookPayloads('INSTAGRAM', 5).map((p) => {
+		const body = p.body as {
+			entry?: Array<{
+				id?: string | number
+				messaging?: Array<{
+					recipient?: { id?: string | number }
+				}>
+			}>
+		} | null
+		const entryIds: string[] = []
+		const recipientIds: string[] = []
+		for (const e of body?.entry ?? []) {
+			if (e?.id !== undefined && e?.id !== null) entryIds.push(String(e.id))
+			for (const m of e?.messaging ?? []) {
+				if (m?.recipient?.id !== undefined && m?.recipient?.id !== null) {
+					recipientIds.push(String(m.recipient.id))
+				}
+			}
+		}
+		const allSentIds = Array.from(new Set([...entryIds, ...recipientIds]))
+		return {
+			ts: p.ts,
+			eventType: p.eventType,
+			parsedCount: p.parsedCount,
+			entryIds,
+			recipientIds,
+			allSentIds,
+			tokenHint: p.tokenHint,
+		}
+	})
+
+	// Check: do any of the recent payloads have ANY id that matches ANY stored id?
+	const matchFound = recentPayloads.some((p) =>
+		p.allSentIds.some((id) => storedIds.includes(id)),
+	)
+
+	return NextResponse.json({
+		connected: true,
+		igUserId,
+		webhookIgId: cfg.webhookIgId ?? null,
+		storedIds,
+		username: profile?.username ?? null,
+		webhookSubscription: subscription,
+		subscribed: subscription !== null && subscription.length > 0,
+		lastInboundAt: channel.lastInboundAt?.toISOString() ?? null,
+		webhookUrl: 'https://vigent.ir/api/webhook/instagram',
+		recentPayloads,
+		entryIdMatches: matchFound,
+		diagnosis:
+			recentPayloads.length === 0
+				? 'هیچ وب‌هوکی دریافت نشده. در Meta dashboard → Webhooks مطمئن شوید Callback URL ثبت شده و Subscribe فیلدها فعال است.'
+				: matchFound
+					? subscription === null || subscription.length === 0
+						? 'وب‌هوک میاد و id مطابقت داره، ولی subscription فعال نیست. روی دکمه «فعال‌سازی مجدد» بزنید.'
+						: 'همه‌چیز درسته. اگه بازم پیام نمیاد، /admin/errors رو چک کنید.'
+					: `وب‌هوک دریافت شده ولی هیچ id در payload با id‌های ذخیره‌شده مطابقت نداره. id‌های دریافتی: ${JSON.stringify(
+							recentPayloads.flatMap((p) => p.allSentIds),
+						)}. id‌های ذخیره‌شده: ${JSON.stringify(storedIds)}. ` +
+						'این یک رفتار شناخته‌شده‌ی متاست (id رابط کاربری با id وب‌هوک متفاوته). ' +
+						'سیستم با single-channel fallback خودکار این رو حل می‌کنه — اگه بازم کار نکرد، یک پیام تست بفرستید.',
+	})
 }
 
 /** Re-subscribe the IG user to webhook fields. */
 export async function POST(_req: Request, props: Params) {
-  const params = await props.params
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	const params = await props.params
+	const user = await getCurrentUser()
+	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: {
-      id: true,
-      channels: { where: { type: 'INSTAGRAM' }, select: { id: true, config: true } },
-    },
-  })
-  if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  const channel = agent.channels[0]
-  if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
+	const agent = await prisma.agent.findFirst({
+		where: { id: params.agentId, workspaceId: user.workspaceId },
+		select: {
+			id: true,
+			channels: { where: { type: 'INSTAGRAM' }, select: { id: true, config: true } },
+		},
+	})
+	if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	const channel = agent.channels[0]
+	if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
 
-  const token = readPageToken(channel.config)
-  const igUserId = readIgUserId(channel.config)
-  if (!token || !igUserId) {
-    return NextResponse.json({ error: 'NO_OAUTH_TOKEN' }, { status: 400 })
-  }
+	const token = readPageToken(channel.config)
+	const igUserId = readIgUserId(channel.config)
+	if (!token || !igUserId) {
+		return NextResponse.json({ error: 'NO_OAUTH_TOKEN' }, { status: 400 })
+	}
 
-  const result = await subscribeIgUserToWebhook(igUserId, token)
-  if (!result) {
-    return NextResponse.json(
-      {
-        error: 'SUBSCRIBE_FAILED',
-        hint: 'مطمئن شوید در Meta dashboard → Webhooks → Callback URL تنظیم شده و Verify تایید شده.',
-      },
-      { status: 500 },
-    )
-  }
+	const result = await subscribeIgUserToWebhook(igUserId, token)
+	if (!result) {
+		return NextResponse.json(
+			{
+				error: 'SUBSCRIBE_FAILED',
+				hint: 'مطمئن شوید در Meta dashboard → Webhooks → Callback URL تنظیم شده و Verify تایید شده.',
+			},
+			{ status: 500 },
+		)
+	}
 
-  return NextResponse.json({ ok: true, subscribedFields: result })
+	return NextResponse.json({ ok: true, subscribedFields: result })
 }
 
 /**
@@ -149,48 +184,47 @@ export async function POST(_req: Request, props: Params) {
  * Body: `{ recipientId: string }` — the id Meta sent as recipient.id.
  */
 export async function PUT(req: Request, props: Params) {
-  const params = await props.params
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	const params = await props.params
+	const user = await getCurrentUser()
+	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: {
-      id: true,
-      channels: { where: { type: 'INSTAGRAM' }, select: { id: true, config: true } },
-    },
-  })
-  if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  const channel = agent.channels[0]
-  if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
+	const agent = await prisma.agent.findFirst({
+		where: { id: params.agentId, workspaceId: user.workspaceId },
+		select: {
+			id: true,
+			channels: { where: { type: 'INSTAGRAM' }, select: { id: true, config: true } },
+		},
+	})
+	if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	const channel = agent.channels[0]
+	if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
 
-  const body = (await req.json().catch(() => null)) as {
-    recipientId?: string
-    igUserId?: string
-  }
-  const newId = body?.recipientId ?? body?.igUserId
-  if (!newId || !/^\d+$/.test(newId)) {
-    return NextResponse.json(
-      { error: 'INVALID_ID', hint: 'recipientId must be a numeric string.' },
-      { status: 400 },
-    )
-  }
+	const body = (await req.json().catch(() => null)) as {
+		recipientId?: string
+		igUserId?: string
+	}
+	const newId = body?.recipientId ?? body?.igUserId
+	if (!newId || !/^\d+$/.test(newId)) {
+		return NextResponse.json(
+			{ error: 'INVALID_ID', hint: 'recipientId must be a numeric string.' },
+			{ status: 400 },
+		)
+	}
 
-  // Merge the new igUserId into the existing config.
-  const config =
-    (channel.config as Record<string, unknown> | null) ?? {}
-  const updated: Record<string, unknown> = {
-    ...config,
-    igUserId: newId,
-  }
-  await prisma.agentChannel.update({
-    where: { id: channel.id },
-    data: { config: updated as unknown as Prisma.InputJsonValue },
-  })
+	// Merge the new igUserId into the existing config.
+	const config = (channel.config as Record<string, unknown> | null) ?? {}
+	const updated: Record<string, unknown> = {
+		...config,
+		igUserId: newId,
+	}
+	await prisma.agentChannel.update({
+		where: { id: channel.id },
+		data: { config: updated as unknown as Prisma.InputJsonValue },
+	})
 
-  return NextResponse.json({
-    ok: true,
-    igUserId: newId,
-    note: 'igUserId به‌روز شد. حالا demux باید مطابقت داشته باشه. یک پیام تست بفرستید.',
-  })
+	return NextResponse.json({
+		ok: true,
+		igUserId: newId,
+		note: 'igUserId به‌روز شد. حالا demux باید مطابقت داشته باشه. یک پیام تست بفرستید.',
+	})
 }
