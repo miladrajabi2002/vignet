@@ -426,33 +426,103 @@ export function instagramAdapter(token: string): MessengerAdapter {
                 async getSenderProfile(
                         userId: string,
                 ): Promise<{ name?: string; username?: string; avatarUrl?: string } | null> {
-                        // Fetch the DM sender's full profile in one Graph API call. The
-                        // Instagram webhook only carries the sender id + @username — no
-                        // display name or avatar. This call enriches the CRM contact with
-                        // `name` (the account's real name, distinct from the @handle) and
-                        // `profile_picture_url`. Best-effort: returns null on any failure.
+                        // Delegate to the dedicated profile fetcher which tries every
+                        // token × host × fields combination and logs each attempt.
+                        // The adapter only has ONE token (resolved via host()), but
+                        // the fetcher reads ALL tokens from the channel config.
+                        // We can't pass channelConfig here (the adapter doesn't see it),
+                        // so we fall back to the single resolved token on graph.facebook.com
+                        // — the host Meta uses for fetching OTHER users' profiles.
                         if (!userId || userId.startsWith(COMMENT_PREFIX)) return null
+                        // Try graph.facebook.com first (the only host that can fetch
+                        // other users' profiles with a Page token).
+                        const fieldSets = [
+                                'name,username,profile_pic',
+                                'name,username,profile_picture_url',
+                                'username,profile_picture_url',
+                        ]
+                        for (const fields of fieldSets) {
+                                try {
+                                        console.log(
+                                                `[ig-adapter] getSenderProfile(${userId}) → graph.facebook.com/v23.0 fields=${fields}`,
+                                        )
+                                        const res = await fetch(
+                                                `https://graph.facebook.com/v23.0/${userId}?fields=${fields}`,
+                                                { headers: { Authorization: `Bearer ${token}` } },
+                                        )
+                                        const bodyText = await res.text().catch(() => '')
+                                        if (!res.ok) {
+                                                console.warn(
+                                                        `[ig-adapter] ✗ fields=${fields} → ${res.status}: ${bodyText.slice(0, 300)}`,
+                                                )
+                                                continue
+                                        }
+                                        let json: Record<string, unknown>
+                                        try {
+                                                json = JSON.parse(bodyText) as Record<string, unknown>
+                                        } catch {
+                                                continue
+                                        }
+                                        if (json.error) {
+                                                console.warn(
+                                                        `[ig-adapter] ✗ fields=${fields} → error: ${JSON.stringify(json.error).slice(0, 300)}`,
+                                                )
+                                                continue
+                                        }
+                                        const name = typeof json.name === 'string' ? json.name : undefined
+                                        const username =
+                                                typeof json.username === 'string' ? json.username : undefined
+                                        const avatarUrl =
+                                                (typeof json.profile_pic === 'string'
+                                                        ? json.profile_pic
+                                                        : undefined) ??
+                                                (typeof json.profile_picture_url === 'string'
+                                                        ? json.profile_picture_url
+                                                        : undefined)
+                                        console.log(
+                                                `[ig-adapter] ✓ fields=${fields} → name=${name ?? '∅'} username=${username ?? '∅'} avatar=${avatarUrl ? 'yes' : 'no'}`,
+                                        )
+                                        if (name || username || avatarUrl) {
+                                                return { name, username, avatarUrl }
+                                        }
+                                } catch (e) {
+                                        console.warn(
+                                                `[ig-adapter] ✗ fields=${fields} → exception: ${(e as Error).message}`,
+                                        )
+                                }
+                        }
+                        // Fall back to graph.instagram.com (works only for the connected
+                        // account itself, but worth trying).
                         try {
                                 const h = await host()
-                                if (!h) return null
-                                const res = await fetch(
-                                        `${h.base}/${userId}?fields=name,username,profile_picture_url`,
-                                        { headers: { Authorization: `Bearer ${token}` } },
-                                )
-                                if (!res.ok) return null
-                                const json = (await res.json()) as {
-                                        name?: string
-                                        username?: string
-                                        profile_picture_url?: string
-                                }
-                                return {
-                                        name: json.name || undefined,
-                                        username: json.username || undefined,
-                                        avatarUrl: json.profile_picture_url || undefined,
+                                if (h) {
+                                        console.log(
+                                                `[ig-adapter] getSenderProfile(${userId}) → ${h.base} (fallback)`,
+                                        )
+                                        const res = await fetch(
+                                                `${h.base}/${userId}?fields=name,username,profile_picture_url`,
+                                                { headers: { Authorization: `Bearer ${token}` } },
+                                        )
+                                        if (res.ok) {
+                                                const json = (await res.json()) as {
+                                                        name?: string
+                                                        username?: string
+                                                        profile_picture_url?: string
+                                                        error?: unknown
+                                                }
+                                                if (!json.error) {
+                                                        return {
+                                                                name: json.name || undefined,
+                                                                username: json.username || undefined,
+                                                                avatarUrl: json.profile_picture_url || undefined,
+                                                        }
+                                                }
+                                        }
                                 }
                         } catch {
-                                return null
+                                /* ignore */
                         }
+                        return null
                 },
         }
 }

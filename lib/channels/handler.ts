@@ -12,6 +12,7 @@ import {
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import { captureError } from '@/lib/errors/capture'
+import { fetchInstagramSenderProfile } from '@/lib/instagram/sender-profile'
 import {
         runInstagramAutomation,
         shouldAgentReply,
@@ -362,15 +363,23 @@ async function processChannelInbound(
                         // and previously-fetched values aren't clobbered. Fire-and-forget.
                         if (msg.senderId) {
                                 const pf = profileFields(type)
+                                // For Instagram, use the dedicated multi-token fetcher that
+                                // tries every token × host × fields combination and logs each
+                                // attempt — this is the only way to debug "ناشناس" contacts.
+                                // The adapter's getSenderProfile only has ONE token (the
+                                // resolved one), but the fetcher reads ALL tokens from config.
                                 const profilePromise: Promise<{
                                         name?: string
                                         username?: string
                                         avatarUrl?: string
-                                } | null> = adapter.getSenderProfile
-                                        ? adapter.getSenderProfile(msg.senderId)
-                                        : adapter.getAvatarUrl
-                                                ? adapter.getAvatarUrl(msg.senderId).then((url) => url ? { avatarUrl: url } : null)
-                                                : Promise.resolve(null)
+                                } | null> =
+                                        type === 'INSTAGRAM'
+                                                ? fetchInstagramSenderProfile(resolved.config, msg.senderId)
+                                                : adapter.getSenderProfile
+                                                        ? adapter.getSenderProfile(msg.senderId)
+                                                        : adapter.getAvatarUrl
+                                                                ? adapter.getAvatarUrl(msg.senderId).then((url) => url ? { avatarUrl: url } : null)
+                                                                : Promise.resolve(null)
                                 profilePromise
                                         .then((profile) => {
                                                 if (!profile) return
