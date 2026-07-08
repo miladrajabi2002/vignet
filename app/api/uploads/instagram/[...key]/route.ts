@@ -1,24 +1,26 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
-import { getS3Client, getBucket, deleteFile } from '@/lib/storage/s3'
-import { GetObjectCommand } from '@aws-sdk/client-s3'
+import { readFile, unlink } from 'fs/promises'
+import { join } from 'path'
+import { existsSync } from 'fs'
 
 /**
- * Instagram automation media — GET (stream from S3) + DELETE.
+ * Instagram automation media — GET (serve from local disk) + DELETE.
  *
- * GET streams the object bytes to the browser so uploaded images/audio/video
- * render in the dashboard and the live iPhone preview. It is PUBLIC (no login)
- * because:
- *   - The operator's browser needs to load the preview without auth headers on
- *     an <img src="..."> tag.
- *   - Meta's Instagram API crawler fetches the same URL server-side to send
- *     the media as a DM attachment — it can't authenticate either.
- * The key (timestamp + 6-char random) is unguessable enough for the threat model.
+ * Files are stored on the LOCAL DISK under `public/uploads/instagram/`
+ * (same pattern as the blog poster upload). This route serves them to:
+ *   - the operator's browser (for the live iPhone preview + dashboard)
+ *   - Meta's Instagram API crawler (which fetches the media URL server-side
+ *     to send it as a DM attachment — the URL must be public HTTPS)
  *
- * DELETE removes the object — auth required (operator only).
+ * GET is PUBLIC (no login) because Meta's crawler can't authenticate, and
+ * because <img src="..."> tags can't send auth headers. The filename is
+ * unguessable enough (timestamp + 8-char UUID) for the threat model.
  *
- * Safety: only keys starting with `instagram/` are servable/deletable, so this
- * route can't be abused as a generic S3 proxy.
+ * DELETE requires auth (operator only).
+ *
+ * Safety: only paths under `public/uploads/instagram/` are servable/deletable,
+ * so this route can't be abused to read arbitrary files from the server.
  */
 
 export const runtime = 'nodejs'
@@ -26,112 +28,98 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ key?: string[] }> }
 
-function resolveKey(keySegments: string[] | undefined): string | null {
-  if (!keySegments || keySegments.length === 0) return null
-  // Reject path-traversal attempts in any single segment (e.g. `..`).
-  if (keySegments.some((seg) => seg === '..' || seg.includes('\\'))) return null
-  const key = keySegments.join('/')
-  if (!key.startsWith('instagram/')) return null
-  return key
-}
-
 /** MIME map from file extension — so images render inline instead of downloading. */
 const EXT_TO_MIME: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  wav: 'audio/wav',
-  ogg: 'audio/ogg',
-  weba: 'audio/webm',
-  mp4: 'video/mp4',
-  mov: 'video/quicktime',
-  webm: 'video/webm',
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	png: 'image/png',
+	webp: 'image/webp',
+	gif: 'image/gif',
+	avif: 'image/avif',
+	mp3: 'audio/mpeg',
+	m4a: 'audio/mp4',
+	wav: 'audio/wav',
+	ogg: 'audio/ogg',
+	weba: 'audio/webm',
+	mp4: 'video/mp4',
+	mov: 'video/quicktime',
+	webm: 'video/webm',
 }
 
-/** Stream an uploaded media file from S3 to the browser (public). */
+/**
+ * Resolve the catch-all `key` segments into a safe local file path.
+ * Returns null when the path is invalid or escapes the uploads directory.
+ */
+function resolveFilePath(keySegments: string[] | undefined): string | null {
+	if (!keySegments || keySegments.length === 0) return null
+	// Reject path-traversal attempts in any single segment (e.g. `..`).
+	if (keySegments.some((seg) => seg === '..' || seg.includes('\\'))) return null
+	// The first segment must be 'instagram' so we only serve the instagram/ folder.
+	if (keySegments[0] !== 'instagram') return null
+	// Build the absolute path on disk.
+	return join(process.cwd(), 'public', 'uploads', ...keySegments)
+}
+
+/** Stream an uploaded media file from disk to the browser (public). */
 export async function GET(_req: Request, props: Params) {
-  const { key: keySegments } = await props.params
-  const key = resolveKey(keySegments)
-  if (!key) {
-    return NextResponse.json({ error: 'INVALID_KEY' }, { status: 400 })
-  }
+	const { key: keySegments } = await props.params
+	const filePath = resolveFilePath(keySegments)
+	if (!filePath) {
+		return NextResponse.json({ error: 'INVALID_KEY' }, { status: 400 })
+	}
 
-  let body
-  try {
-    const res = await getS3Client().send(
-      new GetObjectCommand({ Bucket: getBucket(), Key: key }),
-    )
-    body = res.Body
-    if (!body) {
-      return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-    }
-  } catch {
-    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
-  }
+	if (!existsSync(filePath)) {
+		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	}
 
-  const ext = key.split('.').pop()?.toLowerCase() ?? ''
-  const contentType = EXT_TO_MIME[ext] || 'application/octet-stream'
+	const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
+	const contentType = EXT_TO_MIME[ext] || 'application/octet-stream'
 
-  const headers = new Headers({
-    'Content-Type': contentType,
-    // Cache for a year — uploaded media is immutable (timestamp + random key).
-    'Cache-Control': 'public, max-age=31536000, immutable',
-    'Access-Control-Allow-Origin': '*',
-  })
-
-  // Prefer a streaming response (Node 18+ supports transformToWebStream).
-  const streamable = body as { transformToWebStream?: () => ReadableStream }
-  if (typeof streamable.transformToWebStream === 'function') {
-    return new NextResponse(streamable.transformToWebStream() as unknown as ReadableStream, {
-      headers,
-    })
-  }
-
-  // Fallback: buffer the whole body.
-  try {
-    const buffered = body as { transformToByteArray?: () => Promise<Uint8Array> }
-    if (typeof buffered.transformToByteArray === 'function') {
-      const bytes = await buffered.transformToByteArray()
-      // Copy into a standalone ArrayBuffer so NextResponse accepts it as BodyInit.
-      const ab = new ArrayBuffer(bytes.byteLength)
-      new Uint8Array(ab).set(bytes)
-      return new NextResponse(ab, { headers })
-    }
-  } catch {
-    /* fall through to 500 */
-  }
-  return NextResponse.json({ error: 'STREAM_FAILED' }, { status: 500 })
+	try {
+		const buf = await readFile(filePath)
+		return new NextResponse(buf, {
+			headers: {
+				'Content-Type': contentType,
+				// Cache for a year — uploaded media is immutable (timestamp + UUID key).
+				'Cache-Control': 'public, max-age=31536000, immutable',
+				'Access-Control-Allow-Origin': '*',
+			},
+		})
+	} catch {
+		return NextResponse.json({ error: 'READ_FAILED' }, { status: 500 })
+	}
 }
 
-/** Delete an uploaded media file (operator only). */
+/** Delete an uploaded media file from disk (operator only). */
 export async function DELETE(_req: Request, props: Params) {
-  const { key: keySegments } = await props.params
+	const { key: keySegments } = await props.params
 
-  const user = await getCurrentUser()
-  if (!user) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  }
+	const user = await getCurrentUser()
+	if (!user) {
+		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	}
 
-  const key = resolveKey(keySegments)
-  if (!key) {
-    return NextResponse.json(
-      { error: 'INVALID_KEY or forbidden (only instagram/ allowed)' },
-      { status: 400 },
-    )
-  }
+	const filePath = resolveFilePath(keySegments)
+	if (!filePath) {
+		return NextResponse.json(
+			{ error: 'INVALID_KEY or forbidden (only instagram/ allowed)' },
+			{ status: 400 },
+		)
+	}
 
-  try {
-    await deleteFile(key)
-  } catch (e) {
-    return NextResponse.json(
-      { error: `DELETE_FAILED: ${(e as Error).message}` },
-      { status: 500 },
-    )
-  }
+	if (!existsSync(filePath)) {
+		// Already deleted — treat as success (idempotent).
+		return NextResponse.json({ ok: true, key: keySegments?.join('/') })
+	}
 
-  return NextResponse.json({ ok: true, key })
+	try {
+		await unlink(filePath)
+	} catch (e) {
+		return NextResponse.json(
+			{ error: `DELETE_FAILED: ${(e as Error).message}` },
+			{ status: 500 },
+		)
+	}
+
+	return NextResponse.json({ ok: true, key: keySegments?.join('/') })
 }
