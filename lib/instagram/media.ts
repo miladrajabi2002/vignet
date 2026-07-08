@@ -195,29 +195,149 @@ async function preflightMedia(
 }
 
 /**
- * Send an image attachment. The URL must be HTTPS-reachable by Meta's crawler.
- * Caption is optional and ships as the `text` field next to the attachment.
+ * Upload a media file (image/video/audio) to Meta's `/me/message_attachments`
+ * endpoint using the two-step flow. Downloads the file from the URL, uploads
+ * it as multipart `filedata`, and returns the `attachment_id`.
+ *
+ * This is the MOST RELIABLE method — Meta doesn't need to fetch the URL itself
+ * (which was failing for audio due to moov atom issues). Works for all media
+ * types: image, video, audio.
+ *
+ * Returns null on failure (caller falls back to URL payload).
  */
-export async function sendImage(
-        channelConfig: Prisma.JsonValue,
+async function uploadMediaAttachment(
+        token: string,
+        mediaUrl: string,
+        type: 'image' | 'video' | 'audio',
+): Promise<string | null> {
+        // Download the file.
+        let mediaBuf: Buffer
+        try {
+                const fileRes = await fetch(mediaUrl, { redirect: 'follow' })
+                if (!fileRes.ok) {
+                        console.warn(`[ig-media] download failed: ${fileRes.status} ${fileRes.statusText}`)
+                        return null
+                }
+                mediaBuf = Buffer.from(await fileRes.arrayBuffer())
+                if (mediaBuf.byteLength === 0) return null
+                console.log(`[ig-media] downloaded ${mediaBuf.byteLength} bytes from ${mediaUrl}`)
+        } catch (e) {
+                console.warn(`[ig-media] download error: ${(e as Error).message}`)
+                return null
+        }
+
+        // Determine filename + MIME from URL extension.
+        const ext = mediaUrl.split('.').pop()?.toLowerCase() ?? 'bin'
+        const mimeMap: Record<string, string> = {
+                jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                webp: 'image/webp', gif: 'image/gif',
+                m4a: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+                mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+        }
+        const mime = mimeMap[ext] ?? 'application/octet-stream'
+        const filename = `media.${ext}`
+
+        // Build multipart/form-data: message field + filedata field.
+        const boundary = `----vignet${Date.now()}`
+        const messageJson = JSON.stringify({
+                attachment: { type, payload: { is_reusable: true } },
+        })
+        const body = Buffer.concat([
+                Buffer.from(`--${boundary}\r\n`),
+                Buffer.from(`Content-Disposition: form-data; name="message"\r\n\r\n`),
+                Buffer.from(`${messageJson}\r\n`),
+                Buffer.from(`--${boundary}\r\n`),
+                Buffer.from(`Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`),
+                Buffer.from(`Content-Type: ${mime}\r\n\r\n`),
+                mediaBuf,
+                Buffer.from(`\r\n--${boundary}--\r\n`),
+        ])
+
+        try {
+                const res = await fetch(
+                        `https://graph.instagram.com/v21.0/me/message_attachments`,
+                        {
+                                method: 'POST',
+                                headers: {
+                                        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                                        Authorization: `Bearer ${token}`,
+                                },
+                                body,
+                        },
+                )
+                const text = await res.text().catch(() => '')
+                if (!res.ok) {
+                        console.warn(
+                                `[ig-media] message_attachments failed (${res.status}): ${text.slice(0, 300)}`,
+                        )
+                        return null
+                }
+                const json = JSON.parse(text) as { attachment_id?: string }
+                console.log(`[ig-media] ✓ uploaded ${type}, attachment_id=${json.attachment_id}`)
+                return json.attachment_id ?? null
+        } catch (e) {
+                console.warn(`[ig-media] message_attachments error: ${(e as Error).message}`)
+                return null
+        }
+}
+
+/**
+ * Send a media message (image/video/audio) using the two-step flow:
+ *   1. Upload to /me/message_attachments → get attachment_id
+ *   2. Send /me/messages with attachment_id
+ *
+ * Falls back to URL payload if the upload fails.
+ * This is the shared implementation used by sendImage, sendVideo, sendAudio.
+ */
+async function sendMediaTwoStep(
+        token: string,
         chatId: string,
-        imageUrl: string,
+        mediaUrl: string,
+        type: 'image' | 'video' | 'audio',
         caption?: string,
 ): Promise<void> {
-        const token = resolveToken(channelConfig)
-        if (!token) throw new Error('INSTAGRAM sendImage: missing access token')
+        // Strategy 1: Two-step (upload → attachment_id → send)
+        const attachmentId = await uploadMediaAttachment(token, mediaUrl, type)
+        if (attachmentId) {
+                const message: Record<string, unknown> = {
+                        attachment: {
+                                type,
+                                payload: { attachment_id: attachmentId },
+                        },
+                }
+                if (caption && type === 'image') message.text = caption
 
-        // Pre-flight: verify the URL is fetchable before Meta's crawler tries.
-        // This turns Meta's opaque "code=100, Upload failed" into a clear error.
-        await preflightMedia(imageUrl, 'IMAGE')
+                const res = await fetch(messagesUrl(), {
+                        method: 'POST',
+                        headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                                recipient: { id: chatId },
+                                message,
+                                messaging_type: MESSAGING_TYPE_RESPONSE,
+                        }),
+                })
+                if (res.ok) {
+                        console.log(`[ig-media] ✓ two-step ${type} send succeeded`)
+                        return
+                }
+                const errText = await res.text().catch(() => '')
+                console.warn(
+                        `[ig-media] two-step send failed (${res.status}): ${errText.slice(0, 300)} — falling back to URL`,
+                )
+        }
 
+        // Strategy 2: URL payload (fallback)
+        console.log(`[ig-media] falling back to URL payload for ${type}`)
         const message: Record<string, unknown> = {
                 attachment: {
-                        type: 'image',
-                        payload: { url: imageUrl, is_reusable: false },
+                        type,
+                        payload: { url: mediaUrl, is_reusable: false },
                 },
         }
-        if (caption) message.text = caption
+        if (caption && type === 'image') message.text = caption
 
         const res = await fetch(messagesUrl(), {
                 method: 'POST',
@@ -231,28 +351,29 @@ export async function sendImage(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
-        await throwIfError(res, 'sendImage', imageUrl)
+        await throwIfError(res, `send${type.charAt(0).toUpperCase()}${type.slice(1)}`, mediaUrl)
 }
 
 /**
- * Send an audio attachment (voice note).
- *
- * THREE strategies, tried in order. Each is a different way to get the audio
- * bytes to Meta — we try the most reliable first.
- *
- * 1. **Two-step message_attachments** (RECOMMENDED) — upload the file to
- *    `/me/message_attachments` as multipart (filedata), get an `attachment_id`
- *    back, then send a normal JSON message referencing that id. This is Meta's
- *    official two-step flow and the most reliable for audio.
- *
- * 2. **Direct filedata in /me/messages** — POST recipient + message + filedata
- *    as THREE separate flat form fields (NOT nested). Falls back here if the
- *    two-step flow fails.
- *
- * 3. **URL payload** — send just the URL and let Meta's crawler fetch it.
- *    Last resort (requires the URL to be publicly fetchable + correct moov atom).
- *
- * The audio file must be AAC (m4a) or WAV. MP3 and Opus-in-mp4 are rejected.
+ * Send an image attachment. Uses the two-step flow (upload → attachment_id → send)
+ * for reliability, falling back to URL payload if the upload fails.
+ */
+export async function sendImage(
+        channelConfig: Prisma.JsonValue,
+        chatId: string,
+        imageUrl: string,
+        caption?: string,
+): Promise<void> {
+        const token = resolveToken(channelConfig)
+        if (!token) throw new Error('INSTAGRAM sendImage: missing access token')
+
+        await preflightMedia(imageUrl, 'IMAGE')
+        await sendMediaTwoStep(token, chatId, imageUrl, 'image', caption)
+}
+
+/**
+ * Send an audio attachment (voice note). Uses the two-step flow
+ * (upload → attachment_id → send) for reliability, falling back to URL payload.
  */
 export async function sendAudio(
         channelConfig: Prisma.JsonValue,
@@ -262,215 +383,14 @@ export async function sendAudio(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendAudio: missing access token')
 
-        // Pre-flight: verify the URL is reachable + correct content-type.
         await preflightMedia(audioUrl, 'AUDIO')
-
-        // Download the audio file once — all three strategies need the bytes
-        // (strategies 1+2) or at least benefit from confirming the URL works.
-        let audioBuf: Buffer | null = null
-        try {
-                const fileRes = await fetch(audioUrl, { redirect: 'follow' })
-                if (fileRes.ok) {
-                        audioBuf = Buffer.from(await fileRes.arrayBuffer())
-                        console.log(`[ig-audio] downloaded ${audioBuf.byteLength} bytes from ${audioUrl}`)
-                }
-        } catch (e) {
-                console.warn(`[ig-audio] download failed: ${(e as Error).message}`)
-        }
-
-        const ext = audioUrl.split('.').pop()?.toLowerCase() ?? 'm4a'
-        const mime =
-                ext === 'wav' ? 'audio/wav' : ext === 'mp3' ? 'audio/mpeg' : 'audio/mp4'
-
-        // ── Strategy 1: Two-step message_attachments (RECOMMENDED) ──
-        if (audioBuf && audioBuf.byteLength > 0) {
-                try {
-                        // Step 1: upload to /me/message_attachments → get attachment_id
-                        const attachmentId = await uploadAttachment(token, audioBuf, mime, ext)
-                        if (attachmentId) {
-                                console.log(`[ig-audio] ✓ uploaded, attachment_id=${attachmentId}`)
-                                // Step 2: send message referencing the attachment_id
-                                const res = await fetch(messagesUrl(), {
-                                        method: 'POST',
-                                        headers: {
-                                                'Content-Type': 'application/json',
-                                                Authorization: `Bearer ${token}`,
-                                        },
-                                        body: JSON.stringify({
-                                                recipient: { id: chatId },
-                                                message: {
-                                                        attachment: {
-                                                                type: 'audio',
-                                                                payload: { attachment_id: attachmentId },
-                                                        },
-                                                },
-                                                messaging_type: MESSAGING_TYPE_RESPONSE,
-                                        }),
-                                })
-                                if (res.ok) {
-                                        console.log('[ig-audio] ✓ two-step send succeeded')
-                                        return
-                                }
-                                const errText = await res.text().catch(() => '')
-                                console.warn(
-                                        `[ig-audio] two-step send failed (${res.status}): ${errText.slice(0, 300)}`,
-                                )
-                        }
-                } catch (e) {
-                        console.warn(`[ig-audio] two-step flow failed: ${(e as Error).message}`)
-                }
-        }
-
-        // ── Strategy 2: Direct filedata in /me/messages (flat fields) ──
-        if (audioBuf && audioBuf.byteLength > 0) {
-                try {
-                        console.log('[ig-audio] trying direct filedata (flat fields)')
-                        const ok = await sendDirectFiledata(token, chatId, audioBuf, mime, ext)
-                        if (ok) {
-                                console.log('[ig-audio] ✓ direct filedata succeeded')
-                                return
-                        }
-                } catch (e) {
-                        console.warn(`[ig-audio] direct filedata failed: ${(e as Error).message}`)
-                }
-        }
-
-        // ── Strategy 3: URL payload (last resort) ──
-        console.log(`[ig-audio] falling back to URL payload → ${audioUrl}`)
-        const res = await fetch(messagesUrl(), {
-                method: 'POST',
-                headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                        recipient: { id: chatId },
-                        message: {
-                                attachment: {
-                                        type: 'audio',
-                                        payload: { url: audioUrl, is_reusable: false },
-                                },
-                        },
-                        messaging_type: MESSAGING_TYPE_RESPONSE,
-                }),
-        })
-        await throwIfError(res, 'sendAudio', audioUrl)
+        await sendMediaTwoStep(token, chatId, audioUrl, 'audio')
 }
 
 /**
- * Step 1 of the two-step flow: upload audio to /me/message_attachments.
- * Returns the attachment_id, or null on failure.
+ * Send a video attachment. Uses the two-step flow (upload → attachment_id → send)
+ * for reliability, falling back to URL payload.
  */
-async function uploadAttachment(
-        token: string,
-        audioBuf: Buffer,
-        mime: string,
-        ext: string,
-): Promise<string | null> {
-        const boundary = `----vignet${Date.now()}`
-        const filename = `voice.${ext}`
-        // The `message` field contains ONLY the attachment type + is_reusable.
-        // NOT recipient/messaging_type — those are NOT part of message_attachments.
-        const messageJson = JSON.stringify({
-                attachment: {
-                        type: 'audio',
-                        payload: { is_reusable: true },
-                },
-        })
-        const body = Buffer.concat([
-                Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(`Content-Disposition: form-data; name="message"\r\n\r\n`),
-                Buffer.from(`${messageJson}\r\n`),
-                Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(
-                        `Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`,
-                ),
-                Buffer.from(`Content-Type: ${mime}\r\n\r\n`),
-                audioBuf,
-                Buffer.from(`\r\n--${boundary}--\r\n`),
-        ])
-        const res = await fetch(
-                `https://graph.instagram.com/v21.0/me/message_attachments`,
-                {
-                        method: 'POST',
-                        headers: {
-                                'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                                Authorization: `Bearer ${token}`,
-                        },
-                        body,
-                },
-        )
-        const text = await res.text().catch(() => '')
-        if (!res.ok) {
-                console.warn(
-                        `[ig-audio] message_attachments upload failed (${res.status}): ${text.slice(0, 300)}`,
-                )
-                return null
-        }
-        try {
-                const json = JSON.parse(text) as { attachment_id?: string }
-                return json.attachment_id ?? null
-        } catch {
-                return null
-        }
-}
-
-/**
- * Strategy 2: send recipient + message + filedata as THREE separate flat
- * form fields (NOT nested in one `message` object).
- */
-async function sendDirectFiledata(
-        token: string,
-        chatId: string,
-        audioBuf: Buffer,
-        mime: string,
-        ext: string,
-): Promise<boolean> {
-        const boundary = `----vignet${Date.now()}`
-        const filename = `voice.${ext}`
-        // Each field is a SEPARATE top-level form field — NOT nested.
-        const recipientJson = JSON.stringify({ id: chatId })
-        const messageJson = JSON.stringify({
-                attachment: {
-                        type: 'audio',
-                        payload: { is_reusable: false },
-                },
-        })
-        const body = Buffer.concat([
-                // recipient (flat)
-                Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(`Content-Disposition: form-data; name="recipient"\r\n\r\n`),
-                Buffer.from(`${recipientJson}\r\n`),
-                // message (flat — only attachment, no recipient/messaging_type inside)
-                Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(`Content-Disposition: form-data; name="message"\r\n\r\n`),
-                Buffer.from(`${messageJson}\r\n`),
-                // filedata (the actual audio file)
-                Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(
-                        `Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`,
-                ),
-                Buffer.from(`Content-Type: ${mime}\r\n\r\n`),
-                audioBuf,
-                Buffer.from(`\r\n--${boundary}--\r\n`),
-        ])
-        const res = await fetch(messagesUrl(), {
-                method: 'POST',
-                headers: {
-                        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                        Authorization: `Bearer ${token}`,
-                },
-                body,
-        })
-        if (res.ok) return true
-        const errText = await res.text().catch(() => '')
-        console.warn(
-                `[ig-audio] direct filedata failed (${res.status}): ${errText.slice(0, 300)}`,
-        )
-        return false
-}
-
-/** Send a video attachment (mp4 recommended, max 25 MB). */
 export async function sendVideo(
         channelConfig: Prisma.JsonValue,
         chatId: string,
@@ -480,25 +400,7 @@ export async function sendVideo(
         if (!token) throw new Error('INSTAGRAM sendVideo: missing access token')
 
         await preflightMedia(videoUrl, 'VIDEO')
-
-        const res = await fetch(messagesUrl(), {
-                method: 'POST',
-                headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                        recipient: { id: chatId },
-                        message: {
-                                attachment: {
-                                        type: 'video',
-                                        payload: { url: videoUrl, is_reusable: false },
-                                },
-                        },
-                        messaging_type: MESSAGING_TYPE_RESPONSE,
-                }),
-        })
-        await throwIfError(res, 'sendVideo', videoUrl)
+        await sendMediaTwoStep(token, chatId, videoUrl, 'video')
 }
 
 /**
