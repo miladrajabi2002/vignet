@@ -212,8 +212,11 @@ function DMScreen(props: ScreenProps) {
                                 <Video className="h-[17px] w-[17px] text-black" strokeWidth={2} />
                         </div>
 
-                        {/* ── Messages ── */}
-                        <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
+                        {/* ── Messages ──
+                            dir="ltr" so justify-start (user) = visual LEFT and
+                            justify-end (bot) = visual RIGHT — matching Instagram
+                            regardless of the page's RTL direction. */}
+                        <div dir="ltr" className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
                                 {/* Profile preview card (large avatar + username + View Profile) */}
                                 <div className="flex flex-col items-center pb-2.5 pt-1">
                                         <Avatar url={accountAvatarUrl} name={accountUsername} size={56} ring />
@@ -676,8 +679,8 @@ function CommentScreen(props: ScreenProps) {
                                 پست نمونه برای پیش‌نمایش کامنت‌ها
                         </p>
 
-                        {/* Comments section */}
-                        <div className="flex-1 space-y-2 overflow-y-auto border-t border-black/[0.06] px-2.5 py-2 no-scrollbar">
+                        {/* Comments section — dir="ltr" for consistent alignment */}
+                        <div dir="ltr" className="flex-1 space-y-2 overflow-y-auto border-t border-black/[0.06] px-2.5 py-2 no-scrollbar">
                                 <p className="text-[9px] font-semibold text-black/50">کامنت‌ها</p>
 
                                 {/* User's comment (the trigger keyword) */}
