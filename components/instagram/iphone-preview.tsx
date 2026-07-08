@@ -240,9 +240,9 @@ function DMScreen(props: ScreenProps) {
                                 {followGate && (
                                         <Bubble side="bot">
                                                 <span className="text-[9px] text-white/70">دروازه فالو</span>
-                                                <span className="mt-0.5 block">برای دریافت محتوا، پیج را فالو کنید و «فالو کردم» را بفرستید.</span>
-                                                <button className="mt-1 rounded-md bg-white/20 px-2 py-0.5 text-[9px] text-white">
-                                                        فالو کردم
+                                                <span className="mt-0.5 block">لطفاً ابتدا صفحه ما را دنبال کنید. بعد از دنبال کردن روی دکمه زیر کلیک کنید.</span>
+                                                <button className="mt-1.5 inline-flex items-center justify-center rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-white/20">
+                                                        دنبال کردم
                                                 </button>
                                         </Bubble>
                                 )}

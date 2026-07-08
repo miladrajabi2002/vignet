@@ -409,44 +409,61 @@ async function executeAction(
     return
   }
 
-  // ─── Follow-gate: send the gate prompt + create a pending gate ───
-  // When the operator enables followGate but leaves gatePrompt empty, fall
-  // back to a sensible default prompt so the toggle actually does something
-  // (the UI only exposes a Switch in the minimal layout; the full form can
-  // override gatePrompt/gateQuickReply/contentText).
+  // ─── Follow-gate: send the gate prompt as a Button Template + create a pending gate ───
+  // Uses Button Template (NOT Quick Reply) because:
+  //   1. Button Template renders in Message Requests (Quick Reply doesn't).
+  //   2. Button Template stays in the chat after click (Quick Reply disappears).
+  //   3. Button Template is the correct pattern for "follow us then click here".
   if (action.followGate) {
     const gatePrompt =
       action.gatePrompt ||
-      `برای دریافت محتوا، ابتدا @{username} را فالو کنید و سپس «فالو کردم» را بفرستید.`.replace(
+      `برای دریافت محتوا، ابتدا @{username} را دنبال کنید و سپس روی دکمه زیر کلیک کنید.`.replace(
         '{username}',
         (channelConfig as { botUsername?: string } | null)?.botUsername ?? '',
       )
-    const gateQuickReply = action.gateQuickReply || 'فالو کردم'
-    // The confirm keyword is what the user must send to fulfill the gate.
-    // Default it to the quick-reply label so "فالو کردم" works out of the box
-    // even when the operator never fills the keyword field in the form.
+    const gateQuickReply = action.gateQuickReply || 'دنبال کردم'
     const gateConfirmKeyword =
-      action.gateConfirmKeyword || gateQuickReply || 'فالو کردم'
-    // The content delivered after the gate is fulfilled. Default to the first
-    // STATIC message text (or replyText) so the user always receives something.
-    const contentText =
-      action.contentText ||
-      action.messages?.find((m) => m.type === 'TEXT' && m.text)?.text ||
-      action.replyText ||
-      ''
-    const qr = [gateQuickReply]
+      action.gateConfirmKeyword || gateQuickReply || 'دنبال کردم'
+    // The content delivered after the gate is fulfilled: the operator's
+    // messages[] (which may include text, image, video, audio). Default to
+    // contentText or replyText if messages[] is empty.
+    const contentMessages = action.messages?.length
+      ? action.messages
+      : action.contentText || action.replyText
+        ? [{ id: 'gate-content', type: 'TEXT' as const, text: action.contentText || action.replyText || '' }]
+        : []
     const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
-    // Reply publicly for comments, DM for DMs/stories.
-    await adapter.sendText(target, gatePrompt, {
-      quickReplies: isComment ? undefined : qr,
-    })
+
+    // Send the gate prompt as a Button Template (NOT Quick Reply).
+    // The button label is the gateQuickReply text (e.g. "دنبال کردم").
+    if (isComment) {
+      // Comments: just send text (button templates are DM-only).
+      await adapter.sendText(target, gatePrompt)
+    } else if (channelConfig) {
+      try {
+        await sendButtonMessage(channelConfig, target, gatePrompt, [
+          { title: gateQuickReply },
+        ])
+      } catch {
+        // Fallback to plain text + quick reply if button template fails.
+        await adapter.sendText(target, gatePrompt, {
+          quickReplies: [gateQuickReply],
+        })
+      }
+    } else {
+      // No channel config — fallback to plain text.
+      await adapter.sendText(target, gatePrompt, {
+        quickReplies: [gateQuickReply],
+      })
+    }
+
     await prisma.instagramFollowGate.create({
       data: {
         automationId: row.id,
         agentId: agent.id,
         contactId: contactId ?? null,
         igSenderId: msg.senderId,
-        chatId: msg.senderId, // DM address for the gated content
+        chatId: msg.senderId,
         status: 'PENDING',
         expiresAt: new Date(Date.now() + GATE_TTL_MS),
         payload: {
@@ -456,7 +473,7 @@ async function executeAction(
           storyId: msg.storyId,
           gateMode: action.gateMode,
           gateConfirmKeyword,
-          contentText,
+          contentMessages,
         } as Prisma.InputJsonValue,
       },
     })
@@ -671,7 +688,7 @@ function scheduleFollowUp(
 async function tryFulfillFollowGate(
   ctx: AutomationContext,
 ): Promise<boolean> {
-  const { adapter, msg, agent, quickReplies } = ctx
+  const { adapter, msg, agent, quickReplies, channelConfig } = ctx
   const text = msg.text?.trim().toLowerCase()
   if (!text || !msg.senderId) return false
 
@@ -692,12 +709,6 @@ async function tryFulfillFollowGate(
   const confirmKw = typeof payload.gateConfirmKeyword === 'string'
     ? payload.gateConfirmKeyword
     : ''
-  const contentText = typeof payload.contentText === 'string'
-    ? payload.contentText
-    : ''
-  // Soft gate: confirm keyword (e.g. "done" / "فالو کردم"). Hard
-  // STORY_MENTION gate is NOT fulfilled by a keyword — it needs the mention
-  // webhook (handled in tryFulfillGateByMention).
   const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
   if (gateMode === 'STORY_MENTION') return false
 
@@ -708,14 +719,58 @@ async function tryFulfillFollowGate(
     data: { status: 'FULFILLED', fulfilledAt: new Date() },
   })
 
-  if (contentText) {
-    try {
-      await adapter.sendText(gate.chatId, contentText, { quickReplies })
-    } catch (e) {
-      captureError('instagram:gate:deliver', e, {
-        workspaceId: agent.workspaceId,
-        metadata: { gateId: gate.id },
-      })
+  // Deliver the gated content. This is now the FULL messages[] array
+  // (which may include TEXT, IMAGE, VIDEO, AUDIO, QUICK_REPLY entries),
+  // NOT just a plain text string. This fixes the bug where only text was
+  // sent after gate fulfillment — now media (images, videos, voice) is
+  // also delivered.
+  const contentMessages = Array.isArray(payload.contentMessages)
+    ? (payload.contentMessages as Array<Record<string, unknown>>)
+    : []
+
+  if (contentMessages.length > 0 && channelConfig) {
+    for (const entry of contentMessages) {
+      try {
+        const entryType = typeof entry.type === 'string' ? entry.type : 'TEXT'
+        const entryText = typeof entry.text === 'string' ? entry.text : ''
+        const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
+        const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
+
+        if (entryType === 'IMAGE' && entryMediaUrl) {
+          await sendImage(channelConfig, gate.chatId, entryMediaUrl, entryText || undefined)
+        } else if (entryType === 'AUDIO' && entryMediaUrl) {
+          await sendAudio(channelConfig, gate.chatId, entryMediaUrl)
+        } else if (entryType === 'VIDEO' && entryMediaUrl) {
+          await sendVideo(channelConfig, gate.chatId, entryMediaUrl)
+        } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
+          const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>
+            typeof b === 'string'
+              ? { title: b }
+              : { title: (b as { title?: string }).title ?? '', url: (b as { url?: string }).url },
+          )
+          await sendButtonMessage(channelConfig, gate.chatId, entryText, buttonActions)
+        } else if (entryText) {
+          await adapter.sendText(gate.chatId, entryText, { quickReplies })
+        }
+      } catch (e) {
+        captureError('instagram:gate:deliver', e, {
+          workspaceId: agent.workspaceId,
+          metadata: { gateId: gate.id, entryType: entry.type },
+        })
+      }
+    }
+  } else {
+    // Fallback: send contentText if no messages[] were stored.
+    const contentText = typeof payload.contentText === 'string' ? payload.contentText : ''
+    if (contentText) {
+      try {
+        await adapter.sendText(gate.chatId, contentText, { quickReplies })
+      } catch (e) {
+        captureError('instagram:gate:deliver', e, {
+          workspaceId: agent.workspaceId,
+          metadata: { gateId: gate.id },
+        })
+      }
     }
   }
   return true
