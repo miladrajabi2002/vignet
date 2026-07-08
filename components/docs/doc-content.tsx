@@ -87,6 +87,7 @@ export function DocContent({
             case 'image':
               return (
                 <figure key={i} className="my-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={block.src}
                     alt={pick(block.alt, locale)}

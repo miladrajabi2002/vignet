@@ -102,10 +102,10 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 
                         {/* Screen */}
                         <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-white">
-                                {/* Dynamic Island — black pill */}
-                                <div className="absolute left-1/2 top-[8px] z-30 h-[22px] w-[72px] -translate-x-1/2 rounded-full bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
+                                {/* Dynamic Island — black pill (compact) */}
+                                <div className="absolute left-1/2 top-[6px] z-30 h-[18px] w-[58px] -translate-x-1/2 rounded-full bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                                         {/* Tiny camera dot */}
-                                        <div className="absolute end-[8px] top-1/2 h-[6px] w-[6px] -translate-y-1/2 rounded-full bg-[#1c1c1e] ring-1 ring-[#222]" />
+                                        <div className="absolute end-[6px] top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full bg-[#1c1c1e] ring-1 ring-[#222]" />
                                 </div>
                                 {children}
                         </div>
@@ -119,33 +119,33 @@ function StatusBar({ dark = false }: { dark?: boolean }) {
         const fg = dark ? 'text-white' : 'text-black'
         return (
                 <div
-                        className={`relative z-20 flex h-[32px] items-center justify-between px-4 pt-1 text-[11px] font-semibold ${fg}`}
+                        className={`relative z-20 flex h-[26px] items-center justify-between px-3 pt-0.5 text-[10px] font-semibold ${fg}`}
                         style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
                 >
                         <span className="tracking-tight">9:41</span>
-                        <div className="flex items-center gap-[4px]">
-                                {/* Signal — 4 ascending bars */}
-                                <svg width="14" height="9" viewBox="0 0 18 12" fill="currentColor" aria-hidden>
+                        <div className="flex items-center gap-[3px]">
+                                {/* Signal — 4 ascending bars (compact) */}
+                                <svg width="11" height="7" viewBox="0 0 18 12" fill="currentColor" aria-hidden>
                                         <rect x="0" y="9" width="3" height="3" rx="0.5" />
                                         <rect x="5" y="6" width="3" height="6" rx="0.5" />
                                         <rect x="10" y="3" width="3" height="9" rx="0.5" />
                                         <rect x="15" y="0" width="3" height="12" rx="0.5" />
                                 </svg>
-                                {/* LTE text (matches iPhone 16 Pro screenshot) */}
-                                <span className="text-[9px] font-medium">LTE</span>
-                                {/* Battery — rounded rect with fill */}
+                                {/* LTE text (compact) */}
+                                <span className="text-[7px] font-medium">LTE</span>
+                                {/* Battery — rounded rect with fill (compact) */}
                                 <div dir="ltr" className="flex items-center gap-[1px]">
                                         <div
-                                                className={`relative h-[11px] w-[24px] rounded-[3px] border ${dark ? 'border-white/50' : 'border-black/40'}`}
+                                                className={`relative h-[9px] w-[19px] rounded-[2.5px] border ${dark ? 'border-white/50' : 'border-black/40'}`}
                                                 style={{ padding: '1.5px' }}
                                         >
                                                 <div
-                                                        className="h-full rounded-[1.5px] bg-current"
+                                                        className="h-full rounded-[1px] bg-current"
                                                         style={{ width: '100%' }}
                                                 />
                                         </div>
                                         <div
-                                                className={`h-[4px] w-[1.5px] rounded-r ${dark ? 'bg-white/50' : 'bg-black/40'}`}
+                                                className={`h-[3px] w-[1px] rounded-r ${dark ? 'bg-white/50' : 'bg-black/40'}`}
                                         />
                                 </div>
                         </div>

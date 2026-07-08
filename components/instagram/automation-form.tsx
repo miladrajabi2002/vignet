@@ -38,7 +38,6 @@ import {
         Mic,
         Film,
         Link2,
-        Upload,
         type LucideIcon,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'

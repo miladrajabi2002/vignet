@@ -316,10 +316,6 @@ export function MediaUploader({
                 })
         }
 
-        function setCaption(id: string, caption: string) {
-                setItems((arr) => arr.map((x) => (x.id === id ? { ...x, caption } : x)))
-        }
-
         const imageCount = items.filter((i) => i.kind === 'IMAGE').length
         const videoItem = items.find((i) => i.kind === 'VIDEO')
         const audioItem = items.find((i) => i.kind === 'AUDIO')
