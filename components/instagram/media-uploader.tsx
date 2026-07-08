@@ -613,9 +613,15 @@ function TabButton({
  * (in which case the DELETE call is skipped — best-effort).
  */
 function deriveS3Key(remoteUrl: string): string | null {
-        const idx = remoteUrl.indexOf('instagram/')
+        // The route is `/api/uploads/instagram/[...key]`, so the catch-all `key`
+        // starts AFTER `/api/uploads/instagram/`. We find the FIRST `/instagram/`
+        // segment in the URL and take everything AFTER it (so the DELETE call goes
+        // to `/api/uploads/instagram/2026/07/file.png`, NOT
+        // `/api/uploads/instagram/instagram/2026/07/file.png`).
+        const marker = '/instagram/'
+        const idx = remoteUrl.indexOf(marker)
         if (idx === -1) return null
-        const raw = remoteUrl.slice(idx).split(/[?#]/)[0]
+        const raw = remoteUrl.slice(idx + marker.length).split(/[?#]/)[0]
         try {
                 return decodeURIComponent(raw)
         } catch {
