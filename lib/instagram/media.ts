@@ -103,6 +103,72 @@ async function throwIfError(
 }
 
 /**
+ * Pre-flight check: fetch the media URL server-side to verify it's publicly
+ * accessible and returns the expected content-type BEFORE sending it to Meta.
+ *
+ * Meta's crawler fetches media URLs server-side. When it fails, Meta returns
+ * an opaque `code=100, Upload failed` error with no detail. This pre-flight
+ * check surfaces the REAL problem (404, wrong content-type, too large, etc.)
+ * in our error log so the operator can fix it without guessing.
+ *
+ * Throws a clear, actionable error when the URL is not fetchable.
+ */
+async function preflightMedia(
+        url: string,
+        kind: 'IMAGE' | 'AUDIO' | 'VIDEO',
+): Promise<void> {
+        const kindLabel = kind.toLowerCase()
+        const maxBytes =
+                kind === 'IMAGE' ? 8 * 1024 * 1024 : kind === 'AUDIO' ? 8 * 1024 * 1024 : 25 * 1024 * 1024
+        const allowedPrefixes =
+                kind === 'IMAGE'
+                        ? ['image/']
+                        : kind === 'AUDIO'
+                                ? ['audio/']
+                                : ['video/']
+
+        console.log(`[ig-preflight] ${kind} → HEAD ${url}`)
+        try {
+                // HEAD first (cheap) — some servers don't support HEAD, so fall back to GET.
+                let res = await fetch(url, { method: 'HEAD', redirect: 'follow' })
+                if (res.status === 405 || res.status === 501) {
+                        console.log(`[ig-preflight] HEAD not supported (${res.status}), trying GET`)
+                        res = await fetch(url, { redirect: 'follow' })
+                }
+                if (!res.ok) {
+                        throw new Error(
+                                `URL returned HTTP ${res.status} ${res.statusText}. ` +
+                                        `Meta's crawler will not be able to fetch this ${kindLabel}. ` +
+                                        `Make sure the URL is publicly accessible over HTTPS without auth.`,
+                        )
+                }
+                const ct = res.headers.get('content-type') || ''
+                const cl = Number(res.headers.get('content-length') || 0)
+                console.log(
+                        `[ig-preflight] ${kind} → ${res.status} content-type="${ct}" content-length=${cl}`,
+                )
+                if (ct && !allowedPrefixes.some((p) => ct.startsWith(p))) {
+                        throw new Error(
+                                `URL returned content-type "${ct}" but expected ${allowedPrefixes.join('/')}. ` +
+                                        `Meta will reject this ${kindLabel}. Check the file extension / upload route.`,
+                        )
+                }
+                if (cl > 0 && cl > maxBytes) {
+                        throw new Error(
+                                `File is ${(cl / 1024 / 1024).toFixed(2)} MB — max for ${kindLabel} is ${maxBytes / 1024 / 1024} MB. ` +
+                                        `Meta will reject it.`,
+                        )
+                }
+        } catch (e) {
+                // Network error (DNS, timeout, SSL) — Meta will definitely fail too.
+                throw new Error(
+                        `Pre-flight fetch of ${kindLabel} URL failed: ${(e as Error).message}. ` +
+                                `Meta's crawler cannot reach this URL. [URL: ${url}]`,
+                )
+        }
+}
+
+/**
  * Send an image attachment. The URL must be HTTPS-reachable by Meta's crawler.
  * Caption is optional and ships as the `text` field next to the attachment.
  */
@@ -114,6 +180,10 @@ export async function sendImage(
 ): Promise<void> {
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendImage: missing access token')
+
+        // Pre-flight: verify the URL is fetchable before Meta's crawler tries.
+        // This turns Meta's opaque "code=100, Upload failed" into a clear error.
+        await preflightMedia(imageUrl, 'IMAGE')
 
         const message: Record<string, unknown> = {
                 attachment: {
@@ -151,6 +221,8 @@ export async function sendAudio(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendAudio: missing access token')
 
+        await preflightMedia(audioUrl, 'AUDIO')
+
         const res = await fetch(messagesUrl(), {
                 method: 'POST',
                 headers: {
@@ -179,6 +251,8 @@ export async function sendVideo(
 ): Promise<void> {
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendVideo: missing access token')
+
+        await preflightMedia(videoUrl, 'VIDEO')
 
         const res = await fetch(messagesUrl(), {
                 method: 'POST',

@@ -613,11 +613,9 @@ function TabButton({
  * (in which case the DELETE call is skipped — best-effort).
  */
 function deriveS3Key(remoteUrl: string): string | null {
-        // Extract the path after `/uploads/instagram/` so the DELETE call goes to
-        // `/api/uploads/instagram/2026/07/file.png`. The uploaded file is served
-        // from `/uploads/instagram/...` (Next.js static), but DELETE still goes
-        // through the `/api/uploads/instagram/[...key]` route.
-        const marker = '/uploads/instagram/'
+        // Extract the path after `/api/uploads/instagram/` so the DELETE call goes
+        // to `/api/uploads/instagram/2026/07/file.png` (matching the GET route).
+        const marker = '/api/uploads/instagram/'
         const idx = remoteUrl.indexOf(marker)
         if (idx === -1) return null
         const raw = remoteUrl.slice(idx + marker.length).split(/[?#]/)[0]

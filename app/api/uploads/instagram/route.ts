@@ -154,12 +154,11 @@ export async function POST(req: Request) {
                         const buf = Buffer.from(await f.arrayBuffer())
                         await writeFile(join(dir, filename), buf)
 
-                        // Absolute URL — served DIRECTLY by Next.js from public/
-                        // (NOT through the /api/ route). This is more reliable for
-                        // Meta's crawler because Next.js's static file server
-                        // returns correct Content-Type headers and doesn't go
-                        // through any middleware/route handler.
-                        const url = `${base}/uploads/instagram/${yyyy}/${mm}/${filename}`
+                        // Absolute URL served through the /api/uploads/instagram/[...key]
+                        // route handler (which streams the file from disk with the correct
+                        // Content-Type). This is the canonical public path the operator
+                        // sees in the browser AND the URL Meta's crawler fetches.
+                        const url = `${base}/api/uploads/instagram/${yyyy}/${mm}/${filename}`
 
                         uploaded.push({
                                 url,
