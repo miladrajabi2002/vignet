@@ -235,9 +235,22 @@ export async function sendImage(
 }
 
 /**
- * Send an audio attachment (voice note). The URL must point to an audio file
- * (mp3 / m4a / ogg) served over HTTPS. For TTS-generated replies, the calling
- * code should upload the audio to a public bucket first.
+ * Send an audio attachment (voice note).
+ *
+ * TWO strategies, tried in order:
+ *
+ * 1. **Direct filedata upload (multipart)** — download the audio file server-side
+ *    and POST it as `filedata` to the `/me/messages` endpoint. This bypasses
+ *    Meta's URL-crawler entirely (no fetch from Meta's side), which avoids
+ *    issues with moov atom placement, Range request support, or download
+ *    timeouts. This is the MOST reliable method.
+ *
+ * 2. **URL payload (fallback)** — if the direct download fails (e.g. the audio
+ *    URL is unreachable from the server), fall back to sending the URL and let
+ *    Meta's crawler fetch it.
+ *
+ * The audio file must be AAC (m4a), WAV, or MP4-with-AAC. MP3 and Opus-in-mp4
+ * are rejected by Meta with "Upload failed (code=100)".
  */
 export async function sendAudio(
         channelConfig: Prisma.JsonValue,
@@ -247,8 +260,77 @@ export async function sendAudio(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendAudio: missing access token')
 
+        // Pre-flight: verify the URL is reachable + correct content-type.
         await preflightMedia(audioUrl, 'AUDIO')
 
+        // ── Strategy 1: Direct filedata upload (multipart) ──
+        // Download the file and POST it as multipart form data. This is the
+        // most reliable method — Meta doesn't need to fetch anything.
+        try {
+                const fileRes = await fetch(audioUrl, { redirect: 'follow' })
+                if (fileRes.ok) {
+                        const audioBuf = Buffer.from(await fileRes.arrayBuffer())
+                        if (audioBuf.byteLength > 0) {
+                                console.log(
+                                        `[ig-audio] sending filedata directly (${audioBuf.byteLength} bytes) → ${messagesUrl()}`,
+                                )
+                                // Build multipart/form-data manually (no dependency on `form-data` pkg).
+                                const boundary = `----vignet${Date.now()}`
+                                const ext = audioUrl.split('.').pop()?.toLowerCase() ?? 'm4a'
+                                const filename = `voice.${ext}`
+                                const mime =
+                                        ext === 'wav' ? 'audio/wav' : ext === 'mp3' ? 'audio/mpeg' : 'audio/mp4'
+                                const messageJson = JSON.stringify({
+                                        recipient: { id: chatId },
+                                        message: {
+                                                attachment: {
+                                                        type: 'audio',
+                                                        payload: { is_reusable: false },
+                                                },
+                                        },
+                                        messaging_type: MESSAGING_TYPE_RESPONSE,
+                                })
+                                const body = Buffer.concat([
+                                        Buffer.from(`--${boundary}\r\n`),
+                                        Buffer.from(
+                                                `Content-Disposition: form-data; name="message"\r\n\r\n`,
+                                        ),
+                                        Buffer.from(`${messageJson}\r\n`),
+                                        Buffer.from(`--${boundary}\r\n`),
+                                        Buffer.from(
+                                                `Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`,
+                                        ),
+                                        Buffer.from(`Content-Type: ${mime}\r\n\r\n`),
+                                        audioBuf,
+                                        Buffer.from(`\r\n--${boundary}--\r\n`),
+                                ])
+                                const res = await fetch(messagesUrl(), {
+                                        method: 'POST',
+                                        headers: {
+                                                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                                                Authorization: `Bearer ${token}`,
+                                        },
+                                        body,
+                                })
+                                if (res.ok) {
+                                        console.log('[ig-audio] ✓ filedata upload succeeded')
+                                        return
+                                }
+                                // If filedata failed, log and fall through to URL method.
+                                const errText = await res.text().catch(() => '')
+                                console.warn(
+                                        `[ig-audio] filedata upload failed (${res.status}): ${errText.slice(0, 300)} — falling back to URL`,
+                                )
+                        }
+                }
+        } catch (e) {
+                console.warn(
+                        `[ig-audio] direct download failed: ${(e as Error).message} — falling back to URL`,
+                )
+        }
+
+        // ── Strategy 2: URL payload (fallback) ──
+        console.log(`[ig-audio] sending URL payload → ${audioUrl}`)
         const res = await fetch(messagesUrl(), {
                 method: 'POST',
                 headers: {
