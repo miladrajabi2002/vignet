@@ -1550,8 +1550,27 @@ function MessageCard({
                                 message.type === 'AUDIO' ||
                                 message.type === 'VIDEO') && (
                                 <div className="space-y-3">
-                                        {/* AUDIO: stacked "ضبط صدا" (record) section above "آپلود فایل صوتی" (upload) section. */}
-                                        {message.type === 'AUDIO' && (
+                                        {/* AUDIO: show EITHER the recorder OR the uploaded-file preview,
+                                            never both at once. When a file is already uploaded
+                                            (message.mediaUrl set), show the audio player + a "حذف"
+                                            button. Otherwise show the recorder + the upload fallback. */}
+                                        {message.type === 'AUDIO' && message.mediaUrl ? (
+                                                <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                                                <Mic className="h-3.5 w-3.5" />
+                                                                ویس ضبط‌شده
+                                                        </p>
+                                                        <audio src={message.mediaUrl} controls className="h-9 w-full" />
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => onUpdate({ mediaUrl: undefined })}
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                        >
+                                                                <Trash2 className="h-3 w-3" />
+                                                                حذف و ضبط دوباره
+                                                        </button>
+                                                </div>
+                                        ) : message.type === 'AUDIO' ? (
                                                 <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
                                                         <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
                                                                 <Mic className="h-3.5 w-3.5" />
@@ -1574,29 +1593,23 @@ function MessageCard({
                                                                         {voiceError}
                                                                 </p>
                                                         )}
-                                                        {message.mediaUrl && (
-                                                                <audio src={message.mediaUrl} controls className="h-9 w-full" />
-                                                        )}
                                                 </div>
-                                        )}
+                                        ) : null}
 
-                                        <div className="space-y-2">
-                                                {message.type === 'AUDIO' && (
-                                                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
-                                                                <Upload className="h-3.5 w-3.5" />
-                                                                آپلود فایل صوتی
-                                                        </p>
-                                                )}
-                                                <MediaUploader
-                                                        kind={message.type}
-                                                        maxImages={1}
-                                                        initial={initialItems}
-                                                        onChange={(items: MediaItem[]) => {
-                                                                if (items.length === 0) {
-                                                                        onUpdate({ mediaUrl: undefined })
-                                                                        return
-                                                                }
-                                                                const first = items[0]
+                                        {/* MediaUploader only for IMAGE/VIDEO. For AUDIO, the recorder
+                                            above handles file capture; no duplicate uploader. */}
+                                        {message.type !== 'AUDIO' && (
+                                                <div className="space-y-2">
+                                                        <MediaUploader
+                                                                kind={message.type}
+                                                                maxImages={1}
+                                                                initial={initialItems}
+                                                                onChange={(items: MediaItem[]) => {
+                                                                        if (items.length === 0) {
+                                                                                onUpdate({ mediaUrl: undefined })
+                                                                                return
+                                                                        }
+                                                                        const first = items[0]
                                                                 // Per the MediaUploader contract: prefer `remoteUrl`
                                                                 // (the real S3 URL) and fall back to `url` (which
                                                                 // may be a blob: URL while still uploading).
@@ -1607,7 +1620,8 @@ function MessageCard({
                                                                 })
                                                         }}
                                                 />
-                                        </div>
+                                                </div>
+                                        )}
 
                                         {(message.type === 'IMAGE' || message.type === 'VIDEO') && (
                                                 <div className="space-y-1.5">
