@@ -193,12 +193,12 @@ function DMScreen(props: ScreenProps) {
                 >
                         <StatusBar />
 
-                        {/* ── Chat header — IG DM style ──
-                            Back arrow (RTL-aware) + avatar + username + "Business chat"
+                        {/* ── Chat header — IG DM style (LTR so back button is on the LEFT) ──
+                            Back arrow + avatar + username + "Business chat"
                             subtitle + call/video/tag icons on the right. Matches the
                             iPhone 16 Pro screenshot layout. */}
-                        <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black rtl:rotate-180" aria-hidden>
+                        <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black" aria-hidden>
                                         <polyline points="15 18 9 12 15 6" />
                                 </svg>
                                 <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
@@ -495,134 +495,123 @@ function StoryScreen(props: ScreenProps) {
 
         return (
                 <div
-                        className="relative flex h-full w-full flex-col"
+                        className="flex h-full flex-col bg-white"
                         style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
                 >
-                        {/* ── Top 55%: Story viewer ── */}
-                        <div className="relative flex h-[55%] flex-col overflow-hidden">
-                                {/* Story gradient background */}
-                                <div
-                                        className="absolute inset-0"
-                                        style={{ background: IG_GRADIENT }}
-                                        aria-hidden
-                                />
-                                <div className="absolute inset-0 bg-black/25" aria-hidden />
+                        <StatusBar />
 
-                                <StatusBar dark />
-
-                                {/* Story progress bar — single segment (this story) */}
-                                <div className="relative z-10 flex gap-1 px-3 pt-1">
-                                        <div className="h-[2.5px] flex-1 overflow-hidden rounded-full bg-white/30">
-                                                <div className="h-full rounded-full bg-white" style={{ width: '65%' }} />
-                                        </div>
-                                </div>
-
-                                {/* Story header — avatar + @username + 3h + more */}
-                                <div className="relative z-10 flex items-center gap-2 px-3 py-2.5">
-                                        <Avatar url={accountAvatarUrl} name={accountUsername} size={28} ring />
-                                        <p className="text-[12px] font-semibold text-white">{accountUsername}</p>
-                                        <span className="text-[11px] text-white/70">۳ ساعت پیش</span>
-                                        <MoreHorizontal className="ms-auto h-4 w-4 text-white" />
-                                </div>
-
-                                {/* Story body — SAMPLE content (NOT userText, which is the user's reply) */}
-                                <div className="relative z-10 flex flex-1 items-center justify-center px-8">
-                                        <p className="text-center text-[14px] font-medium leading-relaxed text-white/95">
-                                                ✨ استوری نمونه — برای پیش‌نمایش
+                        {/* ── Chat header — same as DM (LTR so back button is on the LEFT) ── */}
+                        <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-black" aria-hidden>
+                                        <polyline points="15 18 9 12 15 6" />
+                                </svg>
+                                <Avatar url={accountAvatarUrl} name={accountUsername} size={32} />
+                                <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[12px] font-bold leading-tight text-black">
+                                                {accountUsername}
                                         </p>
+                                        <p className="text-[9px] leading-tight text-black/50">Business chat</p>
                                 </div>
-
-                                {/* Reply bar at the bottom of the story zone */}
-                                <div className="relative z-20 flex items-center gap-2 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-3 pb-4">
-                                        <div className="flex flex-1 items-center rounded-full border border-white/40 bg-black/25 px-4 py-2 backdrop-blur-md">
-                                                <span className="text-[12px] text-white/70">Send Message</span>
-                                        </div>
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md">
-                                                <Heart className="h-4 w-4" />
-                                        </div>
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md">
-                                                <Send className="h-4 w-4" />
-                                        </div>
-                                </div>
+                                <Phone className="h-[16px] w-[16px] text-black" strokeWidth={2} />
+                                <Video className="h-[17px] w-[17px] text-black" strokeWidth={2} />
                         </div>
 
-                        {/* ── Bottom 45%: DM conversation thread (story reply + bot responses) ── */}
-                        <div className="flex h-[45%] flex-col bg-white">
-                                {/* Separator header */}
-                                <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
-                                        <span className="text-[10px] font-semibold text-black/60">پاسخ به استوری</span>
-                                </div>
+                        {/* ── Messages — same layout as DM, but with story thumbnail ── */}
+                        <div dir="ltr" className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2.5 no-scrollbar">
+                                {/* Timestamp */}
+                                <div className="text-center text-[8px] text-black/40">19:06</div>
 
-                                {/* Conversation thread */}
-                                <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 py-2 no-scrollbar">
-                                        {/* User's reply — right-aligned gray bubble (#efefef, matches DM) */}
-                                        <div className="flex justify-end">
-                                                <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[#efefef] px-2.5 py-1.5 text-[11px] text-black">
-                                                        {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
+                                {/* "Replied to your story" label + story thumbnail */}
+                                <div className="flex flex-col items-center gap-1 py-1">
+                                        <p className="text-[9px] text-black/50">Replied to your story</p>
+                                        {/* Story thumbnail — vertical, gradient background (sample story) */}
+                                        <div
+                                                className="relative h-[80px] w-[48px] overflow-hidden rounded-lg shadow-sm"
+                                                style={{ background: IG_GRADIENT }}
+                                        >
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-[7px] font-medium text-white/90">Story</span>
                                                 </div>
                                         </div>
-
-                                        {/* Bot responses — left-aligned blue bubbles (#5e5ce6, matches DM) */}
-                                        {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0 && (
-                                                visibleMessages.map((m) => (
-                                                        <div key={m.id} className="flex justify-start">
-                                                                <div
-                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white shadow-sm"
-                                                                        style={{ background: IG_BLUE }}
-                                                                >
-                                                                        {m.text?.trim() ? m.text : 'متن پاسخ…'}
-                                                                </div>
-                                                        </div>
-                                                ))
-                                        )}
-                                        {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length === 0 && (
-                                                <div className="flex justify-start">
-                                                        <div
-                                                                className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white/70 shadow-sm"
-                                                                style={{ background: IG_BLUE }}
-                                                        >
-                                                                پاسخ خود را بنویسید…
-                                                        </div>
-                                                </div>
-                                        )}
-                                        {replyMode === 'AI' && (
-                                                <div className="flex justify-start">
-                                                        <div
-                                                                className="rounded-2xl rounded-bl-md px-2.5 py-2 text-[11px] text-white shadow-sm"
-                                                                style={{ background: IG_BLUE }}
-                                                        >
-                                                                <TypingDots />
-                                                        </div>
-                                                </div>
-                                        )}
-                                        {replyMode === 'SILENT' && (
-                                                <div className="text-center text-[10px] text-black/40">بدون پاسخ خودکار</div>
-                                        )}
-                                        {replyMode === 'STOP_AI' && (
-                                                <div className="text-center text-[10px] text-red-500">هوش مصنوعی متوقف شد</div>
-                                        )}
-
-                                        {/* Follow-up message */}
-                                        {followUpEnabled && followUpMessage?.trim() && (
-                                                <>
-                                                        <div className="my-0.5 text-center text-[8px] text-black/30">
-                                                                بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
-                                                        </div>
-                                                        <div className="flex justify-start">
-                                                                <div
-                                                                        className="max-w-[80%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11px] text-white shadow-sm"
-                                                                        style={{ background: IG_BLUE }}
-                                                                >
-                                                                        {followUpMessage}
-                                                                </div>
-                                                        </div>
-                                                </>
-                                        )}
                                 </div>
+
+                                {/* User's reply — right-aligned gray bubble (#efefef) */}
+                                <div className="flex justify-end">
+                                        <div className="max-w-[78%] rounded-2xl rounded-br-md bg-[#efefef] px-2.5 py-1.5 text-[11.5px] leading-relaxed text-black">
+                                                {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
+                                        </div>
+                                </div>
+
+                                {/* Bot responses — left-aligned blue bubbles (#5e5ce6) */}
+                                {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0 && (
+                                        visibleMessages.map((m) => (
+                                                <div key={m.id} className="space-y-1">
+                                                        <MessageBubble message={m} />
+                                                </div>
+                                        ))
+                                )}
+                                {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length === 0 && (
+                                        <div className="flex justify-start">
+                                                <div
+                                                        className="max-w-[78%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white/70 shadow-sm"
+                                                        style={{ background: IG_BLUE }}
+                                                >
+                                                        پاسخ خود را بنویسید…
+                                                </div>
+                                        </div>
+                                )}
+                                {replyMode === 'AI' && (
+                                        <div className="flex justify-start">
+                                                <div
+                                                        className="rounded-2xl rounded-bl-md px-2.5 py-2 text-[11px] text-white shadow-sm"
+                                                        style={{ background: IG_BLUE }}
+                                                >
+                                                        <TypingDots />
+                                                </div>
+                                        </div>
+                                )}
+                                {replyMode === 'SILENT' && (
+                                        <div className="text-center text-[10px] text-black/40">بدون پاسخ خودکار</div>
+                                )}
+                                {replyMode === 'STOP_AI' && (
+                                        <div className="text-center text-[10px] text-red-500">هوش مصنوعی متوقف شد</div>
+                                )}
+
+                                {/* "Seen" indicator (like real IG) */}
+                                {((replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0) && (
+                                        <div className="text-end pe-1 text-[8px] text-black/40">Seen just now</div>
+                                )}
+
+                                {/* Follow-up message */}
+                                {followUpEnabled && followUpMessage?.trim() && (
+                                        <>
+                                                <div className="my-0.5 text-center text-[8px] text-black/30">
+                                                        بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
+                                                </div>
+                                                <div className="flex justify-start">
+                                                        <div
+                                                                className="max-w-[78%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white shadow-sm"
+                                                                style={{ background: IG_BLUE }}
+                                                        >
+                                                                {followUpMessage}
+                                                        </div>
+                                                </div>
+                                        </>
+                                )}
+                        </div>
+
+                        {/* ── Input bar — same as DM ── */}
+                        <div dir="ltr" className="flex items-center gap-2 px-2.5 py-2 pb-3">
+                                <Camera className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
+                                <div className="flex flex-1 items-center gap-2 rounded-full bg-black/[0.05] px-3 py-1.5">
+                                        <span className="flex-1 text-[11px] text-black/40">Message...</span>
+                                        <Mic className="h-[14px] w-[14px] shrink-0 text-black/50" />
+                                </div>
+                                <Heart className="h-[20px] w-[20px] shrink-0 text-[#5e5ce6]" strokeWidth={1.8} />
                         </div>
 
                         {/* Home indicator */}
-                        <div className="absolute bottom-[6px] left-1/2 z-30 h-[5px] w-[110px] -translate-x-1/2 rounded-full bg-black/30" />
+                        <div className="absolute bottom-[5px] left-1/2 z-30 h-[4px] w-[90px] -translate-x-1/2 rounded-full bg-black/30" />
                 </div>
         )
 }
@@ -649,8 +638,8 @@ function CommentScreen(props: ScreenProps) {
                 >
                         <StatusBar />
 
-                        {/* Mini post header */}
-                        <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
+                        {/* Mini post header (LTR) */}
+                        <div dir="ltr" className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-1.5">
                                 <Avatar url={accountAvatarUrl} name={accountUsername} size={26} />
                                 <p className="text-[11px] font-semibold text-black">{accountUsername}</p>
                                 <span className="text-[10px] font-semibold text-[#3897f0]">• Follow</span>
