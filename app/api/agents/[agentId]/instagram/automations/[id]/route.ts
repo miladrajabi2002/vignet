@@ -28,15 +28,18 @@ const updateSchema = z.object({
       messages: z
         .array(
           z.object({
-            type: z.enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT']).optional(),
+            type: z
+              .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
+              .optional(),
             text: z.string().optional(),
             mediaUrl: z.string().optional(),
             productId: z.string().optional(),
+            buttons: z.array(z.string()).max(3).optional(),
           }),
         )
         .optional(),
       mediaType: z
-        .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT'])
+        .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
         .optional(),
       mediaUrl: z.string().optional(),
       productId: z.string().optional(),

@@ -15,10 +15,13 @@ const triggerSchema = z.object({
 })
 
 const messageEntrySchema = z.object({
-        type: z.enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT']).default('TEXT'),
+        type: z
+                .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
+                .default('TEXT'),
         text: z.string().optional(),
         mediaUrl: z.string().optional(),
         productId: z.string().optional(),
+        buttons: z.array(z.string()).max(3).optional(),
 })
 
 const actionSchema = z.object({
@@ -28,7 +31,7 @@ const actionSchema = z.object({
         replyText: z.string().default(''),
         messages: z.array(messageEntrySchema).default([]),
         mediaType: z
-                .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'PRODUCT'])
+                .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
                 .default('TEXT'),
         mediaUrl: z.string().default(''),
         productId: z.string().default(''),

@@ -97,13 +97,20 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
-/** Platforms that render quick-reply buttons (Rubika's bot API has no keyboard support we rely on). */
+/** Platforms that render quick-reply buttons.
+ *
+ * NOTE (FRONTEND-AUTO-V3): Instagram is excluded — the dedicated Instagram
+ * automation tab (`/agents/{agentId}/instagram`) is the canonical place to
+ * manage quick replies / message builders for IG. Showing the legacy
+ * quick-replies card on the channels page for IG was redundant and confusing.
+ * Telegram/Bale/WhatsApp keep it; Rubika's bot API has no keyboard support.
+ */
 const SUPPORTS_QUICK_REPLIES: Record<MessengerKind, boolean> = {
   TELEGRAM: true,
   BALE: true,
   RUBIKA: false,
   WHATSAPP: true,
-  INSTAGRAM: true,
+  INSTAGRAM: false,
 }
 
 /**

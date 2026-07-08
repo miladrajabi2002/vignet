@@ -7,6 +7,7 @@ import {
   exchangeCodeForUserToken,
   exchangeForLongLivedToken,
   getInstagramProfile,
+  subscribeIgUserToWebhook,
 } from '@/lib/instagram/oauth'
 import { buildInstagramOAuthConfig } from '@/lib/instagram/config'
 
@@ -99,6 +100,16 @@ export async function GET(req: Request) {
         webhookUrl,
       },
     })
+
+    // 5) Subscribe the IG user to the app's webhook fields so Meta starts
+    //    delivering message/comment/story events to /api/webhook/instagram.
+    //    This is CRITICAL — without it, no webhooks arrive even if the app
+    //    is Live and the webhook URL is configured. Best-effort: if it fails,
+    //    the channel is still saved and the operator can retry from diagnostics.
+    await subscribeIgUserToWebhook(profile.igUserId, longTok.token).catch(
+      (e) =>
+        console.error('[instagram:oauth] webhook subscription failed:', e),
+    )
 
     await syncOnboarding(state.workspaceId)
 

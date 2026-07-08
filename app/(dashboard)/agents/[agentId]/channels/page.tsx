@@ -192,6 +192,18 @@ export default async function AgentChannelsPage(
           isMeta && m.type === 'WHATSAPP' && webhookToken
             ? `${appUrl}/api/webhook/${WEBHOOK_PATH[m.type]}/${webhookToken}`
             : null
+        // FRONTEND-AUTO-V3: Instagram no longer renders the legacy quick-replies
+        // editor on this page — the dedicated `/agents/{agentId}/instagram`
+        // automation tab is the canonical place for IG message builders.
+        // We deliberately pass an empty array for IG so MessengerChannel never
+        // renders the ChannelSettings card (also guarded by
+        // SUPPORTS_QUICK_REPLIES.INSTAGRAM = false in messenger-channel.tsx).
+        const quickReplies =
+          m.type === 'INSTAGRAM'
+            ? []
+            : ch
+              ? normalizeMessengerSettings(ch.config).quickReplies
+              : []
 
         return (
           <MessengerChannel
@@ -206,7 +218,7 @@ export default async function AgentChannelsPage(
             callbackUrl={callbackUrl}
             verifyToken={m.type === 'WHATSAPP' ? webhookToken || null : null}
             lastInboundAt={ch?.lastInboundAt ? ch.lastInboundAt.toISOString() : null}
-            quickReplies={ch ? normalizeMessengerSettings(ch.config).quickReplies : []}
+            quickReplies={quickReplies}
             botAvatar={botAvatar || null}
           />
         )

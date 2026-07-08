@@ -321,3 +321,75 @@ export async function getInstagramProfile(
     biography: data.biography,
   }
 }
+
+/**
+ * Subscribe the connected Instagram account to the app's webhook fields.
+ *
+ * With Instagram API with Instagram Login, the OAuth flow automatically
+ * subscribes the IG user to the app's webhook — BUT only if the webhook
+ * endpoint (Callback URL + Verify Token) is already configured in the Meta
+ * App dashboard. If the webhook isn't configured yet, the auto-subscription
+ * silently fails and NO events will be delivered.
+ *
+ * This function explicitly calls `POST /{ig-user-id}/subscribed_apps` to
+ * (re)subscribe the IG user to the `messages`, `comments`, `story_mention`,
+ * and `mentions` fields. It's idempotent and safe to call on every connect.
+ *
+ * Returns the list of subscribed fields on success, or null on failure (the
+ * channel is still saved — the operator can retry subscription from the
+ * diagnostics panel).
+ */
+export async function subscribeIgUserToWebhook(
+  igUserId: string,
+  igToken: string,
+): Promise<string[] | null> {
+  try {
+    const url = new URL(`${GRAPH_BASE}/${igUserId}/subscribed_apps`)
+    url.searchParams.set('access_token', igToken)
+    url.searchParams.set(
+      'subscribed_fields',
+      'messages,messaging_postbacks,comments,story_mention,mentions',
+    )
+    const res = await fetch(url, { method: 'POST' })
+    const data = (await res.json()) as {
+      success?: boolean
+      error?: { message?: string; code?: number }
+    }
+    if (!res.ok || !data.success) {
+      console.error(
+        `[instagram] subscribeIgUserToWebhook(${igUserId}) failed:`,
+        data,
+      )
+      return null
+    }
+    return ['messages', 'messaging_postbacks', 'comments', 'story_mention', 'mentions']
+  } catch (e) {
+    console.error('[instagram] subscribeIgUserToWebhook error:', e)
+    return null
+  }
+}
+
+/**
+ * Verify that the webhook subscription is active for an IG user. Returns the
+ * list of subscribed fields, or null if the user is not subscribed (which
+ * means webhooks will NOT be delivered for this account).
+ */
+export async function getIgUserWebhookSubscription(
+  igUserId: string,
+  igToken: string,
+): Promise<string[] | null> {
+  try {
+    const url = new URL(`${GRAPH_BASE}/${igUserId}/subscribed_apps`)
+    url.searchParams.set('access_token', igToken)
+    const res = await fetch(url, { method: 'GET' })
+    const data = (await res.json()) as {
+      data?: Array<{ subscribed_fields?: string[] }>
+      error?: { message?: string }
+    }
+    if (!res.ok) return null
+    const subs = data.data?.[0]?.subscribed_fields ?? []
+    return subs.length ? subs : null
+  } catch {
+    return null
+  }
+}
