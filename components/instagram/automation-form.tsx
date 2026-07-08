@@ -157,7 +157,6 @@ export function AutomationForm({
         const [keywordInput, setKeywordInput] = useState('')
         const [busy, setBusy] = useState(false)
         const [error, setError] = useState<string | null>(null)
-        const [addMenuOpen, setAddMenuOpen] = useState(false)
         const nameRef = useRef<HTMLInputElement>(null)
 
         // Auto-focus name on mount.
@@ -209,7 +208,6 @@ export function AutomationForm({
                                                 : { id: newMessageId(), type: t, text: '' }
                         return { ...f, messages: [...f.messages, msg] }
                 })
-                setAddMenuOpen(false)
         }
 
         function updateMessage(id: string, patch: Partial<AutomationMessage>) {
@@ -259,8 +257,17 @@ export function AutomationForm({
                 trigger: AutomationTrigger
                 action: AutomationAction
         } {
-                // Trigger keywords — empty when filter = ANY (matches all messages).
-                const effectiveKeywords = form.keywordFilter === 'SPECIFIC' ? form.keywords : []
+                // Trigger keywords.
+                //  - DM: keywords are always user-supplied (empty = match all
+                //    messages, per the field description). The keywordFilter
+                //    toggle is NOT shown for DMs, so we must NOT gate on it —
+                //    otherwise every DM save silently strips the keywords
+                //    (keywordFilter defaults to 'ANY' and there is no UI to
+                //    flip it to 'SPECIFIC'). This was the root cause of the
+                //    "شرط اجرا resets on save" bug.
+                //  - COMMENT / STORY: respect the explicit ANY/SPECIFIC toggle.
+                const effectiveKeywords =
+                        isDm || form.keywordFilter === 'SPECIFIC' ? form.keywords : []
                 const effectivePostIds =
                         type === 'COMMENT' && form.postFilter === 'SPECIFIC'
                                 ? splitTags(form.postIdsText)
@@ -624,11 +631,9 @@ export function AutomationForm({
                                                                 onUpdate={updateMessage}
                                                                 onRemove={removeMessage}
                                                                 onMove={moveMessage}
-                                                                addMenuOpen={addMenuOpen}
-                                                                setAddMenuOpen={setAddMenuOpen}
                                                         />
                                                         <p className="text-[11px] text-[var(--text-muted)]">
-                                                                پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.
+                                                                پیام‌ها به‌ترتیب ارسال می‌شوند. با کلیک روی دکمه‌های بالا، متن، عکس، وویس، ویدیو، کلید یا ویترین محصول را به دنباله اضافه کنید.
                                                         </p>
                                                 </Section>
                                         )}
@@ -767,9 +772,9 @@ export function AutomationForm({
                                                 </Section>
                                         )}
 
-                                        {/* ─── Follow gate (collapsed by default) ─────────────────── */}
+                                        {/* ─── Follow gate (always visible, no collapse) ─────────── */}
                                         {(isDm || isStory) && (
-                                                <Section title="شرط دنبال کردن" Icon={Shield} collapsible defaultCollapsed>
+                                                <Section title="شرط دنبال کردن" Icon={Shield}>
                                                         <div className="flex items-start justify-between gap-3">
                                                                 <div className="flex min-w-0 items-start gap-2.5">
                                                                         <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
@@ -1205,8 +1210,6 @@ function MessageBuilder({
         onUpdate,
         onRemove,
         onMove,
-        addMenuOpen,
-        setAddMenuOpen,
 }: {
         messages: AutomationMessage[]
         channelId: string
@@ -1214,8 +1217,6 @@ function MessageBuilder({
         onUpdate: (id: string, patch: Partial<AutomationMessage>) => void
         onRemove: (id: string) => void
         onMove: (id: string, dir: -1 | 1) => void
-        addMenuOpen: boolean
-        setAddMenuOpen: (v: boolean) => void
 }) {
         const addOptions: { value: MessageType; label: string; Icon: LucideIcon }[] = [
                 { value: 'TEXT', label: 'متن', Icon: Type },
@@ -1225,67 +1226,63 @@ function MessageBuilder({
         ]
 
         return (
-                <div className="space-y-3">
-                        {messages.length === 0 && (
+                <div className="space-y-4">
+                        {/* Type-selector row — always visible, click to add a message of that type */}
+                        <div>
+                                <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
+                                        افزودن پیام به دنباله
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                        {addOptions.map(({ value, label, Icon }) => (
+                                                <button
+                                                        key={value}
+                                                        type="button"
+                                                        onClick={() => onAdd(value)}
+                                                        className="group flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2 py-3 text-center transition-all hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface)]"
+                                                >
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]">
+                                                                <Icon className="h-4 w-4" />
+                                                        </div>
+                                                        <span className="text-[11px] font-medium leading-tight text-[var(--text-primary)]">
+                                                                {label}
+                                                        </span>
+                                                </button>
+                                        ))}
+                                </div>
+                        </div>
+
+                        {/* Message cards — connected by a vertical timeline line on the start side */}
+                        {messages.length > 0 ? (
+                                <div className="space-y-3">
+                                        {messages.map((m, idx) => (
+                                                <div key={m.id} className="relative">
+                                                        {idx > 0 && (
+                                                                <div
+                                                                        className="absolute -top-3 start-[23px] h-3 w-px bg-[var(--border-default)]"
+                                                                        aria-hidden
+                                                                />
+                                                        )}
+                                                        <MessageCard
+                                                                message={m}
+                                                                index={idx}
+                                                                total={messages.length}
+                                                                channelId={channelId}
+                                                                onUpdate={(patch) => onUpdate(m.id, patch)}
+                                                                onRemove={() => onRemove(m.id)}
+                                                                onMoveUp={() => onMove(m.id, -1)}
+                                                                onMoveDown={() => onMove(m.id, 1)}
+                                                        />
+                                                </div>
+                                        ))}
+                                </div>
+                        ) : (
                                 <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-6 text-center">
                                         <MessageCircle className="mx-auto h-6 w-6 text-[var(--text-muted)]" />
                                         <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                                                هنوز پیامی اضافه نشده. اولین پیام را اضافه کنید.
+                                                هنوز پیامی اضافه نشده. با کلیک روی یکی از دکمه‌های بالا اولین پیام را اضافه کنید.
                                         </p>
                                 </div>
                         )}
-
-                        {messages.map((m, idx) => (
-                                <MessageCard
-                                        key={m.id}
-                                        message={m}
-                                        index={idx}
-                                        total={messages.length}
-                                        channelId={channelId}
-                                        onUpdate={(patch) => onUpdate(m.id, patch)}
-                                        onRemove={() => onRemove(m.id)}
-                                        onMoveUp={() => onMove(m.id, -1)}
-                                        onMoveDown={() => onMove(m.id, 1)}
-                                />
-                        ))}
-
-                        {/* Add message dropdown */}
-                        <div className="relative">
-                                <button
-                                        type="button"
-                                        onClick={() => setAddMenuOpen(!addMenuOpen)}
-                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-xs font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
-                                >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        افزودن پیام
-                                        <ChevronDown className="h-3 w-3" />
-                                </button>
-                                {addMenuOpen && (
-                                        <>
-                                                <button
-                                                        type="button"
-                                                        aria-label="بستن منو"
-                                                        className="fixed inset-0 z-40 cursor-default"
-                                                        onClick={() => setAddMenuOpen(false)}
-                                                />
-                                                <div className="absolute z-50 mt-1 w-56 overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-lg">
-                                                        {addOptions.map(({ value, label, Icon }) => (
-                                                                <button
-                                                                        key={value}
-                                                                        type="button"
-                                                                        onClick={() => onAdd(value)}
-                                                                        className="flex w-full items-center gap-2.5 border-b border-[var(--border-subtle)] px-3 py-2.5 text-start text-xs text-[var(--text-primary)] transition-colors last:border-0 hover:bg-[var(--bg-hover)]"
-                                                                >
-                                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                                                                                <Icon className="h-3.5 w-3.5" />
-                                                                        </div>
-                                                                        {label}
-                                                                </button>
-                                                        ))}
-                                                </div>
-                                        </>
-                                )}
-                        </div>
                 </div>
         )
 }

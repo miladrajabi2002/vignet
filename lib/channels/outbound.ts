@@ -1,6 +1,7 @@
 import type { ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
+import { readPageToken } from '@/lib/instagram/config'
 import { getAdapter, isMessengerType } from '@/lib/channels/registry'
 
 /**
@@ -11,6 +12,13 @@ import { getAdapter, isMessengerType } from '@/lib/channels/registry'
  * Returns true when delivered. Web-widget / API channels can't be pushed to
  * (they're request/response), so those return false and the message is only
  * persisted in the thread.
+ *
+ * Token resolution:
+ *   - Telegram / Bale / Rubika / WhatsApp use the legacy `botTokenEnc` field
+ *     (read via `readBotToken`).
+ *   - Instagram OAuth channels store the access token under `userTokenEnc`
+ *     (or `pageTokenEnc` for legacy FB Login) — read via `readPageToken`. We
+ *     fall back to it when `readBotToken` returns null.
  */
 export async function sendOutbound(
   agentId: string,
@@ -26,7 +34,9 @@ export async function sendOutbound(
   })
   if (!ch) return false
 
-  const token = readBotToken(ch.config)
+  const token =
+    readBotToken(ch.config) ??
+    (channel === 'INSTAGRAM' ? readPageToken(ch.config) : null)
   if (!token) return false
 
   await getAdapter(channel, token).sendText(externalId, text)

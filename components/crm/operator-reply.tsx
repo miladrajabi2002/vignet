@@ -58,6 +58,18 @@ export function OperatorReply({
   return (
     <div className="space-y-1.5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
       <div className="flex items-end gap-2">
+        <button
+          onClick={send}
+          disabled={busy || !text.trim()}
+          aria-label={t('send')}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.04] active:scale-95 disabled:opacity-40"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4 rtl:-scale-x-100" />
+          )}
+        </button>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -68,18 +80,6 @@ export function OperatorReply({
           placeholder={t('replyPlaceholder')}
           className="max-h-40 min-h-[2.5rem] flex-1 resize-y rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
         />
-        <button
-          onClick={send}
-          disabled={busy || !text.trim()}
-          className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
-        >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4 rtl:rotate-180" />
-          )}
-          {busy ? t('sending') : t('send')}
-        </button>
       </div>
       {error ? (
         <p className="text-xs text-danger">{t('replyFailed')}</p>
