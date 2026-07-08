@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -131,4 +132,65 @@ export async function POST(_req: Request, props: Params) {
   }
 
   return NextResponse.json({ ok: true, subscribedFields: result })
+}
+
+/**
+ * Fix the stored igUserId when it doesn't match what Meta sends in webhooks.
+ *
+ * With Instagram API with Instagram Login, the id returned by `GET /me`
+ * (which we store as igUserId) can DIFFER from the id Meta sends as
+ * `recipient.id` in webhook payloads. This is a known Meta behavior. When that
+ * happens, the demux can't find the channel and messages are silently dropped.
+ *
+ * This endpoint takes a `recipientId` (extracted from a webhook payload's
+ * `entry[].messaging[].recipient.id`) and updates the channel config to use it
+ * as the primary `igUserId`. After this, the demux will match.
+ *
+ * Body: `{ recipientId: string }` — the id Meta sent as recipient.id.
+ */
+export async function PUT(req: Request, props: Params) {
+  const params = await props.params
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const agent = await prisma.agent.findFirst({
+    where: { id: params.agentId, workspaceId: user.workspaceId },
+    select: {
+      id: true,
+      channels: { where: { type: 'INSTAGRAM' }, select: { id: true, config: true } },
+    },
+  })
+  if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+  const channel = agent.channels[0]
+  if (!channel) return NextResponse.json({ error: 'IG_NOT_CONNECTED' }, { status: 400 })
+
+  const body = (await req.json().catch(() => null)) as {
+    recipientId?: string
+    igUserId?: string
+  }
+  const newId = body?.recipientId ?? body?.igUserId
+  if (!newId || !/^\d+$/.test(newId)) {
+    return NextResponse.json(
+      { error: 'INVALID_ID', hint: 'recipientId must be a numeric string.' },
+      { status: 400 },
+    )
+  }
+
+  // Merge the new igUserId into the existing config.
+  const config =
+    (channel.config as Record<string, unknown> | null) ?? {}
+  const updated: Record<string, unknown> = {
+    ...config,
+    igUserId: newId,
+  }
+  await prisma.agentChannel.update({
+    where: { id: channel.id },
+    data: { config: updated as unknown as Prisma.InputJsonValue },
+  })
+
+  return NextResponse.json({
+    ok: true,
+    igUserId: newId,
+    note: 'igUserId به‌روز شد. حالا demux باید مطابقت داشته باشه. یک پیام تست بفرستید.',
+  })
 }

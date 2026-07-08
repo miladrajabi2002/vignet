@@ -462,57 +462,107 @@ export async function handleInbound(
 /**
  * Process a raw webhook body received by the GLOBAL Instagram webhook
  * (`/api/webhook/instagram`). The platform owns a single Meta App, so all IG
- * events arrive at one URL; we demultiplex them by the Facebook Page id carried
- * in every entry (`entry.id` for page-scoped events, or the recipient id for
- * messaging events) and route each to the channel that owns that page.
+ * events arrive at one URL.
+ *
+ * DEMUX STRATEGY (the tricky part):
+ *
+ * With Instagram API with Instagram Login, the id we stored as `igUserId`
+ * (from `GET /me`) is the IG user id of the connected account. BUT the id that
+ * appears in webhook payloads is DIFFERENT depending on the event type:
+ *
+ *   - DM events (entry[].messaging[]): the connected account's id appears as
+ *     `recipient.id` (NOT entry[].id). entry[].id is ALSO the recipient in
+ *     most cases, but we've seen payloads where entry[].id is a different id.
+ *   - Comment events (entry[].changes[] field 'comments'): the connected
+ *     account appears as `changes[].value.to.id` or `entry[].id`.
+ *   - Story mention events: similar to comments.
+ *
+ * To handle ALL cases, we extract EVERY id we can find in the payload
+ * (entry[].id, recipient.id, sender.id where it matches entry[].id, changes
+ * value.to.id/from.id) and try to resolve ANY of them. The first channel that
+ * matches any of these ids handles the whole batch.
  */
 export async function handleInstagramGlobalInbound(
         body: unknown,
 ): Promise<void> {
-        const entries = (body as { entry?: { id?: string | number }[] })?.entry
+        const entries = (
+                body as {
+                        entry?: Array<{
+                                id?: string | number
+                                messaging?: Array<{
+                                        recipient?: { id?: string | number }
+                                        sender?: { id?: string | number }
+                                }>
+                                changes?: Array<{
+                                        value?: {
+                                                to?: { id?: string | number }
+                                                from?: { id?: string | number }
+                                                recipient?: { id?: string | number }
+                                                sender?: { id?: string | number }
+                                        }
+                                }>
+                        }>
+                }
+        )?.entry
         if (!entries?.length) return
 
-        // Collect the distinct entity ids mentioned in this batch. `entry.id` is the
-        // IG user id (for Instagram Login channels) or the Facebook Page id (for
-        // legacy FB Login channels). We coerce to string because Meta sometimes
-        // sends `id` as a number in JSON, but our config stores it as a string.
-        const entityIds = new Set<string>()
+        // Collect EVERY id mentioned in the payload — entry.id, recipient.id,
+        // sender.id, changes.to.id, changes.from.id. Any of these might match our
+        // stored igUserId. We try all of them.
+        const allIds = new Set<string>()
+        const addId = (v: string | number | undefined | null) => {
+                if (v !== undefined && v !== null) allIds.add(String(v))
+        }
         for (const e of entries) {
-                if (e?.id !== undefined && e?.id !== null) {
-                        entityIds.add(String(e.id))
+                addId(e.id)
+                for (const m of e.messaging ?? []) {
+                        addId(m.recipient?.id)
+                        // NOTE: do NOT add sender.id here — that's the customer who messaged
+                        // us, not our account. Adding it would route to the wrong channel.
+                }
+                for (const c of e.changes ?? []) {
+                        addId(c.value?.to?.id)
+                        addId(c.value?.from?.id)
+                        addId(c.value?.recipient?.id)
                 }
         }
-        if (!entityIds.size) return
+        if (!allIds.size) return
 
-        // Resolve each entity to its channel and process. Multiple entities in one
-        // batch (rare) are handled independently.
-        await Promise.all(
-                Array.from(entityIds).map(async (entityId) => {
-                        try {
-                                const resolved = await resolveInstagramChannelById(entityId)
-                                if (!resolved) {
-                                        // Channel not found for this entity id. This is the #1 cause of
-                                        // "messages arrive but nothing happens" — log it to /admin/errors
-                                        // so the operator can see exactly which id Meta sent vs. what's
-                                        // stored in the channel config.
-                                        captureError(
-                                                'webhook:INSTAGRAM:no-channel',
-                                                new Error(
-                                                        `No Instagram channel found for entity id "${entityId}". ` +
-                                                                'This means the webhook received an event for an IG account that is not connected to any agent, ' +
-                                                                'OR the connected channel stores a different id (e.g. pageId instead of igUserId). ' +
-                                                                'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
-                                                ),
-                                                { metadata: { entityId, entityIds: Array.from(entityIds) } },
-                                        )
-                                        return
-                                }
-                                await processChannelInbound('INSTAGRAM', resolved, body)
-                        } catch (e) {
-                                captureError('webhook:INSTAGRAM:global', e, {
-                                        metadata: { entityId },
-                                })
-                        }
-                }),
-        )
+        // Try each id until one resolves to a channel. The first match handles the
+        // whole batch (the batch is for one account).
+        let resolved: ResolvedChannel | null = null
+        let matchedId: string | null = null
+        for (const entityId of Array.from(allIds)) {
+                const r = await resolveInstagramChannelById(entityId)
+                if (r) {
+                        resolved = r
+                        matchedId = entityId
+                        break
+                }
+        }
+
+        if (!resolved) {
+                // No channel matched ANY id in the payload. Log all the ids we tried
+                // so the operator can compare against stored igUserId values.
+                captureError(
+                        'webhook:INSTAGRAM:no-channel',
+                        new Error(
+                                `No Instagram channel found for any of the ids in this payload: ${JSON.stringify(
+                                        Array.from(allIds),
+                                )}. ` +
+                                        'Either the account is not connected, or the stored igUserId differs from all ids Meta sent. ' +
+                                        'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
+                        ),
+                        { metadata: { triedIds: Array.from(allIds) } },
+                )
+                return
+        }
+
+        try {
+                await processChannelInbound('INSTAGRAM', resolved, body)
+        } catch (e) {
+                captureError('webhook:INSTAGRAM:global', e, {
+                        metadata: { matchedId },
+                })
+        }
 }
