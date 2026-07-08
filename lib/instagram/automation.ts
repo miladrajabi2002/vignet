@@ -101,6 +101,7 @@ export interface AutomationAction {
   /** Require a follow before sending the content. */
   followGate?: boolean
   gateMode?: 'SOFT' | 'STORY_MENTION'
+  gateButtonType?: 'button' | 'quick_reply'
   gatePrompt?: string
   gateConfirmKeyword?: string
   gateQuickReply?: string
@@ -434,14 +435,20 @@ async function executeAction(
       : action.contentText || action.replyText
         ? [{ id: 'gate-content', type: 'TEXT' as const, text: action.contentText || action.replyText || '' }]
         : []
+    const gateButtonType = action.gateButtonType ?? 'button'
     const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
 
-    // Send the gate prompt as a Button Template (NOT Quick Reply).
-    // The button label is the gateQuickReply text (e.g. "دنبال کردم").
+    // Send the gate prompt using the selected button style.
     if (isComment) {
       // Comments: just send text (button templates are DM-only).
       await adapter.sendText(target, gatePrompt)
+    } else if (gateButtonType === 'quick_reply') {
+      // Quick Reply style — chip above the input.
+      await adapter.sendText(target, gatePrompt, {
+        quickReplies: [gateQuickReply],
+      })
     } else if (channelConfig) {
+      // Button Template style — button inside the bubble (default).
       try {
         await sendButtonMessage(channelConfig, target, gatePrompt, [
           { title: gateQuickReply },
@@ -474,6 +481,7 @@ async function executeAction(
           postId: msg.postId,
           storyId: msg.storyId,
           gateMode: action.gateMode,
+          gateButtonType,
           gateConfirmKeyword,
           gatePrompt,
           gateQuickReply,
@@ -767,10 +775,23 @@ async function tryFulfillFollowGate(
       const gateQuickReply = typeof payload.gateQuickReply === 'string'
         ? payload.gateQuickReply
         : 'دنبال کردم'
+      const gateButtonType = typeof payload.gateButtonType === 'string'
+        ? payload.gateButtonType
+        : 'button'
       try {
-        await sendButtonMessage(channelConfig, gate.chatId, gatePrompt, [
-          { title: gateQuickReply },
-        ])
+        if (gateButtonType === 'quick_reply') {
+          await adapter.sendText(gate.chatId, gatePrompt, {
+            quickReplies: [gateQuickReply],
+          })
+        } else if (channelConfig) {
+          await sendButtonMessage(channelConfig, gate.chatId, gatePrompt, [
+            { title: gateQuickReply },
+          ])
+        } else {
+          await adapter.sendText(gate.chatId, gatePrompt, {
+            quickReplies: [gateQuickReply],
+          })
+        }
       } catch {
         await adapter.sendText(gate.chatId, gatePrompt, {
           quickReplies: [gateQuickReply],

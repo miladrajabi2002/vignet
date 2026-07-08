@@ -57,6 +57,7 @@ const updateSchema = z.object({
       dmOnComment: z.boolean().optional(),
       followGate: z.boolean().optional(),
       gateMode: z.enum(['SOFT', 'STORY_MENTION']).optional(),
+      gateButtonType: z.enum(['button', 'quick_reply']).optional(),
       gatePrompt: z.string().optional(),
       gateConfirmKeyword: z.string().optional(),
       gateQuickReply: z.string().optional(),

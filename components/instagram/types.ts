@@ -99,6 +99,10 @@ export interface AutomationAction {
         // ── Follow gate (kept for v1 compatibility) ───────────────────────────
         followGate?: boolean
         gateMode?: GateMode
+        /** Which button style to use for the gate prompt: 'button' (Button Template,
+         *  inside the bubble, visible in Message Requests) or 'quick_reply' (chip
+         *  above the input, disappears after click). Default: 'button'. */
+        gateButtonType?: 'button' | 'quick_reply'
         gatePrompt?: string
         gateConfirmKeyword?: string
         gateQuickReply?: string

@@ -50,6 +50,7 @@ const actionSchema = z.object({
         dmOnComment: z.boolean().default(false),
         followGate: z.boolean().default(false),
         gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
+        gateButtonType: z.enum(['button', 'quick_reply']).default('button'),
         gatePrompt: z.string().default(''),
         gateConfirmKeyword: z.string().default(''),
         gateQuickReply: z.string().default(''),
