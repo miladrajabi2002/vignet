@@ -541,21 +541,6 @@ export function MediaUploader({
                                                 ))}
                                         </div>
 
-                                        {/* Caption (single field; applies to first image or to the video) */}
-                                        {tab === 'IMAGE' && items[0] && (
-                                                <div className="space-y-1">
-                                                        <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                                                                کپشن (اختیاری)
-                                                        </label>
-                                                        <input
-                                                                value={items[0]?.caption ?? ''}
-                                                                onChange={(e) => setCaption(items[0].id, e.target.value)}
-                                                                placeholder="مثلاً تخفیف ویژه تا پایان هفته"
-                                                                maxLength={500}
-                                                                className="input"
-                                                        />
-                                                </div>
-                                        )}
                                 </div>
                         )}
                 </div>

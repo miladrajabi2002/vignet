@@ -34,7 +34,6 @@ import {
         Trash2,
         Type,
         ShoppingBag,
-        Clock,
         Shield,
         Mic,
         Film,
@@ -82,10 +81,6 @@ interface FormState {
         messages: AutomationMessage[]
         // Comment funnel
         dmOnComment: boolean
-        // Story follow-up (per-automation) — applies to ALL automation types
-        followUpEnabled: boolean
-        followUpDelayMin: number
-        followUpMessage: string
         // Follow gate (collapsed by default)
         followGate: boolean
         gateMode: GateMode
@@ -113,9 +108,6 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                                 ? [emptyTextMessage()]
                                 : [],
                 dmOnComment: a?.action.dmOnComment ?? false,
-                followUpEnabled: a?.action.followUpEnabled ?? false,
-                followUpDelayMin: a?.action.followUpDelayMin ?? 60,
-                followUpMessage: a?.action.followUpMessage ?? '',
                 followGate: a?.action.followGate ?? false,
                 gateMode: a?.action.gateMode ?? 'SOFT',
                 gatePrompt: a?.action.gatePrompt ?? '',
@@ -340,12 +332,6 @@ export function AutomationForm({
                                         ? form.messages[0].text
                                         : '',
                         dmOnComment: type === 'COMMENT' ? form.dmOnComment : false,
-                        // Follow-up is now supported for ALL automation types (DM/COMMENT/STORY),
-                        // not just STORY. The engine's `scheduleFollowUp()` is invoked from the
-                        // STATIC + messages[] and STATIC + replyText branches for every type.
-                        followUpEnabled: form.followUpEnabled,
-                        followUpDelayMin: form.followUpEnabled ? form.followUpDelayMin : undefined,
-                        followUpMessage: form.followUpEnabled ? form.followUpMessage : undefined,
                         // Follow gate — save all fields so the engine can build the gate row
                         // and verify fulfillment on the user's reply. When the gate is OFF,
                         // send the fields anyway so re-enabling later keeps the user's draft.
@@ -746,98 +732,31 @@ export function AutomationForm({
                                                 </Section>
                                         )}
 
-                                        {/* ─── Follow-up message (ALL automation types) ────────── */}
-                                        <Section title="پیام پیگیری" Icon={Sparkles}>
-                                                <div className="flex items-start justify-between gap-3">
-                                                        <div className="flex min-w-0 items-start gap-2.5">
-                                                                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-                                                                <div className="min-w-0">
-                                                                <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                        ارسال پیام دوم با تأخیر
-                                                                </p>
-                                                                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                                                                        یک پیام دوم، با تأخیر، پس از پاسخ اول ارسال می‌شود.
-                                                                </p>
-                                                                </div>
-                                                        </div>
-                                                        <Switch
-                                                                checked={form.followUpEnabled}
-                                                                onChange={(v) => set('followUpEnabled', v)}
-                                                                aria-label="پیام پیگیری"
-                                                        />
-                                                </div>
-                                                {form.followUpEnabled && (
-                                                        <div className="space-y-4">
-                                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                                        <div className="space-y-1.5">
-                                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                        تأخیر (دقیقه)
-                                                                                </label>
-                                                                                <div className="relative">
-                                                                                        <Clock className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
-                                                                                        <input
-                                                                                                type="number"
-                                                                                                min={1}
-                                                                                                max={1440}
-                                                                                                value={form.followUpDelayMin}
-                                                                                                onChange={(e) =>
-                                                                                                        set('followUpDelayMin', Math.max(1, Number(e.target.value) || 1))
-                                                                                                }
-                                                                                                className="input pe-9"
-                                                                                        />
-                                                                                </div>
-                                                                        </div>
-                                                                </div>
-                                                                <div className="space-y-1.5">
-                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                متن پیام پیگیری
-                                                                        </label>
-                                                                        <textarea
-                                                                                value={form.followUpMessage}
-                                                                                onChange={(e) => set('followUpMessage', e.target.value)}
-                                                                                placeholder="مثلاً دیدی؟ سوالی بود در خدمتم."
-                                                                                rows={3}
-                                                                                className="input resize-none"
-                                                                        />
-                                                                </div>
-                                                        </div>
-                                                )}
-                                        </Section>
-
                                         {/* ─── Follow gate (collapsed by default) ─────────────────── */}
-                                        <Section title="شرط دنبال کردن" Icon={Shield} collapsible defaultCollapsed>
+                                        <Section title="شرط دنبال کردن" Icon={Shield}>
                                                 <div className="flex items-start justify-between gap-3">
                                                         <div className="flex min-w-0 items-start gap-2.5">
                                                                 <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
                                                                 <div className="min-w-0">
                                                                         <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                                فقط برای فالوورها
+                                                                                شرط فالو داشتن پیج
                                                                         </p>
                                                                         <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                                                                                کاربر برای دریافت پاسخ باید پیج را فالو کرده باشد.
+                                                                                اگر کاربر فالو داشته باشد، پاسخ ارسال می‌شود. در غیر این‌صورت از او می‌خواهیم اول فالو کند.
                                                                         </p>
-                                                                        </div>
+                                                                </div>
                                                         </div>
                                                         <Switch
                                                                 checked={form.followGate}
                                                                 onChange={(v) => set('followGate', v)}
-                                                                aria-label="دروازه فالو"
+                                                                aria-label="شرط فالو"
                                                         />
                                                 </div>
                                                 {form.followGate && (
-                                                        <div className="space-y-4">
+                                                        <div className="space-y-3">
                                                                 <p className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                                                                        با فعال‌سازی این گزینه، سیستم فقط زمانی به پیام کاربر پاسخ می‌دهد که کاربر صفحه شما را دنبال کرده باشد. اگر کاربر فالوور نباشد، ابتدا از او درخواست می‌شود صفحه را دنبال کند و پس از تأیید، ادامه اتوماسیون اجرا خواهد شد.
+                                                                        وقتی کاربر پیام می‌دهد و فالو نیست، این پیام برایش ارسال می‌شود. بعد از فالو کردن و زدن دکمه «دنبال کردم»، محتوای زیر برایش ارسال می‌شود.
                                                                 </p>
-                                                                <SegmentedField
-                                                                        label="نوع دروازه"
-                                                                        value={form.gateMode}
-                                                                        onChange={(v) => set('gateMode', v as GateMode)}
-                                                                        options={[
-                                                                                { value: 'SOFT', label: 'نرم (اعتماد)' },
-                                                                                { value: 'STORY_MENTION', label: 'سخت (منشن استوری)' },
-                                                                        ]}
-                                                                />
                                                                 <div className="space-y-1.5">
                                                                         <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                                 پیام درخواست فالو
@@ -845,37 +764,21 @@ export function AutomationForm({
                                                                         <textarea
                                                                                 value={form.gatePrompt}
                                                                                 onChange={(e) => set('gatePrompt', e.target.value)}
-                                                                                placeholder="برای دریافت محتوا، پیج را فالو کنید و «فالو کردم» بفرستید."
+                                                                                placeholder="لطفاً ابتدا صفحه ما را دنبال کنید. بعد از دنبال کردن روی دکمه زیر کلیک کنید."
                                                                                 rows={3}
                                                                                 className="input resize-none"
                                                                         />
                                                                 </div>
-                                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                                        <div className="space-y-1.5">
-                                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                        دکمه سریع (کلمه پیشنهادی)
-                                                                                </label>
-                                                                                <input
-                                                                                        value={form.gateQuickReply}
-                                                                                        onChange={(e) => set('gateQuickReply', e.target.value)}
-                                                                                        placeholder="فالو کردم"
-                                                                                        className="input"
-                                                                                />
-                                                                        </div>
-                                                                        <div className="space-y-1.5">
-                                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                        کلمه تأیید
-                                                                                </label>
-                                                                                <input
-                                                                                        value={form.gateConfirmKeyword}
-                                                                                        onChange={(e) => set('gateConfirmKeyword', e.target.value)}
-                                                                                        placeholder="فالو کردم"
-                                                                                        className="input"
-                                                                                />
-                                                                                <p className="text-[11px] text-[var(--text-muted)]">
-                                                                                        وقتی کاربر این کلمه را ارسال کرد، دروازه تأیید می‌شود.
-                                                                                </p>
-                                                                        </div>
+                                                                <div className="space-y-1.5">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                متن دکمه
+                                                                        </label>
+                                                                        <input
+                                                                                value={form.gateQuickReply}
+                                                                                onChange={(e) => set('gateQuickReply', e.target.value)}
+                                                                                placeholder="دنبال کردم"
+                                                                                className="input"
+                                                                        />
                                                                 </div>
                                                                 <div className="space-y-1.5">
                                                                         <label className="text-xs font-medium text-[var(--text-secondary)]">
@@ -949,9 +852,6 @@ export function AutomationForm({
                                                                 messages={previewMessages}
                                                                 dmOnComment={form.dmOnComment}
                                                                 followGate={form.followGate}
-                                                                followUpEnabled={form.followUpEnabled}
-                                                                followUpDelayMin={form.followUpDelayMin}
-                                                                followUpMessage={form.followUpMessage}
                                                         />
                                                 </div>
                                         </div>
@@ -969,9 +869,6 @@ export function AutomationForm({
                                                         messages: previewMessages,
                                                         dmOnComment: form.dmOnComment,
                                                         followGate: form.followGate,
-                                                        followUpEnabled: form.followUpEnabled,
-                                                        followUpDelayMin: form.followUpDelayMin,
-                                                        followUpMessage: form.followUpMessage,
                                                 }}
                                         />
                                 </div>

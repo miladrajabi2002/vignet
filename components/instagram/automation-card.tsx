@@ -16,7 +16,6 @@ import {
         Volume2,
         ImageIcon,
         Tag,
-        Sparkles,
         KeyRound,
         ChevronLeft,
         type LucideIcon,
@@ -197,12 +196,6 @@ export function AutomationCard({
                                                         <span className="inline-flex items-center gap-1">
                                                                 <Shield className="h-3 w-3" />
                                                                 {t('card.followGate')}
-                                                        </span>
-                                                )}
-                                                {ac.followUpEnabled && (
-                                                        <span className="inline-flex items-center gap-1">
-                                                                <Sparkles className="h-3 w-3" />
-                                                                {t('card.followUp')}
                                                         </span>
                                                 )}
                                                 {automation.type === 'STORY' && (

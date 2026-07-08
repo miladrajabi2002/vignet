@@ -60,10 +60,6 @@ export interface IphonePreviewProps {
         dmOnComment?: boolean
         /** Follow gate enabled? Shows a gate prompt bubble. */
         followGate?: boolean
-        /** Follow-up message enabled? Shows a delayed second bubble. */
-        followUpEnabled?: boolean
-        followUpDelayMin?: number
-        followUpMessage?: string
 }
 
 function IphonePreviewBase(props: IphonePreviewProps) {
@@ -84,7 +80,7 @@ export const IphonePreview = memo(IphonePreviewBase)
 function PhoneFrame({ children }: { children: React.ReactNode }) {
         return (
                 <div
-                        className="relative mx-auto aspect-[9/19.5] w-full max-w-[270px] rounded-[2.6rem] p-[5px] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_0_0_2px_rgba(0,0,0,0.4)] after:absolute after:inset-0 after:rounded-[2.6rem] after:bg-gradient-to-br after:from-white/5 after:to-transparent after:pointer-events-none"
+                        className="relative mx-auto aspect-[9/19.5] w-full max-w-[240px] rounded-[2.4rem] p-[4px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)_inset,0_0_0_2px_rgba(0,0,0,0.4)] after:absolute after:inset-0 after:rounded-[2.4rem] after:bg-gradient-to-br after:from-white/5 after:to-transparent after:pointer-events-none"
                         style={{
                                 background:
                                         'linear-gradient(180deg, #4a4a4c 0%, #2a2a2c 50%, #1c1c1e 100%)',
@@ -177,9 +173,6 @@ function DMScreen(props: ScreenProps) {
                 replyMode,
                 messages,
                 followGate,
-                followUpEnabled,
-                followUpDelayMin,
-                followUpMessage,
         } = props
 
         const visibleMessages = (messages ?? []).filter(
@@ -254,15 +247,6 @@ function DMScreen(props: ScreenProps) {
                                         </Bubble>
                                 )}
 
-                                {/* Follow-up message */}
-                                {followUpEnabled && followUpMessage?.trim() && (
-                                        <>
-                                                <div className="my-0.5 text-center text-[8px] text-black/30">
-                                                        بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
-                                                </div>
-                                                <Bubble side="bot">{followUpMessage}</Bubble>
-                                        </>
-                                )}
                         </div>
 
                         {/* ── Input bar — IG DM 2024 style ──
@@ -376,24 +360,17 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                         </Bubble>
                 )
         }
-        // VIDEO — thumbnail with play overlay
+        // VIDEO — playable video player (like real Instagram DM)
         if (message.type === 'VIDEO' && message.mediaUrl) {
                 return (
                         <Bubble side="bot" flush>
                                 <div className="relative overflow-hidden rounded-2xl rounded-br-md bg-black">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
+                                        <video
                                                 src={message.mediaUrl}
-                                                alt={message.text || 'video'}
-                                                className="block max-h-48 w-full object-cover opacity-90"
+                                                controls
+                                                playsInline
+                                                className="block max-h-48 w-full object-cover"
                                         />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-black shadow-lg">
-                                                        <svg width="11" height="12" viewBox="0 0 10 11" fill="currentColor" aria-hidden>
-                                                                <path d="M0 0 L10 5.5 L0 11 Z" />
-                                                        </svg>
-                                                </div>
-                                        </div>
                                 </div>
                                 {message.text?.trim() && (
                                         <p className="px-3 py-2 text-[12px] text-white">{message.text}</p>
@@ -487,9 +464,6 @@ function StoryScreen(props: ScreenProps) {
                 userText,
                 replyMode,
                 messages,
-                followUpEnabled,
-                followUpDelayMin,
-                followUpMessage,
         } = props
 
         const visibleMessages = (messages ?? []).filter(
@@ -585,23 +559,6 @@ function StoryScreen(props: ScreenProps) {
                                 {/* "Seen" indicator (like real IG — under the last outgoing message, left-aligned) */}
                                 {((replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0) && (
                                         <div className="ps-1 text-start text-[8px] text-black/40">Seen just now</div>
-                                )}
-
-                                {/* Follow-up message (RIGHT-aligned, same as bot replies) */}
-                                {followUpEnabled && followUpMessage?.trim() && (
-                                        <>
-                                                <div className="my-0.5 text-center text-[8px] text-black/30">
-                                                        بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
-                                                </div>
-                                                <div className="flex justify-end">
-                                                        <div
-                                                                className="max-w-[78%] rounded-2xl rounded-br-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white shadow-sm"
-                                                                style={{ background: IG_BLUE }}
-                                                        >
-                                                                {followUpMessage}
-                                                        </div>
-                                                </div>
-                                        </>
                                 )}
                         </div>
 
