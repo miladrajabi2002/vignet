@@ -153,6 +153,17 @@ async function preflightMedia(
                                         `Meta will reject this ${kindLabel}. Check the file extension / upload route.`,
                         )
                 }
+                // Audio-specific format check: Instagram only accepts AAC (m4a),
+                // MP3, OGG, and WAV for audio attachments. WebM/Opus (the default
+                // output of MediaRecorder in Chrome) is NOT accepted — Meta will
+                // return "Upload failed" even though the URL is reachable.
+                if (kind === 'AUDIO' && ct.includes('webm')) {
+                        throw new Error(
+                                `Audio file is WebM ("${ct}") — Instagram only accepts AAC (m4a), MP3, OGG, WAV. ` +
+                                        `Meta will reject it. The voice recorder should use audio/mp4; if the browser ` +
+                                        `doesn't support it, server-side transcoding (webm → m4a via ffmpeg) is required.`,
+                        )
+                }
                 if (cl > 0 && cl > maxBytes) {
                         throw new Error(
                                 `File is ${(cl / 1024 / 1024).toFixed(2)} MB — max for ${kindLabel} is ${maxBytes / 1024 / 1024} MB. ` +

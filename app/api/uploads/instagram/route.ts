@@ -143,9 +143,18 @@ export async function POST(req: Request) {
                         const ts = now.getTime()
                         const rand = randomUUID().slice(0, 8)
                         const nameExt = (f.name.split('.').pop() || '').toLowerCase()
-                        const ext = nameExt || MIME_TO_EXT[f.type] || 'bin'
+                        // For audio files, prefer the MIME-derived extension over the
+                        // filename extension. This avoids the webm content-type trap:
+                        // the voice recorder uploads a File named "voice.webm" with MIME
+                        // "audio/webm", but ".webm" is a VIDEO container — the GET route
+                        // would serve it as "video/webm" and Meta rejects that for audio
+                        // attachments. MIME_TO_EXT maps "audio/webm" → ".weba" which the
+                        // GET route serves as "audio/webm" (correct).
+                        const mimeExt = MIME_TO_EXT[f.type]
+                        const ext =
+                                (f.type.startsWith('audio/') && mimeExt) || mimeExt || nameExt || 'bin'
                         const filename = `${ts}-${rand}.${ext}`
-                        // key = relative path on disk (also the URL path after /uploads/)
+                        // key = relative path on disk (also the URL path after /api/uploads/instagram/)
                         const key = `instagram/${yyyy}/${mm}/${filename}`
 
                         // Write to public/uploads/instagram/{YYYY}/{MM}/
