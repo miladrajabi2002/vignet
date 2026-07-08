@@ -84,11 +84,26 @@ async function throwIfError(
         // Add actionable hints for the most common failure modes.
         let hint = ''
         if (code === 100 && /upload failed/i.test(message)) {
-                hint =
-                        ' [راه‌حل: کرالر متا نتوانست عکس را از URL دانلود کند. ' +
-                        'مطمئن شوید URL به‌صورت عمومی و از طریق HTTPS در دسترس است. ' +
-                        'اگر از /api/uploads/ استفاده می‌کنید، به /uploads/ (استاتیک) تغییر دهید. ' +
-                        'حداکثر حجم عکس ۸ مگابایت است و فقط فرمت‌های JPEG/PNG/GIF/WebP پشتیبانی می‌شوند.]'
+                // Context-specific hints — the same "Upload failed" error means
+                // different things for images vs audio.
+                if (context === 'sendAudio') {
+                        hint =
+                                ' [راه‌حل: متا نتوانست فایل صوتی را پردازش کند. ' +
+                                'Instagram فقط AAC (m4a), MP3, OGG, WAV قبول می‌کند. ' +
+                                'اگر فایل m4a هست ولی codec آن Opus است (نه AAC)، متا رد می‌کند. ' +
+                                'ffmpeg باید با `-c:a aac` تبدیل کند (نه `-c copy`). ' +
+                                'برای تست: `ffprobe file.m4a` — codec_name باید aac باشد.]'
+                } else if (context === 'sendVideo') {
+                        hint =
+                                ' [راه‌حل: متا نتوانست ویدیو را پردازش کند. ' +
+                                'Instagram فقط MP4 (H.264 + AAC) قبول می‌کند. ' +
+                                'حداکثر حجم ۲۵ مگابایت.]'
+                } else {
+                        hint =
+                                ' [راه‌حل: کرالر متا نتوانست فایل را از URL دانلود کند. ' +
+                                'مطمئن شوید URL به‌صورت عمومی و از طریق HTTPS در دسترس است. ' +
+                                'حداکثر حجم عکس ۸ مگابایت است و فقط فرمت‌های JPEG/PNG/GIF/WebP پشتیبانی می‌شوند.]'
+                }
         } else if (code === 10 || /permission/i.test(message)) {
                 hint =
                         ' [راه‌حل: توکن دسترسی لازم را ندارد. اپ باید App Review بگیرد برای instagram_manage_messages.]'

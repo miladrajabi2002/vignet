@@ -38,12 +38,22 @@ async function transcodeWebmToM4a(webmBuffer: Buffer): Promise<Buffer | null> {
                 const tmpIn = join(process.cwd(), 'public', 'uploads', 'instagram', `_tmp-${Date.now()}.webm`)
                 const tmpOut = tmpIn.replace(/\.webm$/, '.m4a')
                 await writeFile(tmpIn, webmBuffer)
+                // Transcode Opus→AAC. The key flags:
+                //   -c:a aac       → encode audio as AAC (Instagram ONLY accepts AAC in m4a,
+                //                    NOT Opus-in-mp4 which is what `-c copy` would produce)
+                //   -b:a 64k       → 64 kbps, fine for voice
+                //   -ar 44100      → 44.1 kHz (Instagram-friendly sample rate)
+                //   -ac 1          → mono (voice)
+                //   -movflags +faststart → moov atom at the front for streaming
                 await execFileAsync(
                         'ffmpeg',
                         [
                                 '-i', tmpIn,
+                                '-vn',                   // no video (strip any video track)
                                 '-c:a', 'aac',          // AAC codec (Instagram-compatible)
                                 '-b:a', '64k',          // 64 kbps — fine for voice
+                                '-ar', '44100',         // 44.1 kHz sample rate
+                                '-ac', '1',             // mono
                                 '-movflags', '+faststart',
                                 '-y',                    // overwrite output
                                 tmpOut,
@@ -55,7 +65,7 @@ async function transcodeWebmToM4a(webmBuffer: Buffer): Promise<Buffer | null> {
                 await unlink(tmpIn).catch(() => {})
                 await unlink(tmpOut).catch(() => {})
                 console.log(
-                        `[uploads/instagram] transcoded webm→m4a (${webmBuffer.byteLength}→${m4aBuffer.byteLength} bytes)`,
+                        `[uploads/instagram] transcoded webm→m4a/aac (${webmBuffer.byteLength}→${m4aBuffer.byteLength} bytes)`,
                 )
                 return m4aBuffer
         } catch (e) {

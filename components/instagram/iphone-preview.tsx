@@ -335,7 +335,7 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         if (message.type === 'IMAGE' && message.mediaUrl) {
                 return (
                         <Bubble side="bot" flush>
-                                <div className="overflow-hidden rounded-2xl rounded-bl-md">
+                                <div className="overflow-hidden rounded-2xl rounded-br-md">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                                 src={message.mediaUrl}
@@ -377,7 +377,7 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         if (message.type === 'VIDEO' && message.mediaUrl) {
                 return (
                         <Bubble side="bot" flush>
-                                <div className="relative overflow-hidden rounded-2xl rounded-bl-md bg-black">
+                                <div className="relative overflow-hidden rounded-2xl rounded-br-md bg-black">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                                 src={message.mediaUrl}
@@ -402,7 +402,7 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
         if (message.type === 'PRODUCT' && message.productId) {
                 return (
                         <Bubble side="bot" flush>
-                                <div className="w-[210px] overflow-hidden rounded-2xl rounded-bl-md border border-black/10 bg-white">
+                                <div className="w-[210px] overflow-hidden rounded-2xl rounded-br-md border border-black/10 bg-white">
                                         <div
                                                 className="flex h-24 items-center justify-center text-white"
                                                 style={{ background: IG_GRADIENT }}
@@ -535,14 +535,16 @@ function StoryScreen(props: ScreenProps) {
                                         </div>
                                 </div>
 
-                                {/* User's reply — right-aligned gray bubble (#efefef) */}
-                                <div className="flex justify-end">
-                                        <div className="max-w-[78%] rounded-2xl rounded-br-md bg-[#efefef] px-2.5 py-1.5 text-[11.5px] leading-relaxed text-black">
+                                {/* User's reply — LEFT-aligned gray bubble (#efefef), same as DM.
+                                    In Instagram, incoming messages (from the customer) are on the LEFT. */}
+                                <div className="flex justify-start">
+                                        <div className="max-w-[78%] rounded-2xl rounded-bl-md bg-[#efefef] px-2.5 py-1.5 text-[11.5px] leading-relaxed text-black">
                                                 {userText.trim() ? userText : 'پاسخ استوری نمونه…'}
                                         </div>
                                 </div>
 
-                                {/* Bot responses — left-aligned blue bubbles (#5e5ce6) */}
+                                {/* Bot responses — RIGHT-aligned blue bubbles (#5e5ce6), same as DM.
+                                    Outgoing replies (from the business/bot) are on the RIGHT. */}
                                 {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0 && (
                                         visibleMessages.map((m) => (
                                                 <div key={m.id} className="space-y-1">
@@ -551,9 +553,9 @@ function StoryScreen(props: ScreenProps) {
                                         ))
                                 )}
                                 {(replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length === 0 && (
-                                        <div className="flex justify-start">
+                                        <div className="flex justify-end">
                                                 <div
-                                                        className="max-w-[78%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white/70 shadow-sm"
+                                                        className="max-w-[78%] rounded-2xl rounded-br-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white/70 shadow-sm"
                                                         style={{ background: IG_BLUE }}
                                                 >
                                                         پاسخ خود را بنویسید…
@@ -561,9 +563,9 @@ function StoryScreen(props: ScreenProps) {
                                         </div>
                                 )}
                                 {replyMode === 'AI' && (
-                                        <div className="flex justify-start">
+                                        <div className="flex justify-end">
                                                 <div
-                                                        className="rounded-2xl rounded-bl-md px-2.5 py-2 text-[11px] text-white shadow-sm"
+                                                        className="rounded-2xl rounded-br-md px-2.5 py-2 text-[11px] text-white shadow-sm"
                                                         style={{ background: IG_BLUE }}
                                                 >
                                                         <TypingDots />
@@ -577,20 +579,20 @@ function StoryScreen(props: ScreenProps) {
                                         <div className="text-center text-[10px] text-red-500">هوش مصنوعی متوقف شد</div>
                                 )}
 
-                                {/* "Seen" indicator (like real IG) */}
+                                {/* "Seen" indicator (like real IG — under the last outgoing message, left-aligned) */}
                                 {((replyMode === 'STATIC' || replyMode === 'MULTI_MESSAGE') && visibleMessages.length > 0) && (
-                                        <div className="text-end pe-1 text-[8px] text-black/40">Seen just now</div>
+                                        <div className="ps-1 text-start text-[8px] text-black/40">Seen just now</div>
                                 )}
 
-                                {/* Follow-up message */}
+                                {/* Follow-up message (RIGHT-aligned, same as bot replies) */}
                                 {followUpEnabled && followUpMessage?.trim() && (
                                         <>
                                                 <div className="my-0.5 text-center text-[8px] text-black/30">
                                                         بعد از {(followUpDelayMin ?? 60).toLocaleString('fa-IR')} دقیقه
                                                 </div>
-                                                <div className="flex justify-start">
+                                                <div className="flex justify-end">
                                                         <div
-                                                                className="max-w-[78%] rounded-2xl rounded-bl-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white shadow-sm"
+                                                                className="max-w-[78%] rounded-2xl rounded-br-md px-2.5 py-1.5 text-[11.5px] leading-relaxed text-white shadow-sm"
                                                                 style={{ background: IG_BLUE }}
                                                         >
                                                                 {followUpMessage}
@@ -811,16 +813,19 @@ function Bubble({
         flush?: boolean
         muted?: boolean
 }) {
+        // In Instagram DMs, INCOMING messages (from the customer = "user" side)
+        // appear on the LEFT, and OUTGOING replies (from the business/bot) appear
+        // on the RIGHT. This matches the iPhone 16 Pro screenshot.
         const isUser = side === 'user'
         return (
-                <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
                         <div
                                 className={`max-w-[78%] text-[11.5px] leading-relaxed ${
                                         flush ? '' : 'px-2.5 py-1.5'
                                 } ${
                                         isUser
-                                                ? `rounded-2xl rounded-br-md bg-[#efefef] text-black ${muted ? 'opacity-60' : ''}`
-                                                : 'rounded-2xl rounded-bl-md text-white shadow-sm'
+                                                ? `rounded-2xl rounded-bl-md bg-[#efefef] text-black ${muted ? 'opacity-60' : ''}`
+                                                : 'rounded-2xl rounded-br-md text-white shadow-sm'
                                 }`}
                                 style={!isUser ? { background: IG_BLUE } : undefined}
                         >
