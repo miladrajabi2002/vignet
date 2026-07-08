@@ -68,6 +68,7 @@ interface MetaErrorBody {
 async function throwIfError(
         res: Response,
         context: string,
+        mediaUrl?: string,
 ): Promise<void> {
         if (res.ok) return
         const detail = await res.text().catch(() => '')
@@ -79,8 +80,25 @@ async function throwIfError(
         }
         const code = parsed?.error?.code ?? res.status
         const message = parsed?.error?.message ?? detail
+
+        // Add actionable hints for the most common failure modes.
+        let hint = ''
+        if (code === 100 && /upload failed/i.test(message)) {
+                hint =
+                        ' [راه‌حل: کرالر متا نتوانست عکس را از URL دانلود کند. ' +
+                        'مطمئن شوید URL به‌صورت عمومی و از طریق HTTPS در دسترس است. ' +
+                        'اگر از /api/uploads/ استفاده می‌کنید، به /uploads/ (استاتیک) تغییر دهید. ' +
+                        'حداکثر حجم عکس ۸ مگابایت است و فقط فرمت‌های JPEG/PNG/GIF/WebP پشتیبانی می‌شوند.]'
+        } else if (code === 10 || /permission/i.test(message)) {
+                hint =
+                        ' [راه‌حل: توکن دسترسی لازم را ندارد. اپ باید App Review بگیرد برای instagram_manage_messages.]'
+        } else if (code === 613) {
+                hint = ' [راه‌حل: اکانت اینستاگرام قابلیت پاسخ‌دهی از طریق API را ندارد — Business/Creator باشد.]'
+        }
+
         throw new Error(
-                `INSTAGRAM ${context} failed (${res.status}, code=${code}): ${message}`,
+                `INSTAGRAM ${context} failed (${res.status}, code=${code}): ${message}${hint}` +
+                        (mediaUrl ? ` [URL: ${mediaUrl}]` : ''),
         )
 }
 
@@ -117,7 +135,7 @@ export async function sendImage(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
-        await throwIfError(res, 'sendImage')
+        await throwIfError(res, 'sendImage', imageUrl)
 }
 
 /**
@@ -150,7 +168,7 @@ export async function sendAudio(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
-        await throwIfError(res, 'sendAudio')
+        await throwIfError(res, 'sendAudio', audioUrl)
 }
 
 /** Send a video attachment (mp4 recommended, max 25 MB). */
@@ -179,7 +197,7 @@ export async function sendVideo(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
-        await throwIfError(res, 'sendVideo')
+        await throwIfError(res, 'sendVideo', videoUrl)
 }
 
 /**
