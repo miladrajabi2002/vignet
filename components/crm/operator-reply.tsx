@@ -31,14 +31,19 @@ export function OperatorReply({
   const [error, setError] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
-  // Auto-grow the textarea to fit content (capped at ~5 lines), then shrink
-  // back when text is cleared. Keeps the reply box compact without making the
-  // button jump around.
+  // Auto-grow the textarea to fit content (capped at ~6 lines), then shrink
+  // back when text is cleared. Uses `field-sizing: content` where supported
+  // (Chrome 123+) as a no-JS fallback; the JS height override handles the
+  // rest. Crucially, the textarea NEVER shows an internal scrollbar — it just
+  // grows taller (up to max-h) so the composer stays readable.
   useEffect(() => {
     const ta = taRef.current
     if (!ta) return
+    // Reset to auto first so scrollHeight measures the content, not the
+    // current capped height.
     ta.style.height = 'auto'
-    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`
+    const next = Math.min(ta.scrollHeight, 160)
+    ta.style.height = `${next}px`
   }, [text])
 
   async function send() {
@@ -66,7 +71,7 @@ export function OperatorReply({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+    <div>
       {!canDeliver && (
         <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
           برای کانال‌های ویجت/لینک چت، پیام شما ذخیره می‌شود و در بازدید بعدی کاربر نمایش داده می‌شود.
@@ -89,7 +94,11 @@ export function OperatorReply({
           rows={1}
           dir="auto"
           placeholder={t('replyPlaceholder')}
-          className="max-h-[120px] min-h-[40px] flex-1 resize-none rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
+          // No internal scrollbar: `scrollbar-width: none` (Firefox) +
+          // `::-webkit-scrollbar { display: none }` (Chrome/Safari). The
+          // textarea grows with content up to max-h, so a scrollbar never
+          // appears — matching the chat input UX of Telegram/WhatsApp web.
+          className="max-h-[160px] min-h-[40px] flex-1 resize-none overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         <button
           onClick={send}

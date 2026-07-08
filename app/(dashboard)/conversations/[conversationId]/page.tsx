@@ -155,16 +155,16 @@ export default async function ConversationThreadPage(props: {
                 (handoffAlertProp != null && handoffAlertProp.state !== 'resolved')
 
         return (
-                <div className="mx-auto flex h-full max-w-3xl flex-col space-y-4">
+                <div className="mx-auto flex h-full max-w-3xl flex-col gap-4">
                         <Link
                                 href="/conversations"
-                                className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                                className="inline-flex shrink-0 items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                         >
                                 <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
                                 {t('title')}
                         </Link>
 
-                        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                        <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
                                 {contactAvatarUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
@@ -224,7 +224,7 @@ export default async function ConversationThreadPage(props: {
                         />
 
                         {conversation.summary && (
-                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                                <div className="shrink-0 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                                                 <Sparkles className="h-3.5 w-3.5" />
                                                 {t('summary')}
@@ -235,74 +235,83 @@ export default async function ConversationThreadPage(props: {
                                 </div>
                         )}
 
-                        <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-                                {conversation.messages.map((m) => {
-                                        const isUser = m.role === 'USER'
-                                        if (m.role === 'SYSTEM') return null
-                                        const isOperator =
-                                                !!m.metadata &&
-                                                typeof m.metadata === 'object' &&
-                                                (m.metadata as Record<string, unknown>).operator === true
-                                        return (
-                                                <div
-                                                        key={m.id}
-                                                        className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
-                                                >
+                        {/* ── Chat thread + composer ──
+                            The messages area grows to fill available space and scrolls internally
+                            (flex-1 min-h-0 overflow-y-auto). The composer is pinned to the bottom
+                            (shrink-0) so it never gets pushed down/off-screen when the thread grows. */}
+                        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+                                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                                        {conversation.messages.map((m) => {
+                                                const isUser = m.role === 'USER'
+                                                if (m.role === 'SYSTEM') return null
+                                                const isOperator =
+                                                        !!m.metadata &&
+                                                        typeof m.metadata === 'object' &&
+                                                        (m.metadata as Record<string, unknown>).operator === true
+                                                return (
                                                         <div
-                                                                className={cn(
-                                                                        'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
-                                                                        isUser
-                                                                                ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                                : 'bg-[var(--white)] text-[var(--bg-base)]',
-                                                                )}
+                                                                key={m.id}
+                                                                className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
                                                         >
-                                                                {m.parentId && m.parent?.content && (
-                                                                        <div className="mb-1.5 border-s-2 border-current opacity-60 ps-2 text-[11px] leading-snug">
-                                                                                <p className="line-clamp-2 whitespace-pre-wrap break-words">
-                                                                                        {stripProductTokens(m.parent.content)}
-                                                                                </p>
-                                                                        </div>
-                                                                )}
-                                                                {isOperator && (
-                                                                        <span className="mb-0.5 block text-[10px] font-medium opacity-60">
-                                                                                {t('operatorBadge')}
-                                                                        </span>
-                                                                )}
-                                                                {isUser ? (
-                                                                        <p className="whitespace-pre-wrap break-words">
-                                                                                {stripProductTokens(m.content)}
-                                                                        </p>
-                                                                ) : (
-                                                                        <div className="break-words [&_p]:whitespace-pre-wrap [&_p]:break-words">
-                                                                                <Markdown>{stripProductTokens(m.content)}</Markdown>
-                                                                        </div>
-                                                                )}
-                                                                <span
+                                                                <div
                                                                         className={cn(
-                                                                                'mt-1 block text-[10px]',
+                                                                                'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
                                                                                 isUser
-                                                                                        ? 'text-[var(--text-muted)]'
-                                                                                        : 'text-[var(--bg-base)] opacity-40',
+                                                                                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
+                                                                                        : 'bg-[var(--white)] text-[var(--bg-base)]',
                                                                         )}
                                                                 >
-                                                                        {formatDateTime(m.createdAt, locale)}
-                                                                </span>
+                                                                        {m.parentId && m.parent?.content && (
+                                                                                <div className="mb-1.5 border-s-2 border-current opacity-60 ps-2 text-[11px] leading-snug">
+                                                                                        <p className="line-clamp-2 whitespace-pre-wrap break-words">
+                                                                                                {stripProductTokens(m.parent.content)}
+                                                                                        </p>
+                                                                                </div>
+                                                                        )}
+                                                                        {isOperator && (
+                                                                                <span className="mb-0.5 block text-[10px] font-medium opacity-60">
+                                                                                        {t('operatorBadge')}
+                                                                                </span>
+                                                                        )}
+                                                                        {isUser ? (
+                                                                                <p className="whitespace-pre-wrap break-words">
+                                                                                        {stripProductTokens(m.content)}
+                                                                                </p>
+                                                                        ) : (
+                                                                                <div className="break-words [&_p]:whitespace-pre-wrap [&_p]:break-words">
+                                                                                        <Markdown>{stripProductTokens(m.content)}</Markdown>
+                                                                                </div>
+                                                                        )}
+                                                                        <span
+                                                                                className={cn(
+                                                                                        'mt-1 block text-[10px]',
+                                                                                        isUser
+                                                                                                ? 'text-[var(--text-muted)]'
+                                                                                                : 'text-[var(--bg-base)] opacity-40',
+                                                                                )}
+                                                                        >
+                                                                                {formatDateTime(m.createdAt, locale)}
+                                                                        </span>
+                                                                </div>
                                                         </div>
-                                                </div>
-                                        )
-                                })}
-                                {conversation.messages.length === 0 && (
-                                        <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                                                {t('noMessages')}
-                                        </p>
+                                                )
+                                        })}
+                                        {conversation.messages.length === 0 && (
+                                                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
+                                                        {t('noMessages')}
+                                                </p>
+                                        )}
+                                </div>
+
+                                {/* Composer pinned to the bottom of the chat card. When the panel
+                                    is shown, it already renders its own reply box; otherwise show the
+                                    standalone reply box here. */}
+                                {!showPanel && (
+                                        <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
+                                                <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
+                                        </div>
                                 )}
                         </div>
-
-                        {/* When the panel is shown, it already renders the OperatorReply box; */}
-                        {/* otherwise show the standalone reply box below. */}
-                        {!showPanel && (
-                                <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
-                        )}
                 </div>
         )
 }
