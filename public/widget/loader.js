@@ -18,6 +18,29 @@
 
         var base = script.getAttribute('data-base-url') || new URL(script.src).origin
 
+        // ---- Ensure a proper mobile viewport. Many host sites omit the
+        //      <meta name="viewport"> tag, which makes phones render at a
+        //      virtual 980px width and breaks our mobile breakpoint. Without
+        //      this, the @media (max-width:768px) rule never matches and the
+        //      widget appears as a tiny desktop-style popup on phones. ----
+        ;(function ensureViewport() {
+                var needed = 'width=device-width, initial-scale=1, viewport-fit=cover'
+                var existing = document.querySelector('meta[name="viewport"]')
+                if (existing) {
+                        // Patch only if the existing tag doesn't already opt into
+                        // device-width (e.g. a legacy "width=980" tag).
+                        if (!/width\s*=\s*device-width/i.test(existing.content)) {
+                                existing.setAttribute('content', needed)
+                        }
+                } else {
+                        var meta = document.createElement('meta')
+                        meta.setAttribute('name', 'viewport')
+                        meta.setAttribute('content', needed)
+                        var head = document.head || document.getElementsByTagName('head')[0]
+                        if (head) head.appendChild(meta)
+                }
+        })()
+
         // ---- Persisted conversation id — survives page refresh so visitors don't
         //      get a brand-new empty thread on every navigation/refresh. ----
         var CONV_STORAGE_KEY = 'vgt:c:' + agentId
@@ -375,6 +398,11 @@
                         '.vgt-inputwrap{display:flex;gap:6px;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
                         'border-radius:var(--vgt-r-input);padding:5px;padding-inline-start:16px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
+                        // RTL: put the send button on the RIGHT side. In RTL the DOM
+                        // order (input, sendBtn) would otherwise place send on the
+                        // left. row-reverse flips the visual order so the send
+                        // button sits on the right where Persian users expect it.
+                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;}' +
                         // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
                         '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
                         'font-size:16px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
@@ -391,7 +419,10 @@
                         '.vgt-send svg{width:19px;height:19px;transition:transform .2s;}' +
                         '.vgt-root.vgt-rtl .vgt-send svg{transform:scaleX(-1);}' +
                         '.vgt-root.vgt-rtl .vgt-send:hover svg{transform:scaleX(-1) translateX(2px);}' +
-                        '.vgt-brand{text-align:center;font-size:11px;color:var(--vgt-muted);padding-top:9px;}' +
+                        // direction:ltr forces "Powered by [logo]" left-to-right even
+                        // on RTL (Persian) pages, so the brand reads naturally instead
+                        // of appearing as "[logo] Powered by".
+                        '.vgt-brand{text-align:center;font-size:11px;color:var(--vgt-muted);padding-top:9px;direction:ltr;}' +
                         '.vgt-brand a{color:var(--vgt-muted);text-decoration:none;font-weight:600;}' +
                         // teaser (auto-greet)
                         '.vgt-teaser{position:absolute;bottom:76px;max-width:260px;background:var(--vgt-bg);color:var(--vgt-text);' +
@@ -449,30 +480,52 @@
                         'color:var(--vgt-muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
                         '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
                         '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
-                        '@media (max-width:600px){' +
-                        // On mobile the panel becomes a TRUE full-screen sheet. We switch
-                        // from position:absolute (relative to the 0×0 .vgt-root point, which
-                        // would give the panel 0 height) to position:fixed (relative to the
-                        // viewport) so top:0/bottom:0 actually stretch to full screen height.
-                        '.vgt-panel{position:fixed!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;' +
-                        'top:0!important;left:0!important;right:0!important;bottom:0!important;border-radius:0!important;' +
-                        'border:none!important;box-shadow:none!important;' +
-                        'transform:none!important;transition:opacity .2s ease!important;' +
-                        'padding-bottom:env(safe-area-inset-bottom)!important;}' +
+                        '@media (max-width:768px){' +
+                        // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
+                        // On phones & small tablets the chat panel becomes a true
+                        // full-screen sheet. We use position:fixed with top/left/
+                        // right/bottom:0 which guarantees full coverage regardless
+                        // of vh/dvh support. The height is declared twice: 100vh
+                        // first (universal fallback), then 100dvh (modern browsers
+                        // — dvh auto-shrinks when the soft keyboard opens so the
+                        // input stays visible). Older browsers ignore the dvh line
+                        // and keep the vh one.
+                        '.vgt-panel{position:fixed!important;' +
+                        'top:0!important;left:0!important;right:0!important;bottom:0!important;' +
+                        'width:100vw!important;max-width:100vw!important;' +
+                        'height:100vh!important;max-height:100vh!important;' +
+                        'height:100dvh!important;max-height:100dvh!important;' +
+                        'border-radius:0!important;border:none!important;box-shadow:none!important;' +
+                        'transform:none!important;transition:opacity .2s ease!important;}' +
                         '.vgt-panel.vgt-show{transform:none!important;}' +
-                        // Header: respect the notch / Dynamic Island.
-                        '.vgt-head{padding-top:max(12px,env(safe-area-inset-top))!important;min-height:56px!important;}' +
+                        // Header: respect the notch / Dynamic Island and side safe-areas.
+                        '.vgt-head{padding-top:max(12px,env(safe-area-inset-top))!important;' +
+                        'padding-left:max(16px,env(safe-area-inset-left))!important;' +
+                        'padding-right:max(16px,env(safe-area-inset-right))!important;' +
+                        'min-height:56px!important;}' +
                         // Make the close button bigger and always visible on mobile.
                         '.vgt-close{padding:10px!important;min-width:44px!important;min-height:44px!important;' +
                         'display:flex!important;align-items:center!important;justify-content:center!important;}' +
                         '.vgt-close svg{width:22px!important;height:22px!important;}' +
-                        // Body grows to fill the screen.
-                        '.vgt-body{flex:1!important;min-height:0!important;}' +
-                        // Input bar clears the home indicator.
-                        '.vgt-input-bar{padding-bottom:max(8px,env(safe-area-inset-bottom))!important;}' +
+                        // Body fills the available space; respect side safe-areas.
+                        '.vgt-body{flex:1!important;min-height:0!important;' +
+                        'padding-left:max(16px,env(safe-area-inset-left))!important;' +
+                        'padding-right:max(16px,env(safe-area-inset-right))!important;}' +
+                        // Footer clears the home indicator and side safe-areas.
+                        // (Fixed bug: old selector was .vgt-input-bar which matched
+                        //  nothing — the real class is .vgt-foot.)
+                        '.vgt-foot{padding-bottom:max(10px,env(safe-area-inset-bottom))!important;' +
+                        'padding-left:max(14px,env(safe-area-inset-left))!important;' +
+                        'padding-right:max(14px,env(safe-area-inset-right))!important;}' +
                         // Hide the launcher while the full-screen panel is open so it
                         // doesn't float over the conversation.
                         '.vgt-root.vgt-open .vgt-launcher{display:none!important;}' +
+                        // Slightly larger touch targets for action chips on mobile.
+                        '.vgt-action{padding:12px 18px!important;font-size:13px!important;}' +
+                        // Messages use a bit more screen width on mobile.
+                        '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
+                        // Cards can stretch wider on narrow screens.
+                        '.vgt-card{width:100%!important;}' +
                         '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
                 var st = document.createElement('style')
@@ -1426,29 +1479,45 @@
 
         // ---- Mobile keyboard / viewport handling ----
         // When the soft keyboard opens on mobile, `visualViewport.height`
-        // shrinks below layout-viewport height. Pin the panel to that smaller
-        // height so the input stays visible and the message list scrolls
-        // within the unoccluded area. Desktop and tablets (>=600px wide) keep
-        // the CSS-defined size; the handler is a no-op there.
+        // shrinks below the layout-viewport height. On modern browsers the
+        // CSS `100dvh` unit auto-adjusts, but older browsers (and some
+        // Android WebViews) don't — so we also pin the panel height to the
+        // visual viewport height via inline styles when the keyboard is
+        // detected. Desktop and tablets (>=768px wide) keep the CSS-defined
+        // 392×620px size; the handler is a no-op there. The breakpoint MUST
+        // stay in sync with the @media (max-width:768px) rule in injectStyles.
         function applyViewportHeight() {
                 if (
                         !isOpen ||
-                        !window.visualViewport ||
                         typeof window.innerWidth !== 'number' ||
-                        window.innerWidth >= 600
+                        window.innerWidth >= 768
                 ) {
-                        // Clear any inline height so CSS (100dvh on mobile, 620px on
-                        // desktop) takes over. On mobile the panel is position:fixed
-                        // with height:100dvh, so we must NOT override it with inline
-                        // styles — let the CSS handle the full-screen sizing.
+                        // Desktop/tablet — clear any inline height so the CSS-defined
+                        // size (392×620px) takes over.
                         panel.style.height = ''
                         panel.style.maxHeight = ''
                         return
                 }
-                // On mobile, when the keyboard opens, visualViewport.height shrinks.
-                // Instead of overriding the panel height (which fights the 100dvh
-                // CSS), we scroll the message body to keep the latest bubble visible.
-                // The panel stays full-screen; only the body scrolls.
+                // Mobile — check whether the keyboard is open by comparing the
+                // visual viewport height to the layout viewport height. When the
+                // keyboard pushes the visual viewport up, its height becomes
+                // noticeably smaller than innerHeight.
+                if (window.visualViewport) {
+                        var vv = window.visualViewport
+                        var keyboardOpen = vv.height < window.innerHeight - 20
+                        if (keyboardOpen) {
+                                // Pin the panel to the visible area so the input bar
+                                // stays above the keyboard. Using setProperty with
+                                // 'important' so it overrides the CSS 100dvh rule.
+                                panel.style.setProperty('height', vv.height + 'px', 'important')
+                                panel.style.setProperty('max-height', vv.height + 'px', 'important')
+                        } else {
+                                // Keyboard closed — let the CSS (100vh/100dvh) take over.
+                                panel.style.height = ''
+                                panel.style.maxHeight = ''
+                        }
+                }
+                // Keep the latest message visible regardless.
                 scrollDown()
         }
         if (window.visualViewport) {
@@ -1456,6 +1525,9 @@
                 window.visualViewport.addEventListener('scroll', applyViewportHeight)
         }
         window.addEventListener('resize', applyViewportHeight)
+        window.addEventListener('orientationchange', function () {
+                setTimeout(applyViewportHeight, 200)
+        })
 
         // ---- Init ----
         var mounted = false
