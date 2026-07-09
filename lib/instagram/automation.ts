@@ -488,7 +488,11 @@ async function executeAction(
     }
 
     // ── STEP 2: User does NOT follow (or check failed) → send gate prompt ──
-    if (isComment) {
+    // For comments with dmOnComment, target is the sender's DM — so Button
+    // Template works. For public comment replies (no dmOnComment), only text.
+    const isDM = !isComment || action.dmOnComment
+    if (!isDM) {
+      // Public comment reply — no buttons (Button Template is DM-only).
       await adapter.sendText(target, gatePrompt)
     } else if (gateButtonType === 'quick_reply') {
       await adapter.sendText(target, gatePrompt, {
