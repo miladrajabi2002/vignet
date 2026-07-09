@@ -310,7 +310,13 @@
                         '.vgt-head.vgt-head-grad .vgt-close{color:var(--vgt-on-accent);opacity:.75;z-index:1;}' +
                         '.vgt-head.vgt-head-grad .vgt-close:hover{background:rgba(255,255,255,.15);opacity:1;}' +
                         // body
-                        '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);}' +
+                        '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);' +
+                        // Force LTR on the messages container so align-self:flex-end (user)
+                        // = RIGHT and align-self:flex-start (bot) = LEFT — matching the
+                        // chat link page and Telegram/WhatsApp Persian convention. The
+                        // panel keeps dir="rtl" for header/footer; bubble text uses
+                        // unicode-bidi:plaintext (below) to auto-detect Persian RTL.
+                        'direction:ltr;}' +
                         '.vgt-body::-webkit-scrollbar{width:6px;}' +
                         '.vgt-body::-webkit-scrollbar-thumb{background:var(--vgt-border);border-radius:3px;}' +
                         // word-break:keep-all prevents mid-word breaks for Persian/Arabic
@@ -322,6 +328,11 @@
                         // than breaking Persian words. Text still wraps at spaces via
                         // white-space:pre-wrap.
                         '.vgt-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:normal;word-break:keep-all;' +
+                        // unicode-bidi:plaintext = CSS dir="auto". Each paragraph's
+                        // direction is auto-detected from its first strong character,
+                        // so Persian renders RTL (right-aligned) and English LTR inside
+                        // the LTR-positioned bubble container.
+                        'unicode-bidi:plaintext;text-align:start;' +
                         'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
                         '.vgt-msg.vgt-user{align-self:flex-end;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);border-bottom-right-radius:5px;box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
@@ -490,7 +501,7 @@
                         // Override .vgt-msg max-width:84% so the bubble fills its wrapper.
                         '.vgt-bubble-wrap .vgt-msg{max-width:100%;animation:none;}' +
                         // Quote block rendered above a bubble that is itself a reply.
-                        '.vgt-quote{font-size:12px;line-height:1.45;color:var(--vgt-muted);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);' +
+                        '.vgt-quote{font-size:12px;line-height:1.45;color:var(--vgt-muted);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);unicode-bidi:plaintext;' +
                         'border-radius:6px;padding:5px 9px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-bubble-wrap.vgt-user .vgt-quote{border-inline-start:none;border-inline-end:3px solid var(--vgt-accent);}' +
                         // Reply affordance button — appears above the bubble on hover (desktop)
