@@ -13,12 +13,19 @@
  *      conversation status / handoff panel, but the user never waits for it.
  *
  * Messages from the server (`initialMessages`) are merged with locally-added
- * `pendingMessages`, deduplicated by ID. When `router.refresh()` completes and
- * the server list includes the new message, it's automatically filtered out
- * of the pending list.
+ * `pendingMessages` and `polledMessages` (new messages fetched by the polling
+ * loop), all deduplicated by ID.
+ *
+ * ── Real-time polling ──
+ * The thread polls GET /api/conversations/[id]/messages?since=<lastId> every
+ * 5 seconds. This catches new visitor messages on ANY channel (widget,
+ * chat-link, WhatsApp, Instagram, Telegram, etc.) and messages from other
+ * operator tabs — without a full page refresh. When the operator has scrolled
+ * up to read history, new messages show a "new messages ↓" badge instead of
+ * yanking the scroll position (matches Telegram/WhatsApp web behavior).
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
@@ -50,16 +57,87 @@ export function ConversationThread({
 }) {
 	const t = useTranslations('conversations')
 	const [pendingMessages, setPendingMessages] = useState<ThreadMessage[]>([])
+	const [polledMessages, setPolledMessages] = useState<ThreadMessage[]>([])
+	const [hasNewMessages, setHasNewMessages] = useState(false)
 	const scrollRef = useRef<HTMLDivElement>(null)
+	const lastMessageIdRef = useRef<string | null>(
+		initialMessages.length > 0 ? initialMessages[initialMessages.length - 1].id : null,
+	)
+	const isAtBottomRef = useRef(true)
 
-	// Merge server messages with pending optimistic messages (deduped by ID).
-	// When the server refresh includes a pending message, it's filtered out.
-	const messages = [
-		...initialMessages,
-		...pendingMessages.filter(
-			(pm) => !initialMessages.find((im) => im.id === pm.id),
-		),
-	]
+	// Track whether the operator is scrolled to the bottom of the thread.
+	// When they scroll up to read history, we DON'T auto-scroll on new
+	// messages — instead we show a "new messages" badge so they can jump
+	// down when ready. Matches Telegram/WhatsApp web behavior.
+	function handleScroll() {
+		const el = scrollRef.current
+		if (!el) return
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+		isAtBottomRef.current = atBottom
+		if (atBottom) setHasNewMessages(false)
+	}
+
+	const scrollToBottom = useCallback((smooth = true) => {
+		const el = scrollRef.current
+		if (!el) return
+		el.scrollTo({
+			top: el.scrollHeight,
+			behavior: smooth ? 'smooth' : 'auto',
+		})
+	}, [])
+
+	// ── Polling for new messages ───────────────────────────────────────────
+	// Polls GET /api/conversations/[id]/messages?since=<lastId> every 5s.
+	// Catches new visitor messages on ANY channel (widget, chat-link,
+	// WhatsApp, Instagram, Telegram, etc.) + messages from other operator
+	// tabs. Deduped by id against the merged list so nothing double-renders.
+	useEffect(() => {
+		let cancelled = false
+		const poll = async () => {
+			const sinceId = lastMessageIdRef.current
+			if (!sinceId) return
+			try {
+				const url = `/api/conversations/${conversationId}/messages?since=${encodeURIComponent(sinceId)}`
+				const res = await fetch(url, { headers: { Accept: 'application/json' } })
+				if (!res.ok || cancelled) return
+				const data = await res.json()
+				if (cancelled || !Array.isArray(data.messages) || data.messages.length === 0) return
+				const newest = data.messages[data.messages.length - 1]
+				if (newest && newest.id) lastMessageIdRef.current = newest.id
+				setPolledMessages((prev) => {
+					const existing = new Set(prev.map((m) => m.id))
+					const fresh = data.messages.filter((m: ThreadMessage) => !existing.has(m.id))
+					return fresh.length ? [...prev, ...fresh] : prev
+				})
+				if (isAtBottomRef.current) {
+					scrollToBottom()
+				} else {
+					setHasNewMessages(true)
+				}
+			} catch {
+				/* network error — skip this cycle */
+			}
+		}
+		const interval = setInterval(poll, 5000)
+		return () => {
+			cancelled = true
+			clearInterval(interval)
+		}
+	}, [conversationId, scrollToBottom])
+
+	// Merge server + polled + pending messages (all deduped by ID).
+	// Order: server messages first, then polled (new from server), then
+	// pending (optimistic operator messages not yet confirmed by server).
+	const seenIds = new Set<string>()
+	const messages: ThreadMessage[] = []
+	for (const m of [...initialMessages, ...polledMessages, ...pendingMessages]) {
+		if (seenIds.has(m.id)) continue
+		seenIds.add(m.id)
+		messages.push(m)
+	}
+	if (messages.length > 0) {
+		lastMessageIdRef.current = messages[messages.length - 1].id
+	}
 
 	// Clean up pending messages that are now in the server list (after refresh).
 	useEffect(() => {
@@ -68,12 +146,16 @@ export function ConversationThread({
 		)
 	}, [initialMessages])
 
-	// Auto-scroll to bottom when a new message arrives.
+	// Auto-scroll to bottom on initial mount. Polled messages are handled in
+	// the polling effect (which respects the isAtBottom flag so we don't yank
+	// the scroll position when the operator is reading history).
 	useEffect(() => {
-		if (scrollRef.current) {
-			scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-		}
-	}, [messages.length])
+		if (isAtBottomRef.current) scrollToBottom(false)
+	}, [scrollToBottom])
+	// Scroll when the operator sends a message (they expect to see it).
+	useEffect(() => {
+		if (pendingMessages.length > 0) scrollToBottom()
+	}, [pendingMessages.length, scrollToBottom])
 
 	function handleSent(message: ThreadMessage) {
 		setPendingMessages((prev) => [...prev, message])
@@ -81,7 +163,7 @@ export function ConversationThread({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-			<div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+			<div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
 				{messages.map((m) => {
 					const isUser = m.role === 'USER'
 					if (m.role === 'SYSTEM') return null
@@ -141,6 +223,17 @@ export function ConversationThread({
 					<p className="py-8 text-center text-sm text-[var(--text-muted)]">
 						{t('noMessages')}
 					</p>
+				)}
+				{hasNewMessages && messages.length > 0 && (
+					<button
+						onClick={() => {
+							setHasNewMessages(false)
+							scrollToBottom()
+						}}
+						className="sticky bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-all hover:scale-105"
+					>
+						پیام‌های جدید ↓
+					</button>
 				)}
 			</div>
 
