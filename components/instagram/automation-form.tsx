@@ -767,7 +767,7 @@ export function AutomationForm({
                                                                         <textarea
                                                                                 value={form.gatePrompt}
                                                                                 onChange={(e) => set('gatePrompt', e.target.value)}
-                                                                                placeholder="لطفاً ابتدا صفحه ما را دنبال کنید. بعد از دنبال کردن روی دکمه زیر کلیک کنید."
+                                                                                placeholder="لطفاً ابتدا صفحه ما را دنبال کنید&#10;بعد از دنبال کردن، بر روی دکمه زیر کلیک کنید"
                                                                                 rows={3}
                                                                                 className="input resize-none"
                                                                         />

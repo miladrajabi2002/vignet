@@ -414,55 +414,97 @@ async function executeAction(
     return
   }
 
-  // ─── Follow-gate: send the gate prompt as a Button Template + create a pending gate ───
-  // Uses Button Template (NOT Quick Reply) because:
-  //   1. Button Template renders in Message Requests (Quick Reply doesn't).
-  //   2. Button Template stays in the chat after click (Quick Reply disappears).
-  //   3. Button Template is the correct pattern for "follow us then click here".
+  // ─── Follow-gate: check follow status FIRST, then decide ──────────
+  // If the user already follows → skip the gate entirely and send content.
+  // If the user does NOT follow → send the gate prompt + create a pending gate.
+  // If the check fails (API error) → send the gate prompt as a safety net.
   if (action.followGate) {
     const gatePrompt =
       action.gatePrompt ||
-      `برای دریافت محتوا، ابتدا @{username} را دنبال کنید و سپس روی دکمه زیر کلیک کنید.`.replace(
-        '{username}',
-        (channelConfig as { botUsername?: string } | null)?.botUsername ?? '',
-      )
+      `لطفاً ابتدا صفحه ما را دنبال کنید\n\nبعد از دنبال کردن، بر روی دکمه زیر کلیک کنید`
     const gateQuickReply = action.gateQuickReply || 'دنبال کردم'
     const gateConfirmKeyword =
       action.gateConfirmKeyword || gateQuickReply || 'دنبال کردم'
-    // The content delivered after the gate is fulfilled: the operator's
-    // messages[] (which may include text, image, video, audio). Default to
-    // contentText or replyText if messages[] is empty.
-    const contentMessages = action.messages?.length
+    const contentMessages: Array<{
+      type?: string; text?: string; mediaUrl?: string; productId?: string;
+      buttons?: Array<{ title: string; url?: string } | string>;
+      buttonType?: string;
+    }> = action.messages?.length
       ? action.messages
       : action.contentText || action.replyText
-        ? [{ id: 'gate-content', type: 'TEXT' as const, text: action.contentText || action.replyText || '' }]
+        ? [{ type: 'TEXT', text: action.contentText || action.replyText || '' }]
         : []
     const gateButtonType = action.gateButtonType ?? 'button'
     const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
 
-    // Send the gate prompt using the selected button style.
+    // ── STEP 1: Check if the user already follows the account ──
+    if (channelConfig) {
+      const alreadyFollows = await checkUserFollows(channelConfig, msg.senderId)
+      if (alreadyFollows === true) {
+        // User already follows → skip the gate, deliver content directly.
+        console.log(`[ig-gate] user ${msg.senderId} ALREADY follows — skipping gate, delivering content`)
+        if (contentMessages.length > 0 && channelConfig) {
+          for (const entry of contentMessages) {
+            try {
+              const entryType = typeof entry.type === 'string' ? entry.type : 'TEXT'
+              const entryText = typeof entry.text === 'string' ? entry.text : ''
+              const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
+              const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
+
+              if (entryType === 'IMAGE' && entryMediaUrl) {
+                await sendImage(channelConfig, target, entryMediaUrl, entryText || undefined)
+              } else if (entryType === 'AUDIO' && entryMediaUrl) {
+                await sendAudio(channelConfig, target, entryMediaUrl)
+              } else if (entryType === 'VIDEO' && entryMediaUrl) {
+                await sendVideo(channelConfig, target, entryMediaUrl)
+              } else if (entryType === 'QUICK_REPLY' && entryButtons.length > 0) {
+                const buttonActions: ButtonAction[] = entryButtons.slice(0, 3).map((b) =>
+                  typeof b === 'string'
+                    ? { title: b }
+                    : { title: (b as { title?: string }).title ?? '', url: (b as { url?: string }).url },
+                )
+                if (entry.buttonType === 'quick_reply') {
+                  await adapter.sendText(target, entryText, {
+                    quickReplies: buttonActions.map((b) => b.title),
+                  })
+                } else {
+                  await sendButtonMessage(channelConfig, target, entryText, buttonActions)
+                }
+              } else if (entryText) {
+                await adapter.sendText(target, entryText, { quickReplies: undefined })
+              }
+            } catch (e) {
+              captureError('instagram:gate:direct-deliver', e, {
+                workspaceId: agent.workspaceId,
+                metadata: { entryType: entry.type },
+              })
+            }
+          }
+        }
+        return // Gate skipped — content delivered, done.
+      }
+      // follows === false → send gate prompt (below)
+      // follows === null → API failed, send gate prompt as safety net
+    }
+
+    // ── STEP 2: User does NOT follow (or check failed) → send gate prompt ──
     if (isComment) {
-      // Comments: just send text (button templates are DM-only).
       await adapter.sendText(target, gatePrompt)
     } else if (gateButtonType === 'quick_reply') {
-      // Quick Reply style — chip above the input.
       await adapter.sendText(target, gatePrompt, {
         quickReplies: [gateQuickReply],
       })
     } else if (channelConfig) {
-      // Button Template style — button inside the bubble (default).
       try {
         await sendButtonMessage(channelConfig, target, gatePrompt, [
           { title: gateQuickReply },
         ])
       } catch {
-        // Fallback to plain text + quick reply if button template fails.
         await adapter.sendText(target, gatePrompt, {
           quickReplies: [gateQuickReply],
         })
       }
     } else {
-      // No channel config — fallback to plain text.
       await adapter.sendText(target, gatePrompt, {
         quickReplies: [gateQuickReply],
       })
