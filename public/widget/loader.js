@@ -1593,14 +1593,19 @@
                         })
                         .then(function (data) {
                                 if (!data || !Array.isArray(data.messages)) return
-                                // Build a set of server ids already rendered in the DOM.
+                                // ── Dedup: collect every server message id already in the DOM ──
+                                // Assistant messages live in .vgt-group containers (data-message-id
+                                // set by attachReplyAffordance); user messages live in
+                                // .vgt-bubble-wrap containers (data-message-id set by bubble() when
+                                // opts.id is present). We query BOTH classes so we don't miss either.
                                 var seenIds = {}
-                                var wraps = body.querySelectorAll('.vgt-bubble-wrap[data-message-id]')
-                                for (var i = 0; i < wraps.length; i++) {
-                                        seenIds[wraps[i].getAttribute('data-message-id')] = true
+                                var idd = body.querySelectorAll('[data-message-id]')
+                                for (var i = 0; i < idd.length; i++) {
+                                        seenIds[idd[i].getAttribute('data-message-id')] = true
                                 }
-                                // Also track user bubble text content (user bubbles may not
-                                // have a data-message-id when they were typed locally).
+                                // User bubbles typed locally have NO data-message-id, so dedup them
+                                // by text content (first 80 chars). This prevents re-appending the
+                                // visitor's own messages that the server echoes back.
                                 var userTexts = {}
                                 var userBubbles = body.querySelectorAll('.vgt-msg.vgt-user')
                                 for (var j = 0; j < userBubbles.length; j++) {
@@ -1625,6 +1630,8 @@
                                                 return
                                         }
                                         // Assistant message — skip if we already have this server id.
+                                        // This is the critical dedup that prevents flicker: without it,
+                                        // every poll cycle would re-append ALL assistant messages.
                                         if (m.id && seenIds[m.id]) return
                                         var g = el('div', 'vgt-group')
                                         body.appendChild(g)
