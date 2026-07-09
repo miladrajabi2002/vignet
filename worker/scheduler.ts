@@ -1,8 +1,11 @@
 import type { ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { getRedis } from '@/lib/redis'
 import { dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
+import { sendSubscriptionExpiringSms } from '@/lib/sms/ippanel'
+import { captureError } from '@/lib/errors/capture'
 import {
 	syncWooOrders,
 	syncWooProducts,
@@ -236,12 +239,101 @@ async function runCleanup(): Promise<void> {
 	}
 }
 
+// ─── subscription expiry reminders ──────────────────────────────────────────
+
+const SUBSCRIPTION_SWEEP_INTERVAL_MS = 6 * HOUR_MS // every 6 hours
+// Send the reminder this many days before expiry. Overridable via env so the
+// operator can tune the lead time without a redeploy.
+function subscriptionRemindDays(): number {
+	const v = Number(process.env.SUBSCRIPTION_REMIND_DAYS)
+	return Number.isFinite(v) && v > 0 && v <= 30 ? Math.round(v) : 3
+}
+
+/**
+ * Find ACTIVE paid subscriptions ending within SUBSCRIPTION_REMIND_DAYS and
+ * text the workspace owner a renewal reminder. Each (workspaceId, period) pair
+ * is deduped via Redis so the reminder fires at most once per period — the
+ * dedup key outlives the period so a renewal that extends the same period
+ * doesn't re-alert, and a fresh period (new currentPeriodEnd) gets a fresh key.
+ */
+async function remindExpiringSubscriptions(): Promise<void> {
+	const now = Date.now()
+	const remindDays = subscriptionRemindDays()
+	const horizon = new Date(now + remindDays * 24 * HOUR_MS)
+	const subs = await prisma.subscription.findMany({
+		where: {
+			status: 'ACTIVE',
+			currentPeriodEnd: { gt: new Date(now), lte: horizon },
+		},
+		select: {
+			id: true,
+			workspaceId: true,
+			plan: true,
+			currentPeriodEnd: true,
+		},
+		take: 200,
+	})
+	if (!subs.length) return
+
+	const redis = getRedis()
+	for (const sub of subs) {
+		const periodKey = sub.currentPeriodEnd.getTime().toString(36)
+		const dedupKey = `sub_expiring_notified:${sub.workspaceId}:${periodKey}`
+		// SETNX: only the first sweep to hit this key sends the SMS.
+		const acquired = await redis.set(
+			dedupKey,
+			'1',
+			'EX',
+			remindDays * 24 * 3600 + 86400,
+			'NX',
+		)
+		if (!acquired) continue
+
+		try {
+			const owner = await prisma.user.findFirst({
+				where: { workspaceId: sub.workspaceId, role: 'OWNER' },
+				orderBy: { createdAt: 'asc' },
+				select: { phone: true },
+			})
+			if (!owner?.phone) continue
+			const daysRemaining = Math.max(
+				1,
+				Math.ceil((sub.currentPeriodEnd.getTime() - now) / (24 * HOUR_MS)),
+			)
+			await sendSubscriptionExpiringSms(owner.phone, {
+				daysRemaining,
+				currentPeriodEnd: sub.currentPeriodEnd,
+			})
+			await notifyWorkspace({
+				workspaceId: sub.workspaceId,
+				type: 'SYSTEM',
+				title: 'اشتراک در حال اتمام',
+				body: `اشتراک ${sub.plan} شما ${daysRemaining} روز دیگر منقضی می‌شود. برای تمدید وارد حساب کاربری خود شوید.`,
+				link: '/billing',
+			})
+		} catch (e) {
+			captureError('scheduler:sub-expiring-sms', e, {
+				workspaceId: sub.workspaceId,
+			})
+		}
+	}
+	console.log(`[scheduler] checked ${subs.length} expiring subscription(s)`)
+}
+
+async function runSubscriptionExpirySweep(): Promise<void> {
+	try {
+		await remindExpiringSubscriptions()
+	} catch (e) {
+		console.error('[scheduler] subscription-expiry sweep failed:', e)
+	}
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
 export function startScheduler(): () => void {
 	console.log(
-		'[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup',
+		'[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup + 6h subscription-expiry reminders',
 	)
 	// Kick off shortly after boot, then on their own cadences.
 	const initialSweep = setTimeout(runSweep, 30_000)
@@ -259,6 +351,12 @@ export function startScheduler(): () => void {
 	const initialCleanup = setTimeout(runCleanup, 5 * 60_000)
 	const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
 
+	const initialSubExpiry = setTimeout(runSubscriptionExpirySweep, 90_000)
+	const subExpiryInterval = setInterval(
+		runSubscriptionExpirySweep,
+		SUBSCRIPTION_SWEEP_INTERVAL_MS,
+	)
+
 	return () => {
 		clearTimeout(initialSweep)
 		clearInterval(sweepInterval)
@@ -270,5 +368,7 @@ export function startScheduler(): () => void {
 		clearInterval(knowledgeInterval)
 		clearTimeout(initialCleanup)
 		clearInterval(cleanupInterval)
+		clearTimeout(initialSubExpiry)
+		clearInterval(subExpiryInterval)
 	}
 }

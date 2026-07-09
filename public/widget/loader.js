@@ -85,11 +85,6 @@
         var visitorName = null
         var visitorPhone = null
         var visitorSent = false
-        // Reply-to (quote) state: when `replyToMessageId` is set, the next sent
-        // user message is persisted with that parentId and the LLM is given the
-        // quoted text as context. `replyToSnippet` is shown in the preview bar.
-        var replyToMessageId = null
-        var replyToSnippet = ''
         var config = {
                 name: 'Vigent',
                 welcomeMessage: '',
@@ -202,7 +197,6 @@
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
                 arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-                reply: '<path d="M9 17l-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
         }
         function svg(name, extraClass) {
                 return (
@@ -524,34 +518,6 @@
                         '.vgt-bubble-wrap.vgt-bot{align-self:flex-start;align-items:flex-start;}' +
                         // Override .vgt-msg max-width:84% so the bubble fills its wrapper.
                         '.vgt-bubble-wrap .vgt-msg{max-width:100%;animation:none;}' +
-                        // Quote block rendered above a bubble that is itself a reply.
-                        '.vgt-quote{font-size:12px;line-height:1.45;color:var(--vgt-muted);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);unicode-bidi:plaintext;' +
-                        'border-radius:6px;padding:5px 9px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
-                        '.vgt-bubble-wrap.vgt-user .vgt-quote{border-inline-start:none;border-inline-end:3px solid var(--vgt-accent);}' +
-                        // Reply affordance button — appears above the bubble on hover (desktop)
-                        // or after a long-press (mobile). Hidden by default to keep the UI calm.
-                        '.vgt-reply-btn{position:absolute;top:-28px;opacity:0;pointer-events:none;' +
-                        'border:1px solid var(--vgt-border);background:var(--vgt-bg);color:var(--vgt-muted);cursor:pointer;' +
-                        'border-radius:8px;width:30px;height:30px;min-width:30px;min-height:30px;padding:0;display:flex;align-items:center;justify-content:center;' +
-                        'box-shadow:0 4px 12px -4px rgba(0,0,0,.25);transition:opacity .15s,background .15s,color .15s;}' +
-                        '.vgt-reply-btn svg{width:14px;height:14px;}' +
-                        '.vgt-bubble-wrap.vgt-user .vgt-reply-btn{inset-inline-end:2px;}' +
-                        '.vgt-bubble-wrap.vgt-bot .vgt-reply-btn{inset-inline-start:2px;}' +
-                        '.vgt-bubble-wrap:hover .vgt-reply-btn,.vgt-reply-btn.vgt-show{opacity:1;pointer-events:auto;}' +
-                        '.vgt-reply-btn:hover{background:var(--vgt-surface);color:var(--vgt-accent);}' +
-                        '.vgt-root.vgt-rtl .vgt-reply-btn svg{transform:scaleX(-1);}' +
-                        // Reply preview bar above the input — shows the quoted snippet + ✕ to cancel.
-                        '.vgt-reply-bar{display:none;align-items:center;gap:8px;margin-bottom:6px;padding:8px 10px;border:1.5px solid var(--vgt-border);' +
-                        'border-radius:var(--vgt-r-input);background:var(--vgt-surface);border-inline-start:3px solid var(--vgt-accent);}' +
-                        '.vgt-reply-bar.vgt-show{display:flex;}' +
-                        '.vgt-reply-bar-icon{flex:0 0 18px;color:var(--vgt-accent);}' +
-                        '.vgt-reply-bar-icon svg{width:18px;height:18px;}' +
-                        '.vgt-reply-bar-text{flex:1;min-width:0;font-size:12.5px;line-height:1.4;color:var(--vgt-muted);' +
-                        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
-                        '.vgt-reply-bar-x{flex:0 0 28px;width:28px;height:28px;min-width:28px;min-height:28px;border:none;background:transparent;' +
-                        'color:var(--vgt-muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
-                        '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
-                        '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
                         '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;touch-action:none;}' +
                         '@media (max-width:768px){' +
                         // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
@@ -675,20 +641,6 @@
         var body = el('div', 'vgt-body')
 
         var foot = el('div', 'vgt-foot')
-        // Reply-to preview bar — shown above the input when the visitor has
-        // tapped the reply affordance on a previous message. Mirrors the
-        // WhatsApp/Telegram "replying to…" strip.
-        var replyBar = el('div', 'vgt-reply-bar')
-        var replyBarIcon = el('span', 'vgt-reply-bar-icon', svg('reply'))
-        var replyBarText = el('span', 'vgt-reply-bar-text')
-        var replyBarX = el('button', 'vgt-reply-bar-x', svg('close'))
-        replyBarX.setAttribute('aria-label', t('لغو پاسخ', 'Cancel reply'))
-        replyBarX.addEventListener('click', function () {
-                clearReply()
-        })
-        replyBar.appendChild(replyBarIcon)
-        replyBar.appendChild(replyBarText)
-        replyBar.appendChild(replyBarX)
         var inputWrap = el('div', 'vgt-inputwrap')
         var input = el('textarea', 'vgt-input')
         input.rows = 1
@@ -699,7 +651,6 @@
         sendBtn.setAttribute('aria-label', 'send')
         inputWrap.appendChild(input)
         inputWrap.appendChild(sendBtn)
-        foot.appendChild(replyBar)
         foot.appendChild(inputWrap)
         foot.appendChild(
                 el(
@@ -1067,18 +1018,12 @@
                         scrollDown(true)
                         return b
                 }
-                // Wrap user/bot bubbles so we can attach an optional quote block
-                // (when replying) + a reply affordance button + long-press handler.
+                // Wrap user/bot bubbles in a container that carries the server-side
+                // message id (used for dedup in operator-message polling).
                 var side = role === 'user' ? 'user' : 'bot'
                 var wrap = el('div', 'vgt-bubble-wrap vgt-' + side)
                 if (opts.id) wrap.setAttribute('data-message-id', opts.id)
-                if (opts.quote) {
-                        var q = el('div', 'vgt-quote')
-                        q.textContent = opts.quote
-                        wrap.appendChild(q)
-                }
                 wrap.appendChild(b)
-                if (opts.id) attachReplyAffordance(wrap, side, opts.id)
                 body.appendChild(wrap)
                 scrollDown(true)
                 // ── Fix: explicitly set bubble width to fit text ──────────
@@ -1155,106 +1100,6 @@
         function setStreaming(on) {
                 streaming = on
                 sendBtn.disabled = on
-        }
-
-        // ---- Reply-to (quote) helpers ----
-        /** Collapse whitespace and trim to `n` chars with an ellipsis. */
-        function truncate(s, n) {
-                s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
-                return s.length > n ? s.slice(0, n) + '…' : s
-        }
-
-        /** Pull the latest text of a bubble/group container: prefers the raw
-            markdown source (data-raw, set by renderAssistantGroup) and falls
-            back to textContent. */
-        function getMessageText(container) {
-                var msg = container.querySelector('.vgt-msg')
-                if (!msg) return ''
-                var raw = msg.getAttribute('data-raw')
-                if (raw != null && raw !== '') return raw
-                return msg.textContent || ''
-        }
-
-        /** Enter reply mode: stash the target message id + snippet, show the
-            preview bar above the input, and focus the input so the visitor
-            can start typing immediately. */
-        function startReply(messageId, text) {
-                replyToMessageId = messageId
-                replyToSnippet = truncate(text, 60)
-                replyBarText.textContent = replyToSnippet
-                replyBar.classList.add('vgt-show')
-                try {
-                        input.focus()
-                } catch (e) {
-                        /* input may not be focusable yet (panel still closed) */
-                }
-        }
-
-        /** Exit reply mode and hide the preview bar. */
-        function clearReply() {
-                replyToMessageId = null
-                replyToSnippet = ''
-                replyBar.classList.remove('vgt-show')
-                replyBarText.textContent = ''
-                // Also dismiss any reply buttons that were pinned open by a
-                // long-press, so the next bubble starts from a clean state.
-                var pinned = body.querySelectorAll('.vgt-reply-btn.vgt-show')
-                for (var i = 0; i < pinned.length; i++) {
-                        pinned[i].classList.remove('vgt-show')
-                }
-        }
-
-        /** Attach the reply affordance (hover button + long-press) to a bubble
-            wrapper (user) or assistant group (bot). No-op if `messageId` is
-            missing — live user messages don't get an id client-side. */
-        function attachReplyAffordance(container, side, messageId) {
-                if (!messageId || !container) return
-                if (container.getAttribute('data-reply-bound') === '1') return
-                container.setAttribute('data-reply-bound', '1')
-                container.setAttribute('data-message-id', messageId)
-
-                // Hover/tap reply button (desktop).
-                var btn = el('button', 'vgt-reply-btn', svg('reply'))
-                btn.type = 'button'
-                btn.setAttribute('aria-label', t('پاسخ', 'Reply'))
-                btn.addEventListener('click', function (e) {
-                        e.stopPropagation()
-                        startReply(messageId, getMessageText(container))
-                })
-                container.appendChild(btn)
-
-                // Long-press to reply (mobile — no hover available). 500ms holds
-                // the finger down without scrolling; cancels on move/end before
-                // the threshold so a normal tap or scroll never triggers it.
-                var timer = null
-                var longPressFired = false
-                container.addEventListener('touchstart', function () {
-                        longPressFired = false
-                        timer = setTimeout(function () {
-                                timer = null
-                                longPressFired = true
-                                btn.classList.add('vgt-show')
-                                startReply(messageId, getMessageText(container))
-                        }, 500)
-                }, { passive: true })
-                function cancel() {
-                        if (timer) {
-                                clearTimeout(timer)
-                                timer = null
-                        }
-                }
-                container.addEventListener('touchmove', cancel, { passive: true })
-                container.addEventListener('touchend', cancel, { passive: true })
-                container.addEventListener('touchcancel', cancel, { passive: true })
-                // Suppress the native iOS long-press callout/context menu when
-                // our long-press just fired; tap-and-hold text selection still
-                // works otherwise.
-                container.addEventListener('contextmenu', function (e) {
-                        if (longPressFired) {
-                                e.preventDefault()
-                                longPressFired = false
-                        }
-                })
         }
 
         // ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
@@ -1438,20 +1283,12 @@
                 if (!text || streaming) return
                 // Block sending until the lead-capture form is filled (when required).
                 if (config.leadCapture && !leadCaptured) return
-                // Snapshot the active reply-to state before clearing it: the
-                // user bubble we're about to render needs the quote snippet,
-                // and the POST payload needs the id.
-                var activeReplyId = replyToMessageId
-                var activeReplySnippet = replyToSnippet
                 if (preset == null) {
                         input.value = ''
                         autoGrow()
                 }
                 clearIntro()
-                bubble('user', text, {
-                        quote: activeReplyId ? activeReplySnippet : null,
-                })
-                clearReply()
+                bubble('user', text)
                 setStreaming(true)
                 var typing = showTyping()
                 var group = null
@@ -1475,10 +1312,6 @@
                         if (visitorPhone) payload.visitorPhone = visitorPhone
                         visitorSent = true
                 }
-                // Reply-to (quote): when set, the server persists this USER message
-                // with `parentId = replyToMessageId` and includes the quoted text in
-                // the LLM context so the model knows what's being replied to.
-                if (activeReplyId) payload.replyToMessageId = activeReplyId
                 fetch(base + '/api/widget/' + agentId + '/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1526,10 +1359,10 @@
                                                                 } else if (evt.type === 'done') {
                                                                         if (group) renderAssistantGroup(group, raw, true)
                                                                         // The server emits the persisted assistant message id on
-                                                                        // `done`; bind it to the group so the visitor can quote
-                                                                        // this reply in a follow-up.
+                                                                        // `done`; bind it to the group so operator-message polling
+                                                                        // can dedup it (data-message-id).
                                                                         if (group && evt.messageId) {
-                                                                                attachReplyAffordance(group, 'bot', evt.messageId)
+                                                                                group.setAttribute('data-message-id', evt.messageId)
                                                                         }
                                                                 } else if (evt.type === 'error' && !group) {
                                                                         if (typing.parentNode) typing.remove()
@@ -1607,19 +1440,14 @@
                                         if (m.role === 'user') {
                                                 bubble('user', m.content, {
                                                         id: m.id,
-                                                        // Show the quoted parent text above this bubble if
-                                                        // the visitor had replied to an earlier message.
-                                                        quote: m.parentId && m.parentContent
-                                                                ? truncate(m.parentContent, 60)
-                                                                : null,
                                                 })
                                         } else {
                                                 var g = el('div', 'vgt-group')
                                                 body.appendChild(g)
                                                 renderAssistantGroup(g, m.content, true)
-                                                // Bind the message id so visitors can quote this
-                                                // assistant reply in a follow-up.
-                                                if (m.id) attachReplyAffordance(g, 'bot', m.id)
+                                                // Bind the message id so operator-message polling
+                                                // can dedup this assistant message.
+                                                if (m.id) g.setAttribute('data-message-id', m.id)
                                         }
                                 })
                                 scrollDown(true)
@@ -1656,9 +1484,9 @@
                                 if (!data || !Array.isArray(data.messages)) return
                                 // ── Dedup: collect every server message id already in the DOM ──
                                 // Assistant messages live in .vgt-group containers (data-message-id
-                                // set by attachReplyAffordance); user messages live in
-                                // .vgt-bubble-wrap containers (data-message-id set by bubble() when
-                                // opts.id is present). We query BOTH classes so we don't miss either.
+                                // set on the group); user messages live in .vgt-bubble-wrap
+                                // containers (data-message-id set by bubble() when opts.id is
+                                // present). We query BOTH classes so we don't miss either.
                                 var seenIds = {}
                                 var idd = body.querySelectorAll('[data-message-id]')
                                 for (var i = 0; i < idd.length; i++) {
@@ -1684,10 +1512,6 @@
                                                 // If we somehow missed a user bubble, render it.
                                                 bubble('user', m.content, {
                                                         id: m.id,
-                                                        quote:
-                                                                m.parentId && m.parentContent
-                                                                        ? truncate(m.parentContent, 60)
-                                                                        : null,
                                                 })
                                                 appended = true
                                                 return
@@ -1699,7 +1523,7 @@
                                         var g = el('div', 'vgt-group')
                                         body.appendChild(g)
                                         renderAssistantGroup(g, m.content, true)
-                                        if (m.id) attachReplyAffordance(g, 'bot', m.id)
+                                        if (m.id) g.setAttribute('data-message-id', m.id)
                                         appended = true
                                 })
                                 if (appended) scrollDown()
@@ -1832,9 +1656,6 @@
                         // the CSS-defined size takes over again next time the panel opens.
                         panel.style.height = ''
                         panel.style.maxHeight = ''
-                        // Also exit reply mode — leaving the panel mid-reply shouldn't
-                        // keep the preview bar pinned open.
-                        clearReply()
                 }
                 applyViewportHeight()
         }

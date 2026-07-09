@@ -81,6 +81,13 @@ export function PhoneOtpForm() {
   const verify = useCallback(
     async (fullCode: string) => {
       if (submittingRef.current) return
+      // Name is required for new users — block the verify call before it
+      // reaches the backend so the user gets an inline error instead of a
+      // generic "INVALID_CODE" from a null authorize().
+      if (isNewUser && !name.trim()) {
+        setError('NAME_REQUIRED')
+        return
+      }
       submittingRef.current = true
       setError(null)
       setLoading(true)
@@ -88,7 +95,7 @@ export function PhoneOtpForm() {
         const res = await signIn('credentials', {
           phone,
           code: fullCode,
-          name: isNewUser ? name : undefined,
+          name: isNewUser ? name.trim() : undefined,
           redirect: false,
         })
         if (res?.error) {
@@ -271,14 +278,28 @@ export function PhoneOtpForm() {
             {isNewUser && (
               <div className="mt-5">
                 <label className="mb-2 block text-sm text-[var(--text-secondary)]">
-                  {t('nameLabel')}
+                  {t('nameLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && name.trim()) {
+                      otpRefs.current[0]?.focus()
+                    }
+                  }}
                   placeholder={t('namePlaceholder')}
-                  className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)]"
+                  autoFocus
+                  required
+                  className={`w-full rounded-xl border bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)] ${
+                    error === 'NAME_REQUIRED'
+                      ? 'border-danger'
+                      : 'border-[var(--border-default)]'
+                  }`}
                 />
+                {error === 'NAME_REQUIRED' && (
+                  <p className="mt-1.5 text-xs text-danger">{t('errors.NAME_REQUIRED')}</p>
+                )}
               </div>
             )}
 
@@ -358,7 +379,7 @@ export function PhoneOtpForm() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('verifying')}
                   </motion.span>
-                ) : error ? (
+                ) : error && error !== 'NAME_REQUIRED' ? (
                   <motion.span
                     key="err"
                     initial={{ opacity: 0 }}

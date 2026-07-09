@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         const phone = normalizePhone(String(credentials?.phone ?? ''))
         const code = String(credentials?.code ?? '')
-        const name = credentials?.name ? String(credentials.name) : null
+        const name = credentials?.name ? String(credentials.name).trim() : null
         if (!phone || !/^\d{6}$/.test(code)) return null
 
         // Verify (and consume) the OTP from Redis.
@@ -38,6 +38,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Upsert user — first-time login creates a workspace + owner.
         let user = await prisma.user.findUnique({ where: { phone } })
         if (!user) {
+          // Name is required to register (the registration form enforces this
+          // client-side too). Reject if somehow empty so we never create a
+          // workspace/user without an owner name.
+          if (!name) return null
           const workspace = await prisma.workspace.create({
             data: {
               name: name || 'کسب‌وکار من',
@@ -48,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           user = await prisma.user.create({
             data: {
               phone,
-              name: name || null,
+              name,
               workspaceId: workspace.id,
               role: 'OWNER',
             },

@@ -252,34 +252,17 @@ async function prepareTurn(params: StartChatParams): Promise<
         ])
 
         // Persist the incoming user message.
-        // When the visitor replied to a specific message (quote/reply-to), link it.
         await prisma.message.create({
                 data: {
                         conversationId,
                         role: 'USER',
                         content: message,
-                        parentId: params.replyToMessageId ?? null,
                 },
         })
         // Every inbound turn (widget, chat-link, and messengers) keeps the
         // contact's denormalized last-activity fresh. Messenger inbound is also
         // bumped in upsertContact; the duplicate is harmless.
         bumpContactActivity(conversationId)
-
-        // Reply-to context: when the visitor quoted a previous message, fetch its
-        // text and prepend it to the LLM's view of the user message so the model
-        // knows what's being replied to. The persisted USER message keeps only the
-        // raw text (the link is via `parentId`).
-        let llmUserMessage = message
-        if (params.replyToMessageId) {
-                const parent = await prisma.message
-                        .findUnique({ where: { id: params.replyToMessageId }, select: { content: true } })
-                        .catch(() => null)
-                if (parent?.content) {
-                        const snippet = parent.content.slice(0, 500)
-                        llmUserMessage = `در پاسخ به این پیام:\n«${snippet}»\n\n${message}`
-                }
-        }
 
         // Retrieve context and build the prompt.
         const { contextText, chunks } = await retrieveContext({
@@ -295,7 +278,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                 contextText,
                 catalogProducts,
                 history,
-                userMessage: llmUserMessage,
+                userMessage: message,
                 // Rich [[product:{…}]] cards are renderable by the web widget AND the
                 // standalone chat-link page (both parse the same token format).
                 richCards: params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK',

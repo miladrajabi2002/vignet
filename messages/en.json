@@ -101,7 +101,7 @@
                 "otpSubtitle": "Enter the 6-digit code sent to {phone}",
                 "autoVerifyHint": "You'll be signed in automatically after the last digit",
                 "success": "Welcome! Signing you in…",
-                "nameLabel": "Your name (optional)",
+                "nameLabel": "Full name",
                 "namePlaceholder": "Full name",
                 "verify": "Sign in / Sign up",
                 "verifying": "Verifying…",
@@ -111,6 +111,7 @@
                 "errors": {
                         "INVALID_PHONE": "Invalid mobile number",
                         "INVALID_CODE": "The code you entered is incorrect",
+                        "NAME_REQUIRED": "Please enter your full name",
                         "RATE_LIMIT": "Too many requests. Please try again later",
                         "SMS_FAILED": "Failed to send SMS",
                         "GENERIC": "Something went wrong. Please try again"

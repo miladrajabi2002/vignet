@@ -38,8 +38,6 @@ export interface StartChatParams {
         contactName?: string | null
         /** Customer phone, e.g. from the widget's pre-chat lead form. */
         contactPhone?: string | null
-        /** Id of the message this turn is replying to (quote/reply-to). When set, the quoted message's text is included in the LLM context and the persisted USER message gets `parentId`. */
-        replyToMessageId?: string
 }
 
 export interface ExperimentConfig {

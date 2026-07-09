@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
 import { getPlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
+import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
+import { captureError } from '@/lib/errors/capture'
 import type { Plan } from '@prisma/client'
 
 /**
@@ -147,4 +149,22 @@ export async function activateSubscription(params: {
       data: { plan: plan as Plan },
     }),
   ])
+
+  // Fire-and-forget purchase-confirmation SMS to the workspace owner. Never
+  // throws — a failed SMS must not break the activation that already succeeded.
+  try {
+    const owner = await prisma.user.findFirst({
+      where: { workspaceId, role: 'OWNER' },
+      orderBy: { createdAt: 'asc' },
+      select: { phone: true },
+    })
+    if (owner?.phone) {
+      await sendSubscriptionPurchasedSms(owner.phone, {
+        plan,
+        currentPeriodEnd,
+      })
+    }
+  } catch (e) {
+    captureError('billing:purchase-sms', e, { workspaceId })
+  }
 }

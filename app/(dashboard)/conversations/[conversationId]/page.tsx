@@ -76,8 +76,6 @@ export default async function ConversationThreadPage(props: {
                                         createdAt: true,
                                         contentType: true,
                                         metadata: true,
-                                        parentId: true,
-                                        parent: { select: { content: true } },
                                 },
                         },
                 },
@@ -249,8 +247,6 @@ export default async function ConversationThreadPage(props: {
                                                 createdAt: m.createdAt.toISOString(),
                                                 contentType: m.contentType,
                                                 metadata: m.metadata as Record<string, unknown> | null,
-                                                parentId: m.parentId,
-                                                parent: m.parent,
                                         })) as ThreadMessage[]
                                 }
                                 conversationId={conversation.id}

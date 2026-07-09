@@ -18,7 +18,7 @@ type Params = { params: Promise<{ conversationId: string }> }
  * keeps the payload tiny on repeated polls. When omitted, the last 100
  * messages are returned.
  *
- * Returns: { messages: [{ id, role, content, createdAt, contentType, metadata, parentId, parent: { content } | null }] }
+ * Returns: { messages: [{ id, role, content, createdAt, contentType, metadata }] }
  */
 export async function GET(_req: Request, props: Params) {
   const params = await props.params
@@ -54,8 +54,6 @@ export async function GET(_req: Request, props: Params) {
           createdAt: true,
           contentType: true,
           metadata: true,
-          parentId: true,
-          parent: { select: { content: true } },
         },
       },
     },
@@ -71,8 +69,6 @@ export async function GET(_req: Request, props: Params) {
       createdAt: m.createdAt.toISOString(),
       contentType: m.contentType,
       metadata: m.metadata as Record<string, unknown> | null,
-      parentId: m.parentId,
-      parent: m.parent,
     }))
 
   return NextResponse.json({ messages })

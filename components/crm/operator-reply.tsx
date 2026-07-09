@@ -80,8 +80,6 @@ export function OperatorReply({
           createdAt: data.message.createdAt,
           contentType: 'TEXT',
           metadata: { operator: true },
-          parentId: null,
-          parent: null,
         })
       }
       setText('')

@@ -20,11 +20,6 @@ const bodySchema = z.object({
         // Pre-chat lead form (sent with the first message when lead capture is on).
         visitorName: z.string().max(60).nullish(),
         visitorPhone: z.string().max(30).nullish(),
-        // Quote / reply-to: id of an existing message in this conversation that
-        // the visitor is replying to. Persisted as `parentId` on the new USER
-        // message (see chat-engine.prepareTurn); also injected into the LLM
-        // context so the model knows what's being quoted.
-        replyToMessageId: z.string().nullish(),
 })
 
 export function OPTIONS() {
@@ -39,7 +34,7 @@ export function OPTIONS() {
  * validates it belongs to the agent before returning messages.
  *
  * Query: ?conversationId=<cuid>
- * Returns: { messages: [{ id, role: 'USER'|'ASSISTANT', content, parentId, parentContent }] }
+ * Returns: { messages: [{ id, role: 'USER'|'ASSISTANT', content }] }
  */
 export async function GET(req: Request, props: Params) {
         const params = await props.params
@@ -66,10 +61,6 @@ export async function GET(req: Request, props: Params) {
                                         id: true,
                                         role: true,
                                         content: true,
-                                        parentId: true,
-                                        // Nested fetch of the quoted parent's text so the widget
-                                        // can render a reply-to preview block above the bubble.
-                                        parent: { select: { content: true } },
                                 },
                         },
                 },
@@ -87,12 +78,6 @@ export async function GET(req: Request, props: Params) {
                         id: m.id,
                         role: m.role === 'USER' ? 'user' : 'assistant',
                         content: stripProductTokens(m.content),
-                        // Reply-to link + the quoted parent's (truncated) text for the
-                        // preview block. `parentId` is null when the message isn't a reply.
-                        parentId: m.parentId,
-                        parentContent: m.parent?.content
-                                ? m.parent.content.slice(0, 200)
-                                : null,
                 }))
 
         return NextResponse.json({ messages }, { headers: corsHeaders })
@@ -225,7 +210,6 @@ export async function POST(req: Request, props: Params) {
                 channel: 'WEB_WIDGET',
                 contactName: parsed.data.visitorName ?? undefined,
                 contactPhone: parsed.data.visitorPhone ?? undefined,
-                replyToMessageId: parsed.data.replyToMessageId ?? undefined,
         })
 
         if ('error' in result) {

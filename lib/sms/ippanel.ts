@@ -175,6 +175,129 @@ export async function sendSms(mobile: string, message: string): Promise<boolean>
   }
 }
 
+/**
+ * Send a templated (pattern) SMS with arbitrary variables — the shared engine
+ * behind subscription-purchase and subscription-expiry notifications. Like the
+ * OTP send, it uses a pre-approved IPPanel pattern (so it isn't blocked by the
+ * operator's anti-spam filter), but with its own pattern code + params.
+ *
+ * Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL) and IPPANEL_FROM_NUMBER, plus
+ * the specific `patternCode`. In dev (neither provider set) the resolved text
+ * is logged to the console. Never throws — a failed notification SMS must not
+ * break the billing flow that triggered it.
+ */
+async function sendPatternSms(
+  mobile: string,
+  patternCode: string | undefined,
+  params: Record<string, string>,
+): Promise<boolean> {
+  const normalized = normalizePhone(mobile)
+  if (!normalized) return false
+
+  const fromNumber = process.env.IPPANEL_FROM_NUMBER
+
+  if (!isSmsConfigured() || !fromNumber) {
+    console.warn(
+      `[ippanel] DEV MODE — pattern SMS to ${normalized}: pattern=${patternCode ?? '?'} params=${JSON.stringify(params)}`,
+    )
+    return false
+  }
+
+  if (!patternCode) {
+    console.error(
+      `[ippanel] cannot send pattern SMS — missing pattern code (params=${JSON.stringify(params)})`,
+    )
+    return false
+  }
+
+  try {
+    return await ippanelSend({
+      sending_type: 'pattern',
+      from_number: fromNumber,
+      code: patternCode,
+      recipients: [normalized],
+      params,
+    })
+  } catch (e) {
+    console.error('[ippanel] pattern send threw:', e)
+    return false
+  }
+}
+
+/**
+ * Persian (Jalali) short date for SMS bodies, e.g. "۱۴۰۳/۰۵/۱۲".
+ * Falls back to a Gregorian ISO date when Intl Jaalali isn't available.
+ */
+function formatPersianDate(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date)
+  } catch {
+    return date.toISOString().slice(0, 10)
+  }
+}
+
+/** Human-readable Persian plan name for SMS bodies. */
+function planLabelFa(plan: string): string {
+  switch (plan) {
+    case 'STARTER':
+      return 'استارتر'
+    case 'PRO':
+      return 'حرفه‌ای'
+    case 'BUSINESS':
+      return 'بیزینس'
+    case 'TRIAL':
+      return 'آزمایشی'
+    default:
+      return plan
+  }
+}
+
+/**
+ * Subscription-purchase confirmation SMS — sent right after a payment is
+ * verified and the subscription is activated. Uses a dedicated IPPanel
+ * pattern (IPPANEL_SUBSCRIPTION_PURCHASED_PATTERN_CODE) whose variables are:
+ *   %plan%    → plan name (e.g. "حرفه‌ای")
+ *   %expiry%  → subscription end date (e.g. "۱۴۰۳/۰۵/۱۲")
+ *
+ * Sample pattern to register in IPPanel:
+ *   اشتراک %plan% ویجنت با موفقیت فعال شد. معتبر تا: %expiry%
+ *   vigent.ir
+ */
+export async function sendSubscriptionPurchasedSms(
+  mobile: string,
+  data: { plan: string; currentPeriodEnd: Date },
+): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_SUBSCRIPTION_PURCHASED_PATTERN_CODE, {
+    plan: planLabelFa(data.plan),
+    expiry: formatPersianDate(data.currentPeriodEnd),
+  })
+}
+
+/**
+ * Subscription-expiry reminder SMS — sent N days before the subscription ends.
+ * Uses a dedicated IPPanel pattern (IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE)
+ * whose variables are:
+ *   %days%    → whole days remaining (e.g. "۳")
+ *   %expiry%  → subscription end date (e.g. "۱۴۰۳/۰۵/۱۲")
+ *
+ * Sample pattern to register in IPPanel:
+ *   اشتراک ویجنت شما %days% روز دیگر منقضی می‌شود (%expiry%).
+ *   برای تمدید وارد حساب کاربری خود در vigent.ir شوید.
+ */
+export async function sendSubscriptionExpiringSms(
+  mobile: string,
+  data: { daysRemaining: number; currentPeriodEnd: Date },
+): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE, {
+    days: String(data.daysRemaining),
+    expiry: formatPersianDate(data.currentPeriodEnd),
+  })
+}
+
 /** Verify a code against the value stored in Redis. Consumes it on success. */
 export async function verifyOTP(mobile: string, code: string): Promise<boolean> {
   const normalized = normalizePhone(mobile)
