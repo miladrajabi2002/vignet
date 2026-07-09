@@ -322,6 +322,7 @@ export function AutomationForm({
                                         })
                                 if (cleanButtons.length > 0) out.buttons = cleanButtons
                         }
+                        if (m.buttonType) out.buttonType = m.buttonType
                         return out as unknown as AutomationMessage
                 })
 
@@ -759,40 +760,6 @@ export function AutomationForm({
                                                                 <p className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                                                                         وقتی کاربر پیام می‌دهد و فالو نیست، این پیام برایش ارسال می‌شود. بعد از فالو کردن و زدن دکمه «دنبال کردم»، محتوای زیر برایش ارسال می‌شود.
                                                                 </p>
-                                                                <div className="space-y-1.5">
-                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                                نوع دکمه
-                                                                        </label>
-                                                                        <div className="flex gap-2">
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() => set('gateButtonType', 'button')}
-                                                                                        className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                                                                                                form.gateButtonType === 'button'
-                                                                                                        ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
-                                                                                                        : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                                                                                        }`}
-                                                                                >
-                                                                                        دکمه حبابی (Button Template)
-                                                                                </button>
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() => set('gateButtonType', 'quick_reply')}
-                                                                                        className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                                                                                                form.gateButtonType === 'quick_reply'
-                                                                                                        ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
-                                                                                                        : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                                                                                        }`}
-                                                                                >
-                                                                                        تراشه (Quick Reply)
-                                                                                </button>
-                                                                        </div>
-                                                                        <p className="text-[11px] text-[var(--text-muted)]">
-                                                                                {form.gateButtonType === 'button'
-                                                                                        ? 'دکمه داخل حباب پیام — در Message Requests هم دیده می‌شود.'
-                                                                                        : 'تراشه بالای کادر تایپ — بعد از کلیک ناپدید می‌شود.'}
-                                                                        </p>
-                                                                </div>
                                                                 <div className="space-y-1.5">
                                                                         <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                                 پیام درخواست فالو
@@ -1573,6 +1540,40 @@ function MessageCard({
                                                         rows={2}
                                                         className="input resize-none"
                                                 />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                                <label className="text-[11px] font-medium text-[var(--text-secondary)]">
+                                                        نوع دکمه
+                                                </label>
+                                                <div className="flex gap-2">
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => onUpdate({ buttonType: 'button' })}
+                                                                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                                                                        (message.buttonType ?? 'button') === 'button'
+                                                                                ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
+                                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                                                                }`}
+                                                        >
+                                                                دکمه حبابی (Button Template)
+                                                        </button>
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => onUpdate({ buttonType: 'quick_reply' })}
+                                                                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                                                                        message.buttonType === 'quick_reply'
+                                                                                ? 'border-[var(--white)] bg-[var(--white)] text-[var(--bg-base)]'
+                                                                                : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                                                                }`}
+                                                        >
+                                                                تراشه (Quick Reply)
+                                                        </button>
+                                                </div>
+                                                <p className="text-[11px] text-[var(--text-muted)]">
+                                                        {(message.buttonType ?? 'button') === 'button'
+                                                                ? 'دکمه داخل حباب پیام — در Message Requests هم دیده می‌شود.'
+                                                                : 'تراشه بالای کادر تایپ — بعد از کلیک ناپدید می‌شود.'}
+                                                </p>
                                         </div>
                                         <div className="space-y-1.5">
                                                 <label className="text-[11px] font-medium text-[var(--text-secondary)]">

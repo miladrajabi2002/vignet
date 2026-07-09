@@ -18,6 +18,7 @@ import {
         readAutomationPolicy,
         readIgUserId,
         readUserToken,
+        readPageToken,
         type InstagramReplyPolicy,
 } from '@/lib/instagram/config'
 
@@ -82,6 +83,8 @@ export interface AutomationAction {
     productId?: string
     /** QUICK_REPLY: up to 3 buttons. Accepts the new object form or legacy strings. */
     buttons?: Array<{ title: string; url?: string } | string>
+    /** Button display style: 'button' (Button Template) or 'quick_reply' (chip). */
+    buttonType?: 'button' | 'quick_reply'
   }>
   /**
    * For STATIC rich replies, the kind of media to send instead of plain text.
@@ -530,9 +533,10 @@ async function executeAction(
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
     const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
     for (const entry of action.messages) {
-      // QUICK_REPLY entries carry `buttons` — send as a button template with
-      // the entry's text as the header. Buttons can be the new object form
-      // ({title, url?}) or legacy plain strings (treated as postback).
+      // QUICK_REPLY entries carry `buttons`. The `buttonType` field controls
+      // how they're rendered:
+      //   'button' (default) → Button Template (inside the bubble)
+      //   'quick_reply'      → Quick Reply chips (above the input)
       if (entry.type === 'QUICK_REPLY' && entry.buttons?.length) {
         const buttonActions: ButtonAction[] = entry.buttons.slice(0, 3).map((b) =>
           typeof b === 'string'
@@ -540,7 +544,15 @@ async function executeAction(
             : { title: b.title, url: b.url },
         )
         try {
-          await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
+          if (entry.buttonType === 'quick_reply') {
+            // Quick Reply chips — sent as quick_replies with the text message.
+            await adapter.sendText(target, entry.text || '', {
+              quickReplies: buttonActions.map((b) => b.title),
+            })
+          } else {
+            // Button Template — inside the bubble (default).
+            await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
+          }
         } catch (e) {
           captureError('instagram:automation:quick-reply', e, {
             workspaceId: agent.workspaceId,
@@ -698,22 +710,30 @@ function scheduleFollowUp(
 
 /**
  * Check if a user actually follows the connected Instagram account.
- * Uses the Graph API: GET /{igUserId}/accounts?fields=follows&user_id={senderId}
- * Returns true if following, false if not, null if the check failed (treat as following).
+ *
+ * Uses the correct Meta Graph API endpoint:
+ *   GET https://graph.facebook.com/v22.0/{sender_igsid}
+ *       ?fields=is_user_follow_business,is_business_follow_user
+ *       &access_token={token}
+ *
+ * - `is_user_follow_business` → boolean: does the user follow our business?
+ * - `is_business_follow_user` → boolean: does our business follow the user?
+ *
+ * The request must go to graph.facebook.com (NOT graph.instagram.com) and
+ * queries the SENDER's node directly, NOT the business account's /accounts edge.
+ *
+ * Returns true if following, false if not, null if the check failed
+ * (treat as following — best-effort, don't block the user).
  */
 async function checkUserFollows(
   channelConfig: Prisma.JsonValue,
   senderId: string,
 ): Promise<boolean | null> {
-  const igUserId = readIgUserId(channelConfig)
-  const token = readUserToken(channelConfig)
-  if (!igUserId || !token) return null
+  const token = readUserToken(channelConfig) ?? readPageToken(channelConfig)
+  if (!token || !senderId) return null
   try {
-    // The `follows` edge: GET /{igUserId}/accounts?user_id={senderId}&fields=follows
-    // Returns the connected accounts the user follows — if our account is in
-    // the list, they follow us.
-    const url = `https://graph.instagram.com/v21.0/${igUserId}/accounts?user_id=${senderId}&fields=follows&access_token=${token}`
-    console.log(`[ig-gate] checking follow status: ${url}`)
+    const url = `https://graph.facebook.com/v22.0/${senderId}?fields=is_user_follow_business,is_business_follow_user&access_token=${token}`
+    console.log(`[ig-gate] checking follow status for sender=${senderId}`)
     const res = await fetch(url)
     const text = await res.text().catch(() => '')
     if (!res.ok) {
@@ -722,9 +742,14 @@ async function checkUserFollows(
       // so we don't block the user — the gate is best-effort.
       return null
     }
-    const json = JSON.parse(text) as { data?: Array<{ follows?: boolean }> }
-    const follows = json.data?.[0]?.follows === true
-    console.log(`[ig-gate] follow check result: follows=${follows}`)
+    const json = JSON.parse(text) as {
+      is_user_follow_business?: boolean
+      is_business_follow_user?: boolean
+    }
+    const follows = json.is_user_follow_business === true
+    console.log(
+      `[ig-gate] follow check result: is_user_follow_business=${json.is_user_follow_business} → follows=${follows}`,
+    )
     return follows
   } catch (e) {
     console.warn(`[ig-gate] follow check error: ${(e as Error).message}`)

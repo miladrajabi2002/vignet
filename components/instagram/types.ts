@@ -72,6 +72,10 @@ export interface AutomationMessage {
          *  object form ({title, url?}) or a legacy plain-string (treated as a
          *  postback button with that title). */
         buttons?: QuickReplyButton[]
+        /** Button display style for QUICK_REPLY messages: 'button' = Button Template
+         *  (inside the bubble, visible in Message Requests), 'quick_reply' = Quick
+         *  Reply chip (above the input, disappears after click). Default: 'button'. */
+        buttonType?: 'button' | 'quick_reply'
         /** @deprecated Use `buttons` — kept as alias for backward compat. */
         quickReplies?: string[]
 }

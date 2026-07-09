@@ -551,6 +551,7 @@ export async function sendRichEntry(
                 mediaUrl?: string
                 productId?: string
                 buttons?: Array<{ title: string; url?: string } | string>
+                buttonType?: 'button' | 'quick_reply'
         },
         /** Called for TEXT entries (which need the adapter's quick-reply support). */
         sendText: (chatId: string, text: string) => Promise<void>,
@@ -592,7 +593,13 @@ export async function sendRichEntry(
                                                         : { title: b.title, url: b.url },
                                         )
                                 if (buttons.length) {
-                                        await sendButtonMessage(channelConfig, chatId, entry.text || '', buttons)
+                                        if (entry.buttonType === 'quick_reply') {
+                                                // Quick Reply chips — send as text + quick_replies.
+                                                await sendText(chatId, entry.text || '')
+                                        } else {
+                                                // Button Template — inside the bubble (default).
+                                                await sendButtonMessage(channelConfig, chatId, entry.text || '', buttons)
+                                        }
                                 } else if (entry.text) {
                                         await sendText(chatId, entry.text)
                                 }

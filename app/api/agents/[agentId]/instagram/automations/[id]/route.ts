@@ -46,6 +46,7 @@ const updateSchema = z.object({
             mediaUrl: z.string().optional(),
             productId: z.string().optional(),
             buttons: z.array(buttonSchema).max(3).optional(),
+            buttonType: z.enum(['button', 'quick_reply']).optional(),
           }),
         )
         .optional(),
