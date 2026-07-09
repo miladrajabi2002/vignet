@@ -210,6 +210,15 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                 }
         }, [messages, msgsKey, hydrated])
 
+        const scrollDown = useCallback((smooth = true) => {
+                requestAnimationFrame(() => {
+                        scrollerRef.current?.scrollTo({
+                                top: scrollerRef.current.scrollHeight,
+                                behavior: smooth ? 'smooth' : 'auto',
+                        })
+                })
+        }, [])
+
         // ── Operator-message polling ───────────────────────────────────────────
         // The chat-link page is a request/response channel: when an operator
         // replies from the dashboard CRM, there's no WebSocket/SSE push to the
@@ -287,15 +296,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                         clearInterval(interval)
                 }
         }, [hydrated, slug, streaming, scrollDown])
-
-        const scrollDown = useCallback((smooth = true) => {
-                requestAnimationFrame(() => {
-                        scrollerRef.current?.scrollTo({
-                                top: scrollerRef.current.scrollHeight,
-                                behavior: smooth ? 'smooth' : 'auto',
-                        })
-                })
-        }, [])
 
         useEffect(() => {
                 if (messages.length) scrollDown(false)
