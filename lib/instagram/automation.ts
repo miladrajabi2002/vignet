@@ -16,7 +16,6 @@ import {
 } from '@/lib/instagram/media'
 import {
         readAutomationPolicy,
-        readIgUserId,
         readUserToken,
         readPageToken,
         type InstagramReplyPolicy,
@@ -732,7 +731,7 @@ async function checkUserFollows(
   const token = readUserToken(channelConfig) ?? readPageToken(channelConfig)
   if (!token || !senderId) return null
   try {
-    const url = `https://graph.facebook.com/v22.0/${senderId}?fields=is_user_follow_business,is_business_follow_user&access_token=${token}`
+    const url = `https://graph.instagram.com/v22.0/${senderId}?fields=is_user_follow_business,is_business_follow_user&access_token=${token}`
     console.log(`[ig-gate] checking follow status for sender=${senderId}`)
     const res = await fetch(url)
     const text = await res.text().catch(() => '')

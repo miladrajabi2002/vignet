@@ -403,30 +403,61 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                         </Bubble>
                 )
         }
-        // QUICK_REPLY — text bubble + tappable chips as siblings below (IG style)
+        // QUICK_REPLY — render differently based on buttonType:
+        //   'button' (default) → buttons INSIDE the bubble (Button Template style)
+        //   'quick_reply'      → chips BELOW the bubble (Quick Reply style)
         if (message.type === 'QUICK_REPLY') {
                 const buttons = message.buttons ?? message.quickReplies ?? []
+                const isQuickReplyStyle = message.buttonType === 'quick_reply'
+
+                if (isQuickReplyStyle) {
+                        // Quick Reply style: chips below the bubble (like the old rendering)
+                        return (
+                                <div>
+                                        <Bubble side="bot">
+                                                {message.text?.trim() ? message.text : 'متن پیام…'}
+                                        </Bubble>
+                                        {buttons.length > 0 && (
+                                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                        {buttons.map((b, i) => {
+                                                                const btn = typeof b === 'string' ? { title: b } : b
+                                                                return (
+                                                                        <button
+                                                                                key={i}
+                                                                                className="rounded-full border border-[#5e5ce6]/30 bg-white px-3 py-1.5 text-[10px] font-medium text-[#5e5ce6] transition-colors hover:bg-[#5e5ce6]/5"
+                                                                        >
+                                                                                {btn.title}
+                                                                        </button>
+                                                                )
+                                                        })}
+                                                </div>
+                                        )}
+                                </div>
+                        )
+                }
+
+                // Button Template style: buttons INSIDE the bubble (like real IG)
                 return (
-                        <div>
-                                <Bubble side="bot">
-                                        {message.text?.trim() ? message.text : 'متن پیام…'}
-                                </Bubble>
-                                {buttons.length > 0 && (
-                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <Bubble side="bot" flush>
+                                <div className="px-3 py-2.5">
+                                        <p className="text-[11.5px] leading-relaxed text-white">
+                                                {message.text?.trim() ? message.text : 'متن پیام…'}
+                                        </p>
+                                        <div className="mt-2 space-y-1.5">
                                                 {buttons.map((b, i) => {
                                                         const btn = typeof b === 'string' ? { title: b } : b
                                                         return (
                                                                 <button
                                                                         key={i}
-                                                                        className="rounded-full border border-[#3897f0]/30 bg-white px-3.5 py-2 text-[12px] font-medium text-[#3897f0] transition-colors hover:bg-[#3897f0]/5"
+                                                                        className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-medium text-white transition-colors hover:bg-white/20"
                                                                 >
                                                                         {btn.title}
                                                                 </button>
                                                         )
                                                 })}
                                         </div>
-                                )}
-                        </div>
+                                </div>
+                        </Bubble>
                 )
         }
         // TEXT (or fallback)
