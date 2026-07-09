@@ -116,6 +116,15 @@
         function isRtl() {
                 return config.language === 'fa'
         }
+        // Single source of truth for the mobile breakpoint. MUST stay in sync
+        // with the @media (max-width:768px) rule in injectStyles(). matchMedia
+        // keeps JS and CSS agreeing even at exactly 768px (the old
+        // `innerWidth < 768` check disagreed with the CSS at that width).
+        function isMobile() {
+                return window.matchMedia
+                        ? window.matchMedia('(max-width: 768px)').matches
+                        : window.innerWidth <= 768
+        }
         function t(fa, en) {
                 return isRtl() ? fa : en
         }
@@ -254,7 +263,10 @@
                         '.vgt-root.vgt-ready{visibility:visible;opacity:1;}' +
                         '.vgt-root.vgt-right{inset-inline-end:max(20px,env(safe-area-inset-right));}' +
                         '.vgt-root.vgt-left{inset-inline-start:max(20px,env(safe-area-inset-left));}' +
-                        '.vgt-root *{box-sizing:border-box;}' +
+                        '.vgt-root *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
+                        // touch-action:manipulation removes the legacy 300ms tap delay and
+                        // accidental double-tap zoom on every widget button (mobile).
+                        '.vgt-root button{touch-action:manipulation;}' +
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -315,6 +327,9 @@
                         '.vgt-head.vgt-head-grad .vgt-close:hover{background:rgba(255,255,255,.15);opacity:1;}' +
                         // body
                         '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);' +
+                        // Contain scroll so reaching the top/bottom of the thread never
+                        // scroll-chains into the host page (iOS rubber-band / Android glow).
+                        'overscroll-behavior:contain;-webkit-overflow-scrolling:touch;' +
                         // Force LTR on the messages container so align-self:flex-end (user)
                         // = RIGHT and align-self:flex-start (bot) = LEFT — matching the
                         // chat link page and Telegram/WhatsApp Persian convention. The
@@ -537,7 +552,7 @@
                         'color:var(--vgt-muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
                         '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
                         '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
-                        '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;}' +
+                        '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;touch-action:none;}' +
                         '@media (max-width:768px){' +
                         // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
                         // On phones & small tablets the chat panel becomes a true
@@ -610,6 +625,12 @@
                         '.vgt-lead-ava svg{width:22px!important;height:22px!important;}' +
                         '.vgt-intro-ava{width:52px!important;height:52px!important;}' +
                         '.vgt-intro-ava svg{width:26px!important;height:26px!important;}' +
+                        // Instant (non-smooth) scrolling on mobile — smooth-scrolling on
+                        // every SSE delta while streaming feels laggy on phone browsers.
+                        '.vgt-body{scroll-behavior:auto!important;}' +
+                        // Teaser: never wider than the phone screen; bigger close target.
+                        '.vgt-teaser{max-width:calc(100vw - 40px)!important;}' +
+                        '.vgt-teaser-x{width:38px!important;height:38px!important;}' +
                         '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
                 var st = document.createElement('style')
@@ -625,6 +646,15 @@
         // mobile so the host site is never visible through gaps or during the
         // keyboard open transition. On desktop it stays hidden (display:none).
         var backdrop = el('div', 'vgt-backdrop')
+        // Swallow touch panning on the backdrop so the host page can never
+        // scroll behind the full-screen mobile sheet (iOS scroll-chaining).
+        backdrop.addEventListener(
+                'touchmove',
+                function (e) {
+                        e.preventDefault()
+                },
+                { passive: false },
+        )
         var panel = el('div', 'vgt-panel')
         panel.setAttribute('role', 'dialog')
         panel.setAttribute('aria-label', 'chat')
@@ -662,6 +692,9 @@
         var inputWrap = el('div', 'vgt-inputwrap')
         var input = el('textarea', 'vgt-input')
         input.rows = 1
+        // Mobile keyboards: label the return key "send" — matches the existing
+        // Enter-to-send behavior in the keydown handler below.
+        input.setAttribute('enterkeyhint', 'send')
         var sendBtn = el('button', 'vgt-send', svg('telegramSend'))
         sendBtn.setAttribute('aria-label', 'send')
         inputWrap.appendChild(input)
@@ -912,9 +945,13 @@
                         lead.appendChild(skipBtn)
                 }
                 body.appendChild(lead)
-                setTimeout(function () {
-                        nameInput.focus()
-                }, 80)
+                // Auto-focus only on desktop; on mobile it would pop the keyboard
+                // over the just-opened sheet before the visitor has seen the form.
+                if (!isMobile()) {
+                        setTimeout(function () {
+                                nameInput.focus()
+                        }, 80)
+                }
 
                 form.addEventListener('submit', function (e) {
                         e.preventDefault()
@@ -1068,7 +1105,7 @@
                                         var idealWidth = maxLineWidth + 30
                                         // max allowed = 88% of body on mobile, 84% on desktop
                                         var bodyWidth = body.getBoundingClientRect().width
-                                        var maxAllowed = bodyWidth * (window.innerWidth < 768 ? 0.88 : 0.84)
+                                        var maxAllowed = bodyWidth * (isMobile() ? 0.88 : 0.84)
                                         if (idealWidth <= maxAllowed) {
                                                 // Text fits — set explicit width to prevent
                                                 // the circular dependency from shrinking the bubble.
@@ -1651,6 +1688,68 @@
                         })
         }
 
+        // ── iOS-proof body scroll lock ─────────────────────────────────
+        // overflow:hidden alone does NOT stop background scrolling on iOS
+        // Safari — the page behind the sheet still pans with touch and the
+        // scroll position can jump. The reliable technique is position:fixed
+        // on <body> pinned at the current scroll offset, restored on unlock.
+        var bodyLocked = false
+        var bodyLockY = 0
+        function lockBodyScroll() {
+                if (bodyLocked || !document.body) return
+                bodyLocked = true
+                bodyLockY = window.pageYOffset || document.documentElement.scrollTop || 0
+                var bs = document.body.style
+                bs.position = 'fixed'
+                bs.top = -bodyLockY + 'px'
+                bs.left = '0'
+                bs.right = '0'
+                bs.width = '100%'
+                bs.overflow = 'hidden'
+        }
+        function unlockBodyScroll() {
+                if (!bodyLocked || !document.body) return
+                bodyLocked = false
+                var bs = document.body.style
+                bs.position = ''
+                bs.top = ''
+                bs.left = ''
+                bs.right = ''
+                bs.width = ''
+                bs.overflow = ''
+                window.scrollTo(0, bodyLockY)
+        }
+
+        // ── Android Back button closes the chat ────────────────────────
+        // On phones the panel is a full-screen sheet; users instinctively hit
+        // the hardware/gesture Back to leave it. Without this, Back navigates
+        // the host page away (losing the chat). We push ONE history entry when
+        // the sheet opens and close the sheet on popstate instead.
+        var historyPushed = false
+        function pushCloseHistory() {
+                try {
+                        history.pushState({ vgtChat: 1 }, '')
+                        historyPushed = true
+                } catch (e) {
+                        /* history API unavailable — Back simply navigates */
+                }
+        }
+        function popCloseHistory() {
+                // Consume our history entry when the sheet is closed via the UI
+                // (✕ button / Escape) so a later Back doesn't need two presses.
+                if (!historyPushed) return
+                historyPushed = false
+                try {
+                        history.back()
+                } catch (e) {}
+        }
+        window.addEventListener('popstate', function () {
+                if (historyPushed) {
+                        historyPushed = false
+                        if (isOpen) toggle(false)
+                }
+        })
+
         function toggle(force) {
                 isOpen = force != null ? force : !isOpen
                 panel.classList.toggle('vgt-show', isOpen)
@@ -1661,9 +1760,11 @@
                 launcher.setAttribute('aria-label', isOpen ? 'close chat' : 'open chat')
                 if (isOpen) {
                         // Lock body scroll on mobile so the host page can't scroll/peek
-                        // behind the full-screen chat. Desktop keeps scrolling enabled.
-                        if (window.innerWidth < 768 && document.body) {
-                                document.body.style.overflow = 'hidden'
+                        // behind the full-screen chat (iOS needs position:fixed — see
+                        // lockBodyScroll). Also arm the Android Back-button close.
+                        if (isMobile()) {
+                                lockBodyScroll()
+                                pushCloseHistory()
                         }
                         var tz = root.querySelector('.vgt-teaser')
                         if (tz) tz.remove()
@@ -1680,9 +1781,14 @@
                         if (!pollTimer) {
                                 pollTimer = setInterval(pollForNewMessages, 8000)
                         }
-                        setTimeout(function () {
-                                input.focus()
-                        }, 80)
+                        // Auto-focus only on desktop — on mobile it would instantly pop
+                        // the soft keyboard over the just-opened sheet (jarring double
+                        // layout jump before the visitor has even seen the conversation).
+                        if (!isMobile()) {
+                                setTimeout(function () {
+                                        input.focus()
+                                }, 80)
+                        }
                 } else {
                         // Stop polling when the panel closes.
                         if (pollTimer) {
@@ -1690,9 +1796,8 @@
                                 pollTimer = null
                         }
                         // Restore body scroll when the panel closes.
-                        if (document.body) {
-                                document.body.style.overflow = ''
-                        }
+                        unlockBodyScroll()
+                        popCloseHistory()
                         // Drop any inline height set by the visualViewport handler so
                         // the CSS-defined size takes over again next time the panel opens.
                         panel.style.height = ''
@@ -1744,12 +1849,7 @@
                 panel.style.bottom = ''
                 panel.style.top = ''
 
-                if (
-                        !isOpen ||
-                        typeof window.innerWidth !== 'number' ||
-                        window.innerWidth >= 768 ||
-                        !window.visualViewport
-                ) {
+                if (!isOpen || !isMobile() || !window.visualViewport) {
                         // Desktop/tablet or closed — CSS-defined size takes over.
                         return
                 }
