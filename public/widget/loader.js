@@ -312,7 +312,15 @@
                         '.vgt-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;background:var(--vgt-bg);}' +
                         '.vgt-body::-webkit-scrollbar{width:6px;}' +
                         '.vgt-body::-webkit-scrollbar-thumb{background:var(--vgt-border);border-radius:3px;}' +
-                        '.vgt-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-wrap:break-word;' +
+                        // word-break:keep-all prevents mid-word breaks for Persian/Arabic
+                        // (cursive) text — without it, "سلام" can break into "سلا" + "م".
+                        // overflow-wrap:normal (NOT break-word) ensures words never break
+                        // mid-character even when the bubble is 1px too narrow (a common
+                        // subpixel rounding issue). The trade-off: extremely long
+                        // unbreakable strings (URLs) may overflow, but that's far better
+                        // than breaking Persian words. Text still wraps at spaces via
+                        // white-space:pre-wrap.
+                        '.vgt-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:normal;word-break:keep-all;' +
                         'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
                         '.vgt-msg.vgt-user{align-self:flex-end;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);border-bottom-right-radius:5px;box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
@@ -321,7 +329,9 @@
                         '.vgt-root.vgt-rtl .vgt-msg.vgt-bot{border-bottom-left-radius:var(--vgt-r-bubble);border-bottom-right-radius:5px;}' +
                         '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;}' +
                         // assistant group (chip + bubble + cards + actions)
-                        '.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:7px;max-width:100%;}' +
+                        // width:fit-content + max-width:100% lets the group size to content
+                        // (same fix as .vgt-bubble-wrap — prevents mid-word breaks).
+                        '.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:7px;max-width:100%;width:fit-content;}' +
                         '.vgt-group .vgt-msg{animation:none;max-width:84%;}' +
                         '.vgt-group:empty{display:none;}' +
                         // source chip ("از کاتالوگ محصول")
@@ -408,10 +418,12 @@
                         '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
                         'border-radius:var(--vgt-r-input);padding:6px 6px 6px 14px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
-                        // RTL: send button on the RIGHT, inside the field. Swap
-                        // horizontal padding so the button has its 6px gutter on
-                        // the right and the text gets 14px on the left.
-                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:6px 14px 6px 6px;}' +
+                        // RTL: send button on the RIGHT, inside the field. The
+                        // right padding is 7px — small enough that the button
+                        // sits close to the right edge (visually "stuck" to the
+                        // right) but not flush against the border (there's a
+                        // visible 7px gutter so it doesn't look cramped).
+                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:6px 7px 6px 14px;}' +
                         // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
                         // The right padding (54px in RTL) reserves space so long
                         // text doesn't run under the send button.
@@ -433,10 +445,16 @@
                         '.vgt-send:hover{background:var(--vgt-accent-deep);}' +
                         '.vgt-send:active{transform:scale(.9);}' +
                         '.vgt-send:disabled{opacity:.3;cursor:default;transform:none;background:var(--vgt-border);}' +
-                        // Telegram's paper-plane icon: 20px, slightly larger than
-                        // before so it's clearly visible inside the 38px circle.
-                        '.vgt-send svg{width:20px;height:20px;}' +
-                        '.vgt-send:hover svg{transform:scale(1.05);}' +
+                        // Telegram's paper-plane icon: 20px. The SVG path's
+                        // bounding box (x:2.5–21.9, y:3.4–22.0) is slightly off-
+                        // center relative to the 24×24 viewBox (center 12,12):
+                        //   path center x = 12.2 (0.2px right of viewBox center)
+                        //   path center y = 12.7 (0.7px below viewBox center)
+                        // This makes the icon look ~0.7px too low and slightly
+                        // right-heavy. We compensate with a tiny translate so
+                        // the icon appears perfectly centered (optical centering).
+                        '.vgt-send svg{width:20px;height:20px;transform:translate(-0.3px,-0.6px);}' +
+                        '.vgt-send:hover svg{transform:translate(-0.3px,-0.6px) scale(1.05);}' +
                         // direction:ltr forces "Powered by [logo]" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "[logo] Powered by".
@@ -974,6 +992,55 @@
                 if (opts.id) attachReplyAffordance(wrap, side, opts.id)
                 body.appendChild(wrap)
                 scrollDown()
+                // ── Fix: explicitly set bubble width to fit text ──────────
+                // The flexbox layout has a circular sizing dependency
+                // (bubble-wrap sizes to msg, msg's max-width:100% sizes to
+                // bubble-wrap) that resolves to a value between min-content
+                // and max-content — often a few px too narrow, causing Persian
+                // words to wrap mid-character. We break the cycle by measuring
+                // the actual text width and setting an explicit width on the
+                // msg element. Only applied when the text fits within the
+                // max-width budget; long messages are handled by CSS wrapping.
+                if (role === 'user' || role === 'bot') {
+                        requestAnimationFrame(function () {
+                                try {
+                                        var span = document.createElement('span')
+                                        var bcs = window.getComputedStyle(b)
+                                        span.style.cssText =
+                                                'font-size:' + bcs.fontSize +
+                                                ';font-family:' + bcs.fontFamily +
+                                                ';font-weight:' + bcs.fontWeight +
+                                                ';line-height:' + bcs.lineHeight +
+                                                ';white-space:pre;visibility:hidden;position:absolute;'
+                                        document.body.appendChild(span)
+                                        var maxLineWidth = 0
+                                        var lines = (text || '').split('\n')
+                                        for (var i = 0; i < lines.length; i++) {
+                                                span.textContent = lines[i] || ' '
+                                                var w = span.getBoundingClientRect().width
+                                                if (w > maxLineWidth) maxLineWidth = w
+                                        }
+                                        span.remove()
+                                        // ideal = text + horizontal padding (28px) + 2px buffer
+                                        var idealWidth = maxLineWidth + 30
+                                        // max allowed = 88% of body on mobile, 84% on desktop
+                                        var bodyWidth = body.getBoundingClientRect().width
+                                        var maxAllowed = bodyWidth * (window.innerWidth < 768 ? 0.88 : 0.84)
+                                        if (idealWidth <= maxAllowed) {
+                                                // Text fits — set explicit width to prevent
+                                                // the circular dependency from shrinking the bubble.
+                                                // Use !important to override the mobile media query's
+                                                // max-width:88%!important which is relative to the
+                                                // bubble-wrap (circular) and would cap the width.
+                                                b.style.setProperty('width', idealWidth + 'px', 'important')
+                                                b.style.setProperty('max-width', 'none', 'important')
+                                        }
+                                        // else: text is too long — let CSS handle wrapping
+                                } catch (e) {
+                                        /* measurement failed — fall back to CSS */
+                                }
+                        })
+                }
                 return b
         }
         function scrollDown() {
