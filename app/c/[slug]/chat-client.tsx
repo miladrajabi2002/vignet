@@ -481,7 +481,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                         onPick={(q) => void send(q)}
                                                 />
                                         ) : (
-                                                <div className="flex flex-col gap-2.5 pb-2">
+                                                <div dir="ltr" className="flex flex-col gap-2.5 pb-2">
                                                         {messages.map((m) => (
                                                                 <MessageRow
                                                                         key={m.id}
@@ -538,8 +538,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                 }}
                                                 className="flex items-end gap-2"
                                         >
-                                                <div className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 py-1.5 shadow-sm transition-all focus-within:shadow-md focus-within:[box-shadow:0_0_0_3px_var(--vgt-accent)] focus-within:border-[var(--vgt-accent)]">
+                                                <div dir="ltr" className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 pl-1 py-1.5 shadow-sm transition-all focus-within:shadow-md focus-within:[box-shadow:0_0_0_3px_var(--vgt-accent)] focus-within:border-[var(--vgt-accent)]">
                                                         <textarea
+                                                                dir="rtl"
                                                                 ref={inputRef}
                                                                 rows={1}
                                                                 value={input}
@@ -563,8 +564,8 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                 type="submit"
                                                                 disabled={!input.trim() || streaming || leadPending || !hydrated}
                                                                 aria-label="ارسال"
-                                                                className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
-                                                                style={{ backgroundColor: accent, color: onAccent, boxShadow: `0 4px 12px -3px ${accent}66` }}
+                                                                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
+                                                                style={{ backgroundColor: accent, color: onAccent }}
                                                         >
                                                                 {streaming ? (
                                                                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -845,9 +846,9 @@ function MessageRow({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, ease: 'easeOut' }}
-                        className="flex"
+                        className={isUser ? 'flex justify-end' : 'flex justify-start'}
                 >
-                        <div className={`max-w-[85%] ${isUser ? 'ml-auto' : 'mr-auto'} ${isUser ? '' : 'space-y-2'}`}>
+                        <div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
                                 {msg.role === 'user' && msg.parentContent ? (
                                         <div
                                                 className="mb-1 max-w-full rounded-2xl border-s-2 bg-black/[0.03] px-3 py-1.5 text-[12px] text-neutral-500"
@@ -866,9 +867,9 @@ function MessageRow({
                                                 style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
                                         >
                                                 {isUser ? (
-                                                        <span className="whitespace-pre-wrap">{msg.text}</span>
+                                                        <span dir="auto" className="whitespace-pre-wrap">{msg.text}</span>
                                                 ) : (
-                                                        <div className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap">
+                                                        <div dir="auto" className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap [&_p]:text-right">
                                                                 <Markdown>{msg.text}</Markdown>
                                                         </div>
                                                 )}
@@ -955,9 +956,9 @@ function TypingDots({ accent }: { accent: string }) {
                 <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex"
+                        className="flex justify-start"
                 >
-                        <div className="mr-auto flex items-center gap-1.5 rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
                                 {[0, 1, 2].map((i) => (
                                         <motion.span
                                                 key={i}
