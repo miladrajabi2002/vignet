@@ -10,30 +10,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
+import { Send, Reply, RotateCcw, Sparkles, User, Phone, X } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
 import { Markdown } from '@/lib/markdown'
-
-// ─── Refined send icon ──────────────────────────────────────────────────────
-// A clean, modern paper-plane — more balanced than the raw Telegram glyph and
-// more polished than the Lucide "Send" outline. Single solid path so it reads
-// crisply at 16-24px. Points up-right (the natural "send" direction).
-function SendIcon({ className }: { className?: string }) {
-        return (
-                <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-                        <path d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z" />
-                </svg>
-        )
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type ProductCard = { name: string; price: string; desc: string; badge: string }
 
 type Msg =
-        | { id: string; role: 'user'; text: string }
+        | { id: string; role: 'user'; text: string; parentId?: string; parentContent?: string }
         | { id: string; role: 'assistant'; text: string; cards: ProductCard[]; done: boolean; serverId?: string }
         | { id: string; role: 'error'; text: string }
 
@@ -111,12 +99,17 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         const [leadPending, setLeadPending] = useState(false)
         const [leadName, setLeadName] = useState('')
         const [leadPhone, setLeadPhone] = useState('')
+        // Reply-to (quote) state: when set, the next sent user message is linked
+        // to a previous assistant message and a preview bar shows above the composer.
+        // `id` is the server-side message id (null when replying to a just-streamed
+        // message whose server id hasn't arrived yet — quote is local-only then).
+        const [reply, setReply] = useState<{ id: string | null; text: string } | null>(null)
 
         const convIdRef = useRef<string | null>(null)
         const leadRef = useRef<{ name: string; phone: string } | null>(null)
+        const rootRef = useRef<HTMLDivElement>(null)
         const scrollerRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<HTMLTextAreaElement>(null)
-        const rootRef = useRef<HTMLDivElement>(null)
 
         // Restore conversation + transcript + lead across reloads.
         // Messages are now stored in localStorage (not sessionStorage) so the
@@ -152,7 +145,8 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                                                 id?: string
                                                                                                 role: string
                                                                                                 content: string
-                                                                                                
+                                                                                                parentId?: string | null
+                                                                                                parentContent?: string | null
                                                                                         },
                                                                                 ) => {
                                                                                         const id = m.id || nextId()
@@ -161,7 +155,8 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                                                         id,
                                                                                                         role: 'user',
                                                                                                         text: m.content,
-                                                                                                        
+                                                                                                        parentId: m.parentId ?? undefined,
+                                                                                                        parentContent: m.parentContent ?? undefined,
                                                                                                 } as Msg
                                                                                         return {
                                                                                                 id,
@@ -203,115 +198,54 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                 }
         }, [messages, msgsKey, hydrated])
 
-        const scrollDown = useCallback((smooth = true) => {
+        // force=false respects the reader's position: if the visitor scrolled up
+        // to read older messages, streaming deltas won't yank them back down.
+        const scrollDown = useCallback((smooth = true, force = true) => {
+                const el = scrollerRef.current
+                if (!el) return
+                if (!force) {
+                        const gap = el.scrollHeight - el.scrollTop - el.clientHeight
+                        if (gap > 120) return
+                }
                 requestAnimationFrame(() => {
-                        scrollerRef.current?.scrollTo({
-                                top: scrollerRef.current.scrollHeight,
+                        el.scrollTo({
+                                top: el.scrollHeight,
                                 behavior: smooth ? 'smooth' : 'auto',
                         })
                 })
         }, [])
 
-        // ── Operator-message polling ───────────────────────────────────────────
-        // The chat-link page is a request/response channel: when an operator
-        // replies from the dashboard CRM, there's no WebSocket/SSE push to the
-        // visitor. We poll the GET history endpoint every 8 seconds while:
-        //   (a) we have a conversationId, and
-        //   (b) we're not currently streaming an AI reply (the AI streams via
-        //       its own SSE so polling would only add noise during that phase).
-        // New server-side messages (id not seen locally) are appended. This
-        // catches operator replies so the visitor sees them without a refresh.
-        useEffect(() => {
-                if (!hydrated) return
-                const convId = convIdRef.current
-                if (!convId) return
-                let cancelled = false
-                const interval = setInterval(async () => {
-                        if (cancelled || streaming) return
-                        try {
-                                const res = await fetch(
-                                        `/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convId)}`,
-                                        { headers: { Accept: 'application/json' } },
-                                )
-                                if (!res.ok) return
-                                const data = await res.json()
-                                if (cancelled || !Array.isArray(data.messages)) return
-                                setMessages((prev) => {
-                                        // Build a set of ids+texts we already have so we only
-                                        // append genuinely new server messages. We key on the
-                                        // server id (when we have it) and fall back to text
-                                        // content for local-only placeholders.
-                                        const seen = new Set<string>()
-                                        for (const m of prev) {
-                                                if (m.role === 'assistant' && m.serverId) seen.add(m.serverId)
-                                                else if (m.role === 'user') seen.add('u:' + m.text.slice(0, 80))
-                                                else seen.add('e:' + m.text.slice(0, 80))
-                                        }
-                                        const additions: Msg[] = []
-                                        for (const sm of data.messages) {
-                                                const id = sm.id as string
-                                                // Skip if we already have this server id
-                                                if (seen.has(id)) continue
-                                                // Skip user echoes (we already show what we typed)
-                                                if (sm.role === 'user') {
-                                                        const key = 'u:' + String(sm.content).slice(0, 80)
-                                                        if (seen.has(key)) continue
-                                                }
-                                                if (sm.role === 'user') {
-                                                        additions.push({
-                                                                id,
-                                                                role: 'user',
-                                                                text: sm.content,
-                                                                
-                                                        })
-                                                } else {
-                                                        additions.push({
-                                                                id,
-                                                                role: 'assistant',
-                                                                text: sm.content,
-                                                                cards: [],
-                                                                done: true,
-                                                                serverId: id,
-                                                        })
-                                                }
-                                        }
-                                        if (additions.length === 0) return prev
-                                        scrollDown()
-                                        return [...prev, ...additions]
-                                })
-                        } catch {
-                                /* network error — skip this cycle */
-                        }
-                }, 8000)
-                return () => {
-                        cancelled = true
-                        clearInterval(interval)
-                }
-        }, [hydrated, slug, streaming, scrollDown])
-
         useEffect(() => {
                 if (messages.length) scrollDown(false)
         }, [hydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
-        // ── Mobile keyboard handling ──────────────────────────────────────────
-        // When the soft keyboard opens, the visualViewport shrinks. We pin the
-        // root container's height to the visible viewport so the composer stays
-        // anchored above the keyboard and the page never scrolls underneath.
-        // Mirrors the pattern used in public/widget/loader.js#applyViewportHeight.
+        // ── Mobile keyboard handling ──
+        // iOS Safari and most in-app browsers (Instagram/Telegram) do NOT shrink
+        // 100dvh when the soft keyboard opens — the composer can end up hidden
+        // behind the keyboard. Mirror public/widget/loader.js: track the
+        // visualViewport and pin the app column to the visible area while the
+        // keyboard is up, restoring the CSS height when it closes.
         useEffect(() => {
-                if (typeof window === 'undefined' || !window.visualViewport) return
                 const vv = window.visualViewport
-                const onResize = () => {
-                        if (rootRef.current) {
-                                rootRef.current.style.height = vv.height + 'px'
+                if (!vv) return
+                const onViewport = () => {
+                        const el = rootRef.current
+                        if (!el) return
+                        const kb = window.innerHeight - vv.height - vv.offsetTop
+                        if (kb > 20) {
+                                el.style.height = `${vv.height}px`
+                                // Keep the layout viewport pinned so the header stays visible.
+                                window.scrollTo(0, 0)
+                                scrollDown(false, false)
+                        } else {
+                                el.style.height = ''
                         }
-                        scrollDown()
                 }
-                vv.addEventListener('resize', onResize)
-                vv.addEventListener('scroll', onResize)
+                vv.addEventListener('resize', onViewport)
+                vv.addEventListener('scroll', onViewport)
                 return () => {
-                        vv.removeEventListener('resize', onResize)
-                        vv.removeEventListener('scroll', onResize)
+                        vv.removeEventListener('resize', onViewport)
+                        vv.removeEventListener('scroll', onViewport)
                 }
         }, [scrollDown])
 
@@ -325,12 +259,18 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                         setStreaming(true)
 
                         const isFirst = !convIdRef.current
+                        // Snapshot the reply state before sending so we can clear it
+                        // immediately (and still attach the quote to the outgoing msg).
+                        const replySnapshot = reply
+                        setReply(null)
                         setMessages((m) => [
                                 ...m,
                                 {
                                         id: nextId(),
                                         role: 'user',
                                         text: message,
+                                        parentId: replySnapshot?.id ?? undefined,
+                                        parentContent: replySnapshot?.text ?? undefined,
                                 },
                         ])
                         scrollDown()
@@ -338,6 +278,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                         const assistantId = nextId()
                         let raw = ''
                         let started = false
+                        // The server-side message id arrives in the `done` SSE event;
+                        // stash it on the assistant message so a subsequent reply-to
+                        // can reference the persisted row (not the local placeholder).
                         let serverId: string | undefined
                         const upsertAssistant = (done: boolean) => {
                                 const { text: parsed, cards } = parseAssistant(raw, done)
@@ -365,6 +308,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                         body: JSON.stringify({
                                                 message,
                                                 conversationId: convIdRef.current,
+                                                replyToMessageId: replySnapshot?.id ?? undefined,
                                                 ...(isFirst && leadRef.current
                                                         ? {
                                                                         visitorName: leadRef.current.name || undefined,
@@ -406,7 +350,10 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                 raw += evt.text
                                                                 started = true
                                                                 upsertAssistant(false)
-                                                                scrollDown()
+                                                                // Instant + non-forcing: smooth-scrolling every SSE delta
+                                                                // is laggy on phones, and a reader who scrolled up should
+                                                                // not be yanked back down mid-stream.
+                                                                scrollDown(false, false)
                                                         } else if (evt.type === 'done') {
                                                                 if (evt.messageId && typeof evt.messageId === 'string')
                                                                         serverId = evt.messageId
@@ -430,7 +377,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                 scrollDown()
                         }
                 },
-                [slug, streaming, convKey, scrollDown],
+                [slug, streaming, convKey, scrollDown, reply],
         )
 
         const submitLead = useCallback(() => {
@@ -446,6 +393,13 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                 setLeadPending(false)
         }, [leadName, leadPhone, leadKey])
 
+        // Tap a reply button on an assistant bubble: stash the quoted message
+        // (server id when we have it — otherwise null for a local-only quote) and
+        // focus the composer so the visitor can type their reply.
+        const handleReply = useCallback((serverId: string | null, text: string) => {
+                setReply({ id: serverId, text: text.slice(0, 60) })
+                requestAnimationFrame(() => inputRef.current?.focus())
+        }, [])
 
         const reset = useCallback(() => {
                 convIdRef.current = null
@@ -467,13 +421,17 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         const monogram = useMemo(() => (name || '؟').trim().charAt(0), [name])
 
         return (
-                <div ref={rootRef} className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#fafafa] text-neutral-900" style={{ ['--vgt-accent' as string]: accent }}>
+                <div
+                        ref={rootRef}
+                        className="relative flex h-[100dvh] flex-col overflow-hidden overscroll-none bg-[#fafafa] text-neutral-900"
+                >
                         <Background kind={settings.background} accent={accent} />
 
                         {/* App column */}
                         <div className="relative z-10 mx-auto flex h-full w-full max-w-2xl flex-col md:border-x md:border-black/[0.06] md:bg-white/40 md:shadow-[0_0_80px_rgba(0,0,0,0.04)] md:backdrop-blur-sm">
-                                {/* Header */}
-                                <header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/70 px-4 py-3 backdrop-blur-xl">
+                                {/* Header — pt uses safe-area so it clears the notch/Dynamic Island
+                                    in standalone or in-app browsers with viewport-fit=cover. */}
+                                <header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/70 px-4 pb-3 backdrop-blur-xl [padding-top:max(env(safe-area-inset-top),12px)]">
                                         <Avatar avatar={avatar} monogram={monogram} accent={accent} size={40} online />
                                         <div className="min-w-0 flex-1">
                                                 <p className="truncate text-sm font-semibold leading-tight">{name}</p>
@@ -534,13 +492,18 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                         onPick={(q) => void send(q)}
                                                 />
                                         ) : (
-                                                <div dir="ltr" className="flex flex-col gap-2.5 pb-2">
+                                                <div className="flex flex-col gap-2.5 pb-2">
                                                         {messages.map((m) => (
                                                                 <MessageRow
                                                                         key={m.id}
                                                                         msg={m}
                                                                         accent={accent}
                                                                         onAccent={onAccent}
+                                                                        onReply={
+                                                                                m.role === 'assistant' && m.done && m.text
+                                                                                        ? handleReply
+                                                                                        : undefined
+                                                                        }
                                                                         />
                                                         ))}
                                                         {streaming && messages[messages.length - 1]?.role === 'user' && (
@@ -552,12 +515,27 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 
                                 {/* Composer */}
                                 <div className="border-t border-black/[0.06] bg-white/80 px-3 pt-3 backdrop-blur-xl [padding-bottom:max(env(safe-area-inset-bottom),12px)]">
-                                        {leadPending ? (
-                                        <div className="px-4 py-5 text-center">
-                                                <p className="text-[13px] text-neutral-400">برای شروع گفتگو، اطلاعات زیر را وارد کنید</p>
-                                        </div>
-                                ) : (
-                                        <>
+                                        {reply && (
+                                                <div
+                                                        className="mb-2 flex items-start gap-2 rounded-2xl border-s-2 bg-black/[0.03] px-3 py-2"
+                                                        style={{ borderInlineStartColor: accent }}
+                                                >
+                                                        <div className="min-w-0 flex-1">
+                                                                <p className="text-[10px] font-medium text-neutral-500">پاسخ به</p>
+                                                                <p className="mt-0.5 line-clamp-2 text-[12px] text-neutral-700">
+                                                                        {reply.text}
+                                                                </p>
+                                                        </div>
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => setReply(null)}
+                                                                aria-label="لغو پاسخ"
+                                                                className="shrink-0 rounded-full p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700"
+                                                        >
+                                                                <X className="h-3.5 w-3.5" />
+                                                        </button>
+                                                </div>
+                                        )}
                                         <form
                                                 onSubmit={(e) => {
                                                         e.preventDefault()
@@ -565,11 +543,11 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                 }}
                                                 className="flex items-end gap-2"
                                         >
-                                                <div dir="ltr" className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 pl-1 py-1.5 shadow-sm transition-all focus-within:shadow-md focus-within:[box-shadow:0_0_0_3px_var(--vgt-accent)] focus-within:border-[var(--vgt-accent)]">
+                                                <div className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 py-1.5 shadow-sm transition-shadow focus-within:shadow-md">
                                                         <textarea
-                                                                dir="rtl"
                                                                 ref={inputRef}
                                                                 rows={1}
+                                                                enterKeyHint="send"
                                                                 value={input}
                                                                 disabled={leadPending || !hydrated}
                                                                 onChange={(e) => {
@@ -577,6 +555,13 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                         autoGrow()
                                                                 }}
                                                                 onKeyDown={(e) => {
+                                                                        // Don't send mid-IME-composition (emoji/CJK keyboards).
+                                                                        if (e.nativeEvent.isComposing) return
+                                                                        // Escape cancels an active reply-to (desktop nicety).
+                                                                        if (e.key === 'Escape' && reply) {
+                                                                                setReply(null)
+                                                                                return
+                                                                        }
                                                                         if (e.key === 'Enter' && !e.shiftKey) {
                                                                                 e.preventDefault()
                                                                                 void send(input)
@@ -585,19 +570,19 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                 placeholder={
                                                                         leadPending ? 'اول معرفی کوتاه را کامل کنید…' : 'پیام خود را بنویسید…'
                                                                 }
-                                                                className="max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-4 py-2.5 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
+                                                                className="max-h-[120px] w-full resize-none bg-transparent px-4 py-1.5 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
                                                         />
                                                         <button
                                                                 type="submit"
                                                                 disabled={!input.trim() || streaming || leadPending || !hydrated}
                                                                 aria-label="ارسال"
-                                                                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
+                                                                className="flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
                                                                 style={{ backgroundColor: accent, color: onAccent }}
                                                         >
                                                                 {streaming ? (
                                                                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                                                 ) : (
-                                                                        <SendIcon className="h-[18px] w-[18px]" />
+                                                                        <Send className="h-4 w-4" />
                                                                 )}
                                                         </button>
                                                 </div>
@@ -611,8 +596,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                         <svg viewBox="174 298 692 126" height="11" className="inline-block fill-current" xmlns="http://www.w3.org/2000/svg" aria-label="Vigent"><g transform="matrix(2.4635 0 0 2.4635 512 360.934)"><g transform="translate(-111.996 0)"><path transform="translate(-100 -95.9747)" d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"/></g><g transform="translate(-76.644 0)"><path transform="translate(-100 -95.9747)" d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"/></g><g transform="translate(-40.14 0)"><path transform="translate(-98.236 -95.9747)" d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"/></g><g transform="translate(14.364 0)"><path transform="translate(-101.008 -95.9747)" d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"/></g><g transform="translate(66.744 0)"><path transform="translate(-100 -95.9747)" d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"/></g><g transform="translate(116.316 0)"><path transform="translate(-100 -95.9747)" d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"/></g></g></svg>
                                                 </Link>
                                         </p>
-                                        </>
-                                )}
                                 </div>
                         </div>
                 </div>
@@ -848,10 +831,12 @@ function MessageRow({
         msg,
         accent,
         onAccent,
+        onReply,
 }: {
         msg: Msg
         accent: string
         onAccent: string
+        onReply?: (serverId: string | null, text: string) => void
 }) {
         if (msg.role === 'error') {
                 return (
@@ -874,24 +859,43 @@ function MessageRow({
                         className={isUser ? 'flex justify-end' : 'flex justify-start'}
                 >
                         <div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
+                                {msg.role === 'user' && msg.parentContent ? (
+                                        <div
+                                                className="mb-1 max-w-full rounded-2xl border-s-2 bg-black/[0.03] px-3 py-1.5 text-[12px] text-neutral-500"
+                                                style={{ borderInlineStartColor: accent }}
+                                        >
+                                                <p className="line-clamp-2">{msg.parentContent}</p>
+                                        </div>
+                                ) : null}
                                 {(isUser || msg.text) && (
                                         <div
                                                 className={
                                                         isUser
-                                                                ? 'rounded-3xl rounded-br-md px-4 py-2.5 text-[15px] leading-7 shadow-sm'
-                                                                : 'rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
+                                                                ? 'rounded-3xl rounded-ee-lg px-4 py-2.5 text-[15px] leading-7 shadow-sm'
+                                                                : 'rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
                                                 }
                                                 style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
                                         >
                                                 {isUser ? (
-                                                        <span dir="auto" className="whitespace-pre-wrap">{msg.text}</span>
+                                                        <span className="whitespace-pre-wrap">{msg.text}</span>
                                                 ) : (
-                                                        <div dir="auto" className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap [&_p]:text-right">
+                                                        <div className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap">
                                                                 <Markdown>{msg.text}</Markdown>
                                                         </div>
                                                 )}
                                         </div>
                                 )}
+                                {onReply && msg.role === 'assistant' && msg.done && msg.text ? (
+                                        <button
+                                                type="button"
+                                                onClick={() => onReply(msg.serverId ?? null, msg.text)}
+                                                className="ms-1 mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700"
+                                                aria-label="پاسخ به این پیام"
+                                        >
+                                                <Reply className="h-3.5 w-3.5" />
+                                                <span>پاسخ</span>
+                                        </button>
+                                ) : null}
                                 {!isUser &&
                                         msg.cards.map((card, i) => (
                                                 <div
@@ -964,7 +968,7 @@ function TypingDots({ accent }: { accent: string }) {
                         animate={{ opacity: 1, y: 0 }}
                         className="flex justify-start"
                 >
-                        <div className="flex items-center gap-1.5 rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
                                 {[0, 1, 2].map((i) => (
                                         <motion.span
                                                 key={i}

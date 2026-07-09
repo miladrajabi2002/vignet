@@ -266,7 +266,7 @@
                         '.vgt-root *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}' +
                         // touch-action:manipulation removes the legacy 300ms tap delay and
                         // accidental double-tap zoom on every widget button (mobile).
-                        '.vgt-root button{touch-action:manipulation;}' +
+                        '.vgt-root button,.vgt-root textarea,.vgt-root input{touch-action:manipulation;}' +
                         // launcher
                         '.vgt-launcher{position:relative;display:flex;align-items:center;gap:8px;height:58px;padding:0 7px;border:none;cursor:pointer;' +
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -715,6 +715,7 @@
 
         var launcher = el('button', 'vgt-launcher')
         launcher.setAttribute('aria-label', 'open chat')
+        launcher.setAttribute('aria-expanded', 'false')
         var launcherIco = el(
                 'span',
                 'vgt-launcher-ico',
@@ -809,6 +810,14 @@
                 }
 
                 input.placeholder = t('پیام خود را بنویسید…', 'Type a message…')
+                // Localized, meaningful a11y labels (screen readers on the host site).
+                closeBtn.setAttribute('aria-label', t('بستن گفتگو', 'Close chat'))
+                sendBtn.setAttribute('aria-label', t('ارسال', 'Send'))
+                launcher.setAttribute('aria-label', t('باز کردن گفتگو', 'Open chat'))
+                panel.setAttribute(
+                        'aria-label',
+                        t('گفتگو با ' + (config.name || 'Vigent'), 'Chat with ' + (config.name || 'Vigent')),
+                )
                 injectFont()
         }
 
@@ -1055,7 +1064,7 @@
                 // Error banners are full-width stretch toasts — no wrapper.
                 if (role === 'error') {
                         body.appendChild(b)
-                        scrollDown()
+                        scrollDown(true)
                         return b
                 }
                 // Wrap user/bot bubbles so we can attach an optional quote block
@@ -1071,7 +1080,7 @@
                 wrap.appendChild(b)
                 if (opts.id) attachReplyAffordance(wrap, side, opts.id)
                 body.appendChild(wrap)
-                scrollDown()
+                scrollDown(true)
                 // ── Fix: explicitly set bubble width to fit text ──────────
                 // The flexbox layout has a circular sizing dependency
                 // (bubble-wrap sizes to msg, msg's max-width:100% sizes to
@@ -1123,7 +1132,14 @@
                 }
                 return b
         }
-        function scrollDown() {
+        // force=true always jumps to the bottom (right after the visitor sends).
+        // Without force we respect a reader who scrolled up: streaming deltas and
+        // polled operator messages won't yank them back down mid-read.
+        function scrollDown(force) {
+                if (!force) {
+                        var gap = body.scrollHeight - body.scrollTop - body.clientHeight
+                        if (gap > 120) return
+                }
                 body.scrollTop = body.scrollHeight
         }
         function showTyping() {
@@ -1133,7 +1149,7 @@
                         '<span></span><span></span><span></span>',
                 )
                 body.appendChild(node)
-                scrollDown()
+                scrollDown(true)
                 return node
         }
         function setStreaming(on) {
@@ -1606,7 +1622,7 @@
                                                 if (m.id) attachReplyAffordance(g, 'bot', m.id)
                                         }
                                 })
-                                scrollDown()
+                                scrollDown(true)
                         })
                         .catch(function () {
                                 /* network error — continue with empty transcript */
@@ -1621,6 +1637,9 @@
         // messages we haven't rendered yet (keyed by data-message-id).
         // Skip polling while the AI is streaming (it has its own SSE).
         function pollForNewMessages() {
+                // Skip while the tab is hidden — saves battery/mobile data; the
+                // visibilitychange listener below runs a catch-up poll on return.
+                if (document.hidden) return
                 if (!conversationId || streaming) return
                 fetch(
                         base +
@@ -1651,8 +1670,10 @@
                                 var userTexts = {}
                                 var userBubbles = body.querySelectorAll('.vgt-msg.vgt-user')
                                 for (var j = 0; j < userBubbles.length; j++) {
-                                        var t = (userBubbles[j].textContent || '').slice(0, 80)
-                                        userTexts[t] = true
+                                        // NB: named `txt` (not `t`) so it can never shadow the t()
+                                        // translation helper in this scope.
+                                        var txt = (userBubbles[j].textContent || '').slice(0, 80)
+                                        userTexts[txt] = true
                                 }
                                 var appended = false
                                 data.messages.forEach(function (m) {
@@ -1687,6 +1708,11 @@
                                 /* network error — skip this cycle */
                         })
         }
+        // Catch-up poll the moment the visitor returns to the tab (polling is
+        // paused while the tab is hidden).
+        document.addEventListener('visibilitychange', function () {
+                if (!document.hidden && isOpen) pollForNewMessages()
+        })
 
         // ── iOS-proof body scroll lock ─────────────────────────────────
         // overflow:hidden alone does NOT stop background scrolling on iOS
@@ -1757,7 +1783,11 @@
                 // Also toggle on root so mobile CSS can hide the launcher when
                 // the full-screen panel is open.
                 root.classList.toggle('vgt-open', isOpen)
-                launcher.setAttribute('aria-label', isOpen ? 'close chat' : 'open chat')
+                launcher.setAttribute(
+                        'aria-label',
+                        isOpen ? t('بستن گفتگو', 'Close chat') : t('باز کردن گفتگو', 'Open chat'),
+                )
+                launcher.setAttribute('aria-expanded', isOpen ? 'true' : 'false')
                 if (isOpen) {
                         // Lock body scroll on mobile so the host page can't scroll/peek
                         // behind the full-screen chat (iOS needs position:fixed — see
@@ -1815,6 +1845,8 @@
         })
         input.addEventListener('input', autoGrow)
         input.addEventListener('keydown', function (e) {
+                // Don't send mid-IME-composition (emoji/CJK keyboards).
+                if (e.isComposing) return
                 if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
                         send()
@@ -1876,7 +1908,7 @@
                         panel.style.setProperty('top', vv.offsetTop + 'px', 'important')
                 }
                 // Keep the latest message visible.
-                scrollDown()
+                scrollDown(true)
         }
         if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', applyViewportHeight)
