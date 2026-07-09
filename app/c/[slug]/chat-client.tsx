@@ -245,7 +245,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                         for (const m of prev) {
                                                 if (m.role === 'assistant' && m.serverId) seen.add(m.serverId)
                                                 else if (m.role === 'user') seen.add('u:' + m.text.slice(0, 80))
-                                                else seen.add((m.role === 'user' ? 'u:' : 'a:') + m.text.slice(0, 80))
+                                                else seen.add('e:' + m.text.slice(0, 80))
                                         }
                                         const additions: Msg[] = []
                                         for (const sm of data.messages) {
