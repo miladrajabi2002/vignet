@@ -1,20 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import {
-	MessageCircle,
+import { MessageCircle,
 	Bot,
 	Headset,
 	Sparkles,
 	ShoppingBag,
 	HelpCircle,
-	Send,
 	X,
 	Package,
 	ArrowLeft,
 	ArrowRight,
-	type LucideIcon,
-} from 'lucide-react'
+	type LucideIcon } from 'lucide-react'
 import {
 	contrastOn,
 	resolveCornerRadii,
@@ -312,9 +309,8 @@ export function WidgetPreview({
 									background: gradient,
 									color: onAccent,
 									borderRadius: radii.bubble,
-									borderBottomLeftRadius: isRtl ? 5 : radii.bubble,
-									borderBottomRightRadius: isRtl ? radii.bubble : 5,
-									boxShadow: `0 4px 12px -4px ${hexToRgba(accent, 0.4)}`,
+											borderBottomRightRadius: 5,
+											boxShadow: `0 4px 12px -4px ${hexToRgba(accent, 0.4)}`,
 								}}
 							>
 								{demo.user}
@@ -336,9 +332,8 @@ export function WidgetPreview({
 									background: c.surface,
 									color: c.text,
 									borderRadius: radii.bubble,
-									borderBottomLeftRadius: isRtl ? radii.bubble : 5,
-									borderBottomRightRadius: isRtl ? 5 : radii.bubble,
-								}}
+											borderBottomLeftRadius: 5,
+										}}
 							>
 								{demo.bot}
 							</div>
@@ -432,10 +427,7 @@ export function WidgetPreview({
 									boxShadow: `0 4px 12px -3px ${hexToRgba(accent, 0.5)}`,
 								}}
 							>
-								<Send
-									className="h-3.5 w-3.5"
-									style={isRtl ? { transform: 'scaleX(-1)' } : undefined}
-								/>
+								<svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden><path d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z" /></svg>
 							</button>
 						</div>
 					</div>

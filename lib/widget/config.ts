@@ -123,8 +123,11 @@ export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
         cornerRadius: 0,
         autoGreet: false,
         autoGreetDelayMs: 4000,
-        leadCapture: false,
-        leadCaptureRequired: false,
+        // Default ON: new widget channels ask for name + phone before the chat opens
+        // so the workspace captures a CRM lead on every conversation. Existing
+        // channels keep their stored values; only newly-created channels get this.
+        leadCapture: true,
+        leadCaptureRequired: true,
         leadCaptureMessage: null,
         allowedDomains: [],
 }

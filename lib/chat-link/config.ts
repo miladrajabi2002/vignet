@@ -51,8 +51,11 @@ export const DEFAULT_CHAT_LINK_SETTINGS: ChatLinkSettings = {
         primaryColor: '#0F0F10',
         background: 'aurora',
         quickReplies: [],
-        leadCapture: false,
-        leadCaptureRequired: false,
+        // Default ON: new chat links ask for name + phone before the chat opens
+        // so the workspace captures a CRM lead on every conversation. Existing
+        // links keep their stored values; only newly-created links get this.
+        leadCapture: true,
+        leadCaptureRequired: true,
         leadCaptureMessage: null,
         showAiBadge: true,
 }

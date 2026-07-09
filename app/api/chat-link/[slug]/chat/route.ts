@@ -153,6 +153,20 @@ export async function POST(req: Request, props: Params) {
 	// Only trust the lead fields when the owner actually enabled the form.
 	const settings = normalizeChatLinkSettings(link.settings)
 
+	// ── Server-side lead-capture enforcement ──────────────────────────────
+	// When the workspace has turned on "require name + phone", reject any
+	// chat attempt that doesn't carry a valid visitorName + visitorPhone.
+	// This prevents a savvy visitor from bypassing the pre-chat form by
+	// POSTing directly to this endpoint.
+	if (settings.leadCapture && settings.leadCaptureRequired) {
+		const vName = (parsed.data.visitorName ?? '').trim()
+		const vPhone = (parsed.data.visitorPhone ?? '').trim()
+		const phoneDigits = vPhone.replace(/\D/g, '')
+		if (vName.length < 2 || phoneDigits.length < 10) {
+			return NextResponse.json({ error: 'LEAD_REQUIRED' }, { status: 400 })
+		}
+	}
+
 	const result = await startChat({
 		workspaceId: agent.workspaceId,
 		agent: {

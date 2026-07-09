@@ -179,11 +179,12 @@
                 help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
                 close: '<path d="M18 6 6 18M6 6l12 12"/>',
                 send: '<path fill="currentColor" stroke="none" d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2z"/>',
-                // Telegram-style send icon: a filled paper plane with a clean
-                // base line. Simpler and more recognizable than the Lucide
-                // version — matches what users see in Telegram/WhatsApp.
+                // Refined send icon: a clean, modern paper-plane — more balanced
+                // than the raw Telegram glyph and more polished than the Lucide
+                // outline. Single solid path, reads crisply at 16-24px, points
+                // up-right (the natural "send" direction).
                 telegramSend:
-                        '<path fill="currentColor" stroke="none" d="M2.5 10.9 21 3.4c.6-.2 1.1.3.9.9l-2.6 17.2c-.1.7-.9 1-1.4.5l-4.3-3.9-2.5 2.4c-.3.3-.8.1-.8-.3v-4.5l8.4-7.6c.3-.3-.1-.5-.5-.2L8 13.4l-4.8-1.5c-.7-.2-.7-1 .7-1z"/>',
+                        '<path fill="currentColor" stroke="none" d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z"/>',
                 phone:
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
@@ -324,9 +325,9 @@
                         'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
                         '.vgt-msg.vgt-user{align-self:flex-end;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);border-bottom-right-radius:5px;box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
-                        '.vgt-root.vgt-rtl .vgt-msg.vgt-user{border-bottom-right-radius:var(--vgt-r-bubble);border-bottom-left-radius:5px;}' +
+                        
                         '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-surface);color:var(--vgt-text);border-bottom-left-radius:5px;}' +
-                        '.vgt-root.vgt-rtl .vgt-msg.vgt-bot{border-bottom-left-radius:var(--vgt-r-bubble);border-bottom-right-radius:5px;}' +
+                        
                         '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;}' +
                         // assistant group (chip + bubble + cards + actions)
                         // width:fit-content + max-width:100% lets the group size to content
@@ -516,6 +517,7 @@
                         'color:var(--vgt-muted);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}' +
                         '.vgt-reply-bar-x:hover{background:var(--vgt-bg);color:var(--vgt-text);}' +
                         '.vgt-reply-bar-x svg{width:14px;height:14px;}' +
+                        '.vgt-backdrop{position:fixed;inset:0;background:var(--vgt-bg);display:none;z-index:0;}' +
                         '@media (max-width:768px){' +
                         // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
                         // On phones & small tablets the chat panel becomes a true
@@ -561,6 +563,7 @@
                         // Hide the launcher while the full-screen panel is open so it
                         // doesn't float over the conversation.
                         '.vgt-root.vgt-open .vgt-launcher{display:none!important;}' +
+                        '.vgt-root.vgt-open .vgt-backdrop{display:block!important;}' +
                         // Slightly larger touch targets for action chips on mobile.
                         '.vgt-action{padding:12px 18px!important;font-size:13px!important;}' +
                         // Messages use a bit more screen width on mobile.
@@ -598,6 +601,10 @@
         // ---- Build DOM ----
         injectStyles()
         var root = el('div', 'vgt-root')
+        // Solid backdrop — sits behind the panel, covers the full viewport on
+        // mobile so the host site is never visible through gaps or during the
+        // keyboard open transition. On desktop it stays hidden (display:none).
+        var backdrop = el('div', 'vgt-backdrop')
         var panel = el('div', 'vgt-panel')
         panel.setAttribute('role', 'dialog')
         panel.setAttribute('aria-label', 'chat')
@@ -662,6 +669,8 @@
         )
         launcher.appendChild(launcherIco)
 
+        // Backdrop first (lowest in DOM order → paints behind panel & launcher)
+        root.appendChild(backdrop)
         root.appendChild(panel)
         root.appendChild(launcher)
 
@@ -816,6 +825,9 @@
                         leadCaptured = true
                         return false
                 }
+                // Hide the chat input bar while the lead form is showing so the
+                // visitor can't type/send until they've introduced themselves.
+                if (foot) foot.style.display = 'none'
                 body.innerHTML = ''
                 var lead = el('div', 'vgt-lead')
                 lead.appendChild(el('div', 'vgt-lead-ava', svg('bot')))
@@ -824,12 +836,20 @@
                         t(
                                 'سلام! من ' +
                                         config.name +
-                                        ' هستم، دستیار هوش مصنوعی این مجموعه و آماده‌ام به سؤالات شما پاسخ بدهم. برای شروع گفتگو لطفاً خودتان را معرفی کنید.',
+                                        ' هستم، دستیار هوش مصنوعی این مجموعه و آماده‌ام به سؤالات شما پاسخ بدهم. برای شروع گفتگو لطفاً نام و شماره موبایل خود را وارد کنید.',
                                 "Hi! I'm " +
                                         config.name +
-                                        ', the AI assistant here, ready to answer your questions. To start, please introduce yourself.',
+                                        ', the AI assistant here, ready to answer your questions. To start, please enter your name and mobile number.',
                         )
                 lead.appendChild(el('div', 'vgt-lead-text', msg))
+                // When the form is required, show a small "required" badge so the
+                // visitor understands they must fill it before they can chat.
+                if (config.leadCaptureRequired) {
+                        var badge = el('div', 'vgt-lead-text')
+                        badge.style.cssText = 'font-size:12px;color:var(--vgt-muted);font-weight:600;margin-top:-4px;'
+                        badge.textContent = t('برای شروع چت الزامی است', 'Required to start chat')
+                        lead.appendChild(badge)
+                }
                 var form = el('form', 'vgt-lead-form')
                 var nameInput = el('input', 'vgt-lead-input')
                 nameInput.type = 'text'
@@ -864,6 +884,7 @@
                                 visitorName = null
                                 visitorPhone = null
                                 leadCaptured = true
+                                if (foot) foot.style.display = ''
                                 body.innerHTML = ''
                                 introVisible = false
                                 renderIntro()
@@ -889,9 +910,10 @@
                         } else {
                                 nameInput.style.borderColor = ''
                         }
-                        // Permissive: accept digits, +, spaces, dashes; min 6 digits.
+                        // Unified with the chat-link page: require at least 10 digits
+                        // (a valid mobile number). Accepts digits, +, spaces, dashes.
                         var digits = phone.replace(/\D/g, '')
-                        if (digits.length < 6) {
+                        if (digits.length < 10) {
                                 phoneInput.style.borderColor = '#ef4444'
                                 ok = false
                         } else {
@@ -905,6 +927,7 @@
                         visitorPhone = phone
                         saveStoredLead({ name: name, phone: phone, ts: Date.now() })
                         leadCaptured = true
+                        if (foot) foot.style.display = ''
                         body.innerHTML = ''
                         introVisible = false
                         renderIntro()
@@ -1340,6 +1363,8 @@
         function send(preset) {
                 var text = (preset != null ? preset : input.value).trim()
                 if (!text || streaming) return
+                // Block sending until the lead-capture form is filled (when required).
+                if (config.leadCapture && !leadCaptured) return
                 // Snapshot the active reply-to state before clearing it: the
                 // user bubble we're about to render needs the quote snippet,
                 // and the POST payload needs the id.
@@ -1540,6 +1565,11 @@
                 root.classList.toggle('vgt-open', isOpen)
                 launcher.setAttribute('aria-label', isOpen ? 'close chat' : 'open chat')
                 if (isOpen) {
+                        // Lock body scroll on mobile so the host page can't scroll/peek
+                        // behind the full-screen chat. Desktop keeps scrolling enabled.
+                        if (window.innerWidth < 768 && document.body) {
+                                document.body.style.overflow = 'hidden'
+                        }
                         var tz = root.querySelector('.vgt-teaser')
                         if (tz) tz.remove()
                         // Show lead-capture form first if enabled and not yet captured.
@@ -1555,6 +1585,10 @@
                                 input.focus()
                         }, 80)
                 } else {
+                        // Restore body scroll when the panel closes.
+                        if (document.body) {
+                                document.body.style.overflow = ''
+                        }
                         // Drop any inline height set by the visualViewport handler so
                         // the CSS-defined size takes over again next time the panel opens.
                         panel.style.height = ''

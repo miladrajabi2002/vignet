@@ -10,11 +10,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Send, Reply, RotateCcw, Sparkles, User, Phone, X } from 'lucide-react'
+import { Reply, RotateCcw, Sparkles, User, Phone, X } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
 import { Markdown } from '@/lib/markdown'
+
+// ─── Refined send icon ──────────────────────────────────────────────────────
+// A clean, modern paper-plane — more balanced than the raw Telegram glyph and
+// more polished than the Lucide "Send" outline. Single solid path so it reads
+// crisply at 16-24px. Points up-right (the natural "send" direction).
+function SendIcon({ className }: { className?: string }) {
+        return (
+                <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+                        <path d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z" />
+                </svg>
+        )
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +121,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         const leadRef = useRef<{ name: string; phone: string } | null>(null)
         const scrollerRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<HTMLTextAreaElement>(null)
+        const rootRef = useRef<HTMLDivElement>(null)
 
         // Restore conversation + transcript + lead across reloads.
         // Messages are now stored in localStorage (not sessionStorage) so the
@@ -209,6 +222,28 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         useEffect(() => {
                 if (messages.length) scrollDown(false)
         }, [hydrated]) // eslint-disable-line react-hooks/exhaustive-deps
+
+        // ── Mobile keyboard handling ──────────────────────────────────────────
+        // When the soft keyboard opens, the visualViewport shrinks. We pin the
+        // root container's height to the visible viewport so the composer stays
+        // anchored above the keyboard and the page never scrolls underneath.
+        // Mirrors the pattern used in public/widget/loader.js#applyViewportHeight.
+        useEffect(() => {
+                if (typeof window === 'undefined' || !window.visualViewport) return
+                const vv = window.visualViewport
+                const onResize = () => {
+                        if (rootRef.current) {
+                                rootRef.current.style.height = vv.height + 'px'
+                        }
+                        scrollDown()
+                }
+                vv.addEventListener('resize', onResize)
+                vv.addEventListener('scroll', onResize)
+                return () => {
+                        vv.removeEventListener('resize', onResize)
+                        vv.removeEventListener('scroll', onResize)
+                }
+        }, [scrollDown])
 
         // ── Send flow ──
         const send = useCallback(
@@ -379,7 +414,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         const monogram = useMemo(() => (name || '؟').trim().charAt(0), [name])
 
         return (
-                <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#fafafa] text-neutral-900">
+                <div ref={rootRef} className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#fafafa] text-neutral-900" style={{ ['--vgt-accent' as string]: accent }}>
                         <Background kind={settings.background} accent={accent} />
 
                         {/* App column */}
@@ -469,6 +504,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 
                                 {/* Composer */}
                                 <div className="border-t border-black/[0.06] bg-white/80 px-3 pt-3 backdrop-blur-xl [padding-bottom:max(env(safe-area-inset-bottom),12px)]">
+                                        {leadPending ? (
+                                        <div className="px-4 py-5 text-center">
+                                                <p className="text-[13px] text-neutral-400">برای شروع گفتگو، اطلاعات زیر را وارد کنید</p>
+                                        </div>
+                                ) : (
+                                        <>
                                         {reply && (
                                                 <div
                                                         className="mb-2 flex items-start gap-2 rounded-2xl border-s-2 bg-black/[0.03] px-3 py-2"
@@ -497,7 +538,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                 }}
                                                 className="flex items-end gap-2"
                                         >
-                                                <div className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 py-1.5 shadow-sm transition-shadow focus-within:shadow-md">
+                                                <div className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 py-1.5 shadow-sm transition-all focus-within:shadow-md focus-within:[box-shadow:0_0_0_3px_var(--vgt-accent)] focus-within:border-[var(--vgt-accent)]">
                                                         <textarea
                                                                 ref={inputRef}
                                                                 rows={1}
@@ -516,19 +557,19 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                 placeholder={
                                                                         leadPending ? 'اول معرفی کوتاه را کامل کنید…' : 'پیام خود را بنویسید…'
                                                                 }
-                                                                className="max-h-[120px] w-full resize-none bg-transparent px-4 py-1.5 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
+                                                                className="max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-4 py-2.5 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
                                                         />
                                                         <button
                                                                 type="submit"
                                                                 disabled={!input.trim() || streaming || leadPending || !hydrated}
                                                                 aria-label="ارسال"
-                                                                className="flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
-                                                                style={{ backgroundColor: accent, color: onAccent }}
+                                                                className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
+                                                                style={{ backgroundColor: accent, color: onAccent, boxShadow: `0 4px 12px -3px ${accent}66` }}
                                                         >
                                                                 {streaming ? (
                                                                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                                                 ) : (
-                                                                        <Send className="h-4 w-4" />
+                                                                        <SendIcon className="h-[18px] w-[18px]" />
                                                                 )}
                                                         </button>
                                                 </div>
@@ -542,6 +583,8 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                         <svg viewBox="174 298 692 126" height="11" className="inline-block fill-current" xmlns="http://www.w3.org/2000/svg" aria-label="Vigent"><g transform="matrix(2.4635 0 0 2.4635 512 360.934)"><g transform="translate(-111.996 0)"><path transform="translate(-100 -95.9747)" d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"/></g><g transform="translate(-76.644 0)"><path transform="translate(-100 -95.9747)" d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"/></g><g transform="translate(-40.14 0)"><path transform="translate(-98.236 -95.9747)" d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"/></g><g transform="translate(14.364 0)"><path transform="translate(-101.008 -95.9747)" d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"/></g><g transform="translate(66.744 0)"><path transform="translate(-100 -95.9747)" d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"/></g><g transform="translate(116.316 0)"><path transform="translate(-100 -95.9747)" d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"/></g></g></svg>
                                                 </Link>
                                         </p>
+                                        </>
+                                )}
                                 </div>
                         </div>
                 </div>
@@ -802,9 +845,9 @@ function MessageRow({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, ease: 'easeOut' }}
-                        className={isUser ? 'flex justify-end' : 'flex justify-start'}
+                        className="flex"
                 >
-                        <div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
+                        <div className={`max-w-[85%] ${isUser ? 'ml-auto' : 'mr-auto'} ${isUser ? '' : 'space-y-2'}`}>
                                 {msg.role === 'user' && msg.parentContent ? (
                                         <div
                                                 className="mb-1 max-w-full rounded-2xl border-s-2 bg-black/[0.03] px-3 py-1.5 text-[12px] text-neutral-500"
@@ -817,8 +860,8 @@ function MessageRow({
                                         <div
                                                 className={
                                                         isUser
-                                                                ? 'rounded-3xl rounded-ee-lg px-4 py-2.5 text-[15px] leading-7 shadow-sm'
-                                                                : 'rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
+                                                                ? 'rounded-3xl rounded-br-md px-4 py-2.5 text-[15px] leading-7 shadow-sm'
+                                                                : 'rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
                                                 }
                                                 style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
                                         >
@@ -912,9 +955,9 @@ function TypingDots({ accent }: { accent: string }) {
                 <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex justify-start"
+                        className="flex"
                 >
-                        <div className="flex items-center gap-1.5 rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
+                        <div className="mr-auto flex items-center gap-1.5 rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
                                 {[0, 1, 2].map((i) => (
                                         <motion.span
                                                 key={i}
