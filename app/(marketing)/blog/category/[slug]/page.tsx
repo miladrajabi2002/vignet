@@ -91,6 +91,8 @@ export default async function PublicBlogCategoryPage(props: Props) {
 									<img
 										src={p.coverImage}
 										alt={p.title}
+										loading="lazy"
+										decoding="async"
 										className="aspect-[3/2] w-full object-cover"
 									/>
 								</Link>

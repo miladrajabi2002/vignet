@@ -16,7 +16,13 @@ const EASE = [0.16, 1, 0.3, 1] as const
 // Minimal typing for the WebOTP API (not yet in lib.dom for our TS target).
 type OTPCredentialLike = { code?: string }
 
-export function PhoneOtpForm() {
+export function PhoneOtpForm({
+  preferredPlan,
+  nextPath,
+}: {
+  preferredPlan?: string
+  nextPath?: string
+}) {
   const t = useTranslations('auth')
   const reduce = useReducedMotion()
 
@@ -110,7 +116,10 @@ export function PhoneOtpForm() {
         // Full-page navigation (not router.push) so middleware + server layouts
         // see the freshly-set session cookie and can run the onboarding redirect.
         // A soft navigation here lands on a blank page until manual refresh.
-        setTimeout(() => window.location.assign('/overview'), 700)
+        const destination = preferredPlan
+          ? `/billing?plan=${encodeURIComponent(preferredPlan)}`
+          : nextPath ?? (isNewUser ? '/onboarding' : '/overview')
+        setTimeout(() => window.location.assign(destination), 700)
       } catch {
         setError('GENERIC')
         submittingRef.current = false
@@ -118,7 +127,7 @@ export function PhoneOtpForm() {
         setLoading(false)
       }
     },
-    [phone, isNewUser, name],
+    [phone, isNewUser, name, nextPath, preferredPlan],
   )
 
   // Auto-verify the moment the last digit lands (typed, pasted or autofilled).

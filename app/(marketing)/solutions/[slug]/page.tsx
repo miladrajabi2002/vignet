@@ -67,7 +67,7 @@ export default async function SolutionPage(
 				</p>
 				<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
 					<Link
-						href="/login"
+						href="/login?next=/onboarding"
 						className="inline-flex items-center gap-2 rounded-full bg-[var(--white)] px-6 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
 					>
 						شروع رایگان — ۱۴ روز
@@ -155,7 +155,7 @@ export default async function SolutionPage(
 						۱۴ روز رایگان — فقط با شماره موبایل
 					</p>
 					<Link
-						href="/login"
+						href="/login?next=/onboarding"
 						className="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--white)] px-6 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
 					>
 						شروع رایگان

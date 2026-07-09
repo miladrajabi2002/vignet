@@ -55,7 +55,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
             <div className="relative aspect-video bg-[var(--bg-muted)]">
               {p.images[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover" />
+                <img src={p.images[0]} alt={p.name} width={320} height={320} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full items-center justify-center text-[var(--text-hint)]">
                   <Package className="h-8 w-8" />

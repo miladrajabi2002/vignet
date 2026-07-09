@@ -273,6 +273,9 @@ export function ChatLinkChannel({
                                                                                 <img
                                                                                         src={qr}
                                                                                         alt="QR"
+                                                                                        width={112}
+                                                                                        height={112}
+                                                                                        decoding="async"
                                                                                         className="h-28 w-28 rounded-lg bg-white p-1"
                                                                                 />
                                                                         ) : (

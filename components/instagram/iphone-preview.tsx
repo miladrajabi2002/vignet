@@ -327,6 +327,8 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                                         <img
                                                 src={message.mediaUrl}
                                                 alt={message.text || 'preview'}
+                                                loading="lazy"
+                                                decoding="async"
                                                 className="block max-h-48 w-full object-cover"
                                         />
                                 </div>
@@ -772,6 +774,8 @@ function Avatar({
                                 alt={name}
                                 width={size}
                                 height={size}
+                                loading="lazy"
+                                decoding="async"
                                 className={`shrink-0 rounded-full object-cover ${ring ? 'ring-2 ring-white p-[1.5px]' : ''}`}
                                 style={{ width: size, height: size }}
                         />

@@ -29,8 +29,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
-import { Markdown } from '@/lib/markdown'
 import { stripProductTokens } from '@/lib/widget/config'
+import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { OperatorReply } from './operator-reply'
 
 export type ThreadMessage = {
@@ -174,28 +174,20 @@ export function ConversationThread({
                                                         key={m.id}
                                                         className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
                                                 >
-                                                        <div
-                                                                className={cn(
-                                                                        'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
-                                                                        isUser
-                                                                                ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                                : 'bg-[var(--white)] text-[var(--bg-base)]',
-                                                                )}
+                                                        <ConversationBubble
+                                                                side={isUser ? 'start' : 'end'}
+                                                                tone={isUser ? 'muted' : 'inverse'}
+                                                                className="max-w-[75%] py-2"
                                                         >
                                                                 {isOperator && (
                                                                         <span className="mb-0.5 block text-[10px] font-medium opacity-60">
                                                                                 {t('operatorBadge')}
                                                                         </span>
                                                                 )}
-                                                                {isUser ? (
-                                                                        <p className="whitespace-pre-wrap break-words">
-                                                                                {stripProductTokens(m.content)}
-                                                                        </p>
-                                                                ) : (
-                                                                        <div className="break-words [&_p]:whitespace-pre-wrap [&_p]:break-words">
-                                                                                <Markdown>{stripProductTokens(m.content)}</Markdown>
-                                                                        </div>
-                                                                )}
+                                                                <ConversationText
+                                                                        text={stripProductTokens(m.content)}
+                                                                        markdown={!isUser}
+                                                                />
                                                                 <span
                                                                         className={cn(
                                                                                 'mt-1 block text-[10px]',
@@ -206,7 +198,7 @@ export function ConversationThread({
                                                                 >
                                                                         {formatDateTime(new Date(m.createdAt), locale)}
                                                                 </span>
-                                                        </div>
+                                                        </ConversationBubble>
                                                 </div>
                                         )
                                 })}

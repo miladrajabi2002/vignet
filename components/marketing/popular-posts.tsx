@@ -188,6 +188,8 @@ function PopularCard({
 				<img
 					src={post.coverImage}
 					alt={post.title}
+					loading="lazy"
+					decoding="async"
 					className="aspect-[3/2] w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
 				/>
 			)}

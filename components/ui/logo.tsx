@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { cn } from '@/lib/utils'
 
 /**
  * Vigent brand logo.
@@ -23,15 +24,23 @@ import Image from 'next/image'
  * The legacy `text-[…]` classes are accepted but ignored (they only affected
  * the old inline-SVG `currentColor` fill).
  */
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+	className,
+	priority = false,
+}: {
+	className?: string
+	priority?: boolean
+}) {
 	return (
-		<Image
-			src="/logo.png"
-			alt="Vigent"
-			width={1536}
-			height={1024}
-			priority
-			className={className}
-		/>
+		<span className={cn('relative inline-block shrink-0 overflow-hidden', className)}>
+			<Image
+				src="/logo.png"
+				alt="Vigent"
+				fill
+				priority={priority}
+				sizes="(max-width: 768px) 104px, 120px"
+				className="object-cover object-center"
+			/>
+		</span>
 	)
 }

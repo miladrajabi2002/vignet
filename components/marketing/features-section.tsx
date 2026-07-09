@@ -4,7 +4,6 @@ import type { ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
-  Workflow,
   Database,
   Package,
   Share2,
@@ -79,40 +78,6 @@ function VisLearning({ labels }: { labels: { q: string; a: string; ok: string } 
         <Check className="relative h-3 w-3" />
         <span className="relative">{labels.ok}</span>
       </motion.span>
-    </div>
-  )
-}
-
-/** Flow builder: nodes chained left-to-right, ending in a branch. */
-function VisFlow() {
-  const node =
-    'flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-hover)] bg-[var(--bg-elevated)]'
-  const dot = 'h-1.5 w-1.5 rounded-full bg-[var(--white-30)]'
-  const line = 'h-px w-4 bg-[var(--border-hover)]'
-  return (
-    <div className="flex items-center" dir="ltr">
-      <div className={node}>
-        <span className={dot} />
-      </div>
-      <span className={line} />
-      <div className={node}>
-        <span className={dot} />
-      </div>
-      <span className={line} />
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center">
-          <span className="h-px w-3 bg-[var(--border-hover)]" />
-          <div className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)]">
-            <span className="h-1 w-1 rounded-full bg-[var(--white-30)]" />
-          </div>
-        </div>
-        <div className="flex items-center">
-          <span className="h-px w-3 bg-[var(--border-hover)]" />
-          <div className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)]">
-            <span className="h-1 w-1 rounded-full bg-[var(--white-30)]" />
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -232,8 +197,7 @@ function VisInbox() {
    a card with its own micro-visual instead of a bare icon.
    ─────────────────────────────────────────────────────────────────────── */
 
-const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'flow' | 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
-  { key: 'builder', icon: Workflow, vis: 'flow' },
+const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
   { key: 'knowledge', icon: Database, vis: 'docs' },
   { key: 'products', icon: Package, vis: 'product' },
   { key: 'voice', icon: AudioLines, vis: 'voice' },
@@ -242,7 +206,6 @@ const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'flow' | 'docs
 ]
 
 const VIS: Record<string, ComponentType> = {
-  flow: VisFlow,
   docs: VisDocs,
   product: VisProduct,
   voice: VisVoice,

@@ -135,26 +135,43 @@
         },
         "onboarding": {
                 "title": "Set up Vigent",
-                "subtitle": "Activate your agent in 5 simple steps",
+                "subtitle": "Go from a ready template to your first real conversation, step by step",
                 "progress": "{done} of {total} steps",
                 "completedTitle": "Congratulations! Setup complete",
                 "completedSubtitle": "Your agent is ready",
                 "skip": "Skip guide",
+                "goalTitle": "Which business looks most like yours?",
+                "goalSubtitle": "Pick a starting point and Vigent will prepare the agent name, behavior and greeting for you.",
+                "tryDemo": "See a sample first",
+                "goals": {
+                        "store": {
+                                "title": "Online store",
+                                "desc": "Product discovery, sales and order follow-up"
+                        },
+                        "services": {
+                                "title": "Services & booking",
+                                "desc": "Capture requests, coordinate and hand off"
+                        },
+                        "education": {
+                                "title": "Education & courses",
+                                "desc": "Course guidance and enrollment follow-up"
+                        }
+                },
                 "steps": {
                         "key": {
-                                "title": "Add your OpenRouter key",
-                                "desc": "Add your OpenRouter API key to power your AI",
-                                "cta": "Add key"
+                                "title": "Turn on AI replies",
+                                "desc": "Add your AI account key to activate real responses",
+                                "cta": "Activate replies"
                         },
                         "agent": {
-                                "title": "Create your first agent",
-                                "desc": "Create a smart agent for your business",
-                                "cta": "Create agent"
+                                "title": "Choose a ready starting point",
+                                "desc": "Start with a template for your business and change anything later",
+                                "cta": "Choose template"
                         },
                         "knowledge": {
-                                "title": "Add knowledge or products",
-                                "desc": "Give your agent your data or product catalog",
-                                "cta": "Add knowledge"
+                                "title": "Add real business information",
+                                "desc": "Add products, FAQs or files so answers become accurate",
+                                "cta": "Add information"
                         },
                         "channel": {
                                 "title": "Add a connection",
@@ -163,8 +180,8 @@
                         },
                         "test": {
                                 "title": "Test your agent",
-                                "desc": "Start your first conversation with your agent",
-                                "cta": "Test agent"
+                                "desc": "Message it like a customer and review the answer immediately",
+                                "cta": "Start a test chat"
                         }
                 },
                 "railTitle": "Set up your agent",
@@ -828,13 +845,24 @@
         },
         "marketing": {
                 "hero": {
-                        "badge": "VIGENT AI PLATFORM ✦",
-                        "title": "Smart AI agents",
+                        "badge": "Persian-first customer & sales AI",
+                        "title": "Automate sales and support across every channel",
                         "rotate": ["for sales", "for support", "for order tracking", "for your business"],
-                        "subtitle": "A salesperson that never sleeps: connected to your business data, replying to customers in seconds on your website, Telegram, WhatsApp and Instagram — consulting, selling, tracking orders and supporting.",
+                        "subtitle": "Vigent connects to your real products and business knowledge, answers customers, captures leads, and hands conversations to your team whenever a human is needed.",
                         "ctaPrimary": "Start free — 14 days",
                         "ctaSecondary": "Watch demo",
-                        "trust": "No credit card required · Set up in under 5 minutes · Persian-language support"
+                        "trust": "Set up in under 5 minutes · No technical skills · No credit card",
+                        "sceneIncoming": "A real conversation in Vigent",
+                        "sceneCustomer": "What lightweight running shoe do you recommend under my budget?",
+                        "sceneAgent": "Based on your budget and daily use, this model is lighter and has better cushioning for regular runs.",
+                        "sceneProduct": "Recommended from your catalog",
+                        "sceneStock": "Live price and availability",
+                        "sceneResult": "Business outcome",
+                        "sceneLead": "Lead captured",
+                        "sceneSpeed": "Answered in seconds",
+                        "sceneSale": "Customer moved to purchase",
+                        "sceneFollowup": "Follow-up in one inbox",
+                        "sceneChannels": "The same experience works on your website, Instagram, Telegram, WhatsApp, Bale and Rubika."
                 },
                 "stats": {
                         "conversations": "conversations",
@@ -842,8 +870,8 @@
                         "businesses": "businesses"
                 },
                 "features": {
-                        "title": "Everything a professional agent needs",
-                        "subtitle": "From personality design and knowledge to selling and supporting on every channel — without a single line of code.",
+                        "title": "Everything you need to answer and sell",
+                        "subtitle": "Business knowledge, products, every conversation and human handoff in one simple workspace.",
                         "learningBadge": "What sets Vigent apart",
                         "eyebrow": "Capabilities",
                         "visLearning": {
@@ -855,10 +883,6 @@
                                 "learning": {
                                         "title": "Self-learning agent",
                                         "desc": "Every unanswered question is a learning opportunity — the agent records it, proposes an answer, and with your approval learns it for good, getting smarter every day"
-                                },
-                                "builder": {
-                                        "title": "Visual flow builder",
-                                        "desc": "Design the conversation path in a few clicks — welcome flows, sales funnels, order tracking; no code"
                                 },
                                 "knowledge": {
                                         "title": "Knowledge base",
@@ -887,7 +911,7 @@
                         "eyebrow": "Quick start",
                         "subtitle": "No code and no technical team — from sign-up to the first conversation in under 5 minutes.",
                         "step1Title": "Create your agent",
-                        "step1": "Pick the template that fits your business and connect your OpenRouter key",
+                        "step1": "Choose your business goal and start with an agent whose copy and behavior are already prepared",
                         "step1Time": "about 1 minute",
                         "step2Title": "Add knowledge & products",
                         "step2": "Upload your catalog and documents so the agent knows your business inside out",
@@ -917,7 +941,7 @@
                 "demo": {
                         "title": "See the product in action",
                         "eyebrow": "Live interactive demo",
-                        "subtitle": "A real tour of Vigent — from a customer conversation to the management dashboard and the agent's self-learning.",
+                        "subtitle": "Choose a business type and see the full path from customer message to smart response, captured outcome and human handoff.",
                         "views": {
                                 "chat": "Live chat",
                                 "dashboard": "Dashboard",
@@ -931,11 +955,11 @@
                         "online": "Online",
                         "ctaStart": "Start free — 14 days",
                         "ctaStartDesc": "Build your smart agent right now",
-                        "scenarioLabel": "Scenario",
+                        "scenarioLabel": "Business type",
                         "tabs": {
-                                "sales": "Sales",
-                                "support": "Support",
-                                "catalog": "Catalog"
+                                "sales": "Online store",
+                                "support": "Services & booking",
+                                "catalog": "Education & courses"
                         },
                         "sources": {
                                 "catalog": "From product catalog",
@@ -1094,74 +1118,74 @@
                                         ]
                                 },
                                 "support": {
-                                        "label": "Support",
+                                        "label": "Services & booking",
                                         "bubbles": [
                                                 {
                                                         "role": "user",
-                                                        "text": "My order hasn't arrived yet 😟"
+                                                        "text": "Do you have a consultation slot tomorrow afternoon?"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "I'm sorry for the delay. What's your order number?",
+                                                        "text": "Yes, 5:00 and 6:30 are available. Would you prefer online or in person?",
                                                         "source": "knowledge"
                                                 },
                                                 {
                                                         "role": "user",
-                                                        "text": "12345"
+                                                        "text": "In person at 5:00"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "Your order is being packed — it ships tomorrow morning and arrives by the day after.",
+                                                        "text": "Your 5:00 request is saved. I only need your name and phone number to confirm it.",
                                                         "source": "knowledge"
                                                 },
                                                 {
                                                         "role": "user",
-                                                        "text": "Can I get it today?"
+                                                        "text": "I need to speak with a specialist about my case first"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "Unfortunately that's not possible for today. I'll hand this off to a human teammate to help you.",
+                                                        "text": "Of course. I'll hand over this conversation with a summary so a specialist can help before booking.",
                                                         "source": "handoff",
                                                         "handoff": true
                                                 }
                                         ]
                                 },
                                 "catalog": {
-                                        "label": "Catalog",
+                                        "label": "Education & courses",
                                         "bubbles": [
                                                 {
                                                         "role": "user",
-                                                        "text": "I need a laptop for programming"
+                                                        "text": "Which course is best for starting web design?"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "Based on your needs, I recommend this model:",
+                                                        "text": "If you are starting from zero, this path fits you best:",
                                                         "source": "catalog",
                                                         "product": {
-                                                                "name": "MacBook Pro 14\"",
-                                                                "price": "65,000,000 Toman",
-                                                                "badge": "Recommended",
-                                                                "desc": "M3 Pro chip, 18GB RAM, ideal for dev and design",
-                                                                "initial": "M"
+                                                                "name": "Complete web design course",
+                                                                "price": "2,400,000 Toman",
+                                                                "badge": "Beginner friendly",
+                                                                "desc": "Project based, tutor support and lifetime access",
+                                                                "initial": "V"
                                                         },
                                                         "buttons": ["specs", "compare"]
                                                 },
                                                 {
                                                         "role": "user",
-                                                        "text": "Is it in stock?"
+                                                        "text": "Do I need programming experience?"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "Yes, 3 units in stock. Same-day delivery for Tehran.",
-                                                        "source": "catalog"
+                                                        "text": "No. It starts with the fundamentals and requires no previous experience.",
+                                                        "source": "knowledge"
                                                 },
                                                 {
                                                         "role": "user",
-                                                        "text": "What's the warranty?"
+                                                        "text": "Will I receive a certificate?"
                                                 },
                                                 {
                                                         "role": "agent",
-                                                        "text": "18 months official manufacturer warranty + 7-day test and return period.",
+                                                        "text": "Yes. A completion certificate is issued after you finish the final project.",
                                                         "source": "knowledge"
                                                 }
                                         ]
@@ -1169,16 +1193,43 @@
                         }
                 },
                 "pricing": {
-                        "title": "Pricing for every business",
+                        "title": "A plan that fits your conversation volume",
                         "eyebrow": "Pricing",
-                        "subtitle": "Start with 14 free days and every feature — no card required; upgrade whenever you're ready.",
+                        "subtitle": "Try Vigent free for 14 days, then choose a plan when your conversations grow.",
                         "free": "Free",
                         "monthly": "Monthly",
                         "annual": "Annual",
                         "discount": "20% off",
                         "perMonth": "/ mo",
                         "cta": "Get started",
-                        "popular": "Most popular"
+                        "popular": "Vigent's pick",
+                        "trialTitle": "14 days to build and test",
+                        "trialNote": "No card required, with {count} agent replies and one active agent",
+                        "trialCta": "Start free trial",
+                        "tomanPerMonth": "Toman / month",
+                        "messages": "{count} agent replies per month",
+                        "agents": "Up to {count} active agents",
+                        "allChannels": "Access to every active channel",
+                        "byok": "Choose your model and pay AI usage directly",
+                        "planCta": "Choose {plan}",
+                        "billingNote": "AI usage is billed separately and directly by your selected model provider; Vigent adds no markup.",
+                        "plans": {
+                                "starter": {
+                                        "name": "Starter",
+                                        "audience": "For small businesses beginning to automate customer replies",
+                                        "value": "Best when you need up to roughly 100 agent replies per day."
+                                },
+                                "pro": {
+                                        "name": "Pro",
+                                        "audience": "For stores and teams managing customers across several channels",
+                                        "value": "The balanced choice for growing sales and unifying customer communication."
+                                },
+                                "business": {
+                                        "name": "Business",
+                                        "audience": "For high-volume teams running multiple agents",
+                                        "value": "Built for businesses where customer conversations are a daily operation."
+                                }
+                        }
                 },
                 "faq": {
                         "title": "Frequently asked questions",

@@ -167,6 +167,9 @@ export default async function ConversationThreadPage(props: {
                                         <img
                                                 src={contactAvatarUrl}
                                                 alt={who}
+                                                width={40}
+                                                height={40}
+                                                decoding="async"
                                                 referrerPolicy="no-referrer"
                                                 className="h-10 w-10 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
                                         />

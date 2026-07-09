@@ -24,7 +24,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         className="absolute top-8 text-[var(--text-primary)]"
         aria-label="Vigent"
       >
-        <Logo className="h-5 w-auto" />
+        <Logo priority className="h-8 w-28" />
       </Link>
       <div className="relative z-10 w-full max-w-sm">{children}</div>
     </div>

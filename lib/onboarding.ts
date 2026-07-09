@@ -7,11 +7,11 @@ export interface OnboardingState {
   step: number // highest contiguous completed step (0-5)
   completed: boolean
   checks: {
-    hasKey: boolean // 1. OpenRouter key
-    hasAgent: boolean // 2. first agent
-    hasKnowledge: boolean // 3. knowledge or products
-    hasChannel: boolean // 4. connected channel
-    hasConversation: boolean // 5. tested agent
+    hasAgent: boolean // 1. first agent
+    hasKnowledge: boolean // 2. knowledge or products
+    hasKey: boolean // 3. OpenRouter key
+    hasConversation: boolean // 4. tested agent
+    hasChannel: boolean // 5. connected channel
   }
 }
 
@@ -45,11 +45,11 @@ export async function computeOnboarding(
 
   // Steps are sequential — count completed in order.
   const ordered = [
-    checks.hasKey,
     checks.hasAgent,
     checks.hasKnowledge,
-    checks.hasChannel,
+    checks.hasKey,
     checks.hasConversation,
+    checks.hasChannel,
   ]
   let step = 0
   for (const ok of ordered) {

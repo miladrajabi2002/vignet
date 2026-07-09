@@ -298,6 +298,43 @@ export async function sendSubscriptionExpiringSms(
   })
 }
 
+/** Welcome message sent once after the first successful sign-up. */
+export async function sendWelcomeSms(
+  mobile: string,
+  data: { name: string },
+): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_WELCOME_PATTERN_CODE, {
+    name: data.name,
+  })
+}
+
+/** A focused nudge that tells an unfinished trial user only their next step. */
+export async function sendActivationReminderSms(
+  mobile: string,
+  data: { nextStep: string },
+): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_ACTIVATION_REMINDER_PATTERN_CODE, {
+    step: data.nextStep,
+  })
+}
+
+/** Celebrate the first complete setup without adding an email lifecycle. */
+export async function sendActivationCompleteSms(mobile: string): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_ACTIVATION_COMPLETE_PATTERN_CODE, {
+    status: 'فعال',
+  })
+}
+
+/** Trial reminder is separate from paid-subscription expiry messaging. */
+export async function sendTrialExpiringSms(
+  mobile: string,
+  data: { daysRemaining: number },
+): Promise<boolean> {
+  return sendPatternSms(mobile, process.env.IPPANEL_TRIAL_EXPIRING_PATTERN_CODE, {
+    days: String(data.daysRemaining),
+  })
+}
+
 /** Verify a code against the value stored in Redis. Consumes it on success. */
 export async function verifyOTP(mobile: string, code: string): Promise<boolean> {
   const normalized = normalizePhone(mobile)

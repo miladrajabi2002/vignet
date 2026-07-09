@@ -15,7 +15,7 @@ export function Sidebar() {
 	return (
 		<aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 md:flex">
 			<Link href="/overview" className="mb-8 flex items-center gap-2 px-2 py-1">
-				<Logo className="h-5 w-auto text-[var(--text-primary)]" />
+				<Logo priority className="h-7 w-24" />
 			</Link>
 
 			<Link

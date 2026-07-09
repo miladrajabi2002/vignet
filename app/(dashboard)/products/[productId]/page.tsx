@@ -92,6 +92,9 @@ export default async function ProductDetailPage(
             (<img
               src={product.images[0]}
               alt={product.name}
+              width={640}
+              height={640}
+              decoding="async"
               className="h-full w-full object-cover"
             />)
           ) : (

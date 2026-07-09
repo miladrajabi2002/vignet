@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Send, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Markdown } from '@/lib/markdown'
+import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { VoiceRecorder } from '@/components/voice/voice-recorder'
 import { SpeakButton } from '@/components/voice/audio-player'
 
@@ -149,26 +149,20 @@ export function TestPlayground({
                                                         )}
                                                 >
                                                         <div className="flex flex-col gap-1">
-                                                                <div
-                                                                        className={cn(
-                                                                                'max-w-[80%] rounded-2xl px-4 py-2.5 text-sm',
-                                                                                m.role === 'user'
-                                                                                        ? 'whitespace-pre-wrap bg-[var(--white)] text-[var(--bg-base)]'
-                                                                                        : 'border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-primary)]',
-                                                                        )}
+                                                                <ConversationBubble
+                                                                        side={m.role === 'user' ? 'end' : 'start'}
+                                                                        tone={m.role === 'user' ? 'inverse' : 'surface'}
+                                                                        className="max-w-[80%] px-4"
                                                                 >
                                                                         {m.content ? (
-                                                                                m.role === 'user' ? (
-                                                                                        <span className="whitespace-pre-wrap">{m.content}</span>
-                                                                                ) : (
-                                                                                        <div className="[&_p]:whitespace-pre-wrap">
-                                                                                                <Markdown>{m.content}</Markdown>
-                                                                                        </div>
-                                                                                )
+                                                                                <ConversationText
+                                                                                        text={m.content}
+                                                                                        markdown={m.role === 'assistant'}
+                                                                                />
                                                                         ) : (
                                                                                 <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
                                                                         )}
-                                                                </div>
+                                                                </ConversationBubble>
                                                                 {m.role === 'assistant' && m.id && m.content && (
                                                                         <div className="flex items-center gap-1 ps-1">
                                                                                 <button

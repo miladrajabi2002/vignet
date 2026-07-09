@@ -444,6 +444,8 @@ export function MediaUploader({
                                                                         <img
                                                                                 src={item.url}
                                                                                 alt={item.caption || 'preview'}
+                                                                                loading="lazy"
+                                                                                decoding="async"
                                                                                 className="aspect-square w-full object-cover"
                                                                         />
                                                                 )}

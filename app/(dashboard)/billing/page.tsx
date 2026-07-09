@@ -19,7 +19,7 @@ const PLAN_KEY: Record<string, string> = {
 
 export default async function BillingPage(
   props: {
-    searchParams?: Promise<{ payment?: string }>
+    searchParams?: Promise<{ payment?: string; plan?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -69,6 +69,7 @@ export default async function BillingPage(
     workspace.trialEndsAt < new Date()
 
   const paymentStatus = searchParams?.payment
+  const preferredPlan = PAID_PLANS.find((item) => item === searchParams?.plan)
   const checkoutLabels = {
     rial: t('payRial'),
     crypto: t('payCrypto'),
@@ -166,7 +167,7 @@ export default async function BillingPage(
               plan === p &&
               subscription?.status === 'ACTIVE' &&
               subscription.currentPeriodEnd > new Date()
-            const highlight = p === 'PRO'
+            const highlight = preferredPlan ? p === preferredPlan : p === 'PRO'
             return (
               <section
                 key={p}

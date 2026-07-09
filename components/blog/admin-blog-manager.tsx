@@ -262,6 +262,10 @@ export function AdminBlogManager({
                                                                                         <img
                                                                                                 src={p.coverImage}
                                                                                                 alt=""
+                                                                                                width={64}
+                                                                                                height={48}
+                                                                                                loading="lazy"
+                                                                                                decoding="async"
                                                                                                 className="h-12 w-16 shrink-0 rounded-lg border border-zinc-200 object-cover"
                                                                                         />
                                                                                 ) : (

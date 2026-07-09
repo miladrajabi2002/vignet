@@ -286,6 +286,10 @@ export default async function ConversationsPage(props: {
                                                                         <img
                                                                                 src={channelAvatar}
                                                                                 alt={who}
+                                                                                width={36}
+                                                                                height={36}
+                                                                                loading="lazy"
+                                                                                decoding="async"
                                                                                 referrerPolicy="no-referrer"
                                                                                 className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
                                                                         />

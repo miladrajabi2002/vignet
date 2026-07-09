@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Check, ArrowRight } from 'lucide-react'
+import { Check, ArrowRight, GraduationCap, HeartPulse, Play, ShoppingBag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { ONBOARDING_STEPS, ONBOARDING_TOTAL } from '@/lib/onboarding-steps'
@@ -36,7 +36,40 @@ export default async function OnboardingPage() {
       {state.completed ? (
         <OnboardingCelebrate />
       ) : (
-        <ol className="space-y-3">
+        <>
+          {!state.checks.hasAgent && (
+            <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-medium text-[var(--text-primary)]">{t('goalTitle')}</h2>
+                  <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{t('goalSubtitle')}</p>
+                </div>
+                <Link href="/#demo" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
+                  <Play className="h-4 w-4" />
+                  {t('tryDemo')}
+                </Link>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  { key: 'store', icon: ShoppingBag },
+                  { key: 'services', icon: HeartPulse },
+                  { key: 'education', icon: GraduationCap },
+                ].map(({ key, icon: Icon }) => (
+                  <Link
+                    key={key}
+                    href={`/agents/new?business=${key}`}
+                    className="group rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4 transition-colors hover:border-[var(--border-strong)]"
+                  >
+                    <Icon className="h-5 w-5 text-[var(--text-secondary)]" />
+                    <span className="mt-4 block text-sm font-medium text-[var(--text-primary)]">{t(`goals.${key}.title`)}</span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{t(`goals.${key}.desc`)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <ol className="space-y-3">
           {ONBOARDING_STEPS.map((s, i) => {
             const done = state.checks[s.check]
             const isCurrent = !done && state.step === i
@@ -86,7 +119,8 @@ export default async function OnboardingPage() {
               </li>
             )
           })}
-        </ol>
+          </ol>
+        </>
       )}
     </div>
   )

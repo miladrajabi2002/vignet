@@ -209,6 +209,8 @@ export default async function PublicBlogPostPage(props: Props) {
 				(<img
 					src={post.coverImage}
 					alt={post.title}
+					loading="eager"
+					decoding="async"
 					className="mb-8 aspect-[3/2] w-full rounded-2xl object-cover"
 				/>)
 			)}

@@ -357,6 +357,10 @@ export function MessengerChannel({
           <img
             src={botAvatar}
             alt={botUsername ?? ''}
+            width={40}
+            height={40}
+            loading="lazy"
+            decoding="async"
             className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-default)] object-cover"
           />
         ) : (

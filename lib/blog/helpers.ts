@@ -204,7 +204,7 @@ export function renderMarkdown(markdown: string): string {
 		// images
 		t = t.replace(
 			/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-			(_m, alt, url) => `<img src="${url}" alt="${alt}" loading="lazy" />`,
+			(_m, alt, url) => `<img src="${url}" alt="${alt}" loading="lazy" decoding="async" />`,
 		)
 		// links
 		t = t.replace(

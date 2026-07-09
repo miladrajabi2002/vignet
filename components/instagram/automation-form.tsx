@@ -1944,7 +1944,7 @@ function ProductThumb({ product }: { product: ProductLite }) {
         const img = product.images?.[0]
         if (img) {
                 // eslint-disable-next-line @next/next/no-img-element
-                return <img src={img} alt={product.name} className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                return <img src={img} alt={product.name} width={36} height={36} loading="lazy" decoding="async" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         }
         return (
                 <div

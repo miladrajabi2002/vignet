@@ -92,6 +92,7 @@ export function DocContent({
                     src={block.src}
                     alt={pick(block.alt, locale)}
                     loading="lazy"
+                    decoding="async"
                     className="my-4 rounded-xl border border-[var(--border-default)] w-full"
                   />
                   {block.caption && (

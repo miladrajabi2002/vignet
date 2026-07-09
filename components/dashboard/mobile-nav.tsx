@@ -76,7 +76,7 @@ export function MobileNav() {
 						<aside className="absolute inset-y-0 start-0 flex w-72 max-w-[80vw] flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
 							<div className="mb-6 flex items-center justify-between px-2">
 								<Link href="/overview" onClick={() => setOpen(false)}>
-									<Logo className="h-5 w-auto text-[var(--text-primary)]" />
+									<Logo priority className="h-7 w-24" />
 								</Link>
 								<button
 									onClick={() => setOpen(false)}

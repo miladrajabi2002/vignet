@@ -132,6 +132,9 @@ export default async function ContactDetailPage(
           <img
             src={avatarUrl}
             alt={who}
+            width={48}
+            height={48}
+            decoding="async"
             referrerPolicy="no-referrer"
             className="h-12 w-12 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
           />
@@ -178,6 +181,10 @@ export default async function ContactDetailPage(
                   <img
                     src={id.avatarUrl}
                     alt={id.handle ?? id.channel}
+                    width={24}
+                    height={24}
+                    loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     className="h-6 w-6 rounded-full border border-[var(--border-default)] object-cover"
                   />

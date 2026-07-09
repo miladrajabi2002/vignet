@@ -2,7 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { authConfig } from '@/auth.config'
 import { prisma } from '@/lib/prisma'
-import { verifyOTP } from '@/lib/sms/ippanel'
+import { sendWelcomeSms, verifyOTP } from '@/lib/sms/ippanel'
 import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
 
@@ -57,6 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               role: 'OWNER',
             },
           })
+          await sendWelcomeSms(phone, { name })
         } else if (name && !user.name) {
           user = await prisma.user.update({
             where: { id: user.id },

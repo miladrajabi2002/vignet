@@ -14,7 +14,7 @@ import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
-import { Markdown } from '@/lib/markdown'
+import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 
 // ─── Refined send icon ──────────────────────────────────────────────────────
 // A clean, modern paper-plane — more balanced than the raw Telegram glyph and
@@ -705,6 +705,7 @@ function Avatar({
 					alt=""
 					width={size}
 					height={size}
+					decoding="async"
 					className="relative rounded-full object-cover ring-1 ring-black/10"
 					style={{ width: size, height: size }}
 				/>
@@ -932,27 +933,18 @@ function MessageRow({
 		>
 			<div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
 				{(isUser || msg.text) && (
-					<div
-						className={
-							isUser
-								? 'rounded-3xl rounded-br-md px-4 py-2.5 text-[15px] leading-7 shadow-sm'
-								: 'rounded-3xl rounded-bl-md border border-black/[0.07] bg-white px-4 py-2.5 text-[15px] leading-7 text-neutral-800 shadow-sm'
-						}
+					<ConversationBubble
+						side={isUser ? 'end' : 'start'}
+						tone={isUser ? 'accent' : 'light'}
+						className="rounded-3xl px-4 text-[15px] leading-7"
 						style={isUser ? { backgroundColor: accent, color: onAccent } : undefined}
 					>
-						{isUser ? (
-							<span dir="auto" className="whitespace-pre-wrap">
-								{msg.text}
-							</span>
-						) : (
-							<div
-								dir="auto"
-								className="[&_p]:leading-7 [&_p]:whitespace-pre-wrap [&_p]:text-right"
-							>
-								<Markdown>{msg.text}</Markdown>
-							</div>
-						)}
-					</div>
+						<ConversationText
+							text={msg.text}
+							markdown={!isUser}
+							className={!isUser ? '[&_p]:leading-7 [&_p]:text-right' : undefined}
+						/>
+					</ConversationBubble>
 				)}
 				{!isUser &&
 					msg.cards.map((card, i) => (

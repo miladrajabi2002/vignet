@@ -194,6 +194,10 @@ function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
                         <img
                                 src={url}
                                 alt={name ?? ''}
+                                width={36}
+                                height={36}
+                                loading="lazy"
+                                decoding="async"
                                 referrerPolicy="no-referrer"
                                 onError={() => setBroken(true)}
                                 className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-default)] object-cover"

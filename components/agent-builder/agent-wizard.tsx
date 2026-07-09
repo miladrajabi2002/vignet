@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
 	ArrowLeft,
@@ -77,14 +77,36 @@ interface CreatedAgent {
 	catalogCount: number
 }
 
-export function AgentWizard() {
+const BUSINESS_PRESETS = {
+	store: {
+		role: 'sales_consultant',
+		fa: { name: 'دستیار فروش', description: 'مشاوره محصول، پاسخ به سوالات خرید و پیگیری سفارش', welcome: 'سلام! برای انتخاب محصول یا پیگیری سفارش در کنارتان هستم.' },
+		en: { name: 'Sales assistant', description: 'Product advice, purchase questions and order follow-up', welcome: 'Hi! I can help you choose a product or track an order.' },
+	},
+	services: {
+		role: 'lead_capture',
+		fa: { name: 'دستیار رزرو', description: 'پاسخ به سوالات، ثبت درخواست و هماهنگی رزرو', welcome: 'سلام! برای دریافت راهنمایی یا ثبت درخواست بفرمایید چه کمکی می‌توانم بکنم؟' },
+		en: { name: 'Booking assistant', description: 'Answer questions, capture requests and coordinate bookings', welcome: 'Hi! How can I help with information or a booking today?' },
+	},
+	education: {
+		role: 'full_service',
+		fa: { name: 'راهنمای دوره‌ها', description: 'معرفی دوره، پاسخ به سوالات ثبت‌نام و پیگیری علاقه‌مندان', welcome: 'سلام! برای انتخاب دوره و پاسخ به سوالات ثبت‌نام در کنارتان هستم.' },
+		en: { name: 'Course guide', description: 'Course discovery, enrollment questions and lead follow-up', welcome: 'Hi! I can help you choose a course and answer enrollment questions.' },
+	},
+} as const
+
+export function AgentWizard({ initialBusiness }: { initialBusiness?: string }) {
 	const t = useTranslations('agents.wizard')
 	const tA = useTranslations('agents')
 	const tc = useTranslations('common')
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const router = useRouter()
 
-	const defaultRole =
-		ROLE_TEMPLATES.find((r) => r.key === 'full_service') ?? ROLE_TEMPLATES[0]
+	const preset = initialBusiness && initialBusiness in BUSINESS_PRESETS
+		? BUSINESS_PRESETS[initialBusiness as keyof typeof BUSINESS_PRESETS]
+		: null
+	const defaultRole = ROLE_TEMPLATES.find((r) => r.key === (preset?.role ?? 'full_service')) ?? ROLE_TEMPLATES[0]
+	const presetCopy = preset?.[locale]
 
 	const [step, setStep] = useState(0)
 	const [loading, setLoading] = useState(false)
@@ -94,9 +116,9 @@ export function AgentWizard() {
 	const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
 	const [showEditor, setShowEditor] = useState(false)
 	const [form, setForm] = useState<FormState>({
-		name: '',
-		description: '',
-		welcomeMessage: '',
+		name: presetCopy?.name ?? '',
+		description: presetCopy?.description ?? '',
+		welcomeMessage: presetCopy?.welcome ?? '',
 		fallbackMessage: '',
 		model: '',
 		language: 'fa',

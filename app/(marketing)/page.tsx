@@ -2,15 +2,13 @@ import dynamicImport from 'next/dynamic'
 import { getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
-import { DemoSection } from '@/components/marketing/demo-section'
+import { LazyDemoSection } from '@/components/marketing/lazy-demo-section'
+import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 
 // Below-the-fold sections are code-split so the first paint only ships the
 // hero + demo bundles; each section's JS loads as the visitor approaches it.
 // They still render on the server (SSR default), so SEO is unaffected.
-const ChannelsSection = dynamicImport(() =>
-	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
-)
 const FeaturesSection = dynamicImport(() =>
 	import('@/components/marketing/features-section').then((m) => m.FeaturesSection),
 )
@@ -82,13 +80,13 @@ export default async function HomePage() {
 			/>
 			<Hero />
 			<SocialProof />
-			<DemoSection />
-			<ChannelsSection />
+			<LazyDemoSection />
+			<UseCasesSection />
 			<FeaturesSection />
 			<HowItWorks />
-			<PopularPosts />
 			<PricingSection />
 			<FaqSection />
+			<PopularPosts />
 			<CtaSection />
 		</>
 	)

@@ -4,7 +4,12 @@ import { getRedis } from '@/lib/redis'
 import { dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
-import { sendSubscriptionExpiringSms } from '@/lib/sms/ippanel'
+import {
+        sendActivationCompleteSms,
+        sendActivationReminderSms,
+        sendSubscriptionExpiringSms,
+        sendTrialExpiringSms,
+} from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import {
         syncWooOrders,
@@ -242,6 +247,7 @@ async function runCleanup(): Promise<void> {
 // ─── subscription expiry reminders ──────────────────────────────────────────
 
 const SUBSCRIPTION_SWEEP_INTERVAL_MS = 6 * HOUR_MS // every 6 hours
+const TRIAL_LIFECYCLE_INTERVAL_MS = 6 * HOUR_MS
 // Send the reminder this many days before expiry. Overridable via env so the
 // operator can tune the lead time without a redeploy.
 function subscriptionRemindDays(): number {
@@ -328,12 +334,90 @@ async function runSubscriptionExpirySweep(): Promise<void> {
         }
 }
 
+// ─── trial activation SMS lifecycle ─────────────────────────────────────────
+
+const ONBOARDING_NEXT_STEP_FA = [
+        'ساخت اولین ایجنت',
+        'افزودن محصول یا اطلاعات کسب‌وکار',
+        'فعال‌کردن پاسخ‌های هوش مصنوعی',
+        'انجام اولین گفتگوی آزمایشی',
+        'اتصال اولین کانال',
+] as const
+
+/**
+ * Send only milestone SMS messages: one nudge per unfinished step, one success
+ * message, and one trial-expiry reminder. Redis keys keep every message unique.
+ */
+async function runTrialLifecycleSweep(): Promise<void> {
+        const now = new Date()
+        const reminderHorizon = new Date(now.getTime() + 3 * 24 * HOUR_MS)
+        const workspaces = await prisma.workspace.findMany({
+                where: {
+                        plan: 'TRIAL',
+                        trialEndsAt: { gt: now },
+                        users: { some: { role: 'OWNER' } },
+                },
+                select: {
+                        id: true,
+                        createdAt: true,
+                        trialEndsAt: true,
+                        onboardingStep: true,
+                        onboardingCompleted: true,
+                        users: {
+                                where: { role: 'OWNER' },
+                                orderBy: { createdAt: 'asc' },
+                                take: 1,
+                                select: { phone: true },
+                        },
+                },
+                take: 300,
+        })
+        const redis = getRedis()
+
+        for (const workspace of workspaces) {
+                const phone = workspace.users[0]?.phone
+                if (!phone || !workspace.trialEndsAt) continue
+
+                if (workspace.onboardingCompleted) {
+                        const key = `lifecycle_sms:activation_complete:${workspace.id}`
+                        const acquired = await redis.set(key, '1', 'EX', 45 * 24 * 3600, 'NX')
+                        if (acquired) await sendActivationCompleteSms(phone)
+                        continue
+                }
+
+                if (workspace.trialEndsAt <= reminderHorizon) {
+                        const period = workspace.trialEndsAt.getTime().toString(36)
+                        const key = `lifecycle_sms:trial_expiring:${workspace.id}:${period}`
+                        const acquired = await redis.set(key, '1', 'EX', 7 * 24 * 3600, 'NX')
+                        if (acquired) {
+                                const daysRemaining = Math.max(
+                                        1,
+                                        Math.ceil((workspace.trialEndsAt.getTime() - now.getTime()) / (24 * HOUR_MS)),
+                                )
+                                await sendTrialExpiringSms(phone, { daysRemaining })
+                        }
+                        continue
+                }
+
+                // Give a new user a full day to explore before sending one clear next step.
+                if (now.getTime() - workspace.createdAt.getTime() < 24 * HOUR_MS) continue
+                const step = Math.min(workspace.onboardingStep, ONBOARDING_NEXT_STEP_FA.length - 1)
+                const key = `lifecycle_sms:activation_step:${workspace.id}:${step}`
+                const acquired = await redis.set(key, '1', 'EX', 21 * 24 * 3600, 'NX')
+                if (acquired) {
+                        await sendActivationReminderSms(phone, {
+                                nextStep: ONBOARDING_NEXT_STEP_FA[step],
+                        })
+                }
+        }
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
 export function startScheduler(): () => void {
         console.log(
-                '[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup + 6h subscription-expiry reminders',
+                '[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup + 6h billing and trial lifecycle reminders',
         )
         // Kick off shortly after boot, then on their own cadences.
         const initialSweep = setTimeout(runSweep, 30_000)
@@ -357,6 +441,12 @@ export function startScheduler(): () => void {
                 SUBSCRIPTION_SWEEP_INTERVAL_MS,
         )
 
+        const initialTrialLifecycle = setTimeout(runTrialLifecycleSweep, 2 * 60_000)
+        const trialLifecycleInterval = setInterval(
+                runTrialLifecycleSweep,
+                TRIAL_LIFECYCLE_INTERVAL_MS,
+        )
+
         return () => {
                 clearTimeout(initialSweep)
                 clearInterval(sweepInterval)
@@ -370,5 +460,7 @@ export function startScheduler(): () => void {
                 clearInterval(cleanupInterval)
                 clearTimeout(initialSubExpiry)
                 clearInterval(subExpiryInterval)
+                clearTimeout(initialTrialLifecycle)
+                clearInterval(trialLifecycleInterval)
         }
 }

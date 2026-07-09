@@ -661,6 +661,8 @@ export function BlogEditor({
 									<img
 										src={post.coverImage}
 										alt=""
+										loading="lazy"
+										decoding="async"
 										className="h-28 w-full object-cover"
 									/>
 									<button
@@ -770,6 +772,8 @@ export function BlogEditor({
 								<img
 									src={imgUrl}
 									alt=""
+									loading="lazy"
+									decoding="async"
 									className="max-h-40 w-full rounded-lg border border-zinc-200 object-contain"
 								/>
 							)}
