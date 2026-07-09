@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Send, Loader2 } from 'lucide-react'
+import type { ThreadMessage } from './conversation-thread'
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
@@ -11,6 +12,11 @@ import { Send, Loader2 } from 'lucide-react'
  * pushed live; for widget / chat-link / API channels the message is persisted
  * and shown to the visitor the next time they load the chat (the backend reply
  * route always persists the operator message regardless of channel).
+ *
+ * OPTIMISTIC DISPLAY: When `onSent` is provided, the message is displayed
+ * INSTANTLY in the UI (via the parent's state) — no page refresh needed.
+ * `router.refresh()` still runs silently in the background to sync the
+ * conversation status and handoff panel, but the user never waits for it.
  *
  * Layout: textarea fills the row, send button is a compact icon-only circle on
  * the RIGHT (matching Instagram/Telegram DM). The textarea auto-grows but the
@@ -20,9 +26,11 @@ import { Send, Loader2 } from 'lucide-react'
 export function OperatorReply({
   conversationId,
   canDeliver,
+  onSent,
 }: {
   conversationId: string
   canDeliver: boolean
+  onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
   const router = useRouter()
@@ -61,7 +69,24 @@ export function OperatorReply({
         setError(true)
         return
       }
+      const data = await res.json()
+      // Instantly display the message via the parent's optimistic state.
+      // The API returns { message: { id, content, createdAt, role }, delivered }.
+      if (onSent && data.message) {
+        onSent({
+          id: data.message.id,
+          role: data.message.role,
+          content: data.message.content,
+          createdAt: data.message.createdAt,
+          contentType: 'TEXT',
+          metadata: { operator: true },
+          parentId: null,
+          parent: null,
+        })
+      }
       setText('')
+      // Silent background refresh to sync conversation status / handoff panel.
+      // The message is already visible — this is just for metadata consistency.
       router.refresh()
     } catch {
       setError(true)

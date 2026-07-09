@@ -7,17 +7,16 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationActions } from '@/components/crm/conversation-actions'
-import { OperatorReply } from '@/components/crm/operator-reply'
+import {
+        ConversationThread,
+        type ThreadMessage,
+} from '@/components/crm/conversation-thread'
 import {
         ConversationPanel,
         type HandoffAlertProp,
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
-import { stripProductTokens } from '@/lib/widget/config'
 import { contactDisplayName } from '@/lib/crm/display'
-import { cn } from '@/lib/utils'
-import { formatDateTime } from '@/lib/format'
-import { Markdown } from '@/lib/markdown'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -235,82 +234,29 @@ export default async function ConversationThreadPage(props: {
                                 </div>
                         )}
 
-                        {/* ── Chat thread + composer ──
-                            The messages area grows to fill available space and scrolls internally
-                            (flex-1 min-h-0 overflow-y-auto). The composer is pinned to the bottom
-                            (shrink-0) so it never gets pushed down/off-screen when the thread grows. */}
-                        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-                                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                                        {conversation.messages.map((m) => {
-                                                const isUser = m.role === 'USER'
-                                                if (m.role === 'SYSTEM') return null
-                                                const isOperator =
-                                                        !!m.metadata &&
-                                                        typeof m.metadata === 'object' &&
-                                                        (m.metadata as Record<string, unknown>).operator === true
-                                                return (
-                                                        <div
-                                                                key={m.id}
-                                                                className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
-                                                        >
-                                                                <div
-                                                                        className={cn(
-                                                                                'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
-                                                                                isUser
-                                                                                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]'
-                                                                                        : 'bg-[var(--white)] text-[var(--bg-base)]',
-                                                                        )}
-                                                                >
-                                                                        {m.parentId && m.parent?.content && (
-                                                                                <div className="mb-1.5 border-s-2 border-current opacity-60 ps-2 text-[11px] leading-snug">
-                                                                                        <p className="line-clamp-2 whitespace-pre-wrap break-words">
-                                                                                                {stripProductTokens(m.parent.content)}
-                                                                                        </p>
-                                                                                </div>
-                                                                        )}
-                                                                        {isOperator && (
-                                                                                <span className="mb-0.5 block text-[10px] font-medium opacity-60">
-                                                                                        {t('operatorBadge')}
-                                                                                </span>
-                                                                        )}
-                                                                        {isUser ? (
-                                                                                <p className="whitespace-pre-wrap break-words">
-                                                                                        {stripProductTokens(m.content)}
-                                                                                </p>
-                                                                        ) : (
-                                                                                <div className="break-words [&_p]:whitespace-pre-wrap [&_p]:break-words">
-                                                                                        <Markdown>{stripProductTokens(m.content)}</Markdown>
-                                                                                </div>
-                                                                        )}
-                                                                        <span
-                                                                                className={cn(
-                                                                                        'mt-1 block text-[10px]',
-                                                                                        isUser
-                                                                                                ? 'text-[var(--text-muted)]'
-                                                                                                : 'text-[var(--bg-base)] opacity-40',
-                                                                                )}
-                                                                        >
-                                                                                {formatDateTime(m.createdAt, locale)}
-                                                                        </span>
-                                                                </div>
-                                                        </div>
-                                                )
-                                        })}
-                                        {conversation.messages.length === 0 && (
-                                                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                                                        {t('noMessages')}
-                                                </p>
-                                        )}
-                                </div>
-
-                                {/* Composer pinned to the bottom of the chat card.
-                                    Always shown — whether or not the handoff panel
-                                    is visible — so the reply box never jumps
-                                    position when the conversation status flips. */}
-                                <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
-                                        <OperatorReply conversationId={conversation.id} canDeliver={canDeliver} />
-                                </div>
-                        </div>
+                        {/* ── Chat thread + composer (client component) ──
+                            ConversationThread is a client component so it can display
+                            new operator messages INSTANTLY via optimistic state — no
+                            page refresh needed. The server passes initial messages;
+                            the client appends new ones locally and syncs via
+                            router.refresh() in the background. */}
+                        <ConversationThread
+                                initialMessages={
+                                        conversation.messages.map((m) => ({
+                                                id: m.id,
+                                                role: m.role,
+                                                content: m.content,
+                                                createdAt: m.createdAt.toISOString(),
+                                                contentType: m.contentType,
+                                                metadata: m.metadata as Record<string, unknown> | null,
+                                                parentId: m.parentId,
+                                                parent: m.parent,
+                                        })) as ThreadMessage[]
+                                }
+                                conversationId={conversation.id}
+                                canDeliver={canDeliver}
+                                locale={locale}
+                        />
                 </div>
         )
 }
