@@ -425,12 +425,13 @@
                         '.vgt-send:active{transform:scale(.92);}' +
                         '.vgt-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none;}' +
                         '.vgt-send svg{width:18px;height:18px;transition:transform .2s;}' +
-                        // RTL: flip the send icon so the paper-plane points LEFT
-                        // (the direction text flows in Persian/RTL). Using
-                        // scaleX(-1) on the SVG element. The :hover rule below
-                        // preserves the flip while adding a subtle nudge.
-                        '.vgt-root.vgt-rtl .vgt-send svg{transform:scaleX(-1);}' +
-                        '.vgt-root.vgt-rtl .vgt-send:hover svg{transform:scaleX(-1) scale(1.08);}' +
+                        // The Lucide "send" icon (paper-plane) naturally points
+                        // RIGHT, which is the correct direction for a send button
+                        // on the right side. We do NOT flip it in RTL — both
+                        // WhatsApp and Telegram keep the send icon pointing right
+                        // even in Persian/Arabic mode. Only the hover scale is
+                        // applied.
+                        '.vgt-send:hover svg{transform:scale(1.08);}' +
                         // direction:ltr forces "Powered by [logo]" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "[logo] Powered by".
@@ -543,6 +544,26 @@
                         '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
                         // Cards can stretch wider on narrow screens.
                         '.vgt-card{width:100%!important;}' +
+                        // ── LEAD FORM & INTRO: prevent disappearing when keyboard opens ──
+                        // On mobile, when the soft keyboard opens the body shrinks
+                        // (e.g. from 673px to 271px). The lead form (~406px) and
+                        // intro no longer fit, and `margin:auto` centering pushes
+                        // the top part (welcome message + name field) above the
+                        // visible area where the user can't see or reach it.
+                        // Fix: make lead/intro fill the body (flex:1) and scroll
+                        // internally, with content pinned to the top
+                        // (justify-content:flex-start) so the welcome message and
+                        // first field are always visible at the top. Padding-top
+                        // gives breathing room below the header.
+                        '.vgt-lead,.vgt-intro{flex:1 1 auto!important;margin:0!important;' +
+                        'justify-content:flex-start!important;overflow-y:auto!important;' +
+                        'padding-top:20px!important;}' +
+                        // On very short viewports (keyboard open), shrink the
+                        // avatar so it takes less space.
+                        '.vgt-lead-ava{width:44px!important;height:44px!important;}' +
+                        '.vgt-lead-ava svg{width:22px!important;height:22px!important;}' +
+                        '.vgt-intro-ava{width:52px!important;height:52px!important;}' +
+                        '.vgt-intro-ava svg{width:26px!important;height:26px!important;}' +
                         '}' +
                         '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
                 var st = document.createElement('style')
