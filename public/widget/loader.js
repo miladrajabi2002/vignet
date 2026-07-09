@@ -179,6 +179,11 @@
                 help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
                 close: '<path d="M18 6 6 18M6 6l12 12"/>',
                 send: '<path fill="currentColor" stroke="none" d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2z"/>',
+                // Telegram-style send icon: a filled paper plane with a clean
+                // base line. Simpler and more recognizable than the Lucide
+                // version — matches what users see in Telegram/WhatsApp.
+                telegramSend:
+                        '<path fill="currentColor" stroke="none" d="M2.5 10.9 21 3.4c.6-.2 1.1.3.9.9l-2.6 17.2c-.1.7-.9 1-1.4.5l-4.3-3.9-2.5 2.4c-.3.3-.8.1-.8-.3v-4.5l8.4-7.6c.3-.3-.1-.5-.5-.2L8 13.4l-4.8-1.5c-.7-.2-.7-1 .7-1z"/>',
                 phone:
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
@@ -394,44 +399,44 @@
                         '.vgt-typing span{width:7px;height:7px;border-radius:50%;background:var(--vgt-accent);opacity:.7;animation:vgt-bounce 1.2s infinite;}' +
                         '.vgt-typing span:nth-child(2){animation-delay:.18s;}.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
                         // input
-                        '.vgt-foot{padding:12px 14px 10px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
-                        // align-items:center vertically centers the send button with
-                        // the text input for a clean, harmonious look. padding is
-                        // symmetric (7px all sides) so the button has consistent
-                        // breathing room. The input gets its own inline padding.
-                        '.vgt-inputwrap{display:flex;gap:8px;align-items:center;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
-                        'border-radius:var(--vgt-r-input);padding:7px 7px 7px 14px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
+                        '.vgt-foot{padding:10px 12px 8px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
+                        // Telegram-style input: the send button sits INSIDE the
+                        // input field, flush with the inner edge. The input has
+                        // extra right padding (in RTL) to make room for the button.
+                        // This is the pattern Telegram, WhatsApp and iMessage all
+                        // use — the button feels embedded, not floating beside.
+                        '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
+                        'border-radius:var(--vgt-r-input);padding:6px 6px 6px 14px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
-                        // RTL: put the send button on the RIGHT side. In RTL the DOM
-                        // order (input, sendBtn) would otherwise place send on the
-                        // left. row-reverse flips the visual order so the send
-                        // button sits on the right where Persian users expect it.
-                        // padding-inline-start flips automatically in RTL.
-                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:7px 14px 7px 7px;}' +
+                        // RTL: send button on the RIGHT, inside the field. Swap
+                        // horizontal padding so the button has its 6px gutter on
+                        // the right and the text gets 14px on the left.
+                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:6px 14px 6px 6px;}' +
                         // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
+                        // The right padding (54px in RTL) reserves space so long
+                        // text doesn't run under the send button.
                         '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
-                        'font-size:16px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
+                        'font-size:16px;line-height:1.55;max-height:110px;min-height:32px;padding:8px 0;margin:0;}' +
+                        '.vgt-root.vgt-rtl .vgt-input{padding:8px 54px 8px 0;}' +
                         '.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
-                        // 40px send button — slightly smaller to match the input
-                        // field height (~42px) for visual harmony. Still meets the
-                        // 40px minimum touch target. flex-shrink:0 prevents the
-                        // button from squishing when the input has long text.
-                        '.vgt-send{flex:0 0 40px;width:40px;height:40px;min-width:40px;border:none;cursor:pointer;border-radius:50%;' +
-                        'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
+                        // Telegram-style send button: a solid circle INSIDE the
+                        // input field, vertically centered with the text. 38px
+                        // matches the input's min-height (32px) + padding (8px*2)
+                        // so the button is flush with the field height. Position
+                        // is handled by flexbox (flex-shrink:0 keeps it from
+                        // squishing). No box-shadow — Telegram buttons are flat.
+                        '.vgt-send{flex:0 0 38px;width:38px;height:38px;min-width:38px;border:none;cursor:pointer;border-radius:50%;' +
+                        'background:var(--vgt-accent);' +
                         'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
-                        'transition:transform .2s cubic-bezier(.34,1.5,.64,1),opacity .15s,box-shadow .2s;' +
-                        'box-shadow:0 4px 12px -3px var(--vgt-accent-shadow);}' +
-                        '.vgt-send:hover{transform:scale(1.08);box-shadow:0 6px 16px -4px var(--vgt-accent-shadow);}' +
-                        '.vgt-send:active{transform:scale(.92);}' +
-                        '.vgt-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none;}' +
-                        '.vgt-send svg{width:18px;height:18px;transition:transform .2s;}' +
-                        // The Lucide "send" icon (paper-plane) naturally points
-                        // RIGHT, which is the correct direction for a send button
-                        // on the right side. We do NOT flip it in RTL — both
-                        // WhatsApp and Telegram keep the send icon pointing right
-                        // even in Persian/Arabic mode. Only the hover scale is
-                        // applied.
-                        '.vgt-send:hover svg{transform:scale(1.08);}' +
+                        'transition:transform .15s ease,opacity .15s,background .15s;' +
+                        'align-self:center;margin-bottom:0;}' +
+                        '.vgt-send:hover{background:var(--vgt-accent-deep);}' +
+                        '.vgt-send:active{transform:scale(.9);}' +
+                        '.vgt-send:disabled{opacity:.3;cursor:default;transform:none;background:var(--vgt-border);}' +
+                        // Telegram's paper-plane icon: 20px, slightly larger than
+                        // before so it's clearly visible inside the 38px circle.
+                        '.vgt-send svg{width:20px;height:20px;}' +
+                        '.vgt-send:hover svg{transform:scale(1.05);}' +
                         // direction:ltr forces "Powered by [logo]" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "[logo] Powered by".
@@ -612,7 +617,7 @@
         var inputWrap = el('div', 'vgt-inputwrap')
         var input = el('textarea', 'vgt-input')
         input.rows = 1
-        var sendBtn = el('button', 'vgt-send', svg('send'))
+        var sendBtn = el('button', 'vgt-send', svg('telegramSend'))
         sendBtn.setAttribute('aria-label', 'send')
         inputWrap.appendChild(input)
         inputWrap.appendChild(sendBtn)
