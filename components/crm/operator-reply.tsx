@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowUp, Loader2 } from 'lucide-react'
+import { Send, Loader2 } from 'lucide-react'
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
@@ -109,7 +109,7 @@ export function OperatorReply({
           {busy ? (
             <Loader2 className="h-4.5 w-4.5 animate-spin" />
           ) : (
-            <ArrowUp className="h-5 w-5" />
+            <Send className="h-5 w-5" />
           )}
         </button>
       </div>

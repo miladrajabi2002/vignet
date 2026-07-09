@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { sendOutbound } from '@/lib/channels/outbound'
+import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 
@@ -14,6 +15,12 @@ const bodySchema = z.object({ text: z.string().min(1).max(4000) })
  * Operator (human handoff) reply. Persists an assistant-role message tagged as
  * operator-authored and pushes it to the contact on messenger channels. The
  * conversation is marked HANDED_OFF so the AI stays out of the thread.
+ *
+ * For web-widget / chat-link / API channels, there is no outbound push
+ * (these are request/response channels) — the message is persisted and the
+ * visitor sees it on their next page load. For messenger channels we attempt
+ * delivery; if delivery fails we STILL persist the message (the operator typed
+ * it, it should be saved) and report `delivered: false`.
  */
 export async function POST(req: Request, props: Params) {
   const params = await props.params;
@@ -32,21 +39,28 @@ export async function POST(req: Request, props: Params) {
 
   const text = parsed.data.text.trim()
 
-  // Deliver first so we don't record a message that never reached the contact.
+  // Only attempt outbound delivery for messenger channels that have an
+  // external thread id. Web-widget / chat-link / API channels are
+  // request/response — there's no API to push to, so we skip delivery
+  // entirely and just persist the message.
   let delivered = false
-  try {
-    delivered = await sendOutbound(
-      conversation.agentId,
-      conversation.channel,
-      conversation.externalId,
-      text,
-    )
-  } catch (e) {
-    captureError('conversation:operator-reply', e, {
-      workspaceId: user.workspaceId,
-      metadata: { conversationId: conversation.id, channel: conversation.channel },
-    })
-    return NextResponse.json({ error: 'DELIVERY_FAILED' }, { status: 502 })
+  if (isMessengerType(conversation.channel) && conversation.externalId) {
+    try {
+      delivered = await sendOutbound(
+        conversation.agentId,
+        conversation.channel,
+        conversation.externalId,
+        text,
+      )
+    } catch (e) {
+      // Log the delivery failure but DON'T abort — the operator's reply
+      // should still be saved in the thread so it's visible in the
+      // dashboard and to the visitor on their next load.
+      captureError('conversation:operator-reply', e, {
+        workspaceId: user.workspaceId,
+        metadata: { conversationId: conversation.id, channel: conversation.channel },
+      })
+    }
   }
 
   // The customer question this reply answers — used to feed the learning

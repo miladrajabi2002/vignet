@@ -213,25 +213,6 @@ export function TestPlayground({
                         )}
 
                         <div className="flex items-center gap-2 border-t border-[var(--border-default)] p-3">
-                                <button
-                                        onClick={send}
-                                        disabled={streaming || !input.trim()}
-                                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.04] active:scale-95 disabled:opacity-40"
-                                        aria-label={t('send')}
-                                >
-                                        {streaming ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                                <Send className="h-4 w-4 rtl:-scale-x-100" />
-                                        )}
-                                </button>
-                                <input
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && send()}
-                                        placeholder={t('placeholder')}
-                                        className="input"
-                                />
                                 <VoiceRecorder
                                         vad
                                         disabled={streaming}
@@ -239,6 +220,27 @@ export function TestPlayground({
                                         onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
                                         onError={(code) => setError(code === 'NO_KEY' ? t('noKey') : t('error'))}
                                 />
+                                <div className="relative flex min-w-0 flex-1 items-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] pe-1 ps-3.5">
+                                        <input
+                                                value={input}
+                                                onChange={(e) => setInput(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && send()}
+                                                placeholder={t('placeholder')}
+                                                className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]"
+                                        />
+                                        <button
+                                                onClick={send}
+                                                disabled={streaming || !input.trim()}
+                                                className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.04] active:scale-95 disabled:opacity-40"
+                                                aria-label={t('send')}
+                                        >
+                                                {streaming ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                        <Send className="h-4 w-4" />
+                                                )}
+                                        </button>
+                                </div>
                         </div>
                 </div>
         )
