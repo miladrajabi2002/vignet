@@ -395,30 +395,42 @@
                         '.vgt-typing span:nth-child(2){animation-delay:.18s;}.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
                         // input
                         '.vgt-foot{padding:12px 14px 10px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
-                        '.vgt-inputwrap{display:flex;gap:6px;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
-                        'border-radius:var(--vgt-r-input);padding:5px;padding-inline-start:16px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
+                        // align-items:center vertically centers the send button with
+                        // the text input for a clean, harmonious look. padding is
+                        // symmetric (7px all sides) so the button has consistent
+                        // breathing room. The input gets its own inline padding.
+                        '.vgt-inputwrap{display:flex;gap:8px;align-items:center;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
+                        'border-radius:var(--vgt-r-input);padding:7px 7px 7px 14px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
                         // RTL: put the send button on the RIGHT side. In RTL the DOM
                         // order (input, sendBtn) would otherwise place send on the
                         // left. row-reverse flips the visual order so the send
                         // button sits on the right where Persian users expect it.
-                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;}' +
+                        // padding-inline-start flips automatically in RTL.
+                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:7px 14px 7px 7px;}' +
                         // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
                         '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
                         'font-size:16px;line-height:1.55;max-height:110px;min-height:24px;padding:9px 0;margin:0;}' +
                         '.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
-                        // 44px touch target (was 40px).
-                        '.vgt-send{flex:0 0 44px;width:44px;height:44px;border:none;cursor:pointer;border-radius:50%;' +
+                        // 40px send button — slightly smaller to match the input
+                        // field height (~42px) for visual harmony. Still meets the
+                        // 40px minimum touch target. flex-shrink:0 prevents the
+                        // button from squishing when the input has long text.
+                        '.vgt-send{flex:0 0 40px;width:40px;height:40px;min-width:40px;border:none;cursor:pointer;border-radius:50%;' +
                         'background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
-                        'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;' +
+                        'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
                         'transition:transform .2s cubic-bezier(.34,1.5,.64,1),opacity .15s,box-shadow .2s;' +
-                        'box-shadow:0 6px 16px -4px var(--vgt-accent-shadow);}' +
-                        '.vgt-send:hover{transform:scale(1.1) rotate(-8deg);box-shadow:0 10px 24px -6px var(--vgt-accent-shadow);}' +
-                        '.vgt-send:active{transform:scale(.9);}' +
+                        'box-shadow:0 4px 12px -3px var(--vgt-accent-shadow);}' +
+                        '.vgt-send:hover{transform:scale(1.08);box-shadow:0 6px 16px -4px var(--vgt-accent-shadow);}' +
+                        '.vgt-send:active{transform:scale(.92);}' +
                         '.vgt-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none;}' +
-                        '.vgt-send svg{width:19px;height:19px;transition:transform .2s;}' +
+                        '.vgt-send svg{width:18px;height:18px;transition:transform .2s;}' +
+                        // RTL: flip the send icon so the paper-plane points LEFT
+                        // (the direction text flows in Persian/RTL). Using
+                        // scaleX(-1) on the SVG element. The :hover rule below
+                        // preserves the flip while adding a subtle nudge.
                         '.vgt-root.vgt-rtl .vgt-send svg{transform:scaleX(-1);}' +
-                        '.vgt-root.vgt-rtl .vgt-send:hover svg{transform:scaleX(-1) translateX(2px);}' +
+                        '.vgt-root.vgt-rtl .vgt-send:hover svg{transform:scaleX(-1) scale(1.08);}' +
                         // direction:ltr forces "Powered by [logo]" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "[logo] Powered by".
@@ -483,18 +495,23 @@
                         '@media (max-width:768px){' +
                         // ── FULL-SCREEN MOBILE SHEET ──────────────────────────────
                         // On phones & small tablets the chat panel becomes a true
-                        // full-screen sheet. We use position:fixed with top/left/
-                        // right/bottom:0 which guarantees full coverage regardless
-                        // of vh/dvh support. The height is declared twice: 100vh
-                        // first (universal fallback), then 100dvh (modern browsers
-                        // — dvh auto-shrinks when the soft keyboard opens so the
-                        // input stays visible). Older browsers ignore the dvh line
-                        // and keep the vh one.
+                        // full-screen sheet. We use position:fixed with ALL FOUR
+                        // sides pinned to 0 (top/left/right/bottom) and NO explicit
+                        // height. This makes the panel stretch to fill whatever
+                        // space is between top and bottom — the full viewport when
+                        // the keyboard is closed, and the visible area (above the
+                        // keyboard) when applyViewportHeight() adjusts `bottom`.
+                        // We deliberately do NOT use height:100vh/100dvh here
+                        // because an explicit height + top:0 + bottom:0 creates a
+                        // conflict (height wins, bottom is ignored) which leaves
+                        // the bottom of the screen empty — showing the host site
+                        // underneath. The top+bottom stretch approach is the only
+                        // reliable way to keep the panel filling the visible area
+                        // when the soft keyboard opens on iOS/Android.
                         '.vgt-panel{position:fixed!important;' +
                         'top:0!important;left:0!important;right:0!important;bottom:0!important;' +
                         'width:100vw!important;max-width:100vw!important;' +
-                        'height:100vh!important;max-height:100vh!important;' +
-                        'height:100dvh!important;max-height:100dvh!important;' +
+                        'height:auto!important;max-height:none!important;' +
                         'border-radius:0!important;border:none!important;box-shadow:none!important;' +
                         'transform:none!important;transition:opacity .2s ease!important;}' +
                         '.vgt-panel.vgt-show{transform:none!important;}' +
@@ -1479,45 +1496,55 @@
 
         // ---- Mobile keyboard / viewport handling ----
         // When the soft keyboard opens on mobile, `visualViewport.height`
-        // shrinks below the layout-viewport height. On modern browsers the
-        // CSS `100dvh` unit auto-adjusts, but older browsers (and some
-        // Android WebViews) don't — so we also pin the panel height to the
-        // visual viewport height via inline styles when the keyboard is
-        // detected. Desktop and tablets (>=768px wide) keep the CSS-defined
-        // 392×620px size; the handler is a no-op there. The breakpoint MUST
-        // stay in sync with the @media (max-width:768px) rule in injectStyles.
+        // shrinks and `visualViewport.offsetTop` may change. We do NOT set
+        // a fixed height on the panel — that would conflict with top:0 and
+        // leave the bottom of the screen empty (showing the host site).
+        // Instead, the mobile CSS uses top:0 + bottom:0 + height:auto so
+        // the panel stretches naturally, and here we only adjust `bottom`
+        // (and `top` when needed) so the panel's bottom edge sits right
+        // above the keyboard. This keeps the panel filling the ENTIRE
+        // visible area at all times. Desktop/tablets (>=768px) are a no-op.
+        // The breakpoint MUST stay in sync with the @media(max-width:768px)
+        // rule in injectStyles.
         function applyViewportHeight() {
+                // Always clear inline overrides first so CSS takes over by default.
+                panel.style.height = ''
+                panel.style.maxHeight = ''
+                panel.style.bottom = ''
+                panel.style.top = ''
+
                 if (
                         !isOpen ||
                         typeof window.innerWidth !== 'number' ||
-                        window.innerWidth >= 768
+                        window.innerWidth >= 768 ||
+                        !window.visualViewport
                 ) {
-                        // Desktop/tablet — clear any inline height so the CSS-defined
-                        // size (392×620px) takes over.
-                        panel.style.height = ''
-                        panel.style.maxHeight = ''
+                        // Desktop/tablet or closed — CSS-defined size takes over.
                         return
                 }
-                // Mobile — check whether the keyboard is open by comparing the
-                // visual viewport height to the layout viewport height. When the
-                // keyboard pushes the visual viewport up, its height becomes
-                // noticeably smaller than innerHeight.
-                if (window.visualViewport) {
-                        var vv = window.visualViewport
-                        var keyboardOpen = vv.height < window.innerHeight - 20
-                        if (keyboardOpen) {
-                                // Pin the panel to the visible area so the input bar
-                                // stays above the keyboard. Using setProperty with
-                                // 'important' so it overrides the CSS 100dvh rule.
-                                panel.style.setProperty('height', vv.height + 'px', 'important')
-                                panel.style.setProperty('max-height', vv.height + 'px', 'important')
-                        } else {
-                                // Keyboard closed — let the CSS (100vh/100dvh) take over.
-                                panel.style.height = ''
-                                panel.style.maxHeight = ''
-                        }
+
+                // Mobile — compute how much space the keyboard occupies.
+                // visualViewport.height = visible area height.
+                // visualViewport.offsetTop = how far the visible area is
+                //   scrolled relative to the layout viewport (usually 0,
+                //   but can be > 0 when the browser chrome shrinks).
+                // Keyboard height = innerHeight - offsetTop - height.
+                var vv = window.visualViewport
+                var kbHeight = window.innerHeight - vv.offsetTop - vv.height
+
+                if (kbHeight > 20) {
+                        // Keyboard is open — lift the panel's bottom edge so it
+                        // sits just above the keyboard. With top:0 still set,
+                        // the panel stretches from the top of the screen to the
+                        // top of the keyboard = exactly the visible area.
+                        panel.style.setProperty('bottom', kbHeight + 'px', 'important')
                 }
-                // Keep the latest message visible regardless.
+                if (vv.offsetTop > 0) {
+                        // The visual viewport is scrolled down (e.g. browser
+                        // chrome). Adjust top to match.
+                        panel.style.setProperty('top', vv.offsetTop + 'px', 'important')
+                }
+                // Keep the latest message visible.
                 scrollDown()
         }
         if (window.visualViewport) {
