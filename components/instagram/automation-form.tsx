@@ -149,6 +149,7 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
                 mediaType: m.mediaType,
                 productId: m.productId,
                 buttons: rawButtons.slice(0, 3).map(toButton),
+                buttonType: m.buttonType ?? 'button',
         }
 }
 
