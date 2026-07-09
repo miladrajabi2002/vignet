@@ -331,18 +331,23 @@
                         // unbreakable strings (URLs) may overflow, but that's far better
                         // than breaking Persian words. Text still wraps at spaces via
                         // white-space:pre-wrap.
-                        '.vgt-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:normal;word-break:keep-all;' +
+                        // ── Bubble base — optimized to match the chat link page ──
+                        // Matches: px-4 py-2.5 text-[15px] leading-7 (Tailwind)
+                        // = padding 10px 16px, font-size 15px, line-height 1.75
+                        '.vgt-msg{max-width:84%;padding:10px 16px;font-size:15px;line-height:1.75;white-space:pre-wrap;overflow-wrap:normal;word-break:keep-all;' +
                         // unicode-bidi:plaintext = CSS dir="auto". Each paragraph's
                         // direction is auto-detected from its first strong character,
                         // so Persian renders RTL (right-aligned) and English LTR inside
                         // the LTR-positioned bubble container.
                         'unicode-bidi:plaintext;text-align:start;' +
                         'border-radius:var(--vgt-r-bubble);animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
-                        '.vgt-msg.vgt-user{align-self:flex-end;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
-                        'color:var(--vgt-on-accent);border-bottom-right-radius:5px;box-shadow:0 4px 12px -4px var(--vgt-accent-shadow);}' +
-                        
-                        '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-surface);color:var(--vgt-text);border-bottom-left-radius:5px;}' +
-                        
+                        // User bubble: solid accent, 6px tail (rounded-br-md), subtle shadow.
+                        '.vgt-msg.vgt-user{align-self:flex-end;background:var(--vgt-accent);' +
+                        'color:var(--vgt-on-accent);border-bottom-right-radius:6px;box-shadow:0 1px 3px 0 rgba(0,0,0,.08);}' +
+                        // Bot bubble: white bg (light theme) with subtle border + shadow,
+                        // matching the chat link's clean bg-white border-black/[0.07] shadow-sm.
+                        '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-bg);color:var(--vgt-text);' +
+                        'border:1px solid var(--vgt-border);border-bottom-left-radius:6px;box-shadow:0 1px 3px 0 rgba(0,0,0,.05);}' +
                         '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;}' +
                         // assistant group (chip + bubble + cards + actions)
                         // width:fit-content + max-width:100% lets the group size to content
