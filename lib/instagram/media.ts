@@ -418,13 +418,15 @@ export async function sendProductCard(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendProductCard: missing access token')
 
+        console.log(`[ig-product] sending product card: id=${product.id} name="${product.name}" image=${product.imageUrl ? 'yes' : 'no'} price=${product.price ?? 'n/a'}`)
+
         const subtitle = product.description
                 ? product.price != null
                         ? `${product.description} — ${formatPrice(product.price)}`
                         : product.description
                 : product.price != null
                         ? formatPrice(product.price)
-                        : undefined
+                        : 'محصول'
 
         const buttonUrl =
                 product.productUrl ?? product.imageUrl ?? undefined
@@ -446,10 +448,14 @@ export async function sendProductCard(
 
         const element: Record<string, unknown> = {
                 title: product.name.slice(0, 80),
+                subtitle: subtitle.slice(0, 80),
                 buttons,
         }
-        if (product.imageUrl) element.image_url = product.imageUrl
-        if (subtitle) element.subtitle = subtitle.slice(0, 80)
+        // image_url is optional in Generic Template but Meta sometimes rejects
+        // elements without it. Only set it when we actually have a URL.
+        if (product.imageUrl) {
+                element.image_url = product.imageUrl
+        }
 
         const res = await fetch(messagesUrl(), {
                 method: 'POST',
@@ -471,6 +477,10 @@ export async function sendProductCard(
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
         })
+        if (!res.ok) {
+                const errText = await res.text().catch(() => '')
+                console.warn(`[ig-product] sendProductCard failed (${res.status}): ${errText.slice(0, 300)}`)
+        }
         await throwIfError(res, 'sendProductCard')
 }
 

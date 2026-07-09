@@ -1180,7 +1180,8 @@ async function resolveProduct(
   agentId: string,
   productId: string,
 ): Promise<ProductShowcase | null> {
-  const row = await prisma.agentCatalog.findFirst({
+  // Try AgentCatalog first (products explicitly linked to this agent).
+  const catalogRow = await prisma.agentCatalog.findFirst({
     where: { agentId, productId },
     select: {
       product: {
@@ -1194,14 +1195,42 @@ async function resolveProduct(
       },
     },
   })
-  if (!row) return null
-  const p = row.product
+  if (catalogRow) {
+    const p = catalogRow.product
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      imageUrl: p.images?.[0] ?? null,
+      productUrl: null,
+    }
+  }
+  // Fallback: look up the product directly by id (it might not be in the
+  // agent's catalog but still exists in the workspace's product table).
+  // We verify workspace ownership via the agent.
+  const agent = await prisma.agent.findUnique({
+    where: { id: agentId },
+    select: { workspaceId: true },
+  })
+  if (!agent) return null
+  const product = await prisma.product.findFirst({
+    where: { id: productId, workspaceId: agent.workspaceId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      price: true,
+      images: true,
+    },
+  })
+  if (!product) return null
   return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    imageUrl: p.images?.[0] ?? null,
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    imageUrl: product.images?.[0] ?? null,
     productUrl: null,
   }
 }
