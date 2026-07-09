@@ -210,6 +210,84 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                 }
         }, [messages, msgsKey, hydrated])
 
+        // ── Operator-message polling ───────────────────────────────────────────
+        // The chat-link page is a request/response channel: when an operator
+        // replies from the dashboard CRM, there's no WebSocket/SSE push to the
+        // visitor. We poll the GET history endpoint every 8 seconds while:
+        //   (a) we have a conversationId, and
+        //   (b) we're not currently streaming an AI reply (the AI streams via
+        //       its own SSE so polling would only add noise during that phase).
+        // New server-side messages (id not seen locally) are appended. This
+        // catches operator replies so the visitor sees them without a refresh.
+        useEffect(() => {
+                if (!hydrated) return
+                const convId = convIdRef.current
+                if (!convId) return
+                let cancelled = false
+                const interval = setInterval(async () => {
+                        if (cancelled || streaming) return
+                        try {
+                                const res = await fetch(
+                                        `/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convId)}`,
+                                        { headers: { Accept: 'application/json' } },
+                                )
+                                if (!res.ok) return
+                                const data = await res.json()
+                                if (cancelled || !Array.isArray(data.messages)) return
+                                setMessages((prev) => {
+                                        // Build a set of ids+texts we already have so we only
+                                        // append genuinely new server messages. We key on the
+                                        // server id (when we have it) and fall back to text
+                                        // content for local-only placeholders.
+                                        const seen = new Set<string>()
+                                        for (const m of prev) {
+                                                if (m.role === 'assistant' && m.serverId) seen.add(m.serverId)
+                                                else if (m.role === 'user' && m.parentId) seen.add('u:' + m.text.slice(0, 80))
+                                                else seen.add((m.role === 'user' ? 'u:' : 'a:') + m.text.slice(0, 80))
+                                        }
+                                        const additions: Msg[] = []
+                                        for (const sm of data.messages) {
+                                                const id = sm.id as string
+                                                // Skip if we already have this server id
+                                                if (seen.has(id)) continue
+                                                // Skip user echoes (we already show what we typed)
+                                                if (sm.role === 'user') {
+                                                        const key = 'u:' + String(sm.content).slice(0, 80)
+                                                        if (seen.has(key)) continue
+                                                }
+                                                if (sm.role === 'user') {
+                                                        additions.push({
+                                                                id,
+                                                                role: 'user',
+                                                                text: sm.content,
+                                                                parentId: sm.parentId ?? undefined,
+                                                                parentContent: sm.parentContent ?? undefined,
+                                                        })
+                                                } else {
+                                                        additions.push({
+                                                                id,
+                                                                role: 'assistant',
+                                                                text: sm.content,
+                                                                cards: [],
+                                                                done: true,
+                                                                serverId: id,
+                                                        })
+                                                }
+                                        }
+                                        if (additions.length === 0) return prev
+                                        scrollDown()
+                                        return [...prev, ...additions]
+                                })
+                        } catch {
+                                /* network error — skip this cycle */
+                        }
+                }, 8000)
+                return () => {
+                        cancelled = true
+                        clearInterval(interval)
+                }
+        }, [hydrated, slug, streaming, scrollDown])
+
         const scrollDown = useCallback((smooth = true) => {
                 requestAnimationFrame(() => {
                         scrollerRef.current?.scrollTo({

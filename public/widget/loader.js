@@ -71,6 +71,10 @@
 
         var conversationId = loadStoredConv()
         var isOpen = false
+        // Operator-message polling timer. Started when the panel opens,
+        // cleared when it closes. Polls GET history for new messages from
+        // the dashboard operator (no WebSocket in this app).
+        var pollTimer = null
         var streaming = false
         var introVisible = false
         var teaserShown = false
@@ -1567,6 +1571,74 @@
                         })
         }
 
+        // ── Operator-message polling ─────────────────────────────────────────
+        // The web widget is a request/response channel: when an operator
+        // replies from the dashboard CRM, there's no WebSocket/SSE push to
+        // the visitor's browser. We poll the GET history endpoint every 8
+        // seconds while the panel is open and append any server-side
+        // messages we haven't rendered yet (keyed by data-message-id).
+        // Skip polling while the AI is streaming (it has its own SSE).
+        function pollForNewMessages() {
+                if (!conversationId || streaming) return
+                fetch(
+                        base +
+                                '/api/widget/' +
+                                agentId +
+                                '/chat?conversationId=' +
+                                encodeURIComponent(conversationId),
+                        { method: 'GET', headers: { Accept: 'application/json' } },
+                )
+                        .then(function (r) {
+                                return r.ok ? r.json() : null
+                        })
+                        .then(function (data) {
+                                if (!data || !Array.isArray(data.messages)) return
+                                // Build a set of server ids already rendered in the DOM.
+                                var seenIds = {}
+                                var wraps = body.querySelectorAll('.vgt-bubble-wrap[data-message-id]')
+                                for (var i = 0; i < wraps.length; i++) {
+                                        seenIds[wraps[i].getAttribute('data-message-id')] = true
+                                }
+                                // Also track user bubble text content (user bubbles may not
+                                // have a data-message-id when they were typed locally).
+                                var userTexts = {}
+                                var userBubbles = body.querySelectorAll('.vgt-msg.vgt-user')
+                                for (var j = 0; j < userBubbles.length; j++) {
+                                        var t = (userBubbles[j].textContent || '').slice(0, 80)
+                                        userTexts[t] = true
+                                }
+                                var appended = false
+                                data.messages.forEach(function (m) {
+                                        // Skip user echoes — we already show what the visitor typed.
+                                        if (m.role === 'user') {
+                                                var key = (m.content || '').slice(0, 80)
+                                                if (userTexts[key]) return
+                                                // If we somehow missed a user bubble, render it.
+                                                bubble('user', m.content, {
+                                                        id: m.id,
+                                                        quote:
+                                                                m.parentId && m.parentContent
+                                                                        ? truncate(m.parentContent, 60)
+                                                                        : null,
+                                                })
+                                                appended = true
+                                                return
+                                        }
+                                        // Assistant message — skip if we already have this server id.
+                                        if (m.id && seenIds[m.id]) return
+                                        var g = el('div', 'vgt-group')
+                                        body.appendChild(g)
+                                        renderAssistantGroup(g, m.content, true)
+                                        if (m.id) attachReplyAffordance(g, 'bot', m.id)
+                                        appended = true
+                                })
+                                if (appended) scrollDown()
+                        })
+                        .catch(function () {
+                                /* network error — skip this cycle */
+                        })
+        }
+
         function toggle(force) {
                 isOpen = force != null ? force : !isOpen
                 panel.classList.toggle('vgt-show', isOpen)
@@ -1592,10 +1664,19 @@
                         // If the lead form isn't showing and we have a prior conversation,
                         // restore its transcript from the server.
                         if (!showedLead) loadHistory()
+                        // Start polling for operator replies every 8s while open.
+                        if (!pollTimer) {
+                                pollTimer = setInterval(pollForNewMessages, 8000)
+                        }
                         setTimeout(function () {
                                 input.focus()
                         }, 80)
                 } else {
+                        // Stop polling when the panel closes.
+                        if (pollTimer) {
+                                clearInterval(pollTimer)
+                                pollTimer = null
+                        }
                         // Restore body scroll when the panel closes.
                         if (document.body) {
                                 document.body.style.overflow = ''
