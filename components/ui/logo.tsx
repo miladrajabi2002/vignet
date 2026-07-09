@@ -24,14 +24,14 @@ import Image from 'next/image'
  * the old inline-SVG `currentColor` fill).
  */
 export function Logo({ className }: { className?: string }) {
-  return (
-    <Image
-      src="/logo.svg"
-      alt="Vigent"
-      width={1536}
-      height={1024}
-      priority
-      className={className}
-    />
-  )
+	return (
+		<Image
+			src="/logo.png"
+			alt="Vigent"
+			width={1536}
+			height={1024}
+			priority
+			className={className}
+		/>
+	)
 }
