@@ -153,12 +153,20 @@ export async function POST(req: Request, props: Params) {
 	// Only trust the lead fields when the owner actually enabled the form.
 	const settings = normalizeChatLinkSettings(link.settings)
 
-	// ── Server-side lead-capture enforcement ──────────────────────────────
-	// When the workspace has turned on "require name + phone", reject any
-	// chat attempt that doesn't carry a valid visitorName + visitorPhone.
-	// This prevents a savvy visitor from bypassing the pre-chat form by
-	// POSTing directly to this endpoint.
-	if (settings.leadCapture && settings.leadCaptureRequired) {
+	// ── Server-side lead-capture enforcement (FIRST MESSAGE ONLY) ─────────
+	// When the workspace has turned on "require name + phone", the FIRST
+	// message of a new conversation must carry a valid visitorName +
+	// visitorPhone (sent from the pre-chat lead form). Subsequent messages
+	// in an EXISTING conversation don't need to resend the lead fields —
+	// the conversation already has a linked Contact. We gate on
+	// `!conversationId` so follow-up messages are never rejected with
+	// LEAD_REQUIRED (which was the bug: message 2+ failed because the
+	// client only sends lead fields on the first message).
+	if (
+		settings.leadCapture &&
+		settings.leadCaptureRequired &&
+		!parsed.data.conversationId
+	) {
 		const vName = (parsed.data.visitorName ?? '').trim()
 		const vPhone = (parsed.data.visitorPhone ?? '').trim()
 		const phoneDigits = vPhone.replace(/\D/g, '')

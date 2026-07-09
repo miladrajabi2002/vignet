@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Reply, RotateCcw, Sparkles, User, Phone, X } from 'lucide-react'
+import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
@@ -33,7 +33,7 @@ function SendIcon({ className }: { className?: string }) {
 type ProductCard = { name: string; price: string; desc: string; badge: string }
 
 type Msg =
-        | { id: string; role: 'user'; text: string; parentId?: string; parentContent?: string }
+        | { id: string; role: 'user'; text: string }
         | { id: string; role: 'assistant'; text: string; cards: ProductCard[]; done: boolean; serverId?: string }
         | { id: string; role: 'error'; text: string }
 
@@ -111,11 +111,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
         const [leadPending, setLeadPending] = useState(false)
         const [leadName, setLeadName] = useState('')
         const [leadPhone, setLeadPhone] = useState('')
-        // Reply-to (quote) state: when set, the next sent user message is linked
-        // to a previous assistant message and a preview bar shows above the composer.
-        // `id` is the server-side message id (null when replying to a just-streamed
-        // message whose server id hasn't arrived yet — quote is local-only then).
-        const [reply, setReply] = useState<{ id: string | null; text: string } | null>(null)
 
         const convIdRef = useRef<string | null>(null)
         const leadRef = useRef<{ name: string; phone: string } | null>(null)
@@ -157,8 +152,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                                                 id?: string
                                                                                                 role: string
                                                                                                 content: string
-                                                                                                parentId?: string | null
-                                                                                                parentContent?: string | null
+                                                                                                
                                                                                         },
                                                                                 ) => {
                                                                                         const id = m.id || nextId()
@@ -167,8 +161,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                                                         id,
                                                                                                         role: 'user',
                                                                                                         text: m.content,
-                                                                                                        parentId: m.parentId ?? undefined,
-                                                                                                        parentContent: m.parentContent ?? undefined,
+                                                                                                        
                                                                                                 } as Msg
                                                                                         return {
                                                                                                 id,
@@ -251,7 +244,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                         const seen = new Set<string>()
                                         for (const m of prev) {
                                                 if (m.role === 'assistant' && m.serverId) seen.add(m.serverId)
-                                                else if (m.role === 'user' && m.parentId) seen.add('u:' + m.text.slice(0, 80))
+                                                else if (m.role === 'user') seen.add('u:' + m.text.slice(0, 80))
                                                 else seen.add((m.role === 'user' ? 'u:' : 'a:') + m.text.slice(0, 80))
                                         }
                                         const additions: Msg[] = []
@@ -269,8 +262,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                 id,
                                                                 role: 'user',
                                                                 text: sm.content,
-                                                                parentId: sm.parentId ?? undefined,
-                                                                parentContent: sm.parentContent ?? undefined,
+                                                                
                                                         })
                                                 } else {
                                                         additions.push({
@@ -333,18 +325,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                         setStreaming(true)
 
                         const isFirst = !convIdRef.current
-                        // Snapshot the reply state before sending so we can clear it
-                        // immediately (and still attach the quote to the outgoing msg).
-                        const replySnapshot = reply
-                        setReply(null)
                         setMessages((m) => [
                                 ...m,
                                 {
                                         id: nextId(),
                                         role: 'user',
                                         text: message,
-                                        parentId: replySnapshot?.id ?? undefined,
-                                        parentContent: replySnapshot?.text ?? undefined,
                                 },
                         ])
                         scrollDown()
@@ -352,9 +338,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                         const assistantId = nextId()
                         let raw = ''
                         let started = false
-                        // The server-side message id arrives in the `done` SSE event;
-                        // stash it on the assistant message so a subsequent reply-to
-                        // can reference the persisted row (not the local placeholder).
                         let serverId: string | undefined
                         const upsertAssistant = (done: boolean) => {
                                 const { text: parsed, cards } = parseAssistant(raw, done)
@@ -382,7 +365,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                         body: JSON.stringify({
                                                 message,
                                                 conversationId: convIdRef.current,
-                                                replyToMessageId: replySnapshot?.id ?? undefined,
                                                 ...(isFirst && leadRef.current
                                                         ? {
                                                                         visitorName: leadRef.current.name || undefined,
@@ -448,7 +430,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                 scrollDown()
                         }
                 },
-                [slug, streaming, convKey, scrollDown, reply],
+                [slug, streaming, convKey, scrollDown],
         )
 
         const submitLead = useCallback(() => {
@@ -464,13 +446,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                 setLeadPending(false)
         }, [leadName, leadPhone, leadKey])
 
-        // Tap a reply button on an assistant bubble: stash the quoted message
-        // (server id when we have it — otherwise null for a local-only quote) and
-        // focus the composer so the visitor can type their reply.
-        const handleReply = useCallback((serverId: string | null, text: string) => {
-                setReply({ id: serverId, text: text.slice(0, 60) })
-                requestAnimationFrame(() => inputRef.current?.focus())
-        }, [])
 
         const reset = useCallback(() => {
                 convIdRef.current = null
@@ -566,11 +541,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                                                         msg={m}
                                                                         accent={accent}
                                                                         onAccent={onAccent}
-                                                                        onReply={
-                                                                                m.role === 'assistant' && m.done && m.text
-                                                                                        ? handleReply
-                                                                                        : undefined
-                                                                        }
                                                                         />
                                                         ))}
                                                         {streaming && messages[messages.length - 1]?.role === 'user' && (
@@ -588,27 +558,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
                                         </div>
                                 ) : (
                                         <>
-                                        {reply && (
-                                                <div
-                                                        className="mb-2 flex items-start gap-2 rounded-2xl border-s-2 bg-black/[0.03] px-3 py-2"
-                                                        style={{ borderInlineStartColor: accent }}
-                                                >
-                                                        <div className="min-w-0 flex-1">
-                                                                <p className="text-[10px] font-medium text-neutral-500">پاسخ به</p>
-                                                                <p className="mt-0.5 line-clamp-2 text-[12px] text-neutral-700">
-                                                                        {reply.text}
-                                                                </p>
-                                                        </div>
-                                                        <button
-                                                                type="button"
-                                                                onClick={() => setReply(null)}
-                                                                aria-label="لغو پاسخ"
-                                                                className="shrink-0 rounded-full p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700"
-                                                        >
-                                                                <X className="h-3.5 w-3.5" />
-                                                        </button>
-                                                </div>
-                                        )}
                                         <form
                                                 onSubmit={(e) => {
                                                         e.preventDefault()
@@ -899,12 +848,10 @@ function MessageRow({
         msg,
         accent,
         onAccent,
-        onReply,
 }: {
         msg: Msg
         accent: string
         onAccent: string
-        onReply?: (serverId: string | null, text: string) => void
 }) {
         if (msg.role === 'error') {
                 return (
@@ -927,14 +874,6 @@ function MessageRow({
                         className={isUser ? 'flex justify-end' : 'flex justify-start'}
                 >
                         <div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
-                                {msg.role === 'user' && msg.parentContent ? (
-                                        <div
-                                                className="mb-1 max-w-full rounded-2xl border-s-2 bg-black/[0.03] px-3 py-1.5 text-[12px] text-neutral-500"
-                                                style={{ borderInlineStartColor: accent }}
-                                        >
-                                                <p className="line-clamp-2">{msg.parentContent}</p>
-                                        </div>
-                                ) : null}
                                 {(isUser || msg.text) && (
                                         <div
                                                 className={
@@ -953,17 +892,6 @@ function MessageRow({
                                                 )}
                                         </div>
                                 )}
-                                {onReply && msg.role === 'assistant' && msg.done && msg.text ? (
-                                        <button
-                                                type="button"
-                                                onClick={() => onReply(msg.serverId ?? null, msg.text)}
-                                                className="ms-1 mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700"
-                                                aria-label="پاسخ به این پیام"
-                                        >
-                                                <Reply className="h-3.5 w-3.5" />
-                                                <span>پاسخ</span>
-                                        </button>
-                                ) : null}
                                 {!isUser &&
                                         msg.cards.map((card, i) => (
                                                 <div
