@@ -19,7 +19,7 @@ export async function Hero() {
 	const t = await getTranslations('marketing.hero')
 
 	return (
-		<section className="relative overflow-hidden bg-[var(--bg-base)] pb-16 pt-32 md:pb-20 md:pt-40">
+		<section className="relative overflow-hidden bg-[var(--bg-base)] pb-10 pt-28 md:pb-12 md:pt-28">
 			<div
 				aria-hidden
 				className="pointer-events-none absolute inset-0"
@@ -39,34 +39,34 @@ export async function Hero() {
 						{t('badge')}
 					</span>
 
-					<h1 className="mt-7 text-balance text-4xl font-light leading-[1.18] text-[var(--text-primary)] sm:text-5xl md:text-6xl md:leading-[1.12]">
+					<h1 className="mt-5 text-balance text-3xl font-light leading-[1.22] text-[var(--text-primary)] sm:text-4xl md:text-5xl md:leading-[1.16]">
 						{t('title')}
 					</h1>
-					<p className="mx-auto mt-6 max-w-2xl text-balance text-base leading-8 text-[var(--text-secondary)] md:text-lg">
+					<p className="mx-auto mt-4 max-w-2xl text-balance text-sm leading-7 text-[var(--text-secondary)] md:text-base md:leading-8">
 						{t('subtitle')}
 					</p>
 
-					<div className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+					<div className="mt-7 grid grid-cols-2 gap-3 sm:flex sm:items-center sm:justify-center">
 						<Link
 							href="/login?next=/onboarding"
-							className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--white)] px-7 text-sm font-medium text-[var(--bg-base)] shadow-[0_10px_30px_rgba(var(--ink-rgb),0.14)] transition-transform duration-200 hover:-translate-y-0.5"
+							className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-[var(--white)] px-3 text-xs font-medium text-[var(--bg-base)] shadow-[0_10px_30px_rgba(var(--ink-rgb),0.14)] transition-transform duration-200 hover:-translate-y-0.5 sm:gap-2 sm:px-7 sm:text-sm"
 						>
 							{t('ctaPrimary')}
 							<ArrowLeft className="h-4 w-4 rtl:rotate-0 ltr:rotate-180" />
 						</Link>
 						<Link
 							href="#demo"
-							className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] px-7 text-sm font-medium text-[var(--text-primary)] transition-colors duration-200 hover:border-[var(--border-strong)]"
+							className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] transition-colors duration-200 hover:border-[var(--border-strong)] sm:gap-2 sm:px-7 sm:text-sm"
 						>
 							<Play className="h-3.5 w-3.5 fill-current" />
 							{t('ctaSecondary')}
 						</Link>
 					</div>
-					<p className="mt-6 text-xs leading-6 text-[var(--text-muted)]">{t('trust')}</p>
+					<p className="mt-4 hidden text-xs leading-6 text-[var(--text-muted)] sm:block">{t('trust')}</p>
 				</div>
 
 				{/* A real product story, presented as one unframed surface rather than a mock device. */}
-				<div className="mx-auto mt-14 max-w-5xl border-y border-[var(--border-default)] bg-[var(--bg-surface)]/70 px-4 py-5 sm:px-6 md:mt-16 md:py-6">
+				<div className="mx-auto mt-8 max-w-5xl border-y border-[var(--border-default)] bg-[var(--bg-surface)]/70 px-4 py-4 sm:px-6 md:mt-10 md:py-5">
 					<div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr] md:gap-8">
 						<div className="min-w-0">
 							<div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -94,7 +94,7 @@ export async function Hero() {
 
 						<div className="hidden h-20 w-px bg-[var(--border-default)] md:block" />
 
-						<div>
+						<div className="hidden md:block">
 							<p className="text-xs text-[var(--text-muted)]">{t('sceneResult')}</p>
 							<div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
 								<Outcome icon={Check} label={t('sceneLead')} />

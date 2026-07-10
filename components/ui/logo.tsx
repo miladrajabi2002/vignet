@@ -38,7 +38,7 @@ export function Logo({
 				alt="Vigent"
 				fill
 				priority={priority}
-				sizes="(max-width: 768px) 104px, 120px"
+				sizes="(max-width: 768px) 128px, 144px"
 				className="object-cover object-center"
 			/>
 		</span>

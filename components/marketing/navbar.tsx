@@ -100,7 +100,7 @@ export function Navbar() {
                                         className="text-[var(--text-primary)] transition-opacity hover:opacity-70"
                                         aria-label="Vigent"
                                 >
-                                        <Logo priority className="h-8 w-28" />
+                                        <Logo priority className="h-9 w-32" />
                                 </Link>
 
                                 <div className="hidden items-center gap-1 md:flex">

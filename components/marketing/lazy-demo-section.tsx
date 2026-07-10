@@ -23,7 +23,7 @@ export function LazyDemoSection() {
 					observer.disconnect()
 				}
 			},
-			{ rootMargin: '500px 0px' },
+			{ rootMargin: '0px', threshold: 0.08 },
 		)
 		observer.observe(marker)
 		return () => observer.disconnect()

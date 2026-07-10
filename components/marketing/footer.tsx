@@ -36,7 +36,7 @@ export function Footer() {
 			<div className="mx-auto max-w-6xl px-6 py-16">
 				<div className="flex flex-col items-start justify-between gap-10 md:flex-row md:items-center">
 					<div>
-						<Logo className="h-8 w-28" />
+						<Logo className="h-9 w-32" />
 						<p className="mt-3 max-w-xs text-sm text-[var(--text-secondary)]">
 							{t('tagline')}
 						</p>
