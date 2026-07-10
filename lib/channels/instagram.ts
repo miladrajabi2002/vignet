@@ -1,5 +1,6 @@
 import type { InboundMessage, MessengerAdapter, OutboundVoice, SendOptions } from '@/lib/channels/types'
 import { GRAPH_BASE } from '@/lib/channels/whatsapp'
+import { isEmojiOnly } from '@/lib/instagram/emoji'
 
 /**
  * Instagram Messaging adapter (Meta Graph APIs).
@@ -114,7 +115,24 @@ export function instagramAdapter(token: string): MessengerAdapter {
 
                                         const senderId = m.sender?.id
                                         if (!senderId) continue
+
+						// A reaction webhook is separate from `message`. `unreact`
+						// only removes a previous reaction and must not create a turn.
+						if (m.reaction) {
+							if (m.reaction.action !== 'react' || !m.reaction.mid) continue
+							out.push({
+								chatId: senderId,
+								senderId,
+								senderName: m.sender?.username,
+								senderUsername: m.sender?.username,
+								text: m.reaction.emoji || m.reaction.reaction || '[reaction]',
+								kind: 'STORY_REACTION',
+								platformMessageId: m.reaction.mid,
+							})
+							continue
+						}
                                         const text = m.message?.text ?? ''
+                                        const platformMessageId = m.message?.mid
 
                                         // ─── Story mention ───
                                         // When a user mentions the connected IG account in their story,
@@ -131,6 +149,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         senderId,
                                                         senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                         text: text || '[story mention]',
+                                                        platformMessageId,
                                                         kind: 'STORY_MENTION',
                                                         storyId: mention.payload?.story_id,
                                                         storyMediaType: mention.payload?.media_type,
@@ -151,7 +170,8 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         senderId,
                                                         senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                         text,
-                                                        kind: 'STORY_REPLY',
+                                                        kind: isEmojiOnly(text) ? 'STORY_REACTION' : 'STORY_REPLY',
+                                                        platformMessageId,
                                                         storyId: story.id,
                                                         storyMediaType: story.media_type,
                                                         storyUrl: story.url,
@@ -177,6 +197,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                                 senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                                 text: postback.title,
                                                                 kind: 'DM',
+                                                                platformMessageId,
                                                         })
                                                 }
                                                 continue
@@ -198,6 +219,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 senderName: m.sender?.username, senderUsername: m.sender?.username,
                                                 text,
                                                 kind: 'DM',
+                                                platformMessageId,
                                         })
                                 }
 
@@ -217,6 +239,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         text,
                                                         kind: 'COMMENT',
                                                         commentId,
+                                                        platformMessageId: commentId,
                                                         postId: v?.media?.id,
                                                 })
                                                 continue
@@ -235,6 +258,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         text: text || '[mention]',
                                                         kind: 'COMMENT',
                                                         commentId,
+                                                        platformMessageId: commentId,
                                                         postId: v?.media?.id,
                                                 })
                                                 continue
@@ -265,6 +289,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                         senderId,
                                                         text,
                                                         kind: 'DM',
+                                                        platformMessageId: msg.mid,
                                                 })
                                         }
                                 }
@@ -361,6 +386,28 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 )
                         }
                 },
+
+				async reactToMessage(messageId: string, recipientId: string): Promise<void> {
+						if (!token) throw new Error('INSTAGRAM invalid credentials')
+						const h = await host()
+						if (!h) throw new Error('INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)')
+						const res = await fetch(`${h.base}/me/messages`, {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								Authorization: `Bearer ${token}`,
+							},
+							body: JSON.stringify({
+								recipient: { id: recipientId },
+								sender_action: 'react',
+								payload: { message_id: messageId, reaction: 'love' },
+							}),
+						})
+						if (!res.ok) {
+							const detail = await res.text().catch(() => '')
+							throw new Error(`INSTAGRAM message reaction failed (${res.status}): ${detail}`)
+						}
+				},
 
                 async sendTyping(chatId: string): Promise<void> {
                         // Comments have no typing state. The typing_on sender action works
@@ -830,7 +877,7 @@ interface IgWebhook {
                 messaging?: {
                         sender?: { id?: string; username?: string }
                         recipient?: { id?: string }
-                        message?: {
+                                message?: {
                                 text?: string
                                 mid?: string
                                 is_echo?: boolean
@@ -844,6 +891,7 @@ interface IgWebhook {
                                                 media_type?: string
                                         }
                                 }
+                                reaction?: { mid?: string; action?: string; reaction?: string; emoji?: string }
                                 attachments?: Array<{
                                         type?: string
                                         payload?: {

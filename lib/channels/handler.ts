@@ -19,6 +19,7 @@ import {
         loadAutomationPolicy,
 } from '@/lib/instagram/automation'
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
+import { isEmojiOnly } from '@/lib/instagram/emoji'
 
 const AGENT_SELECT = {
         id: true,
@@ -323,6 +324,92 @@ function toChatAgent(agent: ResolvedChannel['agent']): ChatAgent {
         }
 }
 
+/** Persist an inbound without invoking retrieval, handoff checks, or the AI. */
+async function persistInboundOnly(args: {
+        workspaceId: string
+        agentId: string
+        contactId: string
+        externalId: string
+        text: string
+}): Promise<string> {
+        return prisma.$transaction(async (tx) => {
+                const conversation = await tx.conversation.upsert({
+                        where: {
+                                agentId_channel_externalId: {
+                                        agentId: args.agentId,
+                                        channel: 'INSTAGRAM',
+                                        externalId: args.externalId,
+                                },
+                        },
+                        create: {
+                                workspaceId: args.workspaceId,
+                                agentId: args.agentId,
+                                contactId: args.contactId,
+                                channel: 'INSTAGRAM',
+                                externalId: args.externalId,
+                                customerInfoState: 'skipped',
+                        },
+                        update: { contactId: args.contactId },
+                        select: { id: true },
+                })
+                await tx.message.create({
+                        data: { conversationId: conversation.id, role: 'USER', content: args.text },
+                })
+                await tx.conversation.update({
+                        where: { id: conversation.id },
+                        data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+                })
+				return conversation.id
+        })
+}
+
+async function persistFixedAssistantReply(conversationId: string, text: string): Promise<void> {
+		await prisma.$transaction([
+			prisma.message.create({
+				data: { conversationId, role: 'ASSISTANT', content: text },
+			}),
+			prisma.conversation.update({
+				where: { id: conversationId },
+				data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+			}),
+		])
+}
+
+async function reactAfterInstagramReply(
+        adapter: MessengerAdapter,
+        msg: InboundMessage,
+        enabled: boolean,
+		workspaceId: string,
+): Promise<void> {
+        if (!enabled) return
+        try {
+				if (msg.kind === 'COMMENT') {
+						if (msg.commentId && adapter.likeComment) {
+							await adapter.likeComment(msg.commentId)
+							return
+						}
+						captureError('instagram:like-comment:unsupported', new Error('Instagram comment like is not supported by this adapter'), {
+							workspaceId,
+							metadata: { commentId: msg.commentId },
+						})
+						return
+				}
+				if (!msg.platformMessageId || !adapter.reactToMessage) {
+						captureError('instagram:react-message:unsupported', new Error('Instagram message reaction is unavailable'), {
+							workspaceId,
+							metadata: { platformMessageId: msg.platformMessageId },
+						})
+						return
+				}
+				await adapter.reactToMessage(msg.platformMessageId, msg.senderId)
+        } catch (e) {
+				captureError('instagram:post-reply-reaction', e, {
+						workspaceId,
+						metadata: { kind: msg.kind, platformMessageId: msg.platformMessageId, commentId: msg.commentId },
+				})
+        }
+}
+
 /**
  * Core per-channel inbound processor. Shared by the token-based webhook
  * (legacy + other messengers) and the global Instagram webhook. Runs the
@@ -432,7 +519,40 @@ async function processChannelInbound(
                         // replies run here. When a scenario handles the message, we skip the
                         // default AI turn entirely.
                         let scenarioHandled = false
+                        let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         if (type === 'INSTAGRAM') {
+                                instagramPolicy = await loadAutomationPolicy(agent.id, channelId, resolved.config)
+								const reactionClassInput = msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
+
+                                // A configured fixed reply has precedence over scenarios. When
+								// disabled we still let scenarios match, but never fall through to AI.
+                                if (reactionClassInput) {
+                                        const fixedReply = msg.kind === 'STORY_REACTION' && instagramPolicy.storyReactionReplyEnabled
+                                                ? instagramPolicy.storyReactionReplyText
+                                                : msg.kind === 'COMMENT' && instagramPolicy.commentEmojiReplyEnabled
+                                                        ? instagramPolicy.commentEmojiReplyText
+                                                        : null
+                                        if (fixedReply) {
+											const conversationId = await persistInboundOnly({
+												workspaceId: agent.workspaceId,
+												agentId: agent.id,
+												contactId,
+												externalId: msg.chatId,
+												text,
+											})
+                                                await adapter.sendText(msg.chatId, fixedReply, {
+                                                        quickReplies: msg.kind === 'COMMENT' ? undefined : settings.quickReplies,
+                                                })
+											await persistFixedAssistantReply(conversationId, fixedReply)
+                                                const likeEnabled = msg.kind === 'COMMENT'
+                                                        ? instagramPolicy.likeCommentAfterReply
+                                                        : msg.kind === 'STORY_REACTION'
+                                                                ? instagramPolicy.likeStoryReactionAfterReply
+                                                                : instagramPolicy.likeDmAfterReply
+											await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+											continue
+                                        }
+                                }
                                 const auto = await runInstagramAutomation({
                                         agent: { ...chatAgent, workspaceId: agent.workspaceId },
                                         channelId,
@@ -444,7 +564,34 @@ async function processChannelInbound(
                                         quickReplies: settings.quickReplies,
                                 })
                                 scenarioHandled = auto.handled
-                                if (scenarioHandled) continue
+                                if (scenarioHandled) {
+                                        if (auto.replied) {
+                                                const likeEnabled = msg.kind === 'COMMENT'
+                                                        ? instagramPolicy.likeCommentAfterReply
+                                                        : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_MENTION'
+                                                                ? instagramPolicy.likeStoryReplyAfterReply
+                                                                : msg.kind === 'STORY_REACTION'
+                                                                        ? instagramPolicy.likeStoryReactionAfterReply
+                                                                        : instagramPolicy.likeDmAfterReply
+											await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+                                        }
+										const effectivePolicy = msg.kind === 'COMMENT'
+											? instagramPolicy.commentReplyPolicy
+											: msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
+												? instagramPolicy.storyReplyPolicy
+												: instagramPolicy.dmReplyPolicy
+										if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') continue
+                                }
+								if (reactionClassInput) {
+										await persistInboundOnly({
+											workspaceId: agent.workspaceId,
+											agentId: agent.id,
+											contactId,
+											externalId: msg.chatId,
+											text,
+										})
+										continue
+								}
                         }
 
                         // ─── Channel reply policy gate (Instagram only) ────────────
@@ -455,7 +602,7 @@ async function processChannelInbound(
                         // from InstagramAutomationSettings (with a fallback to the inline
                         // snapshot in AgentChannel.config.automationSettings).
                         if (type === 'INSTAGRAM') {
-                                const policy = await loadAutomationPolicy(agent.id, channelId, resolved.config)
+                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, channelId, resolved.config)
                                 // Look up the conversation's pause flag (best-effort; the
                                 // conversation may not exist yet — that's fine, the
                                 // metadata just isn't set).
@@ -472,6 +619,7 @@ async function processChannelInbound(
                                         policy,
                                         scenarioHandled,
                                         text,
+                                        kind: msg.kind,
                                         conversationMetadata: conv?.metadata ?? undefined,
                                         conversationStatus: conv?.status,
                                 })
@@ -481,14 +629,12 @@ async function processChannelInbound(
                                         // generateReply and discarding the reply — that helper
                                         // persists the inbound USER message either way.
                                         try {
-                                                await generateReply({
+                                                await persistInboundOnly({
                                                         workspaceId: agent.workspaceId,
-                                                        agent: chatAgent,
-                                                        message: text,
-                                                        channel: type,
+                                                        agentId: agent.id,
                                                         contactId,
-                                                        contactName,
                                                         externalId: msg.chatId,
+                                                        text,
                                                 })
                                         } catch (e) {
                                                 console.error('[handler] instagram inbound-only persist failed:', e)
@@ -521,6 +667,17 @@ async function processChannelInbound(
                         await adapter.sendText(msg.chatId, result.reply, {
                                 quickReplies: settings.quickReplies,
                         })
+                        if (type === 'INSTAGRAM') {
+                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, channelId, resolved.config)
+                                const likeEnabled = msg.kind === 'COMMENT'
+                                        ? policy.likeCommentAfterReply
+                                        : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_MENTION'
+                                                ? policy.likeStoryReplyAfterReply
+                                                : msg.kind === 'STORY_REACTION'
+                                                        ? policy.likeStoryReactionAfterReply
+                                                        : policy.likeDmAfterReply
+								await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+                        }
 
                         // Optional voice reply when the agent has TTS enabled.
                         if (agent.voiceEnabled && adapter.sendVoice) {

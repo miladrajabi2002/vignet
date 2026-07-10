@@ -1,27 +1,27 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import {
   Send,
   MessageCircle,
-  Camera,
   Radio,
   MessageSquare,
   Globe,
   ShoppingBag,
-  type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MagneticButton } from '@/components/ui/magnetic-button'
+import { InstagramIcon } from './social-links'
 
 // Same connection set as the channels section — the page closes on the
 // promise it opened with: one agent, everywhere.
-const CHANNEL_ICONS: LucideIcon[] = [
+const CHANNEL_ICONS: ComponentType<{ className?: string }>[] = [
   Send,
   MessageCircle,
-  Camera,
+  InstagramIcon,
   Radio,
   MessageSquare,
   Globe,

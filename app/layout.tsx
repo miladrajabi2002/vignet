@@ -54,6 +54,9 @@ export const metadata: Metadata = {
                         'ایجنت‌های هوشمندی بسازید که از داده‌های شما پاسخ می‌دهند و در تمام کانال‌ها با مشتریان گفتگو می‌کنند.',
         },
         robots: { index: true, follow: true },
+        manifest: '/site.webmanifest',
+        // Keep every URL deploy-safe: icon.png is the shipped PNG fallback
+        // until dedicated 16/32/180/192px brand files are supplied.
         // Brand icons. Drop a 512×512 square PNG (or SVG) at public/icon.png
         // for the favicon / app icon / apple-touch-icon. The legacy
         // app/favicon.ico is kept as the .ico fallback for old browsers.
@@ -62,7 +65,7 @@ export const metadata: Metadata = {
                         { url: '/favicon.ico', sizes: 'any' },
                         { url: '/icon.png', type: 'image/png', sizes: '512x512' },
                 ],
-                apple: [{ url: '/icon.png', sizes: '512x512' }],
+                apple: [{ url: '/icon.png', type: 'image/png', sizes: '512x512' }],
         },
 }
 

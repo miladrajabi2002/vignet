@@ -63,3 +63,44 @@ export async function PATCH(req: Request, props: Params) {
 
   return NextResponse.json({ conversation })
 }
+
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: params.conversationId, workspaceId: user.workspaceId },
+    select: { id: true },
+  })
+  if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // UsageLog intentionally keeps its historical billing data, but must no
+      // longer point at a conversation that is about to be removed.
+      await tx.usageLog.updateMany({
+        where: { conversationId: conversation.id },
+        data: { conversationId: null },
+      })
+      await tx.message.deleteMany({ where: { conversationId: conversation.id } })
+      await tx.handoffAlert.deleteMany({ where: { conversationId: conversation.id } })
+
+      // Keep the workspace predicate on the destructive query as a final
+      // authorization guard (and make a concurrent deletion harmless).
+      const deleted = await tx.conversation.deleteMany({
+        where: { id: conversation.id, workspaceId: user.workspaceId },
+      })
+      if (deleted.count !== 1) throw new Error('CONVERSATION_DELETE_RACE')
+    })
+  } catch (error) {
+    console.error('Failed to delete conversation', {
+      conversationId: conversation.id,
+      workspaceId: user.workspaceId,
+      error,
+    })
+    return NextResponse.json({ error: 'DELETE_FAILED' }, { status: 500 })
+  }
+
+  return new NextResponse(null, { status: 204 })
+}

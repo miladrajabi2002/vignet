@@ -160,7 +160,6 @@ export function InstagramAutomationManager({
         }
 
         async function saveSettings(next: InstagramAutomationSettings) {
-                setSettings(next)
                 try {
                         // Per the v3 backend contract, the settings object is JUST:
                         //   { replyPolicy, stopWords, aiEnabled }
@@ -170,16 +169,14 @@ export function InstagramAutomationManager({
                         const res = await fetch(`/api/agents/${agentId}/instagram/settings`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                        replyPolicy: next.replyPolicy,
-                                        stopWords: next.stopWords,
-                                        aiEnabled: next.aiEnabled ?? true,
-                                }),
+                                body: JSON.stringify(next),
                         })
                         if (!res.ok) throw new Error('SETTINGS_FAILED')
+                        setSettings(next)
                         flash('ok', t('manager.settingsOkToast'))
                 } catch {
                         flash('err', t('manager.settingsFailToast'))
+                        throw new Error('SETTINGS_FAILED')
                 }
         }
 
@@ -357,7 +354,7 @@ function ChannelSettingsCard({
         accountUsername,
 }: {
         settings: InstagramAutomationSettings
-        onSave: (next: InstagramAutomationSettings) => void
+        onSave: (next: InstagramAutomationSettings) => Promise<void>
         accountUsername: string
 }) {
         const t = useTranslations('instagram')
@@ -365,6 +362,7 @@ function ChannelSettingsCard({
         const [stopWordInput, setStopWordInput] = useState('')
         const [saving, setSaving] = useState(false)
         const [open, setOpen] = useState(true)
+        const [settingsTab, setSettingsTab] = useState<'dm' | 'story' | 'comment' | 'reaction'>('dm')
 
         const dirty = JSON.stringify(draft) !== JSON.stringify(settings)
 
@@ -389,9 +387,36 @@ function ChannelSettingsCard({
                 setSaving(true)
                 try {
                         await onSave(draft)
+                } catch {
+                        // Parent reports the localized error; keep the unsaved draft intact.
                 } finally {
                         setSaving(false)
                 }
+        }
+
+        const policyKey: 'dmReplyPolicy' | 'storyReplyPolicy' | 'commentReplyPolicy' =
+                settingsTab === 'dm'
+                        ? 'dmReplyPolicy'
+                        : settingsTab === 'comment'
+                                ? 'commentReplyPolicy'
+                                : 'storyReplyPolicy'
+
+        function renderToggle(
+                key: 'storyReactionReplyEnabled' | 'commentEmojiReplyEnabled' | 'likeDmAfterReply' |
+                        'likeStoryReplyAfterReply' | 'likeStoryReactionAfterReply' | 'likeCommentAfterReply',
+                label: string,
+                description: string,
+                disabled = false,
+        ) {
+                return (
+                        <label className={`flex items-center justify-between gap-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                <span>
+                                        <span className="block text-xs font-medium text-[var(--text-primary)]">{label}</span>
+                                        <span className="mt-0.5 block text-[11px] text-[var(--text-secondary)]">{description}</span>
+                                </span>
+                                <input type="checkbox" checked={Boolean(draft[key])} disabled={disabled} onChange={(event) => set(key, event.target.checked)} className="h-4 w-4 shrink-0 accent-[var(--text-primary)]" />
+                        </label>
+                )
         }
 
         const POLICIES: { value: ReplyPolicy; labelKey: string; descKey: string; Icon: LucideIcon }[] = [
@@ -444,19 +469,29 @@ function ChannelSettingsCard({
 
                         {open && (
                                 <div className="space-y-5 border-t border-[var(--border-subtle)] px-5 py-5">
+                                        <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]" role="group" aria-label={t('manager.settingsTabsAria')}>
+                                                {(['dm', 'story', 'comment', 'reaction'] as const).map((tab) => {
+                                                        const labelKey = `manager.settingsTab${tab[0].toUpperCase()}${tab.slice(1)}`
+                                                        return (
+                                                                <button key={tab} type="button" aria-pressed={settingsTab === tab} onClick={() => setSettingsTab(tab)} className={`shrink-0 border-b-2 px-3 py-2 text-xs ${settingsTab === tab ? 'border-[var(--text-primary)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)]'}`}>
+                                                                        {t(labelKey)}
+                                                                </button>
+                                                        )
+                                                })}
+                                        </div>
                                         {/* Reply policy — segmented control */}
-                                        <div className="space-y-2">
+                                        <div className={settingsTab === 'reaction' ? 'hidden' : 'space-y-2'}>
                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                         {t('manager.replyPolicyLabel')}
                                                 </label>
                                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                                         {POLICIES.map(({ value, labelKey, descKey, Icon }) => {
-                                                                const active = draft.replyPolicy === value
+                                                                const active = draft[policyKey] === value
                                                                 return (
                                                                         <button
                                                                                 key={value}
                                                                                 type="button"
-                                                                                onClick={() => set('replyPolicy', value)}
+                                                                                onClick={() => set(policyKey, value)}
                                                                                 className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-start transition-all ${
                                                                                         active
                                                                                                 ? 'border-[var(--text-primary)] bg-[var(--bg-base)] shadow-sm'
@@ -488,6 +523,25 @@ function ChannelSettingsCard({
                                                         })}
                                                 </div>
                                         </div>
+
+                                        {settingsTab === 'comment' && (
+                                                <div className="space-y-3">
+                                                        {renderToggle('commentEmojiReplyEnabled', t('manager.commentEmojiEnabled'), t('manager.commentEmojiEnabledHint'))}
+                                                        <label className="block text-xs font-medium text-[var(--text-secondary)]" htmlFor="comment-emoji-reply">{t('manager.fixedReplyText')}</label>
+                                                        <textarea id="comment-emoji-reply" value={draft.commentEmojiReplyText ?? ''} disabled={!draft.commentEmojiReplyEnabled} required={draft.commentEmojiReplyEnabled} onChange={(event) => set('commentEmojiReplyText', event.target.value || null)} placeholder={t('manager.commentEmojiPlaceholder')} className="min-h-24 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-sm text-[var(--text-primary)] outline-none disabled:opacity-50" />
+                                                        {renderToggle('likeCommentAfterReply', t('manager.likeComment'), t('manager.likeCommentUnsupportedHint'), true)}
+                                                </div>
+                                        )}
+                                        {settingsTab === 'reaction' && (
+                                                <div className="space-y-3">
+                                                        {renderToggle('storyReactionReplyEnabled', t('manager.storyReactionEnabled'), t('manager.storyReactionEnabledHint'))}
+                                                        <label className="block text-xs font-medium text-[var(--text-secondary)]" htmlFor="story-reaction-reply">{t('manager.fixedReplyText')}</label>
+                                                        <textarea id="story-reaction-reply" value={draft.storyReactionReplyText ?? ''} disabled={!draft.storyReactionReplyEnabled} required={draft.storyReactionReplyEnabled} onChange={(event) => set('storyReactionReplyText', event.target.value || null)} placeholder={t('manager.storyReactionPlaceholder')} className="min-h-24 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-sm text-[var(--text-primary)] outline-none disabled:opacity-50" />
+                                                        {renderToggle('likeStoryReactionAfterReply', t('manager.likeStoryReaction'), t('manager.likeAfterReplyHint'))}
+                                                </div>
+                                        )}
+                                        {settingsTab === 'dm' && renderToggle('likeDmAfterReply', t('manager.likeDm'), t('manager.likeAfterReplyHint'))}
+                                        {settingsTab === 'story' && renderToggle('likeStoryReplyAfterReply', t('manager.likeStoryReply'), t('manager.likeAfterReplyHint'))}
 
                                         {/* Stop words */}
                                         <div className="space-y-1.5">
@@ -546,14 +600,16 @@ function ChannelSettingsCard({
                                                 <p className="text-[11px] text-[var(--text-muted)]">
                                                         {dirty
                                                                 ? t('manager.dirtyHint')
-                                                                : t('manager.currentPolicyHint', {
-                                                                                policy: t(REPLY_POLICY_LABEL_KEY[draft.replyPolicy]),
+                                                                : settingsTab === 'reaction'
+                                                                        ? t('manager.settingsSavedHint')
+                                                                        : t('manager.currentPolicyHint', {
+                                                                                policy: t(REPLY_POLICY_LABEL_KEY[draft[policyKey]]),
                                                                         })}
                                                 </p>
                                                 <button
                                                         type="button"
                                                         onClick={handleSave}
-                                                        disabled={!dirty || saving}
+                                                        disabled={!dirty || saving || (draft.storyReactionReplyEnabled && !draft.storyReactionReplyText?.trim()) || (draft.commentEmojiReplyEnabled && !draft.commentEmojiReplyText?.trim())}
                                                         className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
                                                 >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

@@ -147,11 +147,27 @@ function normalizeSettings(raw: unknown): InstagramAutomationSettings {
 			? s.replyPolicy
 			: 'AGENT_EXCEPT_SCENARIOS'
 	) as ReplyPolicy
+	const policy = (key: string): ReplyPolicy =>
+		(['ALL_AGENT', 'AGENT_EXCEPT_SCENARIOS', 'AUTOMATION_ONLY'].includes(String(s[key] ?? ''))
+			? s[key]
+			: replyPolicy) as ReplyPolicy
 	return {
 		replyPolicy,
+		dmReplyPolicy: policy('dmReplyPolicy'),
+		storyReplyPolicy: policy('storyReplyPolicy'),
+		commentReplyPolicy: policy('commentReplyPolicy'),
 		stopWords: Array.isArray(s.stopWords)
 			? s.stopWords.filter((x): x is string => typeof x === 'string')
 			: [],
 		aiEnabled: typeof s.aiEnabled === 'boolean' ? s.aiEnabled : true,
+		storyReactionReplyEnabled: s.storyReactionReplyEnabled === true,
+		storyReactionReplyText: typeof s.storyReactionReplyText === 'string' ? s.storyReactionReplyText : null,
+		commentEmojiReplyEnabled: s.commentEmojiReplyEnabled === true,
+		commentEmojiReplyText: typeof s.commentEmojiReplyText === 'string' ? s.commentEmojiReplyText : null,
+		likeDmAfterReply: s.likeDmAfterReply === true,
+		likeStoryReplyAfterReply: s.likeStoryReplyAfterReply === true,
+		likeStoryReactionAfterReply: s.likeStoryReactionAfterReply === true,
+		// Comment likes are not supported by the current Meta adapter/connection.
+		likeCommentAfterReply: false,
 	}
 }

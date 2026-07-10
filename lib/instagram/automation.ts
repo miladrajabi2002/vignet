@@ -280,6 +280,7 @@ function kindToType(
     case 'COMMENT':
       return 'COMMENT'
     case 'STORY_REPLY':
+    case 'STORY_REACTION':
     case 'STORY_MENTION':
       return 'STORY'
     case 'DM':
@@ -310,7 +311,7 @@ export interface AutomationContext {
  */
 export async function runInstagramAutomation(
   ctx: AutomationContext,
-): Promise<{ handled: boolean }> {
+): Promise<{ handled: boolean; replied: boolean }> {
   const { agent, channelId, msg } = ctx
 
   // ─── 1. Follow-gate fulfillment (DM only) ───────────────────────────
@@ -319,7 +320,7 @@ export async function runInstagramAutomation(
   // confirm keyword like "done" can't be hijacked by another scenario.
   if (msg.kind === 'DM' || msg.kind === undefined) {
     const fulfilled = await tryFulfillFollowGate(ctx)
-    if (fulfilled) return { handled: true }
+    if (fulfilled) return { handled: true, replied: true }
   }
 
   // ─── 2. STORY_MENTION hard-gate fulfillment ────────────────────────
@@ -327,18 +328,18 @@ export async function runInstagramAutomation(
   // fulfills the gate (the user proved engagement by mentioning the account).
   if (msg.kind === 'STORY_MENTION') {
     const fulfilled = await tryFulfillGateByMention(ctx)
-    if (fulfilled) return { handled: true }
+    if (fulfilled) return { handled: true, replied: true }
   }
 
   // ─── 3. Scenario matching ──────────────────────────────────────────
   const type = kindToType(msg.kind)
-  if (!type) return { handled: false }
+  if (!type) return { handled: false, replied: false }
 
   const scenarios = await prisma.instagramAutomation.findMany({
     where: { agentId: agent.id, channelId, active: true, type },
     orderBy: { priority: 'desc' },
   })
-  if (!scenarios.length) return { handled: false }
+  if (!scenarios.length) return { handled: false, replied: false }
 
   for (const row of scenarios as AutomationRow[]) {
     const trigger = readTrigger(row.trigger)
@@ -366,17 +367,26 @@ export async function runInstagramAutomation(
 
     // ─── Matched. Execute the action. ───
     try {
-      await executeAction(ctx, row, action)
+      let sent = false
+      const trackingAdapter: MessengerAdapter = {
+        ...ctx.adapter,
+        async sendText(chatId, text, opts) {
+          await ctx.adapter.sendText(chatId, text, opts)
+          sent = true
+        },
+      }
+      await executeAction({ ...ctx, adapter: trackingAdapter }, row, action)
+      return { handled: true, replied: sent }
     } catch (e) {
       captureError(`instagram:automation:${row.id}`, e, {
         workspaceId: agent.workspaceId,
         metadata: { agentId: agent.id, automationId: row.id },
       })
     }
-    return { handled: true }
+    return { handled: true, replied: false }
   }
 
-  return { handled: false }
+  return { handled: false, replied: false }
 }
 
 /** Send the configured reply for a matched scenario. */
@@ -977,15 +987,37 @@ async function tryFulfillGateByMention(
 /** Snapshot of the per-(agent × channel) automation policy + toggles. */
 export interface AutomationPolicy {
   replyPolicy: InstagramReplyPolicy
+  dmReplyPolicy: InstagramReplyPolicy
+  storyReplyPolicy: InstagramReplyPolicy
+  commentReplyPolicy: InstagramReplyPolicy
   stopWords: string[]
   aiEnabled: boolean
+  storyReactionReplyEnabled: boolean
+  storyReactionReplyText: string | null
+  commentEmojiReplyEnabled: boolean
+  commentEmojiReplyText: string | null
+  likeDmAfterReply: boolean
+  likeStoryReplyAfterReply: boolean
+  likeStoryReactionAfterReply: boolean
+  likeCommentAfterReply: boolean
 }
 
 /** Default policy when no InstagramAutomationSettings row exists yet. */
 export const DEFAULT_AUTOMATION_POLICY: AutomationPolicy = {
   replyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+  dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+  storyReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+  commentReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
   stopWords: [],
   aiEnabled: true,
+  storyReactionReplyEnabled: false,
+  storyReactionReplyText: null,
+  commentEmojiReplyEnabled: false,
+  commentEmojiReplyText: null,
+  likeDmAfterReply: false,
+  likeStoryReplyAfterReply: false,
+  likeStoryReactionAfterReply: false,
+  likeCommentAfterReply: false,
 }
 
 function isReplyPolicy(v: unknown): v is InstagramReplyPolicy {
@@ -1011,8 +1043,19 @@ export async function loadAutomationPolicy(
     where: { agentId },
     select: {
       replyPolicy: true,
+      dmReplyPolicy: true,
+      storyReplyPolicy: true,
+      commentReplyPolicy: true,
       stopWords: true,
       aiEnabled: true,
+      storyReactionReplyEnabled: true,
+      storyReactionReplyText: true,
+      commentEmojiReplyEnabled: true,
+      commentEmojiReplyText: true,
+      likeDmAfterReply: true,
+      likeStoryReplyAfterReply: true,
+      likeStoryReactionAfterReply: true,
+      likeCommentAfterReply: true,
     },
   })
   if (row) {
@@ -1021,14 +1064,25 @@ export async function loadAutomationPolicy(
       : 'AGENT_EXCEPT_SCENARIOS'
     return {
       replyPolicy: policy,
+      dmReplyPolicy: isReplyPolicy(row.dmReplyPolicy) ? row.dmReplyPolicy : policy,
+      storyReplyPolicy: isReplyPolicy(row.storyReplyPolicy) ? row.storyReplyPolicy : policy,
+      commentReplyPolicy: isReplyPolicy(row.commentReplyPolicy) ? row.commentReplyPolicy : policy,
       stopWords: row.stopWords ?? [],
       aiEnabled: row.aiEnabled,
+      storyReactionReplyEnabled: row.storyReactionReplyEnabled,
+      storyReactionReplyText: row.storyReactionReplyText,
+      commentEmojiReplyEnabled: row.commentEmojiReplyEnabled,
+      commentEmojiReplyText: row.commentEmojiReplyText,
+      likeDmAfterReply: row.likeDmAfterReply,
+      likeStoryReplyAfterReply: row.likeStoryReplyAfterReply,
+      likeStoryReactionAfterReply: row.likeStoryReactionAfterReply,
+      likeCommentAfterReply: row.likeCommentAfterReply,
     }
   }
   // Legacy / pre-settings-table fallback.
   if (channelConfig !== undefined) {
     const snap = readAutomationPolicy(channelConfig)
-    if (snap) return snap
+    if (snap) return { ...DEFAULT_AUTOMATION_POLICY, ...snap }
   }
   return DEFAULT_AUTOMATION_POLICY
 }
@@ -1055,16 +1109,22 @@ export async function shouldAgentReply(args: {
   policy: AutomationPolicy
   scenarioHandled: boolean
   text: string
+  kind?: InboundMessage['kind']
   conversationMetadata?: Prisma.JsonValue
   conversationStatus?: string
 }): Promise<boolean> {
   const { policy, scenarioHandled, text } = args
+  const replyPolicy = args.kind === 'COMMENT'
+    ? policy.commentReplyPolicy
+    : args.kind === 'STORY_REPLY' || args.kind === 'STORY_REACTION' || args.kind === 'STORY_MENTION'
+      ? policy.storyReplyPolicy
+      : policy.dmReplyPolicy
 
   // Master toggle off → never.
   if (!policy.aiEnabled) return false
 
   // Automation-only channels never invoke the AI.
-  if (policy.replyPolicy === 'AUTOMATION_ONLY') return false
+  if (replyPolicy === 'AUTOMATION_ONLY') return false
 
   // HANDED_OFF conversations are under operator control — the AI must NOT
   // interlope. The operator can resume AI via the dashboard "Resume AI" action
@@ -1097,7 +1157,7 @@ export async function shouldAgentReply(args: {
   // AGENT_EXCEPT_SCENARIOS: when a scenario already replied, the AI must not
   // double-send. ALL_AGENT: the AI ALWAYS replies in addition (use this for
   // "AI augments every message" flows).
-  if (policy.replyPolicy === 'AGENT_EXCEPT_SCENARIOS' && scenarioHandled) {
+  if (replyPolicy === 'AGENT_EXCEPT_SCENARIOS' && scenarioHandled) {
     return false
   }
   return true
@@ -1117,7 +1177,7 @@ export async function resumeAiForConversation(
     where: { agentId, externalId, channel: 'INSTAGRAM' },
     orderBy: { createdAt: 'desc' },
     select: { id: true, metadata: true, status: true },
-  })
+})
   if (!conv) return false
   const m =
     conv.metadata && typeof conv.metadata === 'object'

@@ -897,6 +897,17 @@ model InstagramAutomationSettings {
   agentId          String   @unique
   channelId        String   @unique
   replyPolicy      String   @default("AGENT_EXCEPT_SCENARIOS") // ALL_AGENT | AGENT_EXCEPT_SCENARIOS | AUTOMATION_ONLY
+  dmReplyPolicy      String @default("AGENT_EXCEPT_SCENARIOS")
+  storyReplyPolicy   String @default("AGENT_EXCEPT_SCENARIOS")
+  commentReplyPolicy String @default("AGENT_EXCEPT_SCENARIOS")
+  storyReactionReplyEnabled Boolean @default(false)
+  storyReactionReplyText    String? @db.Text
+  commentEmojiReplyEnabled  Boolean @default(false)
+  commentEmojiReplyText     String? @db.Text
+  likeDmAfterReply            Boolean @default(false)
+  likeStoryReplyAfterReply    Boolean @default(false)
+  likeStoryReactionAfterReply Boolean @default(false)
+  likeCommentAfterReply       Boolean @default(false)
   stopWords        String[] @default([]) // keywords that pause AI for this conversation
   welcomeMessage   String?  @db.Text // sent on the user's first DM
   followUpEnabled  Boolean  @default(false)

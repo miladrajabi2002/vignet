@@ -16,14 +16,15 @@ import {
   ArrowRight,
   Send,
   MessageCircle,
-  Camera,
   Radio,
   MessageSquare,
   Globe,
   FileText,
-  type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { InstagramIcon } from './social-links'
+
+type MarketingIcon = ComponentType<{ className?: string }>
 
 /* ───────────────────────────────────────────────────────────────────────
    Micro-visuals — tiny monochrome illustrations, one per card. Built from
@@ -143,7 +144,7 @@ function VisVoice() {
 
 /** Channels: six connection nodes on one line — one agent behind all. */
 function VisChannels() {
-  const icons: LucideIcon[] = [Send, MessageCircle, Camera, Radio, MessageSquare, Globe]
+  const icons: MarketingIcon[] = [Send, MessageCircle, InstagramIcon, Radio, MessageSquare, Globe]
   return (
     <div className="flex items-center" dir="ltr">
       {icons.map((Icon, i) => (
@@ -170,7 +171,7 @@ function VisInstagramAutomation() {
   return (
     <div className="flex items-center" dir="ltr">
       <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
-        <Camera className="h-4 w-4 text-[var(--text-secondary)]" />
+        <InstagramIcon className="h-4 w-4 text-[var(--text-secondary)]" />
       </span>
       <span className="h-px w-5 bg-[var(--border-hover)]" />
       <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
@@ -216,8 +217,8 @@ function VisInbox() {
    a card with its own micro-visual instead of a bare icon.
    ─────────────────────────────────────────────────────────────────────── */
 
-const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'instagram' | 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
-  { key: 'instagramAutomation', icon: Camera, vis: 'instagram' },
+const CARDS: { key: string; icon: MarketingIcon; span?: string; vis: 'instagram' | 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
+  { key: 'instagramAutomation', icon: InstagramIcon, vis: 'instagram' },
   { key: 'knowledge', icon: Database, vis: 'docs' },
   { key: 'products', icon: Package, vis: 'product' },
   { key: 'voice', icon: AudioLines, vis: 'voice' },

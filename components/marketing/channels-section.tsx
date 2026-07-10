@@ -1,5 +1,6 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -7,7 +8,6 @@ import Link from 'next/link'
 import {
   Send,
   MessageCircle,
-  Camera,
   Radio,
   MessageSquare,
   Globe,
@@ -22,11 +22,14 @@ import {
   ArrowUp,
   type LucideIcon,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
-const CHANNELS: { key: string; name: string; icon: LucideIcon }[] = [
+type MarketingIcon = ComponentType<{ className?: string }>
+
+const CHANNELS: { key: string; name: string; icon: MarketingIcon }[] = [
   { key: 'telegram', name: 'Telegram', icon: Send },
   { key: 'whatsapp', name: 'WhatsApp', icon: MessageCircle },
-  { key: 'instagram', name: 'Instagram', icon: Camera },
+  { key: 'instagram', name: 'Instagram', icon: InstagramIcon },
   { key: 'rubika', name: 'Rubika', icon: Radio },
   { key: 'bale', name: 'Bale', icon: MessageSquare },
   { key: 'widget', name: 'Web Widget', icon: Globe },

@@ -24,6 +24,8 @@ export interface InboundMessage {
   senderPhone?: string
   /** Plain text body (empty for pure voice/media messages). */
   text: string
+  /** Platform-native id of this inbound message (Instagram `mid`, etc.). */
+  platformMessageId?: string
   /** Opaque file id for an attached voice message, if any. */
   voiceFileId?: string
   /** When the inbound is itself a reply to another message (e.g. Telegram reply_to_message), the platform message id being quoted. */
@@ -42,7 +44,7 @@ export interface InboundMessage {
    * comments, STORY_REPLY for a DM that quotes a story, and STORY_MENTION when
    * the account is mentioned in a user's story.
    */
-  kind?: 'DM' | 'COMMENT' | 'STORY_REPLY' | 'STORY_MENTION'
+  kind?: 'DM' | 'COMMENT' | 'STORY_REPLY' | 'STORY_REACTION' | 'STORY_MENTION'
   /** Instagram only: the post/reel media id a comment was left on. */
   postId?: string
   /** Instagram only: the comment id (for public replies). */
@@ -106,4 +108,8 @@ export interface MessengerAdapter {
   getSenderProfile?(
     userId: string,
   ): Promise<{ name?: string; username?: string; avatarUrl?: string } | null>
+  /** Best-effort reaction to an inbound platform message. */
+  reactToMessage?(messageId: string, recipientId: string): Promise<void>
+  /** Best-effort like of a public comment. */
+  likeComment?(commentId: string): Promise<void>
 }

@@ -1,10 +1,37 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown, Play } from 'lucide-react'
 import { Spotlight } from './spotlight'
+
+function useTypewriter(words: string[], enabled: boolean, typing = 90, deleting = 45, hold = 1600) {
+	const [text, setText] = useState('')
+	const [index, setIndex] = useState(0)
+	const [phase, setPhase] = useState<'typing' | 'holding' | 'deleting'>('typing')
+
+	useEffect(() => {
+		if (!enabled || words.length === 0) return
+		const word = words[index % words.length]
+		let timeout: ReturnType<typeof setTimeout>
+		if (phase === 'typing') {
+			timeout = text.length < word.length
+				? setTimeout(() => setText(word.slice(0, text.length + 1)), typing)
+				: setTimeout(() => setPhase('holding'), hold)
+		} else if (phase === 'holding') {
+			timeout = setTimeout(() => setPhase('deleting'), hold)
+		} else if (text.length > 0) {
+			timeout = setTimeout(() => setText(word.slice(0, text.length - 1)), deleting)
+		} else {
+			setIndex((current) => current + 1)
+			setPhase('typing')
+		}
+		return () => clearTimeout(timeout)
+	}, [deleting, enabled, hold, index, phase, text, typing, words])
+	return text
+}
 
 function rise(delay: number, reduce: boolean | null) {
 	return {
@@ -17,6 +44,9 @@ function rise(delay: number, reduce: boolean | null) {
 export function Hero() {
 	const t = useTranslations('marketing.hero')
 	const reduce = useReducedMotion()
+	const words = t.raw('rotate') as string[]
+	const typed = useTypewriter(words, reduce === false)
+	const rotatingText = reduce ? words[0] : typed
 
 	return (
 		<section className="relative flex min-h-[92dvh] items-center justify-center overflow-hidden bg-[var(--bg-base)]">
@@ -53,6 +83,16 @@ export function Hero() {
 					className="mt-8 text-balance text-4xl font-light leading-[1.15] text-[var(--text-primary)] sm:text-5xl md:text-7xl md:leading-[1.08]"
 				>
 					<span className="gradient-text block">{t('title')}</span>
+					<span className="mt-2 block min-h-[1.15em] text-[var(--text-primary)]">
+						{rotatingText}
+						{!reduce && (
+							<span
+								aria-hidden
+								className="ms-1 inline-block w-[2px] animate-blink bg-[var(--text-primary)] align-middle"
+								style={{ height: '0.82em' }}
+							/>
+						)}
+					</span>
 				</motion.h1>
 
 				<motion.p

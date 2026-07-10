@@ -215,6 +215,9 @@ export type InstagramReplyPolicy =
 
 export interface AutomationPolicySnapshot {
   replyPolicy: InstagramReplyPolicy
+  dmReplyPolicy: InstagramReplyPolicy
+  storyReplyPolicy: InstagramReplyPolicy
+  commentReplyPolicy: InstagramReplyPolicy
   stopWords: string[]
   aiEnabled: boolean
 }
@@ -243,6 +246,9 @@ export function readAutomationPolicy(
     : []
   return {
     replyPolicy: policy,
+    dmReplyPolicy: policy,
+    storyReplyPolicy: policy,
+    commentReplyPolicy: policy,
     stopWords,
     aiEnabled: a.aiEnabled !== false,
   }

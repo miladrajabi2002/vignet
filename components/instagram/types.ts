@@ -153,15 +153,37 @@ export type ReplyPolicy =
  */
 export interface InstagramAutomationSettings {
         replyPolicy: ReplyPolicy
+        dmReplyPolicy: ReplyPolicy
+        storyReplyPolicy: ReplyPolicy
+        commentReplyPolicy: ReplyPolicy
         stopWords: string[]
         /** Master AI toggle (sent by backend, not edited in this UI yet). */
         aiEnabled?: boolean
+        storyReactionReplyEnabled: boolean
+        storyReactionReplyText: string | null
+        commentEmojiReplyEnabled: boolean
+        commentEmojiReplyText: string | null
+        likeDmAfterReply: boolean
+        likeStoryReplyAfterReply: boolean
+        likeStoryReactionAfterReply: boolean
+        likeCommentAfterReply: boolean
 }
 
 export const DEFAULT_SETTINGS: InstagramAutomationSettings = {
         replyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+        dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+        storyReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+        commentReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
         stopWords: [],
         aiEnabled: true,
+        storyReactionReplyEnabled: false,
+        storyReactionReplyText: null,
+        commentEmojiReplyEnabled: false,
+        commentEmojiReplyText: null,
+        likeDmAfterReply: false,
+        likeStoryReplyAfterReply: false,
+        likeStoryReactionAfterReply: false,
+        likeCommentAfterReply: false,
 }
 
 /** Shape sent to POST /api/agents/{agentId}/instagram/automations */
