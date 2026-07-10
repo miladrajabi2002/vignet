@@ -5,7 +5,7 @@ import { ArrowLeft, GraduationCap, HeartPulse, ShoppingBag } from 'lucide-react'
 const COPY = {
 	fa: {
 		eyebrow: 'برای کسب‌وکار شما',
-		title: 'از یک سناریوی واقعی شروع کنید',
+		title: 'شروع مناسب کسب‌وکار خودتان را انتخاب کنید',
 		subtitle: 'قالب آماده را انتخاب کنید، اطلاعات خودتان را اضافه کنید و همان روز پاسخ‌گویی را شروع کنید.',
 		cta: 'دیدن راهکار',
 		items: [
@@ -16,7 +16,7 @@ const COPY = {
 	},
 	en: {
 		eyebrow: 'Built for your business',
-		title: 'Start with a real business scenario',
+		title: 'Choose the right starting point for your business',
 		subtitle: 'Pick a ready template, add your information, and start answering customers the same day.',
 		cta: 'Explore solution',
 		items: [

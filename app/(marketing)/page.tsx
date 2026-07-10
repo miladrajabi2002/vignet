@@ -12,6 +12,9 @@ import { PopularPosts } from '@/components/marketing/popular-posts'
 const FeaturesSection = dynamicImport(() =>
 	import('@/components/marketing/features-section').then((m) => m.FeaturesSection),
 )
+const ChannelsSection = dynamicImport(() =>
+	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
+)
 const HowItWorks = dynamicImport(() =>
 	import('@/components/marketing/how-it-works').then((m) => m.HowItWorks),
 )
@@ -81,6 +84,7 @@ export default async function HomePage() {
 			<Hero />
 			<SocialProof />
 			<LazyDemoSection />
+			<ChannelsSection />
 			<UseCasesSection />
 			<FeaturesSection />
 			<HowItWorks />

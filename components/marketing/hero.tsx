@@ -1,125 +1,109 @@
-import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
-import {
-	ArrowLeft,
-	Bot,
-	Check,
-	Clock3,
-	MessageCircle,
-	Play,
-	ShoppingBag,
-} from 'lucide-react'
+'use client'
 
-/**
- * The first viewport is a compact product thesis: what Vigent does, where it
- * works, and the business result. Keeping it server-rendered avoids shipping
- * animation code before the visitor has seen the product.
- */
-export async function Hero() {
-	const t = await getTranslations('marketing.hero')
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { motion, useReducedMotion } from 'framer-motion'
+import { ChevronDown, Play } from 'lucide-react'
+import { Spotlight } from './spotlight'
+
+function rise(delay: number, reduce: boolean | null) {
+	return {
+		initial: reduce ? { opacity: 0 } : { opacity: 0, y: 24 },
+		animate: { opacity: 1, y: 0 },
+		transition: { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] as const },
+	}
+}
+
+export function Hero() {
+	const t = useTranslations('marketing.hero')
+	const reduce = useReducedMotion()
 
 	return (
-		<section className="relative overflow-hidden bg-[var(--bg-base)] pb-10 pt-28 md:pb-12 md:pt-28">
+		<section className="relative flex min-h-[92dvh] items-center justify-center overflow-hidden bg-[var(--bg-base)]">
 			<div
 				aria-hidden
-				className="pointer-events-none absolute inset-0"
+				className="pointer-events-none absolute inset-0 z-0"
 				style={{
 					backgroundImage:
-						'radial-gradient(rgba(var(--ink-rgb),0.055) 1px, transparent 1px)',
-					backgroundSize: '40px 40px',
-					maskImage: 'linear-gradient(to bottom, black, transparent 88%)',
-					WebkitMaskImage: 'linear-gradient(to bottom, black, transparent 88%)',
+						'radial-gradient(rgba(var(--ink-rgb),0.05) 1px, transparent 1px)',
+					backgroundSize: '44px 44px',
+					maskImage:
+						'radial-gradient(ellipse 75% 70% at 50% 38%, black, transparent 75%)',
+					WebkitMaskImage:
+						'radial-gradient(ellipse 75% 70% at 50% 38%, black, transparent 75%)',
 				}}
 			/>
 
-			<div className="relative mx-auto max-w-6xl px-5 md:px-6">
-				<div className="mx-auto max-w-4xl text-center">
-					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-xs text-[var(--text-secondary)]">
-						<Bot className="h-3.5 w-3.5" />
+			<Spotlight />
+
+			<div
+				aria-hidden
+				className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-48 bg-gradient-to-b from-transparent to-[var(--bg-base)]"
+			/>
+
+			<div className="relative z-20 mx-auto max-w-4xl px-6 pb-20 pt-28 text-center sm:pb-16">
+				<motion.div {...rise(0, reduce)}>
+					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
 						{t('badge')}
 					</span>
+				</motion.div>
 
-					<h1 className="mt-5 text-balance text-3xl font-light leading-[1.22] text-[var(--text-primary)] sm:text-4xl md:text-5xl md:leading-[1.16]">
-						{t('title')}
-					</h1>
-					<p className="mx-auto mt-4 max-w-2xl text-balance text-sm leading-7 text-[var(--text-secondary)] md:text-base md:leading-8">
-						{t('subtitle')}
-					</p>
+				<motion.h1
+					{...rise(0.08, reduce)}
+					className="mt-8 text-balance text-4xl font-light leading-[1.15] text-[var(--text-primary)] sm:text-5xl md:text-7xl md:leading-[1.08]"
+				>
+					<span className="gradient-text block">{t('title')}</span>
+				</motion.h1>
 
-					<div className="mt-7 grid grid-cols-2 gap-3 sm:flex sm:items-center sm:justify-center">
-						<Link
-							href="/login?next=/onboarding"
-							className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full bg-[var(--white)] px-3 text-xs font-medium text-[var(--bg-base)] shadow-[0_10px_30px_rgba(var(--ink-rgb),0.14)] transition-transform duration-200 hover:-translate-y-0.5 sm:gap-2 sm:px-7 sm:text-sm"
-						>
-							{t('ctaPrimary')}
-							<ArrowLeft className="h-4 w-4 rtl:rotate-0 ltr:rotate-180" />
-						</Link>
-						<Link
-							href="#demo"
-							className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-primary)] transition-colors duration-200 hover:border-[var(--border-strong)] sm:gap-2 sm:px-7 sm:text-sm"
-						>
-							<Play className="h-3.5 w-3.5 fill-current" />
-							{t('ctaSecondary')}
-						</Link>
-					</div>
-					<p className="mt-4 hidden text-xs leading-6 text-[var(--text-muted)] sm:block">{t('trust')}</p>
-				</div>
+				<motion.p
+					{...rise(0.16, reduce)}
+					className="mx-auto mt-7 max-w-2xl text-balance text-base leading-relaxed text-[var(--text-secondary)] md:text-lg"
+				>
+					{t('subtitle')}
+				</motion.p>
 
-				{/* A real product story, presented as one unframed surface rather than a mock device. */}
-				<div className="mx-auto mt-8 max-w-5xl border-y border-[var(--border-default)] bg-[var(--bg-surface)]/70 px-4 py-4 sm:px-6 md:mt-10 md:py-5">
-					<div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr] md:gap-8">
-						<div className="min-w-0">
-							<div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<MessageCircle className="h-3.5 w-3.5" />
-								{t('sceneIncoming')}
-							</div>
-							<div className="space-y-2.5">
-								<p className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--white)] px-4 py-3 text-sm leading-6 text-[var(--bg-base)]">
-									{t('sceneCustomer')}
-								</p>
-								<div className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3">
-									<p className="text-sm leading-6 text-[var(--text-primary)]">{t('sceneAgent')}</p>
-									<div className="mt-3 flex items-center gap-3 border-t border-[var(--border-subtle)] pt-3">
-										<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--white-10)]">
-											<ShoppingBag className="h-4 w-4 text-[var(--text-secondary)]" />
-										</span>
-										<span className="text-start">
-											<span className="block text-xs font-medium text-[var(--text-primary)]">{t('sceneProduct')}</span>
-											<span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">{t('sceneStock')}</span>
-										</span>
-									</div>
-								</div>
-							</div>
-						</div>
+				<motion.div
+					{...rise(0.24, reduce)}
+					className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row"
+				>
+					<Link
+						href="/login?next=/onboarding"
+						className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--white)] px-8 text-sm font-medium text-[var(--bg-base)] shadow-[0_8px_30px_rgba(var(--ink-rgb),0.12)] transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(var(--ink-rgb),0.2)] sm:w-auto"
+					>
+						{t('ctaPrimary')}
+					</Link>
+					<Link
+						href="#demo"
+						className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] px-8 text-sm font-medium text-[var(--text-primary)] transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)] sm:w-auto"
+					>
+						<Play className="h-3.5 w-3.5 fill-current" />
+						{t('ctaSecondary')}
+					</Link>
+				</motion.div>
 
-						<div className="hidden h-20 w-px bg-[var(--border-default)] md:block" />
-
-						<div className="hidden md:block">
-							<p className="text-xs text-[var(--text-muted)]">{t('sceneResult')}</p>
-							<div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
-								<Outcome icon={Check} label={t('sceneLead')} />
-								<Outcome icon={Clock3} label={t('sceneSpeed')} />
-								<Outcome icon={ShoppingBag} label={t('sceneSale')} />
-								<Outcome icon={Bot} label={t('sceneFollowup')} />
-							</div>
-							<p className="mt-5 border-t border-[var(--border-subtle)] pt-4 text-xs leading-6 text-[var(--text-secondary)]">
-								{t('sceneChannels')}
-							</p>
-						</div>
-					</div>
-				</div>
+				<motion.p
+					{...rise(0.32, reduce)}
+					className="mt-8 text-xs leading-6 text-[var(--text-muted)]"
+				>
+					{t('trust')}
+				</motion.p>
 			</div>
-		</section>
-	)
-}
 
-function Outcome({ icon: Icon, label }: { icon: typeof Check; label: string }) {
-	return (
-		<div className="flex items-center gap-2.5 text-sm text-[var(--text-primary)]">
-			<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-base)]">
-				<Icon className="h-3.5 w-3.5" />
-			</span>
-			<span>{label}</span>
-		</div>
+			<motion.div
+				aria-hidden
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ delay: 1, duration: 0.8 }}
+				className="absolute bottom-5 z-20 flex flex-col items-center gap-1 text-[var(--text-muted)]"
+			>
+				<span className="text-[10px]">{t('scrollCue')}</span>
+				<motion.div
+					animate={reduce ? undefined : { y: [0, 7, 0] }}
+					transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+				>
+					<ChevronDown className="h-5 w-5" />
+				</motion.div>
+			</motion.div>
+		</section>
 	)
 }

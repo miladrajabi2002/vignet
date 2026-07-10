@@ -165,6 +165,25 @@ function VisChannels() {
   )
 }
 
+/** Instagram automation: comment or story trigger to DM and captured lead. */
+function VisInstagramAutomation() {
+  return (
+    <div className="flex items-center" dir="ltr">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
+        <Camera className="h-4 w-4 text-[var(--text-secondary)]" />
+      </span>
+      <span className="h-px w-5 bg-[var(--border-hover)]" />
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
+        <Send className="h-4 w-4 text-[var(--text-secondary)]" />
+      </span>
+      <span className="h-px w-5 bg-[var(--border-hover)]" />
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)]">
+        <Check className="h-4 w-4" />
+      </span>
+    </div>
+  )
+}
+
 /** CRM inbox: two conversation rows with channel dots and a tag. */
 function VisInbox() {
   const rows = [
@@ -197,7 +216,8 @@ function VisInbox() {
    a card with its own micro-visual instead of a bare icon.
    ─────────────────────────────────────────────────────────────────────── */
 
-const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
+const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'instagram' | 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
+  { key: 'instagramAutomation', icon: Camera, vis: 'instagram' },
   { key: 'knowledge', icon: Database, vis: 'docs' },
   { key: 'products', icon: Package, vis: 'product' },
   { key: 'voice', icon: AudioLines, vis: 'voice' },
@@ -206,6 +226,7 @@ const CARDS: { key: string; icon: LucideIcon; span?: string; vis: 'docs' | 'prod
 ]
 
 const VIS: Record<string, ComponentType> = {
+  instagram: VisInstagramAutomation,
   docs: VisDocs,
   product: VisProduct,
   voice: VisVoice,

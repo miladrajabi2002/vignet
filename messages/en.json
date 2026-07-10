@@ -852,17 +852,7 @@
                         "ctaPrimary": "Start free — 14 days",
                         "ctaSecondary": "Watch demo",
                         "trust": "Set up in under 5 minutes · No technical skills · No credit card",
-                        "sceneIncoming": "A real conversation in Vigent",
-                        "sceneCustomer": "What lightweight running shoe do you recommend under my budget?",
-                        "sceneAgent": "Based on your budget and daily use, this model is lighter and has better cushioning for regular runs.",
-                        "sceneProduct": "Recommended from your catalog",
-                        "sceneStock": "Live price and availability",
-                        "sceneResult": "Business outcome",
-                        "sceneLead": "Lead captured",
-                        "sceneSpeed": "Answered in seconds",
-                        "sceneSale": "Customer moved to purchase",
-                        "sceneFollowup": "Follow-up in one inbox",
-                        "sceneChannels": "The same experience works on your website, Instagram, Telegram, WhatsApp, Bale and Rubika."
+                        "scrollCue": "Scroll to explore"
                 },
                 "stats": {
                         "conversations": "conversations",
@@ -883,6 +873,10 @@
                                 "learning": {
                                         "title": "Self-learning agent",
                                         "desc": "Every unanswered question is a learning opportunity — the agent records it, proposes an answer, and with your approval learns it for good, getting smarter every day"
+                                },
+                                "instagramAutomation": {
+                                        "title": "Complete Instagram automation",
+                                        "desc": "Automate DMs, comments and story replies with text, products, media, follow gates and customer follow-up in one workflow"
                                 },
                                 "knowledge": {
                                         "title": "Knowledge base",
