@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -9,25 +10,24 @@ import {
 	Clock3,
 	Database,
 	Globe2,
-	Instagram,
 	MessageCircleMore,
 	PackageSearch,
 	Send,
 	ShoppingBag,
 	Sparkles,
 	UserRoundCheck,
-	type LucideIcon,
 } from 'lucide-react'
 import { SOLUTIONS, getSolution } from '@/lib/marketing/solutions'
+import { InstagramIcon } from '@/components/marketing/social-links'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
 
-const SOLUTION_META: Record<string, { icon: LucideIcon; channel: string; question: string; answer: string; source: string }> = {
+const SOLUTION_META: Record<string, { icon: ComponentType<{ className?: string }>; channel: string; question: string; answer: string; source: string }> = {
 	'persian-ai-chatbot': { icon: Bot, channel: 'لینک چت اختصاصی', question: 'برای نیاز من کدام سرویس مناسب‌تر است؟', answer: 'با توجه به توضیحی که دادید، این گزینه مناسب‌تر است. تفاوت‌ها را هم کوتاه برایتان می‌گویم.', source: 'خدمات و قوانین کسب‌وکار' },
 	'ecommerce-ai': { icon: ShoppingBag, channel: 'ویجت فروشگاه', question: 'این محصول رنگ مشکی سایز ۴۲ موجوده؟', answer: 'بله، رنگ مشکی سایز ۴۲ موجود است و امروز می‌توانید سفارش را ثبت کنید.', source: 'کاتالوگ و موجودی محصول' },
 	'customer-support-ai': { icon: UserRoundCheck, channel: 'صندوق پشتیبانی', question: 'پرداخت انجام شده ولی سرویس من فعال نیست.', answer: 'اطلاعات را ثبت کردم و گفتگو را با خلاصه کامل برای بررسی فوری به همکار مربوطه می‌سپارم.', source: 'راهنمای پشتیبانی و ارجاع' },
 	telegram: { icon: Send, channel: 'ربات تلگرام', question: 'سفارشم امروز تحویل پست می‌شه؟', answer: 'بله، سفارش شما آماده ارسال است و کد پیگیری بعد از تحویل به پست همین‌جا فرستاده می‌شود.', source: 'اطلاعات سفارش و ارسال' },
-	instagram: { icon: Instagram, channel: 'دایرکت اینستاگرام', question: 'قیمت این مدل چنده؟ رنگ کرم هم دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم موجود است. کارت محصول را همین‌جا می‌فرستم.', source: 'کاتالوگ محصول و موجودی' },
+	instagram: { icon: InstagramIcon, channel: 'دایرکت اینستاگرام', question: 'قیمت این مدل چنده؟ رنگ کرم هم دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم موجود است. کارت محصول را همین‌جا می‌فرستم.', source: 'کاتالوگ محصول و موجودی' },
 	whatsapp: { icon: MessageCircleMore, channel: 'واتساپ بیزینس', question: 'برای فردا عصر وقت مشاوره دارید؟', answer: 'بله، ساعت ۵ و ۶:۳۰ خالی است. کدام زمان برای شما بهتر است؟', source: 'ساعات و قوانین رزرو' },
 	woocommerce: { icon: PackageSearch, channel: 'فروشگاه ووکامرس', question: 'برای دویدن سبک چه مدلی پیشنهاد می‌دید؟', answer: 'این دو مدل با نیاز و بودجه شما هماهنگ‌اند؛ تفاوت وزن و کفی را هم مقایسه کردم.', source: 'محصولات همگام‌شده ووکامرس' },
 }

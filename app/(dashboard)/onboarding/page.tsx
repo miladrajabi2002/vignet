@@ -5,11 +5,11 @@ import {
   Check,
   ArrowRight,
   GraduationCap,
-  Instagram,
   MessagesSquare,
   Play,
   ShoppingBag,
 } from 'lucide-react'
+import { InstagramIcon } from '@/components/marketing/social-links'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { ONBOARDING_STEPS, ONBOARDING_TOTAL } from '@/lib/onboarding-steps'
@@ -60,7 +60,7 @@ export default async function OnboardingPage() {
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[
-                  { key: 'instagram', icon: Instagram },
+                  { key: 'instagram', icon: InstagramIcon },
                   { key: 'store', icon: ShoppingBag },
                   { key: 'services', icon: CalendarCheck2 },
                   { key: 'education', icon: GraduationCap },

@@ -10,13 +10,13 @@ import {
 	Check,
 	Clock3,
 	Globe2,
-	Instagram,
 	MessageCircleMore,
 	PackageSearch,
 	Play,
 	Send,
 	UserRound,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 const EXTRA_COPY = {
 	fa: {
@@ -49,7 +49,7 @@ const EXTRA_COPY = {
 	},
 } as const
 
-const sourceIcons = [Instagram, Send, MessageCircleMore, Globe2]
+const sourceIcons = [InstagramIcon, Send, MessageCircleMore, Globe2]
 
 function ProductStage({ reduce }: { reduce: boolean | null }) {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
@@ -82,7 +82,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					<aside className="hidden border-e border-black/10 bg-[#f7f7f5] p-3 sm:block">
 						<p className="px-2 pb-2 pt-1 text-[9px] font-medium uppercase tracking-[0.16em] text-black/40">Inbox · 12</p>
 						{[
-							{ name: copy.customer, text: copy.message, active: true, icon: Instagram },
+							{ name: copy.customer, text: copy.message, active: true, icon: InstagramIcon },
 							{ name: locale === 'fa' ? 'امیر نادری' : 'Amir Naderi', text: locale === 'fa' ? 'سفارشم ارسال شده؟' : 'Has my order shipped?', icon: Send },
 							{ name: locale === 'fa' ? 'نگین کاظمی' : 'Negin Kazemi', text: locale === 'fa' ? 'وقت مشاوره می‌خواستم' : 'I need a consultation', icon: Globe2 },
 						].map(({ name, text, active, icon: Icon }) => (

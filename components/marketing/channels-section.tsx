@@ -1,5 +1,6 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
@@ -8,7 +9,6 @@ import {
 	ArrowRight,
 	Bot,
 	Globe2,
-	Instagram,
 	Link2,
 	MessageCircleMore,
 	Radio,
@@ -17,6 +17,7 @@ import {
 	Sparkles,
 	Webhook,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 const COPY = {
 	fa: {
@@ -57,7 +58,7 @@ const COPY = {
 	},
 } as const
 
-const CHANNEL_ICONS = [Instagram, Send, MessageCircleMore, Radio, MessageCircleMore, Globe2]
+const CHANNEL_ICONS = [InstagramIcon, Send, MessageCircleMore, Radio, MessageCircleMore, Globe2]
 
 function ConnectionBoard() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
@@ -136,7 +137,7 @@ function ConnectionBoard() {
 	)
 }
 
-function ChannelNode({ label, Icon, delay }: { label: string; Icon: typeof Instagram; delay: number }) {
+function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentType<{ className?: string }>; delay: number }) {
 	const reduce = useReducedMotion()
 	return (
 		<motion.div

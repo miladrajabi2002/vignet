@@ -8,7 +8,6 @@ import {
 	Check,
 	Database,
 	FileText,
-	Instagram,
 	MessageSquareMore,
 	Mic2,
 	Package,
@@ -16,6 +15,7 @@ import {
 	UserRoundCheck,
 	Webhook,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 const COPY = {
 	fa: {
@@ -97,7 +97,7 @@ function ActionVisual() {
 	const copy = COPY[locale]
 	return (
 		<div className="relative h-full min-h-[290px] overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.055] p-4 sm:p-5">
-			<div className="flex items-center justify-between"><p className="text-[10px] font-medium text-white/45">{copy.instagram}</p><Instagram className="h-3.5 w-3.5 text-white/35" /></div>
+			<div className="flex items-center justify-between"><p className="text-[10px] font-medium text-white/45">{copy.instagram}</p><InstagramIcon className="h-3.5 w-3.5 text-white/35" /></div>
 			<div className="mt-5 space-y-3">
 				<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10"><MessageSquareMore className="h-3.5 w-3.5" /></span><div><p className="text-[9px] text-white/35">Trigger</p><p className="mt-0.5 text-[10px] text-white/70">{copy.trigger}</p></div></div>
 				<div className="ms-7 h-5 border-s border-dashed border-white/20" />

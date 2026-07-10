@@ -1,5 +1,6 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
@@ -12,8 +13,6 @@ import {
 	Clock3,
 	Database,
 	GraduationCap,
-	Instagram,
-	MessageCircleMore,
 	MessagesSquare,
 	PackageSearch,
 	Pause,
@@ -21,8 +20,8 @@ import {
 	RotateCcw,
 	ShoppingBag,
 	UserRoundCheck,
-	type LucideIcon,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 type Scenario = {
 	key: string
@@ -34,7 +33,7 @@ type Scenario = {
 	result: string
 	source: string
 	channel: string
-	icon: LucideIcon
+	icon: ComponentType<{ className?: string }>
 }
 
 const COPY: Record<'fa' | 'en', {
@@ -58,7 +57,7 @@ const COPY: Record<'fa' | 'en', {
 		subtitle: 'نوع کسب‌وکار را عوض کنید؛ ببینید ویجنت چه می‌فهمد، از کجا پاسخ می‌آورد و بعد از پاسخ چه کاری انجام می‌دهد.',
 		watch: 'پخش خودکار', incoming: 'پیام ورودی', knowledge: 'دانش و تصمیم', action: 'اقدام داخل گفتگو', result: 'نتیجه ثبت‌شده', live: 'آنلاین', replay: 'پخش دوباره', start: 'ساخت ایجنت من', noCode: 'بدون کدنویسی · قابل ویرایش · آماده اتصال',
 		scenarios: [
-			{ key: 'instagram', label: 'پیج اینستاگرام', audience: 'فروش در دایرکت', question: 'قیمت این مانتو چنده؟ رنگ کرم سایز ۴۰ دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم سایز ۴۰ همین الان موجود است.', action: 'کارت محصول و لینک خرید در دایرکت ارسال شد', result: 'یک سرنخ خرید با محصول موردعلاقه ثبت شد', source: 'کاتالوگ محصول + موجودی', channel: 'Instagram Direct', icon: Instagram },
+			{ key: 'instagram', label: 'پیج اینستاگرام', audience: 'فروش در دایرکت', question: 'قیمت این مانتو چنده؟ رنگ کرم سایز ۴۰ دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم سایز ۴۰ همین الان موجود است.', action: 'کارت محصول و لینک خرید در دایرکت ارسال شد', result: 'یک سرنخ خرید با محصول موردعلاقه ثبت شد', source: 'کاتالوگ محصول + موجودی', channel: 'Instagram Direct', icon: InstagramIcon },
 			{ key: 'store', label: 'فروشگاه آنلاین', audience: 'مشاوره و سفارش', question: 'برای دویدن سبک چه کفشی تا سه میلیون پیشنهاد می‌دید؟', answer: 'با این بودجه دو گزینه مناسب دارید؛ این مدل سبک‌تر است و کفی جذب ضربه دارد.', action: 'دو محصول از کاتالوگ مقایسه و نمایش داده شد', result: 'مشتری یکی از گزینه‌ها را به سبد اضافه کرد', source: 'ووکامرس + کاتالوگ', channel: 'Website widget', icon: ShoppingBag },
 			{ key: 'service', label: 'خدمات و رزرو', audience: 'ثبت درخواست', question: 'برای فردا عصر وقت مشاوره حضوری دارید؟', answer: 'بله، ساعت ۵ و ۶:۳۰ خالی است. کدام زمان برای شما بهتر است؟', action: 'نام و شماره مشتری برای رزرو دریافت شد', result: 'درخواست رزرو برای تأیید همکار ارسال شد', source: 'تقویم خدمات + قوانین رزرو', channel: 'WhatsApp', icon: UserRoundCheck },
 			{ key: 'education', label: 'آموزش و دوره', audience: 'راهنمای ثبت‌نام', question: 'برای شروع طراحی سایت کدوم دوره رو بگیرم؟ پیش‌نیاز داره؟', answer: 'مسیر مقدماتی برای شروع از صفر مناسب است و به تجربه برنامه‌نویسی نیاز ندارد.', action: 'دوره مناسب با سرفصل و دکمه ثبت‌نام نمایش داده شد', result: 'علاقه‌مندی به دوره برای پیگیری ذخیره شد', source: 'سرفصل دوره‌ها + پرسش‌های ثبت‌نام', channel: 'Telegram', icon: GraduationCap },
@@ -68,7 +67,7 @@ const COPY: Record<'fa' | 'en', {
 	en: {
 		eyebrow: 'Real product demo', title: 'Follow one message from arrival to outcome.', subtitle: 'Change the business type to see what Vigent understands, where the answer comes from, and what happens after the reply.', watch: 'Auto play', incoming: 'Incoming message', knowledge: 'Knowledge and decision', action: 'In-conversation action', result: 'Recorded outcome', live: 'Online', replay: 'Replay', start: 'Build my agent', noCode: 'No code · Fully editable · Ready to connect',
 		scenarios: [
-			{ key: 'instagram', label: 'Instagram shop', audience: 'Sell in DMs', question: 'How much is this coat? Do you have cream in size 40?', answer: 'It is 2,390,000 toman, and cream in size 40 is currently in stock.', action: 'Product card and checkout link sent in DM', result: 'A purchase lead was saved with product interest', source: 'Product catalog + live stock', channel: 'Instagram Direct', icon: Instagram },
+			{ key: 'instagram', label: 'Instagram shop', audience: 'Sell in DMs', question: 'How much is this coat? Do you have cream in size 40?', answer: 'It is 2,390,000 toman, and cream in size 40 is currently in stock.', action: 'Product card and checkout link sent in DM', result: 'A purchase lead was saved with product interest', source: 'Product catalog + live stock', channel: 'Instagram Direct', icon: InstagramIcon },
 			{ key: 'store', label: 'Online store', audience: 'Advice and orders', question: 'What shoes do you recommend for light running under three million?', answer: 'There are two good options in that range. This one is lighter and has a shock-absorbing sole.', action: 'Two catalog products compared and shown', result: 'Customer added one option to cart', source: 'WooCommerce + catalog', channel: 'Website widget', icon: ShoppingBag },
 			{ key: 'service', label: 'Services and booking', audience: 'Capture requests', question: 'Do you have an in-person consultation tomorrow afternoon?', answer: 'Yes, 5:00 and 6:30 are open. Which works better for you?', action: 'Customer name and phone captured for booking', result: 'Booking request sent to a teammate for confirmation', source: 'Service calendar + booking rules', channel: 'WhatsApp', icon: UserRoundCheck },
 			{ key: 'education', label: 'Education and courses', audience: 'Enrollment guide', question: 'Which web design course should I start with? Any prerequisites?', answer: 'The beginner path starts from zero and needs no programming experience.', action: 'Matching course shown with syllabus and enroll button', result: 'Course interest saved for follow-up', source: 'Course catalog + enrollment FAQ', channel: 'Telegram', icon: GraduationCap },

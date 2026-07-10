@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
 import {
@@ -5,18 +6,17 @@ import {
 	ArrowRight,
 	CalendarCheck2,
 	GraduationCap,
-	Instagram,
 	MessagesSquare,
 	ShoppingBag,
-	type LucideIcon,
 } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 type UseCase = {
 	title: string
 	desc: string
 	fit: string
 	href: string
-	icon: LucideIcon
+	icon: ComponentType<{ className?: string }>
 }
 
 const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: string; cta: string; items: UseCase[] }> = {
@@ -31,7 +31,7 @@ const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: stri
 				desc: 'دایرکت، کامنت و پاسخ استوری را با قیمت، موجودی، کارت محصول و پیگیری خودکار مدیریت کنید.',
 				fit: 'برای پوشاک، آرایشی، اکسسوری و فروشندگان خانگی',
 				href: '/solutions/instagram',
-				icon: Instagram,
+				icon: InstagramIcon,
 			},
 			{
 				title: 'فروشگاه‌های آنلاین و ووکامرس',
@@ -69,7 +69,7 @@ const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: stri
 		subtitle: 'From a “price?” comment to order tracking and booking, choose the path that matches the work your team actually does every day.',
 		cta: 'Explore solution',
 		items: [
-			{ title: 'Instagram sellers', desc: 'Handle DMs, comments and story replies with live prices, stock, product cards and automated follow-up.', fit: 'For fashion, beauty, accessories and home sellers', href: '/solutions/instagram', icon: Instagram },
+			{ title: 'Instagram sellers', desc: 'Handle DMs, comments and story replies with live prices, stock, product cards and automated follow-up.', fit: 'For fashion, beauty, accessories and home sellers', href: '/solutions/instagram', icon: InstagramIcon },
 			{ title: 'Online and WooCommerce stores', desc: 'Recommend the right item, answer stock questions accurately and share order status without back-and-forth.', fit: 'For stores with daily catalogs and orders', href: '/solutions/ecommerce-ai', icon: ShoppingBag },
 			{ title: 'Services, consulting and booking', desc: 'Answer first questions, collect lead details and hand serious cases to a specialist with context.', fit: 'For clinics, salons, agencies, repair and specialists', href: '/solutions/customer-support-ai', icon: CalendarCheck2 },
 			{ title: 'Education and course sales', desc: 'Recommend courses, explain prerequisites and enrollment, and retain interested leads for follow-up.', fit: 'For instructors, institutes, bootcamps and online courses', href: '/solutions/persian-ai-chatbot', icon: GraduationCap },

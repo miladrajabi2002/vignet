@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { ArrowLeft, ArrowRight, Bot, Check, Instagram, Send, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Check, Send, ShoppingBag } from 'lucide-react'
+import { InstagramIcon } from './social-links'
 
 const COPY = {
 	fa: {
@@ -47,7 +48,7 @@ export function CtaSection() {
 						<div className="flex items-center justify-between border-b border-white/10 pb-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black"><Bot className="h-4 w-4" /></span><span className="inline-flex items-center gap-1.5 text-[10px] text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{copy.ready}</span></div>
 						<div className="mt-5 flex items-center" dir="ltr">
 							{[
-								{ Icon: Instagram, label: 'Instagram' },
+								{ Icon: InstagramIcon, label: 'Instagram' },
 								{ Icon: Send, label: 'Telegram' },
 								{ Icon: ShoppingBag, label: 'Store' },
 							].map(({ Icon, label }, index) => <div key={label} className="flex min-w-0 flex-1 items-center"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/20"><Icon className="h-4 w-4 text-white/65" /></span>{index < 2 && <span className="h-px flex-1 bg-white/15" />}</div>)}
