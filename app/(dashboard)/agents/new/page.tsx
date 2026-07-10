@@ -1,6 +1,6 @@
 import { AgentWizard } from '@/components/agent-builder/agent-wizard'
 
-const BUSINESSES = new Set(['store', 'services', 'education'])
+const BUSINESSES = new Set(['instagram', 'store', 'services', 'education', 'messaging'])
 
 export default async function NewAgentPage({
   searchParams,

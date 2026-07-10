@@ -43,37 +43,41 @@ export default async function PublicBlogIndexPage() {
 	])
 
 	return (
-		<div className="mx-auto max-w-5xl px-4 py-12">
-			<header className="mb-10 text-center">
-				<h1 className="text-4xl font-light text-[var(--text-primary)] sm:text-5xl">
+		<div className="mx-auto max-w-7xl px-5 pb-24 pt-32 sm:px-8 sm:pt-36">
+			<header className="marketing-grid-dark relative mb-12 overflow-hidden rounded-[2rem] bg-black px-6 py-12 text-white sm:px-10 sm:py-16">
+				<div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+				<div>
+				<p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Journal</p>
+				<h1 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl lg:text-6xl">
 					{locale === 'fa' ? 'بلاگ ویجنت' : 'Vigent Blog'}
 				</h1>
-				<p className="mt-3 text-[var(--text-secondary)]">
+				<p className="mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-[15px]">
 					{locale === 'fa'
 						? 'مقالات و آموزش‌های هوش مصنوعی، چت‌بات‌ها و اتوماسیون فروش'
 						: 'Articles and tutorials on AI, chatbots, and sales automation'}
 				</p>
-				{/* Social follow bar — right under the blog header */}
-				<div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-5 py-4 sm:flex-row sm:justify-between sm:text-start">
+				</div>
+				<div className="rounded-[1.35rem] border border-white/10 bg-white/[0.06] px-5 py-5 backdrop-blur-sm">
 					<div>
-						<p className="text-sm font-medium text-[var(--text-primary)]">
+						<p className="text-sm font-medium text-white">
 							{locale === 'fa' ? 'ما را دنبال کنید' : 'Follow us'}
 						</p>
-						<p className="mt-0.5 text-xs text-[var(--text-muted)]">
+						<p className="mt-1 text-xs leading-5 text-white/40">
 							{locale === 'fa'
 								? 'جدیدترین مقالات در اینستاگرام و تلگرام'
 								: 'Latest articles on Instagram and Telegram'}
 						</p>
 					</div>
-					<SocialLinks variant="default" />
+					<SocialLinks variant="default" className="mt-4 [&_a]:border-white/15 [&_a]:text-white/60" />
+				</div>
 				</div>
 			</header>
 
 			{categories.length > 0 && (
-				<div className="mb-8 flex flex-wrap justify-center gap-2">
+				<div className="mb-8 flex flex-wrap justify-start gap-2">
 					<Link
 						href={`/blog`}
-						className="rounded-full border border-[var(--border-default)] px-3 py-1 text-xs text-[var(--text-primary)]"
+						className="inline-flex min-h-10 items-center rounded-full bg-black px-4 text-xs text-white"
 					>
 						{locale === 'fa' ? 'همه' : 'All'}
 					</Link>
@@ -81,7 +85,7 @@ export default async function PublicBlogIndexPage() {
 						<Link
 							key={c.id}
 							href={`/blog/category/${c.slug}`}
-							className="rounded-full border border-[var(--border-default)] px-3 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+							className="inline-flex min-h-10 items-center rounded-full border border-black/10 bg-white px-4 text-xs text-black/55 transition-colors hover:border-black/20 hover:text-black"
 						>
 							{c.name}
 						</Link>
@@ -90,15 +94,15 @@ export default async function PublicBlogIndexPage() {
 			)}
 
 			{posts.length === 0 ? (
-				<div className="rounded-2xl border border-dashed border-[var(--border-default)] p-16 text-center text-[var(--text-muted)]">
+				<div className="rounded-[1.5rem] border border-dashed border-black/15 bg-[#f7f7f5] p-16 text-center text-black/40">
 					{locale === 'fa' ? 'هنوز پستی منتشر نشده است.' : 'No posts published yet.'}
 				</div>
 			) : (
-				<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 					{posts.map((p) => (
 						<article
 							key={p.id}
-							className="flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--border-hover)]"
+							className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-white transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]"
 						>
 							{p.coverImage && (
 								<Link href={`/blog/${p.slug}`} className="block">
@@ -108,7 +112,7 @@ export default async function PublicBlogIndexPage() {
 										alt={p.title}
 										loading="lazy"
 										decoding="async"
-										className="aspect-[3/2] w-full object-cover"
+										className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
 									/>
 								</Link>
 							)}

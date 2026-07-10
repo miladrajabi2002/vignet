@@ -18,14 +18,14 @@ export async function PricingSection() {
 	const number = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
 	return (
-		<section id="pricing" className="bg-[var(--bg-base)] py-20 md:py-28">
-			<div className="mx-auto max-w-6xl px-6">
+		<section id="pricing" className="bg-[#f7f7f5] py-20 md:py-28">
+			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="mx-auto max-w-2xl text-center">
 					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs text-[var(--text-secondary)]">
 						<Sparkles className="h-3.5 w-3.5" />
 						{t('eyebrow')}
 					</span>
-					<h2 className="mt-6 text-4xl font-light text-[var(--text-primary)] md:text-5xl">{t('title')}</h2>
+					<h2 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">{t('title')}</h2>
 					<p className="mx-auto mt-4 max-w-xl leading-7 text-[var(--text-secondary)]">{t('subtitle')}</p>
 				</div>
 
@@ -55,8 +55,8 @@ export async function PricingSection() {
 								className={cn(
 									'relative flex flex-col rounded-2xl border p-6 md:p-7',
 									featured
-										? 'border-[var(--border-strong)] bg-[var(--white-05)]'
-										: 'border-[var(--border-default)] bg-[var(--bg-surface)]',
+										? 'border-black/25 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]'
+										: 'border-black/10 bg-white',
 								)}
 							>
 								{featured && (

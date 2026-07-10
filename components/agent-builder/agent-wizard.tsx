@@ -78,6 +78,11 @@ interface CreatedAgent {
 }
 
 const BUSINESS_PRESETS = {
+	instagram: {
+		role: 'sales_consultant',
+		fa: { name: 'دستیار فروش اینستاگرام', description: 'پاسخ به دایرکت و کامنت، معرفی محصول و پیگیری مشتری', welcome: 'سلام! برای دیدن قیمت، موجودی یا انتخاب محصول پیام بدهید؛ همین‌جا راهنمایی‌تان می‌کنم.' },
+		en: { name: 'Instagram sales assistant', description: 'Answer DMs and comments, recommend products and follow up', welcome: 'Hi! Ask about price, stock or choosing a product and I will help right here.' },
+	},
 	store: {
 		role: 'sales_consultant',
 		fa: { name: 'دستیار فروش', description: 'مشاوره محصول، پاسخ به سوالات خرید و پیگیری سفارش', welcome: 'سلام! برای انتخاب محصول یا پیگیری سفارش در کنارتان هستم.' },
@@ -92,6 +97,11 @@ const BUSINESS_PRESETS = {
 		role: 'full_service',
 		fa: { name: 'راهنمای دوره‌ها', description: 'معرفی دوره، پاسخ به سوالات ثبت‌نام و پیگیری علاقه‌مندان', welcome: 'سلام! برای انتخاب دوره و پاسخ به سوالات ثبت‌نام در کنارتان هستم.' },
 		en: { name: 'Course guide', description: 'Course discovery, enrollment questions and lead follow-up', welcome: 'Hi! I can help you choose a course and answer enrollment questions.' },
+	},
+	messaging: {
+		role: 'general_support',
+		fa: { name: 'دستیار پشتیبانی پیام‌رسان', description: 'پاسخ‌گویی در تلگرام، بله و روبیکا و تحویل موارد مهم به اپراتور', welcome: 'سلام! سوال یا درخواستتان را بفرستید؛ اگر نیاز به بررسی همکار باشد، گفتگو را برای پیگیری تحویل می‌دهم.' },
+		en: { name: 'Messaging support assistant', description: 'Support customers on Telegram, Bale and Rubika with human handoff', welcome: 'Hi! Send your question or request. If a teammate needs to review it, I will hand it over with context.' },
 	},
 } as const
 

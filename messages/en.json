@@ -144,6 +144,10 @@
                 "goalSubtitle": "Pick a starting point and Vigent will prepare the agent name, behavior and greeting for you.",
                 "tryDemo": "See a sample first",
                 "goals": {
+                        "instagram": {
+                                "title": "Instagram shop",
+                                "desc": "DMs, comments, products and customer follow-up"
+                        },
                         "store": {
                                 "title": "Online store",
                                 "desc": "Product discovery, sales and order follow-up"
@@ -155,6 +159,10 @@
                         "education": {
                                 "title": "Education & courses",
                                 "desc": "Course guidance and enrollment follow-up"
+                        },
+                        "messaging": {
+                                "title": "Messaging support",
+                                "desc": "Support bots for Telegram, Bale and Rubika"
                         }
                 },
                 "steps": {
@@ -1287,7 +1295,7 @@
                         "product": "Product",
                         "resources": "Resources",
                         "company": "Company",
-                        "rights": "© 2025 Vigent",
+                        "rights": "© 2026 Vigent",
                         "madeIn": "Made in Iran"
                 }
         },

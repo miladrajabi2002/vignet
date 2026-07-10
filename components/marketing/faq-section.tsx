@@ -34,7 +34,10 @@ function FaqCard({
       )}
     >
       <button
+        type="button"
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`marketing-faq-${index}`}
         className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start"
       >
         <span className="text-[15px] font-medium text-[var(--text-primary)]">{item.q}</span>
@@ -57,6 +60,7 @@ function FaqCard({
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
+            id={`marketing-faq-${index}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -84,8 +88,8 @@ export function FaqSection() {
   const columns = [items.slice(0, mid), items.slice(mid)]
 
   return (
-    <section className="bg-[var(--bg-base)] py-20 md:py-28">
-      <div className="mx-auto max-w-5xl px-6">
+    <section className="bg-white py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -96,7 +100,7 @@ export function FaqSection() {
           <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
             {t('eyebrow')}
           </span>
-          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+          <h2 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-[var(--text-secondary)]">{t('subtitle')}</p>

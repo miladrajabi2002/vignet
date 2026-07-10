@@ -165,7 +165,7 @@ export default async function PublicBlogPostPage(props: Props) {
 	])
 
     return (
-        <article className="mx-auto max-w-3xl px-4 py-12">
+        <article className="mx-auto max-w-4xl px-5 pb-24 pt-32 sm:px-8 sm:pt-36">
             <script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -175,19 +175,19 @@ export default async function PublicBlogPostPage(props: Props) {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
 			/>
             {/* Header */}
-            <header className="mb-8">
+			<header className="mb-10 border-t border-black/10 pt-7">
 				{post.category && (
 					<Link
 						href={`/blog/category/${post.category.slug}`}
-						className="text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)]"
+						className="inline-flex min-h-9 items-center rounded-full border border-black/10 px-3 text-[10px] font-medium text-black/50"
 					>
 						{post.category.name}
 					</Link>
 				)}
-				<h1 className="mt-2 text-3xl font-medium leading-tight text-[var(--text-primary)] sm:text-4xl">
+				<h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.15] tracking-[-0.04em] text-black sm:text-5xl">
 					{post.title}
 				</h1>
-				<p className="mt-4 text-[var(--text-secondary)]">{plainExcerpt}</p>
+				<p className="mt-5 max-w-3xl text-[15px] leading-8 text-black/50">{plainExcerpt}</p>
 				<div className="mt-5 flex items-center justify-between gap-4">
 					<div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
 						<span className="inline-flex items-center gap-1">
@@ -211,7 +211,7 @@ export default async function PublicBlogPostPage(props: Props) {
 					alt={post.title}
 					loading="eager"
 					decoding="async"
-					className="mb-8 aspect-[3/2] w-full rounded-2xl object-cover"
+					className="mb-10 aspect-[16/10] w-full rounded-[1.5rem] border border-black/10 object-cover"
 				/>)
 			)}
             {/* Body */}

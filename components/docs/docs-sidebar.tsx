@@ -19,7 +19,7 @@ export function DocsSidebar() {
             key={slug}
             href={href}
             className={cn(
-              'flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors',
+              'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
               active
                 ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',

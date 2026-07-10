@@ -12,10 +12,13 @@ export function DocContent({
   locale: Locale
 }) {
   return (
-    <article className="max-w-3xl">
-      <header className="mb-10 border-b border-[var(--border-default)] pb-8">
-        <h1 className="text-4xl font-light text-[var(--text-primary)]">{pick(page.title, locale)}</h1>
-        <p className="mt-3 text-[var(--text-secondary)]">{pick(page.description, locale)}</p>
+    <article className="max-w-4xl rounded-[1.75rem] border border-black/10 bg-white p-5 sm:p-8 lg:p-10">
+      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.35rem] bg-black px-5 py-8 text-white sm:px-8 sm:py-10">
+        <div className="relative">
+        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Documentation</p>
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em]">{pick(page.title, locale)}</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{pick(page.description, locale)}</p>
+        </div>
       </header>
 
       <div className="space-y-6">

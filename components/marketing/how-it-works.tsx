@@ -147,8 +147,8 @@ export function HowItWorks() {
   const tDemo = useTranslations('marketing.demo')
 
   return (
-    <section id="how" className="bg-[var(--bg-base)] py-20 md:py-28">
-      <div className="mx-auto max-w-5xl px-6">
+    <section id="how" className="bg-white py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -159,7 +159,7 @@ export function HowItWorks() {
           <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
             {t('eyebrow')}
           </span>
-          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+          <h2 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
             {t('title')}
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[var(--text-secondary)]">{t('subtitle')}</p>

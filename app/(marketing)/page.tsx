@@ -6,8 +6,8 @@ import { LazyDemoSection } from '@/components/marketing/lazy-demo-section'
 import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 
-// Below-the-fold sections are code-split so the first paint only ships the
-// hero + demo bundles; each section's JS loads as the visitor approaches it.
+// Below-the-fold sections are code-split so the first paint stays focused on
+// the hero; each product section's JS loads independently.
 // They still render on the server (SSR default), so SEO is unaffected.
 const FeaturesSection = dynamicImport(() =>
 	import('@/components/marketing/features-section').then((m) => m.FeaturesSection),
@@ -83,8 +83,8 @@ export default async function HomePage() {
 			/>
 			<Hero />
 			<SocialProof />
-			<LazyDemoSection />
 			<ChannelsSection />
+			<LazyDemoSection />
 			<UseCasesSection />
 			<FeaturesSection />
 			<HowItWorks />

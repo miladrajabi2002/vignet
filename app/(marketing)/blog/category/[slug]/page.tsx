@@ -55,35 +55,36 @@ export default async function PublicBlogCategoryPage(props: Props) {
 	})
 
     return (
-		<div className="mx-auto max-w-5xl px-4 py-12">
-			<header className="mb-10 text-center">
-				<h1 className="text-3xl font-light text-[var(--text-primary)] sm:text-4xl">
+		<div className="mx-auto max-w-7xl px-5 pb-24 pt-32 sm:px-8 sm:pt-36">
+			<header className="marketing-grid-dark mb-10 overflow-hidden rounded-[2rem] bg-black px-6 py-12 text-center text-white sm:px-10 sm:py-14">
+				<p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Journal</p>
+				<h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
 					{category.name}
 				</h1>
 				{category.description && (
-					<p className="mt-3 text-[var(--text-secondary)]">{category.description}</p>
+					<p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-white/50">{category.description}</p>
 				)}
 			</header>
 
-			<div className="mb-8 text-center">
+			<div className="mb-8">
 				<Link
 					href={`/blog`}
-					className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+					className="inline-flex min-h-11 items-center rounded-full border border-black/10 px-4 text-xs text-black/55 hover:text-black"
 				>
 					{locale === 'fa' ? '← همه پست‌ها' : '← All posts'}
 				</Link>
 			</div>
 
 			{posts.length === 0 ? (
-				<div className="rounded-2xl border border-dashed border-[var(--border-default)] p-16 text-center text-[var(--text-muted)]">
+				<div className="rounded-[1.5rem] border border-dashed border-black/15 bg-[#f7f7f5] p-16 text-center text-black/40">
 					{locale === 'fa' ? 'هیچ پستی در این دسته نیست.' : 'No posts in this category.'}
 				</div>
 			) : (
-				<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 					{posts.map((p) => (
 						<article
 							key={p.id}
-							className="flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--border-hover)]"
+							className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-white transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:shadow-[0_18px_45px_rgba(0,0,0,0.08)]"
 						>
 							{p.coverImage && (
 								<Link href={`/blog/${p.slug}`} className="block">
@@ -93,7 +94,7 @@ export default async function PublicBlogCategoryPage(props: Props) {
 										alt={p.title}
 										loading="lazy"
 										decoding="async"
-										className="aspect-[3/2] w-full object-cover"
+										className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
 									/>
 								</Link>
 							)}

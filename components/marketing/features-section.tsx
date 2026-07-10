@@ -1,348 +1,169 @@
 'use client'
 
-import type { ComponentType } from 'react'
-import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useLocale } from 'next-intl'
 import {
-  Database,
-  Package,
-  Share2,
-  AudioLines,
-  Inbox,
-  GraduationCap,
-  Sparkles,
-  Mic,
-  Check,
-  ArrowRight,
-  Send,
-  MessageCircle,
-  Radio,
-  MessageSquare,
-  Globe,
-  FileText,
+	ArrowDownLeft,
+	Bot,
+	Check,
+	Database,
+	FileText,
+	Instagram,
+	MessageSquareMore,
+	Mic2,
+	Package,
+	Sparkles,
+	UserRoundCheck,
+	Webhook,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { InstagramIcon } from './social-links'
 
-type MarketingIcon = ComponentType<{ className?: string }>
+const COPY = {
+	fa: {
+		eyebrow: 'از پیام تا نتیجه',
+		title: 'پاسخ خودکار کافی نیست. پاسخ باید به کار برسد.',
+		subtitle: 'ویجنت اطلاعات واقعی شما را می‌خواند، در همان گفتگو اقدام می‌کند و هرجا تصمیم انسانی لازم باشد، درست کنار می‌رود.',
+		groups: [
+			{
+				label: 'می‌داند',
+				title: 'دانش کسب‌وکار، نه جواب عمومی اینترنت',
+				desc: 'فایل‌ها، سؤال‌های پرتکرار، صفحات سایت و کاتالوگ محصول به یک منبع پاسخ قابل‌کنترل تبدیل می‌شوند.',
+				points: ['پایگاه دانش و جست‌وجوی دقیق', 'قیمت و موجودی به‌روز', 'لحن و قوانین پاسخ‌گویی شما'],
+			},
+			{
+				label: 'انجام می‌دهد',
+				title: 'در دل گفتگو، مشتری را یک قدم جلو می‌برد',
+				desc: 'محصول پیشنهاد می‌دهد، اطلاعات سرنخ را می‌گیرد، پیام صوتی را می‌فهمد و در اینستاگرام مسیرهای خودکار می‌سازد.',
+				points: ['کارت محصول و دکمه اقدام', 'دایرکت، کامنت و استوری اینستاگرام', 'درک و پاسخ به پیام صوتی'],
+			},
+			{
+				label: 'کنترل می‌کند',
+				title: 'انسان همیشه در حلقه می‌ماند',
+				desc: 'موضوع حساس با خلاصه گفتگو به اپراتور می‌رسد، سؤال بی‌پاسخ ثبت می‌شود و با یک تأیید به دانش ایجنت اضافه می‌شود.',
+				points: ['تحویل هوشمند به اپراتور', 'مرکز یادگیری با تأیید شما', 'CRM، برچسب و گزارش مکالمات'],
+			},
+		],
+		knowledge: 'منابع پاسخ',
+		answer: 'پاسخ مستند آماده شد',
+		instagram: 'سناریوی دایرکت',
+		trigger: 'کامنت شامل «قیمت»',
+		action: 'ارسال محصول در دایرکت',
+		handoff: 'نیاز به بررسی همکار',
+		summary: 'خلاصه و اطلاعات مشتری آماده است',
+		learning: 'پیشنهاد یادگیری',
+		approved: 'تأیید و اضافه شد',
+	},
+	en: {
+		eyebrow: 'From message to outcome',
+		title: 'An auto-reply is not enough. The answer needs to do work.',
+		subtitle: 'Vigent reads your real information, acts inside the conversation, and steps aside cleanly whenever a human decision is needed.',
+		groups: [
+			{ label: 'Knows', title: 'Business knowledge, not generic internet answers', desc: 'Files, FAQs, website pages and your product catalog become one controlled source of truth.', points: ['Grounded knowledge search', 'Live prices and stock', 'Your tone and reply rules'] },
+			{ label: 'Acts', title: 'Moves every customer one step forward', desc: 'Recommends products, captures leads, understands voice notes and runs Instagram automation paths.', points: ['Product cards and action buttons', 'Instagram DMs, comments and stories', 'Voice note understanding and replies'] },
+			{ label: 'Controls', title: 'Humans stay in the loop', desc: 'Sensitive cases reach an operator with context, unanswered questions are captured, and one approval improves the agent.', points: ['Smart operator handoff', 'Approval-based learning center', 'CRM, labels and conversation reporting'] },
+		],
+		knowledge: 'Answer sources', answer: 'Grounded answer ready', instagram: 'DM automation', trigger: 'Comment contains “price”', action: 'Send product in DM', handoff: 'Teammate review needed', summary: 'Summary and customer details are ready', learning: 'Learning suggestion', approved: 'Approved and added',
+	},
+} as const
 
-/* ───────────────────────────────────────────────────────────────────────
-   Micro-visuals — tiny monochrome illustrations, one per card. Built from
-   plain divs/SVG so they inherit the theme tokens and cost nothing.
-   ─────────────────────────────────────────────────────────────────────── */
-
-/** The learning loop: unanswered question → suggested answer → approved. */
-function VisLearning({ labels }: { labels: { q: string; a: string; ok: string } }) {
-  const reduce = useReducedMotion()
-  const step = (i: number) => ({
-    initial: { opacity: 0, y: 8 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.45, delay: 0.3 + i * 0.35 },
-  })
-  return (
-    <div className="flex h-full w-full flex-wrap items-center justify-center gap-2 px-3">
-      <motion.span
-        {...step(0)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hover)] bg-[var(--bg-elevated)] px-3 py-1.5 text-[10px] text-[var(--text-secondary)]"
-      >
-        «{labels.q}»
-      </motion.span>
-      <motion.span {...step(1)}>
-        <ArrowRight className="h-3.5 w-3.5 text-[var(--text-muted)] rtl:rotate-180" />
-      </motion.span>
-      <motion.span
-        {...step(1)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--white-05)] px-3 py-1.5 text-[10px] text-[var(--text-secondary)]"
-      >
-        <Sparkles className="h-3 w-3" />
-        {labels.a}
-      </motion.span>
-      <motion.span {...step(2)}>
-        <ArrowRight className="h-3.5 w-3.5 text-[var(--text-muted)] rtl:rotate-180" />
-      </motion.span>
-      <motion.span
-        initial={{ opacity: 0, scale: 0.85 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.4, delay: 1.35, type: 'spring', stiffness: 320, damping: 20 }}
-        className="relative inline-flex items-center gap-1.5 rounded-full bg-[var(--white)] px-3 py-1.5 text-[10px] font-medium text-[var(--bg-base)]"
-      >
-        {!reduce && (
-          <motion.span
-            aria-hidden
-            className="absolute inset-0 rounded-full bg-[var(--white)]"
-            animate={{ opacity: [0, 0.25, 0], scale: [1, 1.25, 1.4] }}
-            transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 1.6, delay: 2 }}
-          />
-        )}
-        <Check className="relative h-3 w-3" />
-        <span className="relative">{labels.ok}</span>
-      </motion.span>
-    </div>
-  )
+function KnowledgeVisual() {
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
+	const reduce = useReducedMotion()
+	return (
+		<div className="relative h-full min-h-[290px] overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.055] p-4 sm:p-5">
+			<div className="flex items-center justify-between"><p className="text-[10px] font-medium text-white/45">{copy.knowledge}</p><Database className="h-3.5 w-3.5 text-white/35" /></div>
+			<div className="mt-5 grid grid-cols-2 gap-2">
+				{[
+					{ Icon: FileText, label: locale === 'fa' ? 'راهنمای ارسال.pdf' : 'Shipping guide.pdf' },
+					{ Icon: Package, label: locale === 'fa' ? '۱۲۸ محصول' : '128 products' },
+					{ Icon: Webhook, label: locale === 'fa' ? 'سایت فروشگاه' : 'Store website' },
+					{ Icon: MessageSquareMore, label: locale === 'fa' ? 'سؤالات پرتکرار' : 'Common questions' },
+				].map(({ Icon, label }, index) => (
+					<motion.div key={label} initial={{ opacity: 0, y: reduce ? 0 : 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.08 }} className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5">
+						<Icon className="h-3.5 w-3.5 text-white/50" /><span className="truncate text-[9px] text-white/55">{label}</span>
+					</motion.div>
+				))}
+			</div>
+			<motion.div initial={{ opacity: 0, y: reduce ? 0 : 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.35, duration: 0.45 }} className="absolute inset-x-4 bottom-4 rounded-xl bg-white p-3 text-black shadow-lg sm:inset-x-5">
+				<div className="flex items-center gap-2"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-black text-white"><Bot className="h-3 w-3" /></span><p className="text-[10px] font-medium">{copy.answer}</p><Check className="ms-auto h-3.5 w-3.5 text-emerald-600" /></div>
+				<div className="mt-2 h-1.5 w-full rounded-full bg-black/10" /><div className="mt-1.5 h-1.5 w-3/4 rounded-full bg-black/[0.06]" />
+			</motion.div>
+		</div>
+	)
 }
 
-/** Knowledge base: a fanned stack of documents. */
-function VisDocs() {
-  return (
-    <div className="relative h-16 w-20">
-      <div className="absolute inset-x-1 top-1 h-14 -rotate-6 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)]" />
-      <div className="absolute inset-x-1 top-0.5 h-14 rotate-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)]" />
-      <div className="absolute inset-x-0 top-0 flex h-14 flex-col justify-center gap-1.5 rounded-lg border border-[var(--border-hover)] bg-[var(--bg-base)] px-3">
-        <FileText className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-        <span className="h-1 w-10 rounded-full bg-[var(--white-10)]" />
-        <span className="h-1 w-7 rounded-full bg-[var(--white-10)]" />
-      </div>
-    </div>
-  )
+function ActionVisual() {
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
+	return (
+		<div className="relative h-full min-h-[290px] overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.055] p-4 sm:p-5">
+			<div className="flex items-center justify-between"><p className="text-[10px] font-medium text-white/45">{copy.instagram}</p><Instagram className="h-3.5 w-3.5 text-white/35" /></div>
+			<div className="mt-5 space-y-3">
+				<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10"><MessageSquareMore className="h-3.5 w-3.5" /></span><div><p className="text-[9px] text-white/35">Trigger</p><p className="mt-0.5 text-[10px] text-white/70">{copy.trigger}</p></div></div>
+				<div className="ms-7 h-5 border-s border-dashed border-white/20" />
+				<div className="flex items-center gap-3 rounded-xl bg-white p-3 text-black"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white"><Package className="h-3.5 w-3.5" /></span><div><p className="text-[9px] text-black/35">Action</p><p className="mt-0.5 text-[10px] font-medium">{copy.action}</p></div><ArrowDownLeft className="ms-auto h-3.5 w-3.5 text-black/35" /></div>
+			</div>
+			<div className="absolute bottom-4 end-4 flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[9px] text-white/55"><Mic2 className="h-3 w-3" />{locale === 'fa' ? 'پیام صوتی هم فهمیده می‌شود' : 'Voice notes understood too'}</div>
+		</div>
+	)
 }
 
-/** Product catalog: a miniature product card with a price chip. */
-function VisProduct() {
-  return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-[var(--border-hover)] bg-[var(--bg-base)] p-2.5">
-      <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-[var(--bg-base)]"
-        style={{ background: 'linear-gradient(135deg, var(--white) 0%, var(--white-60) 100%)' }}
-      >
-        و
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="h-1.5 w-16 rounded-full bg-[var(--white-10)]" />
-        <span className="h-1.5 w-10 rounded-full bg-[var(--white-05)]" />
-      </div>
-      <span className="ms-1 rounded-full bg-[var(--white)] px-2 py-0.5 text-[9px] font-medium text-[var(--bg-base)]">
-        ٪
-      </span>
-    </div>
-  )
+function ControlVisual() {
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
+	return (
+		<div className="relative h-full min-h-[290px] overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.055] p-4 sm:p-5">
+			<div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-3.5">
+				<div className="flex items-center gap-2"><UserRoundCheck className="h-4 w-4 text-amber-200" /><p className="text-[10px] font-medium text-white/75">{copy.handoff}</p><span className="ms-auto h-2 w-2 rounded-full bg-amber-300" /></div>
+				<p className="mt-2 text-[9px] leading-4 text-white/40">{copy.summary}</p>
+			</div>
+			<div className="my-3 flex items-center gap-2 px-2"><span className="h-px flex-1 bg-white/10" /><Sparkles className="h-3 w-3 text-white/25" /><span className="h-px flex-1 bg-white/10" /></div>
+			<div className="rounded-xl border border-white/10 bg-black/20 p-3.5">
+				<div className="flex items-center gap-2"><Bot className="h-4 w-4 text-white/45" /><p className="text-[10px] font-medium text-white/75">{copy.learning}</p></div>
+				<div className="mt-3 rounded-lg bg-white/[0.06] p-2.5"><div className="h-1.5 w-full rounded-full bg-white/10" /><div className="mt-1.5 h-1.5 w-2/3 rounded-full bg-white/[0.06]" /></div>
+				<div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-[9px] font-medium text-black"><Check className="h-3 w-3" />{copy.approved}</div>
+			</div>
+		</div>
+	)
 }
 
-/** Voice: a mic and a living waveform. */
-function VisVoice() {
-  const reduce = useReducedMotion()
-  return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
-        <Mic className="h-4 w-4 text-[var(--text-secondary)]" />
-      </span>
-      <span className="flex items-end gap-[3px]">
-        {[8, 14, 10, 18, 12, 7, 16, 11, 14, 8, 17, 10].map((h, j) => (
-          <motion.span
-            key={j}
-            className="w-[2.5px] rounded-full bg-[var(--white-30)]"
-            style={{ height: h }}
-            animate={reduce ? undefined : { scaleY: [1, 0.5, 1] }}
-            transition={{ duration: 1.1, repeat: Infinity, delay: j * 0.09 }}
-          />
-        ))}
-      </span>
-    </div>
-  )
-}
-
-/** Channels: six connection nodes on one line — one agent behind all. */
-function VisChannels() {
-  const icons: MarketingIcon[] = [Send, MessageCircle, InstagramIcon, Radio, MessageSquare, Globe]
-  return (
-    <div className="flex items-center" dir="ltr">
-      {icons.map((Icon, i) => (
-        <div key={i} className="flex items-center">
-          {i > 0 && <span className="h-px w-2 bg-[var(--border-hover)]" />}
-          <span
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-full border',
-              i === 2
-                ? 'border-transparent bg-[var(--white)] text-[var(--bg-base)]'
-                : 'border-[var(--border-hover)] bg-[var(--bg-elevated)] text-[var(--text-secondary)]',
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** Instagram automation: comment or story trigger to DM and captured lead. */
-function VisInstagramAutomation() {
-  return (
-    <div className="flex items-center" dir="ltr">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
-        <InstagramIcon className="h-4 w-4 text-[var(--text-secondary)]" />
-      </span>
-      <span className="h-px w-5 bg-[var(--border-hover)]" />
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hover)] bg-[var(--bg-elevated)]">
-        <Send className="h-4 w-4 text-[var(--text-secondary)]" />
-      </span>
-      <span className="h-px w-5 bg-[var(--border-hover)]" />
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)]">
-        <Check className="h-4 w-4" />
-      </span>
-    </div>
-  )
-}
-
-/** CRM inbox: two conversation rows with channel dots and a tag. */
-function VisInbox() {
-  const rows = [
-    { dot: 'bg-sky-500', w1: 'w-14', w2: 'w-9' },
-    { dot: 'bg-pink-500', w1: 'w-11', w2: 'w-12' },
-  ]
-  return (
-    <div className="flex w-full max-w-[190px] flex-col gap-2">
-      {rows.map((r, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-2"
-        >
-          <span className={cn('h-2 w-2 shrink-0 rounded-full', r.dot)} />
-          <span className="flex flex-col gap-1">
-            <span className={cn('h-1 rounded-full bg-[var(--white-10)]', r.w1)} />
-            <span className={cn('h-1 rounded-full bg-[var(--white-05)]', r.w2)} />
-          </span>
-          <span className="ms-auto rounded-full bg-[var(--white-10)] px-1.5 py-0.5 text-[8px] text-[var(--text-secondary)]">
-            AI
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ───────────────────────────────────────────────────────────────────────
-   Bento grid — the self-learning agent leads, every other capability gets
-   a card with its own micro-visual instead of a bare icon.
-   ─────────────────────────────────────────────────────────────────────── */
-
-const CARDS: { key: string; icon: MarketingIcon; span?: string; vis: 'instagram' | 'docs' | 'product' | 'voice' | 'channels' | 'inbox' }[] = [
-  { key: 'instagramAutomation', icon: InstagramIcon, vis: 'instagram' },
-  { key: 'knowledge', icon: Database, vis: 'docs' },
-  { key: 'products', icon: Package, vis: 'product' },
-  { key: 'voice', icon: AudioLines, vis: 'voice' },
-  { key: 'channels', icon: Share2, vis: 'channels' },
-  { key: 'crm', icon: Inbox, vis: 'inbox' },
-]
-
-const VIS: Record<string, ComponentType> = {
-  instagram: VisInstagramAutomation,
-  docs: VisDocs,
-  product: VisProduct,
-  voice: VisVoice,
-  channels: VisChannels,
-  inbox: VisInbox,
-}
+const VISUALS = [KnowledgeVisual, ActionVisual, ControlVisual]
 
 export function FeaturesSection() {
-  const t = useTranslations('marketing.features')
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
+	const reduce = useReducedMotion()
 
-  return (
-    <section id="features" className="bg-[var(--bg-base)] py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto max-w-2xl text-center"
-        >
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
-            {t('eyebrow')}
-          </span>
-          <h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
-            {t('title')}
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">{t('subtitle')}</p>
-        </motion.div>
+	return (
+		<section id="features" className="bg-black py-20 text-white sm:py-24 lg:py-32">
+			<div className="mx-auto max-w-7xl px-5 sm:px-8">
+				<div className="grid gap-6 border-t border-white/15 pt-7 lg:grid-cols-[0.7fr_1.3fr] lg:items-end">
+					<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/35">{copy.eyebrow}</p>
+					<div>
+						<h2 className="max-w-4xl text-balance text-4xl font-semibold leading-[1.12] tracking-[-0.045em] text-white sm:text-5xl lg:text-6xl">{copy.title}</h2>
+						<p className="mt-5 max-w-2xl text-[15px] leading-8 text-white/50">{copy.subtitle}</p>
+					</div>
+				</div>
 
-        {/* Featured card — the self-learning agent is the differentiator */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.55 }}
-          className="group relative mt-14 overflow-hidden rounded-2xl border border-[var(--border-hover)] bg-[var(--white-05)] p-7 transition-all duration-300 hover:border-[var(--border-strong)] hover:bg-[var(--white-10)] md:p-9"
-        >
-          {/* Soft glow, always faintly on for the hero card */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-[var(--white-10)] opacity-60 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
-          />
-
-          <div className="relative flex flex-col gap-7 md:flex-row md:items-center md:gap-10">
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-hover)] bg-[var(--white-05)] transition-colors duration-300 group-hover:border-[var(--border-strong)]">
-                  <GraduationCap className="h-6 w-6 text-[var(--text-primary)]" />
-                </div>
-                <h3 className="text-xl font-medium text-[var(--text-primary)] md:text-2xl">
-                  {t('items.learning.title')}
-                </h3>
-                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-hover)] bg-[var(--white-05)] px-2.5 py-1 text-[10px] text-[var(--text-secondary)]">
-                  <Sparkles className="h-3 w-3" />
-                  {t('learningBadge')}
-                </span>
-              </div>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)] md:text-[15px]">
-                {t('items.learning.desc')}
-              </p>
-            </div>
-
-            {/* Live learning-loop visual */}
-            <div className="flex min-h-[72px] items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] py-4 md:w-[340px] md:shrink-0">
-              <VisLearning
-                labels={{
-                  q: t('visLearning.q'),
-                  a: t('visLearning.a'),
-                  ok: t('visLearning.ok'),
-                }}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CARDS.map(({ key, icon: Icon, span, vis }, i) => {
-            const Vis = VIS[vis]
-            return (
-              <motion.div
-                key={key}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-                className={cn(
-                  'group relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-hover)] hover:bg-[var(--white-10)]',
-                  span,
-                )}
-              >
-                {/* Soft glow that fades in on hover */}
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[var(--white-10)] opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
-                />
-
-                {/* Micro-visual */}
-                <div className="relative flex h-24 items-center justify-center overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)]">
-                  <Vis />
-                </div>
-
-                <div className="relative mt-5 flex items-center gap-2.5">
-                  <Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]" />
-                  <h3 className="text-lg font-medium text-[var(--text-primary)]">
-                    {t(`items.${key}.title`)}
-                  </h3>
-                </div>
-                <p className="relative mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {t(`items.${key}.desc`)}
-                </p>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
+				<div className="mt-12 divide-y divide-white/10 border-y border-white/10">
+					{copy.groups.map((group, index) => {
+						const Visual = VISUALS[index]
+						return (
+							<motion.article key={group.label} initial={{ opacity: 0, y: reduce ? 0 : 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.55 }} className="grid gap-8 py-10 lg:grid-cols-[0.72fr_1fr] lg:items-center lg:gap-16 lg:py-14">
+								<div>
+									<span className="inline-flex items-center gap-2 text-[11px] font-medium text-white/35"><span className="h-px w-8 bg-white/25" />{group.label}</span>
+									<h3 className="mt-5 max-w-xl text-2xl font-medium leading-tight sm:text-3xl">{group.title}</h3>
+									<p className="mt-4 max-w-xl text-sm leading-7 text-white/50">{group.desc}</p>
+									<ul className="mt-6 space-y-3">
+										{group.points.map((point) => <li key={point} className="flex items-center gap-3 text-xs text-white/65"><span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/15"><Check className="h-3 w-3" /></span>{point}</li>)}
+									</ul>
+								</div>
+								<Visual />
+							</motion.article>
+						)
+					})}
+				</div>
+			</div>
+		</section>
+	)
 }

@@ -1,6 +1,15 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Check, ArrowRight, GraduationCap, HeartPulse, Play, ShoppingBag } from 'lucide-react'
+import {
+  CalendarCheck2,
+  Check,
+  ArrowRight,
+  GraduationCap,
+  Instagram,
+  MessagesSquare,
+  Play,
+  ShoppingBag,
+} from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { ONBOARDING_STEPS, ONBOARDING_TOTAL } from '@/lib/onboarding-steps'
@@ -49,16 +58,18 @@ export default async function OnboardingPage() {
                   {t('tryDemo')}
                 </Link>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {[
+                  { key: 'instagram', icon: Instagram },
                   { key: 'store', icon: ShoppingBag },
-                  { key: 'services', icon: HeartPulse },
+                  { key: 'services', icon: CalendarCheck2 },
                   { key: 'education', icon: GraduationCap },
+                  { key: 'messaging', icon: MessagesSquare },
                 ].map(({ key, icon: Icon }) => (
                   <Link
                     key={key}
                     href={`/agents/new?business=${key}`}
-                    className="group rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4 transition-colors hover:border-[var(--border-strong)]"
+                    className="group min-h-40 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                   >
                     <Icon className="h-5 w-5 text-[var(--text-secondary)]" />
                     <span className="mt-4 block text-sm font-medium text-[var(--text-primary)]">{t(`goals.${key}.title`)}</span>

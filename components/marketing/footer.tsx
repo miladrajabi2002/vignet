@@ -1,91 +1,62 @@
 'use client'
 
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { ArrowUpLeft } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { SocialLinks } from '@/components/marketing/social-links'
 
+const COPY = {
+	fa: {
+		desc: 'ایجنت فارسی برای فروش، پشتیبانی و ارتباط با مشتری در تمام کانال‌ها.',
+		product: 'محصول', solutions: 'راهکارها', resources: 'یادگیری',
+		links: ['اتصالات', 'دموی زنده', 'قابلیت‌ها', 'تعرفه‌ها'],
+		solutions: ['پیج‌های اینستاگرام', 'فروشگاه‌های آنلاین', 'خدمات و رزرو', 'آموزش و دوره', 'پشتیبانی پیام‌رسان'],
+		resources: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
+		status: 'همه سرویس‌ها فعال', made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
+	},
+	en: {
+		desc: 'Persian AI agents for sales, support and customer conversations across every channel.',
+		product: 'Product', solutions: 'Solutions', resources: 'Learn',
+		links: ['Connections', 'Live demo', 'Capabilities', 'Pricing'],
+		solutions: ['Instagram sellers', 'Online stores', 'Services and booking', 'Education and courses', 'Messaging support'],
+		resources: ['Documentation', 'Blog', 'Service status'],
+		status: 'All services operational', made: 'Built for Iranian businesses',
+	},
+} as const
+
 export function Footer() {
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
 	const t = useTranslations('marketing.footer')
-	const tNav = useTranslations('nav')
-
-	const links = [
-		{ label: tNav('features'), href: '/#features' },
-		{ label: tNav('how'), href: '/#how' },
-		{ label: tNav('pricing'), href: '/#pricing' },
-		{ label: tNav('docs'), href: '/docs' },
-		{ label: tNav('login'), href: '/login' },
-	]
-
-	// SEO landing pages — internal links help these rank for their keywords.
-	const solutionLinks = [
-		{ label: t('solutionTelegram'), href: '/solutions/telegram' },
-		{ label: t('solutionInstagram'), href: '/solutions/instagram' },
-		{ label: t('solutionWhatsapp'), href: '/solutions/whatsapp' },
-		{ label: t('solutionWoocommerce'), href: '/solutions/woocommerce' },
-	]
+	const productHrefs = ['/#product', '/#demo', '/#features', '/#pricing']
+	const solutionHrefs = ['/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/telegram']
+	const resourceHrefs = ['/docs', '/blog', '/status']
 
 	return (
-		<footer className="relative bg-[var(--bg-base)]">
-			{/* Soft gradient hairline instead of a hard border */}
-			<div
-				aria-hidden
-				className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--border-hover)] to-transparent"
-			/>
-
-			<div className="mx-auto max-w-6xl px-6 py-16">
-				<div className="flex flex-col items-start justify-between gap-10 md:flex-row md:items-center">
+		<footer className="border-t border-black/10 bg-white">
+			<div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+				<div className="grid gap-12 lg:grid-cols-[1.2fr_1.8fr]">
 					<div>
 						<Logo className="h-10 w-40" />
-						<p className="mt-3 max-w-xs text-sm text-[var(--text-secondary)]">
-							{t('tagline')}
-						</p>
-						{/* Social media icons under the tagline */}
-						<SocialLinks variant="default" className="mt-4" />
+						<p className="mt-4 max-w-sm text-sm leading-7 text-black/50">{copy.desc}</p>
+						<SocialLinks variant="default" className="mt-5" />
 					</div>
-
-					<nav className="flex flex-wrap gap-x-8 gap-y-3">
-						{links.map((l) => (
-							<Link
-								key={l.label}
-								href={l.href}
-								className="text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-							>
-								{l.label}
-							</Link>
-						))}
-					</nav>
+					<div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+						<FooterColumn title={copy.product} labels={copy.links} hrefs={productHrefs} />
+						<FooterColumn title={copy.solutions} labels={copy.solutions} hrefs={solutionHrefs} />
+						<FooterColumn title={copy.resources} labels={copy.resources} hrefs={resourceHrefs} className="col-span-2 sm:col-span-1" />
+					</div>
 				</div>
-
-				<nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
-					{solutionLinks.map((l) => (
-						<Link
-							key={l.href}
-							href={l.href}
-							className="text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-						>
-							{l.label}
-						</Link>
-					))}
-				</nav>
-
-				<div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[var(--border-default)] pt-6 text-xs text-[var(--text-muted)] sm:flex-row">
-					<span>{t('rights')}</span>
-					<div className="flex items-center gap-5">
-						<Link
-							href="/status"
-							className="inline-flex items-center gap-2 transition-colors hover:text-[var(--text-secondary)]"
-						>
-							<span className="relative flex h-1.5 w-1.5">
-								<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-								<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-							</span>
-							Status
-						</Link>
-						<span>{t('madeIn')}</span>
-					</div>
+				<div className="mt-12 flex flex-col gap-4 border-t border-black/10 pt-6 text-[10px] text-black/40 sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex flex-wrap items-center gap-x-5 gap-y-2"><span>{t('rights')}</span><span>{copy.made}</span></div>
+					<Link href="/status" className="inline-flex min-h-9 items-center gap-2 self-start rounded-full border border-black/10 px-3 text-black/50 transition-colors hover:text-black sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{copy.status}</Link>
 				</div>
 			</div>
 		</footer>
 	)
+}
+
+function FooterColumn({ title, labels, hrefs, className = '' }: { title: string; labels: readonly string[]; hrefs: string[]; className?: string }) {
+	return <nav className={className} aria-label={title}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-black/35">{title}</p><ul>{labels.map((label, index) => <li key={label}><Link href={hrefs[index]} className="group inline-flex min-h-11 items-center gap-1.5 text-xs text-black/55 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">{label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" /></Link></li>)}</ul></nav>
 }

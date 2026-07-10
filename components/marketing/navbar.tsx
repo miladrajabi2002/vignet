@@ -3,196 +3,129 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Menu, X } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ArrowLeft, ArrowRight, Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { Logo } from '@/components/ui/logo'
-import { SocialLinks } from '@/components/marketing/social-links'
 import { cn } from '@/lib/utils'
 
-// In-page section anchors (homepage) plus the docs/blog routes.
-const SECTION_IDS = ['features', 'how', 'pricing'] as const
+const SECTION_IDS = ['product', 'demo', 'businesses', 'pricing'] as const
+
+const LOCAL_COPY = {
+	fa: { product: 'محصول', demo: 'دموی زنده', businesses: 'برای کسب‌وکارها', resources: 'یادگیری', start: 'شروع رایگان', menu: 'باز کردن منو', close: 'بستن منو' },
+	en: { product: 'Product', demo: 'Live demo', businesses: 'For business', resources: 'Learn', start: 'Start free', menu: 'Open menu', close: 'Close menu' },
+} as const
 
 export function Navbar() {
-        const t = useTranslations('nav')
-        const pathname = usePathname()
-        const [scrolled, setScrolled] = useState(false)
-        const [open, setOpen] = useState(false)
-        const [activeSection, setActiveSection] = useState<string>('')
+	const t = useTranslations('nav')
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = LOCAL_COPY[locale]
+	const pathname = usePathname()
+	const [scrolled, setScrolled] = useState(false)
+	const [open, setOpen] = useState(false)
+	const [activeSection, setActiveSection] = useState('')
+	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
-        useEffect(() => {
-                const onScroll = () => setScrolled(window.scrollY > 20)
-                onScroll()
-                window.addEventListener('scroll', onScroll, { passive: true })
-                return () => window.removeEventListener('scroll', onScroll)
-        }, [])
+	useEffect(() => {
+		const onScroll = () => setScrolled(window.scrollY > 12)
+		onScroll()
+		window.addEventListener('scroll', onScroll, { passive: true })
+		return () => window.removeEventListener('scroll', onScroll)
+	}, [])
 
-        // Scroll-spy: highlight the nav item for the section currently in view.
-        // Only runs on the homepage — other routes (blog/docs) use pathname.
-        useEffect(() => {
-                if (pathname !== '/') {
-                        setActiveSection('')
-                        return
-                }
-                const sections = SECTION_IDS.map((id) => document.getElementById(id)).filter(
-                        (el): el is HTMLElement => el !== null,
-                )
-                if (sections.length === 0) return
+	useEffect(() => {
+		setOpen(false)
+	}, [pathname])
 
-                // Track every section's visibility, not just the entries that changed:
-                // when the last section leaves the middle band (user scrolled back to
-                // the hero) we must clear the highlight so "home" becomes active again.
-                const visible = new Map<string, number>()
-                const observer = new IntersectionObserver(
-                        (entries) => {
-                                for (const e of entries) {
-                                        if (e.isIntersecting) visible.set(e.target.id, e.intersectionRatio)
-                                        else visible.delete(e.target.id)
-                                }
-                                if (visible.size === 0) {
-                                        setActiveSection('')
-                                        return
-                                }
-                                const top = [...visible.entries()].sort((a, b) => b[1] - a[1])[0]
-                                setActiveSection(top[0])
-                        },
-                        { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.25, 0.5, 1] },
-                )
-                sections.forEach((s) => observer.observe(s))
-                return () => observer.disconnect()
-        }, [pathname])
+	useEffect(() => {
+		if (!open) return
+		const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false)
+		document.addEventListener('keydown', onKeyDown)
+		document.body.style.overflow = 'hidden'
+		return () => {
+			document.removeEventListener('keydown', onKeyDown)
+			document.body.style.overflow = ''
+		}
+	}, [open])
 
-        // Resolve the active nav id from pathname + scroll-spy:
-        //  - /blog  → 'blog'
-        //  - /docs  → 'docs'
-        //  - / + a section in view → that section id
-        //  - / + no section in view (top of page or between sections) → 'home'
-        const active = (() => {
-                if (pathname.startsWith('/blog')) return 'blog'
-                if (pathname.startsWith('/docs')) return 'docs'
-                if (pathname === '/') {
-                        return activeSection || 'home'
-                }
-                return ''
-        })()
+	useEffect(() => {
+		if (pathname !== '/') {
+			setActiveSection('')
+			return
+		}
+		const sections = SECTION_IDS.map((id) => document.getElementById(id)).filter((el): el is HTMLElement => el !== null)
+		if (!sections.length) return
+		const visible = new Map<string, number>()
+		const observer = new IntersectionObserver((entries) => {
+			entries.forEach((entry) => entry.isIntersecting ? visible.set(entry.target.id, entry.intersectionRatio) : visible.delete(entry.target.id))
+			const current = [...visible.entries()].sort((a, b) => b[1] - a[1])[0]
+			setActiveSection(current?.[0] ?? '')
+		}, { rootMargin: '-38% 0px -50% 0px', threshold: [0, 0.2, 0.5] })
+		sections.forEach((section) => observer.observe(section))
+		return () => observer.disconnect()
+	}, [pathname])
 
-        const links = [
-                { href: '/', id: 'home', label: t('home') },
-                { href: '/#features', id: 'features', label: t('features') },
-                { href: '/#how', id: 'how', label: t('how') },
-                { href: '/#pricing', id: 'pricing', label: t('pricing') },
-                { href: '/blog', id: 'blog', label: t('blog') },
-                { href: '/docs', id: 'docs', label: t('docs') },
-        ]
+	const sectionLinks = [
+		{ href: '/#product', id: 'product', label: copy.product },
+		{ href: '/#demo', id: 'demo', label: copy.demo },
+		{ href: '/#businesses', id: 'businesses', label: copy.businesses },
+		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
+	]
+	const resourceLinks = [
+		{ href: '/blog', label: t('blog') },
+		{ href: '/docs', label: t('docs') },
+	]
 
-        return (
-                <header
-                        className={cn(
-                                'fixed inset-x-0 top-0 z-50 transition-colors duration-300',
-                                scrolled
-                                        ? 'border-b border-[var(--border-default)] bg-[var(--bg-base)]/70 backdrop-blur-xl'
-                                        : 'bg-transparent',
-                        )}
-                >
-                        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-                                <Link
-                                        href="/"
-                                        className="text-[var(--text-primary)] transition-opacity hover:opacity-70"
-                                        aria-label="Vigent"
-                                >
-                                        <Logo priority className="h-12 w-48" />
-                                </Link>
+	return (
+		<header className={cn('fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-300', scrolled || open ? 'border-black/10 bg-white/95 backdrop-blur-xl' : 'border-transparent bg-white/80 backdrop-blur-md')}>
+			<nav className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8" aria-label="Primary navigation">
+				<Link href="/" aria-label="Vigent home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+					<Logo priority className="h-9 w-28 sm:w-36" />
+				</Link>
 
-                                <div className="hidden items-center gap-1 md:flex">
-                                        {links.map((l) => (
-                                                <Link
-                                                        key={l.href}
-                                                        href={l.href}
-                                                        onClick={() => {
-                                                                // Clicking "home" while already on / should return to the top
-                                                                // (Next.js won't re-navigate to the same route on its own).
-                                                                if (l.id === 'home' && pathname === '/') {
-                                                                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                                                                }
-                                                        }}
-                                                        className={cn(
-                                                                'rounded-full px-3.5 py-1.5 text-sm transition-colors',
-                                                                active === l.id
-                                                                        ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
-                                                                        : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
-                                                        )}
-                                                >
-                                                        {l.label}
-                                                </Link>
-                                        ))}
-                                </div>
+				<div className="hidden items-center gap-1 rounded-full border border-black/10 bg-white p-1 shadow-sm lg:flex">
+					{sectionLinks.map((link) => (
+						<Link key={link.id} href={link.href} className={cn('inline-flex min-h-9 items-center rounded-full px-3.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname === '/' && activeSection === link.id ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>
+							{link.label}
+						</Link>
+					))}
+					<span className="mx-1 h-4 w-px bg-black/10" />
+					{resourceLinks.map((link) => (
+						<Link key={link.href} href={link.href} className={cn('inline-flex min-h-9 items-center rounded-full px-3 text-[11px] font-medium transition-colors', pathname.startsWith(link.href) ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>{link.label}</Link>
+					))}
+				</div>
 
-                                <div className="hidden items-center gap-3 md:flex">
-                                        <SocialLinks variant="compact" />
-                                        <LanguageSwitcher />
-                                        <Link
-                                                href="/login"
-                                                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]"
-                                        >
-                                                {t('login')}
-                                        </Link>
-                                        <Link
-                                                href="/login"
-                                                className="rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] shadow-[0_0_0_0_rgba(var(--ink-rgb),0)] transition-all hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(var(--ink-rgb),0.18)]"
-                                        >
-                                                {t('getStarted')}
-                                        </Link>
-                                </div>
+				<div className="hidden items-center gap-2 lg:flex">
+					<LanguageSwitcher />
+					<Link href="/login" className="inline-flex min-h-11 items-center px-3 text-[11px] font-medium text-black/55 transition-colors hover:text-black">{t('login')}</Link>
+					<Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-black px-4 text-[11px] font-medium text-white shadow-sm transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+						{copy.start}<Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+					</Link>
+				</div>
 
-                                <div className="flex items-center gap-2 md:hidden">
-                                        <Link
-                                                href="/login"
-                                                className="rounded-lg bg-[var(--white)] px-3.5 py-1.5 text-sm font-medium text-[var(--bg-base)]"
-                                        >
-                                                {t('login')}
-                                        </Link>
-                                        <button
-                                                className="text-[var(--text-primary)]"
-                                                onClick={() => setOpen((o) => !o)}
-                                                aria-label="Menu"
-                                        >
-                                                {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                                        </button>
-                                </div>
-                        </nav>
+				<div className="flex items-center gap-2 lg:hidden">
+					<Link href="/login?next=/onboarding" className="inline-flex min-h-11 items-center rounded-full bg-black px-4 text-[11px] font-medium text-white">{copy.start}</Link>
+					<button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="mobile-marketing-menu" aria-label={open ? copy.close : copy.menu} className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+						{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+					</button>
+				</div>
+			</nav>
 
-                        {open && (
-                                <div className="border-t border-[var(--border-default)] bg-[var(--bg-base)] px-6 py-4 md:hidden">
-                                        <div className="flex flex-col gap-1">
-                                                {links.map((l) => (
-                                                        <Link
-                                                                key={l.href}
-                                                                href={l.href}
-                                                                onClick={() => setOpen(false)}
-                                                                className={cn(
-                                                                        'rounded-lg px-3 py-2.5 text-sm transition-colors',
-                                                                        active === l.id
-                                                                                ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
-                                                                                : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
-                                                                )}
-                                                        >
-                                                                {l.label}
-                                                        </Link>
-                                                ))}
-                                                <div className="flex items-center gap-3 pt-3">
-                                                        <SocialLinks variant="compact" />
-                                                        <LanguageSwitcher />
-                                                        <Link
-                                                                href="/login"
-                                                                onClick={() => setOpen(false)}
-                                                                className="flex-1 rounded-lg bg-[var(--white)] px-4 py-2 text-center text-sm font-medium text-[var(--bg-base)]"
-                                                        >
-                                                                {t('getStarted')}
-                                                        </Link>
-                                                </div>
-                                        </div>
-                                </div>
-                        )}
-                </header>
-        )
+			{open && (
+				<div id="mobile-marketing-menu" className="h-[calc(100dvh-72px)] overflow-y-auto border-t border-black/10 bg-white px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 lg:hidden">
+					<div className="mx-auto max-w-2xl">
+						<p className="mb-3 text-[10px] font-medium uppercase tracking-[0.15em] text-black/35">{copy.product}</p>
+						<div className="divide-y divide-black/10 border-y border-black/10">
+							{sectionLinks.map((link) => <Link key={link.id} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-between text-base font-medium text-black"><span>{link.label}</span><Arrow className="h-4 w-4 text-black/35" /></Link>)}
+						</div>
+						<p className="mb-3 mt-8 text-[10px] font-medium uppercase tracking-[0.15em] text-black/35">{copy.resources}</p>
+						<div className="grid grid-cols-2 gap-3">
+							{resourceLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-center rounded-xl border border-black/10 text-sm font-medium text-black">{link.label}</Link>)}
+						</div>
+						<div className="mt-8 flex items-center justify-between border-t border-black/10 pt-5"><LanguageSwitcher /><Link href="/login" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black/60">{t('login')}<Arrow className="h-4 w-4" /></Link></div>
+					</div>
+				</div>
+			)}
+		</header>
+	)
 }
