@@ -18,7 +18,7 @@ export function Logo({
 	return (
 		<span className={cn('relative block h-12 w-48 shrink-0 overflow-hidden', className)}>
 			<Image
-				src="/logo.png"
+				src="/logo.svg"
 				alt="Vigent"
 				fill
 				priority={priority}
