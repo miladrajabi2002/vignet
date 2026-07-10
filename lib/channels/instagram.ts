@@ -877,6 +877,12 @@ interface IgWebhook {
                 messaging?: {
                         sender?: { id?: string; username?: string }
                         recipient?: { id?: string }
+				reaction?: {
+					mid?: string
+					action?: 'react' | 'unreact' | string
+					reaction?: string
+					emoji?: string
+				}
                                 message?: {
                                 text?: string
                                 mid?: string
@@ -891,7 +897,6 @@ interface IgWebhook {
                                                 media_type?: string
                                         }
                                 }
-                                reaction?: { mid?: string; action?: string; reaction?: string; emoji?: string }
                                 attachments?: Array<{
                                         type?: string
                                         payload?: {
