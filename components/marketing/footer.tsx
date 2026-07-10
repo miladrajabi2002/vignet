@@ -9,18 +9,18 @@ import { SocialLinks } from '@/components/marketing/social-links'
 const COPY = {
 	fa: {
 		desc: 'ایجنت فارسی برای فروش، پشتیبانی و ارتباط با مشتری در تمام کانال‌ها.',
-		product: 'محصول', solutions: 'راهکارها', resources: 'یادگیری',
-		links: ['اتصالات', 'دموی زنده', 'قابلیت‌ها', 'تعرفه‌ها'],
-		solutions: ['پیج‌های اینستاگرام', 'فروشگاه‌های آنلاین', 'خدمات و رزرو', 'آموزش و دوره', 'پشتیبانی پیام‌رسان'],
-		resources: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
+		productTitle: 'محصول', solutionsTitle: 'راهکارها', resourcesTitle: 'یادگیری',
+		productLinks: ['اتصالات', 'دموی زنده', 'قابلیت‌ها', 'تعرفه‌ها'],
+		solutionLinks: ['پیج‌های اینستاگرام', 'فروشگاه‌های آنلاین', 'خدمات و رزرو', 'آموزش و دوره', 'پشتیبانی پیام‌رسان'],
+		resourceLinks: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
 		status: 'همه سرویس‌ها فعال', made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
 	},
 	en: {
 		desc: 'Persian AI agents for sales, support and customer conversations across every channel.',
-		product: 'Product', solutions: 'Solutions', resources: 'Learn',
-		links: ['Connections', 'Live demo', 'Capabilities', 'Pricing'],
-		solutions: ['Instagram sellers', 'Online stores', 'Services and booking', 'Education and courses', 'Messaging support'],
-		resources: ['Documentation', 'Blog', 'Service status'],
+		productTitle: 'Product', solutionsTitle: 'Solutions', resourcesTitle: 'Learn',
+		productLinks: ['Connections', 'Live demo', 'Capabilities', 'Pricing'],
+		solutionLinks: ['Instagram sellers', 'Online stores', 'Services and booking', 'Education and courses', 'Messaging support'],
+		resourceLinks: ['Documentation', 'Blog', 'Service status'],
 		status: 'All services operational', made: 'Built for Iranian businesses',
 	},
 } as const
@@ -43,9 +43,9 @@ export function Footer() {
 						<SocialLinks variant="default" className="mt-5" />
 					</div>
 					<div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-						<FooterColumn title={copy.product} labels={copy.links} hrefs={productHrefs} />
-						<FooterColumn title={copy.solutions} labels={copy.solutions} hrefs={solutionHrefs} />
-						<FooterColumn title={copy.resources} labels={copy.resources} hrefs={resourceHrefs} className="col-span-2 sm:col-span-1" />
+						<FooterColumn title={copy.productTitle} labels={copy.productLinks} hrefs={productHrefs} />
+						<FooterColumn title={copy.solutionsTitle} labels={copy.solutionLinks} hrefs={solutionHrefs} />
+						<FooterColumn title={copy.resourcesTitle} labels={copy.resourceLinks} hrefs={resourceHrefs} className="col-span-2 sm:col-span-1" />
 					</div>
 				</div>
 				<div className="mt-12 flex flex-col gap-4 border-t border-black/10 pt-6 text-[10px] text-black/40 sm:flex-row sm:items-center sm:justify-between">
