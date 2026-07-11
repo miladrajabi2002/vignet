@@ -293,7 +293,7 @@ function BotReplyBlock({
                         </div>
                 )
         }
-        if (replyMode === 'AI' || replyMode === 'FLOW') {
+        if (replyMode === 'AI') {
                 return (
                         <Bubble side="bot">
                                 <TypingDots />

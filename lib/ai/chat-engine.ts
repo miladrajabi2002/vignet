@@ -14,7 +14,6 @@ import {
 } from '@/lib/ai/customer-identification'
 import {
         resolveConversation,
-        loadAgentRuntime,
         loadHistory,
         fetchCatalogProducts,
 } from '@/lib/ai/conversation'
@@ -85,22 +84,17 @@ function bumpProductQueries(workspaceId: string, chunks: { metadata: unknown }[]
 function buildSystemPrompt(params: {
         agent: ChatAgent
         customerInfoState: string
-        variantPrompt: string | null
-        variant: string
         contactName: string | null
 }): string {
-        const { agent, customerInfoState, variantPrompt, variant, contactName } = params
+        const { agent, customerInfoState, contactName } = params
 
-        // 1. Pick base prompt: A/B variant → layered/role → legacy.
-        let base =
-                variant === 'B' && variantPrompt
-                        ? variantPrompt
-                        : resolveSystemPrompt({
-                                  promptConfig: agent.promptConfig,
-                                  roleTemplate: agent.roleTemplate,
-                                  legacySystemPrompt: agent.systemPrompt,
-                                  language: agent.language,
-                          })
+        // 1. Resolve the layered/role prompt, with the legacy prompt as fallback.
+        let base = resolveSystemPrompt({
+                promptConfig: agent.promptConfig,
+                roleTemplate: agent.roleTemplate,
+                legacySystemPrompt: agent.systemPrompt,
+                language: agent.language,
+        })
 
         // 2. Hydrate {customer_name}.
         base = hydrateSystemPrompt(base, contactName)
@@ -142,17 +136,14 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         if (!getPlatformOpenRouterKey()) return { error: 'AI_UNAVAILABLE' }
 
-        const [runtime, platformConfig] = await Promise.all([
-                loadAgentRuntime(workspaceId, agent.id),
-                getPlatformAiConfig(),
-        ])
+        const platformConfig = await getPlatformAiConfig()
         const requestedAlias = resolveModelAlias(agent.model || platformConfig.defaultModel || DEFAULT_MODEL)
         const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig, gate.plan)
         const model = resolveModelId(modelAlias, platformConfig.providerModels)
         if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
 
         // Resolve (or create) the conversation, scoped to the workspace.
-        const conversation = await resolveConversation(params, runtime.exp)
+        const conversation = await resolveConversation(params)
         const conversationId = conversation.id
 
         // F3: best-effort identity extraction from the inbound user message,
@@ -229,8 +220,6 @@ async function prepareTurn(params: StartChatParams): Promise<
         const finalSystemPrompt = buildSystemPrompt({
                 agent,
                 customerInfoState: freshState,
-                variantPrompt: runtime.variantPrompt,
-                variant: conversation.variant,
                 contactName: resolvedContactName,
         })
 

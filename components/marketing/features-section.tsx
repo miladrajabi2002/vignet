@@ -61,7 +61,7 @@ const COPY: Record<'fa' | 'en', {
 			{ title: 'پیام صوتی فارسی', desc: 'شنیدن، فهمیدن و پاسخ صوتی', icon: Mic2 },
 			{ title: 'تحویل به همکار', desc: 'همراه خلاصه و اطلاعات مشتری', icon: UserRoundCheck },
 			{ title: 'مرکز یادگیری', desc: 'یادگیری فقط بعد از تأیید شما', icon: GraduationCap },
-			{ title: 'مسیر و گزارش', desc: 'فلو، آزمایش A/B و آمار عملکرد', icon: Gauge },
+			{ title: 'بینش و گزارش', desc: 'تحلیل گفتگو، رضایت مشتری و آمار عملکرد', icon: Gauge },
 		],
 	},
 	en: {
@@ -89,7 +89,7 @@ const COPY: Record<'fa' | 'en', {
 			{ title: 'Persian voice', desc: 'Understand and answer voice notes', icon: Mic2 },
 			{ title: 'Human handoff', desc: 'With a summary and customer context', icon: UserRoundCheck },
 			{ title: 'Learning center', desc: 'Learns only after your approval', icon: GraduationCap },
-			{ title: 'Flows and reports', desc: 'Automation, A/B tests and analytics', icon: Gauge },
+			{ title: 'Insights and reports', desc: 'Conversation trends, customer satisfaction and performance analytics', icon: Gauge },
 		],
 	},
 }

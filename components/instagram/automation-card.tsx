@@ -39,7 +39,6 @@ const TYPE_ICON: Record<AutomationType, LucideIcon> = {
 const REPLY_MODE_ICON: Record<ReplyMode, LucideIcon> = {
         STATIC: MessageCircle,
         AI: Bot,
-        FLOW: Bot,
         SILENT: Circle,
         STOP_AI: Zap,
         MULTI_MESSAGE: MessageSquare,

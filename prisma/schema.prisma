@@ -112,7 +112,6 @@ model Agent {
   handoffMessage          String?
   handoffKeywords         String[] @default([])
   active                  Boolean  @default(true)
-  flowConfig              Json?
   // ─ 6-LAYER PROMPT ENGINE (F1) ─────────────────────────────────────────
   //   Structured prompt configuration that replaces the single-line systemPrompt
   //   with six composable layers: personality, tone, scope, fallback behavior,
@@ -127,11 +126,6 @@ model Agent {
   //   before the agent proceeds. Drives the collect-info flow at thread open.
   requireCustomerInfo     Boolean  @default(false)
   customerInfoPrompt      String?  @db.Text
-  // ─ A/B experiment (optional): serve a variant system prompt to a % of new
-  //   conversations and compare outcomes. Inactive by default.
-  experimentActive        Boolean  @default(false)
-  experimentVariantPrompt String?  @db.Text
-  experimentSplit         Int      @default(50) // % of new conversations served variant B
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -179,6 +173,10 @@ model AgentVersion {
   agentId      String
   label        String
   systemPrompt String   @db.Text
+  // Structured prompt snapshot. Nullable so versions created before the
+  // layered prompt engine continue to restore through systemPrompt.
+  promptConfig Json?
+  roleTemplate String?
   model        String?
   temperature  Float    @default(0.7)
   maxTokens    Int      @default(1000)
@@ -397,7 +395,6 @@ model Conversation {
   externalId        String?
   status            ConvStatus  @default(OPEN)
   handedOff         Boolean     @default(false)
-  variant           String? // A/B experiment variant served to this conversation ('A' | 'B')
   rating            Int?
   summary           String?     @db.Text
   messageCount      Int         @default(0)
@@ -870,7 +867,7 @@ model StoreSyncLog {
 //       storyScope: 'ALL'|'KEYWORD', postIds?: string[] }
 //
 //   `action` JSON shape:
-//     { replyMode: 'STATIC'|'AI'|'FLOW',
+//     { replyMode: 'STATIC'|'AI',
 //       replyText?: string,            // STATIC reply (or AI fallback context)
 //       dmOnComment?: boolean,         // COMMENT type: also send a DM
 //       followGate?: boolean,          // require follow before sending content

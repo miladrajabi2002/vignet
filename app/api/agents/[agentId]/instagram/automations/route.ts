@@ -39,7 +39,7 @@ const messageEntrySchema = z.object({
 
 const actionSchema = z.object({
         replyMode: z
-                .enum(['STATIC', 'AI', 'FLOW', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
+                .enum(['STATIC', 'AI', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
                 .default('STATIC'),
         replyText: z.string().default(''),
         messages: z.array(messageEntrySchema).default([]),

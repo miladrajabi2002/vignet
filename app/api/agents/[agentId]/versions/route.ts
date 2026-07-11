@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
@@ -11,6 +12,8 @@ async function ownAgent(workspaceId: string, agentId: string) {
     select: {
       id: true,
       systemPrompt: true,
+      promptConfig: true,
+      roleTemplate: true,
       model: true,
       temperature: true,
       maxTokens: true,
@@ -29,7 +32,15 @@ export async function GET(_req: Request, props: Params) {
   const items = await prisma.agentVersion.findMany({
     where: { agentId: params.agentId },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, label: true, note: true, model: true, createdAt: true },
+    select: {
+      id: true,
+      label: true,
+      note: true,
+      promptConfig: true,
+      roleTemplate: true,
+      model: true,
+      createdAt: true,
+    },
   })
   return NextResponse.json({ items })
 }
@@ -54,6 +65,8 @@ export async function POST(req: Request, props: Params) {
       agentId: agent.id,
       label: `نسخه ${count + 1}`,
       systemPrompt: agent.systemPrompt,
+      promptConfig: agent.promptConfig === null ? Prisma.JsonNull : agent.promptConfig,
+      roleTemplate: agent.roleTemplate,
       model: agent.model,
       temperature: agent.temperature,
       maxTokens: agent.maxTokens,

@@ -27,11 +27,10 @@ export type StoryScope = 'ALL' | 'KEYWORD'
 // ── Expanded reply modes (BACKEND-AUTO-V2) ───────────────────────────────
 //   STATIC        → fixed text/media reply (uses messages[])
 //   AI            → route through the agent's LLM engine
-//   FLOW          → route through the flow builder (legacy alias of AI for now)
 //   SILENT        → no reply (mute the trigger)
 //   STOP_AI       → stop AI replies for this user/thread
 //   MULTI_MESSAGE → pick one message from a list (used for COMMENT replies)
-export type ReplyMode = 'STATIC' | 'AI' | 'FLOW' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
+export type ReplyMode = 'STATIC' | 'AI' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
 
 export type GateMode = 'SOFT' | 'STORY_MENTION'
 
@@ -258,7 +257,6 @@ export const STORY_SCOPE_LABEL: Record<StoryScope, string> = {
 export const REPLY_MODE_LABEL_KEY: Record<ReplyMode, string> = {
         STATIC: 'replyMode.STATIC',
         AI: 'replyMode.AI',
-        FLOW: 'replyMode.FLOW',
         SILENT: 'replyMode.SILENT',
         STOP_AI: 'replyMode.STOP_AI',
         MULTI_MESSAGE: 'replyMode.MULTI_MESSAGE',
@@ -268,7 +266,6 @@ export const REPLY_MODE_LABEL_KEY: Record<ReplyMode, string> = {
 export const REPLY_MODE_LABEL: Record<ReplyMode, string> = {
         STATIC: 'متن ثابت',
         AI: 'پاسخ هوشمند',
-        FLOW: 'فلو',
         SILENT: 'بدون پاسخ',
         STOP_AI: 'توقف هوش مصنوعی',
         MULTI_MESSAGE: 'چند پیام',
@@ -277,7 +274,6 @@ export const REPLY_MODE_LABEL: Record<ReplyMode, string> = {
 export const REPLY_MODE_SHORT_LABEL_KEY: Record<ReplyMode, string> = {
         STATIC: 'replyModeShort.STATIC',
         AI: 'replyModeShort.AI',
-        FLOW: 'replyModeShort.FLOW',
         SILENT: 'replyModeShort.SILENT',
         STOP_AI: 'replyModeShort.STOP_AI',
         MULTI_MESSAGE: 'replyModeShort.MULTI_MESSAGE',
@@ -287,7 +283,6 @@ export const REPLY_MODE_SHORT_LABEL_KEY: Record<ReplyMode, string> = {
 export const REPLY_MODE_SHORT_LABEL: Record<ReplyMode, string> = {
         STATIC: 'ثابت',
         AI: 'هوشمند',
-        FLOW: 'فلو',
         SILENT: 'بی‌صدا',
         STOP_AI: 'توقف AI',
         MULTI_MESSAGE: 'چندگزینه‌ای',

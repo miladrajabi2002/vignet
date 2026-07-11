@@ -33,7 +33,7 @@ const updateSchema = z.object({
   action: z
     .object({
       replyMode: z
-        .enum(['STATIC', 'AI', 'FLOW', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
+        .enum(['STATIC', 'AI', 'SILENT', 'STOP_AI', 'MULTI_MESSAGE'])
         .optional(),
       replyText: z.string().optional(),
       messages: z

@@ -39,9 +39,3 @@ export interface StartChatParams {
         /** Customer phone, e.g. from the widget's pre-chat lead form. */
         contactPhone?: string | null
 }
-
-export interface ExperimentConfig {
-        active: boolean
-        hasVariant: boolean
-        split: number
-}

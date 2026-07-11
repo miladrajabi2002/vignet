@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import type { ChannelType } from '@prisma/client'
 import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { CatalogProduct } from '@/lib/ai/rag'
-import type { StartChatParams, ExperimentConfig } from '@/lib/ai/chat-types'
+import type { StartChatParams } from '@/lib/ai/chat-types'
 
 /**
  * Conversation resolution + per-turn data loading, extracted from the chat
@@ -10,12 +10,6 @@ import type { StartChatParams, ExperimentConfig } from '@/lib/ai/chat-types'
  */
 
 export const HISTORY_LIMIT = 12
-
-/** Decide which prompt variant a brand-new conversation should be served. */
-function pickVariant(exp?: ExperimentConfig): string {
-        if (exp?.active && exp.hasVariant && Math.random() * 100 < exp.split) return 'B'
-        return 'A'
-}
 
 /**
  * Find an existing conversation (by id, or by channel + externalId) or create
@@ -32,19 +26,17 @@ function pickVariant(exp?: ExperimentConfig): string {
  */
 export async function resolveConversation(
         params: StartChatParams,
-        exp?: ExperimentConfig,
-): Promise<{ id: string; variant: string; customerInfoState: string }> {
+): Promise<{ id: string; customerInfoState: string }> {
         const { workspaceId, agent } = params
 
         if (params.conversationId) {
                 const found = await prisma.conversation.findFirst({
                         where: { id: params.conversationId, workspaceId, agentId: agent.id },
-                        select: { id: true, variant: true, customerInfoState: true },
+                        select: { id: true, customerInfoState: true },
                 })
                 if (found)
                         return {
                                 id: found.id,
-                                variant: found.variant ?? 'A',
                                 customerInfoState: found.customerInfoState,
                         }
         }
@@ -58,7 +50,7 @@ export async function resolveConversation(
                                 externalId: params.externalId,
                         },
                         orderBy: { createdAt: 'desc' },
-                        select: { id: true, status: true, variant: true, customerInfoState: true },
+                        select: { id: true, status: true, customerInfoState: true },
                 })
                 if (found) {
                         // Reopen a conversation the stale-sweep (or a handoff) had closed so the
@@ -71,7 +63,6 @@ export async function resolveConversation(
                         }
                         return {
                                 id: found.id,
-                                variant: found.variant ?? 'A',
                                 customerInfoState: found.customerInfoState,
                         }
                 }
@@ -86,7 +77,6 @@ export async function resolveConversation(
                 return 'skipped'
         })()
 
-        const variant = pickVariant(exp)
         try {
                 const created = await prisma.conversation.create({
                         data: {
@@ -95,12 +85,11 @@ export async function resolveConversation(
                                 channel: params.channel,
                                 contactId: params.contactId,
                                 externalId: params.externalId,
-                                variant,
                                 customerInfoState: initialState,
                         },
                         select: { id: true },
                 })
-                return { id: created.id, variant, customerInfoState: initialState }
+                return { id: created.id, customerInfoState: initialState }
         } catch (e) {
                 // Unique-constraint race: a concurrent delivery created the row first.
                 if (
@@ -118,50 +107,15 @@ export async function resolveConversation(
                                         externalId: params.externalId,
                                 },
                                 orderBy: { createdAt: 'desc' },
-                                select: { id: true, variant: true, customerInfoState: true },
+                                select: { id: true, customerInfoState: true },
                         })
                         if (winner)
                                 return {
                                         id: winner.id,
-                                        variant: winner.variant ?? 'A',
                                         customerInfoState: winner.customerInfoState,
                                 }
                 }
                 throw e
-        }
-}
-
-/** Fetch model default + experiment config for an agent in one round-trip. */
-export async function loadAgentRuntime(
-        workspaceId: string,
-        agentId: string,
-): Promise<{
-        defaultModel: string | null
-        exp: ExperimentConfig
-        variantPrompt: string | null
-}> {
-        const [ws, a] = await Promise.all([
-                prisma.workspace.findUnique({
-                        where: { id: workspaceId },
-                        select: { defaultModel: true },
-                }),
-                prisma.agent.findUnique({
-                        where: { id: agentId },
-                        select: {
-                                experimentActive: true,
-                                experimentVariantPrompt: true,
-                                experimentSplit: true,
-                        },
-                }),
-        ])
-        return {
-                defaultModel: ws?.defaultModel ?? null,
-                variantPrompt: a?.experimentVariantPrompt ?? null,
-                exp: {
-                        active: !!a?.experimentActive,
-                        hasVariant: !!a?.experimentVariantPrompt,
-                        split: a?.experimentSplit ?? 50,
-                },
         }
 }
 

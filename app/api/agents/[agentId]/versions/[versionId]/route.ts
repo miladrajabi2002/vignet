@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 
@@ -21,7 +22,14 @@ export async function POST(_req: Request, props: Params) {
 
   const version = await prisma.agentVersion.findFirst({
     where: { id: params.versionId, agentId: params.agentId },
-    select: { systemPrompt: true, model: true, temperature: true, maxTokens: true },
+    select: {
+      systemPrompt: true,
+      promptConfig: true,
+      roleTemplate: true,
+      model: true,
+      temperature: true,
+      maxTokens: true,
+    },
   })
   if (!version) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -29,6 +37,8 @@ export async function POST(_req: Request, props: Params) {
     where: { id: params.agentId },
     data: {
       systemPrompt: version.systemPrompt,
+      promptConfig: version.promptConfig === null ? Prisma.JsonNull : version.promptConfig,
+      roleTemplate: version.roleTemplate,
       model: version.model,
       temperature: version.temperature,
       maxTokens: version.maxTokens,

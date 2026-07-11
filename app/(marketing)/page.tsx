@@ -82,18 +82,16 @@ export default async function HomePage() {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 			/>
 			<Hero />
-			<div className="marketing-flow">
-				<SocialProof />
-				<ChannelsSection />
-				<LazyDemoSection />
-				<UseCasesSection />
-				<FeaturesSection />
-				<HowItWorks />
-				<PricingSection />
-				<FaqSection />
-				<PopularPosts />
-				<CtaSection />
-			</div>
+			<SocialProof />
+			<ChannelsSection />
+			<LazyDemoSection />
+			<UseCasesSection />
+			<FeaturesSection />
+			<HowItWorks />
+			<PricingSection />
+			<FaqSection />
+			<PopularPosts />
+			<CtaSection />
 		</>
 	)
 }

@@ -61,7 +61,7 @@ export interface AutomationTrigger {
 }
 
 export interface AutomationAction {
-  replyMode?: 'STATIC' | 'AI' | 'FLOW' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
+  replyMode?: 'STATIC' | 'AI' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
   /**
    * SILENT   — don't reply at all (skip; used for "no reply" comment scenarios).
    * STOP_AI  — pause AI for this conversation (sets conversation.metadata.aiPaused)
@@ -122,7 +122,6 @@ type ReplyMode = NonNullable<AutomationAction['replyMode']>
 const VALID_REPLY_MODES: ReplyMode[] = [
   'STATIC',
   'AI',
-  'FLOW',
   'SILENT',
   'STOP_AI',
   'MULTI_MESSAGE',

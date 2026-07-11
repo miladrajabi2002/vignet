@@ -29,7 +29,6 @@ Build **Vigent** — a production-ready, multi-tenant SaaS platform where busine
 Framework:        Next.js 14.2+ (App Router, TypeScript strict mode)
 Styling:          Tailwind CSS 3.4 + CSS custom properties for theming
 Animations:       Framer Motion 11 + GSAP 3 (ScrollTrigger, TextPlugin)
-Flow Builder:     React Flow (@xyflow/react) + ELKjs auto-layout
 Charts:           Recharts (sparklines, bar, area, radial)
 Database:         PostgreSQL via Supabase (pgvector enabled)
 ORM:              Prisma 5+ (pooled URL + direct URL for migrations)
@@ -49,7 +48,6 @@ AI Embeddings:    BGE-M3 via OpenRouter (text-embedding-3-small as fallback)
 Vector Search:    pgvector extension in Supabase Postgres
 i18n:             next-intl (FA + EN, RTL/LTR aware)
 Validation:       Zod
-State:            Zustand (dashboard state, flow builder state)
 Encryption:       Node.js crypto (AES-256-GCM for channel and integration secrets)
 File Upload:      Supabase Storage (PDFs, CSVs, product images for knowledge base)
 Realtime:         SSE (Server-Sent Events) for streaming AI responses
@@ -171,15 +169,6 @@ vigent/
 │   │   │   └── agent-sparkline.tsx
 │   │   └── recent-conversations.tsx
 │   ├── agent-builder/
-│   │   ├── flow-editor.tsx
-│   │   ├── node-types/
-│   │   │   ├── start-node.tsx
-│   │   │   ├── message-node.tsx
-│   │   │   ├── condition-node.tsx
-│   │   │   ├── ai-response-node.tsx
-│   │   │   ├── human-handoff-node.tsx
-│   │   │   ├── collect-info-node.tsx
-│   │   │   └── product-lookup-node.tsx  # NEW: query product catalog
 │   │   └── agent-wizard.tsx
 │   ├── products/                      # NEW
 │   │   ├── product-grid.tsx           # Masonry/grid product cards
@@ -362,7 +351,6 @@ model Agent {
   handoffEnabled  Boolean     @default(false)
   handoffMessage  String?
   active          Boolean     @default(true)
-  flowConfig      Json?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -815,17 +803,6 @@ ${product.attributes ? `مشخصات: ${JSON.stringify(product.attributes)}` : '
 // Process: embedProduct() for each agent that has this product in catalog
 ```
 
-### Product Lookup Node (React Flow)
-
-```tsx
-// components/agent-builder/node-types/product-lookup-node.tsx
-// Special node in the visual builder
-// Config: search field (name / SKU / price range / category)
-// Output handles: "found" → show product details, "not found" → fallback
-// At runtime: does a vector similarity search filtered by metadata.productId
-//             also supports exact SKU lookup via prisma
-```
-
 ### Product Pages
 
 **`/products` — Product Grid**
@@ -1092,7 +1069,7 @@ Each feature: large mono number (01, 02...) + title + desc + mockup screenshot
 Screenshot: dark card, white border 8% — subtle inner glow on edges
 Animation: slide in from left/right on scroll (Framer Motion)
 Features:
-  01  ساخت ایجنت — React Flow builder preview
+  01  ساخت ایجنت — guided agent setup preview
   02  پایگاه دانش — upload → embedded diagram
   03  مدیریت محصولات — catalog screenshot
   04  چند کانال — channel logos (Telegram, Rubika, Bale, WhatsApp...)
@@ -1360,7 +1337,6 @@ On /products/[id]:
 - [ ] Per-agent analytics page
 - [ ] CSAT collection
 - [ ] Usage logging + billing page
-- [ ] React Flow visual builder (including ProductLookupNode)
 
 ### Phase 5: Polish & Launch (Week 9–10)
 - [ ] WhatsApp integration
@@ -1452,10 +1428,10 @@ LIMIT 5;
 ```bash
 npx create-next-app@latest vigent --typescript --tailwind --app --src-dir=false --import-alias="@/*"
 cd vigent
-npm install framer-motion gsap @gsap/react @xyflow/react recharts next-themes next-intl \
+npm install framer-motion gsap @gsap/react recharts next-themes next-intl \
   @prisma/client prisma next-auth@beta zod axios date-fns jalaali-js \
   @supabase/supabase-js bullmq ioredis openai lucide-react \
-  @ricky0123/vad-web zustand resend
+  @ricky0123/vad-web resend
 npx prisma init
 ```
 

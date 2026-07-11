@@ -7,6 +7,7 @@ import {
   type AgentSettingsData,
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import { AgentVersions } from '@/components/agents/agent-versions'
 
 export default async function AgentSettingsPage(
   props: {
@@ -60,6 +61,7 @@ export default async function AgentSettingsPage(
           customerInfoPrompt: agent.customerInfoPrompt,
         }}
       />
+      <AgentVersions agentId={agent.id} />
     </div>
   )
 }

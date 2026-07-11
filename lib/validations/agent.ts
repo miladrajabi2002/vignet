@@ -74,18 +74,10 @@ export const agentCreateSchema = z.object({
   customerInfoPrompt: z.string().max(1000).optional(),
 })
 
-/** A persisted visual-builder graph. Kept loose — it's a design artifact. */
-export const flowConfigSchema = z.object({
-  nodes: z.array(z.any()).max(200),
-  edges: z.array(z.any()).max(400),
-})
-
 export const agentUpdateSchema = agentCreateSchema.partial().extend({
   active: z.boolean().optional(),
-  flowConfig: flowConfigSchema.optional(),
 })
 
-export type FlowConfig = z.infer<typeof flowConfigSchema>
 export type PromptConfig = z.infer<typeof promptConfigSchema>
 export type PromptFormatConfig = z.infer<typeof promptFormatSchema>
 export type PromptQAPair = z.infer<typeof promptQAPairSchema>
