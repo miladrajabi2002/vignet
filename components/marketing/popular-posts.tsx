@@ -68,21 +68,20 @@ export async function PopularPosts() {
 	const isFa = locale === 'fa'
 
 	return (
-		<section id="popular" className="bg-[var(--bg-base)] py-20 md:py-28">
+		<section id="popular" className="marketing-story-section bg-[var(--bg-base)] py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-6xl px-6">
 				{/* Heading */}
 				<div className="mx-auto max-w-2xl text-center">
-					<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
-						<Eye className="h-3.5 w-3.5" />
+					<span className="marketing-eyebrow">
 						{isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}
 					</span>
-					<h2 className="mt-6 text-4xl font-light tracking-tight text-[var(--text-primary)] md:text-5xl">
+					<h2 className="marketing-heading mx-auto mt-4">
 						{isFa ? 'محبوب‌ترین مقالات' : 'Popular articles'}
 					</h2>
-					<p className="mx-auto mt-4 max-w-xl text-[var(--text-secondary)]">
+					<p className="marketing-subtitle mx-auto mt-4">
 						{isFa
-							? 'پربازدیدترین مطالب ویجنت که دیگران خوانده‌اند — تجربه کاربران واقعی با هوش مصنوعی.'
-							: 'The most-read Vigent articles — real stories from teams using AI agents.'}
+							? 'راهنماها و تجربه‌های کاربردی درباره فروش، پشتیبانی و ایجنت‌های هوشمند.'
+							: 'Practical guides on sales, support and useful AI-agent workflows.'}
 					</p>
 				</div>
 
@@ -154,7 +153,9 @@ function ViewsLabel({ views, isFa }: { views: number; isFa: boolean }) {
 			? isFa
 				? `${toPersianDigits((views / 1000).toFixed(1))}هزار`
 				: `${(views / 1000).toFixed(1)}k`
-			: toPersianDigits(views)
+		: isFa
+			? toPersianDigits(views)
+			: views.toLocaleString('en-US')
 
 	return (
 		<span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
@@ -181,7 +182,7 @@ function PopularCard({
 	return (
 		<Link
 			href={`/blog/${post.slug}`}
-			className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)]"
+			className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
 		>
 			{post.coverImage && (
 				// eslint-disable-next-line @next/next/no-img-element
@@ -197,7 +198,7 @@ function PopularCard({
 				<div className="flex items-center justify-between gap-3">
 					<RankBadge rank={rank} isFa={isFa} />
 					{post.category && (
-						<span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+						<span className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)] rtl:tracking-normal">
 							{post.category.name}
 						</span>
 					)}

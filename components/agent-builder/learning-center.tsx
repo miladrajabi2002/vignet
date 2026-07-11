@@ -95,7 +95,7 @@ function LearningCard({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data.error === 'NO_KEY' ? t('noKey') : t('error'))
+        setError(data.error === 'NO_CREDIT' ? t('noKey') : t('error'))
         return
       }
       setAnswer(data.answer ?? '')

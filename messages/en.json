@@ -75,7 +75,7 @@
                 "approving": "Adding…",
                 "dismiss": "Dismiss",
                 "approved": "Added to the agent's knowledge ✓",
-                "noKey": "Add your OpenRouter key in settings first",
+                "noKey": "Reply credit is insufficient or the AI service is temporarily unavailable",
                 "error": "Something went wrong, try again",
                 "viewConversation": "View conversation"
         },
@@ -116,7 +116,7 @@
                         "SMS_FAILED": "Failed to send SMS",
                         "GENERIC": "Something went wrong. Please try again"
                 },
-                "noCard": "No credit card required — just your phone number"
+                "noCard": "Simple sign-in with just your phone number"
         },
         "dashboard": {
                 "overview": "Overview",
@@ -167,9 +167,9 @@
                 },
                 "steps": {
                         "key": {
-                                "title": "Turn on AI replies",
-                                "desc": "Add your AI account key to activate real responses",
-                                "cta": "Activate replies"
+                                "title": "Your AI is ready",
+                                "desc": "Vigent manages the AI service, so you can build an agent without creating another account or entering a key",
+                                "cta": "Build your first agent"
                         },
                         "agent": {
                                 "title": "Choose a ready starting point",
@@ -206,18 +206,14 @@
                         "saved": "Saved",
                         "error": "Enter a valid email"
                 },
-                "aiKeys": {
-                        "title": "AI Keys",
-                        "subtitle": "Add your OpenRouter key to use AI models",
-                        "keyLabel": "OpenRouter key",
-                        "keyPlaceholder": "sk-or-v1-…",
-                        "currentKey": "Current key",
-                        "validate": "Validate & save",
-                        "validating": "Validating…",
-                        "valid": "Key is valid and saved",
-                        "invalid": "Invalid key",
-                        "remove": "Remove key",
-                        "byokNote": "Vigent uses your key; token costs are billed directly to your OpenRouter account."
+                "aiService": {
+                        "title": "Managed AI",
+                        "subtitle": "Vigent manages models, connectivity and usage billing",
+                        "statusLabel": "Service status",
+                        "active": "The AI service is active",
+                        "unavailable": "The AI service is temporarily unavailable",
+                        "credit": "Manage reply credit",
+                        "note": "Choose the right mode while service configuration and infrastructure are managed centrally."
                 }
         },
         "agents": {
@@ -377,7 +373,7 @@
                         "placeholder": "Type a message…",
                         "send": "Send",
                         "empty": "Start a conversation to test your agent",
-                        "noKey": "Add your OpenRouter key in settings first",
+                        "noKey": "Reply credit is insufficient or the AI service is temporarily unavailable",
                         "error": "Failed to get a response",
                         "record": "Record voice",
                         "speak": "Read reply aloud",
@@ -389,8 +385,8 @@
                         "default": "Default",
                         "quality": "Quality",
                         "cost": "Cost",
-                        "advanced": "Enter a custom model (advanced)",
-                        "customHint": "Type the exact OpenRouter model id, e.g. deepseek/deepseek-chat",
+                        "advanced": "Managed AI modes",
+                        "customHint": "Choose Vigent's Fast, Balanced or Premium mode; the provider model is managed on the server",
                         "free": "Free"
                 }
         },
@@ -437,8 +433,8 @@
                 "saving": "Saving…",
                 "saved": "Saved",
                 "saveError": "Save failed",
-                "noKeyWarning": "No AI key configured — the widget cannot reply and shows a \"Failed to get a response\" error.",
-                "noKeyCta": "Set API key",
+                "noKeyWarning": "Reply credit has run out or the AI service is temporarily unavailable; the widget cannot generate new replies until it is resolved.",
+                "noKeyCta": "Manage credit",
                 "subtitlePh": "e.g. Instant answers to your questions",
                 "icon": "Icon",
                 "corners": "Corners",
@@ -660,15 +656,15 @@
                 "usageThisMonth": "Usage this month",
                 "conversations": "Conversations",
                 "tokens": "Tokens",
-                "estCost": "Estimated AI cost",
-                "byok": "You use your own OpenRouter key — AI costs are billed directly by OpenRouter, not Vigent.",
+                "estCost": "Successful reply charges",
+                "usageBilling": "Vigent manages the AI service. Each successful reply is deducted from prepaid reply credit, and failed replies are not charged.",
                 "upgrade": "Upgrade plan",
                 "planTrial": "Trial",
                 "planStarter": "Starter",
                 "planPro": "Pro",
                 "planBusiness": "Business",
-                "messagesUsed": "Messages used this month",
-                "quotaWarning": "You are close to your monthly message limit — upgrade to avoid interruption.",
+                "messagesUsed": "Successful replies this month",
+                "quotaWarning": "You are close to your plan's fair-use ceiling — upgrade to avoid interruption.",
                 "trialExpiredNotice": "Your trial has ended and agents are paused. Pick a plan to reactivate.",
                 "plans": "Plans",
                 "popular": "Most popular",
@@ -681,10 +677,10 @@
                 "paymentFailed": "Payment failed. Nothing was charged (or it will be refunded within 72h).",
                 "paymentCancelled": "Payment was cancelled.",
                 "currentPlanBadge": "Your current plan",
-                "featMessages": "{count} messages / month",
+                "featMessages": "Fair-use ceiling: {count} replies / month",
                 "featAgents": "{count} agents",
                 "featChannels": "All channels (Telegram, WhatsApp, web widget, …)",
-                "featByok": "Bring your own OpenRouter key — no hidden AI costs"
+                "featManagedAi": "Managed AI — no separate key or account"
         },
         "integrations": {
                 "title": "Integrations",
@@ -866,7 +862,7 @@
                         "subtitle": "Vigent connects to your real products and business knowledge, answers customers, captures leads, and hands conversations to your team whenever a human is needed.",
                         "ctaPrimary": "Start free — 14 days",
                         "ctaSecondary": "Watch demo",
-                        "trust": "Set up in under 5 minutes · No technical skills · No credit card",
+                        "trust": "Set up in under 5 minutes · No technical skills · AI ready to use",
                         "scrollCue": "Scroll to explore"
                 },
                 "stats": {
@@ -1213,20 +1209,20 @@
                         "cta": "Get started",
                         "popular": "Vigent's pick",
                         "trialTitle": "14 days to build and test",
-                        "trialNote": "No card required, with {count} agent replies and one active agent",
+                        "trialNote": "Includes starter reply credit and one active agent",
                         "trialCta": "Start free trial",
                         "tomanPerMonth": "Toman / month",
-                        "messages": "{count} agent replies per month",
+                        "messages": "Fair-use ceiling of up to {count} replies per month",
                         "agents": "Up to {count} active agents",
                         "allChannels": "Access to every active channel",
-                        "byok": "Choose your model and pay AI usage directly",
+                        "managedAi": "Choose Fast, Balanced or Premium with central service management",
                         "planCta": "Choose {plan}",
-                        "billingNote": "AI usage is billed separately and directly by your selected model provider; Vigent adds no markup.",
+                        "billingNote": "Your subscription covers platform features and service capacity. Reply credit is prepaid separately and deducted only after a successful AI reply; it is not a separate plan or a monthly message bundle.",
                         "plans": {
                                 "starter": {
                                         "name": "Starter",
                                         "audience": "For small businesses beginning to automate customer replies",
-                                        "value": "Best when you need up to roughly 100 agent replies per day."
+                                        "value": "A practical starting point for a small team using its main customer channels."
                                 },
                                 "pro": {
                                         "name": "Pro",
@@ -1256,8 +1252,8 @@
                                         "a": "Under 5 minutes. Pick a ready-made template, upload your catalog or documents, and add your first connection — the agent starts answering immediately."
                                 },
                                 {
-                                        "q": "How are AI token costs handled?",
-                                        "a": "You bring your own OpenRouter key, and token costs are billed directly and transparently to your account. Vigent only charges for the platform — no middleman, no markup."
+                                        "q": "How are AI reply costs handled?",
+                                        "a": "The monthly plan covers the platform and service. AI replies use prepaid reply credit that is deducted only after a successful response; failed responses are refunded. You never need a separate AI account or API key."
                                 },
                                 {
                                         "q": "Which connections are supported?",
@@ -1277,14 +1273,14 @@
                                 },
                                 {
                                         "q": "Can I try it for free?",
-                                        "a": "Yes — a 14-day free trial with every feature, no credit card required. Upgrade whenever you're ready."
+                                        "a": "Yes — you get a 14-day trial with the core features and starter reply credit. Activate a plan whenever you are ready."
                                 }
                         ]
                 },
                 "cta": {
                         "title": "Build your smart agent today",
                         "button": "Start free",
-                        "note": "No credit card required — just your phone number"
+                        "note": "Simple sign-in with just your phone number"
                 },
                 "footer": {
                         "tagline": "AI platform for businesses",

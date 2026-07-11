@@ -89,12 +89,15 @@ export function createTelegramLikeAdapter(opts: {
     async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
       const form = new FormData()
       form.append('chat_id', chatId)
+      const isVoiceNote = voice.mime === 'audio/ogg' || voice.mime === 'audio/opus'
+      const field = isVoiceNote ? 'voice' : 'audio'
       form.append(
-        'voice',
+        field,
         new Blob([new Uint8Array(voice.audio)], { type: voice.mime }),
-        'reply.ogg',
+        isVoiceNote ? 'reply.ogg' : 'reply.mp3',
       )
-      const res = await fetch(`${api}/sendVoice`, { method: 'POST', body: form })
+      const method = isVoiceNote ? 'sendVoice' : 'sendAudio'
+      const res = await fetch(`${api}/${method}`, { method: 'POST', body: form })
       if (!res.ok) {
         // Fall back to nothing — caller will have already sent text.
         console.error(`[${channel}] sendVoice failed:`, res.status)

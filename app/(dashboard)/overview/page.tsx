@@ -591,8 +591,8 @@ export default async function OverviewPage() {
                                                 term: locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: ',
                                                 body:
                                                         locale === 'fa'
-                                                                ? 'مجموع prompt + completion توکن‌ها در همه‌ی مدل‌های LLM (chat + embedding + TTS + STT). هزینه واقعی از پنل OpenRouter شما قابل مشاهده است.'
-                                                                : 'Total prompt + completion tokens across all LLM calls (chat + embedding + TTS + STT). Actual cost is visible in your OpenRouter dashboard.',
+                                                                ? 'مجموع توکن‌های ورودی و خروجی در سرویس هوش مصنوعی مدیریت‌شده ویجنت. اعتبار و هزینه پاسخ‌ها در بخش مالی دیده می‌شود.'
+                                                                : 'Total prompt + completion tokens across managed AI calls. Customer charges and reply credit are visible on the billing page.',
                                         },
                                         {
                                                 icon: TrendingUp,

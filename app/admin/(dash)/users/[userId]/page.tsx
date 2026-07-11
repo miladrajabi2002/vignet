@@ -135,6 +135,7 @@ export default async function AdminUserDetailPage(
         id: true,
         gateway: true,
         plan: true,
+        kind: true,
         amount: true,
         currency: true,
         status: true,
@@ -336,7 +337,9 @@ export default async function AdminUserDetailPage(
               <ul className="divide-y divide-zinc-100">
                 {payments.map((p) => {
                   const st = PAY_STATUS[p.status] ?? { label: p.status, tone: 'muted' as BadgeTone }
-                  const pl = PLAN_LABEL[p.plan] ?? { label: p.plan, tone: 'muted' as BadgeTone }
+                  const pl = p.kind === 'AI_CREDIT' || !p.plan
+                    ? { label: 'اعتبار هوش مصنوعی', tone: 'info' as BadgeTone }
+                    : (PLAN_LABEL[p.plan] ?? { label: p.plan, tone: 'muted' as BadgeTone })
                   const amount = p.currency === 'IRR' ? fmtIRR(p.amount) : fmtUSD(p.amount)
                   return (
                     <li

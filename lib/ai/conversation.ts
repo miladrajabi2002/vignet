@@ -9,7 +9,7 @@ import type { StartChatParams, ExperimentConfig } from '@/lib/ai/chat-types'
  * engine. Everything here is pure persistence logic — no LLM calls.
  */
 
-export const HISTORY_LIMIT = 24
+export const HISTORY_LIMIT = 12
 
 /** Decide which prompt variant a brand-new conversation should be served. */
 function pickVariant(exp?: ExperimentConfig): string {
@@ -186,6 +186,7 @@ export async function loadHistory(conversationId: string): Promise<ChatMessage[]
 export async function fetchCatalogProducts(agentId: string): Promise<CatalogProduct[]> {
         const rows = await prisma.agentCatalog.findMany({
                 where: { agentId },
+                take: 20,
                 select: {
                         product: {
                                 select: {

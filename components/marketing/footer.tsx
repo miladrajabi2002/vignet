@@ -58,5 +58,5 @@ export function Footer() {
 }
 
 function FooterColumn({ title, labels, hrefs, className = '' }: { title: string; labels: readonly string[]; hrefs: string[]; className?: string }) {
-	return <nav className={className} aria-label={title}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-black/35">{title}</p><ul>{labels.map((label, index) => <li key={label}><Link href={hrefs[index]} className="group inline-flex min-h-11 items-center gap-1.5 text-xs text-black/55 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">{label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" /></Link></li>)}</ul></nav>
+	return <nav className={className} aria-label={title}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-black/50 rtl:tracking-normal">{title}</p><ul>{labels.map((label, index) => <li key={label}><Link href={hrefs[index]} className="group inline-flex min-h-11 items-center gap-1.5 text-xs text-black/60 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">{label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" /></Link></li>)}</ul></nav>
 }

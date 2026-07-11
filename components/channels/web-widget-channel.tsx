@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -49,7 +48,6 @@ export function WebWidgetChannel({
 	enabled,
 	channelId,
 	config,
-	hasApiKey,
 }: {
 	agentId: string
 	agentName: string
@@ -57,7 +55,6 @@ export function WebWidgetChannel({
 	enabled: boolean
 	channelId: string | null
 	config: Record<string, unknown> | null
-	hasApiKey: boolean
 }) {
 	const t = useTranslations('channels')
 	const locale = useLocale()
@@ -170,22 +167,6 @@ export function WebWidgetChannel({
 
 			{enabled && (
 				<div className="mt-4 space-y-4">
-					{/* No-API-key warning */}
-					{!hasApiKey && (
-						<div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-							<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-							<div className="flex-1 text-sm text-[var(--text-primary)]">
-								{t('noKeyWarning')}
-								<Link
-									href="/settings/ai-keys"
-									className="ms-1 font-medium text-amber-500 underline hover:no-underline"
-								>
-									{t('noKeyCta')}
-								</Link>
-							</div>
-						</div>
-					)}
-
 					{/* Embed code */}
 					<div>
 						<div className="mb-2 flex items-center justify-between">

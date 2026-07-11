@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import {
-        getWorkspaceOpenRouterKey,
+        getPlatformOpenRouterKey,
         streamChat,
         chatCompletion,
         type ChatUsage,
@@ -22,7 +22,14 @@ import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
-import { resolveModelId } from '@/lib/ai/models'
+import { DEFAULT_MODEL, resolveModelAlias, resolveModelId } from '@/lib/ai/models'
+import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
+import {
+        captureChatCredit,
+        releaseChatCredit,
+        reserveChatCredit,
+        type CreditReservation,
+} from '@/lib/billing/ai-credits'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
 
@@ -49,30 +56,6 @@ function hydrateSystemPrompt(prompt: string, contactName?: string | null): strin
         if (!prompt) return prompt
         const name = (contactName && contactName.trim()) || 'مشتری'
         return prompt.replaceAll('{customer_name}', name)
-}
-
-/** Record token usage for a chat turn (fire-and-forget). */
-function logUsage(params: {
-        workspaceId: string
-        agentId: string
-        conversationId: string
-        model: string
-        usage: ChatUsage
-}): void {
-        if (!params.usage.promptTokens && !params.usage.completionTokens) return
-        prisma.usageLog
-                .create({
-                        data: {
-                                workspaceId: params.workspaceId,
-                                agentId: params.agentId,
-                                conversationId: params.conversationId,
-                                model: params.model,
-                                promptTokens: params.usage.promptTokens,
-                                completionTokens: params.usage.completionTokens,
-                                type: 'CHAT',
-                        },
-                })
-                .catch((e) => console.error('[chat-engine] usage log failed:', e))
 }
 
 /** Bump queryCount for any product chunks retrieved (fire-and-forget). */
@@ -138,11 +121,13 @@ function buildSystemPrompt(params: {
  * the inbound user message.
  */
 async function prepareTurn(params: StartChatParams): Promise<
-        | { error: 'NO_KEY' }
+        | { error: 'AI_UNAVAILABLE' }
+        | { error: 'NO_CREDIT' }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | {
-                  key: string
                   model: string
+                  modelAlias: string
+                  reservation: CreditReservation
                   conversationId: string
                   contactName: string | null
                   contactPhone: string | null
@@ -155,13 +140,16 @@ async function prepareTurn(params: StartChatParams): Promise<
         const gate = await checkChatAllowed(workspaceId)
         if (!gate.allowed) return { error: 'PLAN_BLOCKED', reason: gate.reason }
 
-        const key = await getWorkspaceOpenRouterKey(workspaceId)
-        if (!key) return { error: 'NO_KEY' }
+        if (!getPlatformOpenRouterKey()) return { error: 'AI_UNAVAILABLE' }
 
-        const runtime = await loadAgentRuntime(workspaceId, agent.id)
-        const model = resolveModelId(
-                agent.model || runtime.defaultModel || 'deepseek/deepseek-chat',
-        )
+        const [runtime, platformConfig] = await Promise.all([
+                loadAgentRuntime(workspaceId, agent.id),
+                getPlatformAiConfig(),
+        ])
+        const requestedAlias = resolveModelAlias(agent.model || platformConfig.defaultModel || DEFAULT_MODEL)
+        const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig)
+        const model = resolveModelId(modelAlias)
+        if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
 
         // Resolve (or create) the conversation, scoped to the workspace.
         const conversation = await resolveConversation(params, runtime.exp)
@@ -246,51 +234,68 @@ async function prepareTurn(params: StartChatParams): Promise<
                 contactName: resolvedContactName,
         })
 
-        const [history, catalogProducts] = await Promise.all([
-                loadHistory(conversationId),
-                fetchCatalogProducts(agent.id),
-        ])
+        const reserved = await reserveChatCredit({
+                workspaceId,
+                agentId: agent.id,
+                conversationId,
+                model: modelAlias,
+                providerModel: model,
+                idempotencyKey: `chat:${conversationId}:${crypto.randomUUID()}`,
+        })
+        if (!reserved.ok) return { error: 'NO_CREDIT' }
+        const reservation = reserved.reservation
+
+        try {
+                const [history, catalogProducts] = await Promise.all([
+                        loadHistory(conversationId),
+                        fetchCatalogProducts(agent.id),
+                ])
 
         // Persist the incoming user message.
-        await prisma.message.create({
-                data: {
-                        conversationId,
-                        role: 'USER',
-                        content: message,
-                },
-        })
+                await prisma.message.create({
+                        data: {
+                                conversationId,
+                                role: 'USER',
+                                content: message,
+                        },
+                })
         // Every inbound turn (widget, chat-link, and messengers) keeps the
         // contact's denormalized last-activity fresh. Messenger inbound is also
         // bumped in upsertContact; the duplicate is harmless.
-        bumpContactActivity(conversationId)
+                bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
-        const { contextText, chunks } = await retrieveContext({
-                workspaceId,
-                agentId: agent.id,
-                query: message,
-        })
-        bumpProductQueries(workspaceId, chunks)
+                const { contextText, chunks } = await retrieveContext({
+                        workspaceId,
+                        agentId: agent.id,
+                        query: message,
+                })
+                bumpProductQueries(workspaceId, chunks)
 
-        const messages = buildMessages({
-                systemPrompt: finalSystemPrompt,
-                language: agent.language,
-                contextText,
-                catalogProducts,
-                history,
-                userMessage: message,
+                const messages = buildMessages({
+                        systemPrompt: finalSystemPrompt,
+                        language: agent.language,
+                        contextText,
+                        catalogProducts,
+                        history,
+                        userMessage: message,
                 // Rich [[product:{…}]] cards are renderable by the web widget AND the
                 // standalone chat-link page (both parse the same token format).
-                richCards: params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK',
-        })
+                        richCards: params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK',
+                })
 
-        return {
-                key,
-                model,
-                conversationId,
-                contactName: resolvedContactName,
-                contactPhone: extracted.phone,
-                messages,
+                return {
+                        model,
+                        modelAlias,
+                        reservation,
+                        conversationId,
+                        contactName: resolvedContactName,
+                        contactPhone: extracted.phone,
+                        messages,
+                }
+        } catch (error) {
+                await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
+                throw error
         }
 }
 
@@ -355,7 +360,6 @@ async function persistAssistantTurn(params: {
         model: string
         userMessage: string
         reply: string
-        usage: ChatUsage | null
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
         const savedMsg = await prisma.message.create({
@@ -373,21 +377,13 @@ async function persistAssistantTurn(params: {
         })
         // Keep the contact's denormalized last-activity fresh for the CRM list.
         bumpContactActivity(params.conversationId)
-        if (params.usage) {
-                logUsage({
-                        workspaceId: params.workspaceId,
-                        agentId: params.agent.id,
-                        conversationId: params.conversationId,
-                        model: params.model,
-                        usage: params.usage,
-                })
-        }
         await syncOnboarding(params.workspaceId)
         return { messageId: savedMsg.id }
 }
 
 export type StartChatResult =
-        | { error: 'NO_KEY' }
+        | { error: 'AI_UNAVAILABLE' }
+        | { error: 'NO_CREDIT' }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; stream: ReadableStream<Uint8Array> }
 
@@ -396,7 +392,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
         const prep = await prepareTurn(params)
         if ('error' in prep) return prep
-        const { key, model, conversationId, contactName, contactPhone, messages } = prep
+        const { model, reservation, conversationId, contactName, contactPhone, messages } = prep
 
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
@@ -406,9 +402,23 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
                         send({ type: 'meta', conversationId })
 
-                        // Smart handoff: check before calling AI
-                        const handoffCheck = await shouldHandoff(agent, conversationId, message)
+                        // Smart handoff: check before calling AI. A database/policy
+                        // failure here must not leave wallet credit reserved forever.
+                        let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
+                        try {
+                                handoffCheck = await shouldHandoff(agent, conversationId, message)
+                        } catch (error) {
+                                await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
+                                captureError('chat-engine:handoff-check', error, {
+                                        workspaceId,
+                                        metadata: { agentId: agent.id, conversationId },
+                                })
+                                send({ type: 'error', error: 'PREPARATION_FAILED' })
+                                controller.close()
+                                return
+                        }
                         if (handoffCheck.handoff) {
+				await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                                 const handoffText = handoffReplyText(handoffCheck, agent)
                                 send({ type: 'delta', text: handoffText })
                                 const persisted = await persistHandoff({
@@ -429,9 +439,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
                         let full = ''
                         let usage: ChatUsage | null = null
+                        let providerFailed = false
                         try {
                                 for await (const delta of streamChat({
-                                        key,
                                         model,
                                         messages,
                                         temperature: agent.temperature,
@@ -444,6 +454,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         send({ type: 'delta', text: delta })
                                 }
                         } catch (e) {
+				providerFailed = true
                                 captureError('chat-engine:stream', e, {
                                         workspaceId,
                                         metadata: { agentId: agent.id, model, conversationId },
@@ -455,6 +466,23 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 send({ type: 'error', error: 'STREAM_FAILED' })
                         }
 
+                        // A 2xx provider response with no content is not a
+                        // successful reply and must not consume reply credit.
+                        if (!providerFailed && !full.trim()) {
+                                providerFailed = true
+                                full = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
+                                send({ type: 'delta', text: full })
+                                send({ type: 'error', error: 'EMPTY_RESPONSE' })
+                        }
+
+			if (providerFailed) {
+				await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
+			} else {
+				await captureChatCredit(reservation, usage).catch((e) =>
+					console.error('[chat-engine] credit capture failed:', e),
+				)
+			}
+
                         // Persist assistant reply and update conversation counters.
                         try {
                                 const { messageId } = await persistAssistantTurn({
@@ -464,7 +492,6 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         model,
                                         userMessage: message,
                                         reply: full,
-                                        usage,
                                 })
                                 send({ type: 'done', messageId })
                         } catch (e) {
@@ -474,13 +501,18 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
                         controller.close()
                 },
+                cancel() {
+                        // Idempotent: if capture/release already happened this is a no-op.
+                        void releaseChatCredit(reservation, 'Client disconnected before completion').catch(() => {})
+                },
         })
 
         return { conversationId, stream }
 }
 
 export type GenerateReplyResult =
-        | { error: 'NO_KEY' }
+        | { error: 'AI_UNAVAILABLE' }
+        | { error: 'NO_CREDIT' }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; reply: string }
 
@@ -496,11 +528,18 @@ export async function generateReply(
 
         const prep = await prepareTurn(params)
         if ('error' in prep) return prep
-        const { key, model, conversationId, contactName, contactPhone, messages } = prep
+        const { model, reservation, conversationId, contactName, contactPhone, messages } = prep
 
-        // Smart handoff: check before calling AI
-        const handoffCheck = await shouldHandoff(agent, conversationId, message)
+        // Smart handoff: check before calling AI.
+        let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
+        try {
+                handoffCheck = await shouldHandoff(agent, conversationId, message)
+        } catch (error) {
+                await releaseChatCredit(reservation, 'Handoff policy check failed').catch(() => {})
+                throw error
+        }
         if (handoffCheck.handoff) {
+		await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                 const reply = handoffReplyText(handoffCheck, agent)
                 await persistHandoff({
                         workspaceId,
@@ -518,9 +557,9 @@ export async function generateReply(
 
         let reply = ''
         let usage: ChatUsage | null = null
+        let providerFailed = false
         try {
                 const result = await chatCompletion({
-                        key,
                         model,
                         messages,
                         temperature: agent.temperature,
@@ -529,14 +568,25 @@ export async function generateReply(
                 reply = result.content.trim()
                 usage = result.usage
         } catch (e) {
+		providerFailed = true
                 captureError('chat-engine:completion', e, {
                         workspaceId,
                         metadata: { agentId: agent.id, model, conversationId },
                 })
         }
         if (!reply) {
+                // Empty provider content is a failed reply for billing purposes.
+                providerFailed = true
                 reply = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
         }
+
+	if (providerFailed) {
+		await releaseChatCredit(reservation, 'Provider completion failed').catch(() => {})
+	} else {
+		await captureChatCredit(reservation, usage).catch((e) =>
+			console.error('[chat-engine] credit capture failed:', e),
+		)
+	}
 
         try {
                 await persistAssistantTurn({
@@ -546,7 +596,6 @@ export async function generateReply(
                         model,
                         userMessage: message,
                         reply,
-                        usage,
                 })
         } catch (e) {
                 console.error('[chat-engine] persist error:', e)

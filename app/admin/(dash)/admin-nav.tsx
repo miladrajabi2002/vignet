@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Database,
   ExternalLink,
+  BrainCircuit,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'داشبورد', icon: LayoutDashboard, exact: true },
   { href: '/admin/users', label: 'کاربران', icon: Users },
   { href: '/admin/revenue', label: 'درآمد و گزارش‌ها', icon: TrendingUp },
+  { href: '/admin/ai', label: 'هوش مصنوعی و هزینه', icon: BrainCircuit },
   { href: '/admin/payments', label: 'فاکتورها و پرداخت‌ها', icon: CreditCard },
   { href: '/admin/conversations', label: 'مکالمات', icon: MessagesSquare },
   { href: '/admin/agents', label: 'ایجنت‌ها و کانال‌ها', icon: Bot },

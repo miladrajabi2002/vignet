@@ -47,6 +47,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: name || 'کسب‌وکار من',
               slug: generateSlug(),
               trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              aiCreditBalanceIRR: (() => {
+                const value = Number(process.env.AI_TRIAL_CREDIT_IRR)
+                return Number.isFinite(value) && value >= 0 ? Math.round(value) : 100_000
+              })(),
             },
           })
           user = await prisma.user.create({

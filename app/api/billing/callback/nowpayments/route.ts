@@ -4,7 +4,7 @@ import {
   verifyNowPaymentsIpn,
   NOWPAYMENTS_PAID_STATUSES,
 } from '@/lib/billing/nowpayments'
-import { activateSubscription } from '@/lib/billing/entitlements'
+import { activateSubscriptionPayment } from '@/lib/billing/entitlements'
 import { isPaidPlan } from '@/lib/billing/plans'
 import type { Prisma } from '@prisma/client'
 
@@ -39,7 +39,15 @@ export async function POST(req: Request) {
 
   const payment = await prisma.payment.findUnique({
     where: { id: orderId },
-    select: { id: true, workspaceId: true, gateway: true, plan: true, amount: true, status: true },
+    select: {
+      id: true,
+      workspaceId: true,
+      gateway: true,
+      kind: true,
+      plan: true,
+      amount: true,
+      status: true,
+    },
   })
   if (!payment || payment.gateway !== 'NOWPAYMENTS') {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
@@ -49,26 +57,37 @@ export async function POST(req: Request) {
   if (payment.status === 'PAID') return NextResponse.json({ ok: true })
 
   if ((NOWPAYMENTS_PAID_STATUSES as readonly string[]).includes(status)) {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
+    if (
+      payment.kind !== 'SUBSCRIPTION' ||
+      !payment.plan ||
+      !isPaidPlan(payment.plan) ||
+      (body.price_amount != null && Math.abs(body.price_amount - payment.amount) > 0.01)
+    ) {
+      await prisma.payment.updateMany({
+        where: { id: payment.id, status: 'PENDING' },
+        data: {
+          status: 'FAILED',
+          callbackPayload: JSON.parse(rawBody) as Prisma.InputJsonValue,
+        },
+      })
+      return NextResponse.json({ error: 'PAYMENT_MISMATCH' }, { status: 400 })
+    }
+    await activateSubscriptionPayment({
+      paymentId: payment.id,
+      workspaceId: payment.workspaceId,
+      plan: payment.plan,
+      monthlyPrice: payment.amount,
+      currency: 'USD',
+      paymentUpdate: {
         status: 'PAID',
         paidAt: new Date(),
         externalId: body.payment_id != null ? String(body.payment_id) : undefined,
         callbackPayload: JSON.parse(rawBody) as Prisma.InputJsonValue,
       },
     })
-    if (isPaidPlan(payment.plan)) {
-      await activateSubscription({
-        workspaceId: payment.workspaceId,
-        plan: payment.plan,
-        monthlyPrice: payment.amount,
-        currency: 'USD',
-      })
-    }
   } else if (status === 'failed' || status === 'refunded' || status === 'expired') {
-    await prisma.payment.update({
-      where: { id: payment.id },
+    await prisma.payment.updateMany({
+      where: { id: payment.id, status: 'PENDING' },
       data: {
         status: status === 'expired' ? 'EXPIRED' : 'FAILED',
         callbackPayload: JSON.parse(rawBody) as Prisma.InputJsonValue,

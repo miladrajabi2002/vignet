@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, useReducedMotion } from 'framer-motion'
 
 /**
  * SocialProof — a quiet numbers strip right under the hero.
@@ -25,9 +25,14 @@ const STATS: { key: 'conversations' | 'businesses' | 'agents'; value: number }[]
 function CountUp({ to, play, duration = 1400 }: { to: number; play: boolean; duration?: number }) {
 	const [val, setVal] = useState(0)
 	const locale = useLocale()
+	const reduce = useReducedMotion()
 
 	useEffect(() => {
 		if (!play) return
+		if (reduce) {
+			setVal(to)
+			return
+		}
 		let raf: number
 		const start = performance.now()
 		const tick = (now: number) => {
@@ -37,13 +42,14 @@ function CountUp({ to, play, duration = 1400 }: { to: number; play: boolean; dur
 		}
 		raf = requestAnimationFrame(tick)
 		return () => cancelAnimationFrame(raf)
-	}, [to, duration, play])
+	}, [to, duration, play, reduce])
 
 	return <>{val.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}+</>
 }
 
 export function SocialProof() {
 	const t = useTranslations('marketing.stats')
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const ref = useRef<HTMLDivElement>(null)
 	const inView = useInView(ref, { once: true, margin: '-40px' })
 
@@ -51,7 +57,7 @@ export function SocialProof() {
 	if (visible.length === 0) return null
 
 	return (
-		<section aria-label="stats" className="border-y border-[var(--border-default)] bg-[var(--bg-base)]">
+		<section aria-label={locale === 'fa' ? 'آمار ویجنت' : 'Vigent statistics'} className="border-y border-[var(--border-default)] bg-[var(--bg-base)]">
 			<div
 				ref={ref}
 				className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-0 gap-y-6 px-6 py-10"

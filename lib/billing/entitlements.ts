@@ -3,7 +3,7 @@ import { getRedis } from '@/lib/redis'
 import { getPlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
-import type { Plan } from '@prisma/client'
+import type { Plan, Prisma } from '@prisma/client'
 
 /**
  * Single place that answers "may this workspace do X?".
@@ -19,7 +19,7 @@ function monthKey(): string {
 }
 
 /**
- * Count assistant replies this calendar month (one UsageLog CHAT row per
+ * Count captured assistant replies this calendar month (one UsageLog CHAT row per
  * turn). DB is the source of truth; a short Redis cache keeps the hot chat
  * path from re-counting on every message.
  */
@@ -36,7 +36,7 @@ export async function getMonthlyMessageCount(workspaceId: string): Promise<numbe
   monthStart.setUTCDate(1)
   monthStart.setUTCHours(0, 0, 0, 0)
   const count = await prisma.usageLog.count({
-    where: { workspaceId, type: 'CHAT', date: { gte: monthStart } },
+    where: { workspaceId, type: 'CHAT', status: 'CAPTURED', date: { gte: monthStart } },
   })
 
   try {
@@ -51,7 +51,7 @@ export async function getMonthlyMessageCount(workspaceId: string): Promise<numbe
  * Gate an inbound chat message. Blocks when:
  *  - TRIAL workspace past `trialEndsAt`
  *  - paid plan without an ACTIVE, unexpired subscription
- *  - monthly message quota exhausted
+ *  - the plan's private monthly abuse/safety ceiling is exhausted
  */
 export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
   const ws = await prisma.workspace.findUnique({
@@ -107,10 +107,25 @@ export async function activateSubscription(params: {
   monthlyPrice: number
   currency: 'IRR' | 'USD'
 }): Promise<void> {
+  const currentPeriodEnd = await prisma.$transaction((tx) => persistSubscription(tx, params))
+  await sendPurchaseConfirmation(params.workspaceId, params.plan, currentPeriodEnd)
+}
+
+type SubscriptionActivation = {
+  workspaceId: string
+  plan: PaidPlan
+  monthlyPrice: number
+  currency: 'IRR' | 'USD'
+}
+
+async function persistSubscription(
+  tx: Prisma.TransactionClient,
+  params: SubscriptionActivation,
+): Promise<Date> {
   const { workspaceId, plan, monthlyPrice, currency } = params
   const now = new Date()
 
-  const existing = await prisma.subscription.findUnique({
+  const existing = await tx.subscription.findUnique({
     where: { workspaceId },
     select: { plan: true, status: true, currentPeriodEnd: true },
   })
@@ -125,8 +140,7 @@ export async function activateSubscription(params: {
       : now
   const currentPeriodEnd = new Date(base.getTime() + PERIOD_DAYS * 24 * 60 * 60 * 1000)
 
-  await prisma.$transaction([
-    prisma.subscription.upsert({
+  await tx.subscription.upsert({
       where: { workspaceId },
       create: {
         workspaceId,
@@ -143,12 +157,19 @@ export async function activateSubscription(params: {
         currency,
         currentPeriodEnd,
       },
-    }),
-    prisma.workspace.update({
+    })
+  await tx.workspace.update({
       where: { id: workspaceId },
       data: { plan: plan as Plan },
-    }),
-  ])
+    })
+  return currentPeriodEnd
+}
+
+async function sendPurchaseConfirmation(
+  workspaceId: string,
+  plan: PaidPlan,
+  currentPeriodEnd: Date,
+): Promise<void> {
 
   // Fire-and-forget purchase-confirmation SMS to the workspace owner. Never
   // throws — a failed SMS must not break the activation that already succeeded.
@@ -167,4 +188,35 @@ export async function activateSubscription(params: {
   } catch (e) {
     captureError('billing:purchase-sms', e, { workspaceId })
   }
+}
+
+/**
+ * Atomically claims a verified subscription payment and activates/extends the
+ * subscription in the same database transaction. Duplicate gateway callbacks
+ * therefore cannot extend the plan twice, and a crash cannot leave a PAID row
+ * without the corresponding subscription update.
+ */
+export async function activateSubscriptionPayment(params: SubscriptionActivation & {
+  paymentId: string
+  paymentUpdate: Prisma.PaymentUpdateManyMutationInput
+}): Promise<boolean> {
+  const currentPeriodEnd = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.payment.updateMany({
+      where: {
+        id: params.paymentId,
+        workspaceId: params.workspaceId,
+        kind: 'SUBSCRIPTION',
+        plan: params.plan,
+        status: 'PENDING',
+      },
+      data: params.paymentUpdate,
+    })
+    if (claimed.count !== 1) return null
+    return persistSubscription(tx, params)
+  })
+
+  if (currentPeriodEnd) {
+    await sendPurchaseConfirmation(params.workspaceId, params.plan, currentPeriodEnd)
+  }
+  return currentPeriodEnd !== null
 }

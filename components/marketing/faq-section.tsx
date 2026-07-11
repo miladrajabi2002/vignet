@@ -88,7 +88,7 @@ export function FaqSection() {
   const columns = [items.slice(0, mid), items.slice(mid)]
 
   return (
-    <section className="bg-white py-20 md:py-28">
+    <section className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -97,16 +97,16 @@ export function FaqSection() {
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+          <span className="marketing-eyebrow">
             {t('eyebrow')}
           </span>
-          <h2 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
+          <h2 className="marketing-heading mx-auto mt-4">
             {t('title')}
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-[var(--text-secondary)]">{t('subtitle')}</p>
+          <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
         </motion.div>
 
-        <div className="mt-14 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
+        <div className="mt-10 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
           {columns.map((col, c) => (
             <div key={c} className="space-y-3 lg:space-y-4">
               {col.map((item, i) => {

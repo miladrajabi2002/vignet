@@ -63,7 +63,11 @@ export async function POST(req: Request) {
   })
 
   if ('error' in result) {
-    const status = result.error === 'PLAN_BLOCKED' ? 402 : 400
+    const status = result.error === 'AI_UNAVAILABLE'
+      ? 503
+      : result.error === 'PLAN_BLOCKED' || result.error === 'NO_CREDIT'
+        ? 402
+        : 400
     return NextResponse.json(
       { error: result.error, ...('reason' in result ? { reason: result.reason } : {}) },
       { status },

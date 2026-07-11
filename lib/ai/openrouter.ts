@@ -1,6 +1,3 @@
-import { prisma } from '@/lib/prisma'
-import { decrypt } from '@/lib/crypto'
-
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 
 export interface ChatMessage {
@@ -8,119 +5,137 @@ export interface ChatMessage {
   content: string
 }
 
-function appHeaders(key: string): Record<string, string> {
+/** Server-only platform credential. It is never read from a Workspace row. */
+export function getPlatformOpenRouterKey(): string | null {
+  const key = process.env.OPENROUTER_API_KEY?.trim()
+  return key ? key : null
+}
+
+function requirePlatformKey(): string {
+  const key = getPlatformOpenRouterKey()
+  if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
+  return key
+}
+
+function appHeaders(): Record<string, string> {
   return {
-    Authorization: `Bearer ${key}`,
+    Authorization: `Bearer ${requirePlatformKey()}`,
     'Content-Type': 'application/json',
-    // OpenRouter attribution headers (recommended).
     'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir',
     'X-Title': 'Vigent',
   }
 }
 
-/**
- * Validate an OpenRouter API key by querying the key info endpoint.
- * Returns true when the key is accepted (HTTP 200).
- */
-export async function validateOpenRouterKey(key: string): Promise<boolean> {
-  if (!key || !key.startsWith('sk-or-')) return false
-  try {
-    const res = await fetch(`${OPENROUTER_BASE}/key`, {
-      headers: { Authorization: `Bearer ${key}` },
-      cache: 'no-store',
-    })
-    return res.ok
-  } catch (e) {
-    console.error('[openrouter] validate error:', e)
-    return false
-  }
+function envBoolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim().toLowerCase()
+  if (!raw) return fallback
+  return raw === '1' || raw === 'true' || raw === 'yes'
 }
 
-/**
- * Decrypt and return a workspace's stored OpenRouter key, or null.
- * Server-only — never expose the decrypted key to the client.
- */
-export async function getWorkspaceOpenRouterKey(
-  workspaceId: string,
-): Promise<string | null> {
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { openrouterKeyEnc: true },
-  })
-  if (!ws?.openrouterKeyEnc) return null
-  try {
-    return decrypt(ws.openrouterKeyEnc)
-  } catch (e) {
-    console.error('[openrouter] decrypt error:', e)
-    return null
+function requestBody(opts: ChatOptions, stream: boolean): Record<string, unknown> {
+  const maxPrice = opts.model.includes('v4-pro')
+    ? { prompt: 1.2, completion: 2.4 }
+    : opts.model.includes('qwen3.5')
+      ? { prompt: 0.2, completion: 1.2 }
+      : { prompt: 0.12, completion: 0.24 }
+  return {
+    model: opts.model,
+    messages: opts.messages,
+    temperature: opts.temperature ?? 0.55,
+    // Hard server-side ceiling: a stale Agent row can no longer request an
+    // 8,000-token completion against the shared platform account.
+    max_tokens: Math.min(Math.max(opts.maxTokens ?? 700, 1), 1200),
+    stream,
+    reasoning: { enabled: false },
+    provider: {
+      sort: process.env.OPENROUTER_PROVIDER_SORT || 'price',
+      data_collection: 'deny',
+      zdr: envBoolean('OPENROUTER_ZDR', true),
+      allow_fallbacks: true,
+      max_price: maxPrice,
+    },
+    ...(stream && opts.onUsage ? { stream_options: { include_usage: true } } : {}),
   }
 }
 
 export interface ChatOptions {
-  key: string
   model: string
   messages: ChatMessage[]
   temperature?: number
   maxTokens?: number
+  onUsage?: (usage: ChatUsage) => void
 }
 
 export interface ChatUsage {
   promptTokens: number
   completionTokens: number
+  reasoningTokens: number
+  cachedTokens: number
+  /** Exact OpenRouter request cost when supplied by the API, in USD. */
+  costUSD: number | null
+  providerRequestId: string | null
 }
 
-/** Non-streaming chat completion. Returns the text + token usage. */
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function firstChoice(json: Record<string, unknown>): Record<string, unknown> {
+  return Array.isArray(json.choices) ? asRecord(json.choices[0]) : {}
+}
+
+function parseUsage(payload: unknown): ChatUsage {
+  const json = asRecord(payload)
+  const usage = asRecord(json.usage)
+  const details = asRecord(usage.completion_tokens_details)
+  const promptDetails = asRecord(usage.prompt_tokens_details)
+  const rawCost = Number(usage.cost)
+  return {
+    promptTokens: Number(usage.prompt_tokens) || 0,
+    completionTokens: Number(usage.completion_tokens) || 0,
+    reasoningTokens: Number(details.reasoning_tokens) || 0,
+    cachedTokens: Number(promptDetails.cached_tokens) || 0,
+    costUSD: Number.isFinite(rawCost) ? rawCost : null,
+    providerRequestId: typeof json.id === 'string' ? json.id : null,
+  }
+}
+
+/** Non-streaming chat completion. Returns text plus exact provider usage. */
 export async function chatCompletion(
   opts: ChatOptions,
 ): Promise<{ content: string; usage: ChatUsage }> {
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
-    headers: appHeaders(opts.key),
-    body: JSON.stringify({
-      model: opts.model,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 1000,
-    }),
+    headers: appHeaders(),
+    body: JSON.stringify(requestBody(opts, false)),
+    signal: AbortSignal.timeout(60_000),
   })
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`OpenRouter chat failed (${res.status}): ${body}`)
+    // Do not persist provider bodies: they may contain request fragments.
+    throw new Error(`OPENROUTER_CHAT_${res.status}`)
   }
-  const json = await res.json()
+  const json = asRecord(await res.json())
+  const message = asRecord(firstChoice(json).message)
   return {
-    content: json.choices?.[0]?.message?.content ?? '',
-    usage: {
-      promptTokens: json.usage?.prompt_tokens ?? 0,
-      completionTokens: json.usage?.completion_tokens ?? 0,
-    },
+    content: typeof message.content === 'string' ? message.content : '',
+    usage: parseUsage(json),
   }
 }
 
-/**
- * Streaming chat completion. Yields content deltas as they arrive by parsing
- * the OpenRouter SSE stream. When `onUsage` is provided, we request usage in
- * the stream (`stream_options.include_usage`) and invoke it with the final
- * token counts so callers can log usage without a second request.
- */
+/** Stream content deltas and report the final token/cost record. */
 export async function* streamChat(
-  opts: ChatOptions & { onUsage?: (usage: ChatUsage) => void },
+  opts: ChatOptions,
 ): AsyncGenerator<string, void, unknown> {
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
-    headers: appHeaders(opts.key),
-    body: JSON.stringify({
-      model: opts.model,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.7,
-      max_tokens: opts.maxTokens ?? 1000,
-      stream: true,
-      ...(opts.onUsage ? { stream_options: { include_usage: true } } : {}),
-    }),
+    headers: appHeaders(),
+    body: JSON.stringify(requestBody(opts, true)),
+    signal: AbortSignal.timeout(90_000),
   })
   if (!res.ok || !res.body) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`OpenRouter stream failed (${res.status}): ${body}`)
+    throw new Error(`OPENROUTER_STREAM_${res.status}`)
   }
 
   const reader = res.body.getReader()
@@ -141,17 +156,13 @@ export async function* streamChat(
       const data = trimmed.slice(5).trim()
       if (data === '[DONE]') return
       try {
-        const json = JSON.parse(data)
-        const delta = json.choices?.[0]?.delta?.content
-        if (delta) yield delta
-        if (json.usage && opts.onUsage) {
-          opts.onUsage({
-            promptTokens: json.usage.prompt_tokens ?? 0,
-            completionTokens: json.usage.completion_tokens ?? 0,
-          })
-        }
+        const parsed: unknown = JSON.parse(data)
+        const json = asRecord(parsed)
+        const delta = asRecord(firstChoice(json).delta).content
+        if (typeof delta === 'string' && delta) yield delta
+        if (json.usage && opts.onUsage) opts.onUsage(parseUsage(json))
       } catch {
-        // Ignore keep-alive comments / partial JSON.
+        // Ignore keep-alive comments and malformed partial chunks.
       }
     }
   }

@@ -34,8 +34,8 @@ export async function POST(req: Request) {
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'TTS_FAILED'
-    if (msg === 'NO_OPENROUTER_KEY') {
-      return NextResponse.json({ error: 'NO_KEY' }, { status: 400 })
+    if (msg === 'PLATFORM_AI_NOT_CONFIGURED') {
+      return NextResponse.json({ error: 'AI_UNAVAILABLE' }, { status: 503 })
     }
     console.error('[voice/tts] failed:', e)
     return NextResponse.json({ error: 'TTS_FAILED' }, { status: 500 })

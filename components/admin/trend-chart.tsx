@@ -57,7 +57,7 @@ export const CHART_COLORS = [
  * is serializable and can be safely passed from a Server Component to this
  * Client Component. Next.js forbids passing functions across the RSC border.
  */
-export type FormatKind = 'number' | 'irr' | 'usd' | 'compact-irr' | 'token'
+export type FormatKind = 'number' | 'irr' | 'rial' | 'usd' | 'compact-irr' | 'token'
 
 /** Internal value formatter — keeps all Persian/IRR/USD logic in one place. */
 function formatValue(v: number, kind: FormatKind = 'number'): string {
@@ -68,7 +68,12 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
       return `${toman.toLocaleString('fa-IR')} تومان`
     }
     case 'usd':
-      return `$${n.toLocaleString('en-US')}`
+      return `$${n.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })}`
+    case 'rial':
+      return `${n.toLocaleString('fa-IR')} ریال`
     case 'compact-irr': {
       const toman = n / 10
       return toman >= 1_000_000
@@ -126,7 +131,7 @@ export function TrendChart({
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Area
                 type="monotone"
@@ -143,7 +148,7 @@ export function TrendChart({
             <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Line
                 type="monotone"
@@ -159,7 +164,7 @@ export function TrendChart({
             <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={false} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} />
               <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
             </BarChart>

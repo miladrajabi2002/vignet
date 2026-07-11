@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import {
   Wallet,
@@ -9,6 +10,9 @@ import {
   CreditCard,
   Repeat,
   Activity,
+  BrainCircuit,
+  CircleDollarSign,
+  Coins,
 } from 'lucide-react'
 import {
   PageHeader,
@@ -44,6 +48,7 @@ import {
   revenueIRRMonthly,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
+import { getAiOverview } from '@/lib/admin/ai-usage'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +117,7 @@ export default async function AdminOverviewPage(
     gateways,
     channels,
     kpiTrends,
+    aiOverview,
   ] = await Promise.all([
     getRevenueKPIs(),
     prisma.workspace.count(),
@@ -151,6 +157,7 @@ export default async function AdminOverviewPage(
     ]).then(([rev, ws, conv, users, err, pays]) => ({
       rev, ws, conv, users, err, pays,
     })),
+    getAiOverview(30),
   ])
 
   return (
@@ -220,6 +227,51 @@ export default async function AdminOverviewPage(
           tone="success"
         />
       </div>
+
+      {/* ─── Platform AI spend ─────────────────────────────────── */}
+      <section aria-labelledby="ai-overview-title">
+        <div className="mb-3 flex items-center gap-2">
+          <BrainCircuit className="h-4 w-4 text-zinc-600" aria-hidden="true" />
+          <h2 id="ai-overview-title" className="text-sm font-semibold text-zinc-900">
+            مصرف هوش مصنوعی — ۳۰ روز اخیر
+          </h2>
+          <Link
+            href="/admin/ai"
+            className="ms-auto inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          >
+            مدیریت و جزئیات
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="هزینه واقعی OpenRouter"
+            value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`}
+            sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه`}
+            icon={<CircleDollarSign className="h-5 w-5" />}
+          />
+          <StatCard
+            label="کسر از اعتبار کاربران"
+            value={fmtIRR(aiOverview.chargedIRR)}
+            sub={`${fa(aiOverview.requests)} پاسخ موفق`}
+            icon={<Wallet className="h-5 w-5" />}
+            tone="success"
+          />
+          <StatCard
+            label="توکن ورودی + خروجی"
+            value={fa(aiOverview.promptTokens + aiOverview.completionTokens)}
+            sub={`${fa(aiOverview.cachedTokens)} توکن کش`}
+            icon={<Coins className="h-5 w-5" />}
+            tone="warning"
+          />
+          <StatCard
+            label="پوشش ثبت هزینه"
+            value={`${fa(aiOverview.requests > 0 ? Math.round((aiOverview.pricedRequests / aiOverview.requests) * 100) : 0)}٪`}
+            sub="سهم پاسخ‌های دارای cost واقعی"
+            icon={<BrainCircuit className="h-5 w-5" />}
+            tone={aiOverview.requests === 0 || aiOverview.pricedRequests / aiOverview.requests >= 0.95 ? 'success' : 'warning'}
+          />
+        </div>
+      </section>
 
       {/* ─── Trends strip: distinct 7-day sparklines ────────────── */}
       {/*    Shows site-wide momentum at a glance: green = progressing,
@@ -348,8 +400,10 @@ export default async function AdminOverviewPage(
                       <span className="truncate text-sm font-medium text-zinc-900">
                         {p.workspace.name}
                       </span>
-                      <Badge tone={PLAN_TONES[p.plan] ?? 'muted'}>
-                        {PLAN_LABELS[p.plan] ?? p.plan}
+                      <Badge tone={p.kind === 'AI_CREDIT' || !p.plan ? 'info' : (PLAN_TONES[p.plan] ?? 'muted')}>
+                        {p.kind === 'AI_CREDIT' || !p.plan
+                          ? 'اعتبار هوش مصنوعی'
+                          : (PLAN_LABELS[p.plan] ?? p.plan)}
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-[11px] text-zinc-400">

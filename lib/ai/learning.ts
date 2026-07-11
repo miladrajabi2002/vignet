@@ -1,10 +1,11 @@
 import {
-  getWorkspaceOpenRouterKey,
+  getPlatformOpenRouterKey,
   chatCompletion,
   type ChatMessage,
 } from '@/lib/ai/openrouter'
 import { retrieveContext } from '@/lib/ai/rag'
 import { resolveModelId } from '@/lib/ai/models'
+import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -22,7 +23,7 @@ export interface DraftAgent {
 }
 
 export type DraftResult =
-  | { error: 'NO_KEY' }
+  | { error: 'AI_UNAVAILABLE' }
   | { answer: string }
 
 /**
@@ -39,14 +40,12 @@ export async function draftAnswer(
   agent: DraftAgent,
   question: string,
 ): Promise<DraftResult> {
-  const key = await getWorkspaceOpenRouterKey(workspaceId)
-  if (!key) return { error: 'NO_KEY' }
+  if (!getPlatformOpenRouterKey()) return { error: 'AI_UNAVAILABLE' }
 
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { defaultModel: true },
-  })
-  const model = resolveModelId(agent.model || ws?.defaultModel || 'deepseek/deepseek-chat')
+  const platformConfig = await getPlatformAiConfig()
+  if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
+  const alias = applyPlatformModelPolicy(agent.model, platformConfig)
+  const model = resolveModelId(alias)
 
   const { contextText } = await retrieveContext({
     workspaceId,
@@ -70,13 +69,27 @@ export async function draftAnswer(
     { role: 'user', content: question },
   ]
 
-  const { content } = await chatCompletion({
-    key,
+  const { content, usage } = await chatCompletion({
     model,
     messages,
     temperature: Math.min(agent.temperature, 0.5), // keep drafts grounded
     maxTokens: 500,
   })
+
+  await prisma.usageLog.create({
+    data: {
+      workspaceId,
+      agentId: agent.id,
+      type: 'LEARNING',
+      model,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      reasoningTokens: usage.reasoningTokens,
+      cachedTokens: usage.cachedTokens,
+      providerRequestId: usage.providerRequestId,
+      cost: usage.costUSD,
+    },
+  }).catch((error) => console.error('[learning] usage log failed:', error))
 
   return { answer: content.trim() }
 }

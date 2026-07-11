@@ -58,7 +58,10 @@ const GATEWAY_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
   NOWPAYMENTS: { tone: 'default', label: 'کریپتو' },
 }
 
-function PlanBadge({ plan }: { plan: string }) {
+function PlanBadge({ plan, kind }: { plan: string | null; kind?: string }) {
+  if (kind === 'AI_CREDIT' || !plan) {
+    return <Badge tone="info">اعتبار هوش مصنوعی</Badge>
+  }
   const cfg = PLAN_BADGE[plan] ?? { tone: 'muted' as BadgeTone, label: plan }
   return <Badge tone={cfg.tone}>{cfg.label}</Badge>
 }
@@ -121,6 +124,7 @@ export default async function AdminWorkspaceDetailPage(
           id: true,
           gateway: true,
           plan: true,
+          kind: true,
           amount: true,
           currency: true,
           status: true,
@@ -291,7 +295,7 @@ export default async function AdminWorkspaceDetailPage(
                     >
                       <div className="flex flex-1 flex-wrap items-center gap-2">
                         <GatewayBadge gateway={p.gateway} />
-                        <PlanBadge plan={p.plan} />
+                        <PlanBadge plan={p.plan} kind={p.kind} />
                         <PaymentStatusBadge status={p.status} />
                       </div>
                       <div className="text-end">

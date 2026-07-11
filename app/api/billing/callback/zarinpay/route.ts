@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyZarinPayPayment } from '@/lib/billing/zarinpay'
-import { activateSubscription } from '@/lib/billing/entitlements'
+import { activateSubscriptionPayment } from '@/lib/billing/entitlements'
 import { isPaidPlan } from '@/lib/billing/plans'
 import type { Prisma } from '@prisma/client'
 
@@ -64,6 +64,7 @@ async function handleCallback(req: Request, isPost: boolean) {
       workspaceId: true,
       gateway: true,
       plan: true,
+      kind: true,
       amount: true,
       status: true,
       authority: true,
@@ -97,24 +98,59 @@ async function handleCallback(req: Request, isPost: boolean) {
     return to('failed')
   }
 
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
+  if (payment.kind === 'AI_CREDIT') {
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'PENDING' },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          externalId: verify.paymentId,
+          callbackPayload: verify.raw as Prisma.InputJsonValue,
+        },
+      })
+      if (claimed.count !== 1) return
+
+      const workspace = await tx.workspace.update({
+        where: { id: payment.workspaceId },
+        data: { aiCreditBalanceIRR: { increment: Math.round(payment.amount) } },
+        select: { aiCreditBalanceIRR: true },
+      })
+      await tx.walletLedger.create({
+        data: {
+          workspaceId: payment.workspaceId,
+          paymentId: payment.id,
+          type: 'CREDIT_TOPUP',
+          amountIRR: Math.round(payment.amount),
+          balanceAfterIRR: workspace.aiCreditBalanceIRR,
+          note: 'ZarinPay AI credit top-up',
+        },
+      })
+    })
+    return to('success')
+  }
+
+  if (payment.kind !== 'SUBSCRIPTION' || !payment.plan || !isPaidPlan(payment.plan)) {
+    await prisma.payment.updateMany({
+      where: { id: payment.id, status: 'PENDING' },
+      data: { status: 'FAILED', callbackPayload: verify.raw as Prisma.InputJsonValue },
+    })
+    return to('failed')
+  }
+
+  await activateSubscriptionPayment({
+    paymentId: payment.id,
+    workspaceId: payment.workspaceId,
+    plan: payment.plan,
+    monthlyPrice: payment.amount,
+    currency: 'IRR',
+    paymentUpdate: {
       status: 'PAID',
       paidAt: new Date(),
       externalId: verify.paymentId,
       callbackPayload: verify.raw as Prisma.InputJsonValue,
     },
   })
-
-  if (isPaidPlan(payment.plan)) {
-    await activateSubscription({
-      workspaceId: payment.workspaceId,
-      plan: payment.plan,
-      monthlyPrice: payment.amount,
-      currency: 'IRR',
-    })
-  }
 
   return to('success')
 }

@@ -13,7 +13,7 @@ interface MicVADInstance {
 }
 
 /**
- * Records microphone audio and transcribes it via /api/voice/stt (Whisper, BYOK).
+ * Records microphone audio and transcribes it via Vigent's managed AI service.
  *
  * Two capture modes:
  *  - default: manual MediaRecorder (click to start, click to stop).

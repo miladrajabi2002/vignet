@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import {
-  KeyRound,
+  SlidersHorizontal,
   Database,
   Rocket,
   Clock,
@@ -137,7 +137,7 @@ const STEPS: {
   descKey: string
   timeKey: string
 }[] = [
-  { icon: KeyRound, titleKey: 'step1Title', descKey: 'step1', timeKey: 'step1Time' },
+  { icon: SlidersHorizontal, titleKey: 'step1Title', descKey: 'step1', timeKey: 'step1Time' },
   { icon: Database, titleKey: 'step2Title', descKey: 'step2', timeKey: 'step2Time' },
   { icon: Rocket, titleKey: 'step3Title', descKey: 'step3', timeKey: 'step3Time' },
 ]
@@ -147,25 +147,25 @@ export function HowItWorks() {
   const tDemo = useTranslations('marketing.demo')
 
   return (
-    <section id="how" className="bg-white py-20 md:py-28">
+    <section id="how" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.6 }}
-          className="text-center"
+          className="mx-auto max-w-3xl text-center"
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+          <span className="marketing-eyebrow">
             {t('eyebrow')}
           </span>
-          <h2 className="mt-6 text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
+          <h2 className="marketing-heading mx-auto mt-4">
             {t('title')}
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-[var(--text-secondary)]">{t('subtitle')}</p>
+          <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
         </motion.div>
 
-        <div className="relative mt-16">
+        <div className="relative mt-10 sm:mt-12">
           {/* Animated connector line that draws as it enters view (LTR & RTL). */}
           <motion.div
             aria-hidden
@@ -229,8 +229,8 @@ export function HowItWorks() {
           className="mt-14 flex justify-center"
         >
           <Link
-            href="/login"
-            className="group inline-flex items-center gap-2 rounded-full border border-[var(--border-hover)] px-6 py-3 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
+            href="/login?next=/onboarding"
+            className="group inline-flex min-h-12 items-center gap-2 rounded-full border border-[var(--border-hover)] px-6 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--white-05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
           >
             {t('cta')}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

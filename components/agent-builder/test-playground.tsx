@@ -62,7 +62,7 @@ export function TestPlayground({
 
                         if (!res.ok || !res.body) {
                                 const data = await res.json().catch(() => ({}))
-                                setError(data.error === 'NO_KEY' ? t('noKey') : t('error'))
+                                setError(data.error === 'NO_CREDIT' ? t('noKey') : t('error'))
                                 setMessages((m) => m.slice(0, -1))
                                 setStreaming(false)
                                 return
@@ -212,7 +212,7 @@ export function TestPlayground({
                                         disabled={streaming}
                                         label={t('record')}
                                         onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
-                                        onError={(code) => setError(code === 'NO_KEY' ? t('noKey') : t('error'))}
+                                        onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
                                 />
                                 <div className="relative flex min-w-0 flex-1 items-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] pe-1 ps-3.5">
                                         <input

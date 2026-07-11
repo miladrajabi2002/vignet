@@ -23,7 +23,7 @@ export interface CatalogProduct {
  * fake "system:" turns). We defang role markers and cap length; the
  * instruction-hierarchy note in buildMessages does the rest.
  */
-function sanitizeUntrusted(text: string, maxLen = 4000): string {
+function sanitizeUntrusted(text: string, maxLen = 2400): string {
   return text
     .replace(new RegExp(String.fromCharCode(0), 'g'), '')
     // A role marker at line start could fake a new chat turn.
@@ -45,7 +45,7 @@ export async function retrieveContext(params: {
       workspaceId: params.workspaceId,
       agentId: params.agentId,
       queryEmbedding,
-      limit: params.limit ?? 5,
+      limit: params.limit ?? 3,
     })
   } catch (e) {
     // If embeddings/retrieval fail (e.g. no key yet), answer without context.
@@ -74,7 +74,7 @@ function buildCatalogBlock(products: CatalogProduct[], isFa: boolean): string {
     const parts: string[] = [`نام: ${p.name}`]
     if (p.price != null) parts.push(`قیمت: ${formatPrice(p.price)}`)
     if (p.category) parts.push(`دسته‌بندی: ${p.category}`)
-    if (p.description) parts.push(`توضیحات: ${p.description.slice(0, 300)}`)
+    if (p.description) parts.push(`توضیحات: ${p.description.slice(0, 160)}`)
     if (p.stock != null) {
       parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
     }

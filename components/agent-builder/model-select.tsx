@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, ChevronDown, Sparkles, Zap, Gem, Gift } from 'lucide-react'
-import { AGENT_MODELS, DEFAULT_MODEL, type ModelTier } from '@/lib/ai/models'
+import { Check, Sparkles, Zap, Gem } from 'lucide-react'
+import { AGENT_MODELS, DEFAULT_MODEL, resolveModelAlias, type ModelTier } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 
 const TIER_ICON: Record<ModelTier, typeof Zap> = {
-  free: Gift,
+  free: Zap,
   economy: Zap,
   balanced: Sparkles,
   premium: Gem,
@@ -49,12 +48,8 @@ export function ModelSelect({
   const locale = useLocale()
   const isFa = locale === 'fa'
 
-  // A custom (non-curated) slug was typed in before.
-  const isCustom = value !== '' && !AGENT_MODELS.some((m) => m.id === value)
-  const [advanced, setAdvanced] = useState(isCustom)
-
   // Empty value == use the default model card.
-  const selectedId = value === '' ? DEFAULT_MODEL : value
+  const selectedId = value === '' ? DEFAULT_MODEL : resolveModelAlias(value)
 
   return (
     <div className="space-y-3">
@@ -62,7 +57,7 @@ export function ModelSelect({
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {AGENT_MODELS.map((m) => {
-          const on = !advanced && selectedId === m.id
+          const on = selectedId === m.id
           const isDefault = m.id === DEFAULT_MODEL
           const Icon = TIER_ICON[m.tier]
           return (
@@ -70,7 +65,6 @@ export function ModelSelect({
               type="button"
               key={m.id}
               onClick={() => {
-                setAdvanced(false)
                 // Selecting the default model stores '' so the agent keeps
                 // inheriting the workspace default.
                 onChange(isDefault ? '' : m.id)
@@ -92,11 +86,6 @@ export function ModelSelect({
                     {t('default')}
                   </span>
                 )}
-                {m.tier === 'free' && (
-                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
-                    {t('free')}
-                  </span>
-                )}
                 <span
                   className={cn(
                     'ms-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
@@ -112,33 +101,20 @@ export function ModelSelect({
               <div className="flex items-center gap-3">
                 <Meter value={m.quality} label={t('quality')} />
                 <Meter value={m.cost} label={t('cost')} />
+                <span className="ms-auto text-[10px] font-medium text-emerald-700">
+                  {(m.replyPriceIRR / 10).toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'تومان / پاسخ' : 'toman / reply'}
+                </span>
               </div>
             </button>
           )
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setAdvanced((a) => !a)}
-        className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
-      >
-        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', advanced && 'rotate-180')} />
-        {t('advanced')}
-      </button>
-
-      {advanced && (
-        <div className="space-y-1">
-          <input
-            dir="ltr"
-            value={isCustom ? value : ''}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="provider/model-name"
-            className="input font-mono text-sm"
-          />
-          <p className="text-xs text-[var(--text-muted)]">{t('customHint')}</p>
-        </div>
-      )}
+      <p className="text-xs leading-5 text-[var(--text-muted)]">
+        {isFa
+          ? 'هزینه فقط برای پاسخ موفق از اعتبار شما کم می‌شود؛ کلید و زیرساخت هوش مصنوعی را ویجنت مدیریت می‌کند.'
+          : 'You are charged only for successful replies; Vigent manages the AI key and infrastructure.'}
+      </p>
     </div>
   )
 }

@@ -54,7 +54,10 @@ const STATUS_BADGE: Record<
   EXPIRED: { tone: 'muted', label: 'منقضی' },
 }
 
-function PlanBadge({ plan }: { plan: string }) {
+function PlanBadge({ plan, kind }: { plan: string | null; kind?: string }) {
+  if (kind === 'AI_CREDIT' || !plan) {
+    return <Badge tone="info">اعتبار هوش مصنوعی</Badge>
+  }
   const cfg = PLAN_BADGE[plan] ?? { tone: 'muted' as const, label: plan }
   return <Badge tone={cfg.tone}>{cfg.label}</Badge>
 }
@@ -192,7 +195,7 @@ export default async function AdminPaymentDetailPage(
                 <GatewayBadge gateway={payment.gateway} />
               </KV>
               <KV label="پلن">
-                <PlanBadge plan={payment.plan} />
+                <PlanBadge plan={payment.plan} kind={payment.kind} />
               </KV>
               <KV label="مبلغ">
                 <span className="tabular-nums">{amountDisplay}</span>

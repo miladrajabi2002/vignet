@@ -10,7 +10,6 @@ import {
         Headset,
         UserCheck,
         ShoppingCart,
-        KeyRound,
         Cpu,
         CreditCard,
         MessageCircle,
@@ -42,10 +41,10 @@ export const DOCS_NAV: DocNavItem[] = [
                 title: { fa: 'شروع به کار', en: 'Getting started' },
         },
         {
-                slug: 'why-openrouter',
-                href: '/docs/why-openrouter',
-                icon: KeyRound,
-                title: { fa: 'چرا اپن‌روتر؟', en: 'Why OpenRouter?' },
+                slug: 'managed-ai',
+                href: '/docs/managed-ai',
+                icon: Cpu,
+                title: { fa: 'هوش مصنوعی و هزینه‌ها', en: 'Managed AI & costs' },
         },
         {
                 slug: 'agents',

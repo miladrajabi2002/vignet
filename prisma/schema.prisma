@@ -17,15 +17,16 @@ model Workspace {
   slug                String    @unique
   plan                Plan      @default(TRIAL)
   trialEndsAt         DateTime?
-  openrouterKeyEnc    String?
-  openrouterKeyHint   String?
-  defaultModel        String    @default("deepseek/deepseek-chat")
-  defaultEmbedModel   String    @default("text-embedding-3-small")
+  defaultModel        String    @default("fast")
+  defaultEmbedModel   String    @default("openai/text-embedding-3-small")
   defaultTtsVoice     String    @default("alloy")
   language            String    @default("fa")
+  // Prepaid successful-reply credit. Values are integer Iranian rials.
+  aiCreditBalanceIRR  Int       @default(100000)
+  aiCreditReservedIRR Int       @default(0)
   // Email for the (upcoming) weekly business report — collected in settings.
   reportEmail         String?
-  onboardingStep      Int       @default(0) // 0-5, tracks activation checklist
+  onboardingStep      Int       @default(0) // 0-4, tracks activation checklist
   onboardingCompleted Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -45,6 +46,7 @@ model Workspace {
   storeIntegrations StoreIntegration[]
   handoffAlerts     HandoffAlert[]
   payments          Payment[]
+  walletEntries     WalletLedger[]
   chatLinks         ChatLink[]
 
   @@index([slug])
@@ -133,18 +135,18 @@ model Agent {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
-  channels        AgentChannel[]
-  knowledgeBases  KnowledgeBase[]
-  conversations   Conversation[]
-  knowledgeChunks KnowledgeChunk[]
-  catalogItems    AgentCatalog[]
-  versions        AgentVersion[]
-  handoffAlerts   HandoffAlert[]
-  chatLink        ChatLink?
-  instagramAutomations         InstagramAutomation[]
-  instagramFollowGates         InstagramFollowGate[]
-  instagramAutomationSettings  InstagramAutomationSettings?
+  workspace                   Workspace                    @relation(fields: [workspaceId], references: [id])
+  channels                    AgentChannel[]
+  knowledgeBases              KnowledgeBase[]
+  conversations               Conversation[]
+  knowledgeChunks             KnowledgeChunk[]
+  catalogItems                AgentCatalog[]
+  versions                    AgentVersion[]
+  handoffAlerts               HandoffAlert[]
+  chatLink                    ChatLink?
+  instagramAutomations        InstagramAutomation[]
+  instagramFollowGates        InstagramFollowGate[]
+  instagramAutomationSettings InstagramAutomationSettings?
 
   @@index([workspaceId])
 }
@@ -278,25 +280,25 @@ model AgentCatalog {
 
 // ─── KNOWLEDGE BASE ───────────────────────────────────────────────
 model KnowledgeBase {
-  id          String   @id @default(cuid())
-  agentId     String
-  workspaceId String
-  name        String
-  type        KBType
-  sourceUrl   String?
-  fileKey     String?
-  fileName    String?
-  fileSize    Int?
-  status      KBStatus @default(PENDING)
-  chunkCount  Int      @default(0)
-  errorMsg    String?
+  id                   String    @id @default(cuid())
+  agentId              String
+  workspaceId          String
+  name                 String
+  type                 KBType
+  sourceUrl            String?
+  fileKey              String?
+  fileName             String?
+  fileSize             Int?
+  status               KBStatus  @default(PENDING)
+  chunkCount           Int       @default(0)
+  errorMsg             String?
   // ─ F4: freshness tracking. For URL sources, lastIngestedAt records when the
   //   content was last re-fetched and re-embedded. refreshIntervalHours controls
   //   the automatic re-crawl cadence (0 = manual only).
   lastIngestedAt       DateTime?
-  refreshIntervalHours Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  refreshIntervalHours Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   agent  Agent            @relation(fields: [agentId], references: [id])
   chunks KnowledgeChunk[]
@@ -341,39 +343,39 @@ model KnowledgeChunk {
 
 // ─── CONTACT (CRM) ────────────────────────────────────────────────
 model Contact {
-  id          String   @id @default(cuid())
-  workspaceId String
-  name        String?
-  phone       String?
-  telegramId  String?
-  whatsappId  String?
-  instagramId String?
-  rubikaId    String?
-  baleId      String?
-  tags        String[]
-  stage       String   @default("lead")
-  notes       String?  @db.Text
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  name               String?
+  phone              String?
+  telegramId         String?
+  whatsappId         String?
+  instagramId        String?
+  rubikaId           String?
+  baleId             String?
+  tags               String[]
+  stage              String    @default("lead")
+  notes              String?   @db.Text
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   // ─ Denormalized "last activity" timestamp, bumped on every inbound/AI/
   //   operator message across this contact's conversations. Drives the
   //   "آخرین فعالیت" column on the contacts list (previously we showed
   //   `updatedAt`, which only changes when the contact row itself is mutated —
   //   so it reported stale times even when messages were flowing).
-  lastActivityAt DateTime?
+  lastActivityAt     DateTime?
   // ─ Per-channel profile data captured from inbound webhooks + profile fetches.
   //   Stored best-effort (backfilled when empty); null when the platform doesn't
   //   expose it (e.g. WhatsApp customer avatars aren't available via the API).
-  telegramUsername  String?
-  telegramAvatarUrl String?
-  baleUsername      String?
-  baleAvatarUrl     String?
-  rubikaUsername    String?
-  rubikaAvatarUrl   String?
-  whatsappName      String?
-  whatsappAvatarUrl String?
-  instagramUsername String?
+  telegramUsername   String?
+  telegramAvatarUrl  String?
+  baleUsername       String?
+  baleAvatarUrl      String?
+  rubikaUsername     String?
+  rubikaAvatarUrl    String?
+  whatsappName       String?
+  whatsappAvatarUrl  String?
+  instagramUsername  String?
   instagramAvatarUrl String?
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id])
@@ -387,35 +389,35 @@ model Contact {
 
 // ─── CONVERSATION ─────────────────────────────────────────────────
 model Conversation {
-  id            String      @id @default(cuid())
-  workspaceId   String
-  agentId       String
-  contactId     String?
-  channel       ChannelType
-  externalId    String?
-  status        ConvStatus  @default(OPEN)
-  handedOff     Boolean     @default(false)
-  variant       String? // A/B experiment variant served to this conversation ('A' | 'B')
-  rating        Int?
-  summary       String?     @db.Text
-  messageCount  Int         @default(0)
-  lastMessageAt DateTime?
+  id                String      @id @default(cuid())
+  workspaceId       String
+  agentId           String
+  contactId         String?
+  channel           ChannelType
+  externalId        String?
+  status            ConvStatus  @default(OPEN)
+  handedOff         Boolean     @default(false)
+  variant           String? // A/B experiment variant served to this conversation ('A' | 'B')
+  rating            Int?
+  summary           String?     @db.Text
+  messageCount      Int         @default(0)
+  lastMessageAt     DateTime?
   // ─ F3: customer identification state. 'pending' until the contact has given
   //   their name+phone; 'collected' once captured. 'skipped' for channels where
   //   the platform identity is already trusted (messenger bots).
-  customerInfoState String  @default("pending")
+  customerInfoState String      @default("pending")
   identifiedAt      DateTime?
   // ─ Channel-automation flags. Currently used by the Instagram automation
   //   engine to mark a conversation as "AI paused" (e.g. when a STOP_AI scenario
   //   matches, or when an operator wants only scenarios to reply). Shape:
   //   { aiPaused?: boolean, pausedAt?: string, pausedBy?: string }
   metadata          Json?
-  createdAt     DateTime    @default(now())
+  createdAt         DateTime    @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
-  agent     Agent     @relation(fields: [agentId], references: [id])
-  contact   Contact?  @relation(fields: [contactId], references: [id])
-  messages  Message[]
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  agent         Agent          @relation(fields: [agentId], references: [id])
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  messages      Message[]
   handoffAlerts HandoffAlert[]
 
   @@unique([agentId, channel, externalId])
@@ -449,8 +451,8 @@ model Message {
   parentId       String?
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
-  parent        Message?     @relation("MessageReplies", fields: [parentId], references: [id])
-  replies       Message[]    @relation("MessageReplies")
+  parent       Message?     @relation("MessageReplies", fields: [parentId], references: [id])
+  replies      Message[]    @relation("MessageReplies")
 
   @@index([conversationId])
   @@index([parentId])
@@ -470,20 +472,33 @@ enum ContentType {
 
 // ─── USAGE LOG ────────────────────────────────────────────────────
 model UsageLog {
-  id               String   @id @default(cuid())
-  workspaceId      String
-  agentId          String?
-  date             DateTime @default(now())
-  conversationId   String?
-  promptTokens     Int      @default(0)
-  completionTokens Int      @default(0)
-  model            String?
-  cost             Float?
-  type             LogType
+  id                String      @id @default(cuid())
+  workspaceId       String
+  agentId           String?
+  date              DateTime    @default(now())
+  conversationId    String?
+  promptTokens      Int         @default(0)
+  completionTokens  Int         @default(0)
+  reasoningTokens   Int         @default(0)
+  cachedTokens      Int         @default(0)
+  model             String?
+  providerRequestId String?
+  cost              Float?
+  chargedIRR        Int         @default(0)
+  status            UsageStatus @default(CAPTURED)
+  idempotencyKey    String?     @unique
+  type              LogType
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  walletEntries WalletLedger[]
 
   @@index([workspaceId, date])
+}
+
+enum UsageStatus {
+  RESERVED
+  CAPTURED
+  RELEASED
 }
 
 enum LogType {
@@ -491,6 +506,8 @@ enum LogType {
   EMBEDDING
   TTS
   STT
+  SUMMARY
+  LEARNING
 }
 
 // ─── SUBSCRIPTION ─────────────────────────────────────────────────
@@ -515,26 +532,33 @@ enum SubStatus {
 
 // ─── PAYMENT (gateway transactions: ZarinPay rial / NowPayments crypto) ──
 model Payment {
-  id          String        @id @default(cuid())
-  workspaceId String
-  gateway     PaymentGateway
-  plan        Plan
-  amount      Float // in `currency` units (IRR for ZarinPay, USD for NowPayments)
-  currency    String // 'IRR' | 'USD'
-  status      PaymentStatus @default(PENDING)
+  id              String         @id @default(cuid())
+  workspaceId     String
+  gateway         PaymentGateway
+  plan            Plan?
+  kind            PaymentKind    @default(SUBSCRIPTION)
+  amount          Float // in `currency` units (IRR for ZarinPay, USD for NowPayments)
+  currency        String // 'IRR' | 'USD'
+  status          PaymentStatus  @default(PENDING)
   // Gateway handle used to verify: ZarinPay `authority`, NowPayments order/invoice id.
-  authority   String?       @unique
+  authority       String?        @unique
   // Gateway-side transaction/payment id captured on verification.
-  externalId  String?
+  externalId      String?
   // Raw verify/IPN payload kept for dispute debugging.
   callbackPayload Json?
-  createdAt   DateTime      @default(now())
-  paidAt      DateTime?
+  createdAt       DateTime       @default(now())
+  paidAt          DateTime?
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  walletEntry WalletLedger?
 
   @@index([workspaceId, createdAt])
   @@index([status])
+}
+
+enum PaymentKind {
+  SUBSCRIPTION
+  AI_CREDIT
 }
 
 enum PaymentGateway {
@@ -547,6 +571,43 @@ enum PaymentStatus {
   PAID
   FAILED
   EXPIRED
+}
+
+model WalletLedger {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  usageLogId      String?
+  paymentId       String?         @unique
+  type            WalletEntryType
+  // Signed integer IRR: top-ups/refunds are positive; AI charges are negative.
+  amountIRR       Int
+  balanceAfterIRR Int
+  note            String?
+  createdAt       DateTime        @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  usageLog  UsageLog? @relation(fields: [usageLogId], references: [id], onDelete: SetNull)
+  payment   Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([usageLogId])
+}
+
+enum WalletEntryType {
+  CREDIT_TOPUP
+  AI_CHARGE
+  AI_REFUND
+  ADMIN_ADJUSTMENT
+}
+
+// Singleton runtime policy for the platform-owned AI account. Secrets remain
+// in environment variables; this table stores only safe aliases and budgets.
+model PlatformAiSettings {
+  id               String   @id @default("primary")
+  defaultModel     String   @default("fast")
+  enabledModels    String[] @default(["fast", "balanced", "premium"])
+  monthlyBudgetUSD Float?
+  updatedAt        DateTime @updatedAt
 }
 
 // ─── NOTIFICATION (in-app bell; may also fan out to email/SMS) ────────
@@ -658,9 +719,9 @@ enum BlogStatus {
 model OperatorChannel {
   id             String   @id @default(cuid())
   workspaceId    String   @unique // one operator bot per workspace for now
-  botToken       String   // encrypted at rest by the app layer (lib/crypto)
-  operatorChatId String?  // Telegram chat id where handoff alerts are sent
-  botUsername    String?  // @username of the bot, shown to operators for /start
+  botToken       String // encrypted at rest by the app layer (lib/crypto)
+  operatorChatId String? // Telegram chat id where handoff alerts are sent
+  botUsername    String? // @username of the bot, shown to operators for /start
   active         Boolean  @default(true)
   lastError      String?
   createdAt      DateTime @default(now())
@@ -674,25 +735,25 @@ model OperatorChannel {
 //   human. Carries the snapshot of customer identity + conversation summary so
 //   the operator has everything in one place without re-reading the whole thread.
 model HandoffAlert {
-  id             String   @id @default(cuid())
-  workspaceId    String
-  conversationId String
-  agentId        String
+  id                String      @id @default(cuid())
+  workspaceId       String
+  conversationId    String
+  agentId           String
   // Snapshot at handoff time — the contact's name/phone (if collected) and a
   // one-line summary so the operator can triage without opening the thread.
-  contactName    String?
-  contactPhone   String?
-  channel        ChannelType
-  reason         String?  @db.Text // keyword match, repeated fallbacks, manual
-  summary        String?  @db.Text
+  contactName       String?
+  contactPhone      String?
+  channel           ChannelType
+  reason            String?     @db.Text // keyword match, repeated fallbacks, manual
+  summary           String?     @db.Text
   // 'open' = awaiting operator; 'claimed' = operator opened it; 'resolved' = done
-  state          String   @default("open")
-  claimedBy      String?  // operator user id (future)
+  state             String      @default("open")
+  claimedBy         String? // operator user id (future)
   // Telegram message id of the alert we sent to the operator bot, so a later
   // operator reply in Telegram can be correlated back to this conversation.
   externalMessageId String?
-  createdAt      DateTime @default(now())
-  resolvedAt     DateTime?
+  createdAt         DateTime    @default(now())
+  resolvedAt        DateTime?
 
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -709,26 +770,26 @@ model HandoffAlert {
 //   into the workspace's catalog and a dedicated orders table so the agent can
 //   answer "where is my order?" with live data.
 model StoreIntegration {
-  id           String   @id @default(cuid())
-  workspaceId  String
-  type         StoreType
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  type                StoreType
   // For WooCommerce: store base URL (e.g. https://shop.example.com)
-  storeUrl     String
+  storeUrl            String
   // API credentials (consumer key/secret for Woo REST, or a webhook signing secret)
   // encrypted at rest by the app layer.
-  credentials  Json
+  credentials         Json
   // HMAC secret used to verify inbound webhook pushes from the store plugin.
-  webhookSecret String?
+  webhookSecret       String?
   // Polling cadence for the fallback sync (minutes). 0 = webhook only.
-  pollIntervalMinutes Int @default(30)
-  lastSyncAt   DateTime?
-  lastSyncStatus String? // 'ok' | 'error'
-  lastSyncError String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  pollIntervalMinutes Int       @default(30)
+  lastSyncAt          DateTime?
+  lastSyncStatus      String? // 'ok' | 'error'
+  lastSyncError       String?
+  active              Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orders    StoreOrder[]
   syncLogs  StoreSyncLog[]
 
@@ -745,29 +806,29 @@ enum StoreType {
 //   Lightweight mirror of an external order so the agent can answer order-status
 //   questions. Updated by webhook push (plugin) and periodic poll (fallback).
 model StoreOrder {
-  id            String   @id @default(cuid())
-  integrationId String
-  workspaceId   String
+  id              String    @id @default(cuid())
+  integrationId   String
+  workspaceId     String
   // The order number/id from the external store (e.g. Woo order #1234).
   externalOrderId String
   // Customer reference (matched to a Contact when possible by phone/email).
-  contactId     String?
-  customerName  String?
-  customerPhone String?
-  customerEmail String?
-  status        String   // 'pending' | 'processing' | 'on-hold' | 'completed' | 'cancelled' | 'refunded' | 'failed'
-  total         Float
-  currency      String   @default("IRR")
-  itemCount     Int      @default(0)
+  contactId       String?
+  customerName    String?
+  customerPhone   String?
+  customerEmail   String?
+  status          String // 'pending' | 'processing' | 'on-hold' | 'completed' | 'cancelled' | 'refunded' | 'failed'
+  total           Float
+  currency        String    @default("IRR")
+  itemCount       Int       @default(0)
   // Short line-item summary for the agent (e.g. "2× T-shirt, 1× Cap")
-  itemsSummary  String?  @db.Text
-  paymentMethod String?
-  shippingMethod String?
-  trackingCode  String?
+  itemsSummary    String?   @db.Text
+  paymentMethod   String?
+  shippingMethod  String?
+  trackingCode    String?
   // ISO date strings from the store
-  orderDate     DateTime?
-  updatedAt     DateTime?
-  createdAt     DateTime @default(now())
+  orderDate       DateTime?
+  updatedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   integration StoreIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
@@ -784,9 +845,9 @@ model StoreSyncLog {
   id            String   @id @default(cuid())
   integrationId String
   workspaceId   String
-  direction     String   // 'push' (webhook from store) | 'poll' (we fetched)
-  entity        String   // 'products' | 'orders' | 'product_update' | 'order_update'
-  outcome       String   // 'ok' | 'error'
+  direction     String // 'push' (webhook from store) | 'poll' (we fetched)
+  entity        String // 'products' | 'orders' | 'product_update' | 'order_update'
+  outcome       String // 'ok' | 'error'
   count         Int      @default(0)
   message       String?  @db.Text
   createdAt     DateTime @default(now())
@@ -818,19 +879,19 @@ model StoreSyncLog {
 //       contentText?: string,          // sent after gate fulfilled
 //       aiAgentEnabled?: boolean }     // route through the agent's AI engine
 model InstagramAutomation {
-  id        String   @id @default(cuid())
+  id        String                  @id @default(cuid())
   agentId   String
-  channelId String   // the INSTAGRAM AgentChannel this scenario belongs to
+  channelId String // the INSTAGRAM AgentChannel this scenario belongs to
   type      InstagramAutomationType
   name      String
-  active    Boolean  @default(true)
-  priority  Int      @default(0) // higher = evaluated first when multiple match
+  active    Boolean                 @default(true)
+  priority  Int                     @default(0) // higher = evaluated first when multiple match
   trigger   Json
   action    Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
 
-  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent       Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
   followGates InstagramFollowGate[]
 
   @@index([agentId, type, active])
@@ -850,15 +911,15 @@ enum InstagramAutomationType {
 //   the confirm keyword (SOFT gate) or mention the account in a story
 //   (STORY_MENTION gate, verified via the story_mention webhook).
 model InstagramFollowGate {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   automationId String
   agentId      String
   contactId    String?
-  igSenderId   String   // IG-scoped id of the user who triggered the gate
-  chatId       String   // messaging chat id to address the DM reply
-  status       String   @default("PENDING") // PENDING | FULFILLED | EXPIRED
-  payload      Json?    // snapshot (keyword, postId, etc.) for debugging
-  createdAt    DateTime @default(now())
+  igSenderId   String // IG-scoped id of the user who triggered the gate
+  chatId       String // messaging chat id to address the DM reply
+  status       String    @default("PENDING") // PENDING | FULFILLED | EXPIRED
+  payload      Json? // snapshot (keyword, postId, etc.) for debugging
+  createdAt    DateTime  @default(now())
   expiresAt    DateTime
   fulfilledAt  DateTime?
 
@@ -893,29 +954,29 @@ model InstagramFollowGate {
 //   `followUp*` configure the "no reply after N minutes" follow-up nudges that
 //   Vardast sends from the operator's account.
 model InstagramAutomationSettings {
-  id               String   @id @default(cuid())
-  agentId          String   @unique
-  channelId        String   @unique
-  replyPolicy      String   @default("AGENT_EXCEPT_SCENARIOS") // ALL_AGENT | AGENT_EXCEPT_SCENARIOS | AUTOMATION_ONLY
-  dmReplyPolicy      String @default("AGENT_EXCEPT_SCENARIOS")
-  storyReplyPolicy   String @default("AGENT_EXCEPT_SCENARIOS")
-  commentReplyPolicy String @default("AGENT_EXCEPT_SCENARIOS")
-  storyReactionReplyEnabled Boolean @default(false)
-  storyReactionReplyText    String? @db.Text
-  commentEmojiReplyEnabled  Boolean @default(false)
-  commentEmojiReplyText     String? @db.Text
-  likeDmAfterReply            Boolean @default(false)
-  likeStoryReplyAfterReply    Boolean @default(false)
-  likeStoryReactionAfterReply Boolean @default(false)
-  likeCommentAfterReply       Boolean @default(false)
-  stopWords        String[] @default([]) // keywords that pause AI for this conversation
-  welcomeMessage   String?  @db.Text // sent on the user's first DM
-  followUpEnabled  Boolean  @default(false)
-  followUpDelayMin Int      @default(60) // minutes after no reply
-  followUpMessage  String?  @db.Text
-  aiEnabled        Boolean  @default(true) // master toggle for AI replies
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                          String   @id @default(cuid())
+  agentId                     String   @unique
+  channelId                   String   @unique
+  replyPolicy                 String   @default("AGENT_EXCEPT_SCENARIOS") // ALL_AGENT | AGENT_EXCEPT_SCENARIOS | AUTOMATION_ONLY
+  dmReplyPolicy               String   @default("AGENT_EXCEPT_SCENARIOS")
+  storyReplyPolicy            String   @default("AGENT_EXCEPT_SCENARIOS")
+  commentReplyPolicy          String   @default("AGENT_EXCEPT_SCENARIOS")
+  storyReactionReplyEnabled   Boolean  @default(false)
+  storyReactionReplyText      String?  @db.Text
+  commentEmojiReplyEnabled    Boolean  @default(false)
+  commentEmojiReplyText       String?  @db.Text
+  likeDmAfterReply            Boolean  @default(false)
+  likeStoryReplyAfterReply    Boolean  @default(false)
+  likeStoryReactionAfterReply Boolean  @default(false)
+  likeCommentAfterReply       Boolean  @default(false)
+  stopWords                   String[] @default([]) // keywords that pause AI for this conversation
+  welcomeMessage              String?  @db.Text // sent on the user's first DM
+  followUpEnabled             Boolean  @default(false)
+  followUpDelayMin            Int      @default(60) // minutes after no reply
+  followUpMessage             String?  @db.Text
+  aiEnabled                   Boolean  @default(true) // master toggle for AI replies
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 

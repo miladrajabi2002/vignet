@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { OPENROUTER_BASE, getWorkspaceOpenRouterKey } from '@/lib/ai/openrouter'
+import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { getRedis } from '@/lib/redis'
 
 /** Fixed embedding dimension — must match the vector(1536) schema column. */
@@ -38,18 +38,23 @@ function setCachedEmbedding(key: string, vec: number[]): void {
 interface EmbedContext {
   key: string
   model: string
+  workspaceId: string
 }
 
 async function getEmbedContext(workspaceId: string): Promise<EmbedContext> {
   const [key, ws] = await Promise.all([
-    getWorkspaceOpenRouterKey(workspaceId),
+    Promise.resolve(getPlatformOpenRouterKey()),
     prisma.workspace.findUnique({
       where: { id: workspaceId },
       select: { defaultEmbedModel: true },
     }),
   ])
-  if (!key) throw new Error('NO_OPENROUTER_KEY')
-  return { key, model: ws?.defaultEmbedModel ?? 'text-embedding-3-small' }
+  if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
+  return {
+    key,
+    model: ws?.defaultEmbedModel ?? 'openai/text-embedding-3-small',
+    workspaceId,
+  }
 }
 
 async function callEmbeddings(
@@ -64,13 +69,33 @@ async function callEmbeddings(
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir',
       'X-Title': 'Vigent',
     },
-    body: JSON.stringify({ model: ctx.model, input }),
+    body: JSON.stringify({
+      model: ctx.model,
+      input,
+      // Keep the provider response compatible with the pgvector column.
+      dimensions: EMBED_DIM,
+      provider: {
+        data_collection: 'deny',
+        zdr: process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
+      },
+    }),
+    signal: AbortSignal.timeout(60_000),
   })
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Embeddings failed (${res.status}): ${body}`)
+    throw new Error(`OPENROUTER_EMBEDDING_${res.status}`)
   }
   const json = await res.json()
+  const rawCost = Number(json.usage?.cost)
+  await prisma.usageLog.create({
+    data: {
+      workspaceId: ctx.workspaceId,
+      type: 'EMBEDDING',
+      model: ctx.model,
+      promptTokens: Number(json.usage?.prompt_tokens) || 0,
+      providerRequestId: typeof json.id === 'string' ? json.id : null,
+      cost: Number.isFinite(rawCost) ? rawCost : null,
+    },
+  }).catch((error) => console.error('[embeddings] usage log failed:', error))
   // OpenAI-compatible response: { data: [{ embedding: number[], index }] }
   const sorted = (json.data ?? []).sort(
     (a: { index: number }, b: { index: number }) => a.index - b.index,
@@ -78,7 +103,7 @@ async function callEmbeddings(
   return sorted.map((d: { embedding: number[] }) => d.embedding)
 }
 
-/** Embed a single string using the workspace's OpenRouter key (Redis-cached). */
+/** Embed a single string using Vigent's platform key (Redis-cached). */
 export async function embedText(
   text: string,
   workspaceId: string,

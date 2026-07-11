@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MODEL_ALIASES } from '@/lib/ai/models'
 
 // ── 6-LAYER PROMPT CONFIG (F1) ──────────────────────────────────────
 export const promptFormatSchema = z.object({
@@ -54,9 +55,9 @@ export const agentCreateSchema = z.object({
     .max(8000)
     .optional()
     .default('تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.'),
-  model: z.string().max(120).optional(),
+  model: z.enum(MODEL_ALIASES).optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(8000).optional(),
+  maxTokens: z.number().int().min(1).max(1200).optional(),
   language: z.enum(['fa', 'en']).optional(),
   voiceEnabled: z.boolean().optional(),
   ttsVoice: z.string().max(40).optional(),

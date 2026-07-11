@@ -261,8 +261,8 @@ export default async function AgentAnalyticsPage(
             term: locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: ',
             body:
               locale === 'fa'
-                ? 'مجموع توکن‌های prompt + completion برای این ایجنت (chat + embedding + TTS + STT). هزینه واقعی در پنل OpenRouter شما قابل مشاهده است.'
-                : 'Total prompt + completion tokens for this agent (chat + embedding + TTS + STT). Actual cost is in your OpenRouter dashboard.',
+                ? 'مجموع توکن‌های ورودی و خروجی این ایجنت در سرویس مدیریت‌شده ویجنت. هزینه پاسخ‌ها در بخش مالی دیده می‌شود.'
+                : 'Total prompt + completion tokens for this agent across Vigent’s managed AI service. Reply charges are shown on the billing page.',
           },
           {
             icon: TrendingUp,

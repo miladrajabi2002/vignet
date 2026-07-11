@@ -7,11 +7,11 @@
 
 Build **Vigent** — a production-ready, multi-tenant SaaS platform where businesses create AI-powered agents that answer from their own data, communicate via text and voice, and work across Telegram, WhatsApp, Instagram, Rubika, Bale, and web widget.
 
-**Core Business Model:** Subscription SaaS. Users bring their **own OpenRouter API key** — Vigent charges for the platform, not AI tokens. All LLM/embedding/voice calls use the workspace's OpenRouter key.
+**Core Business Model:** Subscription SaaS with platform-managed AI. Subscriptions cover product features and service capacity. AI replies use a separate prepaid reply-credit balance that is captured only after a successful reply and refunded on failure. Reply credit is not a standalone plan or a monthly message bundle. All LLM, embedding and voice calls use Vigent's server-side provider account; customers never enter an AI key.
 
 **Key differentiators:**
 - Fully bilingual: Persian (RTL) + English (LTR) — switchable per user
-- BYOK (Bring Your Own Key): customers control their AI provider and costs
+- Managed AI: no provider signup or customer API key; users choose a simple Fast, Balanced or Premium mode
 - Knowledge Base from customer's own data (products, docs, DB)
 - **Product/Service Catalog** — agents know your products and can sell them
 - All channels in one dashboard: Telegram + WhatsApp + Instagram + Rubika + Bale + Web Widget
@@ -42,15 +42,15 @@ Background Jobs:  BullMQ + Redis (ioredis)
 Scheduler:        node-cron (inside Next.js custom server)
 Queue:            BullMQ workers (separate process: worker/index.ts)
 SMS / OTP:        sms.ir API (phone-based auth + notifications)
-Voice - STT:      OpenAI Whisper via OpenRouter (user's key)
-Voice - TTS:      OpenAI TTS via OpenRouter OR Kokoro (self-hosted fallback)
+Voice - STT:      OpenAI Whisper via OpenRouter (Vigent server account)
+Voice - TTS:      OpenAI TTS via OpenRouter OR Kokoro (self-hosted fallback; Vigent server account)
 Voice - VAD:      @ricky0123/vad-web (Silero VAD, browser-side)
 AI Embeddings:    BGE-M3 via OpenRouter (text-embedding-3-small as fallback)
 Vector Search:    pgvector extension in Supabase Postgres
 i18n:             next-intl (FA + EN, RTL/LTR aware)
 Validation:       Zod
 State:            Zustand (dashboard state, flow builder state)
-Encryption:       Node.js crypto (AES-256-GCM for API key storage)
+Encryption:       Node.js crypto (AES-256-GCM for channel and integration secrets)
 File Upload:      Supabase Storage (PDFs, CSVs, product images for knowledge base)
 Realtime:         SSE (Server-Sent Events) for streaming AI responses
 Email:            Resend (transactional emails — optional, secondary)
@@ -137,7 +137,7 @@ vigent/
 │       │   ├── rubika/[token]/route.ts  # NEW
 │       │   └── bale/[token]/route.ts    # NEW
 │       ├── widget/[agentId]/route.ts
-│       ├── openrouter/validate/route.ts
+│       ├── admin/ai-provider/route.ts # model selection, provider health and usage (main admin only)
 │       ├── onboarding/route.ts        # NEW: GET/PATCH onboarding state
 │       └── contacts/route.ts
 │
@@ -278,13 +278,13 @@ model Workspace {
   slug                String   @unique
   plan                Plan     @default(TRIAL)
   trialEndsAt         DateTime?
-  openrouterKeyEnc    String?
-  openrouterKeyHint   String?
-  defaultModel        String   @default("deepseek/deepseek-chat")
+  aiCreditBalanceIRR  Int      @default(100000)
+  aiCreditReservedIRR Int      @default(0)
+  defaultModel        String   @default("fast")
   defaultEmbedModel   String   @default("text-embedding-3-small")
   defaultTtsVoice     String   @default("alloy")
   language            String   @default("fa")
-  onboardingStep      Int      @default(0)  // 0-5, tracks activation checklist
+  onboardingStep      Int      @default(0)  // 0-4, tracks activation checklist
   onboardingCompleted Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -856,7 +856,7 @@ ${product.attributes ? `مشخصات: ${JSON.stringify(product.attributes)}` : '
 
 ---
 
-## 🚀 ONBOARDING — 5-STEP ACTIVATION CHECKLIST
+## 🚀 ONBOARDING — 4-STEP ACTIVATION CHECKLIST
 
 ### Concept
 After registration, every new workspace enters an onboarding flow. A sticky sidebar widget shows progress. The dashboard redirects to `/onboarding` until at least step 3 is complete.
@@ -864,29 +864,25 @@ After registration, every new workspace enters an onboarding flow. A sticky side
 ### Steps
 
 ```
-Step 1 ✦  کلید OpenRouter را اضافه کن
-          → /settings/ai-keys
-          → Complete when: workspace.openrouterKeyEnc IS NOT NULL
-
-Step 2 ✦  اولین ایجنت را بساز
+Step 1 ✦  اولین ایجنت را بساز
           → /agents/new
           → Complete when: Agent count >= 1
 
-Step 3 ✦  دانش به ایجنت اضافه کن (یا محصولات)
+Step 2 ✦  دانش به ایجنت اضافه کن (یا محصولات)
           → /agents/[id]/knowledge یا /products
           → Complete when: KnowledgeBase count >= 1 OR Product count >= 1
 
-Step 4 ✦  یک کانال وصل کن
+Step 3 ✦  یک کانال وصل کن
           → /agents/[id]/channels
           → Complete when: AgentChannel count >= 1
 
-Step 5 ✦  ایجنت را تست کن
+Step 4 ✦  ایجنت را تست کن
           → /agents/[id] → Test button
           → Complete when: Conversation count >= 1
 ```
 
 ### DB State
-Stored in `Workspace.onboardingStep` (0–5) and `Workspace.onboardingCompleted`.  
+Stored in `Workspace.onboardingStep` (0–4) and `Workspace.onboardingCompleted`.
 Updated via `/api/onboarding` PATCH endpoint — called automatically when conditions are met.
 
 ### UI Components
@@ -1106,8 +1102,8 @@ Features:
 
 **5. HOW IT WORKS — 3 steps with animated connector**
 ```
-Step 1: کلید OpenRouter اضافه کن (30 ثانیه)
-Step 2: داده‌ها و محصولات خود را آپلود کن
+Step 1: یک قالب انتخاب کن و ایجنت را بساز
+Step 2: داده‌ها و محصولات خود را اضافه کن
 Step 3: کانال وصل کن — ایجنت زنده شد
 
 Connector: SVG dashed path between circles — animates stroke-dashoffset on scroll
@@ -1143,7 +1139,7 @@ Border separators: rgba(255,255,255,0.06)
 Full width section, black bg
 Large gradient text headline (white → rgba(255,255,255,0.5))
 Magnetic button: white filled, follows cursor ±12px via CSS transform on mousemove
-Subtext: "بدون نیاز به کارت اعتباری — فقط شماره موبایل"
+Subtext: "ورود ساده با شماره موبایل — هوش مصنوعی از قبل آماده است"
 ```
 
 **10. FOOTER**
@@ -1291,9 +1287,15 @@ On /products/[id]:
 
 ---
 
-## 🔑 OPENROUTER BYOK — CRITICAL ARCHITECTURE
+## 🧠 MANAGED AI + REPLY CREDIT — CRITICAL ARCHITECTURE
 
-*(Same as v1 — no changes)*
+- The OpenRouter credential belongs to Vigent and exists only in server environment variables. Never store a provider key per workspace, expose it to the client, or ask a customer for one.
+- Customers select stable aliases only: `fast`, `balanced`, or `premium`. Resolve aliases to provider model slugs on the server so the operator can rotate models without migrating agents.
+- Before a generation, atomically reserve the fixed customer price from the workspace reply-credit balance. Use an idempotency key so retries cannot double-charge.
+- After a successful AI reply, capture the reservation and save prompt/completion/reasoning/cached tokens, exact provider cost, provider request ID, selected model, and charged IRR in `UsageLog`.
+- On provider failure, abort, timeout, or empty response, release the reservation in full and write an auditable refund ledger entry.
+- Subscription billing remains separate: it pays for platform features and service capacity. Reply credit is prepaid usage balance, not a fourth paid plan and not a monthly message pack.
+- The main-admin dashboard controls provider models and displays provider spend, tokens, successful/released requests, customer charges, margin, and trends by user/workspace/model.
 
 ---
 
@@ -1307,7 +1309,7 @@ On /products/[id]:
 
 - All workspace data: always filter by `workspaceId` from JWT session
 - OTP: stored in Redis with TTL, rate-limited (3/hour per phone)
-- OpenRouter keys: AES-256-GCM encrypted at rest
+- Platform OpenRouter key: server environment only, never returned to clients or stored per workspace
 - Webhook validation: Telegram/Bale (secret token), WhatsApp (HMAC-SHA256), Rubika (token in path)
 - Rate limiting: /api/chat + /api/voice/stt — 30 req/min per workspace
 - File upload: type + size validation before Supabase Storage
@@ -1326,7 +1328,7 @@ On /products/[id]:
 - [ ] Auth: phone+OTP login/register — single page
 - [ ] Workspace auto-creation on first login
 - [ ] Basic dashboard shell (sidebar, header, theme toggle)
-- [ ] OpenRouter key management + encryption
+- [ ] Platform-managed AI client, server-side model aliases, provider health checks and reply-credit ledger
 - [ ] **Onboarding checklist component + /onboarding page**
 - [ ] Marketing homepage — B&W cinematic design (hero + particle canvas + spotlight)
 
@@ -1387,7 +1389,13 @@ NEXTAUTH_URL="https://vigent.ir"
 SMS_IR_API_KEY="..."                    # from app.sms.ir
 SMS_IR_TEMPLATE_ID="..."               # pre-approved OTP template ID
 
-# Encryption (for OpenRouter keys)
+# Managed AI provider (server-only; never expose through NEXT_PUBLIC_ variables)
+OPENROUTER_API_KEY="..."                # Vigent's main account
+OPENROUTER_MODEL_FAST="..."
+OPENROUTER_MODEL_BALANCED="..."
+OPENROUTER_MODEL_PREMIUM="..."
+
+# Encryption (for channel and integration secrets)
 ENCRYPTION_KEY="..."                    # 64 hex chars = 32 bytes
 
 # Redis (for BullMQ + OTP storage)

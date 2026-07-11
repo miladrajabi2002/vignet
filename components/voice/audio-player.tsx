@@ -5,7 +5,7 @@ import { Volume2, Loader2, Pause } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * Speaks a piece of text via /api/voice/tts (BYOK) and plays the returned audio.
+ * Speaks text through Vigent's managed AI service and plays the returned audio.
  * Caches the generated blob URL so repeated plays don't re-synthesize.
  */
 export function SpeakButton({

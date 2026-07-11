@@ -27,7 +27,7 @@ export function PlanCheckout({
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, gateway }),
+        body: JSON.stringify({ kind: 'SUBSCRIPTION', plan, gateway }),
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.url) {

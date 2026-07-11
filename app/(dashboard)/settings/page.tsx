@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { KeyRound, Users, ChevronRight } from 'lucide-react'
+import { Users, ChevronRight } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -14,12 +14,6 @@ export default async function SettingsPage() {
   const user = await requireUser()
 
   const items = [
-    {
-      href: '/settings/ai-keys',
-      icon: KeyRound,
-      title: t('settings.aiKeys.title'),
-      desc: t('settings.aiKeys.subtitle'),
-    },
     {
       href: '/settings/team',
       icon: Users,

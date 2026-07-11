@@ -1,156 +1,136 @@
 /**
- * Curated catalog of OpenRouter models recommended for agent use.
+ * The three platform-managed AI modes exposed to customers.
  *
- * The list is intentionally short and opinionated: each entry is a model that
- * works well as a customer-support / sales agent on OpenRouter, balancing
- * answer quality against per-token cost. We surface a `tier` (economy /
- * balanced / premium) plus 1–5 quality & cost ratings so the user can choose
- * with confidence instead of typing a raw model slug.
- *
- * `DEFAULT_MODEL` mirrors the Prisma `Workspace.defaultModel` default and is the
- * model used when an agent leaves the field empty.
+ * Users store an alias (fast / balanced / premium), never a raw provider slug.
+ * The actual OpenRouter model is resolved server-side and can be rotated with
+ * env variables without migrating every Agent row.
  */
 
-export const DEFAULT_MODEL = 'deepseek/deepseek-chat'
+export const MODEL_ALIASES = ['fast', 'balanced', 'premium'] as const
+export type ModelAlias = (typeof MODEL_ALIASES)[number]
+
+export const DEFAULT_MODEL: ModelAlias = 'fast'
 
 export type ModelTier = 'free' | 'economy' | 'balanced' | 'premium'
 
 export interface AgentModel {
-  /** OpenRouter model slug, e.g. "deepseek/deepseek-chat". */
-  id: string
-  /** Short display name. */
+  /** Stable alias persisted on Agent.model. */
+  id: ModelAlias
   name: string
-  /** Provider/family label. */
   provider: string
   tier: ModelTier
-  /** 1 (basic) … 5 (best) answer quality. */
   quality: number
-  /** 1 (cheapest) … 5 (most expensive). */
   cost: number
-  /** Whether the model handles Persian well. */
   goodForPersian: boolean
+  /** Fixed customer charge for one successful text reply, in Iranian rials. */
+  replyPriceIRR: number
+  /** Public reference rates used by the pricing guide (USD / 1M tokens). */
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
   descFa: string
   descEn: string
 }
 
 export const AGENT_MODELS: AgentModel[] = [
-  // ─ Free tier: OpenRouter's no-cost models. Rate limits apply account-wide:
-  //   ~20 req/min and ~50 req/day (≈1000/day once the account holds $10+
-  //   credit) — fine for building/testing, not for production traffic.
   {
-    id: 'openai/gpt-oss-120b:free',
-    name: 'GPT-OSS 120B (رایگان)',
-    provider: 'OpenAI',
-    tier: 'free',
-    quality: 4,
-    cost: 0,
-    goodForPersian: true,
-    descFa:
-      'کاملاً رایگان — بهترین کیفیت بین مدل‌های رایگان. محدودیت: ~۲۰ درخواست/دقیقه و ~۵۰ درخواست/روز (با شارژ ۱۰$ حساب، ~۱۰۰۰/روز). برای تست و شروع.',
-    descEn:
-      'Completely free — best quality of the free models. Limits: ~20 req/min, ~50 req/day (~1000/day once your account holds $10+). Great for testing.',
-  },
-  {
-    id: 'meta-llama/llama-3.3-70b-instruct:free',
-    name: 'Llama 3.3 70B (رایگان)',
-    provider: 'Meta',
-    tier: 'free',
-    quality: 3,
-    cost: 0,
-    goodForPersian: true,
-    descFa:
-      'رایگان — چندزبانهٔ قوی برای پاسخ‌های عمومی. همان محدودیت‌های نرخ مدل‌های رایگان را دارد.',
-    descEn:
-      'Free — a strong multilingual generalist. Same free-tier rate limits apply.',
-  },
-  {
-    id: 'deepseek/deepseek-chat',
-    name: 'DeepSeek V3',
-    provider: 'DeepSeek',
+    id: 'fast',
+    name: 'سریع و اقتصادی',
+    provider: 'DeepSeek V4 Flash',
     tier: 'economy',
     quality: 4,
     cost: 1,
     goodForPersian: true,
-    descFa: 'بهترین انتخاب اقتصادی؛ کیفیت بالا با کمترین هزینه. مناسب اغلب کسب‌وکارها.',
-    descEn: 'Best value: high quality at the lowest cost. Great default for most businesses.',
+    replyPriceIRR: 3_000,
+    inputUsdPerMillion: 0.09,
+    outputUsdPerMillion: 0.18,
+    descFa: 'پیشنهاد پیش‌فرض ویجنت؛ سریع، کم‌هزینه و مناسب بیشتر گفتگوهای فروش و پشتیبانی.',
+    descEn: 'Vigent’s default: fast, low-cost and suited to most support and sales conversations.',
   },
   {
-    id: 'google/gemini-2.5-flash-lite',
-    name: 'Gemini 2.5 Flash Lite',
-    provider: 'Google',
-    tier: 'economy',
-    quality: 3,
-    cost: 1,
-    goodForPersian: true,
-    descFa: 'بسیار سریع و ارزان؛ مناسب پاسخ‌های کوتاه و حجم بالای پیام.',
-    descEn: 'Very fast and cheap; ideal for short replies and high message volume.',
-  },
-  {
-    id: 'openai/gpt-4o-mini',
-    name: 'GPT-4o mini',
-    provider: 'OpenAI',
+    id: 'balanced',
+    name: 'چندزبانه و تصویری',
+    provider: 'Qwen3.5 35B',
     tier: 'balanced',
     quality: 4,
     cost: 2,
     goodForPersian: true,
-    descFa: 'تعادل خوب بین کیفیت و قیمت؛ پایدار و قابل اعتماد.',
-    descEn: 'A solid quality/price balance; stable and reliable.',
+    replyPriceIRR: 6_500,
+    inputUsdPerMillion: 0.14,
+    outputUsdPerMillion: 1,
+    descFa: 'بسیار سریع و مناسب گفتگوهای چندزبانه و پیام‌هایی که تصویر یا ساختار دقیق دارند.',
+    descEn: 'Very fast and well suited to multilingual, image-aware and structured conversations.',
   },
   {
-    id: 'anthropic/claude-haiku-4.5',
-    name: 'Claude Haiku 4.5',
-    provider: 'Anthropic',
-    tier: 'balanced',
-    quality: 4,
-    cost: 2,
-    goodForPersian: true,
-    descFa: 'سریع و دقیق در دنبال‌کردن دستورالعمل‌ها؛ لحن طبیعی.',
-    descEn: 'Fast and precise at following instructions; natural tone.',
-  },
-  {
-    id: 'anthropic/claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    provider: 'Anthropic',
+    id: 'premium',
+    name: 'دقیق و حرفه‌ای',
+    provider: 'DeepSeek V4 Pro',
     tier: 'premium',
     quality: 5,
     cost: 4,
     goodForPersian: true,
-    descFa: 'بالاترین کیفیت استدلال و درک؛ برای گفتگوهای پیچیده و حساس.',
-    descEn: 'Top-tier reasoning and understanding; for complex, sensitive conversations.',
-  },
-  {
-    id: 'openai/gpt-4o',
-    name: 'GPT-4o',
-    provider: 'OpenAI',
-    tier: 'premium',
-    quality: 5,
-    cost: 4,
-    goodForPersian: true,
-    descFa: 'مدل پرچم‌دار OpenAI؛ کیفیت بسیار بالا با هزینهٔ بیشتر.',
-    descEn: "OpenAI's flagship; very high quality at a higher cost.",
+    replyPriceIRR: 30_000,
+    inputUsdPerMillion: 0.435,
+    outputUsdPerMillion: 0.87,
+    descFa: 'برای گفتگوهای حساس، مبهم و چندمرحله‌ای؛ دقیق‌تر است و فقط برای موارد مهم پیشنهاد می‌شود.',
+    descEn: 'For sensitive, ambiguous and multi-step conversations; best reserved for high-value cases.',
   },
 ]
 
-/** Look up a model by id (returns undefined for custom slugs). */
-export function findModel(id: string | null | undefined): AgentModel | undefined {
-  if (!id) return undefined
-  return AGENT_MODELS.find((m) => m.id === id)
+const BY_ALIAS = new Map<ModelAlias, AgentModel>(AGENT_MODELS.map((model) => [model.id, model]))
+
+/** Historical values are mapped into a safe managed mode at runtime. */
+const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
+  'deepseek/deepseek-v4-flash': 'fast',
+  'deepseek/deepseek-chat': 'fast',
+  'deepseek/deepseek-chat-v3-0324:free': 'fast',
+  'openai/gpt-oss-120b:free': 'fast',
+  'meta-llama/llama-3.3-70b-instruct:free': 'fast',
+  'google/gemini-2.5-flash-lite': 'fast',
+  'google/gemini-flash-1.5': 'fast',
+  'qwen/qwen3.5-35b-a3b': 'balanced',
+  'qwen/qwen-2.5-72b-instruct': 'balanced',
+  'openai/gpt-4o-mini': 'balanced',
+  'anthropic/claude-haiku-4.5': 'balanced',
+  'deepseek/deepseek-v4-pro': 'premium',
+  'anthropic/claude-sonnet-5': 'premium',
+  'anthropic/claude-3.5-sonnet': 'premium',
+  'openai/gpt-4o': 'premium',
+}
+
+export function isModelAlias(value: string | null | undefined): value is ModelAlias {
+  return MODEL_ALIASES.includes(value as ModelAlias)
+}
+
+export function resolveModelAlias(value: string | null | undefined): ModelAlias {
+  if (isModelAlias(value)) return value
+  if (value && LEGACY_ALIAS_MAP[value]) return LEGACY_ALIAS_MAP[value]
+  return DEFAULT_MODEL
+}
+
+/** Public display metadata for an alias or a legacy stored value. */
+export function findModel(value: string | null | undefined): AgentModel {
+  return BY_ALIAS.get(resolveModelAlias(value)) ?? BY_ALIAS.get(DEFAULT_MODEL)!
 }
 
 /**
- * Slugs that were once in the catalog but have since been removed from
- * OpenRouter. Agents saved with one of these would 404 (the request never
- * reaches a provider), so we transparently remap them at call time.
+ * Resolve a provider slug. Call this only on the server: env overrides let the
+ * operator rotate a model while the customer-facing alias stays stable.
  */
-const LEGACY_MODEL_MAP: Record<string, string> = {
-  'deepseek/deepseek-chat-v3-0324:free': 'openai/gpt-oss-120b:free',
-  'google/gemini-flash-1.5': 'google/gemini-2.5-flash-lite',
-  'anthropic/claude-3.5-haiku': 'anthropic/claude-haiku-4.5',
-  'anthropic/claude-3.5-sonnet': 'anthropic/claude-sonnet-5',
-  'qwen/qwen-2.5-72b-instruct': 'openai/gpt-4o-mini',
+export function resolveModelId(value: string | null | undefined): string {
+  const alias = resolveModelAlias(value)
+  if (alias === 'balanced') {
+    return process.env.OPENROUTER_MODEL_BALANCED || 'qwen/qwen3.5-35b-a3b'
+  }
+  if (alias === 'premium') {
+    return process.env.OPENROUTER_MODEL_PREMIUM || 'deepseek/deepseek-v4-pro'
+  }
+  return process.env.OPENROUTER_MODEL_FAST || 'deepseek/deepseek-v4-flash'
 }
 
-/** Map a stored model slug to its current OpenRouter equivalent. */
-export function resolveModelId(id: string): string {
-  return LEGACY_MODEL_MAP[id] ?? id
+/** Fixed customer price, optionally overridable server-side. */
+export function getReplyPriceIRR(value: string | null | undefined): number {
+  const model = findModel(value)
+  const envName = `AI_REPLY_PRICE_${model.id.toUpperCase()}_IRR`
+  const override = Number(process.env[envName])
+  return Number.isFinite(override) && override > 0 ? Math.round(override) : model.replyPriceIRR
 }

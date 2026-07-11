@@ -686,7 +686,10 @@ async function processChannelInbound(
                                                 text: result.reply,
                                                 workspaceId: agent.workspaceId,
                                                 voice: agent.ttsVoice,
-                                                format: 'ogg',
+                                                // OpenRouter's dedicated TTS endpoint currently
+                                                // guarantees MP3/PCM. Telegram-like adapters send
+                                                // MP3 as an audio attachment rather than a voice note.
+                                                format: 'mp3',
                                         })
                                         await adapter.sendVoice(msg.chatId, speech)
                                 } catch (e) {

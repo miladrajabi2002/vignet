@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
+import { CreditTopup } from '@/components/dashboard/credit-topup'
 import { MiniTrend } from '@/components/admin/mini-trend'
 import { messagesDailyByWorkspace, tokensDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
@@ -36,7 +37,7 @@ export default async function BillingPage(
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
-        select: { plan: true, trialEndsAt: true },
+        select: { plan: true, trialEndsAt: true, aiCreditBalanceIRR: true, aiCreditReservedIRR: true },
       }),
       prisma.subscription.findUnique({
         where: { workspaceId: ws },
@@ -47,7 +48,7 @@ export default async function BillingPage(
       }),
       prisma.usageLog.aggregate({
         where: { workspaceId: ws, date: { gte: monthStart } },
-        _sum: { promptTokens: true, completionTokens: true, cost: true },
+        _sum: { promptTokens: true, completionTokens: true, cost: true, chargedIRR: true },
       }),
       getMonthlyMessageCount(ws),
       messagesDailyByWorkspace(ws, 7),
@@ -58,11 +59,9 @@ export default async function BillingPage(
   const plan = workspace?.plan ?? 'TRIAL'
   const tokens =
     (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
-  const cost = usage._sum.cost ?? 0
+  const chargedIRR = usage._sum.chargedIRR ?? 0
 
   const defs = getPlanDefs()
-  const msgLimit = defs[plan].monthlyMessages
-  const usagePct = Math.min(100, Math.round((messagesUsed / msgLimit) * 100))
   const trialExpired =
     plan === 'TRIAL' &&
     !!workspace?.trialEndsAt &&
@@ -127,33 +126,14 @@ export default async function BillingPage(
           </div>
         </div>
 
-        {/* Monthly message quota meter */}
-        <div className="mt-5">
-          <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="text-[var(--text-secondary)]">
-              {t('messagesUsed')}
-            </span>
-            <span className="text-[var(--text-primary)]">
-              {nf.format(messagesUsed)} / {nf.format(msgLimit)}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-            <div
-              className={`h-full rounded-full transition-all ${
-                usagePct >= 90
-                  ? 'bg-red-500'
-                  : usagePct >= 70
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-              }`}
-              style={{ width: `${usagePct}%` }}
-            />
-          </div>
-          {usagePct >= 90 && (
-            <p className="mt-1.5 text-xs text-red-500">{t('quotaWarning')}</p>
-          )}
+        <div className="mt-5 grid gap-3 border-t border-[var(--border-subtle)] pt-5 sm:grid-cols-3">
+          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
+          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format(messagesUsed)}</p></div>
+          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
         </div>
       </section>
+
+      <CreditTopup locale={locale} />
 
       {/* Plans */}
       <div>
@@ -201,7 +181,7 @@ export default async function BillingPage(
                 <ul className="mt-4 flex-1 space-y-2 text-sm text-[var(--text-secondary)]">
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                    {t('featMessages', { count: nf.format(def.monthlyMessages) })}
+                    {locale === 'fa' ? 'بدون بسته یا تعهد تعداد پیام' : 'No message packs or volume commitment'}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
@@ -213,7 +193,9 @@ export default async function BillingPage(
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                    {t('featByok')}
+                    {locale === 'fa'
+                      ? `${nf.format(def.replyDiscountBps / 100)}٪ تخفیف هزینهٔ هر پاسخ`
+                      : `${nf.format(def.replyDiscountBps / 100)}% off each reply`}
                   </li>
                 </ul>
                 <div className="mt-5">
@@ -245,7 +227,7 @@ export default async function BillingPage(
           <StatsCard label={t('tokens')} value={nf.format(tokens)} icon={Cpu} />
           <StatsCard
             label={t('estCost')}
-            value={`$${cost.toFixed(2)}`}
+            value={`${nf.format(chargedIRR / 10)} ${locale === 'fa' ? 'تومان' : 'toman'}`}
             icon={Wallet}
           />
         </div>
@@ -270,7 +252,7 @@ export default async function BillingPage(
       </div>
 
       <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-4 text-xs leading-relaxed text-[var(--text-secondary)]">
-        {t('byok')}
+        {t('usageBilling')}
       </p>
     </div>
   )

@@ -63,13 +63,12 @@ export default async function AgentChannelsPage(
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { openrouterKeyEnc: true, slug: true },
+      select: { slug: true },
     }),
   ])
   if (!agent) notFound()
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
-  const hasApiKey = !!workspace?.openrouterKeyEnc
 
   // Chat Link: existing config, or a sensible suggested slug for first-time setup.
   const chatLink = agent.chatLink
@@ -255,7 +254,6 @@ export default async function AgentChannelsPage(
         enabled={!!widget}
         channelId={widget?.id ?? null}
         config={(widget?.config as Record<string, unknown> | null) ?? null}
-        hasApiKey={hasApiKey}
       />
 
       <ChatLinkChannel

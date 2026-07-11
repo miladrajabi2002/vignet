@@ -4,14 +4,13 @@ import { prisma } from '@/lib/prisma'
 export const ONBOARDING_SKIP_COOKIE = 'onboarding_skipped'
 
 export interface OnboardingState {
-  step: number // highest contiguous completed step (0-5)
+  step: number // highest contiguous completed step (0-4)
   completed: boolean
   checks: {
     hasAgent: boolean // 1. first agent
     hasKnowledge: boolean // 2. knowledge or products
-    hasKey: boolean // 3. OpenRouter key
-    hasConversation: boolean // 4. tested agent
-    hasChannel: boolean // 5. connected channel
+    hasConversation: boolean // 3. tested agent
+    hasChannel: boolean // 4. connected channel
   }
 }
 
@@ -22,12 +21,8 @@ export interface OnboardingState {
 export async function computeOnboarding(
   workspaceId: string,
 ): Promise<OnboardingState> {
-  const [workspace, agentCount, kbCount, productCount, channelCount, convCount] =
+  const [agentCount, kbCount, productCount, channelCount, convCount] =
     await Promise.all([
-      prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: { openrouterKeyEnc: true },
-      }),
       prisma.agent.count({ where: { workspaceId } }),
       prisma.knowledgeBase.count({ where: { workspaceId } }),
       prisma.product.count({ where: { workspaceId } }),
@@ -36,7 +31,6 @@ export async function computeOnboarding(
     ])
 
   const checks = {
-    hasKey: !!workspace?.openrouterKeyEnc,
     hasAgent: agentCount >= 1,
     hasKnowledge: kbCount >= 1 || productCount >= 1,
     hasChannel: channelCount >= 1,
@@ -47,7 +41,6 @@ export async function computeOnboarding(
   const ordered = [
     checks.hasAgent,
     checks.hasKnowledge,
-    checks.hasKey,
     checks.hasConversation,
     checks.hasChannel,
   ]
@@ -57,7 +50,7 @@ export async function computeOnboarding(
     step++
   }
 
-  return { step, completed: step >= 5, checks }
+  return { step, completed: step >= 4, checks }
 }
 
 /**

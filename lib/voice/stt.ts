@@ -1,11 +1,22 @@
 import { prisma } from '@/lib/prisma'
-import { OPENROUTER_BASE, getWorkspaceOpenRouterKey } from '@/lib/ai/openrouter'
+import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 
 /**
- * Speech-to-text via Whisper, using the workspace's own OpenRouter key (BYOK).
+ * Speech-to-text via Vigent's platform-managed OpenRouter account.
  * OpenAI-compatible audio/transcriptions endpoint.
  */
-const STT_MODEL = 'whisper-1'
+const DEFAULT_STT_MODEL = 'openai/whisper-large-v3-turbo'
+
+function audioFormat(input: TranscribeInput): string {
+  const mime = input.mime.toLowerCase()
+  if (mime.includes('wav')) return 'wav'
+  if (mime.includes('mpeg') || mime.includes('mp3')) return 'mp3'
+  if (mime.includes('mp4') || mime.includes('m4a')) return 'mp4'
+  if (mime.includes('flac')) return 'flac'
+  if (mime.includes('ogg')) return 'ogg'
+  if (mime.includes('aac')) return 'aac'
+  return 'webm'
+}
 
 export interface TranscribeInput {
   audio: Buffer
@@ -18,36 +29,60 @@ export interface TranscribeInput {
 export async function transcribeAudio(
   input: TranscribeInput,
 ): Promise<string> {
-  const key = await getWorkspaceOpenRouterKey(input.workspaceId)
-  if (!key) throw new Error('NO_OPENROUTER_KEY')
+  const key = getPlatformOpenRouterKey()
+  if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
 
-  const form = new FormData()
-  form.append(
-    'file',
-    new Blob([new Uint8Array(input.audio)], { type: input.mime }),
-    input.filename ?? 'audio.ogg',
-  )
-  form.append('model', STT_MODEL)
-  if (input.language) form.append('language', input.language)
+  const model = process.env.OPENROUTER_STT_MODEL?.trim() || DEFAULT_STT_MODEL
 
   const res = await fetch(`${OPENROUTER_BASE}/audio/transcriptions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir',
       'X-Title': 'Vigent',
     },
-    body: form,
+    body: JSON.stringify({
+      model,
+      input_audio: {
+        data: input.audio.toString('base64'),
+        format: audioFormat(input),
+      },
+      ...(input.language ? { language: input.language } : {}),
+      provider: {
+        data_collection: 'deny',
+        zdr: process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
+      },
+    }),
+    signal: AbortSignal.timeout(90_000),
   })
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`STT failed (${res.status}): ${body}`)
+    throw new Error(`OPENROUTER_STT_${res.status}`)
   }
-  const json = (await res.json()) as { text?: string }
+  const json = (await res.json()) as {
+    id?: string
+    text?: string
+    usage?: {
+      cost?: number
+      input_tokens?: number
+      output_tokens?: number
+    }
+  }
 
-  // Best-effort usage log.
+  const rawCost = Number(json.usage?.cost)
+  const generationId = res.headers.get('x-generation-id') || json.id || null
   prisma.usageLog
-    .create({ data: { workspaceId: input.workspaceId, type: 'STT', model: STT_MODEL } })
+    .create({
+      data: {
+        workspaceId: input.workspaceId,
+        type: 'STT',
+        model,
+        promptTokens: Number(json.usage?.input_tokens) || 0,
+        completionTokens: Number(json.usage?.output_tokens) || 0,
+        providerRequestId: generationId,
+        cost: Number.isFinite(rawCost) ? rawCost : null,
+      },
+    })
     .catch(() => {})
 
   return (json.text ?? '').trim()

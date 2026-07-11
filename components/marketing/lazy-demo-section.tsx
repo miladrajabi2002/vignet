@@ -34,7 +34,7 @@ export function LazyDemoSection() {
 
 function DemoPlaceholder() {
 	return (
-		<section id="demo" className="min-h-[680px] bg-[var(--bg-base)] py-20 md:min-h-[760px] md:py-28">
+		<section id="demo" className="marketing-story-section min-h-[560px] bg-[#f5f6f3] py-16 md:min-h-[680px] md:py-20">
 			<div className="mx-auto max-w-6xl px-6">
 				<div className="mx-auto h-4 w-28 animate-pulse rounded-full bg-[var(--white-05)]" />
 				<div className="mx-auto mt-6 h-10 max-w-md animate-pulse rounded-lg bg-[var(--white-05)]" />

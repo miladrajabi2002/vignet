@@ -131,7 +131,45 @@
 }
 
 @layer components {
-        .input {
+	/* Shared marketing type rhythm. Persian display text needs more line-height
+	   and less aggressive tracking than the previous 6rem headings. */
+	.marketing-heading {
+		max-width: 56rem;
+		font-size: clamp(2rem, 4vw, 3.35rem);
+		font-weight: 600;
+		line-height: 1.22;
+		letter-spacing: -0.032em;
+		text-wrap: balance;
+		color: var(--text-primary);
+	}
+	html[dir='rtl'] .marketing-heading {
+		letter-spacing: 0;
+	}
+	.marketing-subtitle {
+		max-width: 42rem;
+		font-size: 0.9375rem;
+		line-height: 1.9;
+		color: rgba(0, 0, 0, 0.62);
+	}
+	.marketing-eyebrow {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		line-height: 1.5;
+		color: rgba(0, 0, 0, 0.5);
+	}
+	.marketing-eyebrow::before {
+		content: '';
+		width: 0.42rem;
+		height: 0.42rem;
+		border-radius: 9999px;
+		background: #10b981;
+		box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
+	}
+
+	.input {
                 width: 100%;
                 border-radius: 0.75rem;
                 border: 1px solid var(--border-default);
@@ -226,6 +264,47 @@
                         transparent 75%
                 );
         }
+}
+
+/* One continuous “conversation route” connects the landing-page chapters.
+   It stays in the quiet outer gutter and never competes with product UI. */
+.marketing-flow {
+	--marketing-flow-x: 10px;
+	position: relative;
+	isolation: isolate;
+}
+.marketing-flow::before {
+	content: '';
+	position: absolute;
+	z-index: 20;
+	inset-block: 0;
+	inset-inline-start: var(--marketing-flow-x);
+	width: 1px;
+	pointer-events: none;
+	background: linear-gradient(to bottom, transparent, rgba(16, 185, 129, 0.35) 8%, rgba(0, 0, 0, 0.12) 50%, rgba(16, 185, 129, 0.28) 92%, transparent);
+}
+.marketing-story-section {
+	position: relative;
+}
+.marketing-story-section::before {
+	content: '';
+	position: absolute;
+	z-index: 21;
+	top: 4.25rem;
+	inset-inline-start: calc(var(--marketing-flow-x) - 4px);
+	width: 9px;
+	height: 9px;
+	border: 2px solid #fff;
+	border-radius: 9999px;
+	background: #10b981;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.13), 0 0 0 5px rgba(16, 185, 129, 0.08);
+}
+@media (min-width: 640px) {
+	.marketing-flow { --marketing-flow-x: 18px; }
+	.marketing-heading { line-height: 1.18; }
+}
+@media (min-width: 1280px) {
+	.marketing-flow { --marketing-flow-x: max(18px, calc((100vw - 80rem) / 2 + 4px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

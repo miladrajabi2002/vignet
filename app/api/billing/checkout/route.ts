@@ -7,10 +7,18 @@ import { getPlanDefs, isPaidPlan } from '@/lib/billing/plans'
 import { createZarinPayPayment } from '@/lib/billing/zarinpay'
 import { createNowPaymentsInvoice } from '@/lib/billing/nowpayments'
 
-const bodySchema = z.object({
-  plan: z.enum(['STARTER', 'PRO', 'BUSINESS']),
-  gateway: z.enum(['ZARINPAY', 'NOWPAYMENTS']),
-})
+const bodySchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('SUBSCRIPTION'),
+    plan: z.enum(['STARTER', 'PRO', 'BUSINESS']),
+    gateway: z.enum(['ZARINPAY', 'NOWPAYMENTS']),
+  }),
+  z.object({
+    kind: z.literal('AI_CREDIT'),
+    gateway: z.literal('ZARINPAY'),
+    amountIRR: z.number().int().min(500_000).max(500_000_000),
+  }),
+])
 
 function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3003').replace(/\/$/, '')
@@ -28,18 +36,25 @@ export async function POST(req: Request) {
   if (!allowed) return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null))
-  if (!parsed.success || !isPaidPlan(parsed.data.plan)) {
+  if (!parsed.success || (parsed.data.kind === 'SUBSCRIPTION' && !isPaidPlan(parsed.data.plan))) {
     return NextResponse.json({ error: 'INVALID' }, { status: 400 })
   }
-  const { plan, gateway } = parsed.data
-  const def = getPlanDefs()[plan]
+  const { gateway } = parsed.data
+  const plan = parsed.data.kind === 'SUBSCRIPTION' ? parsed.data.plan : null
+  const def = plan ? getPlanDefs()[plan] : null
+  const amount = parsed.data.kind === 'AI_CREDIT'
+    ? parsed.data.amountIRR
+    : gateway === 'ZARINPAY'
+      ? def!.priceIRR
+      : def!.priceUSD
 
   const payment = await prisma.payment.create({
     data: {
       workspaceId: user.workspaceId,
       gateway,
+      kind: parsed.data.kind,
       plan,
-      amount: gateway === 'ZARINPAY' ? def.priceIRR : def.priceUSD,
+      amount,
       currency: gateway === 'ZARINPAY' ? 'IRR' : 'USD',
     },
     select: { id: true, amount: true },
@@ -51,7 +66,9 @@ export async function POST(req: Request) {
         amount: payment.amount,
         orderId: payment.id,
         callbackUrl: `${appUrl()}/api/billing/callback/zarinpay?pid=${payment.id}`,
-        description: `اشتراک ${plan} ویجنت — یک ماه`,
+        description: parsed.data.kind === 'AI_CREDIT'
+          ? 'افزایش اعتبار پاسخ‌های هوش مصنوعی ویجنت'
+          : `اشتراک ${plan} ویجنت — یک ماه`,
       })
       if (!result.success || !result.paymentLink) {
         await prisma.payment.update({

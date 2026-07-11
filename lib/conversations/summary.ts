@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
-import { getWorkspaceOpenRouterKey, chatCompletion } from '@/lib/ai/openrouter'
+import { getPlatformOpenRouterKey, chatCompletion } from '@/lib/ai/openrouter'
 import { resolveModelId } from '@/lib/ai/models'
+import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 
 export interface SummaryJobData {
   conversationId: string
@@ -21,7 +22,7 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
       id: true,
       workspaceId: true,
       summary: true,
-      agent: { select: { language: true, model: true } },
+      agent: { select: { id: true, language: true, model: true } },
       messages: {
         orderBy: { createdAt: 'asc' },
         take: MAX_MESSAGES,
@@ -33,16 +34,12 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
   const turns = conversation.messages.filter((m) => m.role !== 'SYSTEM')
   if (turns.length < 2) return
 
-  const key = await getWorkspaceOpenRouterKey(conversation.workspaceId)
-  if (!key) return
+  if (!getPlatformOpenRouterKey()) return
 
-  const ws = await prisma.workspace.findUnique({
-    where: { id: conversation.workspaceId },
-    select: { defaultModel: true },
-  })
-  const model = resolveModelId(
-    conversation.agent.model || ws?.defaultModel || 'deepseek/deepseek-chat',
-  )
+  const platformConfig = await getPlatformAiConfig()
+  if (!(await hasPlatformAiBudget(platformConfig))) return
+  const alias = applyPlatformModelPolicy(conversation.agent.model, platformConfig)
+  const model = resolveModelId(alias)
   const language = conversation.agent.language
 
   const transcript = turns
@@ -56,7 +53,6 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
 
   try {
     const result = await chatCompletion({
-      key,
       model,
       messages: [
         { role: 'system', content: instruction },
@@ -71,6 +67,21 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
       where: { id: conversation.id },
       data: { summary },
     })
+    await prisma.usageLog.create({
+      data: {
+        workspaceId: conversation.workspaceId,
+        agentId: conversation.agent.id,
+        conversationId: conversation.id,
+        type: 'SUMMARY',
+        model,
+        promptTokens: result.usage.promptTokens,
+        completionTokens: result.usage.completionTokens,
+        reasoningTokens: result.usage.reasoningTokens,
+        cachedTokens: result.usage.cachedTokens,
+        providerRequestId: result.usage.providerRequestId,
+        cost: result.usage.costUSD,
+      },
+    }).catch((error) => console.error('[summary] usage log failed:', error))
   } catch (e) {
     console.error('[summary] generation failed:', e)
   }

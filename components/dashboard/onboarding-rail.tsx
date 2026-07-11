@@ -4,13 +4,13 @@ import { Rocket, ChevronLeft } from 'lucide-react'
 
 /**
  * Slim persistent activation rail shown at the top of every dashboard page
- * until the 5-step onboarding checklist is complete. Uses the *persisted*
+ * until the 4-step onboarding checklist is complete. Uses the *persisted*
  * workspace step (synced opportunistically by syncOnboarding) so it costs the
  * layout a single indexed read, not the full live recompute.
  */
 export async function OnboardingRail({ step }: { step: number }) {
   const t = await getTranslations('onboarding')
-  const total = 5
+  const total = 4
   const pct = Math.min(100, Math.round((step / total) * 100))
 
   return (
