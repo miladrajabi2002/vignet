@@ -183,7 +183,7 @@ function ChatLinkPreview() {
 			<div className="absolute left-1/2 top-2 z-10 h-3 w-14 -translate-x-1/2 rounded-full bg-black" />
 			<div className="h-full overflow-hidden rounded-[1.55rem] bg-white px-3 pb-3 pt-7">
 				<div className="flex items-center gap-2 border-b border-black/10 pb-2.5">
-					<span className="flex h-7 w-7 items-center justify-center rounded-full bg-black text-white"><Bot className="h-3.5 w-3.5" /></span>
+					<span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full bg-black text-white"><Bot className="h-3.5 w-3.5" /></span>
 					<div><p className="text-[10px] font-medium text-black">Vigent</p><p className="text-[9px] text-emerald-700">{copy.connected}</p></div>
 				</div>
 				<div className="mt-4 rounded-xl rounded-es-sm bg-black/[0.06] p-2 text-[10px] leading-4 text-black/65">{copy.reply}</div>

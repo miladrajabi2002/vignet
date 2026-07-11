@@ -96,10 +96,10 @@ export async function PopularPosts() {
 				<div className="mt-12 text-center">
 					<Link
 						href="/blog"
-						className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hover)] px-5 py-2.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
+						className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
 					>
 						{isFa ? 'مشاهده همه مقالات' : 'View all articles'}
-						<ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+						<ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
 					</Link>
 				</div>
 			</div>

@@ -52,6 +52,7 @@ export function SocialProof() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const ref = useRef<HTMLDivElement>(null)
 	const inView = useInView(ref, { once: true, margin: '-40px' })
+	const reduce = useReducedMotion()
 
 	const visible = STATS.filter((s) => Number.isFinite(s.value) && s.value >= MIN_VISIBLE)
 	if (visible.length === 0) return null
@@ -65,10 +66,10 @@ export function SocialProof() {
 				{visible.map(({ key, value }, i) => (
 					<motion.div
 						key={key}
-						initial={{ opacity: 0, y: 14 }}
+						initial={reduce ? false : { opacity: 0, y: 14 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-40px' }}
-						transition={{ duration: 0.5, delay: i * 0.12 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.5, delay: i * 0.12 }}
 						className={
 							i > 0
 								? 'flex flex-col items-center border-s border-[var(--border-default)] px-8 sm:px-14'

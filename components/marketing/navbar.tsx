@@ -88,9 +88,8 @@ function NavbarContent() {
 			return
 		}
 
-		// Query on every update instead of observing the initial nodes. The live
-		// demo is lazy-loaded and replaces its placeholder node, which previously
-		// left the navbar observing a detached element and never activated “Demo”.
+		// Query on every update so the active marker stays correct after route,
+		// viewport and section-layout changes.
 		let frame = 0
 		const updateActiveSection = () => {
 			cancelAnimationFrame(frame)
@@ -138,19 +137,19 @@ function NavbarContent() {
 				: 'border-transparent bg-white/[0.68] shadow-none backdrop-blur-md',
 		)}>
 			<nav className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-8" aria-label={copy.primaryNav}>
-				<Link href="/" aria-label="Vigent home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+				<Link href="/" aria-label="Vigent home" className="inline-flex min-h-11 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
 					<Logo priority className="h-10 w-32 sm:w-40" />
 				</Link>
 
 				<div className="hidden items-center gap-1 rounded-full border border-black/10 bg-white p-1 shadow-sm lg:flex">
 					{sectionLinks.map((link) => (
-						<Link key={link.id} href={link.href} className={cn('inline-flex min-h-9 items-center rounded-full px-3.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname === '/' && activeSection === link.id ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>
+						<Link key={link.id} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname === '/' && activeSection === link.id ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>
 							{link.label}
 						</Link>
 					))}
 					<span className="mx-1 h-4 w-px bg-black/10" />
 					{resourceLinks.map((link) => (
-						<Link key={link.href} href={link.href} className={cn('inline-flex min-h-9 items-center rounded-full px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname.startsWith(link.href) ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>{link.label}</Link>
+						<Link key={link.href} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname.startsWith(link.href) ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>{link.label}</Link>
 					))}
 				</div>
 
