@@ -116,10 +116,10 @@ function LayerPanel() {
 				{copy.layers.map((layer, index) => (
 					<motion.div
 						key={layer.label}
-						initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+						initial={reduce ? false : { opacity: 0, y: 8 }}
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-30px' }}
-						transition={{ duration: 0.35, delay: index * 0.045 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.35, delay: index * 0.045 }}
 						className="rounded-xl border border-white/10 bg-black/25 p-3"
 					>
 						<div className="flex items-center gap-2"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/15 text-emerald-200"><Check className="h-3 w-3" aria-hidden /></span><p className="text-[11px] font-medium text-white/85">{layer.label}</p><span className="ms-auto font-mono text-[9px] text-white/35">0{index + 1}</span></div>
@@ -149,7 +149,7 @@ export function FeaturesSection() {
 						<p className="marketing-eyebrow !text-white/50">{copy.eyebrow}</p>
 						<h2 className="mt-4 font-semibold leading-[1.3] text-white">
 							<span className="block text-[clamp(1.75rem,3.2vw,2.75rem)]">{copy.titleLead}</span>
-							<span className={`mt-1 block whitespace-nowrap ${locale === 'fa' ? 'text-[clamp(1.08rem,3vw,2.15rem)]' : 'text-[clamp(0.96rem,2.55vw,2rem)]'}`}>{copy.titleRest}</span>
+							<span className={`mt-1 block max-w-2xl text-balance ${locale === 'fa' ? 'text-[clamp(1.2rem,3vw,2.15rem)]' : 'text-[clamp(1.08rem,2.55vw,2rem)]'}`}>{copy.titleRest}</span>
 						</h2>
 						<p className="marketing-subtitle mt-4 !text-white/58">{copy.subtitle}</p>
 						<div className="mt-7 hidden items-center gap-2 text-[11px] text-white/55 lg:flex"><Workflow className="h-4 w-4" aria-hidden /><span>{locale === 'fa' ? 'از قالب آماده شروع کنید و هر جزئیات را تغییر دهید' : 'Start from a template and change every detail'}</span></div>
@@ -161,10 +161,10 @@ export function FeaturesSection() {
 					{copy.capabilities.map(({ title, desc, icon: Icon }, index) => (
 						<motion.article
 							key={title}
-							initial={{ opacity: 0, y: reduce ? 0 : 10 }}
+							initial={reduce ? false : { opacity: 0, y: 10 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true, margin: '-40px' }}
-							transition={{ duration: 0.4, delay: (index % 4) * 0.05 }}
+							transition={reduce ? { duration: 0 } : { duration: 0.4, delay: (index % 4) * 0.05 }}
 							className="min-h-36 rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 sm:min-h-40 sm:p-4"
 						>
 							<span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/25"><Icon className="h-4 w-4 text-white/65" aria-hidden /></span>

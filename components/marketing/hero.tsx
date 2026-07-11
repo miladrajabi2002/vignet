@@ -62,9 +62,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 	return (
 		<motion.div
-			initial={{ opacity: 0, y: reduce ? 0 : 18, scale: reduce ? 1 : 0.99 }}
+			initial={reduce ? false : { opacity: 0, y: 18, scale: 0.99 }}
 			animate={{ opacity: 1, y: 0, scale: 1 }}
-			transition={{ duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+			transition={reduce ? { duration: 0 } : { duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
 			className="relative mx-auto w-full max-w-[610px]"
 		>
 			<div aria-hidden className="absolute -inset-4 -z-10 rounded-[2rem] bg-[radial-gradient(circle_at_50%_35%,rgba(10,159,110,0.11),transparent_67%)]" />
@@ -116,18 +116,18 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 						<div className="flex-1 space-y-2.5 p-4 sm:p-5">
 							<motion.div
-								initial={{ opacity: 0, y: reduce ? 0 : 7 }}
+								initial={reduce ? false : { opacity: 0, y: 7 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.5, duration: 0.4 }}
+								transition={reduce ? { duration: 0 } : { delay: 0.5, duration: 0.4 }}
 								className="ms-auto max-w-[88%] rounded-2xl rounded-ee-md bg-black px-3.5 py-2.5 text-[11px] leading-5 text-white"
 							>
 								{copy.message}
 							</motion.div>
 
 							<motion.div
-								initial={{ opacity: 0, y: reduce ? 0 : 7 }}
+								initial={reduce ? false : { opacity: 0, y: 7 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.82, duration: 0.4 }}
+								transition={reduce ? { duration: 0 } : { delay: 0.82, duration: 0.4 }}
 								className="max-w-[94%] rounded-2xl rounded-es-md border border-black/10 bg-[#f5f6f3] px-3.5 py-3"
 							>
 								<div className="flex gap-2.5">
@@ -143,9 +143,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							</motion.div>
 
 							<motion.div
-								initial={{ opacity: 0, scale: reduce ? 1 : 0.98 }}
+								initial={reduce ? false : { opacity: 0, scale: 0.98 }}
 								animate={{ opacity: 1, scale: 1 }}
-								transition={{ delay: 1.12, duration: 0.35 }}
+								transition={reduce ? { duration: 0 } : { delay: 1.12, duration: 0.35 }}
 								className="flex items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-3 py-2.5 text-[10px] font-medium text-emerald-900"
 							>
 								<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
@@ -183,41 +183,41 @@ export function Hero() {
 			<div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 xl:gap-16">
 				<div className="mx-auto max-w-xl text-center lg:mx-0 lg:text-start">
 					<motion.div
-						initial={{ opacity: 0, y: reduce ? 0 : 10 }}
+						initial={reduce ? false : { opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.5 }}
 						className="inline-flex min-h-9 items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 text-[11px] font-medium text-black/65 shadow-sm"
 					>
 						<span className="relative flex h-2 w-2">
-							<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-45" />
+							<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-45 motion-reduce:animate-none" />
 							<span className="relative h-2 w-2 rounded-full bg-emerald-500" />
 						</span>
 						{copy.kicker}
 					</motion.div>
 
 					<motion.h1
-						initial={{ opacity: 0, y: reduce ? 0 : 15 }}
+						initial={reduce ? false : { opacity: 0, y: 15 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.65, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-						className={`mt-5 font-semibold leading-[1.2] tracking-[-0.035em] text-black rtl:tracking-normal ${locale === 'fa' ? 'text-[clamp(1.72rem,8vw,4rem)]' : 'text-[clamp(1.32rem,6.35vw,4rem)]'}`}
+						transition={reduce ? { duration: 0 } : { duration: 0.65, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+						className={`mt-5 font-semibold leading-[1.2] tracking-[-0.035em] text-black rtl:tracking-normal ${locale === 'fa' ? 'text-[clamp(1.4rem,min(7.25vw,4rem),4rem)]' : 'text-[clamp(1.2rem,min(6vw,4rem),4rem)]'}`}
 					>
-						<span className="block whitespace-nowrap">{copy.headlineTop}</span>
-						<span className="block whitespace-nowrap text-black/60">{copy.headlineBottom}</span>
+						<span className="marketing-hero-line block">{copy.headlineTop}</span>
+						<span className="marketing-hero-line block text-black/60">{copy.headlineBottom}</span>
 					</motion.h1>
 
 					<motion.p
-						initial={{ opacity: 0, y: reduce ? 0 : 12 }}
+						initial={reduce ? false : { opacity: 0, y: 12 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.55, delay: 0.12 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.55, delay: 0.12 }}
 						className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-black/65 sm:text-base sm:leading-8 lg:mx-0"
 					>
 						{t('subtitle')}
 					</motion.p>
 
 					<motion.div
-						initial={{ opacity: 0, y: reduce ? 0 : 10 }}
+						initial={reduce ? false : { opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5, delay: 0.2 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
 						className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start"
 					>
 						<Link href="/login?next=/onboarding" className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-sm font-medium text-white shadow-[0_12px_28px_rgba(0,0,0,0.15)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(0,0,0,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
@@ -231,9 +231,9 @@ export function Hero() {
 					</motion.div>
 
 					<motion.p
-						initial={{ opacity: 0 }}
+						initial={reduce ? false : { opacity: 0 }}
 						animate={{ opacity: 1 }}
-						transition={{ delay: 0.3, duration: 0.55 }}
+						transition={reduce ? { duration: 0 } : { delay: 0.3, duration: 0.55 }}
 						className="mt-4 text-[11px] leading-5 text-black/50"
 					>
 						{t('trust')}

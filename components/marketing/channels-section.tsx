@@ -112,14 +112,14 @@ function ConnectionBoard() {
 				</div>
 
 				<motion.div
-					initial={{ opacity: 0, scale: reduce ? 1 : 0.97 }}
+					initial={reduce ? false : { opacity: 0, scale: 0.97 }}
 					whileInView={{ opacity: 1, scale: 1 }}
 					viewport={{ once: true, margin: '-80px' }}
-					transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+					transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
 					className="relative z-10 order-1 rounded-[1.4rem] bg-black p-5 text-white shadow-[0_22px_50px_rgba(0,0,0,0.2)] sm:p-6 lg:order-none"
 				>
 					<div className="flex items-center justify-between">
-						<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black">
+						<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black">
 							<Bot className="h-5 w-5" />
 						</span>
 						<span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1 text-[10px] text-white/65">
@@ -134,7 +134,7 @@ function ConnectionBoard() {
 						<div className="max-w-[92%] rounded-xl rounded-es-sm border border-white/10 px-3 py-2 text-[11px] leading-5 text-white/80">{copy.reply}</div>
 					</div>
 					<p className="mt-4 flex items-center gap-2 text-[11px] text-white/60">
-						<Sparkles className="h-3 w-3" />
+						<Sparkles className="h-3 w-3" aria-hidden />
 						{copy.inbox}
 					</p>
 				</motion.div>
@@ -160,13 +160,13 @@ function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentTyp
 	const reduce = useReducedMotion()
 	return (
 		<motion.div
-			initial={{ opacity: 0, y: reduce ? 0 : 10 }}
+			initial={reduce ? false : { opacity: 0, y: 10 }}
 			whileInView={{ opacity: 1, y: 0 }}
 			viewport={{ once: true, margin: '-40px' }}
-			transition={{ duration: 0.45, delay }}
+			transition={reduce ? { duration: 0 } : { duration: 0.45, delay }}
 			className="relative z-10 flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white p-2.5 shadow-[0_4px_14px_rgba(0,0,0,0.04)] sm:gap-2.5 sm:px-3.5"
 		>
-			<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/[0.05]">
+			<span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/[0.05]">
 				<Icon className="h-3.5 w-3.5 text-black/65" />
 			</span>
 			<span className="min-w-0 text-[10px] font-medium leading-4 text-black/70 sm:text-[11px]">{label}</span>
@@ -242,7 +242,7 @@ export function ChannelsSection() {
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
-					<h2 className="mx-auto mt-4 whitespace-nowrap text-[clamp(1.22rem,6vw,3.35rem)] font-semibold leading-[1.2] text-black sm:text-[clamp(2rem,4vw,3.35rem)]">{copy.title}</h2>
+					<h2 className={`marketing-channels-title mx-auto mt-4 font-semibold leading-[1.2] text-black sm:text-[clamp(2rem,4vw,3.35rem)] ${locale === 'fa' ? 'text-[clamp(1.05rem,min(5.35vw,3.35rem),3.35rem)]' : 'text-[clamp(1.05rem,min(5.1vw,3.35rem),3.35rem)]'}`}>{copy.title}</h2>
 					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
 				</div>
 
@@ -251,7 +251,7 @@ export function ChannelsSection() {
 				<div className="mt-5 grid items-stretch gap-5 lg:grid-cols-2">
 					<article className="group relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:p-8 lg:min-h-[620px]">
 						<div className="relative z-10">
-							<span className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><Link2 className="h-4 w-4" /></span>
+							<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><Link2 className="h-4 w-4" /></span>
 							<h3 className="mt-6 max-w-[32rem] text-[clamp(1.35rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-black text-balance">{copy.chatTitle}</h3>
 							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/60">{copy.chatDesc}</p>
 							<Link href="/solutions/persian-ai-chatbot" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
@@ -265,8 +265,8 @@ export function ChannelsSection() {
 
 					<article className="relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:p-8 lg:min-h-[620px]">
 						<div className="relative z-10">
-							<span className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><ShoppingBag className="h-4 w-4" /></span>
-							<h3 className="mt-6 whitespace-nowrap text-[clamp(1.2rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-black">{copy.storeTitle}</h3>
+							<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><ShoppingBag className="h-4 w-4" /></span>
+							<h3 className="mt-6 text-balance text-[clamp(1.2rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-black lg:whitespace-nowrap">{copy.storeTitle}</h3>
 							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/55">{copy.storeDesc}</p>
 							<Link href="/solutions/ecommerce-ai" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
 								{copy.storeCta}<Arrow className="h-4 w-4" />

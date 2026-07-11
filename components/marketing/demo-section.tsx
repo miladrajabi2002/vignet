@@ -90,15 +90,15 @@ function PhoneConversation({ scenario, copy }: { scenario: Scenario; copy: typeo
 					<span className="ms-auto max-w-[42%] truncate text-[10px] text-black/45">{scenario.channel}</span>
 				</div>
 				<div className="flex-1 space-y-3 overflow-hidden bg-[#f7f7f5] px-3.5 py-5">
-					<motion.div key={`${scenario.key}-q`} initial={{ opacity: 0, y: reduce ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-black px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</motion.div>
-					<motion.div key={`${scenario.key}-a`} initial={{ opacity: 0, y: reduce ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-black/10 bg-white px-3 py-2.5 text-[11px] leading-5 text-black/70">
+					<motion.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-black px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</motion.div>
+					<motion.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-black/10 bg-white px-3 py-2.5 text-[11px] leading-5 text-black/70">
 						{scenario.answer}
 						<span className="mt-2 flex w-fit max-w-full items-center gap-1 rounded-full bg-black/[0.05] px-2 py-1 text-[10px] text-black/60"><Database className="h-2.5 w-2.5 shrink-0" />{scenario.source}</span>
 					</motion.div>
-					<motion.div key={`${scenario.key}-action`} initial={{ opacity: 0, y: reduce ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="rounded-xl border border-emerald-700/15 bg-emerald-50 p-2.5">
+					<motion.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-emerald-700/15 bg-emerald-50 p-2.5">
 						<div className="flex items-start gap-2"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><Check className="h-3 w-3" /></span><p className="text-[10px] leading-4 text-emerald-900">{scenario.action}</p></div>
 					</motion.div>
-					<motion.div key={`${scenario.key}-result`} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.85 }} className="rounded-xl bg-black px-3 py-2.5 text-white lg:hidden">
+					<motion.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-black px-3 py-2.5 text-white lg:hidden">
 						<p className="text-[10px] text-white/60">{copy.result}</p>
 						<p className="mt-1 flex items-start gap-1.5 text-[10px] leading-4 text-white/80"><Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />{scenario.result}</p>
 					</motion.div>
@@ -150,9 +150,9 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 			{steps.map(({ label, value, Icon }, index) => (
 				<motion.div
 					key={label}
-					initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.32, delay: reduce ? 0 : index * 0.22, ease: [0.16, 1, 0.3, 1] }}
+					transition={reduce ? { duration: 0 } : { duration: 0.32, delay: index * 0.22, ease: [0.16, 1, 0.3, 1] }}
 					className="relative min-w-0 rounded-xl bg-[#f7f7f5] p-3 sm:bg-transparent sm:px-4 sm:text-center"
 				>
 					<span className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm sm:mx-auto ${index === steps.length - 1 ? 'text-emerald-700' : 'text-black/60'}`}>
@@ -171,13 +171,14 @@ export function DemoSection() {
 	const copy = COPY[locale]
 	const reduce = useReducedMotion()
 	const [selected, setSelected] = useState(0)
-	const [playing, setPlaying] = useState(!reduce)
+	const [playing, setPlaying] = useState(false)
 	const scenario = copy.scenarios[selected]
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
 	useEffect(() => {
-		if (window.matchMedia('(max-width: 639px)').matches) setPlaying(false)
-	}, [])
+		const isDesktop = !window.matchMedia('(max-width: 639px)').matches
+		setPlaying(reduce === false && isDesktop)
+	}, [reduce])
 
 	useEffect(() => {
 		if (!playing || reduce) return
@@ -197,7 +198,7 @@ export function DemoSection() {
 				<div className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="group" aria-label={copy.eyebrow}>
 					{copy.scenarios.map((item, index) => {
 						const Icon = item.icon
-						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55 hover:border-black/20 hover:text-black'}`}><Icon className="h-3.5 w-3.5 shrink-0" /><span>{item.label}</span></button>
+						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55 hover:border-black/20 hover:text-black'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
 					})}
 				</div>
 				<AnimatePresence mode="wait" initial={false}>
@@ -206,7 +207,7 @@ export function DemoSection() {
 
 				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white p-3 shadow-[0_24px_70px_rgba(0,0,0,0.07)] sm:p-6 lg:p-8">
 					<AnimatePresence mode="wait" initial={false}>
-						<motion.div key={scenario.key} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
+						<motion.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
 							<PhoneConversation scenario={scenario} copy={copy} />
 							<div className="hidden h-full lg:block"><TracePanel scenario={scenario} copy={copy} /></div>
 						</motion.div>

@@ -2,7 +2,7 @@ import dynamicImport from 'next/dynamic'
 import { getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
-import { LazyDemoSection } from '@/components/marketing/lazy-demo-section'
+import { DemoSection } from '@/components/marketing/demo-section'
 import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
@@ -86,7 +86,7 @@ export default async function HomePage() {
 			<Hero />
 			<SocialProof />
 			<ChannelsSection />
-			<LazyDemoSection />
+			<DemoSection />
 			<UseCasesSection />
 			<FeaturesSection />
 			<HowItWorks />
