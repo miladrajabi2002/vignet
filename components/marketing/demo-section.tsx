@@ -55,9 +55,9 @@ const COPY: Record<'fa' | 'en', {
 }> = {
 	fa: {
 		eyebrow: 'دموی واقعی محصول',
-		title: 'ببینید یک پیام چطور به پاسخ و نتیجه می‌رسد.',
+		title: 'از پیام تا نتیجه، در یک نگاه',
 		subtitle: 'یک سناریو انتخاب کنید؛ منبع پاسخ، اقدام ایجنت و نتیجه ثبت‌شده را قدم‌به‌قدم و داخل همان پنل ببینید.',
-		watch: 'پخش خودکار', incoming: 'پیام ورودی', knowledge: 'منبع پاسخ', action: 'اقدام ایجنت', result: 'نتیجه', live: 'آنلاین', replay: 'پخش دوباره', playAria: 'شروع پخش خودکار دمو', pauseAria: 'توقف پخش خودکار دمو', start: 'ساخت ایجنت من', noCode: 'بدون کدنویسی · هوش مصنوعی آماده · اتصال ساده',
+		watch: 'پخش خودکار', incoming: 'پیام', knowledge: 'درک و دانش', action: 'اقدام', result: 'نتیجه', live: 'آنلاین', replay: 'پخش دوباره', playAria: 'شروع پخش خودکار دمو', pauseAria: 'توقف پخش خودکار دمو', start: 'ساخت ایجنت من', noCode: 'بدون کدنویسی · هوش مصنوعی آماده · اتصال ساده',
 		scenarios: [
 			{ key: 'instagram', label: 'پیج اینستاگرام', audience: 'فروش در دایرکت', question: 'قیمت این مانتو چنده؟ رنگ کرم سایز ۴۰ دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم سایز ۴۰ همین الان موجود است.', action: 'قیمت، موجودی و لینک خرید در دایرکت ارسال شد', result: 'گفتگو و محصول درخواستی در صندوق گفتگو ثبت شد', source: 'کاتالوگ محصول + موجودی', channel: 'Instagram Direct', icon: InstagramIcon },
 			{ key: 'store', label: 'فروشگاه آنلاین', audience: 'مشاوره و سفارش', question: 'برای دویدن سبک چه کفشی تا سه میلیون پیشنهاد می‌دید؟', answer: 'با این بودجه دو گزینه مناسب دارید؛ این مدل سبک‌تر است و کفی جذب ضربه دارد.', action: 'دو محصول از کاتالوگ مقایسه و نمایش داده شد', result: 'مقایسه و لینک هر دو محصول در همان گفتگو نمایش داده شد', source: 'ووکامرس + کاتالوگ', channel: 'Website widget', icon: ShoppingBag },
@@ -67,7 +67,7 @@ const COPY: Record<'fa' | 'en', {
 		],
 	},
 	en: {
-		eyebrow: 'Real product demo', title: 'Follow one message from arrival to outcome.', subtitle: 'Change the business type to see what Vigent understands, where the answer comes from, and what happens after the reply.', watch: 'Auto play', incoming: 'Incoming message', knowledge: 'Knowledge and decision', action: 'In-conversation action', result: 'Recorded outcome', live: 'Online', replay: 'Replay', playAria: 'Start demo autoplay', pauseAria: 'Pause demo autoplay', start: 'Build my agent', noCode: 'No code · AI included · Ready to connect',
+		eyebrow: 'Real product demo', title: 'From message to outcome, at a glance', subtitle: 'Change the business type to see what Vigent understands, where the answer comes from, and what happens after the reply.', watch: 'Auto play', incoming: 'Message', knowledge: 'Understand and know', action: 'Action', result: 'Outcome', live: 'Online', replay: 'Replay', playAria: 'Start demo autoplay', pauseAria: 'Pause demo autoplay', start: 'Build my agent', noCode: 'No code · AI included · Ready to connect',
 		scenarios: [
 			{ key: 'instagram', label: 'Instagram shop', audience: 'Sell in DMs', question: 'How much is this coat? Do you have cream in size 40?', answer: 'It is 2,390,000 toman, and cream in size 40 is currently in stock.', action: 'Price, stock and checkout link sent in the DM', result: 'The conversation and requested product were saved in the inbox', source: 'Product catalog + live stock', channel: 'Instagram Direct', icon: InstagramIcon },
 			{ key: 'store', label: 'Online store', audience: 'Advice and orders', question: 'What shoes do you recommend for light running under three million?', answer: 'There are two good options in that range. This one is lighter and has a shock-absorbing sole.', action: 'Two catalog products compared and shown', result: 'Both product comparisons and links appeared in the conversation', source: 'WooCommerce + catalog', channel: 'Website widget', icon: ShoppingBag },
@@ -135,6 +135,37 @@ function TracePanel({ scenario, copy }: { scenario: Scenario; copy: typeof COPY.
 	)
 }
 
+function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COPY.fa | typeof COPY.en }) {
+	const reduce = useReducedMotion()
+	const steps = [
+		{ label: copy.incoming, value: scenario.question, Icon: scenario.icon },
+		{ label: copy.knowledge, value: scenario.source, Icon: Database },
+		{ label: copy.action, value: scenario.action, Icon: PackageSearch },
+		{ label: copy.result, value: scenario.result, Icon: Check },
+	]
+
+	return (
+		<div className="relative mt-5 grid grid-cols-2 gap-2 rounded-[1.25rem] border border-black/10 bg-white p-2 sm:grid-cols-4 sm:gap-0 sm:p-3" aria-label={`${copy.incoming}، ${copy.knowledge}، ${copy.action}، ${copy.result}`}>
+			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[34px] hidden h-px bg-black/10 sm:block" />
+			{steps.map(({ label, value, Icon }, index) => (
+				<motion.div
+					key={label}
+					initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.32, delay: reduce ? 0 : index * 0.22, ease: [0.16, 1, 0.3, 1] }}
+					className="relative min-w-0 rounded-xl bg-[#f7f7f5] p-3 sm:bg-transparent sm:px-4 sm:text-center"
+				>
+					<span className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm sm:mx-auto ${index === steps.length - 1 ? 'text-emerald-700' : 'text-black/60'}`}>
+						<Icon className="h-4 w-4" aria-hidden />
+					</span>
+					<p className="mt-2 text-[11px] font-semibold text-black/80">{label}</p>
+					<p className="mt-1 line-clamp-2 text-[10px] leading-4 text-black/50">{value}</p>
+				</motion.div>
+			))}
+		</div>
+	)
+}
+
 export function DemoSection() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
@@ -157,10 +188,10 @@ export function DemoSection() {
 	return (
 		<section id="demo" className="marketing-story-section bg-[#f5f6f3] py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="max-w-4xl border-t border-black/10 pt-6">
+				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
-					<h2 className="marketing-heading mt-4">{copy.title}</h2>
-					<p className="marketing-subtitle mt-4">{copy.subtitle}</p>
+					<h2 className="marketing-heading mx-auto mt-4">{copy.title}</h2>
+					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
 				</div>
 
 				<div className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="group" aria-label={copy.eyebrow}>
@@ -169,6 +200,9 @@ export function DemoSection() {
 						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55 hover:border-black/20 hover:text-black'}`}><Icon className="h-3.5 w-3.5 shrink-0" /><span>{item.label}</span></button>
 					})}
 				</div>
+				<AnimatePresence mode="wait" initial={false}>
+					<JourneyStrip key={`journey-${scenario.key}`} scenario={scenario} copy={copy} />
+				</AnimatePresence>
 
 				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white p-3 shadow-[0_24px_70px_rgba(0,0,0,0.07)] sm:p-6 lg:p-8">
 					<AnimatePresence mode="wait" initial={false}>

@@ -131,7 +131,12 @@ function NavbarContent() {
 	]
 
 	return (
-		<header className={cn('fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-300', scrolled || open ? 'border-black/10 bg-white/95 backdrop-blur-xl' : 'border-transparent bg-white/80 backdrop-blur-md')}>
+		<header className={cn(
+			'fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300',
+			scrolled || open
+				? 'border-black/10 bg-white/[0.82] shadow-[0_10px_35px_rgba(0,0,0,0.07)] backdrop-blur-2xl backdrop-saturate-150'
+				: 'border-transparent bg-white/[0.68] shadow-none backdrop-blur-md',
+		)}>
 			<nav className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-8" aria-label={copy.primaryNav}>
 				<Link href="/" aria-label="Vigent home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
 					<Logo priority className="h-10 w-32 sm:w-40" />

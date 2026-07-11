@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Bot, Check, Database, Plug, SlidersHorizontal } 
 const COPY = {
 	fa: {
 		eyebrow: 'اولین گفتگو را امروز بسازید',
-		title: 'ایجنت‌تان را بسازید؛ ویجنت بقیهٔ مسیر را ساده می‌کند.',
+		title: 'ایجنت‌تان را امروز بسازید',
 		desc: 'اطلاعات کسب‌وکار را اضافه کنید، لحن را انتخاب کنید و اولین کانال را وصل کنید. هوش مصنوعی و زیرساخت از قبل آماده است.',
 		button: 'شروع رایگان — ۱۴ روز',
 		note: 'بدون دانش فنی · هوش مصنوعی آماده · فقط با شماره موبایل',
@@ -16,7 +16,7 @@ const COPY = {
 	},
 	en: {
 		eyebrow: 'Build your first conversation today',
-		title: 'Every message should not have to wait for you.',
+		title: 'Build your agent today',
 		desc: 'Choose a starting point, add your real business information and go live on your first channel the same day.',
 		button: 'Start free — 14 days',
 		note: 'AI included · No technical skills · Just your phone number',

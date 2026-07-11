@@ -12,22 +12,21 @@ import {
 	Link2,
 	MessageCircleMore,
 	Radio,
-	Send,
 	ShoppingBag,
 	Sparkles,
 	Webhook,
 } from 'lucide-react'
-import { InstagramIcon } from './social-links'
+import { InstagramIcon, TelegramIcon } from './social-links'
 
 const COPY = {
 	fa: {
 		eyebrow: 'اتصالات ویجنت',
-		title: 'همهٔ اتصالات، یک مغز مشترک.',
+		title: 'همهٔ اتصالات، یک مغز مشترک',
 		subtitle: 'مشتری کانالش را انتخاب می‌کند؛ شما همان دانش، همان لحن و همان کیفیت پاسخ را همه‌جا حفظ می‌کنید.',
 		hubTitle: 'ایجنت ویجنت',
 		hubDesc: 'پاسخ از دانش واقعی کسب‌وکار',
 		inbox: 'همه پیام‌ها وارد یک صندوق می‌شوند',
-		channels: ['اینستاگرام', 'تلگرام', 'واتساپ', 'بله', 'روبیکا', 'ویجت سایت'],
+		channels: ['اینستاگرام', 'تلگرام', 'واتساپ', 'بله', 'روبیکا', 'ویجت وب', 'لینک چت', 'ووکامرس'],
 		chatTitle: 'یک لینک چت برای هرجایی که لینک می‌پذیرد',
 		chatDesc: 'در بیو اینستاگرام، پیامک، QR یا سایت بگذارید؛ مشتری بدون نصب برنامه وارد گفتگوی اختصاصی شما می‌شود.',
 		chatCta: 'دیدن لینک چت',
@@ -44,12 +43,12 @@ const COPY = {
 	},
 	en: {
 		eyebrow: 'Vigent connections',
-		title: 'Every connection. One shared brain.',
+		title: 'Every connection, one shared brain',
 		subtitle: 'Customers pick the channel; you keep the same knowledge, voice and response quality everywhere.',
 		hubTitle: 'Vigent agent',
 		hubDesc: 'Answers from real business knowledge',
 		inbox: 'Every message lands in one inbox',
-		channels: ['Instagram', 'Telegram', 'WhatsApp', 'Bale', 'Rubika', 'Website widget'],
+		channels: ['Instagram', 'Telegram', 'WhatsApp', 'Bale', 'Rubika', 'Web widget', 'Chat link', 'WooCommerce'],
 		chatTitle: 'One chat link for anywhere a link fits',
 		chatDesc: 'Put it in your Instagram bio, SMS, QR code or website. Customers open your branded chat with no app to install.',
 		chatCta: 'Explore chat links',
@@ -66,7 +65,7 @@ const COPY = {
 	},
 } as const
 
-const CHANNEL_ICONS = [InstagramIcon, Send, MessageCircleMore, Radio, MessageCircleMore, Globe2]
+const CHANNEL_ICONS = [InstagramIcon, TelegramIcon, MessageCircleMore, Radio, MessageCircleMore, Globe2, Link2, ShoppingBag]
 
 function ConnectionBoard() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
@@ -74,33 +73,39 @@ function ConnectionBoard() {
 	const reduce = useReducedMotion()
 
 	return (
-		<div className="relative mx-auto mt-10 max-w-6xl overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-4 sm:p-7 lg:min-h-[470px] lg:p-9">
+		<div className="relative mx-auto mt-10 max-w-6xl overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-4 sm:p-7 lg:min-h-[500px] lg:p-9">
 			<div aria-hidden className="marketing-grid pointer-events-none absolute inset-0 opacity-50" />
-			<svg aria-hidden viewBox="0 0 1000 430" className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block" preserveAspectRatio="none">
-				{[75, 145, 215, 285, 355].map((y) => (
-					<path key={`a-${y}`} d={`M 165 ${y} C 310 ${y}, 300 215, 430 215`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.25" />
+			<svg aria-hidden viewBox="0 0 1000 460" className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block" preserveAspectRatio="none">
+				{[72, 176, 284, 388].map((y, index) => (
+					<path key={`in-${y}`} d={`M 168 ${y} C 260 ${y}, 274 ${118 + index * 70}, 355 ${118 + index * 70} S 414 230, 450 230`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.2" />
 				))}
-				{[92, 160, 228, 296, 364].map((y) => (
-					<path key={`b-${y}`} d={`M 570 215 C 700 215, 690 ${y}, 835 ${y}`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.25" />
+				{[72, 176, 284, 388].map((y, index) => (
+					<path key={`out-${y}`} d={`M 550 230 C 586 230, 588 ${118 + index * 70}, 645 ${118 + index * 70} S 740 ${y}, 832 ${y}`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.2" />
+				))}
+				{[118, 188, 258, 328].map((y) => (
+					<g key={`neuron-${y}`}>
+						<circle cx="355" cy={y} r="5" fill="#f5f6f3" stroke="rgba(0,0,0,.3)" strokeWidth="1.2" />
+						<circle cx="645" cy={y} r="5" fill="#f5f6f3" stroke="rgba(0,0,0,.3)" strokeWidth="1.2" />
+					</g>
 				))}
 				{!reduce && (
 					<>
-						<circle r="3" fill="#111">
-							<animateMotion dur="3.2s" repeatCount="indefinite" path="M 165 145 C 310 145, 300 215, 430 215" />
+						<circle r="3.2" fill="#111">
+							<animateMotion dur="3.2s" repeatCount="indefinite" path="M 168 176 C 260 176, 274 188, 355 188 S 414 230, 450 230" />
 						</circle>
-						<circle r="3" fill="#111">
-							<animateMotion dur="3.8s" begin=".9s" repeatCount="indefinite" path="M 570 215 C 700 215, 690 296, 835 296" />
+						<circle r="3.2" fill="#111">
+							<animateMotion dur="3.7s" begin=".75s" repeatCount="indefinite" path="M 550 230 C 586 230, 588 258, 645 258 S 740 284, 832 284" />
 						</circle>
-						<circle r="3" fill="#111">
-							<animateMotion dur="4.1s" begin="1.6s" repeatCount="indefinite" path="M 165 355 C 310 355, 300 215, 430 215" />
+						<circle r="3.2" fill="#111">
+							<animateMotion dur="4s" begin="1.45s" repeatCount="indefinite" path="M 168 388 C 260 388, 274 328, 355 328 S 414 230, 450 230" />
 						</circle>
 					</>
 				)}
 			</svg>
 
-			<div className="relative grid gap-4 lg:grid-cols-[1fr_1.05fr_1fr] lg:items-center lg:gap-5">
-				<div className="order-2 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-3">
-					{copy.channels.slice(0, 3).map((label, index) => {
+			<div className="relative grid gap-4 lg:grid-cols-[1fr_1.08fr_1fr] lg:items-center lg:gap-5">
+				<div className="order-3 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-4">
+					{copy.channels.slice(0, 4).map((label, index) => {
 						const Icon = CHANNEL_ICONS[index]
 						return <ChannelNode key={label} label={label} Icon={Icon} delay={index * 0.08} />
 					})}
@@ -134,10 +139,16 @@ function ConnectionBoard() {
 					</p>
 				</motion.div>
 
-				<div className="order-3 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-3">
-					{copy.channels.slice(3).map((label, index) => {
-						const Icon = CHANNEL_ICONS[index + 3]
-						return <ChannelNode key={label} label={label} Icon={Icon} delay={(index + 3) * 0.08} />
+				<div aria-hidden className="relative order-2 mx-auto h-12 w-4/5 lg:hidden">
+					<span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 bg-black/20" />
+					<span className="absolute inset-x-0 top-6 h-px bg-gradient-to-r from-transparent via-black/20 to-transparent" />
+					{[18, 38, 62, 82].map((left) => <span key={left} className="absolute top-[21px] h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-black/25 bg-[#f5f6f3]" style={{ left: `${left}%` }} />)}
+				</div>
+
+				<div className="order-4 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-4">
+					{copy.channels.slice(4).map((label, index) => {
+						const Icon = CHANNEL_ICONS[index + 4]
+						return <ChannelNode key={label} label={label} Icon={Icon} delay={(index + 4) * 0.08} />
 					})}
 				</div>
 			</div>
@@ -153,12 +164,12 @@ function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentTyp
 			whileInView={{ opacity: 1, y: 0 }}
 			viewport={{ once: true, margin: '-40px' }}
 			transition={{ duration: 0.45, delay }}
-			className="relative z-10 flex min-h-14 items-center gap-2.5 rounded-xl border border-black/10 bg-white p-2.5 shadow-[0_4px_14px_rgba(0,0,0,0.04)] sm:px-3.5"
+			className="relative z-10 flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white p-2.5 shadow-[0_4px_14px_rgba(0,0,0,0.04)] sm:gap-2.5 sm:px-3.5"
 		>
 			<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/[0.05]">
 				<Icon className="h-3.5 w-3.5 text-black/65" />
 			</span>
-			<span className="truncate text-[11px] font-medium text-black/70">{label}</span>
+			<span className="min-w-0 text-[10px] font-medium leading-4 text-black/70 sm:text-[11px]">{label}</span>
 			<span className="ms-auto hidden h-1.5 w-1.5 rounded-full bg-emerald-500 sm:block" />
 		</motion.div>
 	)
@@ -229,39 +240,39 @@ export function ChannelsSection() {
 	return (
 		<section id="product" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="max-w-4xl border-t border-black/10 pt-6">
+				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
-					<h2 className="marketing-heading mt-4 lg:whitespace-nowrap">{copy.title}</h2>
-					<p className="marketing-subtitle mt-4">{copy.subtitle}</p>
+					<h2 className="mx-auto mt-4 whitespace-nowrap text-[clamp(1.22rem,6vw,3.35rem)] font-semibold leading-[1.2] text-black sm:text-[clamp(2rem,4vw,3.35rem)]">{copy.title}</h2>
+					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
 				</div>
 
 				<ConnectionBoard />
 
-				<div className="mt-5 grid gap-5 lg:grid-cols-2">
-					<article className="group relative grid min-h-[420px] overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:grid-cols-[1fr_190px] sm:items-center sm:p-8">
-						<div className="relative z-10 max-w-sm">
+				<div className="mt-5 grid items-stretch gap-5 lg:grid-cols-2">
+					<article className="group relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:p-8 lg:min-h-[620px]">
+						<div className="relative z-10">
 							<span className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><Link2 className="h-4 w-4" /></span>
-							<h3 className="mt-6 text-2xl font-medium leading-tight text-black sm:text-3xl">{copy.chatTitle}</h3>
-							<p className="mt-3 text-sm leading-7 text-black/60">{copy.chatDesc}</p>
+							<h3 className="mt-6 max-w-[32rem] text-[clamp(1.35rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-black text-balance">{copy.chatTitle}</h3>
+							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/60">{copy.chatDesc}</p>
 							<Link href="/solutions/persian-ai-chatbot" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
 								{copy.chatCta}<Arrow className="h-4 w-4" />
 							</Link>
 						</div>
-						<div className="mx-auto mt-8 rotate-[-3deg] transition-transform duration-500 group-hover:-translate-y-2 group-hover:rotate-0 sm:mt-0 ltr:rotate-[3deg]">
+						<div className="mx-auto mt-8 flex flex-1 items-end rotate-[-3deg] transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-0 ltr:rotate-[3deg]">
 							<ChatLinkPreview />
 						</div>
 					</article>
 
-					<article className="relative flex min-h-[420px] flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:p-8">
-						<div className="relative z-10 max-w-md">
+					<article className="relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-[#f5f6f3] p-6 sm:p-8 lg:min-h-[620px]">
+						<div className="relative z-10">
 							<span className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white"><ShoppingBag className="h-4 w-4" /></span>
-							<h3 className="mt-6 text-2xl font-medium leading-tight text-black sm:text-3xl">{copy.storeTitle}</h3>
-							<p className="mt-3 text-sm leading-7 text-black/55">{copy.storeDesc}</p>
+							<h3 className="mt-6 whitespace-nowrap text-[clamp(1.2rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-black">{copy.storeTitle}</h3>
+							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/55">{copy.storeDesc}</p>
 							<Link href="/solutions/ecommerce-ai" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
 								{copy.storeCta}<Arrow className="h-4 w-4" />
 							</Link>
 						</div>
-						<div className="mt-8 flex flex-1 items-end justify-center sm:justify-end">
+						<div className="mt-8 flex flex-1 items-end justify-center">
 							<StorePreview />
 						</div>
 					</article>

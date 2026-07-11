@@ -19,8 +19,8 @@ import { InstagramIcon } from './social-links'
 const COPY = {
 	fa: {
 		kicker: 'هوش مصنوعی فارسی برای فروش و پشتیبانی',
-		headlineTop: 'هر پیام، یک پاسخ دقیق.',
-		headlineBottom: 'از همه‌جا، در یک پنل.',
+		headlineTop: 'هر پیام، یک پاسخ دقیق',
+		headlineBottom: 'از همه‌جا، در یک پنل',
 		inbox: 'صندوق گفتگوها',
 		live: 'پاسخ‌گویی فعال',
 		customer: 'سارا احمدی',
@@ -35,8 +35,8 @@ const COPY = {
 	},
 	en: {
 		kicker: 'Persian AI for sales and support',
-		headlineTop: 'Every message gets a clear answer.',
-		headlineBottom: 'Every channel, one inbox.',
+		headlineTop: 'Every message gets a clear answer',
+		headlineBottom: 'Every channel, one inbox',
 		inbox: 'Conversations',
 		live: 'Replies active',
 		customer: 'Sara Ahmadi',
@@ -199,10 +199,10 @@ export function Hero() {
 						initial={{ opacity: 0, y: reduce ? 0 : 15 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.65, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-						className="mt-5 text-[clamp(2.35rem,4.35vw,4rem)] font-semibold leading-[1.2] tracking-[-0.035em] text-black rtl:tracking-normal"
+						className={`mt-5 font-semibold leading-[1.2] tracking-[-0.035em] text-black rtl:tracking-normal ${locale === 'fa' ? 'text-[clamp(1.72rem,8vw,4rem)]' : 'text-[clamp(1.32rem,6.35vw,4rem)]'}`}
 					>
-						<span className="block">{copy.headlineTop}</span>
-						<span className="block text-black/60">{copy.headlineBottom}</span>
+						<span className="block whitespace-nowrap">{copy.headlineTop}</span>
+						<span className="block whitespace-nowrap text-black/60">{copy.headlineBottom}</span>
 					</motion.h1>
 
 					<motion.p

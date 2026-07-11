@@ -5,6 +5,7 @@ import { SocialProof } from '@/components/marketing/social-proof'
 import { LazyDemoSection } from '@/components/marketing/lazy-demo-section'
 import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
+import { SectionRevealController } from '@/components/marketing/section-reveal'
 
 // Below-the-fold sections are code-split so the first paint stays focused on
 // the hero; each product section's JS loads independently.
@@ -77,6 +78,7 @@ export default async function HomePage() {
 
 	return (
 		<>
+			<SectionRevealController />
 			<script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

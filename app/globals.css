@@ -135,7 +135,7 @@
 	   and less aggressive tracking than the previous 6rem headings. */
 	.marketing-heading {
 		max-width: 56rem;
-		font-size: clamp(2rem, 4vw, 3.35rem);
+		font-size: clamp(1.65rem, 7vw, 3.35rem);
 		font-weight: 600;
 		line-height: 1.22;
 		letter-spacing: -0.032em;
@@ -167,6 +167,23 @@
 		border-radius: 9999px;
 		background: #10b981;
 		box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
+	}
+
+	/* One quiet scroll rhythm across the homepage. The controller adds the
+	   readiness class only when IntersectionObserver is available, so SSR and
+	   no-JS rendering never hide content. */
+	html.marketing-motion-ready .marketing-story-section {
+		opacity: 0;
+		transform: translate3d(0, 1.125rem, 0);
+		transition:
+			opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+			transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+		will-change: opacity, transform;
+	}
+	html.marketing-motion-ready .marketing-story-section.is-visible {
+		opacity: 1;
+		transform: translate3d(0, 0, 0);
+		will-change: auto;
 	}
 
 	.input {
@@ -271,6 +288,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	html.marketing-motion-ready .marketing-story-section,
+	html.marketing-motion-ready .marketing-story-section.is-visible {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+
         *,
         *::before,
         *::after {

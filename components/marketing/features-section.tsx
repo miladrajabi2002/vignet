@@ -26,7 +26,8 @@ type Capability = {
 
 const COPY: Record<'fa' | 'en', {
 	eyebrow: string
-	title: string
+	titleLead: string
+	titleRest: string
 	subtitle: string
 	panelTitle: string
 	panelNote: string
@@ -38,7 +39,8 @@ const COPY: Record<'fa' | 'en', {
 }> = {
 	fa: {
 		eyebrow: 'قابل تنظیم، نه یک ربات آماده',
-		title: 'ایجنت شما؛ با دانش، لحن و قوانین خودتان.',
+		titleLead: 'ایجنت شما',
+		titleRest: 'با دانش، لحن و قوانین خودتان',
 		subtitle: 'از شخصیت و مرز پاسخ‌گویی تا محصولات، کانال‌ها و تحویل به اپراتور را خودتان کنترل می‌کنید؛ بدون نوشتن پرامپت پیچیده.',
 		panelTitle: 'موتور شخصیت ۶ لایه',
 		panelNote: 'هر لایه مستقل و قابل ویرایش است',
@@ -66,7 +68,8 @@ const COPY: Record<'fa' | 'en', {
 	},
 	en: {
 		eyebrow: 'Configurable, not a generic bot',
-		title: 'Your agent, with your knowledge, voice and rules.',
+		titleLead: 'Your agent',
+		titleRest: 'with your knowledge, voice and rules',
 		subtitle: 'Control personality, reply boundaries, products, channels and human handoff without writing a complicated prompt.',
 		panelTitle: 'Six-layer personality engine',
 		panelNote: 'Every layer is independently editable',
@@ -141,10 +144,13 @@ export function FeaturesSection() {
 	return (
 		<section id="features" className="marketing-story-section bg-black py-16 text-white sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="grid gap-9 lg:grid-cols-[0.78fr_1.22fr] lg:items-end lg:gap-14">
+				<div className="grid gap-9 lg:grid-cols-[0.9fr_1.1fr] lg:items-end lg:gap-12">
 					<div className="border-t border-white/15 pt-6">
 						<p className="marketing-eyebrow !text-white/50">{copy.eyebrow}</p>
-						<h2 className="marketing-heading mt-4 !text-white">{copy.title}</h2>
+						<h2 className="mt-4 font-semibold leading-[1.3] text-white">
+							<span className="block text-[clamp(1.75rem,3.2vw,2.75rem)]">{copy.titleLead}</span>
+							<span className={`mt-1 block whitespace-nowrap ${locale === 'fa' ? 'text-[clamp(1.08rem,3vw,2.15rem)]' : 'text-[clamp(0.96rem,2.55vw,2rem)]'}`}>{copy.titleRest}</span>
+						</h2>
 						<p className="marketing-subtitle mt-4 !text-white/58">{copy.subtitle}</p>
 						<div className="mt-7 hidden items-center gap-2 text-[11px] text-white/55 lg:flex"><Workflow className="h-4 w-4" aria-hidden /><span>{locale === 'fa' ? 'از قالب آماده شروع کنید و هر جزئیات را تغییر دهید' : 'Start from a template and change every detail'}</span></div>
 					</div>

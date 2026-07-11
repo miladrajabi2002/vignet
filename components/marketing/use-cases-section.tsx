@@ -22,7 +22,7 @@ type UseCase = {
 const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: string; cta: string; items: UseCase[] }> = {
 	fa: {
 		eyebrow: 'برای کسب‌وکار شما',
-		title: 'ویجنت برای کدام کسب‌وکارها ساخته شده؟',
+		title: 'ساخته‌شده برای کسب‌وکار شما',
 		subtitle: 'اگر فروش یا پشتیبانی شما از گفتگو شروع می‌شود، ویجنت بخش تکراری کار را انجام می‌دهد و موارد مهم را به تیم شما می‌سپارد.',
 		cta: 'دیدن راهکار',
 		items: [
@@ -65,7 +65,7 @@ const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: stri
 	},
 	en: {
 		eyebrow: 'Made for your business',
-		title: 'Where conversations pile up, Vigent goes to work.',
+		title: 'Where conversations pile up, Vigent goes to work',
 		subtitle: 'From a “price?” comment to order tracking and booking, choose the path that matches the work your team actually does every day.',
 		cta: 'Explore solution',
 		items: [
@@ -86,28 +86,29 @@ export async function UseCasesSection() {
 	return (
 		<section id="businesses" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="max-w-4xl border-t border-black/10 pt-6">
+				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
-					<h2 className="marketing-heading mt-4">{copy.title}</h2>
-					<p className="marketing-subtitle mt-4">{copy.subtitle}</p>
+					<h2 className="marketing-heading mx-auto mt-4">{copy.title}</h2>
+					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
 				</div>
 
-				<div className="mt-9 grid gap-3 md:grid-cols-2 lg:grid-cols-6">
+				<div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
 					{copy.items.map(({ title, desc, fit, href, icon: Icon }, index) => (
 						<Link
 							key={title}
 							href={href}
-							className={`group relative min-h-[230px] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#f5f6f3] p-5 text-black transition-[background-color,border-color,transform] duration-300 hover:-translate-y-1 hover:border-black/20 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 sm:p-6 ${index > 2 ? 'hidden md:flex' : 'flex'} ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'}`}
+							className={`group relative flex min-h-[220px] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#f5f6f3] p-5 text-black transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:bg-white hover:shadow-[0_18px_45px_rgba(0,0,0,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 sm:min-h-[250px] sm:p-6 ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'} ${index === 4 ? 'sm:col-span-2 lg:col-span-2' : ''}`}
 						>
+							<span aria-hidden className="marketing-grid pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
 							<div className="flex items-center justify-between">
-								<span className="flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white">
+								<span className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white">
 									<Icon className="h-[18px] w-[18px]" aria-hidden />
 								</span>
-								<span className="text-[9px] font-medium uppercase tracking-[0.12em] text-black/30">Vigent</span>
+								<span className="relative font-mono text-[10px] text-black/30">0{index + 1}</span>
 							</div>
-							<h3 className="mt-6 text-lg font-medium leading-snug sm:text-xl">{title}</h3>
-							<p className="mt-2.5 text-[13px] leading-6 text-black/60">{desc}</p>
-							<div className="mt-auto border-t border-black/10 pt-3.5">
+							<h3 className="relative mt-6 text-lg font-medium leading-snug sm:text-xl">{title}</h3>
+							<p className="relative mt-2.5 text-[13px] leading-6 text-black/60">{desc}</p>
+							<div className="relative mt-auto border-t border-black/10 pt-3.5">
 								<p className="text-[11px] leading-5 text-black/55">{fit}</p>
 								<span className="mt-3 inline-flex items-center gap-2 text-xs font-medium">
 									{copy.cta}<Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1 ltr:group-hover:translate-x-1" />
