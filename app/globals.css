@@ -167,11 +167,6 @@
 		background: #10b981;
 		box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
 	}
-	.marketing-hero-line,
-	.marketing-channels-title {
-		white-space: nowrap;
-	}
-
 	/* One quiet scroll rhythm across the homepage. The controller adds the
 	   readiness class only when IntersectionObserver is available, so SSR and
 	   no-JS rendering never hide content. */
@@ -288,17 +283,6 @@
 
 @media (min-width: 640px) {
 	.marketing-heading { line-height: 1.18; }
-}
-
-/* At normal 320px+ mobile widths these product headlines keep their requested
-   semantic lines. At high browser zoom or very large Dynamic Type, readability
-   wins and the effective narrow viewport may wrap instead of clipping text. */
-@media (max-width: 279px) {
-	.marketing-hero-line,
-	.marketing-channels-title {
-		white-space: normal;
-		text-wrap: balance;
-	}
 }
 
 @media (prefers-reduced-motion: reduce) {
