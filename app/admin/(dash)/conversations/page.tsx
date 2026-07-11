@@ -79,7 +79,7 @@ export default async function AdminConversationsPage(
       }),
       prisma.conversation.count(),
       prisma.conversation.count({ where: { status: 'OPEN' } }),
-      prisma.conversation.count({ where: { status: 'HANDED_OFF' } }),
+      prisma.conversation.count({ where: { status: 'HANDED_OFF', handedOff: true } }),
       conversationsDaily(7),
       conversationsDailyByChannel(7),
     ])

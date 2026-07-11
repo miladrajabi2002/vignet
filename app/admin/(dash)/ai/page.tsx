@@ -86,13 +86,13 @@ function parseRange(value: string | undefined): UsageRange {
 function formatProviderUSD(value: number | null | undefined): string {
   if (value === null || value === undefined) return 'ثبت نشده'
   return `$${value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 8,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
   })}`
 }
 
 function formatRial(value: number): string {
-  return `${value.toLocaleString('fa-IR')} ریال`
+  return `${Math.round(value / 10).toLocaleString('fa-IR')} تومان`
 }
 
 function totalTokens(row: {
@@ -241,13 +241,13 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
     <Panel
       title="مدل‌های مدیریت‌شده"
       subtitle="سه انتخاب پایدار برای ایجنت‌ها؛ مدل واقعی هر انتخاب از محیط سرور قابل تعویض است"
-      action={<Badge tone="info">۳ مدل تعریف‌شده</Badge>}
+      action={<Badge tone="info">۴ مدل تعریف‌شده</Badge>}
     >
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="grid gap-2 xl:grid-cols-4">
         {config.models.map((model, index) => (
           <article
             key={model.alias}
-            className="flex min-w-0 flex-col rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4"
+            className="flex min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/70 p-3"
           >
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white">
@@ -255,7 +255,7 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="text-sm font-bold text-zinc-900">{model.name}</h3>
+                  <h3 className="truncate whitespace-nowrap text-xs font-bold text-zinc-900" title={model.name}>{model.name}</h3>
                   <Badge tone={model.usingEnvOverride ? 'success' : 'muted'}>
                     {model.usingEnvOverride ? 'تنظیم محیطی' : 'مقدار پیش‌فرض'}
                   </Badge>
@@ -291,12 +291,7 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
             </dl>
 
             <div className="mt-auto pt-3">
-              <p className="break-all font-mono text-[10px] leading-5 text-zinc-400">
-                {model.envName}
-              </p>
-              <p className="break-all font-mono text-[10px] leading-5 text-zinc-400">
-                {model.priceEnvName}
-              </p>
+              <p className="text-[10px] text-zinc-400">شناسه و قیمت از تنظیمات پنل مدیریت خوانده می‌شود.</p>
             </div>
           </article>
         ))}
@@ -512,14 +507,13 @@ export default async function AdminAiPage({
   const params = await searchParams
   const range = parseRange(params.range)
   const days = RANGE_DAYS[range]
-  const config = getOpenRouterConfigStatus()
   const [report, platformPolicy, currentMonthSpendUSD, openRouterAccount] = await Promise.all([
     getAiUsageReport(days),
     getPlatformAiConfig(),
     getCurrentMonthAiSpendUSD(),
     getOpenRouterAccountUsage(),
   ])
-  const billableTokens = report.totals.promptTokens + report.totals.completionTokens
+  const config = getOpenRouterConfigStatus(platformPolicy)
   const costCoverage = report.totals.requests > 0
     ? Math.round((report.totals.pricedRequests / report.totals.requests) * 100)
     : 0
@@ -565,9 +559,9 @@ export default async function AdminAiPage({
           tone="info"
         />
         <StatCard
-          label="توکن ورودی + خروجی"
-          value={fa(billableTokens)}
-          sub={`${fa(report.totals.cachedTokens)} توکن کش`}
+           label="مبلغ مصرف‌شده"
+           value={formatRial(report.totals.chargedIRR)}
+           sub={`میانگین ${formatRial(averageCharge)}`}
           icon={<Coins className="h-5 w-5" />}
           tone="warning"
         />
@@ -592,21 +586,21 @@ export default async function AdminAiPage({
           tone={costCoverage >= 95 || report.totals.requests === 0 ? 'success' : 'warning'}
         />
         <StatCard
-          label="توکن استدلال"
-          value={fa(report.totals.reasoningTokens)}
-          sub="ثبت‌شده توسط ارائه‌دهنده"
+           label="هزینه واقعی OpenRouter"
+           value={formatProviderUSD(report.totals.providerCostUSD)}
+           sub="بر اساس UsageLog.cost"
           icon={<BrainCircuit className="h-5 w-5" />}
         />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <TrendChart
-          title={`روند توکن — ${RANGE_LABELS[range]}`}
-          subtitle="مجموع توکن ورودی و خروجی روزانه"
-          data={report.daily.map((row) => ({ day: row.day, value: row.tokens }))}
+           title={`روند مبلغ مصرف‌شده — ${RANGE_LABELS[range]}`}
+           subtitle="مجموع مبلغ کسرشده روزانه به تومان"
+           data={report.daily.map((row) => ({ day: row.day, value: Math.round(row.chargedIRR / 10) }))}
           color="#2563eb"
           variant="area"
-          format="token"
+           format="irr"
           height={210}
         />
         <TrendChart
@@ -624,18 +618,18 @@ export default async function AdminAiPage({
           data={report.daily.map((row) => ({ day: row.day, value: row.chargedIRR }))}
           color="#059669"
           variant="area"
-          format="rial"
+          format="irr"
           height={210}
         />
       </div>
 
       <table className="sr-only">
         <caption>جدول جایگزین نمودارهای روزانه مصرف هوش مصنوعی</caption>
-        <thead><tr><th>روز</th><th>درخواست</th><th>توکن</th><th>هزینه دلار</th><th>مبلغ ریال</th></tr></thead>
+         <thead><tr><th>روز</th><th>درخواست</th><th>مبلغ تومان</th><th>هزینه دلار</th><th>مبلغ تومان</th></tr></thead>
         <tbody>
           {report.daily.map((row) => (
             <tr key={row.day}>
-              <td>{row.day}</td><td>{row.requests}</td><td>{row.tokens}</td><td>{row.providerCostUSD}</td><td>{row.chargedIRR}</td>
+              <td>{row.day}</td><td>{row.requests}</td><td>{Math.round(row.chargedIRR / 10)}</td><td>{row.providerCostUSD}</td><td>{Math.round(row.chargedIRR / 10)}</td>
             </tr>
           ))}
         </tbody>

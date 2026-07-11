@@ -605,7 +605,9 @@ enum WalletEntryType {
 model PlatformAiSettings {
   id               String   @id @default("primary")
   defaultModel     String   @default("fast")
-  enabledModels    String[] @default(["fast", "balanced", "premium"])
+  enabledModels    String[] @default(["fast", "standard", "balanced", "premium"])
+  trialModel       String   @default("fast")
+  providerModels   Json     @default("{}")
   monthlyBudgetUSD Float?
   updatedAt        DateTime @updatedAt
 }

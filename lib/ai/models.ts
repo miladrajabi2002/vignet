@@ -1,12 +1,12 @@
 /**
- * The three platform-managed AI modes exposed to customers.
+ * The four platform-managed AI modes exposed to customers.
  *
  * Users store an alias (fast / balanced / premium), never a raw provider slug.
  * The actual OpenRouter model is resolved server-side and can be rotated with
  * env variables without migrating every Agent row.
  */
 
-export const MODEL_ALIASES = ['fast', 'balanced', 'premium'] as const
+export const MODEL_ALIASES = ['fast', 'standard', 'balanced', 'premium'] as const
 export type ModelAlias = (typeof MODEL_ALIASES)[number]
 
 export const DEFAULT_MODEL: ModelAlias = 'fast'
@@ -18,6 +18,8 @@ export interface AgentModel {
   id: ModelAlias
   name: string
   provider: string
+  /** Default provider slug. The admin policy may override this at runtime. */
+  providerId: string
   tier: ModelTier
   quality: number
   cost: number
@@ -36,6 +38,7 @@ export const AGENT_MODELS: AgentModel[] = [
     id: 'fast',
     name: 'سریع و اقتصادی',
     provider: 'DeepSeek V4 Flash',
+    providerId: 'deepseek/deepseek-v4-flash',
     tier: 'economy',
     quality: 4,
     cost: 1,
@@ -47,9 +50,25 @@ export const AGENT_MODELS: AgentModel[] = [
     descEn: 'Vigent’s default: fast, low-cost and suited to most support and sales conversations.',
   },
   {
+    id: 'standard',
+    name: 'استاندارد و متعادل',
+    provider: 'OpenAI GPT-4o Mini',
+    providerId: 'openai/gpt-4o-mini',
+    tier: 'balanced',
+    quality: 4,
+    cost: 2,
+    goodForPersian: true,
+    replyPriceIRR: 4_500,
+    inputUsdPerMillion: 0.15,
+    outputUsdPerMillion: 0.60,
+    descFa: 'انتخاب متعادل برای پاسخ‌های دقیق، سریع و چندمنظوره.',
+    descEn: 'A balanced choice for accurate, fast and general-purpose replies.',
+  },
+  {
     id: 'balanced',
     name: 'چندزبانه و تصویری',
     provider: 'Qwen3.5 35B',
+    providerId: 'qwen/qwen3.5-35b-a3b',
     tier: 'balanced',
     quality: 4,
     cost: 2,
@@ -64,6 +83,7 @@ export const AGENT_MODELS: AgentModel[] = [
     id: 'premium',
     name: 'دقیق و حرفه‌ای',
     provider: 'DeepSeek V4 Pro',
+    providerId: 'deepseek/deepseek-v4-pro',
     tier: 'premium',
     quality: 5,
     cost: 4,
@@ -89,7 +109,7 @@ const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
   'google/gemini-flash-1.5': 'fast',
   'qwen/qwen3.5-35b-a3b': 'balanced',
   'qwen/qwen-2.5-72b-instruct': 'balanced',
-  'openai/gpt-4o-mini': 'balanced',
+  'openai/gpt-4o-mini': 'standard',
   'anthropic/claude-haiku-4.5': 'balanced',
   'deepseek/deepseek-v4-pro': 'premium',
   'anthropic/claude-sonnet-5': 'premium',
@@ -116,10 +136,18 @@ export function findModel(value: string | null | undefined): AgentModel {
  * Resolve a provider slug. Call this only on the server: env overrides let the
  * operator rotate a model while the customer-facing alias stays stable.
  */
-export function resolveModelId(value: string | null | undefined): string {
+export function resolveModelId(
+  value: string | null | undefined,
+  providerModels?: Partial<Record<ModelAlias, string>>,
+): string {
   const alias = resolveModelAlias(value)
+  const configured = providerModels?.[alias]?.trim()
+  if (configured) return configured
   if (alias === 'balanced') {
     return process.env.OPENROUTER_MODEL_BALANCED || 'qwen/qwen3.5-35b-a3b'
+  }
+  if (alias === 'standard') {
+    return process.env.OPENROUTER_MODEL_STANDARD || 'openai/gpt-4o-mini'
   }
   if (alias === 'premium') {
     return process.env.OPENROUTER_MODEL_PREMIUM || 'deepseek/deepseek-v4-pro'

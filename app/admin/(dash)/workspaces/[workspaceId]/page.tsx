@@ -150,7 +150,7 @@ export default async function AdminWorkspaceDetailPage(
       }),
       prisma.usageLog.aggregate({
         where: { workspaceId, date: { gte: since30 } },
-        _sum: { promptTokens: true, completionTokens: true, cost: true },
+        _sum: { promptTokens: true, completionTokens: true, chargedIRR: true, cost: true },
         _count: { _all: true },
       }),
     ])
@@ -161,9 +161,7 @@ export default async function AdminWorkspaceDetailPage(
   const totalRevenueIRR = revenueAgg._sum.amount ?? 0
   const paidPaymentCount = revenueAgg._count._all ?? 0
   const usageCount = usageAgg._count._all ?? 0
-  const promptTokens = usageAgg._sum.promptTokens ?? 0
-  const completionTokens = usageAgg._sum.completionTokens ?? 0
-  const totalTokens = promptTokens + completionTokens
+  const totalChargedIRR = usageAgg._sum.chargedIRR ?? 0
   const totalCost = usageAgg._sum.cost ?? 0
 
   return (
@@ -262,8 +260,8 @@ export default async function AdminWorkspaceDetailPage(
                 icon={<Bot className="h-5 w-5" />}
               />
               <StatCard
-                label="کل توکن"
-                value={totalTokens}
+                label="مبلغ مصرف‌شده"
+                value={`${Math.round(totalChargedIRR / 10).toLocaleString('fa-IR')} تومان`}
                 icon={<MessageSquare className="h-5 w-5" />}
               />
               <StatCard

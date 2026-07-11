@@ -116,6 +116,22 @@ export async function tokensDailyByWorkspace(
 	return buildSeries(rows, days)
 }
 
+/** Daily successful AI charges in Iranian rials for a workspace. */
+export async function chargesDailyByWorkspace(
+	workspaceId: string,
+	days = 7,
+): Promise<DailySeries> {
+	const since = new Date(Date.now() - days * 86_400_000)
+	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
+    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           COALESCE(sum("chargedIRR"), 0) AS c
+    FROM "UsageLog"
+    WHERE "workspaceId" = ${workspaceId} AND "date" >= ${since} AND "status" = 'CAPTURED'
+    GROUP BY 1 ORDER BY 1
+  `
+	return buildSeries(rows, days)
+}
+
 /** Daily new contacts (customers) for a workspace. */
 export async function contactsDailyByWorkspace(
 	workspaceId: string,

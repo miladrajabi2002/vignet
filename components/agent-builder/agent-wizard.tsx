@@ -17,6 +17,7 @@ import {
 	Sparkles,
 } from 'lucide-react'
 import { ModelSelect } from './model-select'
+import type { ModelAlias } from '@/lib/ai/models'
 import {
 	ROLE_TEMPLATES,
 	type PromptConfig,
@@ -105,7 +106,17 @@ const BUSINESS_PRESETS = {
 	},
 } as const
 
-export function AgentWizard({ initialBusiness }: { initialBusiness?: string }) {
+export function AgentWizard({
+	initialBusiness,
+	modelPolicy,
+}: {
+	initialBusiness?: string
+	modelPolicy: {
+		plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
+		enabledModels: ModelAlias[]
+		trialModel: ModelAlias
+	}
+}) {
 	const t = useTranslations('agents.wizard')
 	const tA = useTranslations('agents')
 	const tc = useTranslations('common')
@@ -405,7 +416,13 @@ export function AgentWizard({ initialBusiness }: { initialBusiness?: string }) {
 						{step === 2 && (
 							<>
 								<Field label={t('model')}>
-									<ModelSelect value={form.model} onChange={(v) => set('model', v)} />
+									<ModelSelect
+										value={form.model}
+										onChange={(v) => set('model', v)}
+									availableModels={modelPolicy.enabledModels}
+									trialModel={modelPolicy.trialModel}
+									isTrial={modelPolicy.plan === 'TRIAL'}
+								/>
 								</Field>
 								<Field label={t('language')}>
 									<select

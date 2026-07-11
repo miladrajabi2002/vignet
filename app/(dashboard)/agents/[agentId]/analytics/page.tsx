@@ -70,7 +70,7 @@ export default async function AgentAnalyticsPage(
       prisma.conversation.count({ where }),
       prisma.usageLog.aggregate({
         where,
-        _sum: { promptTokens: true, completionTokens: true },
+        _sum: { chargedIRR: true },
       }),
       prisma.product.findMany({
         where: {
@@ -119,8 +119,7 @@ export default async function AgentAnalyticsPage(
     .sort((a, b) => b.value - a.value)
 
   const avgRating = ratingAgg._avg.rating
-  const totalTokens =
-    (usageAgg._sum.promptTokens ?? 0) + (usageAgg._sum.completionTokens ?? 0)
+  const totalChargedIRR = usageAgg._sum.chargedIRR ?? 0
   const resolveRate = totalConvos ? Math.round((resolved / totalConvos) * 100) : 0
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
@@ -150,8 +149,8 @@ export default async function AgentAnalyticsPage(
           icon={Star}
         />
         <StatsCard
-          label={t('tokensUsed')}
-          value={nf.format(totalTokens)}
+          label={locale === 'fa' ? 'هزینه پاسخ‌ها' : 'Reply cost'}
+          value={`${nf.format(Math.round(totalChargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`}
           icon={Cpu}
         />
       </div>
@@ -258,11 +257,11 @@ export default async function AgentAnalyticsPage(
           },
           {
             icon: Cpu,
-            term: locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: ',
+            term: locale === 'fa' ? 'هزینه پاسخ‌ها: ' : 'Reply cost: ',
             body:
               locale === 'fa'
-                ? 'مجموع توکن‌های ورودی و خروجی این ایجنت در سرویس مدیریت‌شده ویجنت. هزینه پاسخ‌ها در بخش مالی دیده می‌شود.'
-                : 'Total prompt + completion tokens for this agent across Vigent’s managed AI service. Reply charges are shown on the billing page.',
+                ? 'مجموع مبلغ کسرشده برای پاسخ‌های موفق این ایجنت. جزئیات در بخش مالی دیده می‌شود.'
+                : 'Total amount deducted for successful replies from this agent. Details are shown on the billing page.',
           },
           {
             icon: TrendingUp,

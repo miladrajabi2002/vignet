@@ -147,8 +147,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                 getPlatformAiConfig(),
         ])
         const requestedAlias = resolveModelAlias(agent.model || platformConfig.defaultModel || DEFAULT_MODEL)
-        const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig)
-        const model = resolveModelId(modelAlias)
+        const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig, gate.plan)
+        const model = resolveModelId(modelAlias, platformConfig.providerModels)
         if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
 
         // Resolve (or create) the conversation, scoped to the workspace.

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { agentCreateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
 import { checkAgentCreateAllowed } from '@/lib/billing/entitlements'
+import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -35,6 +36,17 @@ export async function POST(req: Request) {
       { error: 'INVALID', issues: parsed.error.flatten() },
       { status: 400 },
     )
+  }
+
+  if (parsed.data.model) {
+    const [workspace, policy] = await Promise.all([
+      prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { plan: true } }),
+      getPlatformAiConfig(),
+    ])
+    const allowed = workspace?.plan === 'TRIAL' ? [policy.trialModel] : policy.enabledModels
+    if (!allowed.includes(parsed.data.model)) {
+      return NextResponse.json({ error: 'MODEL_DISABLED' }, { status: 400 })
+    }
   }
 
   const data = parsed.data

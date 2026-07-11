@@ -39,7 +39,7 @@ export function fmtIRR(amount: number | null | undefined): string {
 /** Format USD amount. */
 export function fmtUSD(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return '—'
-  return `$${amount.toLocaleString('en-US')}`
+  return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 3 })}`
 }
 
 /** Relative "x ago" in Persian. */

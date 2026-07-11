@@ -7,6 +7,7 @@ import {
   resolveModelId,
   type ModelAlias,
 } from '@/lib/ai/models'
+import type { PlatformAiConfig } from '@/lib/ai/platform-config'
 
 const DASHBOARD_TZ = process.env.DASHBOARD_TZ || 'Asia/Tehran'
 
@@ -211,9 +212,10 @@ function fillDaily(rows: DailyRow[], days: number): AiDailyUsage[] {
  * Server-only configuration summary. The OpenRouter key is deliberately reduced
  * to a boolean and is never returned, masked, logged, or sent to the client.
  */
-export function getOpenRouterConfigStatus(): OpenRouterConfigStatus {
+export function getOpenRouterConfigStatus(platformPolicy?: PlatformAiConfig): OpenRouterConfigStatus {
   const envByAlias: Record<ModelAlias, string> = {
     fast: 'OPENROUTER_MODEL_FAST',
+    standard: 'OPENROUTER_MODEL_STANDARD',
     balanced: 'OPENROUTER_MODEL_BALANCED',
     premium: 'OPENROUTER_MODEL_PREMIUM',
   }
@@ -229,9 +231,9 @@ export function getOpenRouterConfigStatus(): OpenRouterConfigStatus {
         name: model.name,
         description: model.descFa,
         envName,
-        providerId: resolveModelId(model.id),
+        providerId: resolveModelId(model.id, platformPolicy?.providerModels),
         providerLabel: model.provider,
-        usingEnvOverride: Boolean(process.env[envName]?.trim()),
+        usingEnvOverride: !platformPolicy && Boolean(process.env[envName]?.trim()),
         replyPriceIRR: getReplyPriceIRR(model.id),
         priceEnvName: `AI_REPLY_PRICE_${model.id.toUpperCase()}_IRR`,
         inputUsdPerMillion: model.inputUsdPerMillion,

@@ -6,7 +6,7 @@ import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
 import { MiniTrend } from '@/components/admin/mini-trend'
-import { messagesDailyByWorkspace, tokensDailyByWorkspace } from '@/lib/dashboard/charts'
+import { messagesDailyByWorkspace, chargesDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
 import { getPlanDefs, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
@@ -33,7 +33,7 @@ export default async function BillingPage(
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, convoCount, usage, messagesUsed, msgTrend7, tokenTrend7] =
+  const [workspace, subscription, convoCount, usage, messagesUsed, msgTrend7, chargeTrend7] =
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
@@ -52,13 +52,11 @@ export default async function BillingPage(
       }),
       getMonthlyMessageCount(ws),
       messagesDailyByWorkspace(ws, 7),
-      tokensDailyByWorkspace(ws, 7),
+      chargesDailyByWorkspace(ws, 7),
     ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
   const plan = workspace?.plan ?? 'TRIAL'
-  const tokens =
-    (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
   const chargedIRR = usage._sum.chargedIRR ?? 0
 
   const defs = getPlanDefs()
@@ -224,7 +222,7 @@ export default async function BillingPage(
             value={nf.format(convoCount)}
             icon={MessagesSquare}
           />
-          <StatsCard label={t('tokens')} value={nf.format(tokens)} icon={Cpu} />
+          <StatsCard label={locale === 'fa' ? 'هزینه پاسخ‌ها' : 'Reply cost'} value={`${nf.format(Math.round(chargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`} icon={Cpu} />
           <StatsCard
             label={t('estCost')}
             value={`${nf.format(chargedIRR / 10)} ${locale === 'fa' ? 'تومان' : 'toman'}`}
@@ -242,11 +240,11 @@ export default async function BillingPage(
             hint={locale === 'fa' ? 'روزانه' : 'daily'}
           />
           <MiniTrend
-            label={locale === 'fa' ? 'توکن ۷ روز' : 'Tokens 7d'}
-            value={tokenTrend7.total}
-            series={tokenTrend7.series}
+            label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'}
+            value={Math.round(chargeTrend7.total / 10)}
+            series={chargeTrend7.series.map((value) => Math.round(value / 10))}
             color="#f59e0b"
-            hint={locale === 'fa' ? 'روزانه' : 'daily'}
+            hint={locale === 'fa' ? 'تومان روزانه' : 'toman / day'}
           />
         </div>
       </div>

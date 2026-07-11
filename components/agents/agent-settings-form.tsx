@@ -20,6 +20,7 @@ import {
         ListChecks,
 } from 'lucide-react'
 import { ModelSelect } from '@/components/agent-builder/model-select'
+import type { ModelAlias } from '@/lib/ai/models'
 import {
         ROLE_TEMPLATES,
         buildLayeredPrompt,
@@ -115,7 +116,17 @@ export interface AgentSettingsData {
         customerInfoPrompt: string | null
 }
 
-export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
+export function AgentSettingsForm({
+        agent,
+        modelPolicy,
+}: {
+        agent: AgentSettingsData
+        modelPolicy: {
+                plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
+                enabledModels: ModelAlias[]
+                trialModel: ModelAlias
+        }
+}) {
         const t = useTranslations('agents')
         const tw = useTranslations('agents.wizard')
         const tf = useTranslations('agents.settingsForm')
@@ -216,7 +227,7 @@ export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
                                 ...form,
                                 handoffKeywords: keywords,
                                 description: form.description || undefined,
-                                model: form.model || undefined,
+                                model: form.model || null,
                                 welcomeMessage: form.welcomeMessage || undefined,
                                 fallbackMessage: form.fallbackMessage || undefined,
                                 handoffMessage: form.handoffMessage || undefined,
@@ -275,7 +286,13 @@ export function AgentSettingsForm({ agent }: { agent: AgentSettingsData }) {
                                 </Field>
 
                                 <Field label={tw('model')}>
-                                        <ModelSelect value={form.model} onChange={(v) => set('model', v)} />
+                                        <ModelSelect
+                                                value={form.model}
+                                                onChange={(v) => set('model', v)}
+                                                availableModels={modelPolicy.enabledModels}
+                                                trialModel={modelPolicy.trialModel}
+                                                isTrial={modelPolicy.plan === 'TRIAL'}
+                                        />
                                 </Field>
                                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                         <Field label={tw('language')}>

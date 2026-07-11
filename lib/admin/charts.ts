@@ -121,6 +121,18 @@ export async function usageTokensDaily(days = 14): Promise<DailyPoint[]> {
         )
 }
 
+export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
+	const since = new Date(Date.now() - days * 86400000)
+	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
+    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           COALESCE(sum("chargedIRR"), 0) AS c
+    FROM "UsageLog"
+    WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+    GROUP BY 1 ORDER BY 1
+  `
+	return fillSeries(rows.map((r) => ({ d: r.d, v: Number(r.c ?? 0) })), days)
+}
+
 /** New user sign-ups per day. */
 export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86400000)

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type ModelAlias = 'fast' | 'balanced' | 'premium'
+type ModelAlias = 'fast' | 'standard' | 'balanced' | 'premium'
 
 type ModelOption = {
   alias: ModelAlias
@@ -26,6 +26,8 @@ type ModelOption = {
 type Policy = {
   defaultModel: ModelAlias
   enabledModels: ModelAlias[]
+  trialModel: ModelAlias
+  providerModels: Partial<Record<ModelAlias, string>>
   monthlyBudgetUSD: number | null
 }
 
@@ -34,7 +36,7 @@ type Notice = { tone: 'success' | 'error'; message: string } | null
 function formatUSD(value: number): string {
   return `$${value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
+    maximumFractionDigits: 3,
   })}`
 }
 
@@ -61,6 +63,10 @@ export function AiModelPolicyForm({
   const [isPending, startTransition] = useTransition()
   const [defaultModel, setDefaultModel] = useState(initialPolicy.defaultModel)
   const [enabledModels, setEnabledModels] = useState<ModelAlias[]>(initialPolicy.enabledModels)
+  const [trialModel, setTrialModel] = useState<ModelAlias>(initialPolicy.trialModel)
+  const [providerModels, setProviderModels] = useState<Partial<Record<ModelAlias, string>>>(
+    initialPolicy.providerModels,
+  )
   const [budgetEnabled, setBudgetEnabled] = useState(initialPolicy.monthlyBudgetUSD !== null)
   const [budget, setBudget] = useState(
     initialPolicy.monthlyBudgetUSD === null ? '' : String(initialPolicy.monthlyBudgetUSD),
@@ -79,13 +85,17 @@ export function AiModelPolicyForm({
   const dirty = useMemo(() => {
     const initialEnabled = [...initialPolicy.enabledModels].sort().join(',')
     const currentEnabled = [...enabledModels].sort().join(',')
+    const initialProviders = JSON.stringify(initialPolicy.providerModels)
+    const currentProviders = JSON.stringify(providerModels)
     return (
       defaultModel !== initialPolicy.defaultModel ||
+      trialModel !== initialPolicy.trialModel ||
       initialEnabled !== currentEnabled ||
+      initialProviders !== currentProviders ||
       budgetEnabled !== (initialPolicy.monthlyBudgetUSD !== null) ||
       budgetValue !== initialPolicy.monthlyBudgetUSD
     )
-  }, [budgetEnabled, budgetValue, defaultModel, enabledModels, initialPolicy])
+  }, [budgetEnabled, budgetValue, defaultModel, enabledModels, initialPolicy, providerModels, trialModel])
 
   function toggleModel(alias: ModelAlias) {
     setNotice(null)
@@ -118,6 +128,8 @@ export function AiModelPolicyForm({
           body: JSON.stringify({
             defaultModel,
             enabledModels,
+            trialModel,
+            providerModels,
             monthlyBudgetUSD: budgetEnabled ? parsedBudget : null,
           }),
         })
@@ -173,7 +185,7 @@ export function AiModelPolicyForm({
 
       <fieldset className="mt-5">
         <legend className="text-xs font-semibold text-zinc-700">مدل‌های مجاز و مدل پیش‌فرض</legend>
-        <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <div className="mt-3 grid gap-2 lg:grid-cols-4">
           {models.map((model) => {
             const enabled = enabledModels.includes(model.alias)
             const isDefault = defaultModel === model.alias
@@ -181,13 +193,13 @@ export function AiModelPolicyForm({
               <div
                 key={model.alias}
                 className={cn(
-                  'rounded-2xl border p-4 transition-colors',
+                  'rounded-xl border p-3 transition-colors',
                   enabled ? 'border-zinc-300 bg-zinc-50' : 'border-zinc-200 bg-white opacity-70',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-zinc-900">{model.name}</p>
+                    <p className="truncate whitespace-nowrap text-xs font-bold text-zinc-900" title={model.name}>{model.name}</p>
                     <p className="mt-0.5 text-xs text-zinc-500">{model.providerLabel}</p>
                   </div>
                   <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100">
@@ -200,10 +212,17 @@ export function AiModelPolicyForm({
                     فعال
                   </label>
                 </div>
-                <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-500">{model.description}</p>
-                <code dir="ltr" className="mt-2 block truncate text-left text-[10px] text-zinc-400" title={model.providerId}>
-                  {model.providerId}
-                </code>
+                <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-zinc-500">{model.description}</p>
+                <label className="mt-2 block">
+                  <span className="sr-only">OpenRouter model id</span>
+                  <input
+                    dir="ltr"
+                    value={providerModels[model.alias] ?? model.providerId}
+                    onChange={(event) => setProviderModels((current) => ({ ...current, [model.alias]: event.target.value }))}
+                    className="h-8 w-full rounded-lg border border-zinc-200 bg-white px-2 text-left font-mono text-[10px] text-zinc-700 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100"
+                    aria-label={`OpenRouter model id for ${model.name}`}
+                  />
+                </label>
                 <label
                   className={cn(
                     'mt-4 flex min-h-11 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors',
@@ -229,6 +248,22 @@ export function AiModelPolicyForm({
           })}
         </div>
       </fieldset>
+
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+        <label className="block text-xs font-semibold text-amber-950">
+          مدل فعال پلن آزمایشی
+          <select
+            value={trialModel}
+            onChange={(event) => setTrialModel(event.target.value as ModelAlias)}
+            className="mt-2 h-10 w-full rounded-lg border border-amber-200 bg-white px-3 text-sm font-medium text-zinc-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+          >
+            {models.map((model) => <option key={model.alias} value={model.alias}>{model.name}</option>)}
+          </select>
+          <span className="mt-1 block text-[11px] font-normal leading-5 text-amber-800">
+            این مدل مستقل از فعال/غیرفعال بودن مدل‌های پلن‌های پولی انتخاب می‌شود؛ بقیه مدل‌ها در پلن آزمایشی بسته نمایش داده می‌شوند.
+          </span>
+        </label>
+      </div>
 
       <div className="mt-5 grid gap-4 border-t border-zinc-100 pt-5 lg:grid-cols-[0.85fr_1.15fr]">
         <div>

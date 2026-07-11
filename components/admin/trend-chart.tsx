@@ -69,8 +69,8 @@ function formatValue(v: number, kind: FormatKind = 'number'): string {
     }
     case 'usd':
       return `$${n.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 8,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3,
       })}`
     case 'rial':
       return `${n.toLocaleString('fa-IR')} ریال`

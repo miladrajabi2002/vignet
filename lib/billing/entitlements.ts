@@ -11,7 +11,7 @@ import type { Plan, Prisma } from '@prisma/client'
  */
 
 export type BlockReason = 'TRIAL_EXPIRED' | 'SUBSCRIPTION_EXPIRED' | 'PLAN_LIMIT'
-export type ChatGate = { allowed: true } | { allowed: false; reason: BlockReason }
+export type ChatGate = { allowed: true; plan: Plan } | { allowed: false; reason: BlockReason }
 
 function monthKey(): string {
   const d = new Date()
@@ -79,7 +79,7 @@ export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
   const used = await getMonthlyMessageCount(workspaceId)
   if (used >= limit) return { allowed: false, reason: 'PLAN_LIMIT' }
 
-  return { allowed: true }
+  return { allowed: true, plan: ws.plan }
 }
 
 /** May this workspace create one more agent? */

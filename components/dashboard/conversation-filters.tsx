@@ -102,7 +102,7 @@ export function ConversationFilters({
 											: 'border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]',
 								)}
 							>
-								{isHandoff && (
+                                                {isHandoff && opt.key === 'HANDED_OFF' && (
 									<span className="relative flex h-1.5 w-1.5">
 										<span
 											className={cn(

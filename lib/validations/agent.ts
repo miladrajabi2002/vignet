@@ -55,7 +55,7 @@ export const agentCreateSchema = z.object({
     .max(8000)
     .optional()
     .default('تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.'),
-  model: z.enum(MODEL_ALIASES).optional(),
+  model: z.enum(MODEL_ALIASES).nullable().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(1).max(1200).optional(),
   language: z.enum(['fa', 'en']).optional(),

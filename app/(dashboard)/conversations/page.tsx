@@ -119,7 +119,7 @@ export default async function ConversationsPage(props: {
                         where: { workspaceId: user.workspaceId, status: 'RESOLVED' },
                 }),
                 prisma.conversation.count({
-                        where: { workspaceId: user.workspaceId, status: 'HANDED_OFF' },
+                        where: { workspaceId: user.workspaceId, status: 'HANDED_OFF', handedOff: true },
                 }),
                 conversationsDailyByWorkspace(user.workspaceId, 7),
                 resolvedDailyByWorkspace(user.workspaceId, 7),
@@ -234,7 +234,7 @@ export default async function ConversationsPage(props: {
                                 </div>
                         ) : (
                                 <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-                                        {pageItems.map((c) => {
+                                {pageItems.map((c) => {
                                                 const last = c.messages[0]
                                                 const when = c.lastMessageAt ?? c.createdAt
                                                 // Resolve the contact's display name + per-channel handle/avatar.
@@ -278,7 +278,7 @@ export default async function ConversationsPage(props: {
                                                                 href={`/conversations/${c.id}`}
                                                                 className={cn(
                                                                         'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]',
-                                                                        c.handedOff && 'bg-amber-500/5',
+                                                                        c.handedOff && c.status !== 'RESOLVED' && 'bg-amber-500/5',
                                                                 )}
                                                         >
                                                                 {channelAvatar ? (
@@ -309,7 +309,7 @@ export default async function ConversationsPage(props: {
                                                                                         </span>
                                                                                 )}
                                                                                 <ChannelBadge type={c.channel} />
-                                                                                {c.handedOff && (
+                                                                                {c.handedOff && c.status !== 'RESOLVED' && (
                                                                                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">
                                                                                                 <span className="relative flex h-1.5 w-1.5">
                                                                                                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />

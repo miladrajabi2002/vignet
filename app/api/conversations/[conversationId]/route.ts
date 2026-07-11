@@ -48,10 +48,25 @@ export async function PATCH(req: Request, props: Params) {
     return NextResponse.json({ conversation: { id: existing.id, status: 'OPEN' } })
   }
 
-  const conversation = await prisma.conversation.update({
-    where: { id: params.conversationId },
-    data: parsed.data,
-    select: { id: true, status: true, rating: true, summary: true },
+  const conversation = await prisma.$transaction(async (tx) => {
+    const conversation = await tx.conversation.update({
+      where: { id: params.conversationId },
+      data: parsed.data.status === 'RESOLVED'
+        ? { ...parsed.data, handedOff: false }
+        : parsed.data,
+      select: { id: true, status: true, rating: true, summary: true },
+    })
+
+    if (parsed.data.status === 'RESOLVED') {
+      await tx.handoffAlert.updateMany({
+        where: {
+          conversationId: params.conversationId,
+          state: { in: ['open', 'claimed'] },
+        },
+        data: { state: 'resolved', resolvedAt: new Date() },
+      })
+    }
+    return conversation
   })
 
   // When a conversation is freshly resolved and has no summary, generate one.

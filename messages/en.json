@@ -603,7 +603,7 @@
                 "totalConversations": "Conversations",
                 "resolveRate": "Resolve rate",
                 "avgRating": "Avg. rating",
-                "tokensUsed": "Tokens used",
+                "tokensUsed": "Reply cost",
                 "conversationsTrend": "Conversations — last 14 days",
                 "channelBreakdown": "By connection",
                 "topProducts": "Top products by AI queries",

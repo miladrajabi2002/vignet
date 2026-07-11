@@ -145,7 +145,7 @@ export default async function AdminUserDetailPage(
     }),
     prisma.usageLog.aggregate({
       where: { workspaceId: user.workspaceId, date: { gte: since30 } },
-      _sum: { promptTokens: true, completionTokens: true, cost: true },
+      _sum: { promptTokens: true, completionTokens: true, chargedIRR: true, cost: true },
       _count: { _all: true },
     }),
     conversationsDailyByWorkspace(7),
@@ -155,7 +155,7 @@ export default async function AdminUserDetailPage(
   const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
   const plan = PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }
   const planDef = getPlanDefs()[ws.plan]
-  const totalTokens = (usage._sum.promptTokens ?? 0) + (usage._sum.completionTokens ?? 0)
+  const totalChargedIRR = usage._sum.chargedIRR ?? 0
   const totalCost = usage._sum.cost ?? 0
 
   // 7-day sparkline data for this user's workspace.
@@ -368,7 +368,7 @@ export default async function AdminUserDetailPage(
             <div className="divide-y divide-zinc-100">
               <KV label="کل مکالمات">{fa(ws._count.conversations)}</KV>
               <KV label="کل پرداخت‌ها">{fa(ws._count.payments)}</KV>
-              <KV label="توکن مصرفی (۳۰ روز)">{fa(totalTokens)}</KV>
+              <KV label="مبلغ مصرف‌شده (۳۰ روز)">{fa(Math.round(totalChargedIRR / 10))} تومان</KV>
               <KV label="هزینه (۳۰ روز)">
                 <span dir="ltr">${fa(totalCost)}</span>
               </KV>

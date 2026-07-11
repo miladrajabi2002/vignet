@@ -245,7 +245,7 @@ export default async function AdminOverviewPage(
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="هزینه واقعی OpenRouter"
-            value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`}
+            value={`$${aiOverview.providerCostUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`}
             sub={`${fa(aiOverview.pricedRequests)} لاگ دارای هزینه`}
             icon={<CircleDollarSign className="h-5 w-5" />}
           />

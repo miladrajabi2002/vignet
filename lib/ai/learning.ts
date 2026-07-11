@@ -45,7 +45,7 @@ export async function draftAnswer(
   const platformConfig = await getPlatformAiConfig()
   if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
   const alias = applyPlatformModelPolicy(agent.model, platformConfig)
-  const model = resolveModelId(alias)
+  const model = resolveModelId(alias, platformConfig.providerModels)
 
   const { contextText } = await retrieveContext({
     workspaceId,

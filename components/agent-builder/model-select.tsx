@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl'
 import { Check, Sparkles, Zap, Gem } from 'lucide-react'
-import { AGENT_MODELS, DEFAULT_MODEL, resolveModelAlias, type ModelTier } from '@/lib/ai/models'
+import { AGENT_MODELS, DEFAULT_MODEL, resolveModelAlias, type ModelAlias, type ModelTier } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 
 const TIER_ICON: Record<ModelTier, typeof Zap> = {
@@ -40,16 +40,22 @@ function Meter({ value, label }: { value: number; label: string }) {
 export function ModelSelect({
   value,
   onChange,
+  availableModels = AGENT_MODELS.map((model) => model.id),
+  trialModel = DEFAULT_MODEL,
+  isTrial = false,
 }: {
   value: string
   onChange: (value: string) => void
+  availableModels?: ModelAlias[]
+  trialModel?: ModelAlias
+  isTrial?: boolean
 }) {
   const t = useTranslations('agents.models')
   const locale = useLocale()
   const isFa = locale === 'fa'
 
   // Empty value == use the default model card.
-  const selectedId = value === '' ? DEFAULT_MODEL : resolveModelAlias(value)
+  const selectedId = value === '' ? (isTrial ? trialModel : DEFAULT_MODEL) : resolveModelAlias(value)
 
   return (
     <div className="space-y-3">
@@ -59,21 +65,26 @@ export function ModelSelect({
         {AGENT_MODELS.map((m) => {
           const on = selectedId === m.id
           const isDefault = m.id === DEFAULT_MODEL
+          const allowed = isTrial ? m.id === trialModel : availableModels.includes(m.id)
           const Icon = TIER_ICON[m.tier]
           return (
             <button
               type="button"
               key={m.id}
+              disabled={!allowed}
               onClick={() => {
+                if (!allowed) return
                 // Selecting the default model stores '' so the agent keeps
                 // inheriting the workspace default.
                 onChange(isDefault ? '' : m.id)
               }}
               className={cn(
-                'flex flex-col gap-2 rounded-xl border p-3 text-start transition-colors',
+                'flex flex-col gap-2 rounded-xl border p-3 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-45',
                 on
                   ? 'border-[var(--border-strong)] bg-[var(--bg-hover)]'
-                  : 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]',
+                  : allowed
+                    ? 'border-[var(--border-default)] bg-[var(--bg-base)] hover:border-[var(--border-hover)]'
+                    : 'border-[var(--border-default)] bg-[var(--bg-muted)]',
               )}
             >
               <div className="flex items-center gap-2">
@@ -84,6 +95,11 @@ export function ModelSelect({
                 {isDefault && (
                   <span className="rounded-md bg-[var(--white-10)] px-1.5 py-0.5 text-[10px] text-[var(--text-primary)]">
                     {t('default')}
+                  </span>
+                )}
+                {!allowed && (
+                  <span className="ms-auto rounded-md bg-[var(--bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
+                    {isTrial ? (isFa ? 'بسته آزمایشی' : 'Trial locked') : (isFa ? 'غیرفعال' : 'Disabled')}
                   </span>
                 )}
                 <span
@@ -109,6 +125,14 @@ export function ModelSelect({
           )
         })}
       </div>
+
+      {isTrial && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700">
+          {isFa
+            ? 'در پلن آزمایشی فقط مدل انتخاب‌شده توسط مدیریت فعال است؛ برای انتخاب مدل‌های دیگر ابتدا پلن را ارتقا دهید.'
+            : 'The trial plan only enables the model selected by the administrator. Upgrade to choose another model.'}
+      </p>
+      )}
 
       <p className="text-xs leading-5 text-[var(--text-muted)]">
         {isFa

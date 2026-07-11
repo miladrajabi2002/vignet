@@ -28,7 +28,7 @@ import { Sparkline } from '@/components/admin/sparkline'
 import {
         conversationsDailyByWorkspace,
         messagesDailyByWorkspace,
-        tokensDailyByWorkspace,
+        chargesDailyByWorkspace,
         contactsDailyByWorkspace,
         getSavingsEstimate,
 } from '@/lib/dashboard/charts'
@@ -101,7 +101,7 @@ export default async function OverviewPage() {
                 prisma.conversation.count({ where: { workspaceId: ws } }),
                 prisma.usageLog.aggregate({
                         where: { workspaceId: ws },
-                        _sum: { promptTokens: true, completionTokens: true },
+                        _sum: { promptTokens: true, completionTokens: true, chargedIRR: true },
                 }),
                 prisma.product.findMany({
                         where: { workspaceId: ws, queryCount: { gt: 0 } },
@@ -195,8 +195,7 @@ export default async function OverviewPage() {
                 .sort((a, b) => b.value - a.value)
 
         const avgRating = ratingAgg._avg.rating
-        const totalTokens =
-                (usageAgg._sum.promptTokens ?? 0) + (usageAgg._sum.completionTokens ?? 0)
+        const totalChargedIRR = usageAgg._sum.chargedIRR ?? 0
         const resolveRate = totalConvos ? Math.round((resolved / totalConvos) * 100) : 0
         const handedOffCount = await prisma.conversation.count({
                 where: { workspaceId: ws, handedOff: true },
@@ -206,13 +205,13 @@ export default async function OverviewPage() {
         const [
                 convTrend7,
                 msgTrend7,
-                tokenTrend7,
+                chargeTrend7,
                 contactTrend7,
                 savings,
         ] = await Promise.all([
                 conversationsDailyByWorkspace(ws, 7),
                 messagesDailyByWorkspace(ws, 7),
-                tokensDailyByWorkspace(ws, 7),
+                chargesDailyByWorkspace(ws, 7),
                 contactsDailyByWorkspace(ws, 7),
                 getSavingsEstimate(ws, 7),
         ])
@@ -365,10 +364,10 @@ export default async function OverviewPage() {
                                         }
                                 />
                                 <StatsCard
-                                        label={tA('tokensUsed')}
-                                        value={nf.format(totalTokens)}
+                                        label={locale === 'fa' ? 'هزینه پاسخ‌های موفق' : 'Successful reply cost'}
+                                        value={`${nf.format(Math.round(totalChargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`}
                                         icon={Cpu}
-                                        hint={locale === 'fa' ? 'مجموع توکن مصرفی' : 'Total tokens consumed'}
+                                        hint={locale === 'fa' ? 'مبلغ کسرشده از اعتبار' : 'Amount deducted from credit'}
                                 />
                         </div>
 
@@ -396,11 +395,11 @@ export default async function OverviewPage() {
                                         hint={locale === 'fa' ? 'روزانه' : 'daily'}
                                 />
                                 <MiniTrend
-                                        label={locale === 'fa' ? 'توکن ۷ روز' : 'Tokens 7d'}
-                                        value={tokenTrend7.total}
-                                        series={tokenTrend7.series}
+                                        label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'}
+                                        value={Math.round(chargeTrend7.total / 10)}
+                                        series={chargeTrend7.series.map((value) => Math.round(value / 10))}
                                         color="#f59e0b"
-                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
+                                        hint={locale === 'fa' ? 'تومان روزانه' : 'toman / day'}
                                 />
                         </div>
 
@@ -588,11 +587,11 @@ export default async function OverviewPage() {
                                         },
                                         {
                                                 icon: Cpu,
-                                                term: locale === 'fa' ? 'توکن مصرفی: ' : 'Tokens used: ',
+                                                term: locale === 'fa' ? 'هزینه پاسخ‌ها: ' : 'Reply cost: ',
                                                 body:
                                                         locale === 'fa'
-                                                                ? 'مجموع توکن‌های ورودی و خروجی در سرویس هوش مصنوعی مدیریت‌شده ویجنت. اعتبار و هزینه پاسخ‌ها در بخش مالی دیده می‌شود.'
-                                                                : 'Total prompt + completion tokens across managed AI calls. Customer charges and reply credit are visible on the billing page.',
+                                                                ? 'مجموع مبلغ کسرشده از اعتبار برای پاسخ‌های موفق. جزئیات هزینه در بخش مالی دیده می‌شود.'
+                                                                : 'Total amount deducted for successful replies. Cost details are available on the billing page.',
                                         },
                                         {
                                                 icon: TrendingUp,

@@ -148,8 +148,9 @@ export default async function ConversationThreadPage(props: {
                 : null
 
         const showPanel =
-                conversation.status === 'HANDED_OFF' ||
-                (handoffAlertProp != null && handoffAlertProp.state !== 'resolved')
+                conversation.status !== 'RESOLVED' &&
+                (conversation.status === 'HANDED_OFF' ||
+                        (handoffAlertProp != null && handoffAlertProp.state !== 'resolved'))
 
         return (
                 <div className="mx-auto flex h-full max-w-3xl flex-col gap-4">

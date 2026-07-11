@@ -1,7 +1,7 @@
-import { Gauge, ArrowDownToLine, ArrowUpFromLine, Coins, DollarSign } from 'lucide-react'
+import { Gauge, Wallet, DollarSign } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TrendChart, BarList } from '@/components/admin/trend-chart'
-import { usageTokensDaily } from '@/lib/admin/charts'
+import { usageChargesDaily } from '@/lib/admin/charts'
 import {
   PageHeader,
   StatCard,
@@ -26,37 +26,35 @@ export default async function AdminUsagePage() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const where = { date: { gte: since } }
 
-  const [totals, byType, byModel, callCount, tokenTrend] = await Promise.all([
+  const [totals, byType, byModel, callCount, chargeTrend] = await Promise.all([
     prisma.usageLog.aggregate({
       where,
-      _sum: { promptTokens: true, completionTokens: true, cost: true },
+      _sum: { chargedIRR: true, cost: true },
     }),
     prisma.usageLog.groupBy({
       by: ['type'],
       where,
-      _sum: { promptTokens: true, completionTokens: true },
+      _sum: { chargedIRR: true },
       _count: { _all: true },
     }),
     prisma.usageLog.groupBy({
       by: ['model'],
       where,
-      _sum: { promptTokens: true, completionTokens: true },
+      _sum: { chargedIRR: true },
       _count: { _all: true },
       orderBy: { _count: { model: 'desc' } },
       take: 10,
     }),
     prisma.usageLog.count({ where }),
-    usageTokensDaily(14),
+    usageChargesDaily(14),
   ])
 
-  const totalPrompt = totals._sum.promptTokens ?? 0
-  const totalCompletion = totals._sum.completionTokens ?? 0
-  const totalTokens = totalPrompt + totalCompletion
+  const totalChargedIRR = totals._sum.chargedIRR ?? 0
   const totalCost = totals._sum.cost ?? 0
 
-  const maxTypeTokens = Math.max(
+  const maxTypeCharge = Math.max(
     1,
-    ...byType.map((r) => (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0)),
+    ...byType.map((r) => r._sum.chargedIRR ?? 0),
   )
 
   const typeRows = byType
@@ -64,14 +62,14 @@ export default async function AdminUsagePage() {
       type: r.type,
       label: TYPE_LABEL[r.type] ?? r.type,
       count: r._count._all,
-      tokens: (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0),
+      chargeIRR: r._sum.chargedIRR ?? 0,
     }))
-    .sort((a, b) => b.tokens - a.tokens)
+    .sort((a, b) => b.chargeIRR - a.chargeIRR)
 
   const modelRows = byModel
     .map((r) => ({
       label: r.model ?? 'نامشخص',
-      value: (r._sum.promptTokens ?? 0) + (r._sum.completionTokens ?? 0),
+      value: Math.round((r._sum.chargedIRR ?? 0) / 10),
     }))
     .sort((a, b) => b.value - a.value)
 
@@ -93,24 +91,12 @@ export default async function AdminUsagePage() {
           icon={<Gauge className="h-5 w-5" />}
           tone="default"
         />
-        <StatCard
-          label="توکن ورودی"
-          value={fa(totalPrompt)}
-          icon={<ArrowDownToLine className="h-5 w-5" />}
-          tone="info"
-        />
-        <StatCard
-          label="توکن خروجی"
-          value={fa(totalCompletion)}
-          icon={<ArrowUpFromLine className="h-5 w-5" />}
-          tone="success"
-        />
-        <StatCard
-          label="کل توکن"
-          value={fa(totalTokens)}
-          icon={<Coins className="h-5 w-5" />}
-          tone="warning"
-        />
+         <StatCard
+           label="مبلغ کسرشده"
+           value={`${Math.round(totalChargedIRR / 10).toLocaleString('fa-IR')} تومان`}
+           icon={<Wallet className="h-5 w-5" />}
+           tone="success"
+         />
         <StatCard
           label="هزینه کل"
           value={fmtUSD(totalCost)}
@@ -120,9 +106,9 @@ export default async function AdminUsagePage() {
       </div>
 
       <TrendChart
-        title="مصرف توکن ۱۴ روز اخیر"
-        subtitle="مجموع توکن ورودی و خروجی روزانه"
-        data={tokenTrend}
+         title="مبلغ مصرف‌شده ۱۴ روز اخیر"
+         subtitle="مجموع مبلغ کسرشده از اعتبار روزانه"
+         data={chargeTrend.map((point) => ({ ...point, value: Math.round(point.value / 10) }))}
         color="#a855f7"
         variant="area"
       />
@@ -142,10 +128,10 @@ export default async function AdminUsagePage() {
                 </span>
                 <Badge tone="muted">{fa(r.count)} درخواست</Badge>
                 <span className="ms-auto w-24 shrink-0 text-end text-xs text-zinc-500">
-                  {fa(r.tokens)} توکن
+                   {fa(Math.round(r.chargeIRR / 10))} تومان
                 </span>
                 <div className="w-full">
-                  <Progress value={r.tokens} max={maxTypeTokens} />
+                   <Progress value={r.chargeIRR} max={maxTypeCharge} />
                 </div>
               </div>
             ))}
@@ -155,10 +141,10 @@ export default async function AdminUsagePage() {
 
       <BarList
         title="به تفکیک مدل"
-        subtitle="پرکاربردترین مدل‌ها بر اساس توکن"
+         subtitle="پرکاربردترین مدل‌ها بر اساس مبلغ مصرف‌شده"
         data={modelRows}
         color="#18181b"
-        format="token"
+         format="number"
       />
     </div>
   )

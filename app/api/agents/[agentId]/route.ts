@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
+import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -42,6 +43,19 @@ export async function PATCH(req: Request, props: Params) {
       { error: 'INVALID', issues: parsed.error.flatten() },
       { status: 400 },
     )
+  }
+
+  if (parsed.data.model) {
+    const [workspace, policy] = await Promise.all([
+      prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { plan: true } }),
+      getPlatformAiConfig(),
+    ])
+    const allowed = workspace?.plan === 'TRIAL'
+      ? [policy.trialModel]
+      : policy.enabledModels
+    if (!allowed.includes(parsed.data.model)) {
+      return NextResponse.json({ error: 'MODEL_DISABLED' }, { status: 400 })
+    }
   }
 
   // Prisma requires JsonNull (not JS null) when explicitly clearing a nullable

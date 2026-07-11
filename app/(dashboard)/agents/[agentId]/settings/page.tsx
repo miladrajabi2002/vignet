@@ -6,6 +6,7 @@ import {
   AgentSettingsForm,
   type AgentSettingsData,
 } from '@/components/agents/agent-settings-form'
+import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 
 export default async function AgentSettingsPage(
   props: {
@@ -16,9 +17,13 @@ export default async function AgentSettingsPage(
   const user = await requireUser()
   const t = await getTranslations('agents.settingsForm')
 
-  const agent = await prisma.agent.findFirst({
+  const [agent, workspace, platformPolicy] = await Promise.all([
+    prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
-  })
+    }),
+    prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { plan: true } }),
+    getPlatformAiConfig(),
+  ])
   if (!agent) notFound()
 
   return (
@@ -27,6 +32,11 @@ export default async function AgentSettingsPage(
         {t('title')}
       </h1>
       <AgentSettingsForm
+        modelPolicy={{
+          plan: workspace?.plan ?? 'TRIAL',
+          enabledModels: platformPolicy.enabledModels,
+          trialModel: platformPolicy.trialModel,
+        }}
         agent={{
           id: agent.id,
           name: agent.name,

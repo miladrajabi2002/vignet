@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic'
 const schema = z.object({
   defaultModel: z.enum(MODEL_ALIASES),
   enabledModels: z.array(z.enum(MODEL_ALIASES)).min(1),
+  trialModel: z.enum(MODEL_ALIASES),
+  providerModels: z.record(z.string(), z.string().trim().min(1).max(160)).default({}),
   monthlyBudgetUSD: z.number().positive().max(1_000_000).nullable(),
 })
 

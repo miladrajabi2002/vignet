@@ -39,7 +39,7 @@ export async function processSummary(data: SummaryJobData): Promise<void> {
   const platformConfig = await getPlatformAiConfig()
   if (!(await hasPlatformAiBudget(platformConfig))) return
   const alias = applyPlatformModelPolicy(conversation.agent.model, platformConfig)
-  const model = resolveModelId(alias)
+  const model = resolveModelId(alias, platformConfig.providerModels)
   const language = conversation.agent.language
 
   const transcript = turns
