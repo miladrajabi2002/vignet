@@ -19,7 +19,7 @@ export async function Header({
   ])
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-default)] bg-white px-4 sm:px-6 lg:px-10">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-default)] bg-white/80 px-4 backdrop-blur-md sm:px-6 lg:px-10">
       <div className="flex min-w-0 items-center gap-3">
         <MobileNav businessType={businessType} />
         <div className="min-w-0">

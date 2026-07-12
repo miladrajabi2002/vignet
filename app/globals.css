@@ -3,6 +3,72 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────────
+   IRANSansWeb — Persian web font
+   Place the .ttf files in: public/fonts/
+   Files needed:
+     IRANSansWeb.ttf            (regular 400)
+     IRANSansWeb_Bold.ttf       (bold 700)
+     IRANSansWeb_Light.ttf      (light 300)
+     IRANSansWeb_Medium.ttf     (medium 500)
+     IRANSansWeb_UltraLight.ttf (ultra-light 200)
+   ─────────────────────────────────────────────────────────────── */
+@font-face {
+        font-family: 'IRANSansWeb';
+        src: url('/fonts/IRANSansWeb.eot');
+        src: url('/fonts/IRANSansWeb.eot?#iefix') format('embedded-opentype'),
+             url('/fonts/IRANSansWeb.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb.woff') format('woff'),
+             url('/fonts/IRANSansWeb.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+}
+@font-face {
+        font-family: 'IRANSansWeb';
+        src: url('/fonts/IRANSansWeb_Light.eot');
+        src: url('/fonts/IRANSansWeb_Light.eot?#iefix') format('embedded-opentype'),
+             url('/fonts/IRANSansWeb_Light.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Light.woff') format('woff'),
+             url('/fonts/IRANSansWeb_Light.ttf') format('truetype');
+        font-weight: 300;
+        font-style: normal;
+        font-display: swap;
+}
+@font-face {
+        font-family: 'IRANSansWeb';
+        src: url('/fonts/IRANSansWeb_Medium.eot');
+        src: url('/fonts/IRANSansWeb_Medium.eot?#iefix') format('embedded-opentype'),
+             url('/fonts/IRANSansWeb_Medium.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Medium.woff') format('woff'),
+             url('/fonts/IRANSansWeb_Medium.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+}
+@font-face {
+        font-family: 'IRANSansWeb';
+        src: url('/fonts/IRANSansWeb_Bold.eot');
+        src: url('/fonts/IRANSansWeb_Bold.eot?#iefix') format('embedded-opentype'),
+             url('/fonts/IRANSansWeb_Bold.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Bold.woff') format('woff'),
+             url('/fonts/IRANSansWeb_Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+}
+@font-face {
+        font-family: 'IRANSansWeb';
+        src: url('/fonts/IRANSansWeb_UltraLight.eot');
+        src: url('/fonts/IRANSansWeb_UltraLight.eot?#iefix') format('embedded-opentype'),
+             url('/fonts/IRANSansWeb_UltraLight.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_UltraLight.woff') format('woff'),
+             url('/fonts/IRANSansWeb_UltraLight.ttf') format('truetype');
+        font-weight: 200;
+        font-style: normal;
+        font-display: swap;
+}
+
+/* ───────────────────────────────────────────────────────────────
    VIGENT — OpenAI-style Design System (2026)
    Light mode only. White dominant, near-black ink, blue only for
    interactive elements, green/red only for status. Minimal, calm,
@@ -10,6 +76,9 @@
    ─────────────────────────────────────────────────────────────── */
 
 :root {
+        /* ─── Persian font: IRANSansWeb ─── */
+        --font-fa: 'IRANSansWeb', var(--font-fa-fallback, system-ui), sans-serif;
+
         /* ─── Backgrounds ─── */
         --bg-base: #ffffff;          /* page background */
         --bg-surface: #f7f7f8;       /* secondary background */
@@ -107,6 +176,26 @@
                 background: var(--bg-base);
                 color: var(--text-primary);
                 font-family: var(--font-display), var(--font-fa), system-ui, sans-serif;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                letter-spacing: -0.01em;
+        }
+
+        /* Persian (RTL) body uses IRANSansWeb as primary */
+        html[dir='rtl'] body {
+                font-family: var(--font-fa), var(--font-display), system-ui, sans-serif;
+                letter-spacing: 0;
+        }
+
+        /* Headings: tighter letter-spacing for a premium feel (Apple/ChatGPT) */
+        h1, h2, h3, h4 {
+                letter-spacing: -0.02em;
+        }
+        html[dir='rtl'] h1,
+        html[dir='rtl'] h2,
+        html[dir='rtl'] h3,
+        html[dir='rtl'] h4 {
+                letter-spacing: 0;
         }
 
         button,
@@ -117,10 +206,6 @@
         :where(a, button, input, select, textarea):focus-visible {
                 outline: 2px solid var(--accent-strong);
                 outline-offset: 3px;
-        }
-
-        html[dir='rtl'] body {
-                font-family: var(--font-fa), var(--font-display), system-ui, sans-serif;
         }
 
         /* Thin monochrome scrollbar */

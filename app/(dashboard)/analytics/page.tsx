@@ -330,10 +330,11 @@ export default async function AnalyticsPage() {
         >
           {csatCount > 0 ? (
             <div className="grid place-items-center py-4">
-              <SatisfactionGauge value={csatAvg ? Math.round(csatAvg * 20) : 0} />
-              <p className="mt-3 text-center text-xs text-[var(--text-muted)]">
-                {fa ? `از ${nfFa(csatCount, fa)} امتیاز ثبت‌شده` : `from ${nfFa(csatCount, fa)} ratings`}
-              </p>
+              <SatisfactionGauge
+                value={csatAvg}
+                count={csatCount}
+                label={fa ? 'امتیاز' : 'ratings'}
+              />
             </div>
           ) : (
             <div className="grid h-40 place-items-center text-sm text-[var(--text-muted)]">{fa ? 'هنوز امتیازی ثبت نشده' : 'No ratings yet'}</div>

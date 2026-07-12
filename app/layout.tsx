@@ -18,13 +18,12 @@ const geistMono = localFont({
         weight: '100 900',
 })
 
-// Estedad — a refined variable Persian typeface (OFL). Replaces Vazirmatn as
-// the Persian/RTL family: cleaner, more characterful, and self-hosted so it
-// loads instantly with no external request. Weight contrast (300 → 600) does
-// the work of a separate display face for the minimal-luxury look.
+// IRANSansWeb — the standard Persian web font, loaded via @font-face in
+// globals.css from /public/fonts/. The user places the .ttf files there.
+// The --font-fa variable is set in globals.css :root.
 const estedad = localFont({
         src: './fonts/EstedadVF.woff2',
-        variable: '--font-fa',
+        variable: '--font-fa-fallback',
         weight: '100 900',
         display: 'swap',
 })
