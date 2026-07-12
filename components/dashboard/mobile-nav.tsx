@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Menu, X, Rocket, LogOut } from 'lucide-react'
+import { Menu, X, Rocket, LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { getDashboardNav } from '@/components/dashboard/nav-items'
@@ -58,7 +58,7 @@ export function MobileNav({ businessType }: { businessType?: BusinessTypeValue |
                                 aria-label="Open dashboard navigation"
                                 aria-expanded={open}
                                 aria-controls="dashboard-mobile-navigation"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-border)] hover:text-[var(--accent-strong)]"
+                                className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:text-[var(--text-primary)]"
                         >
                                 <Menu className="h-5 w-5" />
                         </button>
@@ -78,7 +78,7 @@ export function MobileNav({ businessType }: { businessType?: BusinessTypeValue |
                                                 <button
                                                         aria-label="Close menu"
                                                         onClick={() => setOpen(false)}
-                                                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                                                        className="absolute inset-0 bg-black/38 backdrop-blur-sm"
                                                 />
 
                                                 {/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
@@ -87,7 +87,7 @@ export function MobileNav({ businessType }: { businessType?: BusinessTypeValue |
                                                         role="dialog"
                                                         aria-modal="true"
                                                         aria-label="Dashboard navigation"
-                                                        className="absolute inset-y-0 start-0 flex w-80 max-w-[86vw] flex-col border-e border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-lift)]"
+                                                        className="spatial-control absolute inset-y-3 start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)]"
                                                 >
                                                         <div className="mb-4 flex items-center justify-between px-1">
                                                                 <Link href="/overview" onClick={() => setOpen(false)} className="flex-1 flex justify-center">
@@ -102,6 +102,16 @@ export function MobileNav({ businessType }: { businessType?: BusinessTypeValue |
                                                                         <X className="h-5 w-5" />
                                                                 </button>
                                                         </div>
+
+                                                        <Link
+										href="/vigento"
+                                                                onClick={() => setOpen(false)}
+                                                                className="spatial-press mb-2 flex min-h-12 items-center gap-3 rounded-2xl bg-black px-3.5 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+                                                        >
+                                                                <Sparkles className="h-4 w-4" />
+                                                                <span className="flex-1">Vigento</span>
+                                                                <span className="text-[9px] font-normal text-white/55">AI Core</span>
+                                                        </Link>
 
                                                         <Link
                                                                 href="/onboarding"

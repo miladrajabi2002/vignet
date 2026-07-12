@@ -9,6 +9,7 @@ import {
 	Settings,
 	CalendarDays,
 	BarChart3,
+	Camera,
 } from 'lucide-react'
 import {
 	getDashboardModules,
@@ -26,6 +27,7 @@ const NAV_ITEMS = {
 	conversations: { key: 'conversations', href: '/conversations', icon: MessagesSquare },
 	contacts: { key: 'contacts', href: '/contacts', icon: Users },
 	analytics: { key: 'analytics', href: '/analytics', icon: BarChart3 },
+	instagram: { key: 'instagram', href: '/instagram', icon: Camera },
 	integrations: { key: 'integrations', href: '/integrations', icon: Plug },
 	billing: { key: 'billing', href: '/billing', icon: CreditCard },
 	settings: { key: 'settings', href: '/settings', icon: Settings },

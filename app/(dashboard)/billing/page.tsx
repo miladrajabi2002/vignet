@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from 'next-intl/server'
-import { MessagesSquare, Cpu, Wallet, Sparkles, Check } from 'lucide-react'
+import { MessagesSquare, Cpu, Wallet, Sparkles, Check, Zap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
@@ -103,8 +103,27 @@ export default async function BillingPage(
         </div>
       )}
 
+      <section className="spatial-surface flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+          <Zap className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">
+            {locale === 'fa' ? 'اتوماسیون اینستاگرام رایگان است' : 'Instagram automation is free'}
+          </h2>
+          <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
+            {locale === 'fa'
+              ? 'پاسخ‌های ثابت، کلیدواژه‌ها، کامنت و سناریوهای بدون AI هزینه‌ای ندارند. فقط وقتی ایجنت هوش مصنوعی پاسخ موفق می‌دهد، از اعتبار پاسخ کم می‌شود.'
+              : 'Static replies, keywords, comments and non-AI scenarios cost nothing. Credit is deducted only when the AI agent returns a successful reply.'}
+          </p>
+        </div>
+        <span className="inline-flex min-h-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 text-[10px] font-bold text-[var(--text-primary)]">
+          {locale === 'fa' ? 'بدون محدودیت سناریو' : 'Unlimited scenarios'}
+        </span>
+      </section>
+
       {/* Plan card */}
-      <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+      <section className="spatial-surface rounded-[1.5rem] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-sm text-[var(--text-secondary)]">

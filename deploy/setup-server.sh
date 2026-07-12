@@ -244,8 +244,8 @@ ensure_secret "NEXTAUTH_SECRET" "$(openssl rand -base64 32)"
 ensure_secret "AUTH_SECRET"     "$(openssl rand -base64 32)"
 ensure_secret "ENCRYPTION_KEY"  "$(openssl rand -hex 32)"
 
-# اعتبارنامه‌ی داشبورد ادمین (مسیر /admin) — یوزر/پسورد ثابت
-ensure_secret "ADMIN_USER" "admin"
+# اعتبارنامه‌ی داشبورد ادمین (مسیر /admin) — فقط مالک تعیین‌شده
+set_env "ADMIN_OWNER_PHONE" "09128352271"
 ensure_secret "ADMIN_PASS" "$(openssl rand -hex 12)"
 ensure_secret "ADMIN_SESSION_SECRET" "$(openssl rand -base64 32)"
 
@@ -270,11 +270,11 @@ cat <<DONE
    • S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY → MinIO محلی (bucketها ساخته شد)
    • NEXTAUTH_URL / APP_URL / WIDGET_URL → ${APP_URL}
    • NEXTAUTH_SECRET / AUTH_SECRET / ENCRYPTION_KEY → ساخته شد
-   • ADMIN_USER / ADMIN_PASS → اعتبارنامه‌ی داشبورد ادمین (/admin) ساخته شد
+   • ADMIN_OWNER_PHONE / ADMIN_PASS → اعتبارنامه‌ی اختصاصی میلاد برای /admin ساخته شد
    • بک‌آپ شبانه‌ی دیتابیس روی cron نصب شد (هر شب ۳ بامداد)
 
- ℹ️  یوزر/پسورد ادمین را با این دستور ببین:
-     grep -E '^ADMIN_(USER|PASS)=' ${ENV_FILE}
+ ℹ️  شماره/پسورد ادمین را با این دستور ببین:
+     grep -E '^ADMIN_(OWNER_PHONE|PASS)=' ${ENV_FILE}
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
    • IPPANEL_PROXY_URL / IPPANEL_PROXY_SECRET / IPPANEL_PATTERN_CODE / IPPANEL_FROM_NUMBER

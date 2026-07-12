@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import Script from 'next/script'
 import { Navbar } from '@/components/marketing/navbar'
 import { Footer } from '@/components/marketing/footer'
 import { BackToTop } from '@/components/marketing/back-to-top'
@@ -20,12 +19,6 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
 			<main>{children}</main>
 			<Footer />
 			<BackToTop />
-			{/* Vigent AI Widget — only on marketing pages (home, blog, docs, solutions) */}
-			<Script
-				src="https://vigent.ir/widget/loader.js"
-				data-agent-id="cmr8eo5xs0001eoa9mxurm3an"
-				strategy="lazyOnload"
-			/>
 		</div>
 	)
 }

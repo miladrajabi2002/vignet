@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Bot,
   CalendarCheck2,
+  Camera,
   ChartNoAxesCombined,
   CheckCircle2,
   GraduationCap,
@@ -33,6 +34,13 @@ import { getPlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
+import { Sparkline } from '@/components/admin/sparkline'
+import {
+  chargesDailyByWorkspace,
+  contactsDailyByWorkspace,
+  conversationsDailyByWorkspace,
+  resolvedDailyByWorkspace,
+} from '@/lib/dashboard/charts'
 
 const TREND_DAYS = 14
 
@@ -44,6 +52,7 @@ const MODULE_META: Record<DashboardModuleKey, { href: string; fa: string; en: st
   conversations: { href: '/conversations', fa: 'گفتگوها', en: 'Conversations', icon: MessagesSquare },
   contacts: { href: '/contacts', fa: 'مشتری‌ها', en: 'Customers', icon: Users },
   analytics: { href: '/analytics', fa: 'گزارش‌ها', en: 'Reports', icon: ChartNoAxesCombined },
+  instagram: { href: '/instagram', fa: 'اتوماسیون اینستاگرام', en: 'Instagram automation', icon: Camera },
   integrations: { href: '/integrations', fa: 'اتصال‌ها', en: 'Integrations', icon: Plug },
   billing: { href: '/billing', fa: 'مالی و اعتبار', en: 'Billing & credit', icon: Wallet },
   settings: { href: '/settings', fa: 'تنظیمات', en: 'Settings', icon: Sparkles },
@@ -95,6 +104,10 @@ export default async function OverviewPage() {
     subscription,
     messagesUsed,
     operatorChannel,
+    conversationsMiniTrend,
+    contactsMiniTrend,
+    resolvedMiniTrend,
+    chargesMonthlyTrend,
   ] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId },
@@ -142,6 +155,7 @@ export default async function OverviewPage() {
         createdAt: true,
         contact: { select: { name: true, phone: true } },
         agent: { select: { name: true } },
+        _count: { select: { messages: true } },
       },
     }),
     prisma.subscription.findUnique({
@@ -153,6 +167,10 @@ export default async function OverviewPage() {
       where: { workspaceId },
       select: { active: true, operatorChatId: true },
     }),
+    conversationsDailyByWorkspace(workspaceId, 7),
+    contactsDailyByWorkspace(workspaceId, 7),
+    resolvedDailyByWorkspace(workspaceId, 7),
+    chargesDailyByWorkspace(workspaceId, 30),
   ])
 
   const pack = getVerticalPack(workspace.businessType)
@@ -248,7 +266,7 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} />
+          <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} />
         ) : (
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
             <div>
@@ -266,22 +284,22 @@ export default async function OverviewPage() {
       {(!operatorChannel?.active || !operatorChannel.operatorChatId) && (
         <Link
           href="/settings"
-          className="group flex flex-col gap-4 rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(135deg,#eff9ff,#ffffff_58%)] p-4 shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5 sm:flex-row sm:items-center sm:p-5 motion-reduce:transform-none"
+          className="spatial-surface spatial-press group flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
             <Send className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-sky-950">
+            <span className="block text-sm font-bold text-[var(--text-primary)]">
               {fa ? 'ربات مدیر تلگرام را وصل کنید' : 'Connect the Telegram manager bot'}
             </span>
-            <span className="mt-1 block text-xs leading-6 text-sky-800">
+            <span className="mt-1 block text-xs leading-6 text-[var(--text-secondary)]">
               {fa
                 ? 'انتقال به اپراتور، رزرو جدید و هشدارهای مهم را با لینک مستقیم همان پرونده در تلگرام بگیرید.'
                 : 'Receive handoffs, new bookings, and critical alerts in Telegram with a direct link to the right case.'}
             </span>
           </span>
-          <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-white px-3 text-xs font-semibold text-sky-800">
+          <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
             {fa ? 'اتصال در چند دقیقه' : 'Connect in minutes'}
             <Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
           </span>
@@ -347,6 +365,7 @@ export default async function OverviewPage() {
           hint={conversationDelta === null
             ? fa ? 'شروع دوره اندازه‌گیری' : 'measurement started'
             : `${conversationDelta > 0 ? '+' : ''}${nf.format(conversationDelta)}${fa ? '٪' : '%'} ${fa ? 'نسبت به هفته قبل' : 'vs previous week'}`}
+          series={conversationsMiniTrend.series}
         />
         <OutcomeCard
           href="/analytics"
@@ -354,6 +373,7 @@ export default async function OverviewPage() {
           label={fa ? 'نرخ حل گفتگو' : 'Resolution rate'}
           value={`${nf.format(resolveRate)}${fa ? '٪' : '%'}`}
           hint={fa ? 'نتیجه ثبت‌شده در CRM' : 'recorded outcomes in CRM'}
+          series={resolvedMiniTrend.series}
         />
         <OutcomeCard
           href="/contacts"
@@ -361,6 +381,7 @@ export default async function OverviewPage() {
           label={fa ? 'مشتری جدید در ۷ روز' : 'New customers, 7d'}
           value={nf.format(contacts7d)}
           hint={fa ? 'از همه کانال‌های متصل' : 'from every connected channel'}
+          series={contactsMiniTrend.series}
         />
         <OutcomeCard
           href={verticalOutcome.href}
@@ -406,6 +427,8 @@ export default async function OverviewPage() {
                   </span>
                   <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
                     <span>{CHANNEL_LABELS[conversation.channel] ?? conversation.channel}</span>
+                    <span>·</span>
+                    <span>{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
                     <span>·</span>
                     <span className="truncate">{conversation.summary || conversation.agent.name}</span>
                   </span>
@@ -470,6 +493,15 @@ export default async function OverviewPage() {
               <div className={cn('h-full rounded-full', usagePercent >= 90 ? 'bg-red-500' : usagePercent >= 70 ? 'bg-amber-500' : 'bg-[var(--accent)]')} style={{ width: `${usagePercent}%` }} />
             </div>
           </div>
+          <div className="spatial-inset mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-[var(--text-muted)]">{fa ? 'هزینه پاسخ‌های AI در ۳۰ روز' : 'AI reply cost, 30 days'}</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-[var(--text-primary)]">
+                {nf.format(Math.round(chargesMonthlyTrend.total / 10))} <span className="text-[10px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
+              </p>
+            </div>
+            <div className="w-24 shrink-0"><Sparkline data={chargesMonthlyTrend.series} color="#111111" width={96} height={28} fluid /></div>
+          </div>
         </DashboardPanel>
       </section>
     </div>
@@ -520,12 +552,14 @@ function OutcomeCard({
   label,
   value,
   hint,
+  series,
 }: {
   href: string
   icon: LucideIcon
   label: string
   value: string
   hint: string
+  series?: number[]
 }) {
   return (
     <Link href={href} className="dashboard-card group relative overflow-hidden rounded-[1.3rem] border border-[var(--border-default)] bg-white/[0.94] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)] sm:p-5">
@@ -536,6 +570,7 @@ function OutcomeCard({
       </div>
       <p className="relative mt-3 text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</p>
       <p className="relative mt-1 min-h-4 text-[9px] leading-4 text-[var(--text-muted)] sm:text-[10px]">{hint}</p>
+      {series?.length ? <div className="relative mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
     </Link>
   )
 }

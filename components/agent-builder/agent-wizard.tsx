@@ -135,6 +135,21 @@ const BUSINESS_PRESETS = {
                 fa: { name: 'دستیار فروش', description: 'مشاوره محصول، پاسخ به سوالات خرید و پیگیری سفارش', welcome: 'سلام! برای انتخاب محصول یا پیگیری سفارش در کنارتان هستم.' },
                 en: { name: 'Sales assistant', description: 'Product advice, purchase questions and order follow-up', welcome: 'Hi! I can help you choose a product or track an order.' },
         },
+        commerce: {
+                role: 'sales_consultant',
+                fa: { name: 'مشاور هوشمند فروش', description: 'مشاوره خرید، مقایسه محصول، پیگیری سفارش و تحویل موارد حساس به تیم', welcome: 'سلام! برای انتخاب محصول، بررسی موجودی یا پیگیری سفارش در کنارتان هستم.' },
+                en: { name: 'Commerce copilot', description: 'Buying advice, product comparison, order tracking and safe handoff', welcome: 'Hi! I can help you choose a product, check availability or track an order.' },
+        },
+        food: {
+                role: 'sales_consultant',
+                fa: { name: 'دستیار سفارش و رزرو', description: 'معرفی منو، پیشنهاد آیتم، ثبت سفارش و هماهنگی رزرو میز', welcome: 'سلام! برای دیدن منو، انتخاب غذا، ثبت سفارش یا رزرو میز بفرمایید.' },
+                en: { name: 'Food ordering assistant', description: 'Menu guidance, recommendations, order capture and table booking', welcome: 'Hi! I can help with the menu, an order, or a table booking.' },
+        },
+        appointments: {
+                role: 'lead_capture',
+                fa: { name: 'دستیار نوبت‌دهی', description: 'شناخت نیاز، نمایش زمان آزاد، ثبت و جابه‌جایی نوبت بدون تداخل', welcome: 'سلام! نوع خدمت و زمان مدنظرتان را بفرمایید تا نزدیک‌ترین وقت آزاد را پیدا کنم.' },
+                en: { name: 'Appointment assistant', description: 'Qualify needs, show availability, book and reschedule without conflicts', welcome: 'Hi! Tell me the service and preferred time and I will find the closest available slot.' },
+        },
         services: {
                 role: 'lead_capture',
                 fa: { name: 'دستیار رزرو', description: 'پاسخ به سوالات، ثبت درخواست و هماهنگی رزرو', welcome: 'سلام! برای دریافت راهنمایی یا ثبت درخواست بفرمایید چه کمکی می‌توانم بکنم؟' },
@@ -144,6 +159,16 @@ const BUSINESS_PRESETS = {
                 role: 'full_service',
                 fa: { name: 'راهنمای دوره‌ها', description: 'معرفی دوره، پاسخ به سوالات ثبت‌نام و پیگیری علاقه‌مندان', welcome: 'سلام! برای انتخاب دوره و پاسخ به سوالات ثبت‌نام در کنارتان هستم.' },
                 en: { name: 'Course guide', description: 'Course discovery, enrollment questions and lead follow-up', welcome: 'Hi! I can help you choose a course and answer enrollment questions.' },
+        },
+        support: {
+                role: 'general_support',
+                fa: { name: 'همکار پشتیبانی', description: 'تشخیص موضوع، پاسخ دانش‌محور، اولویت‌بندی و تحویل امن به اپراتور', welcome: 'سلام! موضوع یا مشکل را بفرستید؛ پاسخ می‌دهم یا با خلاصه کامل به همکار مربوط تحویل می‌دهم.' },
+                en: { name: 'Support copilot', description: 'Issue triage, knowledge-grounded answers, priority and safe handoff', welcome: 'Hi! Send the issue and I will resolve it or hand it to the right teammate with context.' },
+        },
+        custom: {
+                role: 'full_service',
+                fa: { name: 'دستیار هوشمند کسب‌وکار', description: 'پاسخ‌گویی، جمع‌آوری اطلاعات و اجرای جریان متناسب با کسب‌وکار', welcome: 'سلام! بفرمایید چه کمکی از دستم برمی‌آید؟' },
+                en: { name: 'Business copilot', description: 'Answers, information capture and a workflow tailored to the business', welcome: 'Hi! How can I help today?' },
         },
         messaging: {
                 role: 'general_support',
@@ -156,9 +181,11 @@ export function AgentWizard({
         initialBusiness,
         modelPolicy,
         workspaceProductCount = 0,
+        showVigento = true,
 }: {
         initialBusiness?: string
         workspaceProductCount?: number
+        showVigento?: boolean
         modelPolicy: {
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
@@ -348,11 +375,13 @@ export function AgentWizard({
 
         return (
                 <div className="mx-auto max-w-4xl">
-                        <VigentoComposer
-                                locale={locale}
-                                currentName={form.name}
-                                onApply={applyVigentoDraft}
-                        />
+                        {showVigento && (
+                                <VigentoComposer
+                                        locale={locale}
+                                        currentName={form.name}
+                                        onApply={applyVigentoDraft}
+                                />
+                        )}
                         <div className="mb-2 text-sm text-[var(--text-secondary)]">
                                 {t('step', { n: step + 1, total: TOTAL })} — {stepTitles[step]}
                         </div>
@@ -363,7 +392,7 @@ export function AgentWizard({
                                 />
                         </div>
 
-                        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
+                        <div className="spatial-surface rounded-[1.75rem] p-5 sm:p-7">
                                 <AnimatePresence mode="wait" initial={false}>
                                         <motion.div
                                                 key={step}

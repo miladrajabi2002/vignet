@@ -43,16 +43,17 @@ export function AdminLoginForm() {
               <ShieldCheck className="h-7 w-7" />
             </div>
             <h1 className="mt-5 text-xl font-bold text-zinc-900">پنل مدیریت ویجنت</h1>
-            <p className="mt-1.5 text-sm text-zinc-500">دسترسی فقط برای مدیر سیستم</p>
+            <p className="mt-1.5 text-sm text-zinc-500">دسترسی اختصاصی میلاد</p>
           </div>
 
           <form action={formAction} className="mt-7 space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-600">نام کاربری</label>
+              <label className="mb-1.5 block text-xs font-medium text-zinc-600">شماره موبایل مدیر</label>
               <input
                 name="username"
-                autoComplete="username"
-                placeholder="نام کاربری مدیر"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="۰۹۱۲۸۳۵۲۲۷۱"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
               />
             </div>

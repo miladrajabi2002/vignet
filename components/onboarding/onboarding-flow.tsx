@@ -79,13 +79,14 @@ const staggerChild: Variants = {
 }
 
 // ─── Phase definitions ──────────────────────────────────────────
-type Phase = 'type' | 'details' | 'agent' | 'knowledge' | 'channel' | 'done'
+type Phase = 'type' | 'details' | 'agent' | 'knowledge' | 'test' | 'channel' | 'done'
 
 const PHASES: { key: Phase; label: string; icon: LucideIcon }[] = [
   { key: 'type', label: 'کسب‌وکار', icon: Rocket },
   { key: 'details', label: 'اطلاعات', icon: Briefcase },
   { key: 'agent', label: 'ایجنت', icon: Sparkles },
   { key: 'knowledge', label: 'دانش', icon: Package },
+  { key: 'test', label: 'آزمایش', icon: Sparkles },
   { key: 'channel', label: 'اتصال', icon: Plug },
   { key: 'done', label: 'پایان', icon: CheckCircle2 },
 ]
@@ -95,7 +96,9 @@ interface Props {
   hasProfile: boolean
   hasAgent: boolean
   hasKnowledge: boolean
+  hasConversation: boolean
   hasChannel: boolean
+  agentId: string | null
   workspaceName: string
   businessType: string | null
   businessProfile: { businessName: string; services: string[] } | null
@@ -106,7 +109,9 @@ export function OnboardingFlow({
   hasProfile,
   hasAgent,
   hasKnowledge,
+  hasConversation,
   hasChannel,
+  agentId,
   workspaceName,
   businessType,
   businessProfile,
@@ -114,19 +119,29 @@ export function OnboardingFlow({
 }: Props) {
   const router = useRouter()
   const [direction, setDirection] = useState(1)
+  const [phaseOverride, setPhaseOverride] = useState<Phase | null>(null)
+  const [draftBusinessType, setDraftBusinessType] = useState<BusinessTypeValue | null>(
+    hasProfile ? businessType as BusinessTypeValue : null,
+  )
 
   // Determine current phase from server state
-  const currentPhase: Phase = (() => {
-    if (!hasProfile) return businessProfile ? 'details' : 'type'
+  const serverPhase: Phase = (() => {
+    if (!hasProfile) return 'type'
     if (!hasAgent) return 'agent'
     if (!hasKnowledge) return 'knowledge'
+    if (!hasConversation) return 'test'
     if (!hasChannel) return 'channel'
     return 'done'
   })()
+  const currentPhase = phaseOverride ?? serverPhase
+
+  useEffect(() => {
+    setPhaseOverride(null)
+  }, [serverPhase])
 
   // Poll for state updates when user completes an external CTA
   useEffect(() => {
-    if (currentPhase === 'done') return
+    if (currentPhase === 'done' || currentPhase === 'type' || currentPhase === 'details') return
     const interval = setInterval(() => router.refresh(), 4000)
     return () => clearInterval(interval)
   }, [currentPhase, router])
@@ -142,7 +157,7 @@ export function OnboardingFlow({
 
       {/* ─── Progress header ─── */}
       <div className="sticky top-0 z-20 border-b border-[var(--border-default)] bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center gap-1 px-4 py-3.5 sm:px-8">
+        <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:px-8">
           {PHASES.map((p, i) => {
             const Icon = p.icon
             const isDone = i < phaseIndex
@@ -179,7 +194,7 @@ export function OnboardingFlow({
                     )}
                   </motion.div>
                   <span className={cn(
-                    'text-[10px] font-medium transition-colors duration-300',
+                    'hidden text-[10px] font-medium transition-colors duration-300 sm:block',
                     isCurrent ? 'text-[var(--text-primary)]' : isDone ? 'text-[var(--text-secondary)]' : 'text-[var(--text-hint)]'
                   )}>
                     {p.label}
@@ -202,7 +217,7 @@ export function OnboardingFlow({
       </div>
 
       {/* ─── Step content ─── */}
-      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-72px)] max-w-4xl flex-col justify-center px-4 py-8 sm:px-8">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-68px)] max-w-6xl flex-col justify-center px-4 py-4 sm:px-8 lg:h-[calc(100dvh-68px)] lg:overflow-hidden">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={currentPhase}
@@ -215,11 +230,11 @@ export function OnboardingFlow({
           >
             {currentPhase === 'type' && (
               <TypeStep
-                selectedType={businessType as BusinessTypeValue | null}
+                selectedType={draftBusinessType}
                 onSelect={(type) => {
                   setDirection(1)
-                  // Save type immediately, advance to details
-                  saveProfile(type, businessProfile?.businessName ?? workspaceName, businessProfile?.services ?? [])
+                  setDraftBusinessType(type)
+                  setPhaseOverride('details')
                 }}
               />
             )}
@@ -227,17 +242,17 @@ export function OnboardingFlow({
             {currentPhase === 'details' && (
               <DetailsStep
                 workspaceName={workspaceName}
-                initialType={businessType as BusinessTypeValue}
+                initialType={draftBusinessType ?? businessType as BusinessTypeValue}
                 initialProfile={businessProfile}
-                onBack={() => setDirection(-1)}
-                onNext={() => setDirection(1)}
+                onBack={() => { setDirection(-1); setPhaseOverride('type') }}
+                onNext={() => { setDirection(1); setPhaseOverride('agent'); router.refresh() }}
               />
             )}
 
             {currentPhase === 'agent' && (
               <CtaStep
                 icon={Sparkles}
-                step={2}
+                step={3}
                 title="ایجنت هوشمند بسازید"
                 subtitle="دستیار شما برای پاسخ‌گویی به مشتریان"
                 tip="ایجنت پیام مشتری را می‌فهمد، از محصولات شما پاسخ می‌دهد و سفارش می‌گیرد. با هوش مصنوعی یا دستی — انتخاب با شماست."
@@ -250,7 +265,7 @@ export function OnboardingFlow({
             {currentPhase === 'knowledge' && (
               <CtaStep
                 icon={Package}
-                step={3}
+                step={4}
                 title="محصولات یا خدمات را اضافه کنید"
                 subtitle="ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد"
                 tip="محصولات را با نام، قیمت و موجودی وارد کنید. ایجنت از این داده‌ها برای پیشنهاد و فروش استفاده می‌کند."
@@ -260,15 +275,30 @@ export function OnboardingFlow({
               />
             )}
 
+            {currentPhase === 'test' && (
+              <CtaStep
+                icon={Sparkles}
+                step={5}
+                title="ایجنت را در یک گفتگوی واقعی آزمایش کنید"
+                subtitle="قبل از اتصال به مشتری، یک سؤال عادی و یک درخواست اپراتور را امتحان کنید"
+                tip="این تست هم کیفیت پاسخ را روشن می‌کند و هم مسیر تحویل به انسان را قبل از شروع کار واقعی بررسی می‌کند."
+                ctaLabel="باز کردن محیط آزمایش"
+                ctaHref={agentId ? `/agents/${agentId}` : '/agents'}
+                done={hasConversation}
+              />
+            )}
+
             {currentPhase === 'channel' && (
               <CtaStep
                 icon={Plug}
-                step={4}
+                step={6}
                 title="یک کانال متصل کنید"
                 subtitle="ایجنت را به اینستاگرام، تلگرام، واتساپ یا وب متصل کنید"
                 tip="پس از اتصال، پیام‌های مشتریان مستقیماً به ایجنت می‌رسند و پاسخ می‌گیرند — بدون کار اضافه از شما."
                 ctaLabel="اتصال کانال"
-                ctaHref="/agents"
+                ctaHref={businessType === 'SOCIAL'
+                  ? '/instagram'
+                  : agentId ? `/agents/${agentId}/channels` : '/agents'}
                 done={hasChannel}
               />
             )}
@@ -279,17 +309,6 @@ export function OnboardingFlow({
       </div>
     </div>
   )
-}
-
-// ─── Helper: save profile ───────────────────────────────────────
-async function saveProfile(type: BusinessTypeValue, name: string, services: string[]) {
-  try {
-    await fetch('/api/onboarding', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ businessType: type, businessName: name, services }),
-    })
-  } catch {}
 }
 
 // ─── Step 1: Choose business type ───────────────────────────────
@@ -304,7 +323,7 @@ function TypeStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۱ از ۵
+          مرحله ۱ از ۶
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           کسب‌وکار شما چیست؟
@@ -316,7 +335,7 @@ function TypeStep({
 
       <motion.div
         variants={staggerChild}
-        className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        className="mt-5 grid gap-2.5 sm:grid-cols-2 md:grid-cols-4"
       >
         {BUSINESS_TYPES.map((type) => {
           const pack = getVerticalPack(type)
@@ -333,7 +352,7 @@ function TypeStep({
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.2, ease: EASE }}
               className={cn(
-                'group relative overflow-hidden rounded-2xl border bg-white p-5 text-start transition-colors duration-200',
+                'spatial-press group relative overflow-hidden rounded-[1.35rem] border bg-white p-4 text-start transition-colors duration-200',
                 active
                   ? 'border-[var(--text-primary)]'
                   : 'border-[var(--border-default)] hover:border-[var(--border-hover)]',
@@ -361,13 +380,13 @@ function TypeStep({
               <h3 className="mt-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
                 {pack.titleFa}
               </h3>
-              <p className="mt-1 text-[12px] leading-5 text-[var(--text-muted)]">
+              <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-[var(--text-muted)]">
                 {pack.descriptionFa}
               </p>
 
               {/* Feature pills */}
               <div className="mt-3 flex flex-wrap gap-1">
-                {features.slice(0, 3).map((f) => (
+                {features.slice(0, 2).map((f) => (
                   <span key={f} className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--text-muted)]">
                     {f}
                   </span>
@@ -434,7 +453,7 @@ function DetailsStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۲ از ۵
+          مرحله ۲ از ۶
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           اطلاعات کسب‌وکار
@@ -599,8 +618,8 @@ function CtaStep({
         {done ? (
           <div className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
             <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3, ease: EASE }}
               className="grid h-7 w-7 place-items-center rounded-full bg-[var(--text-primary)] text-white"
             >
@@ -640,8 +659,8 @@ function DoneStep() {
     >
       <motion.div variants={staggerChild} className="mx-auto flex justify-center">
         <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.6, ease: EASE }}
           className="grid h-24 w-24 place-items-center rounded-full bg-[var(--text-primary)] text-white"
           style={{ boxShadow: 'var(--shadow-lift)' }}

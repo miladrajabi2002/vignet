@@ -22,10 +22,9 @@ export function DashboardPanel({
   return (
     <section
       className={cn(
-        'rounded-xl border border-[var(--border-default)] bg-white p-5 sm:p-6',
+        'spatial-surface rounded-[1.5rem] p-5 sm:p-6',
         className,
       )}
-      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       {title && (
         <div className="mb-4 flex items-start justify-between gap-3">

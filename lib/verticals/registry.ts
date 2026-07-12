@@ -19,6 +19,7 @@ export type DashboardModuleKey =
   | 'conversations'
   | 'contacts'
   | 'analytics'
+  | 'instagram'
   | 'integrations'
   | 'billing'
   | 'settings'
@@ -46,7 +47,7 @@ export interface VerticalPack {
   suggestedServicesFa: readonly string[]
   suggestedServicesEn: readonly string[]
   /** Existing agent-builder preset used after onboarding. */
-  agentTemplate: 'store' | 'services' | 'education' | 'custom'
+  agentTemplate: 'commerce' | 'food' | 'appointments' | 'services' | 'education' | 'support' | 'instagram' | 'custom'
 }
 
 export const CORE_DASHBOARD_MODULES = [
@@ -81,7 +82,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['فروش محصول', 'مشاوره خرید', 'پیگیری سفارش'],
     suggestedServicesEn: ['Product sales', 'Buying advice', 'Order tracking'],
-    agentTemplate: 'store',
+    agentTemplate: 'commerce',
   },
   FOOD: {
     key: 'FOOD',
@@ -96,7 +97,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سفارش'],
     suggestedServicesEn: ['Takeaway orders', 'Table booking', 'Order support'],
-    agentTemplate: 'store',
+    agentTemplate: 'food',
   },
   APPOINTMENTS: {
     key: 'APPOINTMENTS',
@@ -111,7 +112,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['مشاوره', 'ویزیت', 'خدمات زیبایی', 'رزرو جلسه'],
     suggestedServicesEn: ['Consultation', 'Visit', 'Beauty service', 'Meeting'],
-    agentTemplate: 'services',
+    agentTemplate: 'appointments',
   },
   SERVICES: {
     key: 'SERVICES',
@@ -156,7 +157,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پشتیبانی فنی', 'پاسخ به سؤال', 'پیگیری تیکت'],
     suggestedServicesEn: ['Technical support', 'Q&A', 'Ticket follow-up'],
-    agentTemplate: 'custom',
+    agentTemplate: 'support',
   },
   SOCIAL: {
     key: 'SOCIAL',
@@ -167,11 +168,11 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['پاسخ خودکار دایرکت', 'مدیریت کامنت', 'اتوماسیون فروش', 'کاتالوگ در دایرکت'],
     featuresEn: ['Auto DM replies', 'Comment management', 'Sales automation', 'In-DM catalog'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products'],
+    optionalModules: ['products', 'instagram'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پاسخ دایرکت', 'فروش در دایرکت', 'مدیریت کامنت'],
     suggestedServicesEn: ['DM replies', 'In-DM sales', 'Comment management'],
-    agentTemplate: 'store',
+    agentTemplate: 'instagram',
   },
   CUSTOM: {
     key: 'CUSTOM',
@@ -198,6 +199,7 @@ const MODULE_ORDER: readonly DashboardModuleKey[] = [
   'conversations',
   'contacts',
   'analytics',
+  'instagram',
   'integrations',
   'billing',
   'settings',

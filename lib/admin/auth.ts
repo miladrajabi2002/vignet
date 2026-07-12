@@ -1,16 +1,18 @@
 import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import { redirect } from 'next/navigation'
 import crypto from 'crypto'
+import { normalizePhone } from '@/lib/phone'
 
 /**
  * Standalone admin authentication — completely separate from the OTP-based
- * user/next-auth system. A fixed ADMIN_USER / ADMIN_PASS (set in .env) guards
+ * user/next-auth system. The single ADMIN_OWNER_PHONE plus ADMIN_PASS guard
  * the /admin monitoring dashboard. The session is a signed, expiring cookie;
  * no database row is involved.
  */
 
 const COOKIE_NAME = 'admin_session'
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
+const ADMIN_OWNER_PHONE = normalizePhone(process.env.ADMIN_OWNER_PHONE || '09128352271')
 
 function secret(): string {
   const s = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
@@ -36,10 +38,10 @@ function safeEqual(a: string, b: string): boolean {
 
 /** Verify a username/password pair against the configured admin credentials. */
 export function verifyAdminCredentials(username: string, password: string): boolean {
-  const u = process.env.ADMIN_USER
   const p = process.env.ADMIN_PASS
-  if (!u || !p) return false
-  return safeEqual(username, u) && safeEqual(password, p)
+  const phone = normalizePhone(username)
+  if (!ADMIN_OWNER_PHONE || !phone || !p) return false
+  return safeEqual(phone, ADMIN_OWNER_PHONE) && safeEqual(password, p)
 }
 
 /** Build the signed cookie value: "<expiryEpoch>.<hmac>". */
@@ -83,13 +85,20 @@ export function isAdminAuthedRequest(req: Request): boolean {
   if (isAdminAuthed()) return true
   // 2) Header-based token (X-Admin-Token).
   const headerTok = req.headers.get('x-admin-token')
-  if (headerTok && process.env.ADMIN_PASS && safeEqual(headerTok, process.env.ADMIN_PASS)) {
+  const headerPhone = normalizePhone(req.headers.get('x-admin-phone') || '')
+  if (headerTok && headerPhone && ADMIN_OWNER_PHONE && process.env.ADMIN_PASS
+    && safeEqual(headerPhone, ADMIN_OWNER_PHONE)
+    && safeEqual(headerTok, process.env.ADMIN_PASS)) {
     return true
   }
   // 3) Query-param token (?admin_token=…).
   try {
-    const q = new URL(req.url).searchParams.get('admin_token')
-    if (q && process.env.ADMIN_PASS && safeEqual(q, process.env.ADMIN_PASS)) {
+    const url = new URL(req.url)
+    const q = url.searchParams.get('admin_token')
+    const qPhone = normalizePhone(url.searchParams.get('admin_phone') || '')
+    if (q && qPhone && ADMIN_OWNER_PHONE && process.env.ADMIN_PASS
+      && safeEqual(qPhone, ADMIN_OWNER_PHONE)
+      && safeEqual(q, process.env.ADMIN_PASS)) {
       return true
     }
   } catch {

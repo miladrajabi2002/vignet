@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Settings, Wand2 } from 'lucide-react'
 import { AgentWizard } from '@/components/agent-builder/agent-wizard'
-import { VigentoComposer } from '@/components/agent-builder/vigento-composer'
 
 type BuildMode = 'choice' | 'ai' | 'manual'
 
@@ -28,36 +27,21 @@ export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, mode
     return <ChoiceScreen onPick={setMode} />
   }
 
-  // Both modes use the same AgentWizard, but AI mode shows the VigentoComposer
-  // prominently at the top
   return (
-    <div className="space-y-5">
-      {mode === 'ai' && (
-        <div className="rounded-2xl border border-[var(--border-default)] bg-white p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
-          <div className="mb-4 flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--text-primary)] text-white">
-              <Wand2 className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">ویجنتو</h2>
-              <p className="text-[11px] text-[var(--text-muted)]">دستیار هوشمند ساخت ایجنت</p>
-            </div>
-          </div>
-          <VigentoComposer
-            locale="fa"
-            currentName=""
-            onApply={() => {
-              // After applying, switch to manual mode to review/edit
-              setMode('manual')
-            }}
-          />
-        </div>
-      )}
-
+    <div className="space-y-4">
+      <button
+        type="button"
+        onClick={() => setMode('choice')}
+        className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
+      >
+        <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+        تغییر روش ساخت
+      </button>
       <AgentWizard
         initialBusiness={initialBusiness}
         workspaceProductCount={workspaceProductCount}
         modelPolicy={modelPolicy as never}
+        showVigento={mode === 'ai'}
       />
     </div>
   )
@@ -68,7 +52,7 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
   const Arrow = fa ? ArrowLeft : ArrowRight
 
   return (
-    <div className="mx-auto max-w-2xl py-8">
+    <div className="mx-auto max-w-4xl py-6 sm:py-10">
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
           {fa ? 'ایجنت خود را بسازید' : 'Build your agent'}
@@ -82,10 +66,9 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
         {/* AI-guided option */}
         <motion.button
           onClick={() => onPick('ai')}
-          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
           transition={{ duration: 0.15 }}
-          className="group relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-6 text-start transition-colors duration-150 hover:border-[var(--text-primary)]"
-          style={{ boxShadow: 'var(--shadow-card)' }}
+          className="spatial-surface spatial-press group relative min-h-64 overflow-hidden rounded-[1.75rem] p-6 text-start hover:border-black/20"
         >
           <span className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--text-primary)] text-white">
             <Wand2 className="h-5 w-5" />
@@ -105,10 +88,9 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
         {/* Manual option */}
         <motion.button
           onClick={() => onPick('manual')}
-          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
           transition={{ duration: 0.15 }}
-          className="group relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-6 text-start transition-colors duration-150 hover:border-[var(--text-primary)]"
-          style={{ boxShadow: 'var(--shadow-card)' }}
+          className="spatial-surface spatial-press group relative min-h-64 overflow-hidden rounded-[1.75rem] p-6 text-start hover:border-black/20"
         >
           <span className="grid h-12 w-12 place-items-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
             <Settings className="h-5 w-5" />

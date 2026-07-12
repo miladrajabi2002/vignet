@@ -106,6 +106,7 @@
                 "conversations": "Conversations",
                 "contacts": "Customers",
                 "analytics": "Analytics",
+                "instagram": "Instagram",
                 "integrations": "Integrations",
                 "billing": "Billing",
                 "settings": "Settings",
@@ -799,7 +800,7 @@
                         "title": "Sales and support, automated across every channel",
                         "rotate": ["for sales", "for support", "for order tracking", "for your business"],
                         "subtitle": "Vigent connects to your real products and business knowledge, answers customers, captures leads, and hands conversations to your team whenever a human is needed.",
-                        "ctaPrimary": "Start free — 14 days",
+                        "ctaPrimary": "Start free — one month",
                         "ctaSecondary": "Watch demo",
                         "trust": "Set up in under 5 minutes · No technical skills · AI ready to use",
                         "scrollCue": "Scroll to explore"
@@ -897,7 +898,7 @@
                         "replay": "Replay",
                         "agentName": "Vignet Agent",
                         "online": "Online",
-                        "ctaStart": "Start free — 14 days",
+                        "ctaStart": "Start free — one month",
                         "ctaStartDesc": "Build your smart agent right now",
                         "scenarioLabel": "Business type",
                         "tabs": {
@@ -1139,7 +1140,7 @@
                 "pricing": {
                         "title": "A plan that fits your conversation volume",
                         "eyebrow": "Pricing",
-                        "subtitle": "Try Vigent free for 14 days, then choose a plan when your conversations grow.",
+                        "subtitle": "Try Vigent free for one month, then choose a plan when your conversations grow.",
                         "free": "Free",
                         "monthly": "Monthly",
                         "annual": "Annual",
@@ -1147,7 +1148,7 @@
                         "perMonth": "/ mo",
                         "cta": "Get started",
                         "popular": "Vigent's pick",
-                        "trialTitle": "14 days to build and test",
+                        "trialTitle": "One month to build and test",
                         "trialNote": "Includes starter reply credit and one active agent",
                         "trialCta": "Start free trial",
                         "tomanPerMonth": "Toman / month",
@@ -1212,7 +1213,7 @@
                                 },
                                 {
                                         "q": "Can I try it for free?",
-                                        "a": "Yes — you get a 14-day trial with the core features and starter reply credit. Activate a plan whenever you are ready."
+                                        "a": "Yes — you get one free month with the core features and the same starter reply credit. Static Instagram automation is free; only successful AI replies consume credit."
                                 }
                         ]
                 },

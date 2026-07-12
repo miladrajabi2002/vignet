@@ -208,6 +208,25 @@ export function InstagramAutomationManager({
                                 </div>
                         </header>
 
+                        <section className="spatial-surface flex flex-col gap-3 rounded-[1.4rem] p-4 sm:flex-row sm:items-center">
+                                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+                                        <Zap className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-[var(--text-primary)]">
+                                                {locale === 'fa' ? 'سناریوهای اتوماسیون بدون AI رایگان‌اند' : 'Non-AI automation scenarios are free'}
+                                        </p>
+                                        <p className="mt-1 text-[10px] leading-5 text-[var(--text-muted)]">
+                                                {locale === 'fa'
+                                                        ? 'پیام ثابت، کلیدواژه، پاسخ کامنت و چندپیامی از اعتبار کم نمی‌کنند؛ فقط حالت «پاسخ هوشمند» هزینه دارد.'
+                                                        : 'Static, keyword, comment and multi-message replies use no credit; only AI reply mode is charged.'}
+                                        </p>
+                                </div>
+                                <span className="shrink-0 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--text-primary)]">
+                                        {locale === 'fa' ? 'رایگان و نامحدود' : 'Free & unlimited'}
+                                </span>
+                        </section>
+
                         {/* Channel settings (slimmed down — replyPolicy + stopWords only) */}
                         <ChannelSettingsCard
                                 settings={settings}

@@ -4,7 +4,18 @@ import { prisma } from '@/lib/prisma'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getPlanReplyPricesIRR } from '@/lib/billing/plans'
 
-const BUSINESSES = new Set(['instagram', 'store', 'services', 'education', 'messaging'])
+const BUSINESSES = new Set([
+  'instagram',
+  'commerce',
+  'store',
+  'food',
+  'appointments',
+  'services',
+  'education',
+  'support',
+  'messaging',
+  'custom',
+])
 
 export default async function NewAgentPage({
   searchParams,

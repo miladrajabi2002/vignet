@@ -21,10 +21,9 @@ export function StatsCard({
 	return (
 		<div
 			className={cn(
-				'rounded-xl border border-[var(--border-default)] bg-white p-5 transition-shadow duration-150 hover:shadow-[var(--shadow-float)]',
+				'spatial-surface spatial-press rounded-[1.5rem] p-5',
 				className,
 			)}
-			style={{ boxShadow: 'var(--shadow-card)' }}
 		>
 			<div className="flex items-center justify-between">
 				<span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>

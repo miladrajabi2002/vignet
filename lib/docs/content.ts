@@ -1609,8 +1609,8 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'با اولین ورود، دورهٔ آزمایشی ۱۴ روزه با اعتبار اولیهٔ پاسخ فعال می‌شود. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید. اشتراک امکانات، تعداد ایجنت‌ها و ظرفیت سرویس را مشخص می‌کند.',
-                                en: 'Your first login starts a 14-day trial with starter reply credit. Afterwards, choose Starter, Pro or Business from Billing. The subscription defines platform features, agent limits, and service capacity.',
+                                fa: 'با اولین ورود، یک ماه استفادهٔ رایگان با همان اعتبار اولیهٔ پاسخ فعال می‌شود. اتوماسیون‌های ثابت اینستاگرام رایگان‌اند و فقط پاسخ موفق هوش مصنوعی از اعتبار کم می‌کند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید.',
+                                en: 'Your first login starts one free month with the same starter reply credit. Static Instagram automations are free; only a successful AI reply consumes credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
                         { type: 'h2', fa: 'سقف استفادهٔ منصفانه', en: 'Fair-use ceiling' },
                         {

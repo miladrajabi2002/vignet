@@ -29,7 +29,7 @@ async function main() {
       name: 'فروشگاه دمو ویجنت',
       slug: 'demo-store-' + Math.random().toString(36).slice(2, 8),
       plan: 'PRO',
-      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       aiCreditBalanceIRR: 6_000_000, // 600k toman
       businessType: 'COMMERCE',
       businessProfile: {

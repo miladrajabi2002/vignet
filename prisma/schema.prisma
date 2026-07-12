@@ -537,6 +537,7 @@ enum LogType {
   SUMMARY
   LEARNING
   VIGENTO_DRAFT
+  VIGENTO_ASSISTANT
 }
 
 // ─── SUBSCRIPTION ─────────────────────────────────────────────────
