@@ -84,57 +84,6 @@ export function PhoneOtpForm({
     }
   }
 
-  // One-click demo login: set the demo phone, call /otp/send (which bypasses
-  // SMS for the demo number), then directly signIn with code 123456.
-  async function demoLogin() {
-    setError(null)
-    setLoading(true)
-    try {
-      const demoPhone = '09120000000'
-      const demoCode = '123456'
-      setPhone(demoPhone)
-
-      // Step 1: hit /otp/send so isNewUser is set (it returns demo: true,
-      // no SMS is actually sent).
-      const sendRes = await fetch('/api/auth/otp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: demoPhone }),
-      })
-      const sendData = await sendRes.json()
-      if (!sendRes.ok) {
-        setError(sendData.error ?? 'GENERIC')
-        return
-      }
-      setIsNewUser(!!sendData.isNewUser)
-
-      // Step 2: directly sign in with the demo code — no need to show the
-      // OTP digit boxes since we already know the code.
-      submittingRef.current = true
-      setLoading(true)
-      const res = await signIn('credentials', {
-        phone: demoPhone,
-        code: demoCode,
-        redirect: false,
-      })
-      if (res?.error) {
-        setError('INVALID_CODE')
-        submittingRef.current = false
-        return
-      }
-      setSuccess(true)
-      const destination = preferredPlan
-        ? `/billing?plan=${encodeURIComponent(preferredPlan)}`
-        : nextPath ?? '/overview'
-      setTimeout(() => window.location.assign(destination), 700)
-    } catch {
-      setError('GENERIC')
-      submittingRef.current = false
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Keep a ref to the latest name so `verify` doesn't need `name` in its deps.
   // This prevents the auto-verify effect from re-firing (and submitting a
   // partial name) every time the user types a character into the name field.
@@ -320,16 +269,6 @@ export function PhoneOtpForm({
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? t('sending') : t('sendCode')}
-            </button>
-
-            {/* Demo login — one-click entry with pre-seeded data */}
-            <button
-              onClick={demoLogin}
-              disabled={loading}
-              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white py-3 text-sm font-medium text-[var(--text-secondary)] transition-all duration-150 hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:opacity-50"
-            >
-              <Sparkles className="h-4 w-4" />
-              {loading ? t('sending') : 'ورود دمو (بدون نیاز به کد)'}
             </button>
 
             <p className="mt-6 text-center text-xs text-[var(--text-muted)]">

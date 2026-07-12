@@ -53,7 +53,7 @@ export default async function AnalyticsPage() {
     channelCounts,
     agentStats,
     trendRows,
-    avgFirstReplyMs,
+    assistantMsgCount,
     csatRows,
   ] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
@@ -93,7 +93,7 @@ export default async function AnalyticsPage() {
         role: 'ASSISTANT',
         createdAt: { gte: since },
       },
-      _avg: { responseLatencyMs: true },
+      _count: { _all: true },
     }),
     prisma.message.findMany({
       where: { conversation: { workspaceId }, rating: { not: null }, createdAt: { gte: since } },
@@ -132,7 +132,7 @@ export default async function AnalyticsPage() {
     value: c._count._all,
   }))
 
-  const avgReplyMin = avgFirstReplyMs._avg.responseLatencyMs ? Math.round((avgFirstReplyMs._avg.responseLatencyMs / 1000 / 60) * 10) / 10 : null
+  const avgMsgsPerConv = totalConversations > 0 ? Math.round((assistantMsgCount._count._all / totalConversations) * 10) / 10 : null
   const csatCount = csatRows.length
   const csatAvg = csatCount > 0 ? csatRows.reduce((s, m) => s + (m.rating ?? 0), 0) / csatCount : null
 
@@ -155,9 +155,9 @@ export default async function AnalyticsPage() {
     },
     {
       icon: Clock,
-      label: fa ? 'میانگین پاسخ اولیه' : 'Avg first reply',
-      value: avgReplyMin !== null ? `${nfFa(avgReplyMin, fa)} ${fa ? 'دقیقه' : 'min'}` : '—',
-      hint: fa ? 'از دریافت پیام تا پاسخ ایجنت' : 'message received → agent reply',
+      label: fa ? 'پیام در هر گفتگو' : 'Msgs per convo',
+      value: avgMsgsPerConv !== null ? `${nfFa(avgMsgsPerConv, fa)}` : '—',
+      hint: fa ? 'میانگین پاسخ‌های ایجنت' : 'avg agent replies',
       tone: 'default' as const,
     },
     {
