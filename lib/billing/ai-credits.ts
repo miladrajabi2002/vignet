@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { getPlanDefs } from '@/lib/billing/plans'
 import { getReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import type { ChatUsage } from '@/lib/ai/openrouter'
+import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
+import { processLowCreditAlert } from '@/lib/billing/low-credit-alert'
 
 export type CreditReservation = {
   usageLogId: string
@@ -14,12 +16,6 @@ export type ReserveCreditResult =
   | { ok: true; reservation: CreditReservation }
   | { ok: false; reason: 'NO_CREDIT' | 'WORKSPACE_NOT_FOUND' }
 
-function roundedDiscountedPrice(baseIRR: number, discountBps: number): number {
-  const discounted = Math.ceil((baseIRR * (10_000 - discountBps)) / 10_000)
-  // Stable, readable wallet amounts; never round below 100 IRR.
-  return Math.max(100, Math.ceil(discounted / 100) * 100)
-}
-
 export async function getReplyChargeIRR(
   workspaceId: string,
   model: string | null | undefined,
@@ -30,7 +26,7 @@ export async function getReplyChargeIRR(
   })
   if (!workspace) return null
   const def = getPlanDefs()[workspace.plan]
-  return roundedDiscountedPrice(getReplyPriceIRR(model), def.replyDiscountBps)
+  return discountedReplyPriceIRR(getReplyPriceIRR(model), def.replyDiscountBps)
 }
 
 /**
@@ -73,7 +69,7 @@ export async function reserveChatCredit(params: {
       if (!workspace) throw new Error('WORKSPACE_NOT_FOUND')
 
       const def = getPlanDefs()[workspace.plan]
-      const chargeIRR = roundedDiscountedPrice(
+      const chargeIRR = discountedReplyPriceIRR(
         getReplyPriceIRR(alias),
         def.replyDiscountBps,
       )
@@ -165,12 +161,12 @@ export async function captureChatCredit(
   reservation: CreditReservation,
   usage: ChatUsage | null,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  const workspaceId = await prisma.$transaction(async (tx) => {
     const row = await tx.usageLog.findUnique({
       where: { id: reservation.usageLogId },
       select: { status: true, workspaceId: true, chargedIRR: true },
     })
-    if (!row || row.status !== 'RESERVED') return
+    if (!row || row.status !== 'RESERVED') return null
 
     const updated = await tx.usageLog.updateMany({
       where: { id: reservation.usageLogId, status: 'RESERVED' },
@@ -184,13 +180,25 @@ export async function captureChatCredit(
         cost: usage?.costUSD ?? null,
       },
     })
-    if (updated.count !== 1) return
+    if (updated.count !== 1) return null
 
     await tx.workspace.update({
       where: { id: row.workspaceId },
       data: { aiCreditReservedIRR: { decrement: row.chargedIRR } },
     })
+    return row.workspaceId
   })
+
+  if (workspaceId) {
+    // Only a successful capture can warn. The durable alert + SMS fanout run
+    // outside the chat path, so notification/provider failures cannot delay or
+    // break the reply the customer already received.
+    void processLowCreditAlert({
+      workspaceId,
+      modelAlias: reservation.modelAlias,
+      replyPriceIRR: reservation.chargeIRR,
+    })
+  }
 }
 
 /** Refund a failed/aborted reply exactly once. */

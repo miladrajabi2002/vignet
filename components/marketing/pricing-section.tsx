@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { Check, MessageSquareText } from 'lucide-react'
 import { getPlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { getReplyPriceIRR } from '@/lib/ai/models'
+import { discountedReplyPriceIRR, estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { cn } from '@/lib/utils'
 
 const PLAN_TRANSLATION_KEY: Record<PaidPlan, 'starter' | 'pro' | 'business'> = {
@@ -49,7 +50,9 @@ export async function PricingSection() {
 						const def = defs[plan]
 						const key = PLAN_TRANSLATION_KEY[plan]
 						const featured = plan === 'PRO'
-						const replyPriceToman = Math.ceil((getReplyPriceIRR('fast') * (10_000 - def.replyDiscountBps)) / 10_000 / 10)
+						const replyPriceIRR = discountedReplyPriceIRR(getReplyPriceIRR('fast'), def.replyDiscountBps)
+						const replyPriceToman = replyPriceIRR / 10
+						const includedReplies = estimateRemainingReplies(def.includedCreditIRR, replyPriceIRR)
 						return (
 							<article
 								key={plan}
@@ -71,6 +74,11 @@ export async function PricingSection() {
 								</div>
 								<ul className="mt-6 flex-1 space-y-3 text-sm text-[var(--text-secondary)]">
 									<Feature>{locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`}</Feature>
+									<Feature>
+										{locale === 'fa'
+											? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
+											: `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`}
+									</Feature>
 									<Feature>{t('agents', { count: number.format(def.maxAgents) })}</Feature>
 									<Feature>{t('allChannels')}</Feature>
 									<Feature>{locale === 'fa' ? 'هوش مصنوعی آماده و کاملاً مدیریت‌شده' : 'Fully managed AI service'}</Feature>

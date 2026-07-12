@@ -6,6 +6,7 @@ import { processProductEmbed } from '@/lib/products/catalog'
 import { processSummary } from '@/lib/conversations/summary'
 import { processNotification } from '@/lib/notifications/notify'
 import { handleInbound } from '@/lib/channels/handler'
+import { processCampaign } from '@/lib/campaigns/process'
 import { startScheduler } from '@/worker/scheduler'
 
 /**
@@ -67,12 +68,24 @@ const inboundWorker = new Worker(
   { connection, concurrency: 8 },
 )
 
+const campaignWorker = new Worker(
+  QUEUE_NAMES.campaigns,
+  async (job) => {
+    console.log(`[worker] campaign job ${job.id}`)
+    await processCampaign(job.data)
+  },
+  // Provider calls are rate-limited inside the processor. One campaign per
+  // worker avoids bursts and keeps per-recipient ordering predictable.
+  { connection, concurrency: 1 },
+)
+
 for (const [name, w] of [
   ['ingestion', ingestionWorker],
   ['product-embed', productWorker],
   ['summary', summaryWorker],
   ['notifications', notificationWorker],
   ['inbound-message', inboundWorker],
+  ['campaigns', campaignWorker],
 ] as const) {
   w.on('failed', (job, err) =>
     console.error(`[worker:${name}] job ${job?.id} failed:`, err.message),
@@ -92,6 +105,7 @@ async function shutdown() {
     summaryWorker.close(),
     notificationWorker.close(),
     inboundWorker.close(),
+    campaignWorker.close(),
   ])
   process.exit(0)
 }

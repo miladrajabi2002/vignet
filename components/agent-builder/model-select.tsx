@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { Check, Sparkles, Zap, Gem } from 'lucide-react'
 import { AGENT_MODELS, DEFAULT_MODEL, resolveModelAlias, type ModelAlias, type ModelTier } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
+import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 
 const TIER_ICON: Record<ModelTier, typeof Zap> = {
   free: Zap,
@@ -43,12 +44,16 @@ export function ModelSelect({
   availableModels = AGENT_MODELS.map((model) => model.id),
   trialModel = DEFAULT_MODEL,
   isTrial = false,
+  creditBalanceIRR,
+  replyPricesIRR,
 }: {
   value: string
   onChange: (value: string) => void
   availableModels?: ModelAlias[]
   trialModel?: ModelAlias
   isTrial?: boolean
+  creditBalanceIRR?: number
+  replyPricesIRR?: Partial<Record<ModelAlias, number>>
 }) {
   const t = useTranslations('agents.models')
   const locale = useLocale()
@@ -56,10 +61,26 @@ export function ModelSelect({
 
   // Empty value == use the default model card.
   const selectedId = value === '' ? (isTrial ? trialModel : DEFAULT_MODEL) : resolveModelAlias(value)
+  const selectedModel = AGENT_MODELS.find((model) => model.id === selectedId) ?? AGENT_MODELS[0]
+  const selectedPriceIRR = replyPricesIRR?.[selectedId] ?? selectedModel.replyPriceIRR
+  const estimatedReplies = creditBalanceIRR == null
+    ? null
+    : estimateRemainingReplies(creditBalanceIRR, selectedPriceIRR)
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-[var(--text-muted)]">{t('intro')}</p>
+
+      {estimatedReplies != null && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-800">
+          <span>
+            {isFa ? 'برآورد با موجودی فعلی' : 'Estimate with current balance'}
+          </span>
+          <strong className="font-semibold tabular-nums">
+            ≈ {estimatedReplies.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پاسخ موفق' : 'successful replies'}
+          </strong>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {AGENT_MODELS.map((m) => {
@@ -67,6 +88,7 @@ export function ModelSelect({
           const isDefault = m.id === DEFAULT_MODEL
           const allowed = isTrial ? m.id === trialModel : availableModels.includes(m.id)
           const Icon = TIER_ICON[m.tier]
+          const replyPriceIRR = replyPricesIRR?.[m.id] ?? m.replyPriceIRR
           return (
             <button
               type="button"
@@ -118,7 +140,7 @@ export function ModelSelect({
                 <Meter value={m.quality} label={t('quality')} />
                 <Meter value={m.cost} label={t('cost')} />
                 <span className="ms-auto text-[10px] font-medium text-emerald-700">
-                  {(m.replyPriceIRR / 10).toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'تومان / پاسخ' : 'toman / reply'}
+                  {(replyPriceIRR / 10).toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'تومان / پاسخ' : 'toman / reply'}
                 </span>
               </div>
             </button>

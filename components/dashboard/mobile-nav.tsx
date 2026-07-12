@@ -8,7 +8,8 @@ import { useTranslations } from 'next-intl'
 import { Menu, X, Rocket, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
-import { NAV } from '@/components/dashboard/nav-items'
+import { getDashboardNav } from '@/components/dashboard/nav-items'
+import type { BusinessTypeValue } from '@/lib/verticals/registry'
 import { logout } from '@/app/actions/auth'
 
 /**
@@ -17,9 +18,10 @@ import { logout } from '@/app/actions/auth'
  * button in the Header (md:hidden) that opens a slide-in drawer mirroring the
  * Sidebar's links.
  */
-export function MobileNav() {
+export function MobileNav({ businessType }: { businessType?: BusinessTypeValue | null }) {
 	const t = useTranslations('dashboard')
 	const pathname = usePathname()
+	const nav = getDashboardNav(businessType)
 	const [open, setOpen] = useState(false)
 	const [mounted, setMounted] = useState(false)
 
@@ -39,8 +41,13 @@ export function MobileNav() {
 		if (!open) return
 		const prev = document.body.style.overflow
 		document.body.style.overflow = 'hidden'
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false)
+		}
+		document.addEventListener('keydown', onKeyDown)
 		return () => {
 			document.body.style.overflow = prev
+			document.removeEventListener('keydown', onKeyDown)
 		}
 	}, [open])
 
@@ -48,8 +55,10 @@ export function MobileNav() {
 		<div className="md:hidden">
 			<button
 				onClick={() => setOpen(true)}
-				aria-label={t('overview')}
-				className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+				aria-label="Open dashboard navigation"
+				aria-expanded={open}
+				aria-controls="dashboard-mobile-navigation"
+				className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-border)] hover:text-[var(--accent-strong)]"
 			>
 				<Menu className="h-5 w-5" />
 			</button>
@@ -73,7 +82,13 @@ export function MobileNav() {
 						/>
 
 						{/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
-						<aside className="absolute inset-y-0 start-0 flex w-72 max-w-[80vw] flex-col border-e border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-2xl">
+						<aside
+							id="dashboard-mobile-navigation"
+							role="dialog"
+							aria-modal="true"
+							aria-label="Dashboard navigation"
+							className="absolute inset-y-0 start-0 flex w-80 max-w-[86vw] flex-col border-e border-[var(--border-default)] bg-white/[0.96] p-4 shadow-2xl backdrop-blur-xl"
+						>
 							<div className="mb-6 flex items-center justify-between px-2">
 								<Link href="/overview" onClick={() => setOpen(false)}>
 									<Logo priority className="h-9 w-36" />
@@ -81,7 +96,8 @@ export function MobileNav() {
 								<button
 									onClick={() => setOpen(false)}
 									aria-label="Close menu"
-									className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+									autoFocus
+									className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
 								>
 									<X className="h-5 w-5" />
 								</button>
@@ -91,10 +107,10 @@ export function MobileNav() {
 								href="/onboarding"
 								onClick={() => setOpen(false)}
 								className={cn(
-									'mb-4 flex items-center gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2.5 text-sm transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]',
+									'mb-4 flex min-h-12 items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm transition-colors',
 									pathname.startsWith('/onboarding')
-										? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-										: 'text-[var(--text-secondary)]',
+										? 'border-[var(--accent-border)] bg-[var(--accent-soft)] font-medium text-[var(--accent-foreground)]'
+										: 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--accent-border)]',
 								)}
 							>
 								<Rocket className="h-4 w-4" />
@@ -102,7 +118,7 @@ export function MobileNav() {
 							</Link>
 
 							<nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-								{NAV.map(({ key, href, icon: Icon }) => {
+								{nav.map(({ key, href, icon: Icon }) => {
 									const active = pathname === href || pathname.startsWith(`${href}/`)
 									return (
 										<Link
@@ -110,9 +126,9 @@ export function MobileNav() {
 											href={href}
 											onClick={() => setOpen(false)}
 											className={cn(
-												'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
+												'flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
 												active
-													? 'bg-[var(--white)] font-medium text-[var(--bg-base)]'
+													? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent-foreground)]'
 													: 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
 											)}
 										>
@@ -126,7 +142,7 @@ export function MobileNav() {
 							<form action={logout} className="mt-2 border-t border-[var(--border-default)] pt-3">
 								<button
 									type="submit"
-									className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-danger"
+									className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-red-50 hover:text-danger"
 								>
 									<LogOut className="h-4 w-4 rtl:rotate-180" />
 									{t('logout')}

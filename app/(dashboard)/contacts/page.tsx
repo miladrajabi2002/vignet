@@ -78,6 +78,7 @@ export default async function ContactsPage(
         whatsappAvatarUrl: true,
         instagramUsername: true,
         instagramAvatarUrl: true,
+        marketingOptIn: true,
         _count: { select: { conversations: true } },
       },
     }),
@@ -130,6 +131,7 @@ export default async function ContactsPage(
       lastActivity: lastActivity.toISOString(),
       avatarUrl,
       channelUsernames,
+      marketingOptIn: c.marketingOptIn,
     }
   })
 

@@ -7,6 +7,7 @@ export const QUEUE_NAMES = {
   conversationSummary: 'conversation-summary',
   notifications: 'notifications',
   inboundMessage: 'inbound-message',
+  campaigns: 'campaigns',
 } as const
 
 /**

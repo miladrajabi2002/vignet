@@ -1,8 +1,28 @@
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_call_id?: string
+  tool_calls?: ChatToolCall[]
+}
+
+export interface ChatToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
+}
+
+export interface ChatTool {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+  }
 }
 
 /** Server-only platform credential. It is never read from a Workspace row. */
@@ -55,6 +75,7 @@ function requestBody(opts: ChatOptions, stream: boolean): Record<string, unknown
       max_price: maxPrice,
     },
     ...(stream && opts.onUsage ? { stream_options: { include_usage: true } } : {}),
+    ...(opts.tools?.length ? { tools: opts.tools, tool_choice: opts.toolChoice ?? 'auto' } : {}),
   }
 }
 
@@ -64,6 +85,8 @@ export interface ChatOptions {
   temperature?: number
   maxTokens?: number
   onUsage?: (usage: ChatUsage) => void
+  tools?: ChatTool[]
+  toolChoice?: 'auto' | 'none'
 }
 
 export interface ChatUsage {
@@ -105,7 +128,7 @@ function parseUsage(payload: unknown): ChatUsage {
 /** Non-streaming chat completion. Returns text plus exact provider usage. */
 export async function chatCompletion(
   opts: ChatOptions,
-): Promise<{ content: string; usage: ChatUsage }> {
+): Promise<{ content: string; usage: ChatUsage; toolCalls: ChatToolCall[] }> {
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
@@ -118,9 +141,26 @@ export async function chatCompletion(
   }
   const json = asRecord(await res.json())
   const message = asRecord(firstChoice(json).message)
+  const rawToolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : []
+  const toolCalls = rawToolCalls.flatMap((value): ChatToolCall[] => {
+    const call = asRecord(value)
+    const fn = asRecord(call.function)
+    if (
+      typeof call.id !== 'string' ||
+      call.type !== 'function' ||
+      typeof fn.name !== 'string' ||
+      typeof fn.arguments !== 'string'
+    ) return []
+    return [{
+      id: call.id,
+      type: 'function',
+      function: { name: fn.name, arguments: fn.arguments },
+    }]
+  })
   return {
     content: typeof message.content === 'string' ? message.content : '',
     usage: parseUsage(json),
+    toolCalls,
   }
 }
 

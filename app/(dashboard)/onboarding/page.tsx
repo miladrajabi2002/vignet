@@ -1,20 +1,18 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import {
-  CalendarCheck2,
   Check,
   ArrowRight,
-  GraduationCap,
-  MessagesSquare,
-  Play,
-  ShoppingBag,
 } from 'lucide-react'
-import { InstagramIcon } from '@/components/marketing/social-links'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { ONBOARDING_STEPS, ONBOARDING_TOTAL } from '@/lib/onboarding-steps'
 import { OnboardingCelebrate } from '@/components/dashboard/onboarding-celebrate'
+import { BusinessProfileStep } from '@/components/onboarding/business-profile-step'
 import { cn } from '@/lib/utils'
+import { prisma } from '@/lib/prisma'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
 export default async function OnboardingPage() {
   const user = await requireUser()
@@ -22,10 +20,15 @@ export default async function OnboardingPage() {
 
   // Recompute + persist on every visit so the stored step is accurate.
   const state = await syncOnboarding(user.workspaceId)
+  const workspace = await prisma.workspace.findUniqueOrThrow({
+    where: { id: user.workspaceId },
+    select: { name: true, businessType: true, businessProfile: true },
+  })
+  const businessProfile = readBusinessProfile(workspace.businessProfile)
   const progress = Math.round((state.step / ONBOARDING_TOTAL) * 100)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 py-6">
+    <div className="mx-auto max-w-5xl space-y-8 py-6">
       <div className="text-center">
         <h1 className="text-3xl font-light text-[var(--text-primary)]">
           {t('title')}
@@ -46,41 +49,15 @@ export default async function OnboardingPage() {
         <OnboardingCelebrate />
       ) : (
         <>
-          {!state.checks.hasAgent && (
-            <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-medium text-[var(--text-primary)]">{t('goalTitle')}</h2>
-                  <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{t('goalSubtitle')}</p>
-                </div>
-                <Link href="/#demo" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-                  <Play className="h-4 w-4" />
-                  {t('tryDemo')}
-                </Link>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { key: 'instagram', icon: InstagramIcon },
-                  { key: 'store', icon: ShoppingBag },
-                  { key: 'services', icon: CalendarCheck2 },
-                  { key: 'education', icon: GraduationCap },
-                  { key: 'messaging', icon: MessagesSquare },
-                ].map(({ key, icon: Icon }) => (
-                  <Link
-                    key={key}
-                    href={`/agents/new?business=${key}`}
-                    className="group min-h-40 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
-                  >
-                    <Icon className="h-5 w-5 text-[var(--text-secondary)]" />
-                    <span className="mt-4 block text-sm font-medium text-[var(--text-primary)]">{t(`goals.${key}.title`)}</span>
-                    <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">{t(`goals.${key}.desc`)}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
+          {(!state.checks.hasAgent || !businessProfile) && (
+            <BusinessProfileStep
+              workspaceName={workspace.name}
+              initialType={workspace.businessType as BusinessTypeValue}
+              initialProfile={businessProfile}
+            />
           )}
 
-          <ol className="space-y-3">
+          <ol className="mx-auto max-w-2xl space-y-3">
           {ONBOARDING_STEPS.map((s, i) => {
             const done = state.checks[s.check]
             const isCurrent = !done && state.step === i

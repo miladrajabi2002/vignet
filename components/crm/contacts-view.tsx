@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Users, Search, LayoutList, Columns3, User, GripVertical } from 'lucide-react'
+import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, Megaphone, X } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
+import { CampaignComposer } from '@/components/crm/campaign-composer'
+import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 
 export interface ContactRow {
         id: string
@@ -21,6 +23,7 @@ export interface ContactRow {
         lastActivity: string
         avatarUrl?: string | null
         channelUsernames?: Partial<Record<ChannelType, string | null>>
+        marketingOptIn: boolean
 }
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
@@ -65,16 +68,65 @@ export function ContactsView({
         const [rows, setRows] = useState(initial)
         const [view, setView] = useState<'list' | 'pipeline'>('list')
         const [query, setQuery] = useState('')
+        const [stageFilter, setStageFilter] = useState<Stage | ''>('')
+        const [channelFilter, setChannelFilter] = useState<ChannelType | ''>('')
+        const [tagFilter, setTagFilter] = useState('')
+        const [selected, setSelected] = useState<Set<string>>(() => new Set())
+        const [campaignOpen, setCampaignOpen] = useState(false)
+
+        const availableTags = useMemo(
+                () => [...new Set(rows.flatMap((row) => row.tags))].sort((a, b) => a.localeCompare(b)),
+                [rows],
+        )
 
         const filtered = useMemo(() => {
                 const q = query.trim().toLowerCase()
-                if (!q) return rows
-                return rows.filter(
-                        (r) =>
+                return rows.filter((r) => {
+                        if (stageFilter && r.stage !== stageFilter) return false
+                        if (channelFilter && !r.channels.includes(channelFilter)) return false
+                        if (tagFilter && !r.tags.includes(tagFilter)) return false
+                        if (!q) return true
+                        return (
                                 (r.name ?? '').toLowerCase().includes(q) ||
-                                (r.phone ?? '').toLowerCase().includes(q),
-                )
-        }, [rows, query])
+                                (r.phone ?? '').toLowerCase().includes(q) ||
+                                r.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+                                Object.values(r.channelUsernames ?? {}).some((handle) => (handle ?? '').toLowerCase().includes(q))
+                        )
+                })
+	}, [rows, query, stageFilter, channelFilter, tagFilter])
+
+        const campaignAudience = useMemo<CampaignAudienceInput>(() => {
+                if (selected.size > 0) return { selectedContactIds: [...selected] }
+                return {
+                        filters: {
+                                ...(stageFilter ? { stage: stageFilter } : {}),
+                                ...(channelFilter && ['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE'].includes(channelFilter)
+                                        ? { channel: channelFilter as 'TELEGRAM' | 'WHATSAPP' | 'INSTAGRAM' | 'RUBIKA' | 'BALE' }
+                                        : {}),
+                                ...(tagFilter ? { tag: tagFilter } : {}),
+                                ...(query.trim() ? { query: query.trim() } : {}),
+                        },
+                }
+        }, [selected, stageFilter, channelFilter, tagFilter, query])
+
+        const hasFilters = Boolean(query || stageFilter || channelFilter || tagFilter)
+
+        function toggleSelected(id: string) {
+                setSelected((current) => {
+                        const next = new Set(current)
+                        if (next.has(id)) next.delete(id)
+                        else next.add(id)
+                        return next
+                })
+        }
+
+        function clearFilters() {
+                setQuery('')
+                setStageFilter('')
+                setChannelFilter('')
+                setTagFilter('')
+                setSelected(new Set())
+        }
 
         async function move(id: string, stage: Stage) {
                 setRows((prev) => prev.map((r) => (r.id === id ? { ...r, stage } : r)))
@@ -92,7 +144,19 @@ export function ContactsView({
                                         <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
                                         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
                                 </div>
-                                <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCampaignOpen(true)}
+                                    disabled={filtered.length === 0}
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
+                                  >
+                                    <Megaphone className="h-4 w-4" />
+                                    {locale === 'fa'
+                                      ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
+                                      : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
+                                  </button>
+                                  <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
                                         <ToggleBtn
                                                 active={view === 'list'}
                                                 onClick={() => setView('list')}
@@ -105,17 +169,29 @@ export function ContactsView({
                                                 icon={<Columns3 className="h-4 w-4" />}
                                                 label={t('pipeline')}
                                         />
+                                  </div>
                                 </div>
                         </div>
 
-                        <div className="relative">
-                                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-                                <input
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                        placeholder={t('search')}
-                                        className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] py-2.5 pe-3 ps-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
-                                />
+                        <div className="grid gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
+                                <div className="relative">
+                                        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                                        <input
+                                                value={query}
+                                                onChange={(e) => setQuery(e.target.value)}
+                                                placeholder={t('search')}
+                                                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] py-2.5 pe-3 ps-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
+                                        />
+                                </div>
+                                <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | '')} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه مراحل' : 'All stages'}</option>{STAGES.map((stage) => <option key={stage} value={stage}>{t(STAGE_KEY[stage])}</option>)}</select>
+                                <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value as ChannelType | '')} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه کانال‌ها' : 'All channels'}</option>{['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select>
+                                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه تگ‌ها' : 'All tags'}</option>{availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}</select>
+                                <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] disabled:opacity-40"><X className="h-3.5 w-3.5" />{locale === 'fa' ? 'پاک‌کردن' : 'Clear'}</button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                                <span className="inline-flex items-center gap-1.5"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${filtered.length.toLocaleString('fa-IR')} نتیجه در این صفحه` : `${filtered.length} results on this page`}</span>
+                                {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-9 rounded-lg px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
                         </div>
 
                         {filtered.length === 0 ? (
@@ -124,7 +200,7 @@ export function ContactsView({
                                         <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
                                 </div>
                         ) : view === 'list' ? (
-                                <ListView rows={filtered} locale={locale} onMove={move} />
+				<ListView rows={filtered} locale={locale} onMove={move} selected={selected} onToggleSelected={toggleSelected} />
                         ) : (
                                 <PipelineView rows={filtered} onMove={move} />
                         )}
@@ -132,6 +208,10 @@ export function ContactsView({
                         {/* Pagination only makes sense for the flat list; the pipeline drags
           across stages within the loaded page and a search hides the controls. */}
                         {footer && view === 'list' && !query ? footer : null}
+
+                        {campaignOpen && (
+                                <CampaignComposer audience={campaignAudience} locale={locale} onClose={() => setCampaignOpen(false)} />
+                        )}
                 </div>
         )
 }
@@ -214,11 +294,15 @@ function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
 function ListView({
         rows,
         locale,
-        onMove,
+	onMove,
+	selected,
+	onToggleSelected,
 }: {
         rows: ContactRow[]
         locale: 'fa' | 'en'
-        onMove: (id: string, s: Stage) => void
+	onMove: (id: string, s: Stage) => void
+	selected: Set<string>
+	onToggleSelected: (id: string) => void
 }) {
         const t = useTranslations('contacts')
         return (
@@ -232,6 +316,13 @@ function ListView({
                                         key={c.id}
                                         className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
                                 >
+					<input
+						type="checkbox"
+						checked={selected.has(c.id)}
+						onChange={() => onToggleSelected(c.id)}
+						className="h-4 w-4 shrink-0 accent-violet-500"
+						aria-label={locale === 'fa' ? `انتخاب ${rowDisplayName(c, t('anonymous'))}` : `Select ${rowDisplayName(c, t('anonymous'))}`}
+					/>
                                         <Link
                                                 href={`/contacts/${c.id}`}
                                                 className="flex min-w-0 flex-1 items-center gap-3"
@@ -267,6 +358,7 @@ function ListView({
                                                                 {c.conversationCount} {t('conversations')} · {t('lastSeen')}{' '}
                                                                 {relativeTime(new Date(c.lastActivity), locale)}
                                                         </p>
+							{c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-500">{locale === 'fa' ? 'رضایت پیام' : 'Opted in'}</span>}
                                                 </div>
                                         </Link>
                                         <div onClick={(e) => e.stopPropagation()} className="shrink-0">

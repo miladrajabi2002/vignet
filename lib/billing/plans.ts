@@ -1,4 +1,6 @@
 import type { Plan } from '@prisma/client'
+import { MODEL_ALIASES, getReplyPriceIRR, type ModelAlias } from '@/lib/ai/models'
+import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
 
 /**
  * Plan catalog — the subscription pays for platform/service capacity while AI
@@ -8,6 +10,7 @@ import type { Plan } from '@prisma/client'
  * Env overrides (all optional):
  *   PLAN_PRICE_STARTER_IRR / PLAN_PRICE_PRO_IRR / PLAN_PRICE_BUSINESS_IRR
  *   PLAN_PRICE_STARTER_USD / PLAN_PRICE_PRO_USD / PLAN_PRICE_BUSINESS_USD
+ *   PLAN_INCLUDED_CREDIT_STARTER_IRR / PLAN_INCLUDED_CREDIT_PRO_IRR / PLAN_INCLUDED_CREDIT_BUSINESS_IRR
  *   PLAN_LIMIT_TRIAL_MSGS / PLAN_LIMIT_STARTER_MSGS / PLAN_LIMIT_PRO_MSGS / PLAN_LIMIT_BUSINESS_MSGS
  *   PLAN_LIMIT_TRIAL_AGENTS / PLAN_LIMIT_STARTER_AGENTS / PLAN_LIMIT_PRO_AGENTS / PLAN_LIMIT_BUSINESS_AGENTS
  */
@@ -23,6 +26,8 @@ export interface PlanDef {
   maxAgents: number
   /** Discount applied to fixed per-reply wallet prices (1000 = 10%). */
   replyDiscountBps: number
+  /** Wallet credit granted once for each successful subscription payment. */
+  includedCreditIRR: number
 }
 
 function envInt(name: string, fallback: number): number {
@@ -44,6 +49,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       monthlyMessages: envInt('PLAN_LIMIT_TRIAL_MSGS', 100),
       maxAgents: envInt('PLAN_LIMIT_TRIAL_AGENTS', 1),
       replyDiscountBps: 0,
+      includedCreditIRR: 0,
     },
     STARTER: {
       plan: 'STARTER',
@@ -52,6 +58,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       monthlyMessages: envInt('PLAN_LIMIT_STARTER_MSGS', 25_000),
       maxAgents: envInt('PLAN_LIMIT_STARTER_AGENTS', 2),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_STARTER_BPS', 0),
+      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
     },
     PRO: {
       plan: 'PRO',
@@ -60,6 +67,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       monthlyMessages: envInt('PLAN_LIMIT_PRO_MSGS', 150_000),
       maxAgents: envInt('PLAN_LIMIT_PRO_AGENTS', 5),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_PRO_BPS', 1_000),
+      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
     },
     BUSINESS: {
       plan: 'BUSINESS',
@@ -68,6 +76,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       monthlyMessages: envInt('PLAN_LIMIT_BUSINESS_MSGS', 1_000_000),
       maxAgents: envInt('PLAN_LIMIT_BUSINESS_AGENTS', 20),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_BUSINESS_BPS', 2_000),
+      includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
     },
   }
 }
@@ -77,6 +86,17 @@ export type PaidPlan = (typeof PAID_PLANS)[number]
 
 export function isPaidPlan(p: string): p is PaidPlan {
   return (PAID_PLANS as readonly string[]).includes(p)
+}
+
+/** Effective per-reply prices from the same catalog used by wallet capture. */
+export function getPlanReplyPricesIRR(plan: Plan): Record<ModelAlias, number> {
+  const discountBps = getPlanDefs()[plan].replyDiscountBps
+  return Object.fromEntries(
+    MODEL_ALIASES.map((alias) => [
+      alias,
+      discountedReplyPriceIRR(getReplyPriceIRR(alias), discountBps),
+    ]),
+  ) as Record<ModelAlias, number>
 }
 
 /** Subscription period granted per successful payment. */

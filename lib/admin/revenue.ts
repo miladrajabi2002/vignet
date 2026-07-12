@@ -1,5 +1,42 @@
 import { prisma } from '@/lib/prisma'
 import { getPlanDefs } from '@/lib/billing/plans'
+import {
+  calculateFinanceSummary,
+  parseUsdToIrrRate,
+  type FinanceSummary,
+} from '@/lib/admin/finance'
+
+/** Consolidated cash/profit report with explicit USD -> IRR conversion. */
+export async function getFinanceSummary(): Promise<FinanceSummary> {
+  const [paymentRows, providerCost, giftedCredit] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ['kind', 'currency'],
+      where: { status: 'PAID' },
+      _sum: { amount: true },
+    }),
+    prisma.usageLog.aggregate({
+      where: { status: 'CAPTURED' },
+      _sum: { cost: true },
+    }),
+    prisma.walletLedger.aggregate({
+      where: { type: 'PLAN_CREDIT_GRANT' },
+      _sum: { amountIRR: true },
+    }),
+  ])
+
+  const paid = (kind: 'SUBSCRIPTION' | 'AI_CREDIT', currency: 'IRR' | 'USD') =>
+    paymentRows.find((row) => row.kind === kind && row.currency === currency)?._sum.amount ?? 0
+
+  return calculateFinanceSummary({
+    planRevenueIRR: paid('SUBSCRIPTION', 'IRR'),
+    planRevenueUSD: paid('SUBSCRIPTION', 'USD'),
+    creditTopupIRR: paid('AI_CREDIT', 'IRR'),
+    creditTopupUSD: paid('AI_CREDIT', 'USD'),
+    openRouterCostUSD: providerCost._sum.cost ?? 0,
+    giftedCreditIRR: giftedCredit._sum.amountIRR ?? 0,
+    usdToIRR: parseUsdToIrrRate(process.env.FINANCE_USD_TO_IRR),
+  })
+}
 
 export interface RevenueKPIs {
   /** Total IRR collected from all PAID payments (ZarinPay). */

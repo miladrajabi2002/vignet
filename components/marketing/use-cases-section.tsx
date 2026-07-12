@@ -4,76 +4,102 @@ import { getLocale } from 'next-intl/server'
 import {
 	ArrowLeft,
 	ArrowRight,
+	BriefcaseBusiness,
 	CalendarCheck2,
+	Check,
 	GraduationCap,
-	MessagesSquare,
+	Network,
 	ShoppingBag,
+	Sparkles,
+	UtensilsCrossed,
 } from 'lucide-react'
-import { InstagramIcon } from './social-links'
 
 type UseCase = {
 	title: string
 	desc: string
 	fit: string
+	features: string[]
 	href: string
 	icon: ComponentType<{ className?: string }>
 }
 
-const COPY: Record<'fa' | 'en', { eyebrow: string; title: string; subtitle: string; cta: string; items: UseCase[] }> = {
+type SectionCopy = {
+	eyebrow: string
+	title: string
+	subtitle: string
+	cta: string
+	sharedTitle: string
+	sharedDesc: string
+	sharedFeatures: string[]
+	items: UseCase[]
+}
+
+const COPY: Record<'fa' | 'en', SectionCopy> = {
 	fa: {
-		eyebrow: 'برای کسب‌وکار شما',
-		title: 'ساخته‌شده برای کسب‌وکار شما',
-		subtitle: 'اگر فروش یا پشتیبانی شما از گفتگو شروع می‌شود، ویجنت بخش تکراری کار را انجام می‌دهد و موارد مهم را به تیم شما می‌سپارد.',
+		eyebrow: 'یک ویجنت، متناسب با مدل کار شما',
+		title: 'برای هر کسب‌وکار، یک فضای کاری تخصصی',
+		subtitle: 'به‌جای ده‌ها ابزار جدا، مدل عملیاتی کسب‌وکارتان را انتخاب کنید؛ ویجنت پنل، ایجنت، اتوماسیون و گزارش‌های مناسب همان کار را آماده می‌کند.',
 		cta: 'دیدن راهکار',
+		sharedTitle: 'هسته مشترک همه بسته‌ها',
+		sharedDesc: 'نوع کسب‌وکار فقط تجربه و ابزارهای تخصصی را تغییر می‌دهد؛ مشتری، گفتگو و دانش شما همیشه در یک هسته واحد باقی می‌ماند.',
+		sharedFeatures: ['CRM و پرونده کامل مشتری', 'صندوق چندکاناله', 'ویجنتو و ایجنت شش‌لایه', 'ربات مدیر و اعلان', 'گزارش و اتوماسیون'],
 		items: [
 			{
-				title: 'پیج‌های فروش اینستاگرامی',
-				desc: 'قیمت، موجودی و لینک خرید را در دایرکت و کامنت پاسخ دهید؛ خودکار و با لحن خودتان.',
-				fit: 'برای پوشاک، آرایشی، اکسسوری و فروشندگان خانگی',
-				href: '/solutions/instagram',
-				icon: InstagramIcon,
-			},
-			{
-				title: 'فروشگاه‌های آنلاین و ووکامرس',
-				desc: 'محصول پیشنهاد دهید، موجودی را دقیق بگویید و وضعیت سفارش را همان‌جا پاسخ دهید.',
-				fit: 'برای فروشگاه‌هایی با کاتالوگ و سفارش روزانه',
+				title: 'فروشگاه و فروش چندکاناله',
+				desc: 'کاتالوگ، موجودی و پیشنهاد محصول را به گفتگو وصل کنید؛ از سایت تا دایرکت، مشتری پاسخ یکسان و قابل‌اعتماد می‌گیرد.',
+				fit: 'فروشگاه آنلاین، ووکامرس، پیج فروش و فروشندگان خانگی',
+				features: ['موجودی و کاتالوگ', 'مقایسه محصول', 'پیگیری سفارش', 'اتوماسیون اینستاگرام'],
 				href: '/solutions/ecommerce-ai',
 				icon: ShoppingBag,
 			},
 			{
-				title: 'خدمات، مشاوره و رزرو',
-				desc: 'سؤال‌های اولیه و اطلاعات متقاضی را بگیرید و درخواست جدی را خلاصه‌شده تحویل دهید.',
-				fit: 'برای کلینیک، سالن، آژانس، تعمیر و خدمات تخصصی',
+				title: 'رستوران، کافه و سفارش غذا',
+				desc: 'منو و وضعیت موجودی را پاسخ دهید، سفارش و اطلاعات ارسال را جمع کنید و مشتری‌های تکراری را در CRM نگه دارید.',
+				fit: 'رستوران، کافه، فست‌فود، شیرینی و آشپزخانه بیرون‌بر',
+				features: ['منوی هوشمند', 'ثبت سفارش', 'محدوده ارسال', 'پیشنهاد مکمل'],
+				href: '/solutions/customer-support-ai',
+				icon: UtensilsCrossed,
+			},
+			{
+				title: 'رزرو و نوبت‌دهی',
+				desc: 'ایجنت زمان‌های آزاد را می‌بیند، خدمت مناسب را پیشنهاد می‌دهد، اطلاعات لازم را می‌گیرد و نوبت را بدون تداخل ثبت می‌کند.',
+				fit: 'کلینیک، سالن، مشاور، مربی، تعمیرگاه و خدمات حضوری',
+				features: ['تقویم و ظرفیت', 'رزرو با AI', 'یادآوری مدیر', 'لغو و جابه‌جایی'],
 				href: '/solutions/customer-support-ai',
 				icon: CalendarCheck2,
 			},
 			{
-				title: 'آموزشگاه‌ها و فروش دوره',
-				desc: 'دوره مناسب، پیش‌نیاز و شرایط ثبت‌نام را توضیح دهید و علاقه‌مندی را ثبت کنید.',
-				fit: 'برای مدرس، موسسه، بوت‌کمپ و دوره آنلاین',
-				href: '/solutions/persian-ai-chatbot',
-				icon: GraduationCap,
+				title: 'خدمات و جذب مشتری',
+				desc: 'درخواست را دقیق دسته‌بندی کنید، سرنخ واجدشرایط بسازید، پیش‌نیازها را جمع کنید و پرونده کامل را به متخصص تحویل دهید.',
+				fit: 'آژانس، خدمات فنی، حقوقی، مالی، املاک و کسب‌وکارهای پروژه‌ای',
+				features: ['فرم هوشمند', 'امتیازدهی سرنخ', 'پیگیری خودکار', 'تحویل با خلاصه'],
+				href: '/solutions/customer-support-ai',
+				icon: BriefcaseBusiness,
 			},
 			{
-				title: 'پشتیبانی در پیام‌رسان‌ها',
-				desc: 'تلگرام، بله و روبیکا را با یک ایجنت آگاه پاسخ دهید و همه را در یک صندوق ببینید.',
-				fit: 'برای جامعه‌های کاربری، خدمات اشتراکی و تیم‌های پشتیبانی',
-				href: '/solutions/telegram',
-				icon: MessagesSquare,
+				title: 'آموزش، دوره و عضویت',
+				desc: 'دوره مناسب را پیشنهاد دهید، پیش‌نیاز و ثبت‌نام را توضیح دهید و اعضا را بعد از خرید هم از همان گفتگو پشتیبانی کنید.',
+				fit: 'مدرس، موسسه، بوت‌کمپ، کوچ و جامعه اشتراکی',
+				features: ['پیشنهاد دوره', 'ثبت‌نام و عضویت', 'پشتیبانی هنرجو', 'پیگیری علاقه‌مند'],
+				href: '/solutions/persian-ai-chatbot',
+				icon: GraduationCap,
 			},
 		],
 	},
 	en: {
-		eyebrow: 'Made for your business',
-		title: 'Where conversations pile up, Vigent goes to work',
-		subtitle: 'From a “price?” comment to order tracking and booking, choose the path that matches the work your team actually does every day.',
+		eyebrow: 'One Vigent, shaped around your operation',
+		title: 'A specialized workspace for every business model',
+		subtitle: 'Choose how your business works. Vigent prepares the right workspace, agent, automations and decision-ready reports without splitting customer data across tools.',
 		cta: 'Explore solution',
+		sharedTitle: 'The shared core in every workspace',
+		sharedDesc: 'Your business model changes the specialist tools and experience, while customers, conversations and knowledge stay in one reliable core.',
+		sharedFeatures: ['Complete customer CRM', 'Omnichannel inbox', 'Vigento & six-layer agents', 'Manager bot & alerts', 'Reports & automation'],
 		items: [
-			{ title: 'Instagram sellers', desc: 'Handle DMs, comments and story replies with live prices, stock, product cards and automated follow-up.', fit: 'For fashion, beauty, accessories and home sellers', href: '/solutions/instagram', icon: InstagramIcon },
-			{ title: 'Online and WooCommerce stores', desc: 'Recommend the right item, answer stock questions accurately and share order status without back-and-forth.', fit: 'For stores with daily catalogs and orders', href: '/solutions/ecommerce-ai', icon: ShoppingBag },
-			{ title: 'Services, consulting and booking', desc: 'Answer first questions, collect lead details and hand serious cases to a specialist with context.', fit: 'For clinics, salons, agencies, repair and specialists', href: '/solutions/customer-support-ai', icon: CalendarCheck2 },
-			{ title: 'Education and course sales', desc: 'Recommend courses, explain prerequisites and enrollment, and retain interested leads for follow-up.', fit: 'For instructors, institutes, bootcamps and online courses', href: '/solutions/persian-ai-chatbot', icon: GraduationCap },
-			{ title: 'Messaging support teams', desc: 'Run one knowledgeable bot across Telegram, Bale and Rubika, then follow every conversation from one inbox.', fit: 'For communities, subscriptions and support teams', href: '/solutions/telegram', icon: MessagesSquare },
+			{ title: 'Commerce and omnichannel sales', desc: 'Connect catalog, stock and recommendations to every conversation, from the store widget to Instagram DMs.', fit: 'Online stores, WooCommerce, social sellers and home businesses', features: ['Live catalog', 'Product comparison', 'Order follow-up', 'Instagram automation'], href: '/solutions/ecommerce-ai', icon: ShoppingBag },
+			{ title: 'Restaurants and food ordering', desc: 'Answer from the live menu, capture delivery details and keep repeat customers in the same CRM.', fit: 'Restaurants, cafés, takeaways, bakeries and kitchens', features: ['Smart menu', 'Order capture', 'Delivery zones', 'Upsell suggestions'], href: '/solutions/customer-support-ai', icon: UtensilsCrossed },
+			{ title: 'Appointments and booking', desc: 'Let the agent see availability, recommend the right service, collect details and reserve a conflict-free slot.', fit: 'Clinics, salons, consultants, coaches and repair services', features: ['Calendar & capacity', 'AI booking', 'Manager reminders', 'Cancel & reschedule'], href: '/solutions/customer-support-ai', icon: CalendarCheck2 },
+			{ title: 'Services and lead conversion', desc: 'Classify requests, qualify leads, collect prerequisites and hand a complete case to the right specialist.', fit: 'Agencies, field services, legal, finance and real estate', features: ['Smart intake', 'Lead scoring', 'Automated follow-up', 'Context handoff'], href: '/solutions/customer-support-ai', icon: BriefcaseBusiness },
+			{ title: 'Education, courses and membership', desc: 'Recommend the right course, explain enrollment and keep supporting members after purchase in the same thread.', fit: 'Instructors, institutes, bootcamps, coaches and communities', features: ['Course matching', 'Enrollment', 'Learner support', 'Lead nurturing'], href: '/solutions/persian-ai-chatbot', icon: GraduationCap },
 		],
 	},
 }
@@ -93,21 +119,26 @@ export async function UseCasesSection() {
 				</div>
 
 				<div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-					{copy.items.map(({ title, desc, fit, href, icon: Icon }, index) => (
+					{copy.items.map(({ title, desc, fit, features, href, icon: Icon }, index) => (
 						<Link
 							key={title}
 							href={href}
-							className={`group relative flex min-h-[220px] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#f5f6f3] p-5 text-black transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:bg-white hover:shadow-[0_18px_45px_rgba(0,0,0,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 sm:min-h-[250px] sm:p-6 ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'} ${index === 4 ? 'sm:col-span-2 lg:col-span-2' : ''}`}
+							className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#f5f6f3] p-5 text-black transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:bg-white hover:shadow-[0_18px_45px_rgba(0,0,0,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 sm:p-6 ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'} ${index === 4 ? 'sm:col-span-2 lg:col-span-2' : ''}`}
 						>
 							<span aria-hidden className="marketing-grid pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
-							<div className="flex items-center justify-between">
-								<span className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white">
+							<div className="relative flex items-center justify-between">
+								<span className="flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white">
 									<Icon className="h-[18px] w-[18px]" aria-hidden />
 								</span>
-								<span className="relative font-mono text-[10px] text-black/30">0{index + 1}</span>
+								<span className="font-mono text-[10px] text-black/30">0{index + 1}</span>
 							</div>
-							<h3 className="relative mt-6 text-lg font-medium leading-snug sm:text-xl">{title}</h3>
+							<h3 className="relative mt-5 text-lg font-medium leading-snug sm:text-xl">{title}</h3>
 							<p className="relative mt-2.5 text-[13px] leading-6 text-black/60">{desc}</p>
+							<div className="relative mt-4 flex flex-wrap gap-1.5">
+								{features.map((feature) => (
+									<span key={feature} className="rounded-full border border-black/[0.08] bg-white/75 px-2 py-1 text-[10px] text-black/55">{feature}</span>
+								))}
+							</div>
 							<div className="relative mt-auto border-t border-black/10 pt-3.5">
 								<p className="text-[11px] leading-5 text-black/55">{fit}</p>
 								<span className="mt-3 inline-flex items-center gap-2 text-xs font-medium">
@@ -116,6 +147,32 @@ export async function UseCasesSection() {
 							</div>
 						</Link>
 					))}
+				</div>
+
+				<div className="marketing-grid-dark relative mt-4 overflow-hidden rounded-[1.5rem] bg-[#101311] p-5 text-white sm:p-7">
+					<div aria-hidden className="absolute -end-16 -top-20 h-56 w-56 rounded-full bg-emerald-300/10 blur-3xl" />
+					<div className="relative grid items-center gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+						<div className="flex items-start gap-3">
+							<span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-emerald-200/20 bg-emerald-300/10 text-emerald-200">
+								<Network className="h-5 w-5" />
+								<span className="absolute -end-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#101311] bg-emerald-300" />
+							</span>
+							<div>
+								<h3 className="text-base font-semibold sm:text-lg">{copy.sharedTitle}</h3>
+								<p className="mt-1.5 max-w-xl text-xs leading-6 text-white/50 sm:text-sm">{copy.sharedDesc}</p>
+							</div>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+							{copy.sharedFeatures.map((feature, index) => (
+								<div key={feature} className="flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-[11px] text-white/70">
+									<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300/15 text-emerald-200">
+										{index === 2 ? <Sparkles className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+									</span>
+									{feature}
+								</div>
+							))}
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>

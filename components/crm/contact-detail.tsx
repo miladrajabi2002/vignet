@@ -21,12 +21,14 @@ export function ContactDetailEditor({
   initialStage,
   initialTags,
   initialNotes,
+  initialMarketingOptIn,
 }: {
   contactId: string
   initialName: string
   initialStage: string
   initialTags: string[]
   initialNotes: string
+  initialMarketingOptIn: boolean
 }) {
   const t = useTranslations('contacts')
   const router = useRouter()
@@ -38,6 +40,7 @@ export function ContactDetailEditor({
   )
   const [tags, setTags] = useState(initialTags.join(', '))
   const [notes, setNotes] = useState(initialNotes)
+  const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -56,6 +59,7 @@ export function ContactDetailEditor({
             .map((s) => s.trim())
             .filter(Boolean),
           notes: notes.trim() || null,
+          marketingOptIn,
         }),
       })
       if (res.ok) {
@@ -80,6 +84,19 @@ export function ContactDetailEditor({
           className="mt-1 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
         />
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3">
+        <input
+          type="checkbox"
+          checked={marketingOptIn}
+          onChange={(event) => setMarketingOptIn(event.target.checked)}
+          className="mt-1 h-4 w-4 accent-violet-500"
+        />
+        <span>
+          <span className="block text-sm text-[var(--text-primary)]">رضایت پیام‌های اطلاع‌رسانی ثبت شده است</span>
+          <span className="mt-1 block text-[11px] leading-5 text-[var(--text-muted)]">فقط وقتی مشتری صریحاً موافقت کرده این گزینه را فعال کنید. ارسال STOP آن را خودکار خاموش می‌کند.</span>
+        </span>
+      </label>
 
       <div>
         <label className="text-xs text-[var(--text-secondary)]">

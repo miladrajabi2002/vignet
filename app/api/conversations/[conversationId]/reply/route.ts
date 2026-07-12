@@ -6,6 +6,7 @@ import { sendOutbound } from '@/lib/channels/outbound'
 import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
+import { recordConversationActivity } from '@/lib/conversations/activity'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
@@ -87,11 +88,16 @@ export async function POST(req: Request, props: Params) {
     },
     select: { id: true, content: true, createdAt: true, role: true },
   })
+  await recordConversationActivity(prisma, conversation.id, {
+    kind: 'operator_reply',
+    source: 'dashboard',
+  }).catch(() => {})
 
   await prisma.conversation.update({
     where: { id: conversation.id },
     data: {
       status: 'HANDED_OFF',
+      handedOff: true,
       messageCount: { increment: 1 },
       lastMessageAt: new Date(),
     },

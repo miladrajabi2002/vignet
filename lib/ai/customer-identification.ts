@@ -22,6 +22,7 @@
 
 import type { ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { recordConversationActivity } from '@/lib/conversations/activity'
 import { toEnglishDigits, normalizePhone } from '@/lib/phone'
 
 export interface ExtractedIdentity {
@@ -231,12 +232,25 @@ export async function applyExtractedIdentity(params: {
 
 	// Mark conversation as collected once we have a name OR a phone.
 	if (extracted.name || extracted.phone) {
-		await prisma.conversation
-			.update({
-				where: { id: conversationId },
+		const transition = await prisma.conversation
+			.updateMany({
+				where: { id: conversationId, customerInfoState: { not: 'collected' } },
 				data: { customerInfoState: 'collected', identifiedAt: new Date() },
 			})
-			.catch(() => {})
+			.catch(() => ({ count: 0 }))
+
+		// Emit once, only when the state actually transitions. The activity stores
+		// field names, not the customer's name/phone value.
+		if (transition.count > 0) {
+			await recordConversationActivity(prisma, conversationId, {
+				kind: 'customer_identified',
+				fields: [
+					...(extracted.name ? (['name'] as const) : []),
+					...(extracted.phone ? (['phone'] as const) : []),
+				],
+				source: 'agent',
+			}).catch(() => {})
+		}
 	}
 }
 

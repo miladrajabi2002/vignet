@@ -217,6 +217,7 @@ export default async function ContactDetailPage(
           initialStage={contact.stage}
           initialTags={contact.tags}
           initialNotes={contact.notes ?? ''}
+          initialMarketingOptIn={contact.marketingOptIn}
         />
 
         {/* Conversation history */}

@@ -8,6 +8,7 @@ import {
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { AgentVersions } from '@/components/agents/agent-versions'
+import { getPlanReplyPricesIRR } from '@/lib/billing/plans'
 
 export default async function AgentSettingsPage(
   props: {
@@ -22,7 +23,10 @@ export default async function AgentSettingsPage(
     prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
     }),
-    prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { plan: true } }),
+    prisma.workspace.findUnique({
+      where: { id: user.workspaceId },
+      select: { plan: true, aiCreditBalanceIRR: true },
+    }),
     getPlatformAiConfig(),
   ])
   if (!agent) notFound()
@@ -37,6 +41,8 @@ export default async function AgentSettingsPage(
           plan: workspace?.plan ?? 'TRIAL',
           enabledModels: platformPolicy.enabledModels,
           trialModel: platformPolicy.trialModel,
+          creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0,
+          replyPricesIRR: getPlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
         }}
         agent={{
           id: agent.id,

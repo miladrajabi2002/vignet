@@ -25,6 +25,8 @@ import { notifyWorkspace } from '@/lib/notifications/create'
 import { sendOutbound } from '@/lib/channels/outbound'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
+import { ensureConversationSummary } from '@/lib/conversations/summary'
+import { recordConversationActivity } from '@/lib/conversations/activity'
 
 /**
  * Decrypt the stored OperatorChannel.botToken. The column is TEXT and stores the
@@ -79,30 +81,56 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
                 // Snapshot the conversation summary if not provided.
                 let summary = ctx.summary ?? null
                 if (!summary) {
-                        const conv = await prisma.conversation.findUnique({
-                                where: { id: ctx.conversationId },
-                                select: { summary: true },
-                        })
-                        summary = conv?.summary ?? null
+                        // Persist a deterministic summary on the synchronous path.
+                        // Provider-backed enhancement happens after the alert exists.
+                        summary = (
+                                await ensureConversationSummary(ctx.conversationId, {
+                                        preferAi: false,
+                                })
+                        ).summary
                 }
 
-                const alert = await prisma.handoffAlert.create({
-                        data: {
-                                workspaceId: ctx.workspaceId,
-                                conversationId: ctx.conversationId,
-                                agentId: ctx.agentId,
-                                contactName: ctx.contactName,
-                                contactPhone: ctx.contactPhone,
-                                channel: ctx.channel,
-                                reason: ctx.reason,
-                                summary,
-                                state: 'open',
-                        },
-                        select: { id: true },
+                const alert = await prisma.$transaction(async (tx) => {
+                        const created = await tx.handoffAlert.create({
+                                data: {
+                                        workspaceId: ctx.workspaceId,
+                                        conversationId: ctx.conversationId,
+                                        agentId: ctx.agentId,
+                                        contactName: ctx.contactName,
+                                        contactPhone: ctx.contactPhone,
+                                        channel: ctx.channel,
+                                        reason: ctx.reason,
+                                        summary,
+                                        state: 'open',
+                                },
+                                select: { id: true },
+                        })
+                        await recordConversationActivity(tx, ctx.conversationId, {
+                                kind: 'handoff_ready',
+                                summaryReady: Boolean(summary),
+                                source: 'agent',
+                        })
+                        return created
                 })
 
-                // In-app + SMS notification (existing flow).
-                await notifyWorkspace({
+                // Improve the fallback with the platform's economical model out
+                // of band. No prompt/customer text is added to admin telemetry.
+                void ensureConversationSummary(ctx.conversationId, {
+                        preferAi: true,
+                        replaceExisting: true,
+                })
+                        .then((result) => {
+                                if (result.source !== 'ai' || !result.summary) return
+                                return prisma.handoffAlert.update({
+                                        where: { id: alert.id },
+                                        data: { summary: result.summary },
+                                })
+                        })
+                        .catch(() => {})
+
+                // External fan-out must not delay the customer's chat response.
+                // The database alert, activity, and fallback summary are durable.
+                void notifyWorkspace({
                         workspaceId: ctx.workspaceId,
                         type: 'HANDOFF',
                         title: 'گفتگو به اپراتور انسانی منتقل شد',
@@ -112,7 +140,10 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
                 }).catch(() => {})
 
                 // Push to operator Telegram bot if configured.
-                await pushAlertToOperatorBot(ctx.workspaceId, alert.id, ctx).catch((e) => {
+                void pushAlertToOperatorBot(ctx.workspaceId, alert.id, {
+                        ...ctx,
+                        summary,
+                }).catch((e) => {
                         captureError('operator-handoff:telegram-push', e, {
                                 workspaceId: ctx.workspaceId,
                                 metadata: { alertId: alert.id, conversationId: ctx.conversationId },
@@ -161,6 +192,7 @@ async function pushAlertToOperatorBot(
         if (!botToken) return
 
         const text = formatOperatorAlertMessage(ctx)
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`
         const res = await fetch(url, {
                 method: 'POST',
@@ -172,14 +204,15 @@ async function pushAlertToOperatorBot(
                         reply_markup: {
                                 inline_keyboard: [
                                         [
-                                                {
-                                                        text: 'پاسخ در پنل ویجنت',
-                                                        url: `https://vigent.ir/conversations/${ctx.conversationId}`,
-                                                },
+                                                        {
+                                                                text: 'پاسخ در پنل ویجنت',
+                                                                url: `${appUrl}/conversations/${encodeURIComponent(ctx.conversationId)}`,
+                                                        },
                                         ],
                                 ],
                         },
                 }),
+                signal: AbortSignal.timeout(8_000),
         })
         if (!res.ok) {
                 const errText = await res.text().catch(() => '')
@@ -194,22 +227,29 @@ async function pushAlertToOperatorBot(
         }
 }
 
+function escapeTelegramHtml(value: string): string {
+        return value
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+}
+
 function formatOperatorAlertMessage(ctx: HandoffContext): string {
         const lines: string[] = []
         lines.push('🔔 <b>انتقال به اپراتور</b>')
         lines.push('')
-        lines.push(`👤 <b>مشتری:</b> ${ctx.contactName || 'ناشناس'}`)
-        if (ctx.contactPhone) lines.push(`📞 <b>شماره:</b> ${ctx.contactPhone}`)
-        lines.push(`📱 <b>کانال:</b> ${ctx.channel}`)
-        lines.push(`🤖 <b>ایجنت:</b> ${ctx.agentName}`)
-        lines.push(`📝 <b>دلیل:</b> ${ctx.reason}`)
+        lines.push(`👤 <b>مشتری:</b> ${escapeTelegramHtml(ctx.contactName || 'ناشناس')}`)
+        if (ctx.contactPhone) lines.push(`📞 <b>شماره:</b> ${escapeTelegramHtml(ctx.contactPhone)}`)
+        lines.push(`📱 <b>کانال:</b> ${escapeTelegramHtml(ctx.channel)}`)
+        lines.push(`🤖 <b>ایجنت:</b> ${escapeTelegramHtml(ctx.agentName)}`)
+        lines.push(`📝 <b>دلیل:</b> ${escapeTelegramHtml(ctx.reason)}`)
         if (ctx.summary) {
                 lines.push('')
                 lines.push('📋 <b>خلاصه گفتگو:</b>')
-                lines.push(ctx.summary)
+                lines.push(escapeTelegramHtml(ctx.summary))
         }
         lines.push('')
-        lines.push(`💬 شناسه گفتگو: <code>${ctx.conversationId}</code>`)
+        lines.push(`💬 شناسه گفتگو: <code>${escapeTelegramHtml(ctx.conversationId)}</code>`)
         return lines.join('\n')
 }
 
@@ -267,6 +307,10 @@ export async function routeOperatorReplyFromTelegram(params: {
                                 metadata: { operator: true, source: 'telegram_bot' },
                         },
                 })
+                await recordConversationActivity(prisma, alert.conversationId, {
+                        kind: 'operator_reply',
+                        source: 'telegram_bot',
+                }).catch(() => {})
                 await prisma.conversation.update({
                         where: { id: alert.conversationId },
                         data: {

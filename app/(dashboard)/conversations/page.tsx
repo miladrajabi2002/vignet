@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations, getLocale } from 'next-intl/server'
-import type { ChannelType, ConvStatus } from '@prisma/client'
+import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
 import { MessagesSquare, User, Clock, Filter, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -24,6 +24,17 @@ import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 50
+const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
+const VALID_CHANNELS = new Set<ChannelType>([
+        'TELEGRAM',
+        'WHATSAPP',
+        'INSTAGRAM',
+        'RUBIKA',
+        'BALE',
+        'WEB_WIDGET',
+        'API',
+        'CHAT_LINK',
+])
 
 const CHANNEL_LABELS_FA: Record<string, string> = {
         TELEGRAM: 'تلگرام',
@@ -37,7 +48,13 @@ const CHANNEL_LABELS_FA: Record<string, string> = {
 }
 
 export default async function ConversationsPage(props: {
-        searchParams: Promise<{ page?: string; channel?: string; status?: string }>
+        searchParams: Promise<{
+                page?: string
+                channel?: string
+                status?: string
+                agent?: string
+                q?: string
+        }>
 }) {
         const searchParams = await props.searchParams
         const user = await requireUser()
@@ -48,16 +65,31 @@ export default async function ConversationsPage(props: {
         const page = Math.max(1, Number(searchParams.page) || 1)
 
         // ── Filters from query string ──
-        const channelFilter = searchParams.channel as ChannelType | undefined
-        const statusFilter = searchParams.status as ConvStatus | undefined
+        const channelFilter = VALID_CHANNELS.has(searchParams.channel as ChannelType)
+                ? (searchParams.channel as ChannelType)
+                : undefined
+        const statusFilter = VALID_STATUSES.has(searchParams.status as ConvStatus)
+                ? (searchParams.status as ConvStatus)
+                : undefined
+        const agentFilter = searchParams.agent?.trim().slice(0, 64) || undefined
+        const query = searchParams.q?.trim().slice(0, 120) || undefined
 
-        const where: {
-                workspaceId: string
-                channel?: ChannelType
-                status?: ConvStatus
-        } = { workspaceId: user.workspaceId }
+        const where: Prisma.ConversationWhereInput = { workspaceId: user.workspaceId }
         if (channelFilter) where.channel = channelFilter
         if (statusFilter) where.status = statusFilter
+        if (agentFilter) where.agentId = agentFilter
+        if (query) {
+                where.OR = [
+                        { summary: { contains: query, mode: 'insensitive' } },
+                        { contact: { name: { contains: query, mode: 'insensitive' } } },
+                        { contact: { phone: { contains: query } } },
+                        { contact: { telegramUsername: { contains: query, mode: 'insensitive' } } },
+                        { contact: { baleUsername: { contains: query, mode: 'insensitive' } } },
+                        { contact: { rubikaUsername: { contains: query, mode: 'insensitive' } } },
+                        { contact: { instagramUsername: { contains: query, mode: 'insensitive' } } },
+                        { messages: { some: { content: { contains: query, mode: 'insensitive' } } } },
+                ]
+        }
 
         const [
                 conversations,
@@ -69,6 +101,7 @@ export default async function ConversationsPage(props: {
                 resolvedTrend7,
                 handoffTrend7,
                 channelGroups,
+                agents,
         ] = await Promise.all([
                 prisma.conversation.findMany({
                         where,
@@ -130,6 +163,15 @@ export default async function ConversationsPage(props: {
                         where: { workspaceId: user.workspaceId },
                         _count: { _all: true },
                 }),
+                prisma.agent.findMany({
+                        where: { workspaceId: user.workspaceId, conversations: { some: {} } },
+                        orderBy: { name: 'asc' },
+                        select: {
+                                id: true,
+                                name: true,
+                                _count: { select: { conversations: true } },
+                        },
+                }),
         ])
 
         const hasNext = conversations.length > PAGE_SIZE
@@ -188,6 +230,8 @@ export default async function ConversationsPage(props: {
                                 isFa={isFa}
                                 activeStatus={statusFilter}
                                 activeChannel={channelFilter}
+                                activeAgent={agentFilter}
+                                query={query}
                                 basePath="/conversations"
                                 statusOptions={[
                                         { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
@@ -211,19 +255,24 @@ export default async function ConversationsPage(props: {
                                                 count: c.count,
                                         })),
                                 ]}
+                                agentOptions={agents.map((agent) => ({
+                                        key: agent.id,
+                                        label: agent.name,
+                                        count: agent._count.conversations,
+                                }))}
                         />
 
                         {pageItems.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
                                         <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
                                         <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                                                {channelFilter || statusFilter
+                                                {channelFilter || statusFilter || agentFilter || query
                                                         ? isFa
                                                                 ? 'مکالمه‌ای با این فیلتر یافت نشد'
                                                                 : 'No conversations match these filters'
                                                         : t('empty')}
                                         </p>
-                                        {!channelFilter && !statusFilter && (
+                                        {!channelFilter && !statusFilter && !agentFilter && !query && (
                                                 <Link
                                                         href="/integrations"
                                                         className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
@@ -341,6 +390,8 @@ export default async function ConversationsPage(props: {
                                         const sp = new URLSearchParams()
                                         if (channelFilter) sp.set('channel', channelFilter)
                                         if (statusFilter) sp.set('status', statusFilter)
+                                        if (agentFilter) sp.set('agent', agentFilter)
+                                        if (query) sp.set('q', query)
                                         if (p > 1) sp.set('page', String(p))
                                         const qs = sp.toString()
                                         return qs ? `/conversations?${qs}` : '/conversations'

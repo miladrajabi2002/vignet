@@ -15,6 +15,12 @@ import {
 	BookOpen,
 	Zap,
 	Sparkles,
+	ShieldCheck,
+	Radio,
+	FlaskConical,
+	DatabaseZap,
+	CircleDashed,
+	Eye,
 } from 'lucide-react'
 import { ModelSelect } from './model-select'
 import type { ModelAlias } from '@/lib/ai/models'
@@ -23,8 +29,10 @@ import {
 	type PromptConfig,
 	type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
+import type { VigentoDraft } from '@/lib/ai/vigento-draft'
+import { VigentoComposer } from './vigento-composer'
 
-const TOTAL = 3
+const TOTAL = 5
 
 interface FormState {
 	name: string
@@ -35,6 +43,11 @@ interface FormState {
 	language: 'fa' | 'en'
 	temperature: number
 	maxTokens: number
+	handoffEnabled: boolean
+	handoffMessage: string
+	handoffKeywords: string
+	requireCustomerInfo: boolean
+	customerInfoPrompt: string
 }
 
 /** Editable snapshot of the template's 6-layer config (lists as one-per-line text). */
@@ -109,12 +122,16 @@ const BUSINESS_PRESETS = {
 export function AgentWizard({
 	initialBusiness,
 	modelPolicy,
+	workspaceProductCount = 0,
 }: {
 	initialBusiness?: string
+	workspaceProductCount?: number
 	modelPolicy: {
 		plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
 		enabledModels: ModelAlias[]
 		trialModel: ModelAlias
+		creditBalanceIRR: number
+		replyPricesIRR: Record<ModelAlias, number>
 	}
 }) {
 	const t = useTranslations('agents.wizard')
@@ -136,6 +153,7 @@ export function AgentWizard({
 	const [selectedRole, setSelectedRole] = useState<RoleTemplate>(defaultRole)
 	const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
 	const [showEditor, setShowEditor] = useState(false)
+	const [vigentoDraft, setVigentoDraft] = useState<VigentoDraft | null>(null)
 	const [form, setForm] = useState<FormState>({
 		name: presetCopy?.name ?? '',
 		description: presetCopy?.description ?? '',
@@ -145,6 +163,11 @@ export function AgentWizard({
 		language: 'fa',
 		temperature: 0.7,
 		maxTokens: 1000,
+		handoffEnabled: true,
+		handoffMessage: '',
+		handoffKeywords: locale === 'fa' ? 'اپراتور، انسان، شکایت' : 'operator, human, complaint',
+		requireCustomerInfo: preset?.role === 'lead_capture',
+		customerInfoPrompt: '',
 	})
 
 	const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -158,6 +181,31 @@ export function AgentWizard({
 		setDraft(draftFromRole(role))
 		// The custom template is an empty canvas — open the editor right away.
 		setShowEditor(role.key === 'custom')
+	}
+
+	function applyVigentoDraft(next: VigentoDraft) {
+		const role = ROLE_TEMPLATES.find((item) => item.key === next.roleTemplate) ?? ROLE_TEMPLATES[0]
+		setSelectedRole(role)
+		setDraft({
+			personality: next.promptConfig.personality,
+			tone: next.promptConfig.tone,
+			doSay: next.promptConfig.doSay.join('\n'),
+			dontSay: next.promptConfig.dontSay.join('\n'),
+			fallbackBehavior: next.promptConfig.fallbackBehavior,
+		})
+		setForm((current) => ({
+			...current,
+			name: next.name,
+			description: next.description,
+			welcomeMessage: next.welcomeMessage,
+			fallbackMessage: next.fallbackMessage,
+			handoffEnabled: next.handoffEnabled,
+			handoffMessage: next.handoffMessage,
+			handoffKeywords: next.handoffKeywords.join('، '),
+			requireCustomerInfo: next.requireCustomerInfo,
+			customerInfoPrompt: next.customerInfoPrompt,
+		}))
+		setVigentoDraft(next)
 	}
 
 	const canNext = step === 0 ? form.name.trim().length > 0 : true
@@ -182,6 +230,14 @@ export function AgentWizard({
 					language: form.language,
 					temperature: form.temperature,
 					maxTokens: form.maxTokens,
+					handoffEnabled: form.handoffEnabled,
+					handoffMessage: form.handoffMessage || undefined,
+					handoffKeywords: form.handoffKeywords
+						.split(/[,\u060c]/)
+						.map((item) => item.trim())
+						.filter(Boolean),
+					requireCustomerInfo: form.requireCustomerInfo,
+					customerInfoPrompt: form.customerInfoPrompt || undefined,
 				}),
 			})
 			if (!res.ok) {
@@ -201,7 +257,9 @@ export function AgentWizard({
 		}
 	}
 
-	const stepTitles = [t('basics'), t('persona'), t('config')]
+	const stepTitles = locale === 'fa'
+		? ['هدف', 'شخصیت و قوانین', 'دانش و تحویل', 'مدل و ارزیابی', 'بازبینی و انتشار']
+		: ['Goal', 'Persona & guardrails', 'Knowledge & handoff', 'Model & evaluation', 'Review & publish']
 
 	if (created) {
 		return (
@@ -250,7 +308,12 @@ export function AgentWizard({
 	}
 
 	return (
-		<div className="mx-auto max-w-2xl">
+		<div className="mx-auto max-w-4xl">
+			<VigentoComposer
+				locale={locale}
+				currentName={form.name}
+				onApply={applyVigentoDraft}
+			/>
 			<div className="mb-2 text-sm text-[var(--text-secondary)]">
 				{t('step', { n: step + 1, total: TOTAL })} — {stepTitles[step]}
 			</div>
@@ -261,7 +324,7 @@ export function AgentWizard({
 				/>
 			</div>
 
-			<div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+			<div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
 				<AnimatePresence mode="wait" initial={false}>
 					<motion.div
 						key={step}
@@ -316,11 +379,11 @@ export function AgentWizard({
 															: 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
 													}`}
 												>
-													<p className="text-sm font-medium text-[var(--text-primary)]">
-														{role.nameFa}
-													</p>
-													<p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-														{role.descFa}
+											<p className="text-sm font-medium text-[var(--text-primary)]">
+												{locale === 'fa' ? role.nameFa : role.nameEn}
+											</p>
+											<p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+												{locale === 'fa' ? role.descFa : role.descEn}
 													</p>
 												</button>
 											)
@@ -413,8 +476,67 @@ export function AgentWizard({
 							</>
 						)}
 
-						{step === 2 && (
-							<>
+					{step === 2 && (
+						<>
+							<div className="grid gap-4 lg:grid-cols-2">
+								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+									<div className="mb-4 flex items-start gap-2">
+										<ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500" />
+										<div>
+											<h3 className="text-sm font-medium text-[var(--text-primary)]">{locale === 'fa' ? 'مرز پاسخ و تحویل امن' : 'Safe boundaries & handoff'}</h3>
+											<p className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">{locale === 'fa' ? 'موارد مبهم یا حساس با خلاصه به اپراتور منتقل می‌شوند.' : 'Ambiguous or sensitive cases are handed off with context.'}</p>
+										</div>
+									</div>
+									<label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+										<span>{locale === 'fa' ? 'تحویل به اپراتور فعال باشد' : 'Enable human handoff'}</span>
+										<input type="checkbox" checked={form.handoffEnabled} onChange={(e) => set('handoffEnabled', e.target.checked)} className="h-4 w-4 accent-violet-500" />
+									</label>
+									{form.handoffEnabled && (
+										<div className="mt-3 space-y-3">
+											<Field label={locale === 'fa' ? 'پیام تحویل' : 'Handoff message'}><input value={form.handoffMessage} onChange={(e) => set('handoffMessage', e.target.value)} className="input" /></Field>
+											<Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
+										</div>
+									)}
+									<label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+										<span>{locale === 'fa' ? 'برای پیگیری، اطلاعات مشتری گرفته شود' : 'Collect customer details for follow-up'}</span>
+										<input type="checkbox" checked={form.requireCustomerInfo} onChange={(e) => set('requireCustomerInfo', e.target.checked)} className="h-4 w-4 accent-violet-500" />
+									</label>
+									{form.requireCustomerInfo && <div className="mt-3"><Field label={locale === 'fa' ? 'نحوه درخواست اطلاعات' : 'Information request policy'}><textarea value={form.customerInfoPrompt} onChange={(e) => set('customerInfoPrompt', e.target.value)} rows={3} className="input resize-none" /></Field></div>}
+								</section>
+
+								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+									<div className="mb-4 flex items-start gap-2">
+										<DatabaseZap className="mt-0.5 h-4 w-4 text-sky-500" />
+										<div>
+											<h3 className="text-sm font-medium text-[var(--text-primary)]">{locale === 'fa' ? 'آمادگی RAG و دانش' : 'RAG & knowledge readiness'}</h3>
+											<p className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">{locale === 'fa' ? 'وضعیت واقعی زیرساخت، بدون ادعای قابلیت متصل‌نشده.' : 'Actual infrastructure status, without claiming unconnected sources.'}</p>
+										</div>
+									</div>
+									<div className="space-y-2">
+										<ReadinessRow label={locale === 'fa' ? 'بخش‌بندی زمینه‌ای منابع' : 'Contextual source chunking'} state="ready" locale={locale} />
+										<ReadinessRow label={locale === 'fa' ? 'جست‌وجوی برداری + بازرتبه‌بندی تازگی' : 'Vector search + freshness reranking'} state="ready" locale={locale} />
+										<ReadinessRow label={locale === 'fa' ? `کاتالوگ فعال (${workspaceProductCount.toLocaleString('fa-IR')} محصول)` : `Active catalog (${workspaceProductCount} products)`} state={workspaceProductCount > 0 ? 'ready' : 'needs-source'} locale={locale} />
+										<ReadinessRow label={locale === 'fa' ? 'جست‌وجوی hybrid واژه + بردار' : 'Hybrid keyword + vector retrieval'} state="ready" locale={locale} />
+									</div>
+									{vigentoDraft?.knowledgePlan?.length ? (
+										<div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+											<p className="text-[10px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'منابع پیشنهادی ویجنتو' : 'Vigento suggested sources'}</p>
+											<ul className="mt-2 space-y-1.5">{vigentoDraft.knowledgePlan.map((item) => <li key={`${item.type}-${item.label}`} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]"><CircleDashed className="h-3.5 w-3.5 text-violet-400" />{item.label}</li>)}</ul>
+										</div>
+									) : null}
+								</section>
+							</div>
+							{vigentoDraft?.channelPolicy && (
+								<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+									<h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><Radio className="h-4 w-4 text-violet-400" />{locale === 'fa' ? 'سیاست پیشنهادی کانال‌ها' : 'Recommended channel policy'}</h3>
+									<div className="mt-3 flex flex-wrap gap-2">{vigentoDraft.channelPolicy.recommended.map((channel) => <span key={channel} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">{channel}</span>)}</div>
+								</section>
+							)}
+						</>
+					)}
+
+					{step === 3 && (
+						<>
 								<Field label={t('model')}>
 									<ModelSelect
 										value={form.model}
@@ -422,6 +544,8 @@ export function AgentWizard({
 									availableModels={modelPolicy.enabledModels}
 									trialModel={modelPolicy.trialModel}
 									isTrial={modelPolicy.plan === 'TRIAL'}
+									creditBalanceIRR={modelPolicy.creditBalanceIRR}
+									replyPricesIRR={modelPolicy.replyPricesIRR}
 								/>
 								</Field>
 								<Field label={t('language')}>
@@ -462,14 +586,30 @@ export function AgentWizard({
 									<input
 										type="number"
 										min={1}
-										max={8000}
+										max={1200}
 										value={form.maxTokens}
 										onChange={(e) => set('maxTokens', Number(e.target.value))}
 										className="input"
 									/>
-								</Field>
-							</>
-						)}
+							</Field>
+							<section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+								<h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><FlaskConical className="h-4 w-4 text-violet-400" />{locale === 'fa' ? 'سناریوهای ارزیابی قبل از انتشار' : 'Pre-publish evaluation scenarios'}</h3>
+								{vigentoDraft?.evalCases?.length ? (
+									<div className="mt-3 grid gap-2 sm:grid-cols-2">{vigentoDraft.evalCases.map((item) => <div key={item.input} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"><div className="flex items-center justify-between gap-2"><span className="line-clamp-1 text-xs text-[var(--text-primary)]">{item.input}</span><span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[9px] text-[var(--text-muted)]">{item.risk}</span></div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-[var(--text-muted)]">{item.expectedBehavior}</p></div>)}</div>
+								) : <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">{locale === 'fa' ? 'پس از ساخت، در Playground حداقل یک سؤال عادی، یک سؤال خارج از دانش و یک درخواست اپراتور را تست کنید.' : 'After creation, test one normal question, one out-of-knowledge request, and one operator request in the Playground.'}</p>}
+							</section>
+						</>
+					)}
+
+					{step === 4 && (
+						<ReviewCard
+							locale={locale}
+							form={form}
+							role={selectedRole}
+							knowledgeCount={workspaceProductCount}
+							evalCount={vigentoDraft?.evalCases.length ?? 0}
+						/>
+					)}
 					</motion.div>
 				</AnimatePresence>
 
@@ -519,5 +659,72 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 			<span className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</span>
 			{children}
 		</label>
+	)
+}
+
+function ReadinessRow({
+	label,
+	state,
+	locale,
+}: {
+	label: string
+	state: 'ready' | 'needs-source' | 'roadmap'
+	locale: 'fa' | 'en'
+}) {
+	const copy = state === 'ready'
+		? (locale === 'fa' ? 'آماده' : 'Ready')
+		: state === 'needs-source'
+			? (locale === 'fa' ? 'نیازمند منبع' : 'Needs a source')
+			: (locale === 'fa' ? 'در برنامه' : 'Roadmap')
+	return (
+		<div className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2">
+			<span className="text-[11px] text-[var(--text-secondary)]">{label}</span>
+			<span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] ${state === 'ready' ? 'bg-emerald-500/10 text-emerald-500' : state === 'roadmap' ? 'bg-[var(--bg-hover)] text-[var(--text-muted)]' : 'bg-amber-500/10 text-amber-500'}`}>{copy}</span>
+		</div>
+	)
+}
+
+function ReviewCard({
+	locale,
+	form,
+	role,
+	knowledgeCount,
+	evalCount,
+}: {
+	locale: 'fa' | 'en'
+	form: FormState
+	role: RoleTemplate
+	knowledgeCount: number
+	evalCount: number
+}) {
+	const isFa = locale === 'fa'
+	const checklist = [
+		{ ok: form.name.trim().length > 0, text: isFa ? 'هدف و نام ایجنت مشخص است' : 'Agent goal and name are defined' },
+		{ ok: form.handoffEnabled && form.handoffKeywords.trim().length > 0, text: isFa ? 'مسیر تحویل انسانی تنظیم شده' : 'Human handoff path is configured' },
+		{ ok: knowledgeCount > 0, text: isFa ? 'حداقل یک منبع کاتالوگ در دسترس است' : 'At least one catalog source is available' },
+		{ ok: evalCount >= 3, text: isFa ? 'سناریوهای تست عادی، مرزی و تحویل آماده‌اند' : 'Normal, boundary, and handoff evals are ready' },
+	]
+	return (
+		<div className="space-y-4">
+			<div className="flex items-start gap-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-4">
+				<Eye className="mt-0.5 h-5 w-5 shrink-0 text-violet-400" />
+				<div><h3 className="text-sm font-semibold text-[var(--text-primary)]">{isFa ? 'آخرین بازبینی پیش از انتشار' : 'Final review before publish'}</h3><p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">{isFa ? 'ساخت ایجنت تنها با دکمه نهایی انجام می‌شود. منابع و کانال‌ها بعد از ساخت قابل اتصال‌اند.' : 'The agent is created only by the final button. Sources and channels can be connected afterward.'}</p></div>
+			</div>
+			<div className="grid gap-3 sm:grid-cols-2">
+				<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+					<p className="text-[10px] text-[var(--text-muted)]">{isFa ? 'ایجنت' : 'Agent'}</p>
+					<p className="mt-1 text-base font-medium text-[var(--text-primary)]">{form.name || '—'}</p>
+					<p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{form.description || (isFa ? 'بدون توضیح' : 'No description')}</p>
+				</div>
+				<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+					<p className="text-[10px] text-[var(--text-muted)]">{isFa ? 'پیکربندی' : 'Configuration'}</p>
+					<dl className="mt-2 space-y-2 text-xs"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'نقش' : 'Role'}</dt><dd className="text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'مدل' : 'Model'}</dt><dd className="text-[var(--text-primary)]">{form.model || (isFa ? 'پیش‌فرض امن' : 'Safe default')}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'تحویل اپراتور' : 'Handoff'}</dt><dd className="text-[var(--text-primary)]">{form.handoffEnabled ? (isFa ? 'فعال' : 'Enabled') : (isFa ? 'خاموش' : 'Off')}</dd></div></dl>
+				</div>
+			</div>
+			<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+				<p className="text-xs font-medium text-[var(--text-primary)]">{isFa ? 'چک‌لیست آمادگی' : 'Readiness checklist'}</p>
+				<div className="mt-3 grid gap-2 sm:grid-cols-2">{checklist.map((item) => <div key={item.text} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">{item.ok ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" /> : <CircleDashed className="h-4 w-4 shrink-0 text-amber-500" />}{item.text}</div>)}</div>
+			</div>
+		</div>
 	)
 }

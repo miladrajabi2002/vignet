@@ -32,6 +32,10 @@ import { formatDateTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { OperatorReply } from './operator-reply'
+import {
+        ConversationTimelineActivity,
+        MessageActivityReceipts,
+} from './conversation-activity'
 
 export type ThreadMessage = {
         id: string
@@ -164,7 +168,16 @@ export function ConversationThread({
                         <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                                 {messages.map((m) => {
                                         const isUser = m.role === 'USER'
-                                        if (m.role === 'SYSTEM') return null
+                                        if (m.role === 'SYSTEM') {
+                                                return (
+                                                        <ConversationTimelineActivity
+                                                                key={m.id}
+                                                                metadata={m.metadata}
+                                                                locale={locale}
+                                                                dateLabel={formatDateTime(new Date(m.createdAt), locale)}
+                                                        />
+                                                )
+                                        }
                                         const isOperator =
                                                 !!m.metadata &&
                                                 typeof m.metadata === 'object' &&
@@ -174,31 +187,44 @@ export function ConversationThread({
                                                         key={m.id}
                                                         className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
                                                 >
-                                                        <ConversationBubble
-                                                                side={isUser ? 'start' : 'end'}
-                                                                tone={isUser ? 'muted' : 'inverse'}
-                                                                className="max-w-[75%] py-2"
-                                                        >
-                                                                {isOperator && (
-                                                                        <span className="mb-0.5 block text-[10px] font-medium opacity-60">
-                                                                                {t('operatorBadge')}
-                                                                        </span>
+                                                        <div
+                                                                className={cn(
+                                                                        'flex max-w-[82%] flex-col',
+                                                                        isUser ? 'items-start' : 'items-end',
                                                                 )}
-                                                                <ConversationText
-                                                                        text={stripProductTokens(m.content)}
-                                                                        markdown={!isUser}
-                                                                />
-                                                                <span
-                                                                        className={cn(
-                                                                                'mt-1 block text-[10px]',
-                                                                                isUser
-                                                                                        ? 'text-[var(--text-muted)]'
-                                                                                        : 'text-[var(--bg-base)] opacity-40',
-                                                                        )}
+                                                        >
+                                                                <ConversationBubble
+                                                                        side={isUser ? 'start' : 'end'}
+                                                                        tone={isUser ? 'muted' : 'inverse'}
+                                                                        className="max-w-full py-2"
                                                                 >
-                                                                        {formatDateTime(new Date(m.createdAt), locale)}
-                                                                </span>
-                                                        </ConversationBubble>
+                                                                        {isOperator && (
+                                                                                <span className="mb-0.5 block text-[10px] font-medium opacity-60">
+                                                                                        {t('operatorBadge')}
+                                                                                </span>
+                                                                        )}
+                                                                        <ConversationText
+                                                                                text={stripProductTokens(m.content)}
+                                                                                markdown={!isUser}
+                                                                        />
+                                                                        <span
+                                                                                className={cn(
+                                                                                        'mt-1 block text-[10px]',
+                                                                                        isUser
+                                                                                                ? 'text-[var(--text-muted)]'
+                                                                                                : 'text-[var(--bg-base)] opacity-40',
+                                                                                )}
+                                                                        >
+                                                                                {formatDateTime(new Date(m.createdAt), locale)}
+                                                                        </span>
+                                                                </ConversationBubble>
+                                                                {!isUser && (
+                                                                        <MessageActivityReceipts
+                                                                                metadata={m.metadata}
+                                                                                locale={locale}
+                                                                        />
+                                                                )}
+                                                        </div>
                                                 </div>
                                         )
                                 })}

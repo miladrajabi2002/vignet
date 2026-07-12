@@ -1,657 +1,560 @@
 import Link from 'next/link'
-import { getTranslations, getLocale } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
 import {
-        Bot,
-        MessagesSquare,
-        Users,
-        Package,
-        Star,
-        CheckCircle2,
-        Cpu,
-        GraduationCap,
-        TrendingUp,
-        PackageSearch,
-        Bot as BotIcon,
-        PiggyBank,
-        Clock,
-        Wallet,
-        Sparkles,
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Bot,
+  CalendarCheck2,
+  ChartNoAxesCombined,
+  CheckCircle2,
+  GraduationCap,
+  MessagesSquare,
+  Package,
+  Plug,
+  Send,
+  Sparkles,
+  Users,
+  Wallet,
+  type LucideIcon,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { StatsCard } from '@/components/dashboard/stats-card'
-import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist'
-import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
-import { DashboardPanel } from '@/components/dashboard/panel'
-import { MiniTrend } from '@/components/admin/mini-trend'
-import { Sparkline } from '@/components/admin/sparkline'
-import {
-        conversationsDailyByWorkspace,
-        messagesDailyByWorkspace,
-        chargesDailyByWorkspace,
-        contactsDailyByWorkspace,
-        getSavingsEstimate,
-} from '@/lib/dashboard/charts'
 import { computeOnboarding } from '@/lib/onboarding'
-import { getPlanDefs } from '@/lib/billing/plans'
+import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { IntelligenceCore } from '@/components/dashboard/intelligence-core'
+import { ConversationChart } from '@/components/dashboard/charts/lazy'
+import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
+import { getDashboardModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
+import { getPlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
-import { type TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import {
-        ConversationChart,
-        ChannelDonut,
-        SatisfactionGauge,
-        AgentSparkline,
-} from '@/components/dashboard/charts/lazy'
-import { BarList } from '@/components/dashboard/charts/bar-list'
-import { HourlyHeatmap } from '@/components/dashboard/charts/hourly-heatmap'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
+import { cn } from '@/lib/utils'
 
-const DAYS = 14
+const TREND_DAYS = 14
+
+const MODULE_META: Record<DashboardModuleKey, { href: string; fa: string; en: string; icon: LucideIcon }> = {
+  overview: { href: '/overview', fa: 'نمای کلی', en: 'Overview', icon: Sparkles },
+  agents: { href: '/agents', fa: 'ایجنت‌ها', en: 'Agents', icon: Bot },
+  products: { href: '/products', fa: 'محصولات و منو', en: 'Products & menu', icon: Package },
+  appointments: { href: '/appointments', fa: 'نوبت‌ها', en: 'Appointments', icon: CalendarCheck2 },
+  conversations: { href: '/conversations', fa: 'گفتگوها', en: 'Conversations', icon: MessagesSquare },
+  contacts: { href: '/contacts', fa: 'مشتری‌ها', en: 'Customers', icon: Users },
+  analytics: { href: '/analytics', fa: 'گزارش‌ها', en: 'Reports', icon: ChartNoAxesCombined },
+  integrations: { href: '/integrations', fa: 'اتصال‌ها', en: 'Integrations', icon: Plug },
+  billing: { href: '/billing', fa: 'مالی و اعتبار', en: 'Billing & credit', icon: Wallet },
+  settings: { href: '/settings', fa: 'تنظیمات', en: 'Settings', icon: Sparkles },
+}
+
+const PLAN_NAMES_FA: Record<string, string> = {
+  TRIAL: 'آزمایشی',
+  STARTER: 'استارتر',
+  PRO: 'حرفه‌ای',
+  BUSINESS: 'سازمانی',
+}
 
 export default async function OverviewPage() {
-        const user = await requireUser()
-        const t = await getTranslations('dashboard')
-        const tA = await getTranslations('analytics')
-        const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-        const ws = user.workspaceId
+  const user = await requireUser()
+  const locale = await getLocale()
+  const lang: 'fa' | 'en' = locale === 'en' ? 'en' : 'fa'
+  const fa = lang === 'fa'
+  const workspaceId = user.workspaceId
+  const now = new Date()
+  const sevenDaysAgo = daysAgo(7)
+  const fourteenDaysAgo = daysAgo(14)
 
-        const [
-                agents,
-                conversations,
-                contacts,
-                products,
-                onboarding,
-                convos,
-                channelGroups,
-                ratingAgg,
-                ratedCount,
-                resolved,
-                totalConvos,
-                usageAgg,
-                topProducts,
-                agentList,
-                pendingLearnings,
-                learnedFaqs,
-        ] = await Promise.all([
-                prisma.agent.count({ where: { workspaceId: ws } }),
-                prisma.conversation.count({ where: { workspaceId: ws } }),
-                prisma.contact.count({ where: { workspaceId: ws } }),
-                prisma.product.count({ where: { workspaceId: ws } }),
-                computeOnboarding(ws),
-                prisma.conversation.findMany({
-                        where: { workspaceId: ws, createdAt: { gte: daysAgo(DAYS) } },
-                        select: { createdAt: true, agentId: true },
-                }),
-                prisma.conversation.groupBy({
-                        by: ['channel'],
-                        where: { workspaceId: ws },
-                        _count: { _all: true },
-                }),
-                prisma.conversation.aggregate({
-                        where: { workspaceId: ws, rating: { not: null } },
-                        _avg: { rating: true },
-                }),
-                prisma.conversation.count({
-                        where: { workspaceId: ws, rating: { not: null } },
-                }),
-                prisma.conversation.count({
-                        where: { workspaceId: ws, status: 'RESOLVED' },
-                }),
-                prisma.conversation.count({ where: { workspaceId: ws } }),
-                prisma.usageLog.aggregate({
-                        where: { workspaceId: ws },
-                        _sum: { promptTokens: true, completionTokens: true, chargedIRR: true },
-                }),
-                prisma.product.findMany({
-                        where: { workspaceId: ws, queryCount: { gt: 0 } },
-                        orderBy: { queryCount: 'desc' },
-                        take: 6,
-                        select: { name: true, queryCount: true },
-                }),
-                prisma.agent.findMany({
-                        where: { workspaceId: ws },
-                        select: { id: true, name: true },
-                }),
-                prisma.message.count({
-                        where: {
-                                role: 'ASSISTANT',
-                                unanswered: true,
-                                conversation: { workspaceId: ws },
-                        },
-                }),
-                prisma.knowledgeBase.count({
-                        where: {
-                                workspaceId: ws,
-                                type: 'FAQ',
-                                name: { startsWith: '❓ ' },
-                        },
-                }),
-        ])
+  const [
+    workspace,
+    onboarding,
+    conversations7d,
+    previousConversations7d,
+    contacts7d,
+    handedOff,
+    openConversations,
+    totalConversations,
+    resolvedConversations,
+    pendingLearnings,
+    activeAgents,
+    activeProducts,
+    activeChannels,
+    upcomingAppointments,
+    trendRows,
+    recentConversations,
+    subscription,
+    messagesUsed,
+    operatorChannel,
+  ] = await Promise.all([
+    prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: {
+        name: true,
+        plan: true,
+        trialEndsAt: true,
+        aiCreditBalanceIRR: true,
+        businessType: true,
+        businessProfile: true,
+      },
+    }),
+    computeOnboarding(workspaceId),
+    prisma.conversation.count({ where: { workspaceId, createdAt: { gte: sevenDaysAgo } } }),
+    prisma.conversation.count({ where: { workspaceId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+    prisma.contact.count({ where: { workspaceId, createdAt: { gte: sevenDaysAgo } } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'HANDED_OFF' } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'OPEN' } }),
+    prisma.conversation.count({ where: { workspaceId } }),
+    prisma.conversation.count({ where: { workspaceId, status: 'RESOLVED' } }),
+    prisma.message.count({
+      where: { role: 'ASSISTANT', unanswered: true, conversation: { workspaceId } },
+    }),
+    prisma.agent.count({ where: { workspaceId, active: true } }),
+    prisma.product.count({ where: { workspaceId, active: true } }),
+    prisma.agentChannel.count({ where: { active: true, agent: { workspaceId } } }),
+    prisma.appointment.count({
+      where: { workspaceId, startsAt: { gte: now }, status: { in: ['PENDING', 'CONFIRMED'] } },
+    }),
+    prisma.conversation.findMany({
+      where: { workspaceId, createdAt: { gte: daysAgo(TREND_DAYS) } },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true },
+    }),
+    prisma.conversation.findMany({
+      where: { workspaceId },
+      orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+      take: 6,
+      select: {
+        id: true,
+        channel: true,
+        status: true,
+        summary: true,
+        lastMessageAt: true,
+        createdAt: true,
+        contact: { select: { name: true, phone: true } },
+        agent: { select: { name: true } },
+      },
+    }),
+    prisma.subscription.findUnique({
+      where: { workspaceId },
+      select: { currentPeriodEnd: true },
+    }),
+    getMonthlyMessageCount(workspaceId),
+    prisma.operatorChannel.findUnique({
+      where: { workspaceId },
+      select: { active: true, operatorChatId: true },
+    }),
+  ])
 
-        // ── Daily trend ──
-        const dayFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
-                month: 'short',
-                day: 'numeric',
-        })
-        const buckets = new Map<string, number>()
-        for (let i = 0; i < DAYS; i++) {
-                const d = new Date(daysAgo(DAYS))
-                d.setDate(d.getDate() + i)
-                buckets.set(d.toDateString(), 0)
+  const pack = getVerticalPack(workspace.businessType)
+  const modules = getDashboardModules(workspace.businessType).filter(
+    (module) => !['overview', 'billing', 'settings'].includes(module),
+  )
+  const businessLabel = fa ? pack.titleFa : pack.titleEn
+  const businessDescription = fa ? pack.descriptionFa : pack.descriptionEn
+  const profile = isRecord(workspace.businessProfile) ? workspace.businessProfile : {}
+  const profileName = typeof profile.businessName === 'string' ? profile.businessName.trim() : ''
+  const displayName = profileName || workspace.name
+
+  const trend = buildTrend(trendRows.map((row) => row.createdAt), lang)
+  const resolveRate = totalConversations
+    ? Math.round((resolvedConversations / totalConversations) * 100)
+    : 0
+  const attentionCount = handedOff + pendingLearnings
+  const conversationDelta = percentDelta(conversations7d, previousConversations7d)
+  const hasBookingModule = modules.includes('appointments')
+
+  const verticalOutcome = hasBookingModule
+    ? {
+        label: fa ? 'نوبت‌های پیش رو' : 'Upcoming appointments',
+        value: upcomingAppointments,
+        hint: fa ? 'تأییدشده و در انتظار' : 'confirmed and pending',
+        icon: CalendarCheck2,
+        href: '/appointments',
+      }
+    : workspace.businessType === 'COMMERCE' || workspace.businessType === 'FOOD'
+      ? {
+          label: fa ? 'محصول یا آیتم فعال' : 'Active catalog items',
+          value: activeProducts,
+          hint: fa ? 'آماده پاسخ‌گویی ایجنت' : 'ready for agent answers',
+          icon: Package,
+          href: '/products',
         }
-        for (const c of convos) {
-                const key = new Date(c.createdAt).toDateString()
-                if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1)
+      : {
+          label: fa ? 'ایجنت فعال' : 'Active agents',
+          value: activeAgents,
+          hint: fa ? 'در فضای کاری شما' : 'in your workspace',
+          icon: Bot,
+          href: '/agents',
         }
-        const trend: TrendPoint[] = [...buckets.entries()].map(([key, value]) => ({
-                label: dayFmt.format(new Date(key)),
-                value,
-        }))
 
-        // ── Day-of-week × hour heatmap ──
-        const heatmap: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0))
-        for (const c of convos) {
-                const d = new Date(c.createdAt)
-                heatmap[d.getDay()][d.getHours()] += 1
-        }
-        const dayFmtShort = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
-                weekday: 'short',
-        })
-        const dayLabels = Array.from({ length: 7 }, (_, i) =>
-                dayFmtShort.format(new Date(2024, 0, 7 + i)),
-        )
+  const planDef = getPlanDefs()[workspace.plan]
+  const planEnd = workspace.plan === 'TRIAL' ? workspace.trialEndsAt : subscription?.currentPeriodEnd
+  const daysLeft = planEnd
+    ? Math.max(0, Math.ceil((planEnd.getTime() - now.getTime()) / 86_400_000))
+    : null
+  const usagePercent = Math.min(100, Math.round((messagesUsed / planDef.monthlyMessages) * 100))
+  const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
+  const Arrow = fa ? ArrowLeft : ArrowRight
 
-        // ── Per-agent daily trend sparklines ──
-        const agentName = new Map(agentList.map((a) => [a.id, a.name]))
-        const agentDaily = new Map<string, number[]>()
-        for (const c of convos) {
-                if (!c.agentId) continue
-                let arr = agentDaily.get(c.agentId)
-                if (!arr) {
-                        arr = new Array(DAYS).fill(0)
-                        agentDaily.set(c.agentId, arr)
-                }
-                const idx = Math.floor(
-                        (new Date(c.createdAt).getTime() - daysAgo(DAYS).getTime()) / 86_400_000,
-                )
-                if (idx >= 0 && idx < DAYS) arr[idx] += 1
-        }
-        const agentTrends = [...agentDaily.entries()]
-                .map(([id, series]) => ({
-                        id,
-                        name: agentName.get(id) ?? '—',
-                        series,
-                        total: series.reduce((a, b) => a + b, 0),
-                }))
-                .sort((a, b) => b.total - a.total)
-                .slice(0, 6)
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+        <div className="dashboard-card relative overflow-hidden rounded-[1.6rem] border border-[var(--border-default)] bg-white/[0.94] p-5 sm:p-7">
+          <div aria-hidden className="absolute -end-20 -top-24 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-3xl" />
+          <div className="relative">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-3 text-[11px] font-semibold text-[var(--accent-foreground)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                {businessLabel}
+              </span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                {fa ? `${nf.format(activeChannels)} کانال متصل` : `${nf.format(activeChannels)} channels connected`}
+              </span>
+            </div>
 
-        const channels = channelGroups
-                .map((g) => ({
-                        label: CHANNEL_LABELS[g.channel] ?? g.channel,
-                        value: g._count._all,
-                }))
-                .sort((a, b) => b.value - a.value)
+            <p className="mt-6 text-xs font-medium text-[var(--text-muted)]">
+              {fa ? `سلام ${user.name || ''}`.trim() : `Hello ${user.name || ''}`.trim()}
+            </p>
+            <h1 className="mt-2 max-w-xl text-[clamp(1.7rem,4vw,2.7rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-[var(--text-primary)] rtl:tracking-normal">
+              {fa ? `مرکز عملیات ${displayName}` : `${displayName} operations center`}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--text-secondary)]">
+              {businessDescription}
+            </p>
 
-        const avgRating = ratingAgg._avg.rating
-        const totalChargedIRR = usageAgg._sum.chargedIRR ?? 0
-        const resolveRate = totalConvos ? Math.round((resolved / totalConvos) * 100) : 0
-        const handedOffCount = await prisma.conversation.count({
-                where: { workspaceId: ws, handedOff: true },
-        })
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <Link href="/conversations" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5">
+                <MessagesSquare className="h-4 w-4" />
+                {fa ? 'رسیدگی به گفتگوها' : 'Open conversations'}
+                <Arrow className="h-3.5 w-3.5" />
+              </Link>
+              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]">
+                {hasBookingModule ? <CalendarCheck2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                {hasBookingModule
+                  ? fa ? 'مدیریت نوبت‌ها' : 'Manage appointments'
+                  : fa ? 'ساخت ایجنت با ویجنتو' : 'Build with Vigento'}
+              </Link>
+            </div>
+          </div>
+        </div>
 
-        // ─ 7-day series for MiniTrend cards + savings estimate ──
-        const [
-                convTrend7,
-                msgTrend7,
-                chargeTrend7,
-                contactTrend7,
-                savings,
-        ] = await Promise.all([
-                conversationsDailyByWorkspace(ws, 7),
-                messagesDailyByWorkspace(ws, 7),
-                chargesDailyByWorkspace(ws, 7),
-                contactsDailyByWorkspace(ws, 7),
-                getSavingsEstimate(ws, 7),
-        ])
+        <IntelligenceCore locale={lang} businessLabel={businessLabel} />
+      </section>
 
-        const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+      {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}
 
-        // ── Plan status (plan, remaining days, monthly quota) ──
-        const [wsPlanRow, subscription, messagesUsed] = await Promise.all([
-                prisma.workspace.findUnique({
-                        where: { id: ws },
-                        select: { plan: true, trialEndsAt: true },
-                }),
-                prisma.subscription.findUnique({
-                        where: { workspaceId: ws },
-                        select: { status: true, currentPeriodEnd: true },
-                }),
-                getMonthlyMessageCount(ws),
-        ])
-        const plan = wsPlanRow?.plan ?? 'TRIAL'
-        const planDef = getPlanDefs()[plan]
-        const planEnd =
-                plan === 'TRIAL' ? wsPlanRow?.trialEndsAt ?? null : subscription?.currentPeriodEnd ?? null
-        const daysLeft = planEnd
-                ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
-                : null
-        const quotaPct = Math.min(100, Math.round((messagesUsed / planDef.monthlyMessages) * 100))
-        const planNamesFa: Record<string, string> = {
-                TRIAL: 'آزمایشی',
-                STARTER: 'استارتر',
-                PRO: 'حرفه‌ای',
-                BUSINESS: 'سازمانی',
-        }
-        const planName =
-                locale === 'fa' ? planNamesFa[plan] ?? plan : plan.charAt(0) + plan.slice(1).toLowerCase()
+      {(!operatorChannel?.active || !operatorChannel.operatorChatId) && (
+        <Link
+          href="/settings"
+          className="group flex flex-col gap-4 rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(135deg,#eff9ff,#ffffff_58%)] p-4 shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5 sm:flex-row sm:items-center sm:p-5 motion-reduce:transform-none"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20">
+            <Send className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-sky-950">
+              {fa ? 'ربات مدیر تلگرام را وصل کنید' : 'Connect the Telegram manager bot'}
+            </span>
+            <span className="mt-1 block text-xs leading-6 text-sky-800">
+              {fa
+                ? 'انتقال به اپراتور، رزرو جدید و هشدارهای مهم را با لینک مستقیم همان پرونده در تلگرام بگیرید.'
+                : 'Receive handoffs, new bookings, and critical alerts in Telegram with a direct link to the right case.'}
+            </span>
+          </span>
+          <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-white px-3 text-xs font-semibold text-sky-800">
+            {fa ? 'اتصال در چند دقیقه' : 'Connect in minutes'}
+            <Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+          </span>
+        </Link>
+      )}
 
-        return (
-                <div className="mx-auto max-w-6xl space-y-6">
-                        <div>
-                                <h1 className="text-2xl font-light text-[var(--text-primary)]">
-                                        {t('overview')}
-                                </h1>
-                        </div>
+      <section aria-labelledby="today-heading" className="dashboard-card rounded-[1.4rem] border border-[var(--border-default)] bg-white/[0.94] p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 id="today-heading" className="text-sm font-bold text-[var(--text-primary)]">
+              {fa ? 'امروز چه چیزی نیاز به توجه دارد؟' : 'What needs attention today?'}
+            </h2>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              {attentionCount === 0
+                ? fa ? 'همه‌چیز در مسیر عادی است.' : 'Everything is running normally.'
+                : fa ? `${nf.format(attentionCount)} مورد آماده رسیدگی است.` : `${nf.format(attentionCount)} items are ready for review.`}
+            </p>
+          </div>
+          {attentionCount === 0 && (
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+              <CheckCircle2 className="h-4 w-4" />
+            </span>
+          )}
+        </div>
 
-                        {/* ─── Plan status: current plan, days left, monthly quota ─── */}
-                        <Link
-                                href="/billing"
-                                className="block rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]"
-                        >
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                                        <div className="flex items-center gap-2.5">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-primary)]">
-                                                        <Sparkles className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                        <p className="text-[11px] text-[var(--text-muted)]">
-                                                                {locale === 'fa' ? 'پلن فعلی' : 'Current plan'}
-                                                        </p>
-                                                        <p className="text-base font-medium text-[var(--text-primary)]">{planName}</p>
-                                                </div>
-                                        </div>
-                                        <div>
-                                                <p className="text-[11px] text-[var(--text-muted)]">
-                                                        {locale === 'fa' ? 'اعتبار باقی‌مانده' : 'Time left'}
-                                                </p>
-                                                <p
-                                                        className={`text-base font-medium ${
-                                                                daysLeft !== null && daysLeft <= 3
-                                                                        ? 'text-red-500'
-                                                                        : 'text-[var(--text-primary)]'
-                                                        }`}
-                                                >
-                                                        {daysLeft === null
-                                                                ? '—'
-                                                                : locale === 'fa'
-                                                                        ? `${nf.format(daysLeft)} روز`
-                                                                        : `${nf.format(daysLeft)} days`}
-                                                        {planEnd && (
-                                                                <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">
-                                                                        ({locale === 'fa' ? 'تا' : 'until'} {formatDateTime(planEnd, locale)})
-                                                                </span>
-                                                        )}
-                                                </p>
-                                        </div>
-                                        <div className="min-w-[180px] flex-1">
-                                                <div className="mb-1.5 flex items-center justify-between text-[11px]">
-                                                        <span className="text-[var(--text-muted)]">
-                                                                {locale === 'fa' ? 'پیام‌های این ماه' : 'Messages this month'}
-                                                        </span>
-                                                        <span className="text-[var(--text-secondary)]">
-                                                                {nf.format(messagesUsed)} / {nf.format(planDef.monthlyMessages)}
-                                                        </span>
-                                                </div>
-                                                <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                                                        <div
-                                                                className={`h-full rounded-full ${
-                                                                        quotaPct >= 90
-                                                                                ? 'bg-red-500'
-                                                                                : quotaPct >= 70
-                                                                                        ? 'bg-amber-500'
-                                                                                        : 'bg-emerald-500'
-                                                                }`}
-                                                                style={{ width: `${quotaPct}%` }}
-                                                        />
-                                                </div>
-                                        </div>
-                                        <span className="text-xs text-[var(--text-secondary)] underline-offset-2 hover:underline">
-                                                {locale === 'fa' ? 'جزئیات و ارتقا ←' : 'Details & upgrade →'}
-                                        </span>
-                                </div>
-                        </Link>
+        <div className="grid gap-2 md:grid-cols-3">
+          <AttentionItem
+            href="/conversations?status=HANDED_OFF"
+            icon={AlertCircle}
+            value={handedOff}
+            label={fa ? 'تحویل به اپراتور' : 'Operator handoffs'}
+            hint={fa ? 'با خلاصه آماده ادامه' : 'with a ready handoff summary'}
+            urgent={handedOff > 0}
+            locale={lang}
+          />
+          <AttentionItem
+            href="/agents"
+            icon={GraduationCap}
+            value={pendingLearnings}
+            label={fa ? 'سؤال بی‌پاسخ' : 'Unanswered questions'}
+            hint={fa ? 'برای تأیید در مرکز یادگیری' : 'ready for learning review'}
+            urgent={pendingLearnings > 0}
+            locale={lang}
+          />
+          <AttentionItem
+            href={hasBookingModule ? '/appointments' : '/conversations?status=OPEN'}
+            icon={hasBookingModule ? CalendarCheck2 : MessagesSquare}
+            value={hasBookingModule ? upcomingAppointments : openConversations}
+            label={hasBookingModule ? (fa ? 'نوبت پیش رو' : 'Upcoming bookings') : (fa ? 'گفتگوی باز' : 'Open conversations')}
+            hint={hasBookingModule ? (fa ? 'نیازمند هماهنگی و اجرا' : 'to coordinate and deliver') : (fa ? 'در حال پیگیری' : 'currently in progress')}
+            urgent={false}
+            locale={lang}
+          />
+        </div>
+      </section>
 
-                        {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}
+      <section aria-label={fa ? 'شاخص‌های اصلی' : 'Key outcomes'} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <OutcomeCard
+          href="/conversations"
+          icon={MessagesSquare}
+          label={fa ? 'گفتگو در ۷ روز' : 'Conversations, 7d'}
+          value={nf.format(conversations7d)}
+          hint={conversationDelta === null
+            ? fa ? 'شروع دوره اندازه‌گیری' : 'measurement started'
+            : `${conversationDelta > 0 ? '+' : ''}${nf.format(conversationDelta)}${fa ? '٪' : '%'} ${fa ? 'نسبت به هفته قبل' : 'vs previous week'}`}
+        />
+        <OutcomeCard
+          href="/analytics"
+          icon={CheckCircle2}
+          label={fa ? 'نرخ حل گفتگو' : 'Resolution rate'}
+          value={`${nf.format(resolveRate)}${fa ? '٪' : '%'}`}
+          hint={fa ? 'نتیجه ثبت‌شده در CRM' : 'recorded outcomes in CRM'}
+        />
+        <OutcomeCard
+          href="/contacts"
+          icon={Users}
+          label={fa ? 'مشتری جدید در ۷ روز' : 'New customers, 7d'}
+          value={nf.format(contacts7d)}
+          hint={fa ? 'از همه کانال‌های متصل' : 'from every connected channel'}
+        />
+        <OutcomeCard
+          href={verticalOutcome.href}
+          icon={verticalOutcome.icon}
+          label={verticalOutcome.label}
+          value={nf.format(verticalOutcome.value)}
+          hint={verticalOutcome.hint}
+        />
+      </section>
 
-                        {/* Top stats — counts */}
-                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                                <StatsCard label={t('agents')} value={agents} icon={Bot} />
-                                <StatsCard
-                                        label={t('conversations')}
-                                        value={conversations}
-                                        icon={MessagesSquare}
-                                />
-                                <StatsCard label={t('contacts')} value={contacts} icon={Users} />
-                                <StatsCard label={t('products')} value={products} icon={Package} />
-                        </div>
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <DashboardPanel
+          title={fa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
+          subtitle={fa ? 'یک روند اصلی؛ جزئیات کامل در بخش گزارش‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
+          action={<Link href="/analytics" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'گزارش کامل' : 'Full report'}</Link>}
+        >
+          <ConversationChart data={trend} />
+        </DashboardPanel>
 
-                        {/* Mid stats — quality metrics */}
-                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                                <StatsCard
-                                        label={tA('resolveRate')}
-                                        value={`${nf.format(resolveRate)}${locale === 'fa' ? '٪' : '%'}`}
-                                        icon={CheckCircle2}
-                                        hint={locale === 'fa' ? 'گفتگوهای کامل بسته‌شده' : 'Conversations fully closed'}
-                                />
-                                <StatsCard
-                                        label={tA('avgRating')}
-                                        value={avgRating ? avgRating.toFixed(1) : '—'}
-                                        icon={Star}
-                                        hint={
-                                                locale === 'fa'
-                                                        ? `${nf.format(ratedCount)} رأی`
-                                                        : `${nf.format(ratedCount)} ratings`
-                                        }
-                                />
-                                <StatsCard
-                                        label={locale === 'fa' ? 'تحویل به اپراتور' : 'Handoffs'}
-                                        value={nf.format(handedOffCount)}
-                                        icon={Users}
-                                        hint={
-                                                locale === 'fa' ? 'انتقال به اپراتور انسانی' : 'Escalated to human operator'
-                                        }
-                                />
-                                <StatsCard
-                                        label={locale === 'fa' ? 'هزینه پاسخ‌های موفق' : 'Successful reply cost'}
-                                        value={`${nf.format(Math.round(totalChargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`}
-                                        icon={Cpu}
-                                        hint={locale === 'fa' ? 'مبلغ کسرشده از اعتبار' : 'Amount deducted from credit'}
-                                />
-                        </div>
+        <DashboardPanel
+          title={fa ? 'آخرین پرونده‌ها' : 'Recent customer cases'}
+          subtitle={fa ? 'آخرین گفتگوها، بدون بازکردن چند صفحه' : 'The latest conversations at a glance'}
+          action={<Link href="/conversations" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'همه گفتگوها' : 'All conversations'}</Link>}
+          bodyClassName="divide-y divide-[var(--border-subtle)]"
+        >
+          {recentConversations.length ? recentConversations.map((conversation) => {
+            const timestamp = conversation.lastMessageAt ?? conversation.createdAt
+            const customer = conversation.contact?.name || conversation.contact?.phone || (fa ? 'مشتری بدون نام' : 'Unnamed customer')
+            return (
+              <Link key={conversation.id} href={`/conversations/${conversation.id}`} className="group flex min-h-[4.4rem] items-center gap-3 py-2.5">
+                <span className={cn(
+                  'grid h-9 w-9 shrink-0 place-items-center rounded-xl border text-xs font-semibold',
+                  conversation.status === 'HANDED_OFF'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)]',
+                )}>
+                  {customer.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{customer}</span>
+                    <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
+                  </span>
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+                    <span>{CHANNEL_LABELS[conversation.channel] ?? conversation.channel}</span>
+                    <span>·</span>
+                    <span className="truncate">{conversation.summary || conversation.agent.name}</span>
+                  </span>
+                </span>
+                <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+              </Link>
+            )
+          }) : (
+            <EmptyState text={fa ? 'هنوز گفتگویی ثبت نشده است.' : 'No conversations yet.'} />
+          )}
+        </DashboardPanel>
+      </section>
 
-                        {/* ─── 7-day MiniTrends ─── */}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <MiniTrend
-                                        label={locale === 'fa' ? 'مکالمات ۷ روز' : 'Conversations 7d'}
-                                        value={convTrend7.total}
-                                        series={convTrend7.series}
-                                        color="#3b82f6"
-                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
-                                />
-                                <MiniTrend
-                                        label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'}
-                                        value={msgTrend7.total}
-                                        series={msgTrend7.series}
-                                        color="#22c55e"
-                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
-                                />
-                                <MiniTrend
-                                        label={locale === 'fa' ? 'مشتریان جدید ۷ روز' : 'New customers 7d'}
-                                        value={contactTrend7.total}
-                                        series={contactTrend7.series}
-                                        color="#a855f7"
-                                        hint={locale === 'fa' ? 'روزانه' : 'daily'}
-                                />
-                                <MiniTrend
-                                        label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'}
-                                        value={Math.round(chargeTrend7.total / 10)}
-                                        series={chargeTrend7.series.map((value) => Math.round(value / 10))}
-                                        color="#f59e0b"
-                                        hint={locale === 'fa' ? 'تومان روزانه' : 'toman / day'}
-                                />
-                        </div>
+      <section className="grid gap-4 xl:grid-cols-[1fr_0.72fr]">
+        <DashboardPanel
+          title={fa ? `ابزارهای ${businessLabel}` : `${businessLabel} tools`}
+          subtitle={fa ? 'هسته مشترک و ابزارهای تخصصی فضای کاری شما' : 'Shared core and specialist tools for this workspace'}
+        >
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {modules.slice(0, 6).map((module) => {
+              const meta = MODULE_META[module]
+              const Icon = meta.icon
+              return (
+                <Link key={module} href={meta.href} className="group flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)]">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--text-primary)]">{fa ? meta.fa : meta.en}</span>
+                  <Arrow className="ms-auto h-3.5 w-3.5 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+                </Link>
+              )
+            })}
+          </div>
+        </DashboardPanel>
 
-                        {/* ─── Savings estimate (time + cost saved by AI) ─── */}
-                        <DashboardPanel
-                                title={locale === 'fa' ? 'صرفه‌جویی هوش مصنوعی' : 'AI Savings'}
-                                subtitle={locale === 'fa' ? 'گفتگوهایی که ایجنت بدون دخالت اپراتور انسانی بسته است' : 'Conversations resolved by AI without human handoff'}
-                        >
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                        <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-                                                        <PiggyBank className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'گفتگوهای خودکار' : 'Automated'}</p>
-                                                        <p className="text-xl font-bold text-[var(--text-primary)]">{nf.format(savings.conversations)}</p>
-                                                </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-                                                        <Clock className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'ساعت صرفه‌جویی شده' : 'Hours saved'}</p>
-                                                        <p className="text-xl font-bold text-[var(--text-primary)]">{nf.format(savings.hoursSaved)}</p>
-                                                </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
-                                                        <Wallet className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                        <p className="text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'صرفه‌جویی هزینه (تومان)' : 'Cost saved (IRR)'}</p>
-                                                        <p className="text-xl font-bold text-emerald-500">{nf.format(savings.costSavedIRR)}</p>
-                                                </div>
-                                        </div>
-                                        <div className="flex items-center justify-end gap-2">
-                                                <div className="w-full">
-                                                        <p className="mb-1 text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'روند ۷ روز' : '7-day trend'}</p>
-                                                        <Sparkline data={savings.series} color="#22c55e" width={120} height={36} fluid />
-                                                </div>
-                                        </div>
-                                </div>
-                        </DashboardPanel>
-
-                        {/* Conversations trend */}
-                        <Panel title={tA('conversationsTrend')}>
-                                <ConversationChart data={trend} />
-                        </Panel>
-
-                        {/* Channel + satisfaction */}
-                        <div className="grid gap-4 lg:grid-cols-2">
-                                <Panel title={tA('channelBreakdown')}>
-                                        {channels.length ? (
-                                                <ChannelDonut data={channels} />
-                                        ) : (
-                                                <Empty text={tA('noData')} />
-                                        )}
-                                </Panel>
-                                <Panel title={tA('satisfaction')}>
-                                        <SatisfactionGauge value={avgRating} count={ratedCount} label={tA('ratings')} />
-                                </Panel>
-                        </div>
-
-                        {/* Heatmap */}
-                        <Panel title={tA('activityHeatmap')}>
-                                <HourlyHeatmap matrix={heatmap} dayLabels={dayLabels} emptyText={tA('noData')} />
-                        </Panel>
-
-                        {/* Top products + agent activity */}
-                        <div className="grid gap-4 lg:grid-cols-2">
-                                <Panel title={tA('topProducts')}>
-                                        {topProducts.length ? (
-                                                <BarList
-                                                        data={topProducts.map((p) => ({
-                                                                label: p.name,
-                                                                value: p.queryCount,
-                                                        }))}
-                                                />
-                                        ) : (
-                                                <Empty text={tA('noData')} />
-                                        )}
-                                </Panel>
-                                <Panel title={tA('agentActivity')}>
-                                        {agentTrends.length ? (
-                                                <div className="divide-y divide-[var(--border-subtle)]">
-                                                        {agentTrends.map((a) => (
-                                                                <Link
-                                                                        key={a.id}
-                                                                        href={`/agents/${a.id}/analytics`}
-                                                                        className="flex items-center gap-3 py-2.5 transition-colors hover:opacity-80"
-                                                                >
-                                                                        <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">
-                                                                                {a.name}
-                                                                        </span>
-                                                                        <AgentSparkline data={a.series} />
-                                                                        <span className="w-8 text-end text-sm text-[var(--text-secondary)]">
-                                                                                {nf.format(a.total)}
-                                                                        </span>
-                                                                </Link>
-                                                        ))}
-                                                </div>
-                                        ) : (
-                                                <Empty text={tA('noData')} />
-                                        )}
-                                </Panel>
-                        </div>
-
-                        {/* Learning Center summary (section 7) */}
-                        {pendingLearnings > 0 && (
-                                <Link
-                                        href="/agents"
-                                        className="block rounded-2xl border border-warning/30 bg-warning/5 p-5 transition-colors hover:border-warning/50"
-                                >
-                                        <div className="flex items-start gap-4">
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
-                                                        <GraduationCap className="h-5 w-5" />
-                                                </div>
-                                                <div className="flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                                <h3 className="font-medium text-[var(--text-primary)]">
-                                                                        {locale === 'fa'
-                                                                                ? 'یادگیری موردی — نیاز به توجه'
-                                                                                : 'Learning center — needs attention'}
-                                                                </h3>
-                                                                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-                                                                        {locale === 'fa'
-                                                                                ? `${nf.format(pendingLearnings)} سؤال بی‌پاسخ`
-                                                                                : `${nf.format(pendingLearnings)} unanswered`}
-                                                                </span>
-                                                        </div>
-                                                        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                                                                {locale === 'fa'
-                                                                        ? `ایجنت شما به ${nf.format(pendingLearnings)} سؤال نتوانسته پاسخ بدهد. به صفحه یادگیری هر ایجنت بروید تا با کمک هوش مصنوعی، پاسخ پیشنهادی بسازید و به پایگاه دانش اضافه کنید.`
-                                                                        : `Your agents couldn't answer ${nf.format(pendingLearnings)} questions. Visit each agent's Learning page to draft AI-suggested answers and add them to the knowledge base.`}
-                                                        </p>
-                                                        <div className="mt-2 text-xs text-[var(--text-muted)]">
-                                                                {locale === 'fa'
-                                                                        ? `تا الان ${nf.format(learnedFaqs)} پاسخ به پایگاه دانش اضافه شده است.`
-                                                                        : `${nf.format(learnedFaqs)} answers added to KB so far.`}
-                                                        </div>
-                                                </div>
-                                                <span className="text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]">
-                                                        →
-                                                </span>
-                                        </div>
-                                </Link>
-                        )}
-
-                        {/* Metrics explainer (section 6) */}
-                        <MetricsExplainer
-                                title={
-                                        locale === 'fa'
-                                                ? 'این اعداد از کجا می‌آیند؟'
-                                                : 'Where do these numbers come from?'
-                                }
-                                items={[
-                                        {
-                                                icon: Star,
-                                                iconClass: 'text-warning',
-                                                term:
-                                                        locale === 'fa' ? 'میانگین رضایت: ' : 'Average satisfaction: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'کاربر در پایان گفتگو از ویجت یا تلگرام، امتیاز ۱ تا ۵ ستاره می‌دهد. میانگین همه امتیازها نمایش داده می‌شود. برای دریافت امتیاز، کاربر باید حداقل یک پاسخ از ایجنت دیده باشد.'
-                                                                : 'The user rates the conversation 1–5 stars at the end (via the widget or Telegram). The average across all rated conversations is shown. To leave a rating, the user must have received at least one assistant reply.',
-                                        },
-                                        {
-                                                icon: Users,
-                                                term:
-                                                        locale === 'fa' ? 'تحویل به اپراتور: ' : 'Handed off to operator: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'وقتی پیام کاربر شامل کلیدواژه‌های تحویل (مثل «پشتیبان انسانی»، «اپراتور») باشد یا ایجنت نتواند پاسخ دهد، گفتگو به اپراتور منتقل می‌شود (status = HANDED_OFF). این تعداد کل گفتگوهای تحویل‌داده‌شده است. تنظیم کلیدواژه‌ها در صفحه هر ایجنت → تنظیمات است.'
-                                                                : 'When the user\'s message contains handoff keywords (e.g. "human support", "operator") or the agent can\'t answer, the conversation is handed off (status = HANDED_OFF). This is the total count of handed-off conversations. Configure keywords per-agent under Settings.',
-                                        },
-                                        {
-                                                icon: CheckCircle2,
-                                                iconClass: 'text-success',
-                                                term: locale === 'fa' ? 'نرخ تکمیل: ' : 'Resolve rate: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'درصد گفتگوهایی که با وضعیت RESOLVED بسته شده‌اند (نه باز و نه تحویل‌داده‌شده). گفتگو پس از ۲۴ ساعت بی‌فعالیتی خودکار بسته می‌شود.'
-                                                                : 'Percentage of conversations closed with status RESOLVED (not OPEN, not HANDED_OFF). Conversations auto-close after 24h of inactivity.',
-                                        },
-                                        {
-                                                icon: Cpu,
-                                                term: locale === 'fa' ? 'هزینه پاسخ‌ها: ' : 'Reply cost: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'مجموع مبلغ کسرشده از اعتبار برای پاسخ‌های موفق. جزئیات هزینه در بخش مالی دیده می‌شود.'
-                                                                : 'Total amount deducted for successful replies. Cost details are available on the billing page.',
-                                        },
-                                        {
-                                                icon: TrendingUp,
-                                                term:
-                                                        locale === 'fa'
-                                                                ? 'روند گفتگوها: '
-                                                                : 'Conversations trend: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'تعداد گفتگوهای جدید در ۱۴ روز گذشته، بر اساس زمان ایجاد. هر نقطه یک روز است. گفتگوهایی که در یک کانال شروع شده‌اند ولی هنوز پیام ندارند شمرده نمی‌شوند.'
-                                                                : 'Count of new conversations over the past 14 days, by creation time. Each point is one day. Conversations that started on a channel but have no messages yet are not counted.',
-                                        },
-                                        {
-                                                icon: BotIcon,
-                                                term:
-                                                        locale === 'fa'
-                                                                ? 'فعالیت بر اساس روز و ساعت: '
-                                                                : 'Activity by day & hour: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'تعداد گفتگوهای شروع‌شده در هر ترکیب روز هفته × ساعت. رنگ تیره‌تر یعنی فعالیت بیشتر. به شما نشان می‌دهد مشتریان چه زمان‌هایی بیشترین ترافیک دارند تا منابع پشتیبانی را هم‌زمان کنید.'
-                                                                : 'Count of conversations started at each day-of-week × hour combination. Darker = more activity. Helps you align support staffing with peak customer traffic.',
-                                        },
-                                        {
-                                                icon: PackageSearch,
-                                                term:
-                                                        locale === 'fa'
-                                                                ? 'محصولات پرجستجو: '
-                                                                : 'Top products: ',
-                                                body:
-                                                        locale === 'fa'
-                                                                ? 'محصولاتی که ایجنت آن‌ها را در پاسخ‌ها بیشترین بار retriev کرده. هر بار که یک محصول در context پرامپت ظاهر می‌شود، شمارندهٔ آن یک واحد افزایش می‌یابد.'
-                                                                : 'Products the agent has retrieved most often in replies. Each time a product appears in the prompt context, its counter increments by one.',
-                                        },
-                                ]}
-                        />
-                </div>
-        )
+        <DashboardPanel
+          title={fa ? 'پلن و اعتبار' : 'Plan & credit'}
+          subtitle={fa ? 'خلاصه کوتاه؛ جزئیات در بخش مالی' : 'A compact summary; details stay in Billing'}
+          action={<Link href="/billing" className="text-xs font-medium text-[var(--accent-strong)] hover:underline">{fa ? 'مدیریت' : 'Manage'}</Link>}
+        >
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'اعتبار پاسخ' : 'Reply credit'}</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text-primary)]">
+                {nf.format(Math.round(workspace.aiCreditBalanceIRR / 10))} <span className="text-xs font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
+              </p>
+            </div>
+            <div className="text-end">
+              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'پلن فعلی' : 'Current plan'}</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
+                {fa ? PLAN_NAMES_FA[workspace.plan] : workspace.plan.toLowerCase()}
+              </p>
+              {daysLeft !== null && <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+              <span>{fa ? 'مصرف این دوره' : 'Period usage'}</span>
+              <span>{nf.format(messagesUsed)} / {nf.format(planDef.monthlyMessages)}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+              <div className={cn('h-full rounded-full', usagePercent >= 90 ? 'bg-red-500' : usagePercent >= 70 ? 'bg-amber-500' : 'bg-[var(--accent)]')} style={{ width: `${usagePercent}%` }} />
+            </div>
+          </div>
+        </DashboardPanel>
+      </section>
+    </div>
+  )
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-        return (
-                <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-                        <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">{title}</h2>
-                        {children}
-                </section>
-        )
+function AttentionItem({
+  href,
+  icon: Icon,
+  value,
+  label,
+  hint,
+  urgent,
+  locale,
+}: {
+  href: string
+  icon: LucideIcon
+  value: number
+  label: string
+  hint: string
+  urgent: boolean
+  locale: 'fa' | 'en'
+}) {
+  const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
+  return (
+    <Link href={href} className={cn(
+      'group flex min-h-[4.5rem] items-center gap-3 rounded-xl border px-3.5 transition-[border-color,background-color,transform] hover:-translate-y-0.5',
+      urgent ? 'border-amber-200 bg-amber-50/75' : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
+    )}>
+      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)]')}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+          <span className="tabular-nums">{value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
+          {label}
+        </span>
+        <span className="mt-1 block truncate text-[10px] text-[var(--text-muted)]">{hint}</span>
+      </span>
+      <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+    </Link>
+  )
 }
 
-function Empty({ text }: { text: string }) {
-        return (
-                <div className="flex h-[180px] items-center justify-center text-sm text-[var(--text-muted)]">
-                        {text}
-                </div>
-        )
+function OutcomeCard({
+  href,
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  href: string
+  icon: LucideIcon
+  label: string
+  value: string
+  hint: string
+}) {
+  return (
+    <Link href={href} className="dashboard-card group relative overflow-hidden rounded-[1.3rem] border border-[var(--border-default)] bg-white/[0.94] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)] sm:p-5">
+      <div aria-hidden className="absolute -end-9 -top-12 h-24 w-24 rounded-full bg-[var(--accent-soft)] opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]"><Icon className="h-3.5 w-3.5" /></span>
+      </div>
+      <p className="relative mt-3 text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</p>
+      <p className="relative mt-1 min-h-4 text-[9px] leading-4 text-[var(--text-muted)] sm:text-[10px]">{hint}</p>
+    </Link>
+  )
 }
 
-function daysAgo(n: number): Date {
-        const d = new Date()
-        d.setHours(0, 0, 0, 0)
-        d.setDate(d.getDate() - (n - 1))
-        return d
+function EmptyState({ text }: { text: string }) {
+  return <div className="py-10 text-center text-xs text-[var(--text-muted)]">{text}</div>
+}
+
+function buildTrend(rows: Date[], locale: 'fa' | 'en'): TrendPoint[] {
+  const formatter = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+  const buckets = new Map<string, { date: Date; value: number }>()
+  for (let index = TREND_DAYS - 1; index >= 0; index--) {
+    const date = daysAgo(index)
+    date.setHours(0, 0, 0, 0)
+    buckets.set(date.toISOString().slice(0, 10), { date, value: 0 })
+  }
+  for (const row of rows) {
+    const key = new Date(row).toISOString().slice(0, 10)
+    const bucket = buckets.get(key)
+    if (bucket) bucket.value += 1
+  }
+  return [...buckets.values()].map(({ date, value }) => ({
+    label: formatter.format(date),
+    value,
+  }))
+}
+
+function percentDelta(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 86_400_000)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

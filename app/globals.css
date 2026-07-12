@@ -46,6 +46,15 @@
         --red: #ef4444;
         --amber: #f59e0b;
         --blue: #3b82f6;
+        /* Vigent signal — used sparingly for active, live and successful states.
+           The deeper tone is accessible for text on white; the bright tone is
+           reserved for dots, fills and large graphical marks. */
+        --accent: #10b981;
+        --accent-strong: #047857;
+        --accent-soft: rgba(16, 185, 129, 0.09);
+        --accent-border: rgba(5, 150, 105, 0.22);
+        --accent-foreground: #064e3b;
+        --shadow-soft: 0 1px 2px rgba(10, 10, 10, 0.03), 0 14px 36px rgba(10, 10, 10, 0.045);
         /* Aliases — `bg-[var(--danger)]` resolves to red. Without this, several
            Instagram automation buttons (delete scenario, remove media, etc.) render
            with transparent backgrounds and become invisible. */
@@ -89,6 +98,11 @@
                 touch-action: manipulation;
         }
 
+        :where(a, button, input, select, textarea):focus-visible {
+                outline: 2px solid var(--accent-strong);
+                outline-offset: 3px;
+        }
+
         html[dir='rtl'] body {
                 font-family: var(--font-fa), var(--font-display), system-ui, sans-serif;
         }
@@ -130,6 +144,28 @@
 }
 
 @layer components {
+	/* Shared application canvas. A restrained signal glow and paper grid give
+	   every dashboard page the same product identity without competing with
+	   dense operational content. */
+	.dashboard-canvas {
+		background-color: var(--bg-base);
+		background-image:
+			radial-gradient(circle at 82% 0%, rgba(16, 185, 129, 0.075), transparent 26rem),
+			linear-gradient(rgba(0, 0, 0, 0.018) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(0, 0, 0, 0.018) 1px, transparent 1px);
+		background-size: auto, 40px 40px, 40px 40px;
+	}
+
+	.dashboard-main {
+		margin-inline: auto;
+		width: 100%;
+		max-width: 100rem;
+	}
+
+	.dashboard-card {
+		box-shadow: var(--shadow-soft);
+	}
+
 	/* Shared marketing type rhythm. Persian display text needs more line-height
 	   and less aggressive tracking than the previous 6rem headings. */
 	.marketing-heading {

@@ -14,6 +14,19 @@ export interface IngestionJobData {
 
 const EMBED_BATCH = 32
 
+function contextualChunk(
+  content: string,
+  source: { name: string; type: string; sourceUrl: string | null; fileName: string | null },
+): string {
+  const reference = source.sourceUrl ?? source.fileName
+  const header = [
+    `Source: ${source.name}`,
+    `Type: ${source.type}`,
+    ...(reference ? [`Reference: ${reference}`] : []),
+  ].join(' | ')
+  return `[${header}]\n${content}`
+}
+
 /** Resolve the raw text for a knowledge base from its source. */
 async function resolveText(
   kb: {
@@ -74,7 +87,11 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
 
     let stored = 0
     for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-      const batch = chunks.slice(i, i + EMBED_BATCH)
+      // Deterministic source context improves retrieval for short/ambiguous
+      // chunks without paying for a second LLM pass during ingestion.
+      const batch = chunks
+        .slice(i, i + EMBED_BATCH)
+        .map((chunk) => contextualChunk(chunk, kb))
       const vectors = await embedTexts(batch, kb.workspaceId)
       for (let j = 0; j < batch.length; j++) {
         await insertChunk({
@@ -82,7 +99,12 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
           agentId: kb.agentId,
           workspaceId: kb.workspaceId,
           content: batch[j],
-          metadata: { source: kb.type, kbId: kb.id, name: kb.name },
+          metadata: {
+            source: kb.type,
+            kbId: kb.id,
+            name: kb.name,
+            contextualized: true,
+          },
           embedding: vectors[j],
         })
         stored++

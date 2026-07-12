@@ -12,6 +12,11 @@ import {
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import { captureError } from '@/lib/errors/capture'
+import {
+        isMarketingOptOutMessage,
+        optOutConfirmation,
+        optOutContact,
+} from '@/lib/crm/marketing-consent'
 import { fetchInstagramSenderProfile } from '@/lib/instagram/sender-profile'
 import {
         runInstagramAutomation,
@@ -331,13 +336,14 @@ async function persistInboundOnly(args: {
         contactId: string
         externalId: string
         text: string
+        channel: MessengerType
 }): Promise<string> {
         return prisma.$transaction(async (tx) => {
                 const conversation = await tx.conversation.upsert({
                         where: {
                                 agentId_channel_externalId: {
                                         agentId: args.agentId,
-                                        channel: 'INSTAGRAM',
+                                        channel: args.channel,
                                         externalId: args.externalId,
                                 },
                         },
@@ -345,7 +351,7 @@ async function persistInboundOnly(args: {
                                 workspaceId: args.workspaceId,
                                 agentId: args.agentId,
                                 contactId: args.contactId,
-                                channel: 'INSTAGRAM',
+                                channel: args.channel,
                                 externalId: args.externalId,
                                 customerInfoState: 'skipped',
                         },
@@ -440,6 +446,24 @@ async function processChannelInbound(
 
                         const contactId = await upsertContact(agent.workspaceId, type, msg)
                         const contactName = await getContactName(contactId)
+
+                        // Universal campaign opt-out. It runs before Instagram
+                        // automations or AI so STOP can never trigger a sales reply.
+                        if (isMarketingOptOutMessage(text)) {
+                                await optOutContact(contactId)
+                                const conversationId = await persistInboundOnly({
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        contactId,
+                                        externalId: msg.chatId,
+                                        text,
+                                        channel: type,
+                                })
+                                const confirmation = optOutConfirmation(text)
+                                await adapter.sendText(msg.chatId, confirmation)
+                                await persistFixedAssistantReply(conversationId, confirmation)
+                                continue
+                        }
 
                         // Best-effort backfill of the sender's profile (name, username, avatar).
                         // Instagram DM webhooks only carry the sender id + @username (no display
@@ -538,7 +562,8 @@ async function processChannelInbound(
 												agentId: agent.id,
 												contactId,
 												externalId: msg.chatId,
-												text,
+								text,
+								channel: type,
 											})
                                                 await adapter.sendText(msg.chatId, fixedReply, {
                                                         quickReplies: msg.kind === 'COMMENT' ? undefined : settings.quickReplies,
@@ -588,7 +613,8 @@ async function processChannelInbound(
 											agentId: agent.id,
 											contactId,
 											externalId: msg.chatId,
-											text,
+										text,
+										channel: type,
 										})
 										continue
 								}
@@ -618,7 +644,7 @@ async function processChannelInbound(
                                 const allow = await shouldAgentReply({
                                         policy,
                                         scenarioHandled,
-                                        text,
+									text,
                                         kind: msg.kind,
                                         conversationMetadata: conv?.metadata ?? undefined,
                                         conversationStatus: conv?.status,
@@ -635,6 +661,7 @@ async function processChannelInbound(
                                                         contactId,
                                                         externalId: msg.chatId,
                                                         text,
+                                                        channel: type,
                                                 })
                                         } catch (e) {
                                                 console.error('[handler] instagram inbound-only persist failed:', e)

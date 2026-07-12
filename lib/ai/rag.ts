@@ -45,6 +45,7 @@ export async function retrieveContext(params: {
       workspaceId: params.workspaceId,
       agentId: params.agentId,
       queryEmbedding,
+      queryText: params.query,
       limit: params.limit ?? 3,
     })
   } catch (e) {

@@ -125,6 +125,8 @@ export function AgentSettingsForm({
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
                 trialModel: ModelAlias
+                creditBalanceIRR: number
+                replyPricesIRR: Record<ModelAlias, number>
         }
 }) {
         const t = useTranslations('agents')
@@ -292,6 +294,8 @@ export function AgentSettingsForm({
                                                 availableModels={modelPolicy.enabledModels}
                                                 trialModel={modelPolicy.trialModel}
                                                 isTrial={modelPolicy.plan === 'TRIAL'}
+                                                creditBalanceIRR={modelPolicy.creditBalanceIRR}
+                                                replyPricesIRR={modelPolicy.replyPricesIRR}
                                         />
                                 </Field>
                                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

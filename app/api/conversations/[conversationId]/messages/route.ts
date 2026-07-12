@@ -61,7 +61,11 @@ export async function GET(_req: Request, props: Params) {
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   const messages = conversation.messages
-    .filter((m) => m.role !== 'SYSTEM')
+    .filter((m) => {
+      if (m.role !== 'SYSTEM') return true
+      const metadata = m.metadata as Record<string, unknown> | null
+      return Boolean(metadata?.vigentoActivity)
+    })
     .map((m) => ({
       id: m.id,
       role: m.role,

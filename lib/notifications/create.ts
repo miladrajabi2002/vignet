@@ -2,6 +2,7 @@ import type { NotificationType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { dispatchNotification } from '@/lib/queue/jobs'
 import { captureError } from '@/lib/errors/capture'
+import { sendOperatorTelegramNotification } from '@/lib/notifications/operator-telegram'
 
 export interface NotifyParams {
   workspaceId: string
@@ -14,6 +15,8 @@ export interface NotifyParams {
   sms?: boolean
   /** Also send an ops email to ALERT_EMAIL (platform monitoring). */
   opsEmail?: boolean
+  /** Also alert the workspace's configured operator Telegram bot. */
+  operatorTelegram?: boolean
 }
 
 /**
@@ -61,6 +64,18 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
       await dispatchNotification({ kind: 'ops', subject: params.title, body: text })
     } catch (e) {
       captureError('notify:ops', e, { workspaceId: params.workspaceId })
+    }
+  }
+
+  if (params.operatorTelegram) {
+    try {
+      await sendOperatorTelegramNotification({
+        workspaceId: params.workspaceId,
+        text,
+        link: params.link,
+      })
+    } catch (e) {
+      captureError('notify:operator-telegram', e, { workspaceId: params.workspaceId })
     }
   }
 }

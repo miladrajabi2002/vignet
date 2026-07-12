@@ -19,6 +19,9 @@ const ChannelsSection = dynamicImport(() =>
 const HowItWorks = dynamicImport(() =>
 	import('@/components/marketing/how-it-works').then((m) => m.HowItWorks),
 )
+const VigentoSection = dynamicImport(() =>
+	import('@/components/marketing/vigento-section').then((m) => m.VigentoSection),
+)
 const PricingSection = dynamicImport(() =>
 	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
 )
@@ -90,6 +93,7 @@ export default async function HomePage() {
 			<UseCasesSection />
 			<FeaturesSection />
 			<HowItWorks />
+			<VigentoSection />
 			<PricingSection />
 			<FaqSection />
 			<PopularPosts />

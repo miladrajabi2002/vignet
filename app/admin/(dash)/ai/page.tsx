@@ -15,6 +15,9 @@ import {
   Route,
   ServerCog,
   ShieldCheck,
+  Sparkles,
+  ThumbsUp,
+  TriangleAlert,
   Users,
 } from 'lucide-react'
 import { AiModelPolicyForm } from '@/components/admin/ai-model-policy-form'
@@ -32,6 +35,7 @@ import {
   type RecentAiUsage,
 } from '@/lib/admin/ai-usage'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import { getVigentoAdminReport, type VigentoAdminReport } from '@/lib/admin/vigento'
 import {
   Badge,
   Card,
@@ -69,6 +73,7 @@ const TYPE_LABELS: Record<string, string> = {
   STT: 'تبدیل صدا به متن',
   SUMMARY: 'خلاصه‌سازی',
   LEARNING: 'یادگیری',
+  VIGENTO_DRAFT: 'ویجنتو',
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -499,6 +504,43 @@ function RecentUsageList({ rows }: { rows: RecentAiUsage[] }) {
   )
 }
 
+function VigentoOperations({ report }: { report: VigentoAdminReport }) {
+  const successRate = report.total > 0 ? Math.round((report.succeeded / report.total) * 100) : 0
+  const applyRate = report.total > 0 ? Math.round((report.applied / report.total) * 100) : 0
+  const feedbackTotal = report.helpful + report.unhelpful
+  const helpfulRate = feedbackTotal > 0 ? Math.round((report.helpful / feedbackTotal) * 100) : 0
+
+  return (
+    <Panel
+      title="عملکرد ویجنتو"
+      subtitle="دستیار ساخت ایجنت؛ فقط متریک عملیاتی و بازخورد ذخیره می‌شود و متن خام کسب‌وکار در گزارش ادمین نگهداری نمی‌شود"
+      action={<Badge tone="info"><Sparkles className="h-3.5 w-3.5" /> {fa(report.total)} پیش‌نویس</Badge>}
+    >
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">نرخ موفقیت</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(successRate)}٪</p><p className="mt-1 text-[10px] text-zinc-400">{fa(report.succeeded)} موفق · {fa(report.failed)} ناموفق</p></div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">اعمال توسط کاربر</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(applyRate)}٪</p><p className="mt-1 text-[10px] text-zinc-400">فقط پس از تأیید صریح</p></div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">بازخورد مفید</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(helpfulRate)}٪</p><p className="mt-1 text-[10px] text-zinc-400">{fa(feedbackTotal)} بازخورد ثبت‌شده</p></div>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">میانگین زمان</p><p dir="ltr" className="mt-1 text-left text-xl font-bold text-zinc-900">{report.averageDurationMs.toLocaleString('en-US')} ms</p><p className="mt-1 text-[10px] text-zinc-400">مدل draft: {report.models.map((item) => `${item.modelAlias} (${item.count})`).join(' · ') || '—'}</p></div>
+      </div>
+
+      {report.recent.length > 0 ? (
+        <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-zinc-50 px-3 py-2 text-[10px] font-semibold text-zinc-500"><span>کسب‌وکار / نتیجه</span><span>زمان</span><span>بازخورد</span></div>
+          <ul className="divide-y divide-zinc-100">
+            {report.recent.map((row) => (
+              <li key={row.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-xs">
+                <div className="min-w-0"><Link href={`/admin/workspaces/${row.workspaceId}`} className="truncate font-semibold text-zinc-900 hover:underline">{row.workspaceName}</Link><div className="mt-1 flex flex-wrap items-center gap-1.5"><Badge tone={row.status === 'SUCCEEDED' ? 'success' : 'danger'}>{row.status === 'SUCCEEDED' ? 'موفق' : row.failureCode ?? 'ناموفق'}</Badge>{row.applied && <Badge tone="info">اعمال شد</Badge>}<span dir="ltr" className="font-mono text-[10px] text-zinc-400">{row.modelAlias ?? 'fallback'}</span></div></div>
+                <span dir="ltr" className="font-mono text-[10px] text-zinc-500">{row.durationMs} ms</span>
+                <span aria-label={row.helpful === true ? 'مفید' : row.helpful === false ? 'نامفید' : 'بدون بازخورد'}>{row.helpful === true ? <ThumbsUp className="h-4 w-4 text-emerald-600" /> : row.helpful === false ? <TriangleAlert className="h-4 w-4 text-amber-600" /> : <span className="text-zinc-300">—</span>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : <EmptyState icon={<Sparkles className="h-8 w-8" />}>هنوز اجرای ویجنتو ثبت نشده است</EmptyState>}
+    </Panel>
+  )
+}
+
 export default async function AdminAiPage({
   searchParams,
 }: {
@@ -507,11 +549,12 @@ export default async function AdminAiPage({
   const params = await searchParams
   const range = parseRange(params.range)
   const days = RANGE_DAYS[range]
-  const [report, platformPolicy, currentMonthSpendUSD, openRouterAccount] = await Promise.all([
+  const [report, platformPolicy, currentMonthSpendUSD, openRouterAccount, vigentoReport] = await Promise.all([
     getAiUsageReport(days),
     getPlatformAiConfig(),
     getCurrentMonthAiSpendUSD(),
     getOpenRouterAccountUsage(),
+    getVigentoAdminReport(days),
   ])
   const config = getOpenRouterConfigStatus(platformPolicy)
   const costCoverage = report.totals.requests > 0
@@ -537,6 +580,8 @@ export default async function AdminAiPage({
       />
 
       <AccountStatus config={config} account={openRouterAccount} />
+
+      <VigentoOperations report={vigentoReport} />
 
       <AiModelPolicyForm
         models={config.models.map((model) => ({

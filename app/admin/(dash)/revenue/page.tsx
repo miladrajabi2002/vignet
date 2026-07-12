@@ -27,6 +27,7 @@ import {
   getRevenueKPIs,
   getTopWorkspacesByRevenue,
   getPlanRevenue,
+  getFinanceSummary,
 } from '@/lib/admin/revenue'
 import {
   revenueIRRMonthly,
@@ -73,6 +74,7 @@ export default async function AdminRevenuePage() {
     irrTrend7,
     paysTrend7,
     paySparks,
+    finance,
   ] = await Promise.all([
     getRevenueKPIs(),
     getTopWorkspacesByRevenue(6),
@@ -85,6 +87,7 @@ export default async function AdminRevenuePage() {
     revenueIRRDaily(7),
     paymentsDaily(7),
     paymentsDailyByWorkspace(7),
+    getFinanceSummary(),
   ])
 
   // Map plan distribution slices → DonutChart shape
@@ -100,6 +103,64 @@ export default async function AdminRevenuePage() {
           { label: 'درآمد' },
         ]}
       />
+
+      <Panel
+        title="سود واقعی پلتفرم"
+        subtitle="درآمد پلن‌ها + شارژ اعتبارها − هزینه واقعی OpenRouter"
+      >
+        {!finance.usdToIRR && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
+            برای نمایش سود تلفیقی، نرخ صریح <bdi dir="ltr" className="font-mono">FINANCE_USD_TO_IRR</bdi> (ریال به‌ازای هر دلار) را تنظیم کنید. تا آن زمان عدد سود نمایش داده نمی‌شود تا گزارش گمراه‌کننده نباشد.
+          </div>
+        )}
+        {finance.usdToIRR && (
+          <p className="mb-4 text-xs text-zinc-500">
+            نرخ محاسبه: هر دلار = {fa(finance.usdToIRR)} ریال
+          </p>
+        )}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <StatCard
+            label="درآمد پلن‌ها"
+            value={fmtIRR(finance.planRevenueIRR)}
+            icon={<TrendingUp className="h-5 w-5" />}
+            tone="success"
+            sub={`به‌علاوه ${fmtUSD(finance.planRevenueUSD)} پرداخت ارزی`}
+          />
+          <StatCard
+            label="شارژ اعتبارها"
+            value={fmtIRR(finance.creditTopupIRR)}
+            icon={<Wallet className="h-5 w-5" />}
+            tone="info"
+            sub={finance.creditTopupUSD > 0 ? `به‌علاوه ${fmtUSD(finance.creditTopupUSD)}` : 'فقط پرداخت نقدی؛ هدیه جداست'}
+          />
+          <StatCard
+            label="هزینه OpenRouter"
+            value={fmtUSD(finance.openRouterCostUSD)}
+            icon={<DollarSign className="h-5 w-5" />}
+            sub={finance.openRouterCostIRR == null ? 'نیازمند نرخ تبدیل' : fmtIRR(finance.openRouterCostIRR)}
+          />
+          <StatCard
+            label="سود عملیاتی"
+            value={finance.operatingProfitIRR == null ? 'نرخ تنظیم نشده' : fmtIRR(finance.operatingProfitIRR)}
+            icon={<Percent className="h-5 w-5" />}
+            tone={finance.operatingProfitIRR != null && finance.operatingProfitIRR >= 0 ? 'success' : 'danger'}
+            sub="قبل از کسر اعتبار هدیه"
+          />
+          <StatCard
+            label="اعتبار هدیه صادرشده"
+            value={fmtIRR(finance.giftedCreditIRR)}
+            icon={<Wallet className="h-5 w-5" />}
+            sub="تعهد/یارانه با ارزش اسمی"
+          />
+          <StatCard
+            label="سود تعدیل‌شده محافظه‌کارانه"
+            value={finance.adjustedProfitIRR == null ? 'نرخ تنظیم نشده' : fmtIRR(finance.adjustedProfitIRR)}
+            icon={<TrendingUp className="h-5 w-5" />}
+            tone={finance.adjustedProfitIRR != null && finance.adjustedProfitIRR >= 0 ? 'success' : 'danger'}
+            sub="سود عملیاتی منهای کل اعتبار هدیه"
+          />
+        </div>
+      </Panel>
 
       {/* KPI row 1 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

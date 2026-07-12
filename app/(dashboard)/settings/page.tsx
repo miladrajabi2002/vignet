@@ -8,6 +8,9 @@ import {
         type OperatorChannelInfo,
 } from '@/components/crm/operator-channel-setup'
 import { WeeklyReportCard } from '@/components/settings/weekly-report-card'
+import { BusinessProfileStep } from '@/components/onboarding/business-profile-step'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
@@ -27,7 +30,12 @@ export default async function SettingsPage() {
   // masked hint is sent to the client.
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },
-    select: { reportEmail: true },
+    select: {
+      name: true,
+      reportEmail: true,
+      businessType: true,
+      businessProfile: true,
+    },
   })
 
   const op = await prisma.operatorChannel.findUnique({
@@ -53,7 +61,7 @@ export default async function SettingsPage() {
     : null
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <h1 className="text-2xl font-light text-[var(--text-primary)]">
         {t('settings.title')}
       </h1>
@@ -79,6 +87,14 @@ export default async function SettingsPage() {
           </Link>
         ))}
       </div>
+
+      {workspace && (
+        <BusinessProfileStep
+          workspaceName={workspace.name}
+          initialType={workspace.businessType as BusinessTypeValue}
+          initialProfile={readBusinessProfile(workspace.businessProfile)}
+        />
+      )}
 
       <OperatorChannelSetup current={operatorChannel} />
 

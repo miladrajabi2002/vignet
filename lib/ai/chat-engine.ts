@@ -31,6 +31,12 @@ import {
 } from '@/lib/billing/ai-credits'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
+import {
+        buildTurnReceipts,
+        metadataWithReceipts,
+        type ConversationReceipt,
+} from '@/lib/conversations/activity'
+import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -123,9 +129,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                   modelAlias: string
                   reservation: CreditReservation
                   conversationId: string
+                  contactId: string | null
                   contactName: string | null
                   contactPhone: string | null
                   messages: ReturnType<typeof buildMessages>
+                  retrievedChunks: Array<{ metadata: unknown }>
           }
 > {
         const { workspaceId, agent, message } = params
@@ -278,9 +286,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                         modelAlias,
                         reservation,
                         conversationId,
+                        contactId,
                         contactName: resolvedContactName,
                         contactPhone: extracted.phone,
                         messages,
+                        retrievedChunks: chunks,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -312,6 +322,7 @@ async function persistHandoff(params: {
                         where: { id: params.conversationId },
                         data: {
                                 status: 'HANDED_OFF',
+                                handedOff: true,
                                 messageCount: { increment: 2 },
                                 lastMessageAt: new Date(),
                         },
@@ -323,7 +334,7 @@ async function persistHandoff(params: {
                         where: { id: params.agent.id },
                         select: { name: true },
                 })
-                void notifyHandoff({
+                await notifyHandoff({
                         workspaceId: params.workspaceId,
                         conversationId: params.conversationId,
                         agentId: params.agent.id,
@@ -349,15 +360,28 @@ async function persistAssistantTurn(params: {
         model: string
         userMessage: string
         reply: string
+        retrievedChunks: Array<{ metadata: unknown }>
+        extraReceipts?: ConversationReceipt[]
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
+        const receipts = buildTurnReceipts({
+                userMessage: params.userMessage,
+                assistantReply: params.reply,
+                retrievedChunks: params.retrievedChunks,
+        })
+        for (const receipt of params.extraReceipts ?? []) {
+                if (!receipts.some((item) => item.kind === receipt.kind)) receipts.push(receipt)
+        }
         const savedMsg = await prisma.message.create({
                 data: {
                         conversationId: params.conversationId,
                         role: 'ASSISTANT',
                         content: params.reply,
                         unanswered,
-                        metadata: unanswered ? { question: params.userMessage } : undefined,
+                        metadata: metadataWithReceipts(
+                                receipts,
+                                unanswered ? { question: params.userMessage } : undefined,
+                        ),
                 },
         })
         await prisma.conversation.update({
@@ -381,7 +405,16 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
         const prep = await prepareTurn(params)
         if ('error' in prep) return prep
-        const { model, reservation, conversationId, contactName, contactPhone, messages } = prep
+        const {
+                model,
+                reservation,
+                conversationId,
+                contactId,
+                contactName,
+                contactPhone,
+                messages,
+                retrievedChunks,
+        } = prep
 
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
@@ -415,7 +448,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         agent,
                                         conversationId,
                                         channel: params.channel,
-                                        contactId: params.contactId ?? null,
+                                        contactId,
                                         contactName,
                                         contactPhone,
                                         reason: handoffCheck.reason,
@@ -428,19 +461,36 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 
                         let full = ''
                         let usage: ChatUsage | null = null
+                        let extraReceipts: ConversationReceipt[] = []
                         let providerFailed = false
                         try {
-                                for await (const delta of streamChat({
+                                const bookingTurn = await maybeRunBookingAgentTurn({
+                                        workspaceId,
+                                        conversationId,
+                                        contactId,
                                         model,
                                         messages,
                                         temperature: agent.temperature,
                                         maxTokens: agent.maxTokens,
-                                        onUsage: (u) => {
-                                                usage = u
-                                        },
-                                })) {
-                                        full += delta
-                                        send({ type: 'delta', text: delta })
+                                })
+                                if (bookingTurn) {
+                                        full = bookingTurn.content
+                                        usage = bookingTurn.usage
+                                        extraReceipts = bookingTurn.receipts
+                                        send({ type: 'delta', text: full })
+                                } else {
+                                        for await (const delta of streamChat({
+                                                model,
+                                                messages,
+                                                temperature: agent.temperature,
+                                                maxTokens: agent.maxTokens,
+                                                onUsage: (u) => {
+                                                        usage = u
+                                                },
+                                        })) {
+                                                full += delta
+                                                send({ type: 'delta', text: delta })
+                                        }
                                 }
                         } catch (e) {
 				providerFailed = true
@@ -481,6 +531,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         model,
                                         userMessage: message,
                                         reply: full,
+                                        retrievedChunks,
+                                        extraReceipts,
                                 })
                                 send({ type: 'done', messageId })
                         } catch (e) {
@@ -517,7 +569,16 @@ export async function generateReply(
 
         const prep = await prepareTurn(params)
         if ('error' in prep) return prep
-        const { model, reservation, conversationId, contactName, contactPhone, messages } = prep
+        const {
+                model,
+                reservation,
+                conversationId,
+                contactId,
+                contactName,
+                contactPhone,
+                messages,
+                retrievedChunks,
+        } = prep
 
         // Smart handoff: check before calling AI.
         let handoffCheck: Awaited<ReturnType<typeof shouldHandoff>>
@@ -535,7 +596,7 @@ export async function generateReply(
                         agent,
                         conversationId,
                         channel: params.channel,
-                        contactId: params.contactId ?? null,
+                        contactId,
                         contactName,
                         contactPhone,
                         reason: handoffCheck.reason,
@@ -546,16 +607,32 @@ export async function generateReply(
 
         let reply = ''
         let usage: ChatUsage | null = null
+        let extraReceipts: ConversationReceipt[] = []
         let providerFailed = false
         try {
-                const result = await chatCompletion({
+                const bookingTurn = await maybeRunBookingAgentTurn({
+                        workspaceId,
+                        conversationId,
+                        contactId,
                         model,
                         messages,
                         temperature: agent.temperature,
                         maxTokens: agent.maxTokens,
                 })
-                reply = result.content.trim()
-                usage = result.usage
+                if (bookingTurn) {
+                        reply = bookingTurn.content.trim()
+                        usage = bookingTurn.usage
+                        extraReceipts = bookingTurn.receipts
+                } else {
+                        const result = await chatCompletion({
+                                model,
+                                messages,
+                                temperature: agent.temperature,
+                                maxTokens: agent.maxTokens,
+                        })
+                        reply = result.content.trim()
+                        usage = result.usage
+                }
         } catch (e) {
 		providerFailed = true
                 captureError('chat-engine:completion', e, {
@@ -585,6 +662,8 @@ export async function generateReply(
                         model,
                         userMessage: message,
                         reply,
+                        retrievedChunks,
+                        extraReceipts,
                 })
         } catch (e) {
                 console.error('[chat-engine] persist error:', e)

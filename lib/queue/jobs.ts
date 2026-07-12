@@ -4,6 +4,7 @@ import type { IngestionJobData } from '@/lib/knowledge/ingest'
 import type { ProductEmbedJobData } from '@/lib/products/catalog'
 import type { SummaryJobData } from '@/lib/conversations/summary'
 import type { NotificationJobData } from '@/lib/notifications/notify'
+import type { CampaignJobData } from '@/lib/campaigns/process'
 
 export interface InboundMessageJobData {
   type: string
@@ -95,6 +96,27 @@ export async function dispatchNotification(
   }
 }
 
+/** Queue an explicitly-confirmed campaign. Creation/preview never call this. */
+export async function dispatchCampaign(data: CampaignJobData): Promise<void> {
+  if (isQueueDisabled()) return runInlineCampaign(data)
+  try {
+    const q = await getQueue(QUEUE_NAMES.campaigns)
+    await q.add('campaign', data, {
+      jobId: `campaign:${data.campaignId}`,
+      removeOnComplete: true,
+      removeOnFail: 50,
+      // Recipient claiming is idempotent. A second worker attempt resumes
+      // PENDING rows while SENDING rows become DELIVERY_UNCERTAIN, so a crash
+      // cannot leave the whole campaign stuck or resend an acknowledged row.
+      attempts: 2,
+      backoff: { type: 'exponential', delay: 2_000 },
+    })
+  } catch (e) {
+    console.warn('[queue] campaign enqueue failed, running inline:', e)
+    return runInlineCampaign(data)
+  }
+}
+
 function runInlineIngestion(data: IngestionJobData): void {
   void import('@/lib/knowledge/ingest').then(({ processIngestion }) =>
     processIngestion(data).catch((e) =>
@@ -123,6 +145,14 @@ function runInlineNotification(data: NotificationJobData): void {
   void import('@/lib/notifications/notify').then(({ processNotification }) =>
     processNotification(data).catch((e) =>
       console.error('[queue] inline notification failed:', e),
+    ),
+  )
+}
+
+function runInlineCampaign(data: CampaignJobData): void {
+  void import('@/lib/campaigns/process').then(({ processCampaign }) =>
+    processCampaign(data).catch((e) =>
+      console.error('[queue] inline campaign failed:', e),
     ),
   )
 }

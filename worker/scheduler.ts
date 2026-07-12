@@ -211,6 +211,70 @@ async function runKnowledgeRefresh(): Promise<void> {
         }
 }
 
+// ─── appointment reminders ────────────────────────────────────────────────
+
+const APPOINTMENT_REMINDER_INTERVAL_MS = HOUR_MS
+
+/**
+ * Remind the business manager once when an active appointment enters the next
+ * 24-hour window. Redis keeps the worker restart-safe without adding a noisy
+ * persistence column to every booking.
+ */
+async function remindUpcomingAppointments(): Promise<void> {
+        const now = new Date()
+        const horizon = new Date(now.getTime() + 24 * HOUR_MS)
+        const appointments = await prisma.appointment.findMany({
+                where: {
+                        startsAt: { gt: now, lte: horizon },
+                        status: { in: ['PENDING', 'CONFIRMED'] },
+                },
+                orderBy: { startsAt: 'asc' },
+                take: 500,
+                select: {
+                        id: true,
+                        workspaceId: true,
+                        customerName: true,
+                        startsAt: true,
+                        timezone: true,
+                        service: { select: { name: true } },
+                },
+        })
+        if (!appointments.length) return
+
+        const redis = getRedis()
+        for (const appointment of appointments) {
+                const acquired = await redis.set(
+                        `appointment_reminder:${appointment.id}`,
+                        '1',
+                        'EX',
+                        48 * 3600,
+                        'NX',
+                )
+                if (!acquired) continue
+                const when = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+                        timeZone: appointment.timezone,
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                }).format(appointment.startsAt)
+                await notifyWorkspace({
+                        workspaceId: appointment.workspaceId,
+                        type: 'APPOINTMENT',
+                        title: `یادآوری نوبت ${appointment.service.name}`,
+                        body: `${appointment.customerName} · ${when}`,
+                        link: '/appointments',
+                        operatorTelegram: true,
+                })
+        }
+}
+
+async function runAppointmentReminders(): Promise<void> {
+        try {
+                await remindUpcomingAppointments()
+        } catch (error) {
+                console.error('[scheduler] appointment reminder failed:', error)
+        }
+}
+
 // ─── data retention cleanup ─────────────────────────────────────────────────
 
 const CLEANUP_INTERVAL_MS = 24 * HOUR_MS
@@ -417,7 +481,7 @@ async function runTrialLifecycleSweep(): Promise<void> {
 /** Start periodic tasks. Returns a function that stops them. */
 export function startScheduler(): () => void {
         console.log(
-                '[scheduler] started — hourly stale-conversation sweep + 6h channel-health check + 10m store sync + 1h knowledge refresh + daily retention cleanup + 6h billing and trial lifecycle reminders',
+                '[scheduler] started — hourly conversation, knowledge, and appointment sweeps + channel health + store sync + retention + billing lifecycle reminders',
         )
         // Kick off shortly after boot, then on their own cadences.
         const initialSweep = setTimeout(runSweep, 30_000)
@@ -431,6 +495,12 @@ export function startScheduler(): () => void {
 
         const initialKnowledge = setTimeout(runKnowledgeRefresh, 2 * 60_000)
         const knowledgeInterval = setInterval(runKnowledgeRefresh, HOUR_MS)
+
+        const initialAppointments = setTimeout(runAppointmentReminders, 75_000)
+        const appointmentInterval = setInterval(
+                runAppointmentReminders,
+                APPOINTMENT_REMINDER_INTERVAL_MS,
+        )
 
         const initialCleanup = setTimeout(runCleanup, 5 * 60_000)
         const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
@@ -456,6 +526,8 @@ export function startScheduler(): () => void {
                 clearInterval(storeInterval)
                 clearTimeout(initialKnowledge)
                 clearInterval(knowledgeInterval)
+                clearTimeout(initialAppointments)
+                clearInterval(appointmentInterval)
                 clearTimeout(initialCleanup)
                 clearInterval(cleanupInterval)
                 clearTimeout(initialSubExpiry)

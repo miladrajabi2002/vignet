@@ -10,12 +10,13 @@ const updateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   notes: z.string().max(5000).nullish(),
   tags: z.array(z.string().max(40)).max(20).optional(),
+  marketingOptIn: z.boolean().optional(),
 })
 
 async function ownContact(workspaceId: string, contactId: string) {
   return prisma.contact.findFirst({
     where: { id: contactId, workspaceId },
-    select: { id: true },
+    select: { id: true, marketingOptIn: true },
   })
 }
 
@@ -23,7 +24,8 @@ export async function PATCH(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!(await ownContact(user.workspaceId, params.contactId)))
+  const existing = await ownContact(user.workspaceId, params.contactId)
+  if (!existing)
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
   const json = await req.json().catch(() => null)
@@ -31,9 +33,17 @@ export async function PATCH(req: Request, props: Params) {
   if (!parsed.success)
     return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
+  const consent = parsed.data.marketingOptIn
+  const consentChanged = consent !== undefined && consent !== existing.marketingOptIn
   const contact = await prisma.contact.update({
     where: { id: params.contactId },
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      ...(consentChanged && consent === true
+        ? { marketingOptInAt: new Date(), marketingOptOutAt: null }
+        : {}),
+      ...(consentChanged && consent === false ? { marketingOptOutAt: new Date() } : {}),
+    },
   })
   return NextResponse.json({ contact })
 }

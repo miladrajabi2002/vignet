@@ -5,10 +5,11 @@ import { prisma } from '@/lib/prisma'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
+import { ReplyCreditEstimator } from '@/components/dashboard/reply-credit-estimator'
 import { MiniTrend } from '@/components/admin/mini-trend'
 import { messagesDailyByWorkspace, chargesDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
-import { getPlanDefs, PAID_PLANS } from '@/lib/billing/plans'
+import { getPlanDefs, getPlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 
 const PLAN_KEY: Record<string, string> = {
@@ -60,6 +61,7 @@ export default async function BillingPage(
   const chargedIRR = usage._sum.chargedIRR ?? 0
 
   const defs = getPlanDefs()
+  const replyPricesIRR = getPlanReplyPricesIRR(plan)
   const trialExpired =
     plan === 'TRIAL' &&
     !!workspace?.trialEndsAt &&
@@ -131,6 +133,12 @@ export default async function BillingPage(
         </div>
       </section>
 
+      <ReplyCreditEstimator
+        balanceIRR={workspace?.aiCreditBalanceIRR ?? 0}
+        pricesIRR={replyPricesIRR}
+        locale={locale}
+      />
+
       <CreditTopup locale={locale} />
 
       {/* Plans */}
@@ -180,6 +188,12 @@ export default async function BillingPage(
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {locale === 'fa' ? 'بدون بسته یا تعهد تعداد پیام' : 'No message packs or volume commitment'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {locale === 'fa'
+                      ? `${nf.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه در هر پرداخت موفق`
+                      : `${nf.format(def.includedCreditIRR / 10)} toman included credit per successful payment`}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />

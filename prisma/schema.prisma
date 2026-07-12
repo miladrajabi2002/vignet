@@ -12,24 +12,31 @@ datasource db {
 
 // ─── WORKSPACE (TENANT) ───────────────────────────────────────────
 model Workspace {
-  id                  String    @id @default(cuid())
+  id                  String       @id @default(cuid())
   name                String
-  slug                String    @unique
-  plan                Plan      @default(TRIAL)
+  slug                String       @unique
+  plan                Plan         @default(TRIAL)
   trialEndsAt         DateTime?
-  defaultModel        String    @default("fast")
-  defaultEmbedModel   String    @default("openai/text-embedding-3-small")
-  defaultTtsVoice     String    @default("alloy")
-  language            String    @default("fa")
+  defaultModel        String       @default("fast")
+  defaultEmbedModel   String       @default("openai/text-embedding-3-small")
+  defaultTtsVoice     String       @default("alloy")
+  language            String       @default("fa")
   // Prepaid successful-reply credit. Values are integer Iranian rials.
-  aiCreditBalanceIRR  Int       @default(100000)
-  aiCreditReservedIRR Int       @default(0)
+  aiCreditBalanceIRR  Int          @default(100000)
+  aiCreditReservedIRR Int          @default(0)
   // Email for the (upcoming) weekly business report — collected in settings.
   reportEmail         String?
-  onboardingStep      Int       @default(0) // 0-4, tracks activation checklist
-  onboardingCompleted Boolean   @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  // Operational vertical selected during onboarding. Channels stay independent
+  // capabilities, so an Instagram seller is still COMMERCE rather than a
+  // channel-specific business type.
+  businessType        BusinessType @default(CUSTOM)
+  // Additive profile data (currently businessName + service labels). Keeping
+  // this flexible lets onboarding evolve without another migration per answer.
+  businessProfile     Json?
+  onboardingStep      Int          @default(0) // 0-4, tracks activation checklist
+  onboardingCompleted Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   users             User[]
   agents            Agent[]
@@ -47,7 +54,12 @@ model Workspace {
   handoffAlerts     HandoffAlert[]
   payments          Payment[]
   walletEntries     WalletLedger[]
+  creditAlertStates CreditAlertState[]
   chatLinks         ChatLink[]
+  vigentoRuns       VigentoRun[]
+  campaigns         Campaign[]
+  services          Service[]
+  appointments      Appointment[]
 
   @@index([slug])
 }
@@ -57,6 +69,15 @@ enum Plan {
   STARTER
   PRO
   BUSINESS
+}
+
+enum BusinessType {
+  COMMERCE
+  FOOD
+  APPOINTMENTS
+  SERVICES
+  EDUCATION
+  CUSTOM
 }
 
 // ─── USER (phone-based, no email/password) ────────────────────────
@@ -94,40 +115,40 @@ model OTPLog {
 
 // ─── AGENT ────────────────────────────────────────────────────────
 model Agent {
-  id                      String   @id @default(cuid())
-  workspaceId             String
-  name                    String
-  description             String?
-  systemPrompt            String   @db.Text
-  model                   String?
-  temperature             Float    @default(0.7)
-  maxTokens               Int      @default(1000)
-  language                String   @default("fa")
-  voiceEnabled            Boolean  @default(false)
-  ttsVoice                String   @default("alloy")
-  avatar                  String?
-  welcomeMessage          String?
-  fallbackMessage         String?
-  handoffEnabled          Boolean  @default(false)
-  handoffMessage          String?
-  handoffKeywords         String[] @default([])
-  active                  Boolean  @default(true)
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  name                String
+  description         String?
+  systemPrompt        String   @db.Text
+  model               String?
+  temperature         Float    @default(0.7)
+  maxTokens           Int      @default(1000)
+  language            String   @default("fa")
+  voiceEnabled        Boolean  @default(false)
+  ttsVoice            String   @default("alloy")
+  avatar              String?
+  welcomeMessage      String?
+  fallbackMessage     String?
+  handoffEnabled      Boolean  @default(false)
+  handoffMessage      String?
+  handoffKeywords     String[] @default([])
+  active              Boolean  @default(true)
   // ─ 6-LAYER PROMPT ENGINE (F1) ─────────────────────────────────────────
   //   Structured prompt configuration that replaces the single-line systemPrompt
   //   with six composable layers: personality, tone, scope, fallback behavior,
   //   response format, and curated Q&A pairs. When promptConfig is set it takes
   //   precedence over systemPrompt; the legacy field is kept for backward-compat
   //   and as a free-form fallback.
-  promptConfig            Json?
+  promptConfig        Json?
   //   Role template key used to seed promptConfig (e.g. 'sales_consult',
   //   'post_sale_support', 'pre_sales', 'follow_up', 'general_support').
-  roleTemplate            String?
+  roleTemplate        String?
   // ─ Customer identification (F3): require name + phone at conversation start
   //   before the agent proceeds. Drives the collect-info flow at thread open.
-  requireCustomerInfo     Boolean  @default(false)
-  customerInfoPrompt      String?  @db.Text
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  requireCustomerInfo Boolean  @default(false)
+  customerInfoPrompt  String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   workspace                   Workspace                    @relation(fields: [workspaceId], references: [id])
   channels                    AgentChannel[]
@@ -375,9 +396,17 @@ model Contact {
   whatsappAvatarUrl  String?
   instagramUsername  String?
   instagramAvatarUrl String?
+  // Explicit consent gate for non-transactional campaign messages. New and
+  // existing contacts are opted out until consent is recorded by the owner or
+  // a channel-native flow.
+  marketingOptIn     Boolean   @default(false)
+  marketingOptInAt   DateTime?
+  marketingOptOutAt  DateTime?
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
-  conversations Conversation[]
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id])
+  conversations      Conversation[]
+  campaignRecipients CampaignRecipient[]
+  appointments       Appointment[]
 
   @@index([workspaceId])
   @@index([telegramId])
@@ -505,6 +534,7 @@ enum LogType {
   STT
   SUMMARY
   LEARNING
+  VIGENTO_DRAFT
 }
 
 // ─── SUBSCRIPTION ─────────────────────────────────────────────────
@@ -575,6 +605,8 @@ model WalletLedger {
   workspaceId     String
   usageLogId      String?
   paymentId       String?         @unique
+  // Idempotency key for non-payment wallet grants (subscription gift, etc.).
+  grantKey        String?         @unique
   type            WalletEntryType
   // Signed integer IRR: top-ups/refunds are positive; AI charges are negative.
   amountIRR       Int
@@ -592,9 +624,28 @@ model WalletLedger {
 
 enum WalletEntryType {
   CREDIT_TOPUP
+  PLAN_CREDIT_GRANT
   AI_CHARGE
   AI_REFUND
   ADMIN_ADJUSTMENT
+}
+
+// Per-model low-credit latch. A high balance re-arms it; entering the range
+// below 20 estimated replies atomically disarms it and emits one alert.
+model CreditAlertState {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  modelAlias     String
+  armed          Boolean   @default(true)
+  lastAlertedAt  DateTime?
+  thresholdIRR   Int
+  lastBalanceIRR Int
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, modelAlias])
+  @@index([workspaceId, updatedAt])
 }
 
 // Singleton runtime policy for the platform-owned AI account. Secrets remain
@@ -607,6 +658,100 @@ model PlatformAiSettings {
   providerModels   Json     @default("{}")
   monthlyBudgetUSD Float?
   updatedAt        DateTime @updatedAt
+}
+
+// Privacy-safe operational telemetry for Vigento, the agent-building
+// assistant. Raw descriptions and generated drafts deliberately do not live in
+// this table; only outcome/model/duration and explicit user feedback do.
+model VigentoRun {
+  id          String           @id @default(cuid())
+  workspaceId String
+  status      VigentoRunStatus
+  modelAlias  String?
+  durationMs  Int
+  applied     Boolean          @default(false)
+  appliedAt   DateTime?
+  helpful     Boolean?
+  failureCode String?
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum VigentoRunStatus {
+  SUCCEEDED
+  FAILED
+}
+
+// Campaigns are frozen, auditable batches. Creating a DRAFT never sends;
+// explicit confirmation transitions it to QUEUED and a worker processes each
+// unique recipient while re-checking consent and channel eligibility.
+model Campaign {
+  id                     String         @id @default(cuid())
+  workspaceId            String
+  name                   String
+  message                String         @db.Text
+  status                 CampaignStatus @default(DRAFT)
+  audienceSnapshot       Json
+  expectedRecipientCount Int
+  eligibleCount          Int            @default(0)
+  excludedCount          Int            @default(0)
+  sentCount              Int            @default(0)
+  failedCount            Int            @default(0)
+  skippedCount           Int            @default(0)
+  confirmedAt            DateTime?
+  startedAt              DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recipients CampaignRecipient[]
+
+  @@index([workspaceId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum CampaignStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  COMPLETED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+model CampaignRecipient {
+  id             String                  @id @default(cuid())
+  campaignId     String
+  contactId      String
+  status         CampaignRecipientStatus @default(PENDING)
+  channel        ChannelType?
+  conversationId String?
+  errorCode      String?
+  attemptCount   Int                     @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+  @@index([contactId])
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
 }
 
 // ─── NOTIFICATION (in-app bell; may also fan out to email/SMS) ────────
@@ -628,6 +773,7 @@ model Notification {
 enum NotificationType {
   NEW_MESSAGE
   HANDOFF
+  APPOINTMENT
   CHANNEL_DOWN
   LEARNING
   SYSTEM
@@ -980,4 +1126,107 @@ model InstagramAutomationSettings {
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId])
+}
+
+// ─── BOOKING SERVICES & AVAILABILITY ────────────────────────────────
+// Services own their calendar policy. All timestamps are persisted in UTC;
+// `timezone` controls how weekly rules and date exceptions are interpreted.
+model Service {
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  slug                String
+  name                String
+  description         String?  @db.Text
+  durationMinutes     Int      @default(60)
+  slotIntervalMinutes Int      @default(30)
+  bufferBeforeMinutes Int      @default(0)
+  bufferAfterMinutes  Int      @default(0)
+  capacity            Int      @default(1)
+  timezone            String   @default("Asia/Tehran")
+  location            String?
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workspace    Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  weeklyRules  ServiceAvailabilityRule[]
+  exceptions   ServiceDateException[]
+  appointments Appointment[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, active])
+}
+
+// weekday uses JavaScript semantics: 0=Sunday … 6=Saturday. Minutes are
+// counted from local midnight in Service.timezone.
+model ServiceAvailabilityRule {
+  id          String  @id @default(cuid())
+  serviceId   String
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  capacity    Int?
+  active      Boolean @default(true)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, weekday, startMinute, endMinute])
+  @@index([serviceId, weekday, active])
+}
+
+// One exception per local date. `closed=true` is a blackout; otherwise the
+// optional window replaces that day's weekly rules (capacity can also change).
+model ServiceDateException {
+  id          String   @id @default(cuid())
+  serviceId   String
+  date        DateTime @db.Date
+  closed      Boolean  @default(true)
+  startMinute Int?
+  endMinute   Int?
+  capacity    Int?
+  note        String?
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, date])
+  @@index([serviceId, date])
+}
+
+model Appointment {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  serviceId          String
+  contactId          String?
+  customerName       String
+  customerPhone      String?
+  startsAt           DateTime
+  endsAt             DateTime
+  timezone           String            @default("Asia/Tehran")
+  partySize          Int               @default(1)
+  status             AppointmentStatus @default(CONFIRMED)
+  source             String            @default("dashboard")
+  idempotencyKey     String?
+  notes              String?           @db.Text
+  metadata           Json?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, startsAt])
+  @@index([serviceId, startsAt, status])
+  @@index([contactId, startsAt])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
 }

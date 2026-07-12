@@ -3,6 +3,7 @@ import { getRedis } from '@/lib/redis'
 import { getPlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
+import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
 import type { Plan, Prisma } from '@prisma/client'
 
 /**
@@ -212,7 +213,13 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
       data: params.paymentUpdate,
     })
     if (claimed.count !== 1) return null
-    return persistSubscription(tx, params)
+    const currentPeriodEnd = await persistSubscription(tx, params)
+    await grantIncludedPlanCredit(tx, {
+      paymentId: params.paymentId,
+      workspaceId: params.workspaceId,
+      plan: params.plan,
+    })
+    return currentPeriodEnd
   })
 
   if (currentPeriodEnd) {
