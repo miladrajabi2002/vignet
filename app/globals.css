@@ -192,6 +192,18 @@
                 letter-spacing: 0;
         }
 
+        html[lang='fa'] :where(body, button, input, textarea, select),
+        html[dir='rtl'] :where(body, button, input, textarea, select) {
+                font-family: var(--font-fa), system-ui, sans-serif !important;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+                font: inherit;
+        }
+
         /* Headings: tighter letter-spacing for a premium feel (Apple/ChatGPT) */
         h1, h2, h3, h4 {
                 letter-spacing: -0.02em;
@@ -465,6 +477,47 @@
                 border-color: var(--blue-accent);
                 background: #ffffff;
                 box-shadow: 0 0 0 3px var(--blue-accent-soft);
+        }
+
+        /* Material select — one consistent raised control across dashboard,
+           onboarding, CRM and settings. Native semantics stay intact. */
+        select:not([multiple]) {
+                min-height: 2.75rem;
+                appearance: none;
+                -webkit-appearance: none;
+                border: 1px solid var(--border-default);
+                border-radius: 0.9rem;
+                background-color: #fff;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(0,0,0,0.55)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: left 0.9rem center;
+                padding-block: 0.625rem;
+                padding-inline: 1rem 2.75rem;
+                color: var(--text-primary);
+                box-shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 10px 28px -22px rgba(0,0,0,.5);
+                outline: none;
+                cursor: pointer;
+                transition: border-color 160ms ease, box-shadow 180ms var(--ease-spatial), transform 160ms var(--ease-spatial);
+        }
+
+        html[dir='ltr'] select:not([multiple]) {
+                background-position: right 0.9rem center;
+                padding-inline: 1rem 2.75rem;
+        }
+
+        select:not([multiple]):hover {
+                border-color: var(--border-hover);
+                box-shadow: var(--shadow-float);
+        }
+
+        select:not([multiple]):focus-visible {
+                border-color: var(--blue-accent);
+                box-shadow: 0 0 0 3px var(--blue-accent-soft), var(--shadow-float);
+        }
+
+        select option {
+                background: #fff;
+                color: var(--text-primary);
         }
 
         /* Native <select> with the .input class: hide the OS arrow and draw a single

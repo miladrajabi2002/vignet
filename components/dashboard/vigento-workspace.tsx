@@ -59,7 +59,7 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: 'fa' | 'en'; o
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Sparkles className="h-5 w-5" /></span>
             <div className="min-w-0">
-              <h1 className="text-base font-bold text-[var(--text-primary)]">Vigento</h1>
+              <h1 className="text-base font-bold text-[var(--text-primary)]">Vigento AI | هوش مصنوعی ویجنتو</h1>
               <p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">{fa ? 'دستیار مدیریت فضای کاری · داده زنده' : 'Workspace management copilot · live data'}</p>
             </div>
           </div>

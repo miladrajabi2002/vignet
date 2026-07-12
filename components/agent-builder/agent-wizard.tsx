@@ -182,10 +182,12 @@ export function AgentWizard({
         modelPolicy,
         workspaceProductCount = 0,
         showVigento = true,
+        onboardingMode = false,
 }: {
         initialBusiness?: string
         workspaceProductCount?: number
         showVigento?: boolean
+        onboardingMode?: boolean
         modelPolicy: {
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
@@ -312,6 +314,11 @@ export function AgentWizard({
                                 return
                         }
                         const data = await res.json()
+                        if (onboardingMode) {
+                                router.push('/onboarding')
+                                router.refresh()
+                                return
+                        }
                         setCreated({
                                 id: data.agent.id,
                                 name: data.agent.name,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
         Send,
         Loader2,
@@ -39,6 +39,7 @@ export function OperatorChannelSetup({
         current: OperatorChannelInfo | null
 }) {
         const t = useTranslations('operatorChannel')
+        const fa = useLocale() !== 'en'
         const router = useRouter()
 
         const [botToken, setBotToken] = useState('')
@@ -146,14 +147,17 @@ export function OperatorChannelSetup({
         }
 
         return (
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
-                        <div className="mb-2 flex items-center gap-2">
-                                <Send className="h-5 w-5 text-[var(--text-secondary)]" />
+                <section id="telegram-operator" className="spatial-surface scroll-mt-28 overflow-hidden rounded-[1.75rem] p-5 sm:p-6">
+                        <div className="mb-3 flex items-center gap-3">
+                                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Send className="h-5 w-5" /></span>
+                                <div>
                                 <h2 className="text-lg font-medium text-[var(--text-primary)]">
                                         {t('title')}
                                 </h2>
+                                <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{fa ? 'هشدارها و تحویل اپراتور در تلگرام' : 'Alerts and operator handoff in Telegram'}</p>
+                                </div>
                         </div>
-                        <p className="mb-5 text-sm text-[var(--text-secondary)]">
+                        <p className="mb-5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
                                 {t('desc')}
                         </p>
 
@@ -253,7 +257,7 @@ export function OperatorChannelSetup({
                                                                 setErrorMsg(null)
                                                         }}
                                                         placeholder="1234567890:AA…"
-                                                        className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-2.5 font-mono text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)]"
+                                                className="input w-full font-mono text-sm"
                                                 />
                                                 <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                                                         {t('helpToken')}{' '}
@@ -277,7 +281,7 @@ export function OperatorChannelSetup({
                                                         value={operatorChatId}
                                                         onChange={(e) => setOperatorChatId(e.target.value)}
                                                         placeholder="123456789"
-                                                        className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-2.5 font-mono text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)]"
+                                                className="input w-full font-mono text-sm"
                                                 />
                                                 <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                                                         {t('helpChatId')}{' '}
@@ -298,7 +302,7 @@ export function OperatorChannelSetup({
                                 <button
                                         onClick={save}
                                         disabled={status === 'saving' || !botToken.trim()}
-                                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-[var(--white)] px-4 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.01] disabled:opacity-50"
+                                        className="spatial-press inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-black px-5 text-sm font-medium text-white shadow-[var(--shadow-control)] disabled:opacity-50"
                                 >
                                         {status === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
                                         {status === 'saving' ? t('connecting') : t('connect')}
@@ -317,6 +321,6 @@ export function OperatorChannelSetup({
                                         {errorMsg ?? t('notConnected')}
                                 </p>
                         )}
-                </div>
+                </section>
         )
 }

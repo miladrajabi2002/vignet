@@ -23,7 +23,6 @@ import {
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { computeOnboarding } from '@/lib/onboarding'
-import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { IntelligenceCore } from '@/components/dashboard/intelligence-core'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
@@ -279,11 +278,9 @@ export default async function OverviewPage() {
         )}
       </section>
 
-      {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}
-
       {(!operatorChannel?.active || !operatorChannel.operatorChatId) && (
         <Link
-          href="/settings"
+          href="/settings#telegram-operator"
           className="spatial-surface spatial-press group flex flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:p-5"
         >
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
@@ -392,7 +389,7 @@ export default async function OverviewPage() {
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <DashboardPanel
           title={fa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
           subtitle={fa ? 'یک روند اصلی؛ جزئیات کامل در بخش گزارش‌ها' : 'One primary trend; deeper analysis stays in Analytics'}
@@ -411,7 +408,7 @@ export default async function OverviewPage() {
             const timestamp = conversation.lastMessageAt ?? conversation.createdAt
             const customer = conversation.contact?.name || conversation.contact?.phone || (fa ? 'مشتری بدون نام' : 'Unnamed customer')
             return (
-              <Link key={conversation.id} href={`/conversations/${conversation.id}`} className="group flex min-h-[4.4rem] items-center gap-3 py-2.5">
+              <Link key={conversation.id} href={`/conversations/${conversation.id}`} className="group flex min-h-[4.4rem] min-w-0 items-center gap-3 overflow-hidden py-2.5">
                 <span className={cn(
                   'grid h-9 w-9 shrink-0 place-items-center rounded-xl border text-xs font-semibold',
                   conversation.status === 'HANDED_OFF'
@@ -422,7 +419,7 @@ export default async function OverviewPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{customer}</span>
+                    <span dir="auto" className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{customer}</span>
                     <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
                   </span>
                   <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
@@ -430,7 +427,7 @@ export default async function OverviewPage() {
                     <span>·</span>
                     <span>{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
                     <span>·</span>
-                    <span className="truncate">{conversation.summary || conversation.agent.name}</span>
+                    <span dir="auto" className="min-w-0 truncate">{conversation.summary || conversation.agent.name}</span>
                   </span>
                 </span>
                 <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />

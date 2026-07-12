@@ -4,13 +4,14 @@ import { prisma } from '@/lib/prisma'
 export const ONBOARDING_SKIP_COOKIE = 'onboarding_skipped'
 
 export interface OnboardingState {
-  step: number // highest contiguous completed step (0-4)
+  step: number // highest contiguous completed setup step (0-3)
   completed: boolean
   checks: {
     hasAgent: boolean // 1. first agent
-    hasKnowledge: boolean // 2. knowledge or products
-    hasConversation: boolean // 3. tested agent
-    hasChannel: boolean // 4. connected channel
+    hasKnowledge: boolean // 2. knowledge/products, or explicitly postponed
+    hasChannel: boolean // 3. connected channel, or explicitly postponed
+    knowledgeSkipped: boolean
+    channelSkipped: boolean
   }
 }
 
@@ -21,27 +22,30 @@ export interface OnboardingState {
 export async function computeOnboarding(
   workspaceId: string,
 ): Promise<OnboardingState> {
-  const [agentCount, kbCount, productCount, channelCount, convCount] =
+  const [agentCount, kbCount, productCount, channelCount, workspace] =
     await Promise.all([
       prisma.agent.count({ where: { workspaceId } }),
       prisma.knowledgeBase.count({ where: { workspaceId } }),
       prisma.product.count({ where: { workspaceId } }),
       prisma.agentChannel.count({ where: { agent: { workspaceId } } }),
-      prisma.conversation.count({ where: { workspaceId } }),
+      prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { onboardingKnowledgeSkipped: true, onboardingChannelSkipped: true },
+      }),
     ])
 
   const checks = {
     hasAgent: agentCount >= 1,
-    hasKnowledge: kbCount >= 1 || productCount >= 1,
-    hasChannel: channelCount >= 1,
-    hasConversation: convCount >= 1,
+    hasKnowledge: kbCount >= 1 || productCount >= 1 || !!workspace?.onboardingKnowledgeSkipped,
+    hasChannel: channelCount >= 1 || !!workspace?.onboardingChannelSkipped,
+    knowledgeSkipped: !!workspace?.onboardingKnowledgeSkipped && kbCount === 0 && productCount === 0,
+    channelSkipped: !!workspace?.onboardingChannelSkipped && channelCount === 0,
   }
 
   // Steps are sequential — count completed in order.
   const ordered = [
     checks.hasAgent,
     checks.hasKnowledge,
-    checks.hasConversation,
     checks.hasChannel,
   ]
   let step = 0
@@ -50,11 +54,13 @@ export async function computeOnboarding(
     step++
   }
 
-  return { step, completed: step >= 4, checks }
+  return { step, completed: step >= 3, checks }
 }
 
 /**
- * Recompute onboarding state and persist it to the workspace.
+ * Recompute onboarding state and persist progress. Completion is intentionally
+ * confirmed by the owner from the final onboarding screen, so connecting a
+ * channel never swaps the shell underneath an in-progress task.
  * Call this opportunistically from API routes after relevant mutations.
  */
 export async function syncOnboarding(
@@ -63,7 +69,7 @@ export async function syncOnboarding(
   const state = await computeOnboarding(workspaceId)
   await prisma.workspace.update({
     where: { id: workspaceId },
-    data: { onboardingStep: state.step, onboardingCompleted: state.completed },
+    data: { onboardingStep: state.step },
   })
   return state
 }

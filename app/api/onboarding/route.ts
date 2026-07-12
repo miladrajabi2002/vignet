@@ -35,6 +35,26 @@ export async function PATCH(request: Request) {
 
   const json = await request.json().catch(() => null)
   if (json !== null && Object.keys(json as object).length > 0) {
+    const action = typeof (json as { action?: unknown }).action === 'string'
+      ? (json as { action: string }).action
+      : null
+    if (action === 'SKIP_KNOWLEDGE' || action === 'SKIP_CHANNEL') {
+      await prisma.workspace.update({
+        where: { id: user.workspaceId },
+        data: action === 'SKIP_KNOWLEDGE'
+          ? { onboardingKnowledgeSkipped: true }
+          : { onboardingChannelSkipped: true },
+      })
+    } else if (action === 'FINISH') {
+      const state = await computeOnboarding(user.workspaceId)
+      if (!state.completed) {
+        return NextResponse.json({ error: 'SETUP_INCOMPLETE' }, { status: 409 })
+      }
+      await prisma.workspace.update({
+        where: { id: user.workspaceId },
+        data: { onboardingCompleted: true, onboardingStep: state.step },
+      })
+    } else {
     const parsed = businessProfileInputSchema.safeParse(json)
     if (!parsed.success) {
       return NextResponse.json(
@@ -49,6 +69,7 @@ export async function PATCH(request: Request) {
         businessProfile: normalizeBusinessProfile(parsed.data),
       },
     })
+    }
   }
   const state = await syncOnboarding(user.workspaceId)
   const workspace = await prisma.workspace.findUnique({

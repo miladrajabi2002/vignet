@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Rocket, LogOut, Sparkles } from 'lucide-react'
+import { LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { getDashboardNav } from '@/components/dashboard/nav-items'
@@ -33,22 +33,8 @@ export function Sidebar({ businessType }: { businessType?: BusinessTypeValue | n
 				<span className="grid h-7 w-7 place-items-center rounded-lg bg-white/12">
 					<Sparkles className="h-4 w-4" />
 				</span>
-				<span className="flex-1">Vigento</span>
-				<span className="text-[9px] font-normal text-white/55">AI Core</span>
-			</Link>
-
-			{/* Onboarding link — subtle */}
-			<Link
-				href="/onboarding"
-				className={cn(
-					'mb-2 flex min-h-10 items-center gap-2.5 rounded-xl px-3 py-2 text-[12px] transition-colors duration-150',
-					pathname.startsWith('/onboarding')
-						? 'bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]'
-						: 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
-				)}
-			>
-				<Rocket className="h-[1.05rem] w-[1.05rem]" />
-				{t('onboarding')}
+				<span className="flex-1">Vigento AI</span>
+				<span className="text-[8px] font-normal text-white/55">هوش مصنوعی ویجنتو</span>
 			</Link>
 
 			{/* Navigation — minimal, no scroll, subtle active state */}

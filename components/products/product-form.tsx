@@ -29,10 +29,12 @@ export function ProductForm({
   mode,
   categories,
   initial,
+  returnTo,
 }: {
   mode: 'create' | 'edit'
   categories: CategoryOption[]
   initial?: ProductFormData
+  returnTo?: string
 }) {
   const t = useTranslations('products.form')
   const router = useRouter()
@@ -86,7 +88,7 @@ export function ProductForm({
       },
     )
     if (res.ok) {
-      router.push('/products')
+      router.push(returnTo ?? '/products')
       router.refresh()
     } else {
       setSubmitting(false)
@@ -94,7 +96,7 @@ export function ProductForm({
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+    <div className="spatial-surface space-y-5 rounded-[1.5rem] p-6">
       <Field label={t('name')}>
         <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('namePlaceholder')} className="input" />
       </Field>
@@ -200,7 +202,7 @@ export function ProductForm({
         className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {mode === 'edit' ? t('save') : submitting ? t('creating') : t('create')}
+        {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? 'ذخیره و ادامه' : t('create')}
       </button>
     </div>
   )

@@ -10,7 +10,7 @@ import { Rocket, ChevronLeft } from 'lucide-react'
  */
 export async function OnboardingRail({ step }: { step: number }) {
   const t = await getTranslations('onboarding')
-  const total = 4
+  const total = 3
   const pct = Math.min(100, Math.round((step / total) * 100))
 
   return (

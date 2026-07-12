@@ -29,7 +29,6 @@ export default async function OnboardingPage() {
       hasProfile={hasProfile}
       hasAgent={state.checks.hasAgent}
       hasKnowledge={state.checks.hasKnowledge}
-      hasConversation={state.checks.hasConversation}
       hasChannel={state.checks.hasChannel}
       agentId={firstAgent?.id ?? null}
       workspaceName={workspace.name}

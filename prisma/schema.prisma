@@ -12,31 +12,33 @@ datasource db {
 
 // ─── WORKSPACE (TENANT) ───────────────────────────────────────────
 model Workspace {
-  id                  String       @id @default(cuid())
-  name                String
-  slug                String       @unique
-  plan                Plan         @default(TRIAL)
-  trialEndsAt         DateTime?
-  defaultModel        String       @default("fast")
-  defaultEmbedModel   String       @default("openai/text-embedding-3-small")
-  defaultTtsVoice     String       @default("alloy")
-  language            String       @default("fa")
+  id                         String       @id @default(cuid())
+  name                       String
+  slug                       String       @unique
+  plan                       Plan         @default(TRIAL)
+  trialEndsAt                DateTime?
+  defaultModel               String       @default("fast")
+  defaultEmbedModel          String       @default("openai/text-embedding-3-small")
+  defaultTtsVoice            String       @default("alloy")
+  language                   String       @default("fa")
   // Prepaid successful-reply credit. Values are integer Iranian rials.
-  aiCreditBalanceIRR  Int          @default(100000)
-  aiCreditReservedIRR Int          @default(0)
+  aiCreditBalanceIRR         Int          @default(100000)
+  aiCreditReservedIRR        Int          @default(0)
   // Email for the (upcoming) weekly business report — collected in settings.
-  reportEmail         String?
+  reportEmail                String?
   // Operational vertical selected during onboarding. Channels stay independent
   // capabilities, so an Instagram seller is still COMMERCE rather than a
   // channel-specific business type.
-  businessType        BusinessType @default(CUSTOM)
+  businessType               BusinessType @default(CUSTOM)
   // Additive profile data (currently businessName + service labels). Keeping
   // this flexible lets onboarding evolve without another migration per answer.
-  businessProfile     Json?
-  onboardingStep      Int          @default(0) // 0-4, tracks activation checklist
-  onboardingCompleted Boolean      @default(false)
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  businessProfile            Json?
+  onboardingStep             Int          @default(0) // 0-4, tracks activation checklist
+  onboardingCompleted        Boolean      @default(false)
+  onboardingKnowledgeSkipped Boolean      @default(false)
+  onboardingChannelSkipped   Boolean      @default(false)
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
 
   users             User[]
   agents            Agent[]

@@ -93,6 +93,7 @@ export default async function SettingsPage() {
           workspaceName={workspace.name}
           initialType={workspace.businessType as BusinessTypeValue}
           initialProfile={readBusinessProfile(workspace.businessProfile)}
+          mode="settings"
         />
       )}
 

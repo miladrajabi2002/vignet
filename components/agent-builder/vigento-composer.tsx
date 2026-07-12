@@ -100,7 +100,7 @@ export function VigentoComposer({
           </span>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">ویجنتو</h2>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Vigento AI | هوش مصنوعی ویجنتو</h2>
               <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-400">
                 {isFa ? 'دستیار ساخت ایجنت' : 'Agent-building copilot'}
               </span>
@@ -234,4 +234,3 @@ function PreviewStat({ icon, label, value }: { icon: React.ReactNode; label: str
     </div>
   )
 }
-

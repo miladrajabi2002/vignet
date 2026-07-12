@@ -5,6 +5,9 @@ import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { getPlanDefs } from '@/lib/billing/plans'
+import { computeOnboarding } from '@/lib/onboarding'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 
 export default async function DashboardLayout({
   children,
@@ -22,6 +25,7 @@ export default async function DashboardLayout({
       plan: true,
       trialEndsAt: true,
       aiCreditBalanceIRR: true,
+      businessProfile: true,
       subscriptions: {
         where: { status: 'ACTIVE' },
         orderBy: { currentPeriodEnd: 'desc' },
@@ -37,8 +41,16 @@ export default async function DashboardLayout({
   // the onboarding flow, full-screen, with its own progress indicator.
   // No menu, no "شروع به کار" link — just the step-by-step setup.
   if (!onboardingDone) {
+    const state = await computeOnboarding(user.workspaceId)
     return (
-      <main className="min-h-dvh bg-[var(--bg-base)]">{children}</main>
+      <OnboardingShell
+        profileComplete={!!readBusinessProfile(workspace?.businessProfile)}
+        hasAgent={state.checks.hasAgent}
+        hasKnowledge={state.checks.hasKnowledge}
+        hasChannel={state.checks.hasChannel}
+      >
+        {children}
+      </OnboardingShell>
     )
   }
 

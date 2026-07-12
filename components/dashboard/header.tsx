@@ -6,7 +6,7 @@ import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
-import type { BusinessTypeValue } from '@/lib/verticals/registry'
+import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
 
 export async function Header({
   name,
@@ -34,19 +34,22 @@ export async function Header({
     : plan.charAt(0) + plan.slice(1).toLowerCase()
   const remaining = Math.max(0, 100 - usagePercent)
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
+  const businessLabel = fa
+    ? getVerticalPack(businessType).titleFa
+    : getVerticalPack(businessType).titleEn
 
   return (
     <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6 lg:px-8 xl:px-10">
-      <div className="spatial-control flex min-h-14 items-center justify-between gap-2 rounded-[1.15rem] px-2.5 sm:px-3.5">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="spatial-control flex min-h-16 items-center justify-between gap-3 rounded-[1.3rem] px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-3.5">
         <MobileNav businessType={businessType} />
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">
+          <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">
             {name ? t('greeting', { name }) : t('welcome')}
           </div>
-          <div className="mt-0.5 hidden items-center gap-1.5 text-[11px] text-[var(--text-muted)] sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            {locale === 'fa' ? 'فضای کاری ویجنت' : 'Vigent workspace'}
+          <div className="mt-1 hidden items-center gap-1.5 text-[10px] leading-4 text-[var(--text-muted)] sm:flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {businessLabel} · {fa ? 'مرکز مدیریت ویجنت' : 'Vigent management center'}
           </div>
         </div>
       </div>
@@ -55,26 +58,23 @@ export async function Header({
         <Link
           href="/billing"
           aria-label={fa ? 'مشاهده پلن و اعتبار' : 'View plan and credit'}
-          className="spatial-press me-1 flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-2.5 sm:min-w-44 sm:px-3"
+          className="spatial-press relative me-1 flex min-h-12 items-center gap-2.5 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white px-2.5 pb-2.5 md:min-w-[13.5rem] md:px-3"
         >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-black text-white shadow-[var(--shadow-control)]">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]">
             <Wallet className="h-3.5 w-3.5" />
           </span>
-          <span className="hidden min-w-0 flex-1 sm:block">
-            <span className="flex items-center justify-between gap-3 text-[10px] font-semibold text-[var(--text-primary)]">
-              <span>{planLabel}</span>
-              <span className="tabular-nums">{nf.format(remaining)}{fa ? '٪ باقی' : '% left'}</span>
+          <span className="hidden min-w-0 flex-1 md:block">
+            <span className="flex items-center justify-between gap-3 text-[10px] font-bold text-[var(--text-primary)]">
+              <span>{fa ? `پلن ${planLabel}` : `${planLabel} plan`}</span>
+              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-0.5 tabular-nums text-[9px]">{nf.format(remaining)}{fa ? '٪ باقی' : '% left'}</span>
             </span>
-            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-              <span
-                className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none"
-                style={{ width: `${remaining}%` }}
-              />
-            </span>
-            <span className="mt-1 flex items-center justify-between gap-2 text-[9px] text-[var(--text-muted)]">
+            <span className="mt-1.5 flex items-center justify-between gap-2 text-[9px] leading-4 text-[var(--text-muted)]">
               <span>{nf.format(Math.round(creditIRR / 10))} {fa ? 'تومان اعتبار' : 'toman credit'}</span>
               {daysLeft !== null && <span>{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
             </span>
+          </span>
+          <span className="absolute inset-x-3 bottom-1 h-0.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+            <span className="block h-full rounded-full bg-black" style={{ width: `${remaining}%` }} />
           </span>
         </Link>
         <NotificationBell />

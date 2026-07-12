@@ -23,6 +23,8 @@ import {
 } from '@/lib/crm/display'
 import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardDonut } from '@/components/dashboard/donut'
 
 const PAGE_SIZE = 50
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -119,6 +121,7 @@ export default async function ConversationsPage(props: {
                                 channel: true,
                                 status: true,
                                 handedOff: true,
+                                messageCount: true,
                                 lastMessageAt: true,
                                 createdAt: true,
                                 agent: { select: { name: true } },
@@ -183,12 +186,36 @@ export default async function ConversationsPage(props: {
         const availableChannels = channelGroups
                 .map((g) => ({ channel: g.channel, count: g._count._all }))
                 .sort((a, b) => b.count - a.count)
+        const statusDonut = [
+                { label: isFa ? 'باز' : 'Open', value: openCount },
+                { label: isFa ? 'حل‌شده' : 'Resolved', value: resolvedCount },
+                { label: isFa ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
+        ].filter((item) => item.value > 0)
+        const channelDonut = availableChannels.map((item) => ({
+                label: channelLabels?.[item.channel] ?? item.channel.charAt(0) + item.channel.slice(1).toLowerCase(),
+                value: item.count,
+        }))
 
         return (
-                <div className="mx-auto max-w-4xl space-y-6">
+                <div className="min-w-0 space-y-6">
                         <div>
                                 <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
                                 <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
+                        </div>
+
+                        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                                <DashboardPanel
+                                        title={isFa ? 'وضعیت گفتگوها' : 'Conversation status'}
+                                        subtitle={isFa ? 'نمای کلی پرونده‌های باز، حل‌شده و تحویل‌شده' : 'Open, resolved and handed-off cases'}
+                                >
+                                        <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
+                                </DashboardPanel>
+                                <DashboardPanel
+                                        title={isFa ? 'توزیع کانال‌ها' : 'Channel distribution'}
+                                        subtitle={isFa ? 'گفتگوها بر اساس کانال ورودی' : 'Conversations by inbound channel'}
+                                >
+                                        <DashboardDonut data={channelDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
+                                </DashboardPanel>
                         </div>
 
                         {/* ─── 7-day MiniTrends ─── */}
@@ -285,7 +312,14 @@ export default async function ConversationsPage(props: {
                                         )}
                                 </div>
                         ) : (
-                                <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+                                <div className="spatial-surface min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]">
+                                <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+                                        <div>
+                                                <h2 className="text-xs font-bold text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
+                                                <p className="mt-1 text-[10px] text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
+                                        </div>
+                                        <span className="rounded-full bg-[var(--bg-surface)] px-2.5 py-1 text-[9px] font-bold text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
+                                </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
                                                 const when = c.lastMessageAt ?? c.createdAt
@@ -329,7 +363,7 @@ export default async function ConversationsPage(props: {
                                                                 key={c.id}
                                                                 href={`/conversations/${c.id}`}
                                                                 className={cn(
-                                                                        'flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]',
+                                                                        'grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5',
                                                                         c.handedOff && c.status !== 'RESOLVED' && 'bg-amber-500/5',
                                                                 )}
                                                         >
@@ -351,12 +385,12 @@ export default async function ConversationsPage(props: {
                                                                         </div>
                                                                 )}
                                                                 <div className="min-w-0 flex-1">
-                                                                        <div className="flex items-center gap-2">
-                                                                                <span className="truncate text-sm font-medium text-[var(--text-primary)]">
+                                                                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                                                                                <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
                                                                                         {who}
                                                                                 </span>
                                                                                 {channelHandle && who !== channelHandle && (
-                                                                                        <span dir="ltr" className="shrink-0 rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                                                                                        <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
                                                                                                 @{channelHandle}
                                                                                         </span>
                                                                                 )}
@@ -371,14 +405,15 @@ export default async function ConversationsPage(props: {
                                                                                         </span>
                                                                                 )}
                                                                         </div>
-                                                                        <p className="truncate text-xs text-[var(--text-secondary)]">
+                                                                        <p dir="auto" className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
                                                                                 {last
                                                                                         ? `${last.role === 'ASSISTANT' ? '↩ ' : ''}${stripProductTokens(last.content)}`
                                                                                         : c.agent.name}
                                                                         </p>
                                                                 </div>
-                                                                <span className="shrink-0 text-[11px] text-[var(--text-muted)]">
-                                                                        {relativeTime(when, locale)}
+                                                                <span className="shrink-0 text-end text-[10px] leading-5 text-[var(--text-muted)]">
+                                                                        <span className="block">{relativeTime(when, locale)}</span>
+                                                                        <span className="block tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
                                                                 </span>
                                                         </Link>
                                                 )

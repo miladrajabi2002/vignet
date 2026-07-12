@@ -41,6 +41,7 @@ interface Props {
   workspaceName: string
   initialType: BusinessTypeValue
   initialProfile: { businessName: string; services: string[] } | null
+  mode?: 'onboarding' | 'settings'
 }
 
 // 3 sub-steps: 0 = choose type, 1 = name + services, 2 = review + next action
@@ -50,11 +51,12 @@ export function BusinessProfileStep({
   workspaceName,
   initialType,
   initialProfile,
+  mode = 'onboarding',
 }: Props) {
   const locale = useLocale()
   const fa = locale === 'fa'
   const router = useRouter()
-  const [subStep, setSubStep] = useState<SubStep>(initialProfile ? 1 : 0)
+  const [subStep, setSubStep] = useState<SubStep>(mode === 'settings' ? 0 : initialProfile ? 1 : 0)
   const [selectedType, setSelectedType] = useState<BusinessTypeValue | null>(
     initialProfile ? initialType : null,
   )
@@ -77,12 +79,12 @@ export function BusinessProfileStep({
 
   const copy = fa
     ? {
-        step1Title: 'نوع کسب‌وکار خود را انتخاب کنید',
-        step1Hint: 'برای شروع، مدل عملیاتی کسب‌وکار خود را مشخص کنید',
-        step2Title: 'نام و خدمات کسب‌وکار',
-        step2Hint: 'اطلاعات پایه کسب‌وکار خود را وارد کنید',
-        step3Title: 'آماده برای ساخت ایجنت',
-        step3Hint: 'اطلاعات ذخیره شد. حالا ایجنت خود را بسازید',
+        step1Title: mode === 'settings' ? 'تغییر نوع کسب‌وکار' : 'نوع کسب‌وکار خود را انتخاب کنید',
+        step1Hint: mode === 'settings' ? 'با تغییر نوع، ابزارها و پیشنهادهای پنل متناسب می‌شوند' : 'برای شروع، مدل عملیاتی کسب‌وکار خود را مشخص کنید',
+        step2Title: mode === 'settings' ? 'اطلاعات کسب‌وکار جدید' : 'نام و خدمات کسب‌وکار',
+        step2Hint: mode === 'settings' ? 'نام و خدمات متناسب با نوع انتخاب‌شده را بازبینی کنید' : 'اطلاعات پایه کسب‌وکار خود را وارد کنید',
+        step3Title: mode === 'settings' ? 'نوع کسب‌وکار به‌روز شد' : 'آماده برای ساخت ایجنت',
+        step3Hint: mode === 'settings' ? 'منو و ابزارهای پنل با انتخاب جدید هماهنگ شدند' : 'اطلاعات ذخیره شد. حالا ایجنت خود را بسازید',
         name: 'نام کسب‌وکار',
         namePlaceholder: 'مثلاً فروشگاه رزین‌مهر',
         services: 'خدمات یا کارهای اصلی',
@@ -92,7 +94,7 @@ export function BusinessProfileStep({
         saved: 'ذخیره شد',
         next: 'ادامه',
         back: 'بازگشت',
-        buildAgent: 'ساخت ایجنت پیشنهادی',
+        buildAgent: mode === 'settings' ? 'تغییر دوباره' : 'ساخت ایجنت پیشنهادی',
         errorName: 'نام کسب‌وکار را وارد کنید (حداقل ۲ نویسه).',
         errorServices: 'حداقل یک خدمت را انتخاب کنید.',
         pickType: 'یک گزینه را انتخاب کنید',
@@ -103,12 +105,12 @@ export function BusinessProfileStep({
         of: 'از',
       }
     : {
-        step1Title: 'Choose your business type',
-        step1Hint: 'Select your operational model to get started',
-        step2Title: 'Business name & services',
-        step2Hint: 'Enter the basics of your business',
-        step3Title: 'Ready to build your agent',
-        step3Hint: 'Profile saved. Now build your agent',
+        step1Title: mode === 'settings' ? 'Change business type' : 'Choose your business type',
+        step1Hint: mode === 'settings' ? 'Dashboard tools adapt to the selected business' : 'Select your operational model to get started',
+        step2Title: mode === 'settings' ? 'Updated business details' : 'Business name & services',
+        step2Hint: mode === 'settings' ? 'Review the name and services for the new type' : 'Enter the basics of your business',
+        step3Title: mode === 'settings' ? 'Business type updated' : 'Ready to build your agent',
+        step3Hint: mode === 'settings' ? 'Dashboard navigation and tools now match this business' : 'Profile saved. Now build your agent',
         name: 'Business name',
         namePlaceholder: 'e.g. ResinMehr Store',
         services: 'Main services or jobs',
@@ -118,7 +120,7 @@ export function BusinessProfileStep({
         saved: 'Saved',
         next: 'Continue',
         back: 'Back',
-        buildAgent: 'Build suggested agent',
+        buildAgent: mode === 'settings' ? 'Change again' : 'Build suggested agent',
         errorName: 'Enter a business name (at least 2 characters).',
         errorServices: 'Select at least one service.',
         pickType: 'Pick one option',
@@ -464,13 +466,24 @@ export function BusinessProfileStep({
                   <BackArrow className="h-3.5 w-3.5 rtl:rotate-0" />
                   {copy.back}
                 </button>
-                <a
-                  href={`/agents/new?business=${selectedPack.agentTemplate}`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-6 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black"
-                >
-                  {copy.buildAgent}
-                  <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
-                </a>
+                {mode === 'settings' ? (
+                  <button
+                    type="button"
+                    onClick={() => setSubStep(0)}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-6 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black"
+                  >
+                    {copy.buildAgent}
+                    <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+                  </button>
+                ) : (
+                  <a
+                    href={`/agents/new?business=${selectedPack.agentTemplate}`}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-6 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black"
+                  >
+                    {copy.buildAgent}
+                    <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+                  </a>
+                )}
               </div>
             </motion.div>
           )}

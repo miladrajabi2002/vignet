@@ -10,6 +10,7 @@ type BuildMode = 'choice' | 'ai' | 'manual'
 interface Props {
   initialBusiness?: string
   workspaceProductCount?: number
+  onboardingMode?: boolean
   modelPolicy: {
     plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
     enabledModels: string[]
@@ -19,7 +20,7 @@ interface Props {
   }
 }
 
-export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, modelPolicy }: Props) {
+export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, onboardingMode = false, modelPolicy }: Props) {
   const [mode, setMode] = useState<BuildMode>('choice')
 
   // The choice screen lets the user pick AI-guided or manual
@@ -42,6 +43,7 @@ export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, mode
         workspaceProductCount={workspaceProductCount}
         modelPolicy={modelPolicy as never}
         showVigento={mode === 'ai'}
+        onboardingMode={onboardingMode}
       />
     </div>
   )
@@ -77,7 +79,7 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
             {fa ? 'ساخت با هوش مصنوعی' : 'Build with AI'}
           </h2>
           <p className="mt-1.5 text-[13px] leading-5 text-[var(--text-muted)]">
-            {fa ? 'ویجنتو، دستیار هوشمند ما، از توضیح شما یک ایجنت کامل می‌سازد. سریع‌ترین راه.' : 'Vigento, our AI copilot, builds a complete agent from your description. Fastest path.'}
+            {fa ? 'هوش مصنوعی ویجنتو از توضیح شما یک ایجنت کامل می‌سازد؛ سریع‌ترین مسیر برای شروع.' : 'Vigento AI builds a complete agent from your description. The fastest path.'}
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-primary)]">
             {fa ? 'شروع' : 'Start'}

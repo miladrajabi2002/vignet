@@ -22,7 +22,7 @@ export function DashboardPanel({
   return (
     <section
       className={cn(
-        'spatial-surface rounded-[1.5rem] p-5 sm:p-6',
+        'spatial-surface min-w-0 overflow-hidden rounded-[1.5rem] p-5 sm:p-6',
         className,
       )}
     >

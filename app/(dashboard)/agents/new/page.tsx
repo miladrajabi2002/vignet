@@ -30,7 +30,7 @@ export default async function NewAgentPage({
   const [workspace, policy, workspaceProductCount] = await Promise.all([
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { plan: true, aiCreditBalanceIRR: true },
+      select: { plan: true, aiCreditBalanceIRR: true, onboardingCompleted: true },
     }),
     getPlatformAiConfig(),
     prisma.product.count({ where: { workspaceId: user.workspaceId, active: true } }),
@@ -41,6 +41,7 @@ export default async function NewAgentPage({
       <AgentBuilderEntry
         initialBusiness={business}
         workspaceProductCount={workspaceProductCount}
+        onboardingMode={!workspace?.onboardingCompleted}
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',
           enabledModels: policy.enabledModels,
