@@ -119,10 +119,10 @@ function VisGoLive({ label }: { label: string }) {
           </div>
         ))}
       </div>
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-600">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-medium text-[var(--accent-strong)]">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-60 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
         </span>
         {label}
       </span>
@@ -178,7 +178,7 @@ export function HowItWorks() {
             whileInView={{ scaleX: 1 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={reduce ? { duration: 0 } : { duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-            className="absolute inset-x-[16%] top-7 hidden h-px origin-center bg-gradient-to-r from-transparent via-[var(--border-strong)] to-transparent md:block"
+            className="absolute inset-x-[16%] top-7 hidden h-px origin-center bg-[var(--border-default)] md:block"
           />
 
           <div className="grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-6">
@@ -192,15 +192,15 @@ export function HowItWorks() {
                 className="group relative flex flex-col items-center"
               >
                 {/* Number badge with icon on hover */}
-                <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-base)] transition-all duration-300 group-hover:scale-105 group-hover:border-[var(--border-strong)]">
-                  <span className="font-mono text-lg text-[var(--text-secondary)] transition-opacity duration-300 group-hover:opacity-0">
+                <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-base)] transition-colors duration-150 group-hover:border-[var(--border-strong)]">
+                  <span className="font-mono text-lg text-[var(--text-secondary)] transition-opacity duration-150 group-hover:opacity-0">
                     {i + 1}
                   </span>
-                  <Icon aria-hidden="true" className="absolute h-6 w-6 text-[var(--text-primary)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <Icon aria-hidden="true" className="absolute h-6 w-6 text-[var(--text-primary)] opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
                 </div>
 
                 {/* Step card — visual first, words second */}
-                <div className="mt-6 flex w-full flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-5 text-center transition-all duration-300 group-hover:-translate-y-1 group-hover:border-[var(--border-hover)] group-hover:bg-[var(--white-10)]">
+                <div className="mt-6 flex w-full flex-1 flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] p-5 text-center transition-colors duration-150 group-hover:border-[var(--border-hover)] group-hover:bg-[var(--white-10)]">
                   <div aria-hidden="true" className="flex h-24 items-center justify-center overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)]">
                     {i === 0 && <VisPickTemplate />}
                     {i === 1 && <VisFeedData />}
@@ -235,7 +235,7 @@ export function HowItWorks() {
         >
           <Link
             href="/login?next=/onboarding"
-            className="group inline-flex min-h-12 items-center gap-2 rounded-full border border-[var(--border-hover)] px-6 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--white-05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+            className="group inline-flex min-h-12 items-center gap-2 rounded-full border border-[var(--border-hover)] px-6 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
           >
             {t('cta')}
             <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

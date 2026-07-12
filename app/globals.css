@@ -3,61 +3,77 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────────
-   VIGENT — Monochrome Design System (single light theme)
-   White base, near-black ink. There is no dark mode — the whole site
-   (marketing, dashboard, admin, auth) uses this one theme. The legacy
-   `--white*` tokens are kept as names but now hold the *ink* (black)
-   spectrum, so existing usages read as foreground-on-white.
+   VIGENT — OpenAI-style Design System (2026)
+   Light mode only. White dominant, near-black ink, blue only for
+   interactive elements, green/red only for status. Minimal, calm,
+   professional. No gradients, no glassmorphism, no decorative effects.
    ─────────────────────────────────────────────────────────────── */
 
 :root {
-        /* Backgrounds */
-        --bg-base: #ffffff;
-        --bg-surface: #fafafa;
-        --bg-elevated: #f4f4f4;
-        --bg-hover: #efefef;
-        --bg-muted: #e8e8e8;
+        /* ─── Backgrounds ─── */
+        --bg-base: #ffffff;          /* page background */
+        --bg-surface: #f7f7f8;       /* secondary background */
+        --bg-elevated: #f7f7f8;      /* inputs, subtle panels */
+        --bg-hover: #f3f4f6;         /* hover state */
+        --bg-muted: #f3f4f6;         /* muted areas */
 
-        /* Borders */
-        --border-subtle: rgba(0, 0, 0, 0.04);
-        --border-default: rgba(0, 0, 0, 0.1);
-        --border-hover: rgba(0, 0, 0, 0.18);
-        --border-strong: rgba(0, 0, 0, 0.28);
+        /* ─── Borders (thin, almost invisible) ─── */
+        --border-subtle: #f3f4f6;
+        --border-default: #e5e7eb;   /* primary border color */
+        --border-hover: #d1d5db;
+        --border-strong: #9ca3af;
 
-        /* Text */
-        --text-primary: #0a0a0a;
-        --text-secondary: rgba(0, 0, 0, 0.6);
-        --text-muted: rgba(0, 0, 0, 0.4);
-        --text-hint: rgba(0, 0, 0, 0.16);
+        /* ─── Text ─── */
+        --text-primary: #111111;     /* primary text */
+        --text-secondary: #4b5563;   /* secondary text */
+        --text-muted: #6b7280;       /* muted text */
+        --text-hint: #9ca3af;        /* hint / placeholder */
 
-        /* Ink spectrum (historically named "white"; now the black foreground) */
-        --white: #0a0a0a;
-        --white-90: rgba(0, 0, 0, 0.9);
-        --white-60: rgba(0, 0, 0, 0.6);
-        --white-30: rgba(0, 0, 0, 0.3);
-        --white-10: rgba(0, 0, 0, 0.1);
-        --white-05: rgba(0, 0, 0, 0.05);
+        /* Ink spectrum (legacy "white" names → now black ink) */
+        --white: #111111;
+        --white-90: rgba(17, 17, 17, 0.9);
+        --white-60: rgba(17, 17, 17, 0.6);
+        --white-30: rgba(17, 17, 17, 0.3);
+        --white-10: rgba(17, 17, 17, 0.1);
+        --white-05: rgba(17, 17, 17, 0.05);
 
-        /* Foreground "ink" channel for charts/canvas that need variable opacity. */
-        --ink-rgb: 10, 10, 10;
+        /* Foreground "ink" channel for charts/canvas */
+        --ink-rgb: 17, 17, 17;
 
-        /* Semantic (dashboard states only) */
-        --green: #22c55e;
-        --red: #ef4444;
-        --amber: #f59e0b;
-        --blue: #3b82f6;
-        /* Vigent signal — used sparingly for active, live and successful states.
-           The deeper tone is accessible for text on white; the bright tone is
-           reserved for dots, fills and large graphical marks. */
-        --accent: #10b981;
-        --accent-strong: #047857;
-        --accent-soft: rgba(16, 185, 129, 0.09);
-        --accent-border: rgba(5, 150, 105, 0.22);
-        --accent-foreground: #064e3b;
-        --shadow-soft: 0 1px 2px rgba(10, 10, 10, 0.03), 0 14px 36px rgba(10, 10, 10, 0.045);
-        /* Aliases — `bg-[var(--danger)]` resolves to red. Without this, several
-           Instagram automation buttons (delete scenario, remove media, etc.) render
-           with transparent backgrounds and become invisible. */
+        /* ─── Semantic status (only for positive/negative indicators) ─── */
+        --green: #22c55e;            /* success / growth */
+        --red: #ef4444;              /* danger / decline */
+        --amber: #f59e0b;            /* warning */
+        --blue: #0a84ff;             /* primary blue (legacy alias) */
+
+        /* ─── Primary accent: blue (interactive elements only) ───
+           Used for links, focus rings, active indicators, chart primary.
+           NOT for large fills or decorative elements. */
+        --accent: #0a84ff;
+        --accent-strong: #0077ed;    /* hover state */
+        --accent-soft: rgba(10, 132, 255, 0.08);
+        --accent-border: rgba(10, 132, 255, 0.20);
+        --accent-foreground: #0077ed;
+        --accent-rgb: 10, 132, 255;
+
+        /* Secondary accent — consolidated to the same blue (no indigo) */
+        --accent2: #0a84ff;
+        --accent2-strong: #0077ed;
+        --accent2-soft: rgba(10, 132, 255, 0.08);
+        --accent2-border: rgba(10, 132, 255, 0.20);
+        --accent2-foreground: #0077ed;
+        --accent2-rgb: 10, 132, 255;
+
+        /* ─── Shadows (almost invisible — very soft) ─── */
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+        --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-lift: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.04);
+        --shadow-glow-emerald: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-glow-indigo: 0 1px 3px rgba(0, 0, 0, 0.04);
+        /* Aliases */
         --danger: var(--red);
         --success: var(--green);
         --warning: var(--amber);
@@ -144,97 +160,170 @@
 }
 
 @layer components {
-	/* Shared application canvas. A restrained signal glow and paper grid give
-	   every dashboard page the same product identity without competing with
-	   dense operational content. */
-	.dashboard-canvas {
-		background-color: var(--bg-base);
-		background-image:
-			radial-gradient(circle at 82% 0%, rgba(16, 185, 129, 0.075), transparent 26rem),
-			linear-gradient(rgba(0, 0, 0, 0.018) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(0, 0, 0, 0.018) 1px, transparent 1px);
-		background-size: auto, 40px 40px, 40px 40px;
-	}
+        /* Shared application canvas — pure white, no decorative backgrounds. */
+        .dashboard-canvas {
+                background-color: var(--bg-base);
+        }
 
-	.dashboard-main {
-		margin-inline: auto;
-		width: 100%;
-		max-width: 100rem;
-	}
+        .dashboard-main {
+                margin-inline: auto;
+                width: 100%;
+                max-width: 100rem;
+        }
 
-	.dashboard-card {
-		box-shadow: var(--shadow-soft);
-	}
+        .dashboard-card {
+                box-shadow: var(--shadow-soft);
+        }
 
-	/* Shared marketing type rhythm. Persian display text needs more line-height
-	   and less aggressive tracking than the previous 6rem headings. */
-	.marketing-heading {
-		max-width: 56rem;
-		font-size: clamp(1.65rem, 7vw, 3.35rem);
-		font-weight: 600;
-		line-height: 1.22;
-		letter-spacing: -0.032em;
-		text-wrap: balance;
-		color: var(--text-primary);
-	}
-	html[dir='rtl'] .marketing-heading {
-		letter-spacing: 0;
-	}
-	.marketing-subtitle {
-		max-width: 42rem;
-		font-size: 0.9375rem;
-		line-height: 1.9;
-		color: rgba(0, 0, 0, 0.62);
-	}
-	.marketing-eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		line-height: 1.5;
-		color: rgba(0, 0, 0, 0.5);
-	}
-	.marketing-eyebrow::before {
-		content: '';
-		width: 0.42rem;
-		height: 0.42rem;
-		border-radius: 9999px;
-		background: #10b981;
-		box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
-	}
-	/* One quiet scroll rhythm across the homepage. The controller adds the
-	   readiness class only when IntersectionObserver is available, so SSR and
-	   no-JS rendering never hide content. */
-	html.marketing-motion-ready .marketing-story-section {
-		opacity: 0;
-		transform: translate3d(0, 1.125rem, 0);
-		transition:
-			opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
-			transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
-		will-change: opacity, transform;
-	}
-	html.marketing-motion-ready .marketing-story-section.is-visible {
-		opacity: 1;
-		transform: translate3d(0, 0, 0);
-		will-change: auto;
-	}
+        /* ─── Flat card surfaces (OpenAI-style — no glassmorphism) ────
+           Pure white, thin border, almost-invisible shadow. These replace
+           the old glassmorphism classes with clean flat panels. */
+        .glass,
+        .glass-strong,
+        .glass-indigo {
+                background: #ffffff;
+                border: 1px solid var(--border-default);
+                box-shadow: var(--shadow-card);
+        }
+        .glass-dark {
+                background: #111111;
+                border: 1px solid #1f2937;
+                box-shadow: var(--shadow-card);
+        }
 
-	.input {
+        /* Gradient text utilities — disabled per design brief (no gradients).
+           Kept as no-ops so existing markup doesn't break. */
+        .ink-gradient {
+                color: var(--text-primary);
+        }
+        .premium-gradient {
+                color: var(--text-primary);
+        }
+
+        /* Scrollable list with a refined slim scrollbar (for max-h-* containers). */
+        .scroll-slim {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
+        }
+        .scroll-slim::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+        }
+        .scroll-slim::-webkit-scrollbar-track {
+                background: transparent;
+        }
+        .scroll-slim::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.14);
+                border-radius: 9999px;
+        }
+        .scroll-slim::-webkit-scrollbar-thumb:hover {
+                background: rgba(0, 0, 0, 0.28);
+        }
+
+        /* Animated conic ring (for "live" AI core badges). */
+        .conic-spin {
+                background: conic-gradient(from 0deg, transparent 0%, rgba(16, 185, 129, 0.5) 25%, transparent 50%, rgba(16, 185, 129, 0.3) 75%, transparent 100%);
+                animation: conic-spin 4s linear infinite;
+        }
+        @keyframes conic-spin {
+                to { transform: rotate(360deg); }
+        }
+
+        /* Soft pulsing glow used on "live" dots. */
+        .pulse-glow {
+                animation: pulse-glow 2s ease-in-out infinite;
+        }
+        @keyframes pulse-glow {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+        }
+
+        /* Shimmering text gradient (for " Vigento is thinking" states). */
+        .shimmer-text {
+                background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0.4) 100%);
+                background-size: 200% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+                animation: shimmer-text 1.8s ease-in-out infinite;
+        }
+        @keyframes shimmer-text {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+        }
+
+        /* Shared marketing type rhythm. Persian display text needs more line-height
+           and less aggressive tracking than the previous 6rem headings. */
+        .marketing-heading {
+                max-width: 56rem;
+                font-size: clamp(1.65rem, 7vw, 3.35rem);
+                font-weight: 600;
+                line-height: 1.22;
+                letter-spacing: -0.032em;
+                text-wrap: balance;
+                color: var(--text-primary);
+        }
+        html[dir='rtl'] .marketing-heading {
+                letter-spacing: 0;
+        }
+        .marketing-subtitle {
+                max-width: 42rem;
+                font-size: 0.9375rem;
+                line-height: 1.9;
+                color: rgba(0, 0, 0, 0.62);
+        }
+        .marketing-eyebrow {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.6875rem;
+                font-weight: 600;
+                line-height: 1.5;
+                color: rgba(0, 0, 0, 0.5);
+        }
+        .marketing-eyebrow::before {
+                content: '';
+                width: 0.42rem;
+                height: 0.42rem;
+                border-radius: 9999px;
+                background: #10b981;
+                box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
+        }
+        /* One quiet scroll rhythm across the homepage. The controller adds the
+           readiness class only when IntersectionObserver is available, so SSR and
+           no-JS rendering never hide content. */
+        html.marketing-motion-ready .marketing-story-section {
+                opacity: 0;
+                transform: translate3d(0, 1.125rem, 0);
+                transition:
+                        opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+                will-change: opacity, transform;
+        }
+        html.marketing-motion-ready .marketing-story-section.is-visible {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+                will-change: auto;
+        }
+
+        /* Inputs — soft gray background, no heavy borders, blue outline on focus. */
+        .input {
                 width: 100%;
                 border-radius: 0.75rem;
                 border: 1px solid var(--border-default);
-                background: var(--bg-base);
+                background: var(--bg-surface);
                 padding: 0.625rem 1rem;
                 color: var(--text-primary);
                 outline: none;
-                transition: border-color 0.15s ease;
+                transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
         }
         .input::placeholder {
                 color: var(--text-hint);
         }
         .input:focus {
-                border-color: var(--border-strong);
+                border-color: var(--accent);
+                background: var(--bg-base);
+                box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
         }
 
         /* Native <select> with the .input class: hide the OS arrow and draw a single
@@ -318,16 +407,16 @@
 }
 
 @media (min-width: 640px) {
-	.marketing-heading { line-height: 1.18; }
+        .marketing-heading { line-height: 1.18; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-	html.marketing-motion-ready .marketing-story-section,
-	html.marketing-motion-ready .marketing-story-section.is-visible {
-		opacity: 1;
-		transform: none;
-		transition: none;
-	}
+        html.marketing-motion-ready .marketing-story-section,
+        html.marketing-motion-ready .marketing-story-section.is-visible {
+                opacity: 1;
+                transform: none;
+                transition: none;
+        }
 
         *,
         *::before,

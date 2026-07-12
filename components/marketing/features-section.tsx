@@ -103,13 +103,13 @@ function LayerPanel() {
 	const reduce = useReducedMotion()
 
 	return (
-		<div className="overflow-hidden rounded-[1.4rem] border border-white/12 bg-white/[0.055]">
-			<div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-5">
+		<div className="overflow-hidden rounded-[1.4rem] border border-[var(--border-default)] bg-white" style={{ boxShadow: 'var(--shadow-card)' }}>
+			<div className="flex items-center justify-between border-b border-[var(--border-default)] px-4 py-4 sm:px-5">
 				<div className="flex items-center gap-3">
-					<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black"><Bot className="h-4 w-4" aria-hidden /></span>
-					<div><p className="text-sm font-medium text-white">{copy.panelTitle}</p><p className="mt-0.5 text-[11px] text-white/60">{copy.panelNote}</p></div>
+					<span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]"><Bot className="h-4 w-4" aria-hidden /></span>
+					<div><p className="text-sm font-medium text-[var(--text-primary)]">{copy.panelTitle}</p><p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{copy.panelNote}</p></div>
 				</div>
-				<span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] text-emerald-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />{copy.live}</span>
+				<span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white px-2.5 py-1 text-[10px] text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />{copy.live}</span>
 			</div>
 
 			<div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4">
@@ -120,17 +120,17 @@ function LayerPanel() {
 						whileInView={{ opacity: 1, y: 0 }}
 						viewport={{ once: true, margin: '-30px' }}
 						transition={reduce ? { duration: 0 } : { duration: 0.35, delay: index * 0.045 }}
-						className="rounded-xl border border-white/10 bg-black/25 p-3"
+						className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3"
 					>
-						<div className="flex items-center gap-2"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/15 text-emerald-200"><Check className="h-3 w-3" aria-hidden /></span><p className="text-[11px] font-medium text-white/85">{layer.label}</p><span className="ms-auto font-mono text-[9px] text-white/35">0{index + 1}</span></div>
-						<p className="mt-2 line-clamp-2 text-[11px] leading-5 text-white/60">{layer.value}</p>
+						<div className="flex items-center gap-2"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-50 text-[var(--success)]"><Check className="h-3 w-3" aria-hidden /></span><p className="text-[11px] font-medium text-[var(--text-secondary)]">{layer.label}</p><span className="ms-auto font-mono text-[9px] text-[var(--text-hint)]">0{index + 1}</span></div>
+						<p className="mt-2 line-clamp-2 text-[11px] leading-5 text-[var(--text-muted)]">{layer.value}</p>
 					</motion.div>
 				))}
 			</div>
 
-			<div className="m-3 mt-0 rounded-xl bg-white p-3.5 text-black sm:m-4 sm:mt-0">
-				<div className="flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-emerald-600" aria-hidden /><p className="text-[11px] font-semibold">{copy.previewLabel}</p></div>
-				<p className="mt-2 text-[11px] leading-5 text-black/65">{copy.preview}</p>
+			<div className="m-3 mt-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 text-[var(--text-primary)] sm:m-4 sm:mt-0">
+				<div className="flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-[var(--accent-strong)]" aria-hidden /><p className="text-[11px] font-semibold">{copy.previewLabel}</p></div>
+				<p className="mt-2 text-[11px] leading-5 text-[var(--text-secondary)]">{copy.preview}</p>
 			</div>
 		</div>
 	)
@@ -142,17 +142,17 @@ export function FeaturesSection() {
 	const reduce = useReducedMotion()
 
 	return (
-		<section id="features" className="marketing-story-section bg-black py-16 text-white sm:py-20 lg:py-24">
+		<section id="features" className="marketing-story-section bg-white py-16 text-[var(--text-primary)] sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="grid gap-9 lg:grid-cols-[0.9fr_1.1fr] lg:items-end lg:gap-12">
-					<div className="border-t border-white/15 pt-6">
-						<p className="marketing-eyebrow !text-white/50">{copy.eyebrow}</p>
-						<h2 className="mt-4 font-semibold leading-[1.3] text-white">
+					<div className="border-t border-[var(--border-default)] pt-6">
+						<p className="marketing-eyebrow !text-[var(--text-muted)]">{copy.eyebrow}</p>
+						<h2 className="mt-4 font-semibold leading-[1.3] text-[var(--text-primary)]">
 							<span className="block text-[clamp(1.75rem,3.2vw,2.75rem)]">{copy.titleLead}</span>
 							<span className={`mt-1 block max-w-2xl text-balance ${locale === 'fa' ? 'text-[clamp(1.2rem,3vw,2.15rem)]' : 'text-[clamp(1.08rem,2.55vw,2rem)]'}`}>{copy.titleRest}</span>
 						</h2>
-						<p className="marketing-subtitle mt-4 !text-white/58">{copy.subtitle}</p>
-						<div className="mt-7 hidden items-center gap-2 text-[11px] text-white/55 lg:flex"><Workflow className="h-4 w-4" aria-hidden /><span>{locale === 'fa' ? 'از قالب آماده شروع کنید و هر جزئیات را تغییر دهید' : 'Start from a template and change every detail'}</span></div>
+						<p className="marketing-subtitle mt-4 !text-[var(--text-secondary)]">{copy.subtitle}</p>
+						<div className="mt-7 hidden items-center gap-2 text-[11px] text-[var(--text-muted)] lg:flex"><Workflow className="h-4 w-4" aria-hidden /><span>{locale === 'fa' ? 'از قالب آماده شروع کنید و هر جزئیات را تغییر دهید' : 'Start from a template and change every detail'}</span></div>
 					</div>
 					<LayerPanel />
 				</div>
@@ -165,11 +165,12 @@ export function FeaturesSection() {
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true, margin: '-40px' }}
 							transition={reduce ? { duration: 0 } : { duration: 0.4, delay: (index % 4) * 0.05 }}
-							className="min-h-36 rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 sm:min-h-40 sm:p-4"
+							className="min-h-36 rounded-2xl border border-[var(--border-default)] bg-white p-3.5 sm:min-h-40 sm:p-4"
+							style={{ boxShadow: 'var(--shadow-sm)' }}
 						>
-							<span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/25"><Icon className="h-4 w-4 text-white/65" aria-hidden /></span>
-							<h3 className="mt-4 text-sm font-medium leading-5 text-white/90">{title}</h3>
-							<p className="mt-1.5 text-[11px] leading-5 text-white/60">{desc}</p>
+							<span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)]"><Icon className="h-4 w-4 text-[var(--text-secondary)]" aria-hidden /></span>
+							<h3 className="mt-4 text-sm font-medium leading-5 text-[var(--text-primary)]">{title}</h3>
+							<p className="mt-1.5 text-[11px] leading-5 text-[var(--text-muted)]">{desc}</p>
 						</motion.article>
 					))}
 				</div>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
 import { MessagesSquare, User, Clock, Filter, RefreshCw } from 'lucide-react'
@@ -226,6 +227,7 @@ export default async function ConversationsPage(props: {
                         </div>
 
                         {/* ─── Filters: status (handed-off prioritized) + channel ─── */}
+                        <Suspense fallback={<div className="h-16 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
                         <ConversationFilters
                                 isFa={isFa}
                                 activeStatus={statusFilter}
@@ -261,6 +263,7 @@ export default async function ConversationsPage(props: {
                                         count: agent._count.conversations,
                                 }))}
                         />
+                        </Suspense>
 
                         {pageItems.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">

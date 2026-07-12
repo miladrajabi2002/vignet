@@ -34,12 +34,12 @@ export function Footer() {
 	const resourceHrefs = ['/docs', '/blog', '/status']
 
 	return (
-		<footer className="border-t border-black/10 bg-white">
+		<footer className="border-t border-[var(--border-default)] bg-[var(--bg-surface)]">
 			<div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
 				<div className="grid gap-12 lg:grid-cols-[1.2fr_1.8fr]">
 					<div>
 						<Logo className="h-10 w-40" />
-						<p className="mt-4 max-w-sm text-sm leading-7 text-black/50">{copy.desc}</p>
+						<p className="mt-4 max-w-sm text-sm leading-7 text-[var(--text-muted)]">{copy.desc}</p>
 						<SocialLinks variant="default" className="mt-5" />
 					</div>
 					<div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -48,9 +48,9 @@ export function Footer() {
 						<FooterColumn title={copy.resourcesTitle} labels={copy.resourceLinks} hrefs={resourceHrefs} className="col-span-2 sm:col-span-1" />
 					</div>
 				</div>
-				<div className="mt-12 flex flex-col gap-4 border-t border-black/10 pt-6 text-[10px] text-black/40 sm:flex-row sm:items-center sm:justify-between">
+				<div className="mt-12 flex flex-col gap-4 border-t border-[var(--border-default)] pt-6 text-[10px] text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex flex-wrap items-center gap-x-5 gap-y-2"><span>{t('rights')}</span><span>{copy.made}</span></div>
-					<Link href="/status" className="inline-flex min-h-9 items-center gap-2 self-start rounded-full border border-black/10 px-3 text-black/50 transition-colors hover:text-black sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{copy.status}</Link>
+					<Link href="/status" className="inline-flex min-h-9 items-center gap-2 self-start rounded-full border border-[var(--border-default)] px-3 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />{copy.status}</Link>
 				</div>
 			</div>
 		</footer>
@@ -58,5 +58,5 @@ export function Footer() {
 }
 
 function FooterColumn({ title, labels, hrefs, className = '' }: { title: string; labels: readonly string[]; hrefs: string[]; className?: string }) {
-	return <nav className={className} aria-label={title}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-black/50 rtl:tracking-normal">{title}</p><ul>{labels.map((label, index) => <li key={label}><Link href={hrefs[index]} className="group inline-flex min-h-11 items-center gap-1.5 text-xs text-black/60 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">{label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" /></Link></li>)}</ul></nav>
+	return <nav className={className} aria-label={title}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)] rtl:tracking-normal">{title}</p><ul>{labels.map((label, index) => <li key={label}><Link href={hrefs[index]} className="group inline-flex min-h-11 items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">{label}<ArrowUpLeft className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-90 ltr:-rotate-90" /></Link></li>)}</ul></nav>
 }

@@ -1,11 +1,8 @@
 import { cn } from '@/lib/utils'
 
 /**
- * Theme-aware Panel for the user dashboard.
- * Uses CSS variables so it works in both light and dark themes.
- *
- * (The admin panel has its own Panel in app/admin/(dash)/ui.tsx with
- * hardcoded light-theme classes — that one is intentionally separate.)
+ * Dashboard panel — pure white card, thin border, very soft shadow.
+ * OpenAI-style: minimal, calm, lots of breathing room.
  */
 export function DashboardPanel({
   title,
@@ -25,17 +22,17 @@ export function DashboardPanel({
   return (
     <section
       className={cn(
-        'dashboard-card rounded-2xl border bg-white/[0.92] p-5 transition-[border-color,box-shadow] duration-200 hover:border-[var(--border-hover)] sm:p-6',
+        'rounded-xl border border-[var(--border-default)] bg-white p-5 sm:p-6',
         className,
       )}
-      style={{ borderColor: 'var(--border-default)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       {title && (
-        <div className="mb-5 flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-[var(--text-primary)]">{title}</h2>
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</h2>
             {subtitle && (
-              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">{subtitle}</p>
             )}
           </div>
           {action && <div className="shrink-0">{action}</div>}

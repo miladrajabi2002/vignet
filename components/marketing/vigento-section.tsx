@@ -7,10 +7,10 @@ import { useLocale } from 'next-intl'
 import {
 	ArrowLeft,
 	ArrowRight,
-	Bot,
 	Check,
 	Database,
 	Globe2,
+	Layers,
 	MessageCircleMore,
 	MessagesSquare,
 	Radio,
@@ -18,6 +18,7 @@ import {
 	ShieldCheck,
 	Sparkles,
 	TestTube2,
+	Wand2,
 } from 'lucide-react'
 import { InstagramIcon, TelegramIcon } from './social-links'
 
@@ -25,10 +26,10 @@ const COPY = {
 	fa: {
 		eyebrow: 'معرفی ویجنتو',
 		title: 'فقط بگو چه ایجنتی می‌خواهی؛ ویجنتو مسیر ساخت را می‌چیند.',
-		subtitle: 'ویجنتو دستیار هوشمند ساخت ایجنت شماست. هدف کسب‌وکار را از زبان خودتان می‌فهمد، دانش و کانال‌ها را پیشنهاد می‌دهد، سناریوها را تست می‌کند و یک ایجنت آمادهٔ انتشار تحویل می‌دهد.',
+		subtitle: 'ویجنتو دستیار هوشمند ساخت ایجنت شماست. هدف کسب‌وکار را از زبان خودتان می‌فهمد، شش لایه پرامپت را می‌سازد، دانش و کانال‌ها را پیشنهاد می‌دهد، سناریوها را تست می‌کند و یک ایجنت آمادهٔ انتشار تحویل می‌دهد.',
 		cta: 'ساخت ایجنت با ویجنتو',
 		trust: 'هر پیشنهاد قابل ویرایش است · انتشار فقط با تأیید شما',
-		demoAria: 'دموی ویجنتو که از یک درخواست ساده، نقشه کامل ایجنت شامل هدف، پایگاه دانش، کانال‌ها، تست و انتشار می‌سازد.',
+		demoAria: 'دموی ویجنتو که از یک درخواست ساده، نقشه کامل ایجنت شامل هدف، موتور پرامپت شش‌لایه، پایگاه دانش، کانال‌ها، تست و انتشار می‌سازد.',
 		workspace: 'استودیوی ساخت ایجنت',
 		status: 'ویجنتو آنلاین است',
 		promptLabel: 'درخواست شما',
@@ -37,8 +38,16 @@ const COPY = {
 		blueprint: 'نقشهٔ پیشنهادی',
 		agentName: 'مشاور فروش پوشاک',
 		agentDesc: 'فروشنده‌ای دقیق و خوش‌لحن که از دادهٔ واقعی فروشگاه پاسخ می‌دهد.',
+		engineLabel: 'موتور پرامپت ۶ لایه‌ای',
+		layers: [
+			{ n: '۱', label: 'شخصیت', value: 'مشاور حرفه‌ای پوشاک' },
+			{ n: '۲', label: 'لحن', value: 'صمیمی، مودب، فارسی' },
+			{ n: '۳', label: 'قلمرو', value: 'معرفی، موجودی، مقایسه' },
+			{ n: '۴', label: 'عدم آگاهی', value: 'ارجاع به اپراتور' },
+			{ n: '۵', label: 'فرمت', value: 'بولت، لینک، متوسط' },
+			{ n: '۶', label: 'پرسش و پاسخ', value: '۳ نمونه ثبت شد' },
+		],
 		steps: [
-			{ label: 'هدف و لحن', value: 'فروش مشاوره‌ای · فارسی صمیمی' },
 			{ label: 'دانش و RAG', value: 'کاتالوگ، موجودی و قوانین فروش' },
 			{ label: 'کانال‌ها', value: 'اینستاگرام، واتساپ و وب' },
 			{ label: 'تست سناریوها', value: 'مقایسه، موجودی و پیگیری سفارش' },
@@ -51,10 +60,10 @@ const COPY = {
 	en: {
 		eyebrow: 'Meet Vigento',
 		title: 'Describe the agent you need. Vigento maps the whole build.',
-		subtitle: 'Vigento is your AI agent-building copilot. It understands the business goal in plain language, recommends knowledge and channels, tests key scenarios, and prepares an agent for launch.',
+		subtitle: 'Vigento is your AI agent-building copilot. It understands the business goal in plain language, builds the six-layer prompt, recommends knowledge and channels, tests key scenarios, and prepares an agent for launch.',
 		cta: 'Build with Vigento',
 		trust: 'Every suggestion is editable · Nothing goes live without approval',
-		demoAria: 'A Vigento demo turning one plain-language request into a complete agent blueprint with a goal, knowledge base, channels, tests and launch review.',
+		demoAria: 'A Vigento demo turning one plain-language request into a complete agent blueprint with a goal, six-layer prompt engine, knowledge base, channels, tests and launch review.',
 		workspace: 'Agent build studio',
 		status: 'Vigento is online',
 		promptLabel: 'Your request',
@@ -63,9 +72,17 @@ const COPY = {
 		blueprint: 'Suggested blueprint',
 		agentName: 'Fashion sales advisor',
 		agentDesc: 'A precise, warm sales agent grounded in live store data.',
+		engineLabel: 'Six-layer prompt engine',
+		layers: [
+			{ n: '1', label: 'Personality', value: 'Professional fashion advisor' },
+			{ n: '2', label: 'Tone', value: 'Warm, polite, English' },
+			{ n: '3', label: 'Scope', value: 'Recommend, stock, compare' },
+			{ n: '4', label: 'Fallback', value: 'Hand off to operator' },
+			{ n: '5', label: 'Format', value: 'Bullets, links, medium' },
+			{ n: '6', label: 'Q&A pairs', value: '3 samples added' },
+		],
 		steps: [
-			{ label: 'Goal and voice', value: 'Consultative sales · warm and clear' },
-			{ label: 'Knowledge and RAG', value: 'Catalog, stock and store policies' },
+			{ label: 'Knowledge & RAG', value: 'Catalog, stock and store policies' },
 			{ label: 'Channels', value: 'Instagram, WhatsApp and web' },
 			{ label: 'Scenario tests', value: 'Compare, stock and order follow-up' },
 			{ label: 'Launch', value: 'Ready for final review' },
@@ -76,7 +93,7 @@ const COPY = {
 	},
 } as const
 
-const STEP_ICONS = [Sparkles, Database, MessageCircleMore, TestTube2, Rocket]
+const STEP_ICONS = [Database, MessageCircleMore, TestTube2, Rocket]
 const CHANNEL_ICONS: ComponentType<{ className?: string }>[] = [
 	InstagramIcon,
 	MessageCircleMore,
@@ -101,42 +118,46 @@ function VigentoDemo() {
 			role="img"
 			aria-label={copy.demoAria}
 		>
-			<div aria-hidden className="absolute -inset-5 rounded-[2.3rem] bg-[radial-gradient(circle_at_50%_12%,rgba(110,231,183,0.12),transparent_62%)] blur-xl" />
-			<div aria-hidden className="relative overflow-hidden rounded-[1.6rem] border border-white/[0.12] bg-[#171a18] shadow-[0_32px_100px_rgba(0,0,0,0.42)]">
-				<div className="flex min-h-12 items-center justify-between border-b border-white/10 px-4 sm:px-5">
+			{/* Light flat panel */}
+			<div className="relative overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white" style={{ boxShadow: 'var(--shadow-card)' }}>
+				{/* Top bar */}
+				<div className="relative flex min-h-12 items-center justify-between border-b border-[var(--border-default)] px-4 sm:px-5">
 					<div className="flex items-center gap-2.5">
-						<span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-black">
-							<Bot className="h-3.5 w-3.5" />
+						<span className="relative grid h-7 w-7 place-items-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]">
+							<Wand2 className="h-3.5 w-3.5" />
+							{!reduce && <span className="absolute -inset-1 rounded-lg border border-[var(--accent)]/30 animate-ping" />}
 						</span>
-						<span className="text-[10px] font-medium text-white/70 sm:text-[11px]">{copy.workspace}</span>
+						<span className="text-[10px] font-medium text-[var(--text-secondary)] sm:text-[11px]">{copy.workspace}</span>
 					</div>
-					<span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-emerald-200 sm:text-[10px]">
+					<span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-[var(--text-secondary)] sm:text-[10px]">
 						<span className="relative flex h-1.5 w-1.5">
-							<span className="absolute h-full w-full animate-ping rounded-full bg-emerald-300 opacity-50 motion-reduce:animate-none" />
-							<span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300" />
+							<span className="absolute h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-50 motion-reduce:animate-none" />
+							<span className="relative h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
 						</span>
 						{copy.status}
 					</span>
 				</div>
 
-				<div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-[0.82fr_1.18fr]">
-					<div className="flex flex-col rounded-2xl border border-white/10 bg-black/20 p-3.5 sm:p-4">
-						<p className="text-[9px] font-medium uppercase tracking-[0.14em] text-white/35">{copy.promptLabel}</p>
+				<div className="relative grid gap-3 p-3 sm:p-4 lg:grid-cols-[0.82fr_1.18fr]">
+					{/* Left: prompt + building animation */}
+					<div className="flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 sm:p-4">
+						<p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">{copy.promptLabel}</p>
 						<motion.div
 							initial={reduce ? false : { opacity: 0, y: 8 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
 							transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.25 }}
-							className="mt-3 rounded-2xl rounded-ee-md bg-white px-3.5 py-3 text-[10px] leading-5 text-black/75 sm:text-[11px]"
+							className="mt-3 rounded-2xl rounded-ee-md border border-[var(--border-default)] bg-white px-3.5 py-3 text-[10px] leading-5 text-[var(--text-secondary)] sm:text-[11px]"
 						>
 							{copy.prompt}
 						</motion.div>
 
+						{/* Neural processing line */}
 						<div className="relative my-3 h-9">
-							<span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-white/20 to-emerald-300/30" />
+							<span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[var(--border-hover)]" />
 							{!reduce && (
 								<motion.span
-									className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.8)]"
+									className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--accent)]"
 									animate={{ y: [0, 28], opacity: [0, 1, 1, 0] }}
 									transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.9, ease: [0.4, 0, 0.2, 1] }}
 								/>
@@ -148,20 +169,20 @@ function VigentoDemo() {
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
 							transition={reduce ? { duration: 0 } : { duration: 0.42, delay: 0.55 }}
-							className="rounded-2xl border border-emerald-200/15 bg-emerald-200/[0.07] p-3"
+							className="rounded-2xl border border-[var(--border-default)] bg-white p-3"
 						>
-							<p className="flex items-center gap-2 text-[10px] font-medium text-emerald-100">
+							<p className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-primary)]">
 								<Sparkles className="h-3.5 w-3.5" />
 								{copy.building}
 							</p>
 							<div className="mt-3 flex flex-wrap gap-1.5">
 								{copy.knowledge.map((item) => (
-									<span key={item} className="rounded-full border border-white/10 bg-white/[0.055] px-2 py-1 text-[8px] text-white/50 sm:text-[9px]">{item}</span>
+									<span key={item} className="rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-[8px] text-[var(--text-muted)] sm:text-[9px]">{item}</span>
 								))}
 							</div>
 							<div className="mt-3 flex items-center gap-1.5">
 								{CHANNEL_ICONS.map((Icon, index) => (
-									<span key={index} className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.055] text-white/60">
+									<span key={index} className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
 										<Icon className="h-3 w-3" />
 									</span>
 								))}
@@ -169,19 +190,53 @@ function VigentoDemo() {
 						</motion.div>
 					</div>
 
-					<div className="rounded-2xl bg-[#f4f5f2] p-3.5 text-black sm:p-4">
-						<div className="flex items-start justify-between gap-3 border-b border-black/10 pb-3">
+					{/* Right: blueprint with 6-layer engine */}
+					<div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 text-[var(--text-primary)] sm:p-4">
+						<div className="flex items-start justify-between gap-3 border-b border-[var(--border-default)] pb-3">
 							<div className="min-w-0">
-								<p className="text-[9px] font-medium text-black/40">{copy.blueprint}</p>
-								<h3 className="mt-1 text-sm font-semibold text-black sm:text-base">{copy.agentName}</h3>
-								<p className="mt-1 text-[9px] leading-4 text-black/50 sm:text-[10px]">{copy.agentDesc}</p>
+								<p className="text-[9px] font-medium text-[var(--text-muted)]">{copy.blueprint}</p>
+								<h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)] sm:text-base">{copy.agentName}</h3>
+								<p className="mt-1 text-[9px] leading-4 text-[var(--text-muted)] sm:text-[10px]">{copy.agentDesc}</p>
 							</div>
-							<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white">
+							<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--text-primary)] text-white">
 								<ShieldCheck className="h-4 w-4" />
 							</span>
 						</div>
 
-						<div className="mt-3 space-y-1.5">
+						{/* 6-layer prompt engine — the star of the show */}
+						<motion.div
+							initial={reduce ? false : { opacity: 0, y: 6 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							viewport={{ once: true }}
+							transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.5 }}
+							className="mt-3 rounded-xl border border-[var(--border-default)] bg-white p-2.5"
+						>
+							<p className="flex items-center gap-1.5 text-[9px] font-semibold text-[var(--text-primary)]">
+								<Layers className="h-3.5 w-3.5" />
+								{copy.engineLabel}
+							</p>
+							<div className="mt-2 grid grid-cols-2 gap-1">
+								{copy.layers.map((layer, index) => (
+									<motion.div
+										key={layer.n}
+										initial={reduce ? false : { opacity: 0, scale: 0.95 }}
+										whileInView={{ opacity: 1, scale: 1 }}
+										viewport={{ once: true }}
+										transition={reduce ? { duration: 0 } : { duration: 0.25, delay: 0.6 + index * 0.06 }}
+										className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5"
+									>
+										<span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-[var(--text-primary)] text-[8px] font-bold text-white">{layer.n}</span>
+										<div className="min-w-0 flex-1">
+											<p className="text-[8px] font-medium text-[var(--text-secondary)]">{layer.label}</p>
+											<p className="truncate text-[7px] text-[var(--text-muted)] sm:text-[8px]">{layer.value}</p>
+										</div>
+									</motion.div>
+								))}
+							</div>
+						</motion.div>
+
+						{/* Build steps */}
+						<div className="mt-2.5 space-y-1">
 							{copy.steps.map((step, index) => {
 								const Icon = STEP_ICONS[index]
 								return (
@@ -190,18 +245,18 @@ function VigentoDemo() {
 										initial={reduce ? false : { opacity: 0, x: locale === 'fa' ? 8 : -8 }}
 										whileInView={{ opacity: 1, x: 0 }}
 										viewport={{ once: true }}
-										transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.56 + index * 0.09 }}
-										className="flex items-center gap-2.5 rounded-xl border border-black/[0.07] bg-white px-2.5 py-2"
+										transition={reduce ? { duration: 0 } : { duration: 0.3, delay: 0.9 + index * 0.08 }}
+										className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-white px-2.5 py-1.5"
 									>
-										<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/[0.055] text-black/55">
-											<Icon className="h-3.5 w-3.5" />
+										<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+											<Icon className="h-3 w-3" />
 										</span>
 										<div className="min-w-0 flex-1">
-											<p className="text-[9px] font-semibold text-black/70 sm:text-[10px]">{step.label}</p>
-											<p className="mt-0.5 truncate text-[8px] text-black/40 sm:text-[9px]">{step.value}</p>
+											<p className="text-[8px] font-semibold text-[var(--text-secondary)] sm:text-[9px]">{step.label}</p>
+											<p className="truncate text-[7px] text-[var(--text-muted)] sm:text-[8px]">{step.value}</p>
 										</div>
-										<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-											<Check className="h-3 w-3" />
+										<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white">
+											<Check className="h-2.5 w-2.5" />
 										</span>
 									</motion.div>
 								)
@@ -212,11 +267,11 @@ function VigentoDemo() {
 							initial={reduce ? false : { opacity: 0, scale: 0.98 }}
 							whileInView={{ opacity: 1, scale: 1 }}
 							viewport={{ once: true }}
-							transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 1.08 }}
-							className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-black px-3 py-2.5 text-white"
+							transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 1.3 }}
+							className="mt-2.5 flex items-center justify-between gap-3 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-white"
 						>
-							<span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-emerald-200 sm:text-[10px]">
-								<span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+							<span className="inline-flex items-center gap-1.5 text-[9px] font-medium text-[var(--success)] sm:text-[10px]">
+								<span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
 								{copy.ready}
 							</span>
 							<span className="text-[9px] font-medium text-white/65">{copy.review}</span>
@@ -237,10 +292,7 @@ export function VigentoSection() {
 	return (
 		<section id="vigento" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="marketing-grid-dark relative overflow-hidden rounded-[2rem] bg-[#0c0f0d] px-4 py-6 text-white shadow-[0_30px_90px_rgba(0,0,0,0.16)] sm:px-7 sm:py-8 lg:px-10 lg:py-10">
-					<div aria-hidden className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full bg-emerald-300/10 blur-3xl" />
-					<div aria-hidden className="pointer-events-none absolute -bottom-48 -right-32 h-[30rem] w-[30rem] rounded-full bg-white/[0.045] blur-3xl" />
-
+				<div className="relative overflow-hidden rounded-[2rem] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-6 text-[var(--text-primary)] sm:px-7 sm:py-8 lg:px-10 lg:py-10" style={{ boxShadow: 'var(--shadow-card)' }}>
 					<div className="relative grid items-center gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:gap-10 xl:gap-14">
 						<motion.div
 							initial={reduce ? false : { opacity: 0, y: 18 }}
@@ -249,26 +301,26 @@ export function VigentoSection() {
 							transition={reduce ? { duration: 0 } : { duration: 0.6 }}
 							className="text-center lg:text-start"
 						>
-							<span className="inline-flex items-center gap-2 text-[11px] font-semibold text-emerald-200">
-								<span className="flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-200/20 bg-emerald-200/10">
-									<Sparkles className="h-3.5 w-3.5" aria-hidden />
+							<span className="inline-flex items-center gap-2 text-[11px] font-semibold text-[var(--text-secondary)]">
+								<span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-default)] bg-white">
+									<Wand2 className="h-3.5 w-3.5" aria-hidden />
 								</span>
 								{copy.eyebrow}
 							</span>
-							<h2 className="mt-5 text-[clamp(1.7rem,4.8vw,3.1rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-white rtl:tracking-normal">
+							<h2 className="mt-5 text-[clamp(1.7rem,4.8vw,3.1rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-[var(--text-primary)] rtl:tracking-normal">
 								{copy.title}
 							</h2>
-							<p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-[15px] sm:leading-8 lg:mx-0">
+							<p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[var(--text-secondary)] sm:text-[15px] sm:leading-8 lg:mx-0">
 								{copy.subtitle}
 							</p>
 							<Link
 								href="/login?next=/onboarding"
-								className="group mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black shadow-[0_14px_34px_rgba(0,0,0,0.25)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(0,0,0,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+								className="group mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
 							>
 								{copy.cta}
 								<Arrow className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" aria-hidden />
 							</Link>
-							<p className="mt-4 flex items-center justify-center gap-2 text-[10px] leading-5 text-white/40 lg:justify-start">
+							<p className="mt-4 flex items-center justify-center gap-2 text-[10px] leading-5 text-[var(--text-muted)] lg:justify-start">
 								<ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
 								{copy.trust}
 							</p>

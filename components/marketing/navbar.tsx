@@ -130,45 +130,48 @@ function NavbarContent() {
 	]
 
 	return (
-		<header className={cn(
-			'fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300',
-			scrolled || open
-				? 'border-black/10 bg-white/[0.82] shadow-[0_10px_35px_rgba(0,0,0,0.07)] backdrop-blur-2xl backdrop-saturate-150'
-				: 'border-transparent bg-white/[0.68] shadow-none backdrop-blur-md',
-		)}>
+		<header
+			className={cn(
+				'fixed inset-x-0 top-0 z-50 border-b transition-colors duration-150',
+				scrolled || open
+					? 'border-[var(--border-default)] bg-white'
+					: 'border-transparent bg-white',
+			)}
+			style={{ boxShadow: scrolled || open ? 'var(--shadow-sm)' : undefined }}
+		>
 			<nav className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-8" aria-label={copy.primaryNav}>
-				<Link href="/" aria-label="Vigent home" className="inline-flex min-h-11 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+				<Link href="/" aria-label="Vigent home" className="inline-flex min-h-11 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
 					<Logo priority className="h-10 w-32 sm:w-40" />
 				</Link>
 
-				<div className="hidden items-center gap-1 rounded-full border border-black/10 bg-white p-1 shadow-sm lg:flex">
+				<div className="hidden items-center gap-1 rounded-full border border-[var(--border-default)] bg-white p-1 lg:flex" style={{ boxShadow: 'var(--shadow-sm)' }}>
 					{sectionLinks.map((link) => (
-						<Link key={link.id} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname === '/' && activeSection === link.id ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>
+						<Link key={link.id} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]', pathname === '/' && activeSection === link.id ? 'bg-[var(--text-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]')}>
 							{link.label}
 						</Link>
 					))}
-					<span className="mx-1 h-4 w-px bg-black/10" />
+					<span className="mx-1 h-4 w-px bg-[var(--border-default)]" />
 					{resourceLinks.map((link) => (
-						<Link key={link.href} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black', pathname.startsWith(link.href) ? 'bg-black text-white' : 'text-black/55 hover:bg-black/[0.04] hover:text-black')}>{link.label}</Link>
+						<Link key={link.href} href={link.href} className={cn('inline-flex min-h-11 items-center rounded-full px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]', pathname.startsWith(link.href) ? 'bg-[var(--text-primary)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]')}>{link.label}</Link>
 					))}
 				</div>
 
 				<div className="hidden items-center gap-2 lg:flex">
 					<LanguageSwitcher />
 					{status === 'loading' ? (
-						<span aria-hidden="true" className="h-11 w-36 animate-pulse rounded-full bg-black/[0.06] motion-reduce:animate-none" />
+						<span aria-hidden="true" className="h-11 w-36 animate-pulse rounded-full bg-[var(--bg-surface)] motion-reduce:animate-none" />
 					) : status === 'authenticated' ? (
-						<Link href="/overview" aria-label={copy.dashboardAria} className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-black px-4 text-[11px] font-medium text-white shadow-sm transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
-							<span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-black" aria-hidden="true"><Check className="h-3 w-3 stroke-[2.5]" /></span>
+						<Link href="/overview" aria-label={copy.dashboardAria} className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--text-primary)] px-4 text-[11px] font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
+							<span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-white" aria-hidden="true"><Check className="h-3 w-3 stroke-[2.5]" /></span>
 							<span className="hidden xl:inline">{copy.signedIn}</span>
-							<span className="hidden text-white/45 xl:inline" aria-hidden="true">·</span>
+							<span className="hidden text-white/50 xl:inline" aria-hidden="true">·</span>
 							<span>{copy.dashboard}</span>
 							<Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" aria-hidden="true" />
 						</Link>
 					) : (
 						<>
-							<Link href="/login" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 text-[11px] font-medium text-black/65 shadow-sm transition-[border-color,color,background-color] hover:border-black/20 hover:bg-black/[0.025] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"><LogIn className="h-3.5 w-3.5" aria-hidden="true" />{t('login')}</Link>
-							<Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-black px-4 text-[11px] font-medium text-white shadow-sm transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+							<Link href="/login" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-3.5 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><LogIn className="h-3.5 w-3.5" aria-hidden="true" />{t('login')}</Link>
+							<Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--text-primary)] px-4 text-[11px] font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
 								{copy.start}<Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" aria-hidden="true" />
 							</Link>
 						</>
@@ -177,46 +180,46 @@ function NavbarContent() {
 
 				<div className="flex items-center gap-2 lg:hidden">
 					{status === 'loading' ? (
-						<span aria-hidden="true" className="h-11 w-24 animate-pulse rounded-full bg-black/[0.06] motion-reduce:animate-none min-[360px]:w-32" />
+						<span aria-hidden="true" className="h-11 w-24 animate-pulse rounded-full bg-[var(--bg-surface)] motion-reduce:animate-none min-[360px]:w-32" />
 					) : status === 'authenticated' ? (
-						<Link href="/overview" aria-label={copy.dashboardAria} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black px-3 text-[11px] font-medium text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
-							<span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 text-black" aria-hidden="true"><Check className="h-2.5 w-2.5 stroke-[2.5]" /></span>
+						<Link href="/overview" aria-label={copy.dashboardAria} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-3 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
+							<span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--success)] text-white" aria-hidden="true"><Check className="h-2.5 w-2.5 stroke-[2.5]" /></span>
 							{copy.dashboard}
 						</Link>
 					) : (
 						<>
-							<Link href="/login" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/70 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">{t('login')}</Link>
-							<Link href="/login?next=/onboarding" className="hidden min-h-11 items-center rounded-full bg-black px-3 text-[11px] font-medium text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 min-[480px]:inline-flex">{copy.start}</Link>
+							<Link href="/login" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-2.5 text-[11px] font-medium text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">{t('login')}</Link>
+							<Link href="/login?next=/onboarding" className="hidden min-h-11 items-center rounded-full bg-[var(--text-primary)] px-3 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 min-[480px]:inline-flex">{copy.start}</Link>
 						</>
 					)}
-					<button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="mobile-marketing-menu" aria-label={open ? copy.close : copy.menu} className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+					<button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="mobile-marketing-menu" aria-label={open ? copy.close : copy.menu} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] bg-white text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
 						{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
 					</button>
 				</div>
 			</nav>
 
 			{open && (
-				<div id="mobile-marketing-menu" className="h-[calc(100dvh-68px)] overflow-y-auto border-t border-black/10 bg-white px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 lg:hidden">
+				<div id="mobile-marketing-menu" className="h-[calc(100dvh-68px)] overflow-y-auto border-t border-[var(--border-default)] bg-white px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 lg:hidden">
 					<div className="mx-auto max-w-2xl">
-						<p className="mb-3 text-[10px] font-medium uppercase tracking-[0.15em] text-black/50 rtl:tracking-normal">{copy.product}</p>
-						<div className="divide-y divide-black/10 border-y border-black/10">
-							{sectionLinks.map((link) => <Link key={link.id} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-between text-base font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black"><span>{link.label}</span><Arrow className="h-4 w-4 text-black/35" /></Link>)}
+						<p className="mb-3 text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--text-muted)] rtl:tracking-normal">{copy.product}</p>
+						<div className="divide-y divide-[var(--border-default)] border-y border-[var(--border-default)]">
+							{sectionLinks.map((link) => <Link key={link.id} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-between text-base font-medium text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"><span>{link.label}</span><Arrow className="h-4 w-4 text-[var(--text-muted)]" /></Link>)}
 						</div>
-						<p className="mb-3 mt-8 text-[10px] font-medium uppercase tracking-[0.15em] text-black/50 rtl:tracking-normal">{copy.resources}</p>
+						<p className="mb-3 mt-8 text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--text-muted)] rtl:tracking-normal">{copy.resources}</p>
 						<div className="grid grid-cols-2 gap-3">
-							{resourceLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-center rounded-xl border border-black/10 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">{link.label}</Link>)}
+							{resourceLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="flex min-h-14 items-center justify-center rounded-xl border border-[var(--border-default)] text-sm font-medium text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">{link.label}</Link>)}
 						</div>
-						<div className="mt-8 flex items-center justify-between gap-3 border-t border-black/10 pt-5">
+						<div className="mt-8 flex items-center justify-between gap-3 border-t border-[var(--border-default)] pt-5">
 							<LanguageSwitcher className="min-h-11" />
 							{status === 'loading' ? (
-								<span aria-hidden="true" className="h-11 w-28 animate-pulse rounded-full bg-black/[0.06] motion-reduce:animate-none" />
+								<span aria-hidden="true" className="h-11 w-28 animate-pulse rounded-full bg-[var(--bg-surface)] motion-reduce:animate-none" />
 							) : status === 'authenticated' ? (
-								<Link href="/overview" aria-label={copy.dashboardAria} onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-black px-4 text-sm font-medium text-white">
-									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-black" aria-hidden="true"><Check className="h-3 w-3 stroke-[2.5]" /></span>
+								<Link href="/overview" aria-label={copy.dashboardAria} onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--text-primary)] px-4 text-sm font-medium text-white">
+									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--success)] text-white" aria-hidden="true"><Check className="h-3 w-3 stroke-[2.5]" /></span>
 									{copy.dashboard}
 								</Link>
 							) : (
-								<Link href="/login" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 px-4 text-sm font-medium text-black/70"><LogIn className="h-4 w-4" aria-hidden="true" />{t('login')}<Arrow className="h-4 w-4" aria-hidden="true" /></Link>
+								<Link href="/login" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)]"><LogIn className="h-4 w-4" aria-hidden="true" />{t('login')}<Arrow className="h-4 w-4" aria-hidden="true" /></Link>
 							)}
 						</div>
 					</div>

@@ -81,29 +81,29 @@ const COPY: Record<'fa' | 'en', {
 function PhoneConversation({ scenario, copy }: { scenario: Scenario; copy: typeof COPY.fa | typeof COPY.en }) {
 	const reduce = useReducedMotion()
 	return (
-		<div className="relative mx-auto h-[420px] w-full max-w-[360px] rounded-[1.5rem] border border-black/10 bg-white p-1 shadow-[0_22px_60px_rgba(0,0,0,0.15)] sm:h-[500px] sm:max-w-[290px] sm:rounded-[2.6rem] sm:border-[7px] sm:border-black sm:bg-black sm:p-1.5">
-			<div className="absolute left-1/2 top-3 z-20 hidden h-4 w-24 -translate-x-1/2 rounded-full bg-black sm:block" />
+		<div className="relative mx-auto h-[420px] w-full max-w-[360px] rounded-[1.5rem] border border-[var(--border-default)] bg-white p-1 sm:h-[500px] sm:max-w-[290px] sm:rounded-[2.6rem] sm:border-[7px] sm:border-[var(--text-primary)] sm:bg-[var(--text-primary)] sm:p-1.5" style={{ boxShadow: 'var(--shadow-card)' }}>
+			<div className="absolute left-1/2 top-3 z-20 hidden h-4 w-24 -translate-x-1/2 rounded-full bg-[var(--text-primary)] sm:block" />
 			<div className="flex h-full flex-col overflow-hidden rounded-[1.2rem] bg-white sm:rounded-[2rem]">
-				<div className="flex items-center gap-2.5 border-b border-black/10 px-4 py-3 sm:pb-3 sm:pt-7">
-					<span className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white"><Bot className="h-4 w-4" /></span>
-					<div><p className="text-[11px] font-medium text-black">Vigent Agent</p><p className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{copy.live}</p></div>
-					<span className="ms-auto max-w-[42%] truncate text-[10px] text-black/45">{scenario.channel}</span>
+				<div className="flex items-center gap-2.5 border-b border-[var(--border-default)] px-4 py-3 sm:pb-3 sm:pt-7">
+					<span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--text-primary)] text-white"><Bot className="h-4 w-4" /></span>
+					<div><p className="text-[11px] font-medium text-[var(--text-primary)]">Vigent Agent</p><p className="mt-0.5 flex items-center gap-1 text-[10px] text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />{copy.live}</p></div>
+					<span className="ms-auto max-w-[42%] truncate text-[10px] text-[var(--text-muted)]">{scenario.channel}</span>
 				</div>
-				<div className="flex-1 space-y-3 overflow-hidden bg-[#f7f7f5] px-3.5 py-5">
-					<motion.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-black px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</motion.div>
-					<motion.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-black/10 bg-white px-3 py-2.5 text-[11px] leading-5 text-black/70">
+				<div className="flex-1 space-y-3 overflow-hidden bg-[var(--bg-surface)] px-3.5 py-5">
+					<motion.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</motion.div>
+					<motion.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2.5 text-[11px] leading-5 text-[var(--text-secondary)]">
 						{scenario.answer}
-						<span className="mt-2 flex w-fit max-w-full items-center gap-1 rounded-full bg-black/[0.05] px-2 py-1 text-[10px] text-black/60"><Database className="h-2.5 w-2.5 shrink-0" />{scenario.source}</span>
+						<span className="mt-2 flex w-fit max-w-full items-center gap-1 rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[10px] text-[var(--text-muted)]"><Database className="h-2.5 w-2.5 shrink-0" />{scenario.source}</span>
 					</motion.div>
-					<motion.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-emerald-700/15 bg-emerald-50 p-2.5">
-						<div className="flex items-start gap-2"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><Check className="h-3 w-3" /></span><p className="text-[10px] leading-4 text-emerald-900">{scenario.action}</p></div>
+					<motion.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-[var(--success)]/20 bg-green-50 p-2.5">
+						<div className="flex items-start gap-2"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white"><Check className="h-3 w-3" /></span><p className="text-[10px] leading-4 text-[var(--success)]">{scenario.action}</p></div>
 					</motion.div>
-					<motion.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-black px-3 py-2.5 text-white lg:hidden">
+					<motion.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white lg:hidden">
 						<p className="text-[10px] text-white/60">{copy.result}</p>
-						<p className="mt-1 flex items-start gap-1.5 text-[10px] leading-4 text-white/80"><Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />{scenario.result}</p>
+						<p className="mt-1 flex items-start gap-1.5 text-[10px] leading-4 text-white/80"><Check className="mt-0.5 h-3 w-3 shrink-0 text-[var(--success)]" />{scenario.result}</p>
 					</motion.div>
 				</div>
-				<div className="border-t border-black/10 bg-white p-3"><div className="h-9 rounded-full border border-black/10 bg-[#f7f7f5]" /></div>
+				<div className="border-t border-[var(--border-default)] bg-white p-3"><div className="h-9 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)]" /></div>
 			</div>
 		</div>
 	)
@@ -116,20 +116,20 @@ function TracePanel({ scenario, copy }: { scenario: Scenario; copy: typeof COPY.
 		{ label: copy.action, value: scenario.action, Icon: PackageSearch },
 	]
 	return (
-		<div className="flex h-full flex-col rounded-[1.5rem] border border-black/10 bg-white p-4 sm:p-6">
-			<div className="flex items-center justify-between border-b border-black/10 pb-4"><div><p className="text-[11px] font-medium text-black/50">{scenario.audience}</p><h3 className="mt-1 text-lg font-medium text-black">{scenario.label}</h3></div><Clock3 className="h-4 w-4 text-black/35" /></div>
+		<div className="flex h-full flex-col rounded-[1.5rem] border border-[var(--border-default)] bg-white p-4 sm:p-6" style={{ boxShadow: 'var(--shadow-sm)' }}>
+			<div className="flex items-center justify-between border-b border-[var(--border-default)] pb-4"><div><p className="text-[11px] font-medium text-[var(--text-muted)]">{scenario.audience}</p><h3 className="mt-1 text-lg font-medium text-[var(--text-primary)]">{scenario.label}</h3></div><Clock3 className="h-4 w-4 text-[var(--text-muted)]" /></div>
 			<div className="mt-3 flex-1">
 				{steps.map(({ label, value, Icon }, index) => (
 					<div key={label} className="relative flex gap-3 py-3.5 sm:gap-4 sm:py-4">
-						{index < steps.length - 1 && <span className="absolute bottom-[-10px] start-[17px] top-[46px] border-s border-dashed border-black/15 sm:start-[19px]" />}
-						<span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-[#f7f7f5] sm:h-10 sm:w-10"><Icon className="h-4 w-4 text-black/55" /></span>
-						<div><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-black/50 rtl:tracking-normal">{label}</p><p className="mt-1 text-xs leading-6 text-black/65">{value}</p></div>
+						{index < steps.length - 1 && <span className="absolute bottom-[-10px] start-[17px] top-[46px] border-s border-dashed border-[var(--border-default)] sm:start-[19px]" />}
+						<span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] sm:h-10 sm:w-10"><Icon className="h-4 w-4 text-[var(--text-secondary)]" /></span>
+						<div><p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)] rtl:tracking-normal">{label}</p><p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">{value}</p></div>
 					</div>
 				))}
 			</div>
-			<div className="rounded-xl bg-black p-4 text-white">
+			<div className="rounded-xl bg-[var(--text-primary)] p-4 text-white">
 				<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/55 rtl:tracking-normal">{copy.result}</p>
-				<p className="mt-2 flex items-start gap-2 text-xs leading-6 text-white/75"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-400" />{scenario.result}</p>
+				<p className="mt-2 flex items-start gap-2 text-xs leading-6 text-white/75"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-[var(--success)]" />{scenario.result}</p>
 			</div>
 	</div>
 	)
@@ -145,21 +145,21 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 	]
 
 	return (
-		<div className="relative mt-5 grid grid-cols-2 gap-2 rounded-[1.25rem] border border-black/10 bg-white p-2 sm:grid-cols-4 sm:gap-0 sm:p-3" aria-label={`${copy.incoming}، ${copy.knowledge}، ${copy.action}، ${copy.result}`}>
-			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[34px] hidden h-px bg-black/10 sm:block" />
+		<div className="relative mt-5 grid grid-cols-2 gap-2 rounded-[1.25rem] border border-[var(--border-default)] bg-white p-2 sm:grid-cols-4 sm:gap-0 sm:p-3" aria-label={`${copy.incoming}، ${copy.knowledge}، ${copy.action}، ${copy.result}`}>
+			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[34px] hidden h-px bg-[var(--border-default)] sm:block" />
 			{steps.map(({ label, value, Icon }, index) => (
 				<motion.div
 					key={label}
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={reduce ? { duration: 0 } : { duration: 0.32, delay: index * 0.22, ease: [0.16, 1, 0.3, 1] }}
-					className="relative min-w-0 rounded-xl bg-[#f7f7f5] p-3 sm:bg-transparent sm:px-4 sm:text-center"
+					className="relative min-w-0 rounded-xl bg-[var(--bg-surface)] p-3 sm:bg-transparent sm:px-4 sm:text-center"
 				>
-					<span className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm sm:mx-auto ${index === steps.length - 1 ? 'text-emerald-700' : 'text-black/60'}`}>
+					<span className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-white sm:mx-auto ${index === steps.length - 1 ? 'text-[var(--success)]' : 'text-[var(--text-secondary)]'}`} style={{ boxShadow: 'var(--shadow-sm)' }}>
 						<Icon className="h-4 w-4" aria-hidden />
 					</span>
-					<p className="mt-2 text-[11px] font-semibold text-black/80">{label}</p>
-					<p className="mt-1 line-clamp-2 text-[10px] leading-4 text-black/50">{value}</p>
+					<p className="mt-2 text-[11px] font-semibold text-[var(--text-secondary)]">{label}</p>
+					<p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[var(--text-muted)]">{value}</p>
 				</motion.div>
 			))}
 		</div>
@@ -187,9 +187,9 @@ export function DemoSection() {
 	}, [copy.scenarios.length, playing, reduce])
 
 	return (
-		<section id="demo" className="marketing-story-section bg-[#f5f6f3] py-16 sm:py-20 lg:py-24">
+		<section id="demo" className="marketing-story-section bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
+				<div className="mx-auto max-w-4xl border-t border-[var(--border-default)] pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
 					<h2 className="marketing-heading mx-auto mt-4">{copy.title}</h2>
 					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
@@ -198,14 +198,14 @@ export function DemoSection() {
 				<div className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="group" aria-label={copy.eyebrow}>
 					{copy.scenarios.map((item, index) => {
 						const Icon = item.icon
-						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-black bg-black text-white' : 'border-black/10 bg-white text-black/55 hover:border-black/20 hover:text-black'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
+						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
 					})}
 				</div>
 				<AnimatePresence mode="wait" initial={false}>
 					<JourneyStrip key={`journey-${scenario.key}`} scenario={scenario} copy={copy} />
 				</AnimatePresence>
 
-				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white p-3 shadow-[0_24px_70px_rgba(0,0,0,0.07)] sm:p-6 lg:p-8">
+				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white p-3 sm:p-6 lg:p-8" style={{ boxShadow: 'var(--shadow-card)' }}>
 					<AnimatePresence mode="wait" initial={false}>
 						<motion.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
 							<PhoneConversation scenario={scenario} copy={copy} />
@@ -213,12 +213,12 @@ export function DemoSection() {
 						</motion.div>
 					</AnimatePresence>
 
-					<div className="mt-7 flex flex-col gap-4 border-t border-black/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+					<div className="mt-7 flex flex-col gap-4 border-t border-[var(--border-default)] pt-5 sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex items-center gap-2">
-							<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 px-4 text-[11px] font-medium text-black/55 transition-colors hover:border-black/20 disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
-							<button type="button" onClick={() => setSelected(0)} className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 text-black/45 transition-colors hover:border-black/20 hover:text-black" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
+							<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
+							<button type="button" onClick={() => setSelected(0)} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-muted)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
 						</div>
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-black/55">{copy.noCode}</span><Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-black px-5 text-xs font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-[var(--text-muted)]">{copy.noCode}</span><Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 text-xs font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
 					</div>
 				</div>
 			</div>

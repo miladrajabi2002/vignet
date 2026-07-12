@@ -238,7 +238,7 @@ export default async function OverviewPage() {
           </div>
         </div>
 
-        <IntelligenceCore locale={lang} businessLabel={businessLabel} />
+        <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} />
       </section>
 
       {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}

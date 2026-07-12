@@ -1,6 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/**
+ * Minimal stat card — pure white, thin border, soft shadow, large number.
+ * OpenAI-style: no decorative glows, no accent tints, just clean data.
+ */
 export function StatsCard({
 	label,
 	value,
@@ -17,20 +21,20 @@ export function StatsCard({
 	return (
 		<div
 			className={cn(
-				'dashboard-card group relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white/[0.92] p-5 transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[var(--accent-border)] hover:shadow-[0_18px_46px_rgba(10,10,10,0.07)]',
+				'rounded-xl border border-[var(--border-default)] bg-white p-5 transition-shadow duration-150 hover:shadow-[var(--shadow-float)]',
 				className,
 			)}
+			style={{ boxShadow: 'var(--shadow-card)' }}
 		>
-			<div aria-hidden className="pointer-events-none absolute -end-10 -top-12 h-28 w-28 rounded-full bg-[var(--accent-soft)] opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
 			<div className="flex items-center justify-between">
-				<span className="text-sm font-medium text-[var(--text-secondary)]">{label}</span>
-				<span className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-					<Icon className="h-4 w-4" />
+				<span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
+				<span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)]">
+					<Icon className="h-[1.05rem] w-[1.05rem]" />
 				</span>
 			</div>
 			<div className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-[var(--text-primary)]">{value}</div>
 			{hint ? (
-				<div className="mt-1 text-[11px] text-[var(--text-muted)]">{hint}</div>
+				<div className="mt-1 text-xs text-[var(--text-muted)]">{hint}</div>
 			) : null}
 		</div>
 	)

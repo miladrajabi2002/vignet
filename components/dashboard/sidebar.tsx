@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Rocket } from 'lucide-react'
+import { Rocket, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { getDashboardNav } from '@/components/dashboard/nav-items'
+import { logout } from '@/app/actions/auth'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
 export function Sidebar({ businessType }: { businessType?: BusinessTypeValue | null }) {
@@ -15,31 +16,32 @@ export function Sidebar({ businessType }: { businessType?: BusinessTypeValue | n
 	const nav = getDashboardNav(businessType)
 
 	return (
-		<aside className="sticky top-0 hidden h-dvh w-[17rem] shrink-0 flex-col border-e border-[var(--border-default)] bg-white/90 px-4 py-5 backdrop-blur-xl md:flex">
+		<aside className="sticky top-0 hidden h-dvh w-[16rem] shrink-0 flex-col border-e border-[var(--border-default)] bg-white px-3 py-4 md:flex">
+			{/* Logo — clean, no box */}
 			<Link
 				href="/overview"
 				aria-label={t('overview')}
-				className="mb-6 flex min-h-14 items-center rounded-2xl border border-[var(--border-subtle)] bg-white px-3 shadow-[var(--shadow-soft)]"
+				className="mb-6 flex min-h-10 items-center justify-center px-2"
 			>
-				<Logo priority className="h-9 w-36" />
+				<Logo priority className="h-7 w-28" />
 			</Link>
 
+			{/* Onboarding link — subtle */}
 			<Link
 				href="/onboarding"
 				className={cn(
-					'mb-5 flex min-h-12 items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm transition-[background-color,border-color,color,transform] duration-200 hover:-translate-y-0.5',
+					'mb-2 flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors duration-150',
 					pathname.startsWith('/onboarding')
-						? 'border-[var(--accent-border)] bg-[var(--accent-soft)] font-medium text-[var(--accent-foreground)]'
-						: 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--accent-border)] hover:text-[var(--text-primary)]',
+						? 'bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]'
+						: 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
 				)}
 			>
-				<span className="grid h-8 w-8 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-					<Rocket className="h-4 w-4" />
-				</span>
+				<Rocket className="h-[1.05rem] w-[1.05rem]" />
 				{t('onboarding')}
 			</Link>
 
-			<nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto" aria-label={t('overview')}>
+			{/* Navigation — minimal, no scroll, subtle active state */}
+			<nav className="flex flex-1 flex-col gap-0.5 overflow-hidden" aria-label={t('overview')}>
 				{nav.map(({ key, href, icon: Icon }) => {
 					const active = pathname === href || pathname.startsWith(`${href}/`)
 					return (
@@ -47,21 +49,28 @@ export function Sidebar({ businessType }: { businessType?: BusinessTypeValue | n
 							key={key}
 							href={href}
 							className={cn(
-								'group relative flex min-h-11 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm transition-[background-color,color] duration-200',
+								'group flex min-h-[2.5rem] items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors duration-150',
 								active
-									? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent-foreground)]'
-									: 'text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text-primary)]',
+									? 'bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]'
+									: 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
 							)}
 						>
-							{active && <span aria-hidden className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-[var(--accent)]" />}
-							<span className={cn('grid h-7 w-7 place-items-center rounded-lg transition-colors', active ? 'bg-white text-[var(--accent-strong)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text-primary)]')}>
-								<Icon className="h-4 w-4" />
-							</span>
+							<Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
 							{t(key)}
 						</Link>
 					)
 				})}
 			</nav>
+
+			<form action={logout} className="mt-2 border-t border-[var(--border-default)] pt-2">
+				<button
+					type="submit"
+					className="flex min-h-[2.5rem] w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-[var(--text-muted)] transition-colors duration-150 hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+				>
+					<LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
+					{t('logout')}
+				</button>
+			</form>
 		</aside>
 	)
 }

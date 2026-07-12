@@ -84,13 +84,74 @@ export function PhoneOtpForm({
     }
   }
 
+  // One-click demo login: set the demo phone, call /otp/send (which bypasses
+  // SMS for the demo number), then directly signIn with code 123456.
+  async function demoLogin() {
+    setError(null)
+    setLoading(true)
+    try {
+      const demoPhone = '09120000000'
+      const demoCode = '123456'
+      setPhone(demoPhone)
+
+      // Step 1: hit /otp/send so isNewUser is set (it returns demo: true,
+      // no SMS is actually sent).
+      const sendRes = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: demoPhone }),
+      })
+      const sendData = await sendRes.json()
+      if (!sendRes.ok) {
+        setError(sendData.error ?? 'GENERIC')
+        return
+      }
+      setIsNewUser(!!sendData.isNewUser)
+
+      // Step 2: directly sign in with the demo code — no need to show the
+      // OTP digit boxes since we already know the code.
+      submittingRef.current = true
+      setLoading(true)
+      const res = await signIn('credentials', {
+        phone: demoPhone,
+        code: demoCode,
+        redirect: false,
+      })
+      if (res?.error) {
+        setError('INVALID_CODE')
+        submittingRef.current = false
+        return
+      }
+      setSuccess(true)
+      const destination = preferredPlan
+        ? `/billing?plan=${encodeURIComponent(preferredPlan)}`
+        : nextPath ?? '/overview'
+      setTimeout(() => window.location.assign(destination), 700)
+    } catch {
+      setError('GENERIC')
+      submittingRef.current = false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Keep a ref to the latest name so `verify` doesn't need `name` in its deps.
+  // This prevents the auto-verify effect from re-firing (and submitting a
+  // partial name) every time the user types a character into the name field.
+  const nameRef = useRef(name)
+  useEffect(() => {
+    nameRef.current = name
+  }, [name])
+
   const verify = useCallback(
     async (fullCode: string) => {
       if (submittingRef.current) return
+      const currentName = nameRef.current
       // Name is required for new users — block the verify call before it
       // reaches the backend so the user gets an inline error instead of a
-      // generic "INVALID_CODE" from a null authorize().
-      if (isNewUser && !name.trim()) {
+      // generic "INVALID_CODE" from a null authorize(). Require at least 3
+      // characters so a half-typed name is never saved.
+      if (isNewUser && currentName.trim().length < 3) {
         setError('NAME_REQUIRED')
         return
       }
@@ -101,7 +162,7 @@ export function PhoneOtpForm({
         const res = await signIn('credentials', {
           phone,
           code: fullCode,
-          name: isNewUser ? name.trim() : undefined,
+          name: isNewUser ? currentName.trim() : undefined,
           redirect: false,
         })
         if (res?.error) {
@@ -127,16 +188,19 @@ export function PhoneOtpForm({
         setLoading(false)
       }
     },
-    [phone, isNewUser, name, nextPath, preferredPlan],
+    [phone, isNewUser, nextPath, preferredPlan],
   )
 
   // Auto-verify the moment the last digit lands (typed, pasted or autofilled).
+  // Only fires when code reaches 6 digits — does NOT re-fire on name changes
+  // (verify is stable across name edits because it reads from nameRef).
   useEffect(() => {
     const fullCode = code.join('')
     if (step === 'otp' && fullCode.length === OTP_LENGTH && !success) {
       verify(fullCode)
     }
-  }, [code, step, success, verify])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, step, success])
 
   // WebOTP: on Android Chrome the browser reads the incoming SMS (its last
   // line carries "@domain #code") and offers the code with one tap.
@@ -208,10 +272,10 @@ export function PhoneOtpForm({
   }
 
   return (
-    <div className="rounded-3xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-8 shadow-[0_20px_60px_rgba(var(--ink-rgb),0.08)]">
-      {/* "Easy sign-in" badge — mirrors the hero eyebrow pill */}
+    <div className="rounded-2xl border border-[var(--border-default)] bg-white p-8" style={{ boxShadow: 'var(--shadow-float)' }}>
+      {/* "Easy sign-in" badge */}
       <div className="mb-6 flex justify-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-1.5 text-xs tracking-wide text-[var(--text-secondary)]">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-xs tracking-wide text-[var(--text-muted)]">
           <Sparkles className="h-3.5 w-3.5" />
           {t('badge')}
         </span>
@@ -220,10 +284,10 @@ export function PhoneOtpForm({
       <AnimatePresence mode="wait" initial={false}>
         {step === 'phone' ? (
           <motion.div key="phone" {...stepMotion}>
-            <h1 className="text-center text-2xl font-light tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-center text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
               {t('title')}
             </h1>
-            <p className="mt-2 text-center text-sm text-[var(--text-secondary)]">
+            <p className="mt-2 text-center text-sm text-[var(--text-muted)]">
               {t('subtitle')}
             </p>
 
@@ -241,7 +305,7 @@ export function PhoneOtpForm({
                 onChange={(e) => setPhone(toEnglishDigits(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && requestOtp()}
                 placeholder={t('phonePlaceholder')}
-                className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-3 text-center font-mono text-lg tracking-wider text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)]"
+                className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center font-mono text-lg tracking-wider text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-hint)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.12)]"
               />
             </div>
 
@@ -252,10 +316,20 @@ export function PhoneOtpForm({
             <button
               onClick={requestOtp}
               disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--white)] py-3.5 text-sm font-medium text-[var(--bg-base)] shadow-[0_8px_30px_rgba(var(--ink-rgb),0.12)] transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(var(--ink-rgb),0.2)] disabled:translate-y-0 disabled:opacity-60"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] py-3 text-sm font-medium text-white transition-all duration-150 hover:bg-black disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? t('sending') : t('sendCode')}
+            </button>
+
+            {/* Demo login — one-click entry with pre-seeded data */}
+            <button
+              onClick={demoLogin}
+              disabled={loading}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white py-3 text-sm font-medium text-[var(--text-secondary)] transition-all duration-150 hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              {loading ? t('sending') : 'ورود دمو (بدون نیاز به کد)'}
             </button>
 
             <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
@@ -411,6 +485,25 @@ export function PhoneOtpForm({
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Manual verify button — lets the user submit after typing their
+                name (auto-verify fires on 6th digit but won't re-fire on name
+                edits, so this button is the explicit path for new users). */}
+            {isNewUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (code.join('').length === OTP_LENGTH && !loading && !success) {
+                    void verify(code.join(''))
+                  }
+                }}
+                disabled={loading || success || code.join('').length < OTP_LENGTH}
+                className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--white)] px-5 text-sm font-semibold text-[var(--bg-base)] transition-[opacity,transform] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transform-none"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {t('verify')}
+              </button>
+            )}
 
             <div className="mt-4 text-center text-sm">
               {resendIn > 0 ? (

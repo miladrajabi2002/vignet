@@ -112,7 +112,7 @@ export async function UseCasesSection() {
 	return (
 		<section id="businesses" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="mx-auto max-w-4xl border-t border-black/10 pt-6 text-center">
+				<div className="mx-auto max-w-4xl border-t border-[var(--border-default)] pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>
 					<h2 className="marketing-heading mx-auto mt-4">{copy.title}</h2>
 					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
@@ -123,24 +123,24 @@ export async function UseCasesSection() {
 						<Link
 							key={title}
 							href={href}
-							className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#f5f6f3] p-5 text-black transition-[background-color,border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:border-black/20 hover:bg-white hover:shadow-[0_18px_45px_rgba(0,0,0,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 sm:p-6 ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'} ${index === 4 ? 'sm:col-span-2 lg:col-span-2' : ''}`}
+							className={`group relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.35rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:p-6 ${index < 2 ? 'lg:col-span-3' : 'lg:col-span-2'} ${index === 4 ? 'sm:col-span-2 lg:col-span-2' : ''}`}
+							style={{ boxShadow: 'var(--shadow-sm)' }}
 						>
-							<span aria-hidden className="marketing-grid pointer-events-none absolute inset-0 opacity-35 transition-opacity duration-300 group-hover:opacity-55" />
 							<div className="relative flex items-center justify-between">
-								<span className="flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white">
+								<span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white">
 									<Icon className="h-[18px] w-[18px]" aria-hidden />
 								</span>
-								<span className="font-mono text-[10px] text-black/30">0{index + 1}</span>
+								<span className="font-mono text-[10px] text-[var(--text-hint)]">0{index + 1}</span>
 							</div>
 							<h3 className="relative mt-5 text-lg font-medium leading-snug sm:text-xl">{title}</h3>
-							<p className="relative mt-2.5 text-[13px] leading-6 text-black/60">{desc}</p>
+							<p className="relative mt-2.5 text-[13px] leading-6 text-[var(--text-secondary)]">{desc}</p>
 							<div className="relative mt-4 flex flex-wrap gap-1.5">
 								{features.map((feature) => (
-									<span key={feature} className="rounded-full border border-black/[0.08] bg-white/75 px-2 py-1 text-[10px] text-black/55">{feature}</span>
+									<span key={feature} className="rounded-full border border-[var(--border-default)] bg-white px-2 py-1 text-[10px] text-[var(--text-muted)]">{feature}</span>
 								))}
 							</div>
-							<div className="relative mt-auto border-t border-black/10 pt-3.5">
-								<p className="text-[11px] leading-5 text-black/55">{fit}</p>
+							<div className="relative mt-auto border-t border-[var(--border-default)] pt-3.5">
+								<p className="text-[11px] leading-5 text-[var(--text-muted)]">{fit}</p>
 								<span className="mt-3 inline-flex items-center gap-2 text-xs font-medium">
 									{copy.cta}<Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1 ltr:group-hover:translate-x-1" />
 								</span>
@@ -149,23 +149,22 @@ export async function UseCasesSection() {
 					))}
 				</div>
 
-				<div className="marketing-grid-dark relative mt-4 overflow-hidden rounded-[1.5rem] bg-[#101311] p-5 text-white sm:p-7">
-					<div aria-hidden className="absolute -end-16 -top-20 h-56 w-56 rounded-full bg-emerald-300/10 blur-3xl" />
+				<div className="relative mt-4 overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] sm:p-7" style={{ boxShadow: 'var(--shadow-sm)' }}>
 					<div className="relative grid items-center gap-6 lg:grid-cols-[0.8fr_1.2fr]">
 						<div className="flex items-start gap-3">
-							<span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-emerald-200/20 bg-emerald-300/10 text-emerald-200">
+							<span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-primary)]">
 								<Network className="h-5 w-5" />
-								<span className="absolute -end-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#101311] bg-emerald-300" />
+								<span className="absolute -end-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg-surface)] bg-[var(--accent)]" />
 							</span>
 							<div>
 								<h3 className="text-base font-semibold sm:text-lg">{copy.sharedTitle}</h3>
-								<p className="mt-1.5 max-w-xl text-xs leading-6 text-white/50 sm:text-sm">{copy.sharedDesc}</p>
+								<p className="mt-1.5 max-w-xl text-xs leading-6 text-[var(--text-muted)] sm:text-sm">{copy.sharedDesc}</p>
 							</div>
 						</div>
 						<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
 							{copy.sharedFeatures.map((feature, index) => (
-								<div key={feature} className="flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-[11px] text-white/70">
-									<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300/15 text-emerald-200">
+								<div key={feature} className="flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-[11px] text-[var(--text-secondary)]">
+									<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green-50 text-[var(--success)]">
 										{index === 2 ? <Sparkles className="h-3 w-3" /> : <Check className="h-3 w-3" />}
 									</span>
 									{feature}

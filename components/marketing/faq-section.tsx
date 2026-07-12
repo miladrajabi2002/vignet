@@ -29,7 +29,7 @@ function FaqCard({
       viewport={{ once: true, margin: '-40px' }}
       transition={reduce ? { duration: 0 } : { duration: 0.45, delay: (index % 5) * 0.06 }}
       className={cn(
-        'overflow-hidden rounded-2xl border transition-colors duration-300',
+        'overflow-hidden rounded-2xl border transition-colors duration-150',
         isOpen
           ? 'border-[var(--border-hover)] bg-[var(--white-05)]'
           : 'border-[var(--border-default)] bg-transparent hover:border-[var(--border-hover)]',
@@ -46,7 +46,7 @@ function FaqCard({
         <span
           aria-hidden="true"
           className={cn(
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-all duration-300',
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors duration-150',
             isOpen
               ? 'rotate-45 border-transparent bg-[var(--white)]'
               : 'border-[var(--border-default)]',
@@ -54,7 +54,7 @@ function FaqCard({
         >
           <Plus
             className={cn(
-              'h-3.5 w-3.5 transition-colors duration-300',
+              'h-3.5 w-3.5 transition-colors duration-150',
               isOpen ? 'text-[var(--bg-base)]' : 'text-[var(--text-secondary)]',
             )}
           />
@@ -144,7 +144,7 @@ export function FaqSection() {
           </span>
           <Link
             href="/docs"
-            className="group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
+            className="group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
           >
             {t('contact')}
             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />

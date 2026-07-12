@@ -166,6 +166,7 @@ export function AppointmentsWorkspace({
   const [cancelReason, setCancelReason] = useState('')
   const [actionId, setActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [dayCounts, setDayCounts] = useState<Record<string, number>>({})
 
   const days = useMemo(
     () => Array.from({ length: 14 }, (_, index) => shiftDateKey(initialDate, index)),
@@ -174,6 +175,33 @@ export function AppointmentsWorkspace({
   const activeServices = services.filter((service) => service.active)
   const activeToday = appointments.filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status))
   const usedCapacity = activeToday.reduce((sum, item) => sum + item.partySize, 0)
+
+  // Fetch appointment counts for the whole 14-day window so each day chip can
+  // show a density indicator (empty / some / busy). Runs on mount and whenever
+  // the service filter changes.
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(
+      days.map(async (date) => {
+        try {
+          const query = new URLSearchParams({ date })
+          if (serviceFilter) query.set('serviceId', serviceFilter)
+          const response = await fetch(`/api/appointments?${query.toString()}`)
+          const data = (await response.json()) as { appointments?: unknown[] }
+          return [date, (data.appointments ?? []).length] as const
+        } catch {
+          return [date, 0] as const
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return
+      setDayCounts(Object.fromEntries(entries))
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceFilter, initialDate])
 
   async function loadDay(date: string, nextService = serviceFilter) {
     setLoadingDay(true)
@@ -212,11 +240,6 @@ export function AppointmentsWorkspace({
       setActionId(null)
     }
   }
-
-  const dateFormatter = new Intl.DateTimeFormat(
-    fa ? 'fa-IR-u-ca-persian' : 'en-US',
-    { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' },
-  )
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -283,14 +306,42 @@ export function AppointmentsWorkspace({
                 onClick={() => void loadDay(date)}
                 aria-pressed={selectedDate === date}
                 className={cn(
-                  'min-h-16 min-w-[92px] rounded-2xl border px-3 text-center text-xs transition-[border-color,background-color,transform] hover:-translate-y-0.5 motion-reduce:transform-none',
+                  'group relative min-h-[4.6rem] min-w-[88px] rounded-2xl border px-2.5 py-2.5 text-center transition-[border-color,background-color,transform] hover:-translate-y-0.5 motion-reduce:transform-none',
                   selectedDate === date
-                    ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-foreground)]'
-                    : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]',
+                    ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-foreground)] shadow-[0_8px_20px_rgba(16,185,129,0.12)]'
+                    : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
                 )}
               >
-                <span className="block font-medium">{index === 0 ? (fa ? 'امروز' : 'Today') : dateFormatter.format(new Date(`${date}T12:00:00Z`))}</span>
-                <span dir="ltr" className="mt-1 block text-[10px] opacity-60">{date}</span>
+                <span className="block text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                  {new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}
+                </span>
+                <span className="mt-0.5 block text-lg font-semibold tabular-nums">
+                  {new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}
+                </span>
+                {index === 0 && (
+                  <span className="mt-0.5 block text-[9px] font-medium text-[var(--accent-strong)]">{fa ? 'امروز' : 'Today'}</span>
+                )}
+                {/* Density indicator */}
+                <span className="mt-1.5 flex items-center justify-center gap-0.5">
+                  {(dayCounts[date] ?? 0) === 0 ? (
+                    <span className="h-1 w-1 rounded-full bg-[var(--border-strong)] opacity-50" />
+                  ) : (
+                    Array.from({ length: Math.min(3, Math.ceil((dayCounts[date] ?? 0) / 2)) }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          'h-1 w-1 rounded-full',
+                          selectedDate === date ? 'bg-[var(--accent-strong)]' : 'bg-[var(--accent)]',
+                        )}
+                      />
+                    ))
+                  )}
+                </span>
+                {(dayCounts[date] ?? 0) > 0 && (
+                  <span className="mt-0.5 block text-[9px] font-medium tabular-nums text-[var(--text-muted)]">
+                    {(dayCounts[date] ?? 0).toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'نوبت' : 'appts'}
+                  </span>
+                )}
               </button>
             ))}
           </div>

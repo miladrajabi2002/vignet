@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendOTP, OtpRateLimitError } from '@/lib/sms/ippanel'
 import { phoneSchema } from '@/lib/phone'
 import { rateLimit } from '@/lib/ratelimit'
+import { DEMO_PHONE } from '@/auth'
 
 export async function POST(req: Request) {
   // Per-phone limiting lives in sendOTP (3/hour). Add a per-IP cap so an
@@ -26,6 +27,17 @@ export async function POST(req: Request) {
   }
 
   const phone = parsed.data
+
+  // Demo bypass — don't send SMS for the demo phone; the client shows
+  // the code 123456 automatically.
+  if (phone === DEMO_PHONE) {
+    const existing = await prisma.user.findUnique({
+      where: { phone },
+      select: { id: true },
+    })
+    return NextResponse.json({ ok: true, isNewUser: !existing, demo: true })
+  }
+
   try {
     const existing = await prisma.user.findUnique({
       where: { phone },
