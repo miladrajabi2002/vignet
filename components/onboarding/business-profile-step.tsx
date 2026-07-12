@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -10,14 +9,15 @@ import {
   CalendarDays,
   Check,
   GraduationCap,
+  Headphones,
+  Camera,
   Loader2,
-  Save,
   Settings2,
   ShoppingBag,
   Utensils,
   ArrowLeft,
   ArrowRight,
-  Sparkles,
+  CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -26,14 +26,16 @@ import {
   type BusinessTypeValue,
 } from '@/lib/verticals/registry'
 
-const ICONS = {
+const ICONS: Record<BusinessTypeValue, typeof ShoppingBag> = {
   COMMERCE: ShoppingBag,
   FOOD: Utensils,
   APPOINTMENTS: CalendarDays,
   SERVICES: Briefcase,
   EDUCATION: GraduationCap,
+  SUPPORT: Headphones,
+  SOCIAL: Camera,
   CUSTOM: Settings2,
-} as const
+}
 
 interface Props {
   workspaceName: string
@@ -41,7 +43,8 @@ interface Props {
   initialProfile: { businessName: string; services: string[] } | null
 }
 
-type SubStep = 0 | 1 // 0 = choose type, 1 = name + services
+// 3 sub-steps: 0 = choose type, 1 = name + services, 2 = review + next action
+type SubStep = 0 | 1 | 2
 
 export function BusinessProfileStep({
   workspaceName,
@@ -51,9 +54,7 @@ export function BusinessProfileStep({
   const locale = useLocale()
   const fa = locale === 'fa'
   const router = useRouter()
-  const [subStep, setSubStep] = useState<SubStep>(
-    initialProfile ? 1 : 0,
-  )
+  const [subStep, setSubStep] = useState<SubStep>(initialProfile ? 1 : 0)
   const [selectedType, setSelectedType] = useState<BusinessTypeValue | null>(
     initialProfile ? initialType : null,
   )
@@ -62,7 +63,6 @@ export function BusinessProfileStep({
   )
   const [services, setServices] = useState<string[]>(initialProfile?.services ?? [])
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(Boolean(initialProfile))
   const [error, setError] = useState('')
 
   const selectedPack = useMemo(
@@ -77,57 +77,65 @@ export function BusinessProfileStep({
 
   const copy = fa
     ? {
-        eyebrow: 'پروفایل عملیاتی',
-        title: 'کسب‌وکارتان چطور کار می‌کند؟',
-        subtitle: 'ویجنت بر اساس نوع عملیات، ماژول‌ها و شروع مناسب ایجنت را آماده می‌کند.',
-        step1Label: '۱. نوع کسب‌وکار',
-        step2Label: '۲. نام و خدمات',
+        step1Title: 'نوع کسب‌وکار خود را انتخاب کنید',
+        step1Hint: 'برای شروع، مدل عملیاتی کسب‌وکار خود را مشخص کنید',
+        step2Title: 'نام و خدمات کسب‌وکار',
+        step2Hint: 'اطلاعات پایه کسب‌وکار خود را وارد کنید',
+        step3Title: 'آماده برای ساخت ایجنت',
+        step3Hint: 'اطلاعات ذخیره شد. حالا ایجنت خود را بسازید',
         name: 'نام کسب‌وکار',
         namePlaceholder: 'مثلاً فروشگاه رزین‌مهر',
         services: 'خدمات یا کارهای اصلی',
         servicesHint: 'حداقل یک مورد را انتخاب کنید. هر زمان بخواهید قابل تغییر است.',
         save: 'ذخیره و ادامه',
         saving: 'در حال ذخیره…',
-        saved: 'پروفایل کسب‌وکار ذخیره شد.',
+        saved: 'ذخیره شد',
+        next: 'ادامه',
+        back: 'بازگشت',
+        buildAgent: 'ساخت ایجنت پیشنهادی',
         errorName: 'نام کسب‌وکار را وارد کنید (حداقل ۲ نویسه).',
         errorServices: 'حداقل یک خدمت را انتخاب کنید.',
-        errorType: 'ابتدا نوع کسب‌وکار را انتخاب کنید.',
-        continue: 'ساخت ایجنت پیشنهادی',
-        back: 'بازگشت',
-        next: 'ادامه',
         pickType: 'یک گزینه را انتخاب کنید',
-        niceChoice: 'عالی! حالا نام و خدمات را وارد کنید',
+        reviewName: 'نام کسب‌وکار',
+        reviewType: 'نوع',
+        reviewServices: 'خدمات',
+        step: 'مرحله',
+        of: 'از',
       }
     : {
-        eyebrow: 'Operating profile',
-        title: 'How does your business work?',
-        subtitle: 'Vigent prepares the right modules and agent starting point from your operation type.',
-        step1Label: '1. Business type',
-        step2Label: '2. Name & services',
+        step1Title: 'Choose your business type',
+        step1Hint: 'Select your operational model to get started',
+        step2Title: 'Business name & services',
+        step2Hint: 'Enter the basics of your business',
+        step3Title: 'Ready to build your agent',
+        step3Hint: 'Profile saved. Now build your agent',
         name: 'Business name',
         namePlaceholder: 'e.g. ResinMehr Store',
         services: 'Main services or jobs',
         servicesHint: 'Select at least one. You can change these at any time.',
         save: 'Save and continue',
         saving: 'Saving…',
-        saved: 'Business profile saved.',
+        saved: 'Saved',
+        next: 'Continue',
+        back: 'Back',
+        buildAgent: 'Build suggested agent',
         errorName: 'Enter a business name (at least 2 characters).',
         errorServices: 'Select at least one service.',
-        errorType: 'Choose a business type first.',
-        continue: 'Build suggested agent',
-        back: 'Back',
-        next: 'Continue',
         pickType: 'Pick one option',
-        niceChoice: 'Nice! Now enter your name and services',
+        reviewName: 'Business name',
+        reviewType: 'Type',
+        reviewServices: 'Services',
+        step: 'Step',
+        of: 'of',
       }
 
   function selectType(type: BusinessTypeValue) {
     const pack = getVerticalPack(type)
     setSelectedType(type)
-    // Pre-select the first 2 suggested services for convenience.
     setServices([...(fa ? pack.suggestedServicesFa : pack.suggestedServicesEn)].slice(0, 2))
-    setSaved(false)
     setError('')
+    // Auto-advance to next sub-step after a brief moment
+    setTimeout(() => setSubStep(1), 350)
   }
 
   function toggleService(service: string) {
@@ -136,28 +144,17 @@ export function BusinessProfileStep({
         ? current.filter((item) => item !== service)
         : [...current, service].slice(0, 16),
     )
-    setSaved(false)
     setError('')
-  }
-
-  function goNext() {
-    if (!selectedType) {
-      setError(copy.errorType)
-      return
-    }
-    setError('')
-    setSubStep(1)
   }
 
   function goBack() {
     setError('')
-    setSubStep(0)
+    setSubStep((s) => (s > 0 ? ((s - 1) as SubStep) : s))
   }
 
   async function saveProfile() {
-    // Specific validation — tell the user exactly what's missing.
     if (!selectedType) {
-      setError(copy.errorType)
+      setError(copy.errorName)
       return
     }
     if (businessName.trim().length < 2) {
@@ -181,7 +178,8 @@ export function BusinessProfileStep({
         }),
       })
       if (!response.ok) throw new Error('save failed')
-      setSaved(true)
+      // Auto-advance to review step
+      setSubStep(2)
       router.refresh()
     } catch {
       setError(fa ? 'ذخیره انجام نشد؛ دوباره تلاش کنید.' : 'Could not save. Please try again.')
@@ -193,121 +191,143 @@ export function BusinessProfileStep({
   const Arrow = fa ? ArrowLeft : ArrowRight
   const BackArrow = fa ? ArrowRight : ArrowLeft
 
-  return (
-    <section className="overflow-hidden rounded-3xl border border-[var(--border-default)] bg-white shadow-[var(--shadow-soft)]">
-      {/* Header */}
-      <div className="border-b border-[var(--border-subtle)] bg-[linear-gradient(135deg,var(--accent-soft),white_52%)] px-5 py-5 sm:px-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
-          {copy.eyebrow}
-        </p>
-        <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)] sm:text-2xl">
-          {copy.title}
-        </h2>
-        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-          {copy.subtitle}
-        </p>
+  const subStepLabels = fa
+    ? ['انتخاب نوع', 'نام و خدمات', 'بازبینی']
+    : ['Type', 'Name & services', 'Review']
 
-        {/* Sub-step progress */}
-        <div className="mt-4 flex items-center gap-2">
-          {[0, 1].map((i) => (
-            <div key={i} className="flex flex-1 items-center gap-2">
-              <div
-                className={cn(
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors',
-                  subStep >= i
-                    ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                    : 'border-[var(--border-default)] bg-white text-[var(--text-muted)]',
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white" style={{ boxShadow: 'var(--shadow-card)' }}>
+      {/* Progress bar — 3 sub-steps */}
+      <div className="border-b border-[var(--border-subtle)] px-6 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {subStepLabels.map((label, i) => (
+              <div key={label} className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-all duration-200',
+                    subStep > i
+                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
+                      : subStep === i
+                        ? 'border-[var(--text-primary)] bg-white text-[var(--text-primary)]'
+                        : 'border-[var(--border-default)] bg-white text-[var(--text-hint)]',
+                  )}
+                >
+                  {subStep > i ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                </div>
+                <span className={cn('hidden text-xs font-medium sm:inline', subStep >= i ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)]')}>
+                  {label}
+                </span>
+                {i < subStepLabels.length - 1 && (
+                  <div className={cn('mx-1 h-px w-6 rounded-full transition-colors duration-200 sm:w-10', subStep > i ? 'bg-[var(--text-primary)]' : 'bg-[var(--border-default)]')} />
                 )}
-              >
-                {subStep > i ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </div>
-              <span className={cn('hidden text-xs font-medium sm:inline', subStep >= i ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>
-                {i === 0 ? copy.step1Label : copy.step2Label}
-              </span>
-              {i === 0 && (
-                <div className={cn('h-0.5 flex-1 rounded-full transition-colors', subStep >= 1 ? 'bg-[var(--accent)]' : 'bg-[var(--border-default)]')} />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {copy.step} {subStep + 1} {copy.of} 3
+          </span>
         </div>
       </div>
 
       {/* Body — animated sub-step transitions */}
-      <div className="p-5 sm:p-7">
+      <div className="p-6 sm:p-7">
         <AnimatePresence mode="wait">
-          {subStep === 0 ? (
+          {/* Sub-step 0: Choose business type */}
+          {subStep === 0 && (
             <motion.div
               key="step-type"
-              initial={{ opacity: 0, x: fa ? -24 : 24 }}
+              initial={{ opacity: 0, x: fa ? -16 : 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: fa ? 24 : -24 }}
-              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, x: fa ? 16 : -16 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             >
-              <p className="mb-3 text-xs font-medium text-[var(--text-muted)]">{copy.pickType}</p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">{copy.step1Title}</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">{copy.step1Hint}</p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {BUSINESS_TYPES.map((type, index) => {
                   const pack = getVerticalPack(type)
                   const Icon = ICONS[type]
                   const active = selectedType === type
+                  const features = fa ? pack.featuresFa : pack.featuresEn
                   return (
                     <motion.button
                       key={type}
                       type="button"
                       aria-pressed={active}
                       onClick={() => selectType(type)}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: index * 0.04 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
                       className={cn(
-                        'relative min-h-36 rounded-2xl border p-4 text-start transition-[border-color,background-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 motion-reduce:transform-none',
+                        'group relative min-h-[7.5rem] rounded-xl border p-4 text-start transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)] focus-visible:ring-offset-2',
                         active
-                          ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] shadow-[var(--shadow-soft)]'
-                          : 'border-[var(--border-default)] bg-white hover:-translate-y-0.5 hover:border-[var(--border-strong)]',
+                          ? 'border-[var(--text-primary)] bg-[var(--bg-surface)]'
+                          : 'border-[var(--border-default)] bg-white hover:border-[var(--border-hover)]',
                       )}
                     >
-                      <span className={cn(
-                        'grid h-10 w-10 place-items-center rounded-xl border',
-                        active
-                          ? 'border-[var(--accent-border)] bg-white text-[var(--accent-strong)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-secondary)]',
-                      )}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      {active && (
-                        <motion.span
-                          layoutId="type-check"
-                          className="absolute end-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-[var(--accent)] text-white"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </motion.span>
-                      )}
-                      <span className="mt-4 block text-sm font-semibold text-[var(--text-primary)]">
-                        {fa ? pack.titleFa : pack.titleEn}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">
-                        {fa ? pack.descriptionFa : pack.descriptionEn}
-                      </span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn(
+                            'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors',
+                            active ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-subtle)] bg-white text-[var(--text-secondary)]',
+                          )}>
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-[var(--text-primary)]">{fa ? pack.titleFa : pack.titleEn}</p>
+                            <p className="mt-0.5 text-[11px] leading-4 text-[var(--text-muted)]">{fa ? pack.descriptionFa : pack.descriptionEn}</p>
+                          </div>
+                        </div>
+                        {active && (
+                          <motion.span layoutId="type-check" className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--text-primary)] text-white">
+                            <Check className="h-3 w-3" />
+                          </motion.span>
+                        )}
+                      </div>
+                      {/* Feature highlights */}
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {features.map((f) => (
+                          <span key={f} className="rounded-md border border-[var(--border-subtle)] bg-white px-1.5 py-0.5 text-[9px] font-medium text-[var(--text-muted)]">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
                     </motion.button>
                   )
                 })}
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {/* Sub-step 1: Name + services */}
+          {subStep === 1 && (
             <motion.div
               key="step-details"
-              initial={{ opacity: 0, x: fa ? -24 : 24 }}
+              initial={{ opacity: 0, x: fa ? -16 : 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: fa ? 24 : -24 }}
-              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-              className="space-y-6"
+              exit={{ opacity: 0, x: fa ? 16 : -16 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-5"
             >
-              <div className="flex items-center gap-2 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--accent-foreground)]">
-                <Sparkles className="h-3.5 w-3.5" />
-                {copy.niceChoice}
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">{copy.step2Title}</h2>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">{copy.step2Hint}</p>
               </div>
 
+              {selectedPack && (
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                  {(() => {
+                    const Icon = ICONS[selectedType!]
+                    return <Icon className="h-3.5 w-3.5 shrink-0" />
+                  })()}
+                  {fa ? selectedPack.titleFa : selectedPack.titleEn}
+                </div>
+              )}
+
               <div>
-                <label htmlFor="business-name" className="text-sm font-medium text-[var(--text-primary)]">
+                <label htmlFor="business-name" className="mb-1.5 block text-[13px] font-medium text-[var(--text-primary)]">
                   {copy.name}
                 </label>
                 <input
@@ -315,18 +335,17 @@ export function BusinessProfileStep({
                   value={businessName}
                   onChange={(event) => {
                     setBusinessName(event.target.value)
-                    setSaved(false)
-                    setError('')
+                                    setError('')
                   }}
                   placeholder={copy.namePlaceholder}
-                  className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border-default)] bg-white px-4 text-base text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-border)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                  className="input min-h-11 text-sm"
                 />
               </div>
 
               <div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">{copy.services}</div>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">{copy.servicesHint}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mb-1.5 text-[13px] font-medium text-[var(--text-primary)]">{copy.services}</div>
+                <p className="mb-2.5 text-xs text-[var(--text-muted)]">{copy.servicesHint}</p>
+                <div className="flex flex-wrap gap-1.5">
                   {suggestions.map((service) => {
                     const active = services.includes(service)
                     return (
@@ -336,71 +355,126 @@ export function BusinessProfileStep({
                         aria-pressed={active}
                         onClick={() => toggleService(service)}
                         className={cn(
-                          'min-h-10 rounded-full border px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
+                          'min-h-9 rounded-lg border px-3 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)]',
                           active
-                            ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-foreground)]'
-                            : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
+                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
+                            : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
                         )}
                       >
-                        {active && <Check className="me-1.5 inline h-3.5 w-3.5" />}
+                        {active && <Check className="me-1 inline h-3 w-3" />}
                         {service}
                       </button>
                     )
                   })}
                 </div>
               </div>
+
+              {error && (
+                <p className="text-[13px] text-[var(--red)]">{error}</p>
+              )}
+
+              {/* Action row — back + save (centered primary) */}
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-surface)]"
+                >
+                  <BackArrow className="h-3.5 w-3.5 rtl:rotate-0" />
+                  {copy.back}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveProfile}
+                  disabled={saving}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-6 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {saving ? copy.saving : copy.save}
+                  {!saving && <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Sub-step 2: Review + build agent CTA */}
+          {subStep === 2 && selectedPack && (
+            <motion.div
+              key="step-review"
+              initial={{ opacity: 0, x: fa ? -16 : 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: fa ? 16 : -16 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-5"
+            >
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-white">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">{copy.step3Title}</h2>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">{copy.step3Hint}</p>
+                </div>
+              </div>
+
+              {/* Review summary card */}
+              <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                <dl className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-[var(--text-muted)]">{copy.reviewName}</dt>
+                    <dd className="font-medium text-[var(--text-primary)]">{businessName}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-[var(--text-muted)]">{copy.reviewType}</dt>
+                    <dd className="font-medium text-[var(--text-primary)]">{fa ? selectedPack.titleFa : selectedPack.titleEn}</dd>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <dt className="shrink-0 text-[var(--text-muted)]">{copy.reviewServices}</dt>
+                    <dd className="flex flex-wrap justify-end gap-1">
+                      {services.map((s) => (
+                        <span key={s} className="rounded-md border border-[var(--border-default)] bg-white px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                          {s}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* Feature highlights for selected business */}
+              <div>
+                <p className="mb-2 text-xs font-medium text-[var(--text-muted)]">{fa ? 'امکانات اختصاصی شما' : 'Your dedicated features'}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(fa ? selectedPack.featuresFa : selectedPack.featuresEn).map((f) => (
+                    <div key={f} className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-white px-2.5 py-2 text-[11px] text-[var(--text-secondary)]">
+                      <Check className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
+                      {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action row — back + build agent (centered primary) */}
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setSubStep(1)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--bg-surface)]"
+                >
+                  <BackArrow className="h-3.5 w-3.5 rtl:rotate-0" />
+                  {copy.back}
+                </button>
+                <a
+                  href={`/agents/new?business=${selectedPack.agentTemplate}`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-6 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black"
+                >
+                  {copy.buildAgent}
+                  <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+                </a>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Footer actions */}
-        <div className="mt-6 flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p aria-live="polite" className={cn('min-h-5 text-sm', error ? 'text-red-500' : saved ? 'text-success' : 'text-[var(--text-secondary)]')}>
-            {error || (saved ? copy.saved : '')}
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {subStep === 1 && (
-              <button
-                type="button"
-                onClick={goBack}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
-              >
-                <BackArrow className="h-3.5 w-3.5 rtl:rotate-0" />
-                {copy.back}
-              </button>
-            )}
-            {saved && selectedPack && (
-              <Link
-                href={`/agents/new?business=${selectedPack.agentTemplate}`}
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition-[opacity,transform] hover:-translate-y-0.5"
-              >
-                {copy.continue}
-                <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
-              </Link>
-            )}
-            {subStep === 0 ? (
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!selectedType}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition-[opacity,transform] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transform-none"
-              >
-                {copy.next}
-                <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={saveProfile}
-                disabled={saving}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white transition-[opacity,transform] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transform-none"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Save className="h-4 w-4" />}
-                {saving ? copy.saving : copy.save}
-              </button>
-            )}
-          </div>
-        </div>
       </div>
     </section>
   )

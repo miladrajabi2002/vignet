@@ -4,6 +4,8 @@ export const BUSINESS_TYPES = [
   'APPOINTMENTS',
   'SERVICES',
   'EDUCATION',
+  'SUPPORT',
+  'SOCIAL',
   'CUSTOM',
 ] as const
 
@@ -33,6 +35,9 @@ export interface VerticalPack {
   titleEn: string
   descriptionFa: string
   descriptionEn: string
+  /** Short feature highlights shown on the selection card (3-4 items). */
+  featuresFa: readonly string[]
+  featuresEn: readonly string[]
   /** Modules every Vigent workspace receives, regardless of vertical. */
   coreModules: readonly DashboardModuleKey[]
   /** Operational modules highlighted for this vertical. */
@@ -65,10 +70,12 @@ export const CORE_CAPABILITY_PACKS = [
 const PACKS: Record<BusinessTypeValue, VerticalPack> = {
   COMMERCE: {
     key: 'COMMERCE',
-    titleFa: 'فروشگاه و فروش آنلاین',
-    titleEn: 'Commerce & online sales',
+    titleFa: 'فروشگاه و محصول',
+    titleEn: 'Commerce & product',
     descriptionFa: 'کاتالوگ، راهنمای خرید، پیگیری سفارش و فروش در همه کانال‌ها',
-    descriptionEn: 'Catalog, guided selling and order follow-up across every channel',
+    descriptionEn: 'Catalog, buying guide, order tracking and sales across all channels',
+    featuresFa: ['کاتالوگ و موجودی زنده', 'مشاوره و مقایسه محصول', 'پیگیری سفارش', 'فروش در همه کانال‌ها'],
+    featuresEn: ['Live catalog & stock', 'Product advice & comparison', 'Order tracking', 'Omnichannel sales'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: ['products'],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -81,7 +88,9 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     titleFa: 'رستوران، کافه و سفارش غذا',
     titleEn: 'Food & hospitality',
     descriptionFa: 'منو، پیشنهاد هوشمند، ثبت سفارش و پاسخ‌گویی سریع به مشتری',
-    descriptionEn: 'Menus, recommendations, order capture and fast customer service',
+    descriptionEn: 'Menu, smart recommendations, order capture and fast customer service',
+    featuresFa: ['منو دیجیتال', 'ثبت سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سریع سفارش'],
+    featuresEn: ['Digital menu', 'Takeaway ordering', 'Table booking', 'Fast order support'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: ['products', 'appointments'],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -91,10 +100,12 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
   },
   APPOINTMENTS: {
     key: 'APPOINTMENTS',
-    titleFa: 'نوبت‌دهی و رزرو',
-    titleEn: 'Appointments & booking',
+    titleFa: 'رزرو و نوبت‌دهی',
+    titleEn: 'Booking & appointments',
     descriptionFa: 'تقویم، ظرفیت، زمان‌های آزاد و رزرو بدون تداخل برای هر خدمت',
-    descriptionEn: 'Availability, capacity and conflict-free booking for every service',
+    descriptionEn: 'Calendar, capacity, free slots and conflict-free booking per service',
+    featuresFa: ['تقویم و ظرفیت زنده', 'رزرو بدون تداخل', 'یادآوری خودکار', 'مدیریت لغو و تغییر'],
+    featuresEn: ['Live calendar & capacity', 'Conflict-free booking', 'Auto reminders', 'Cancel & reschedule'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: ['appointments'],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -104,10 +115,12 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
   },
   SERVICES: {
     key: 'SERVICES',
-    titleFa: 'خدمات و پروژه',
-    titleEn: 'Services & projects',
+    titleFa: 'خدمات حرفه‌ای',
+    titleEn: 'Professional services',
     descriptionFa: 'جمع‌آوری نیاز، ثبت درخواست، پیگیری مشتری و هماهنگی انجام کار',
     descriptionEn: 'Qualify requests, capture leads and coordinate service delivery',
+    featuresFa: ['جمع‌آوری نیاز و سرنخ', 'ثبت درخواست', 'پیگیری مشتری', 'هماهنگی انجام کار'],
+    featuresEn: ['Lead & need capture', 'Request logging', 'Customer follow-up', 'Work coordination'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: ['appointments'],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -121,6 +134,8 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     titleEn: 'Education & courses',
     descriptionFa: 'راهنمای انتخاب دوره، ثبت‌نام، پاسخ به سؤالات و پیگیری دانشجو',
     descriptionEn: 'Course guidance, enrollment, Q&A and learner follow-up',
+    featuresFa: ['راهنمای انتخاب دوره', 'ثبت‌نام آنلاین', 'پاسخ به سؤالات', 'پیگیری دانشجو'],
+    featuresEn: ['Course selection guide', 'Online enrollment', 'Q&A support', 'Learner follow-up'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: [],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -128,12 +143,44 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     suggestedServicesEn: ['Course advice', 'Enrollment', 'Learner support'],
     agentTemplate: 'education',
   },
+  SUPPORT: {
+    key: 'SUPPORT',
+    titleFa: 'پشتیبانی مشتری',
+    titleEn: 'Customer support',
+    descriptionFa: 'تیکت، اولویت‌بندی، SLA و پاسخ‌گویی دانش‌محور به مشتری',
+    descriptionEn: 'Tickets, priority, SLA and knowledge-driven customer support',
+    featuresFa: ['مدیریت تیکت', 'اولویت‌بندی و SLA', 'پاسخ دانش‌محور', 'گزارش عملکرد'],
+    featuresEn: ['Ticket management', 'Priority & SLA', 'Knowledge-driven replies', 'Performance reports'],
+    coreModules: CORE_DASHBOARD_MODULES,
+    optionalModules: [],
+    capabilities: CORE_CAPABILITY_PACKS,
+    suggestedServicesFa: ['پشتیبانی فنی', 'پاسخ به سؤال', 'پیگیری تیکت'],
+    suggestedServicesEn: ['Technical support', 'Q&A', 'Ticket follow-up'],
+    agentTemplate: 'custom',
+  },
+  SOCIAL: {
+    key: 'SOCIAL',
+    titleFa: 'فروش و اتوماسیون اینستاگرام',
+    titleEn: 'Instagram sales & automation',
+    descriptionFa: 'مدیریت دایرکت، کامنت، اتوماسیون و فروش در اینستاگرام',
+    descriptionEn: 'DM, comment, automation management and sales on Instagram',
+    featuresFa: ['پاسخ خودکار دایرکت', 'مدیریت کامنت', 'اتوماسیون فروش', 'کاتالوگ در دایرکت'],
+    featuresEn: ['Auto DM replies', 'Comment management', 'Sales automation', 'In-DM catalog'],
+    coreModules: CORE_DASHBOARD_MODULES,
+    optionalModules: ['products'],
+    capabilities: CORE_CAPABILITY_PACKS,
+    suggestedServicesFa: ['پاسخ دایرکت', 'فروش در دایرکت', 'مدیریت کامنت'],
+    suggestedServicesEn: ['DM replies', 'In-DM sales', 'Comment management'],
+    agentTemplate: 'store',
+  },
   CUSTOM: {
     key: 'CUSTOM',
     titleFa: 'کسب‌وکار دیگر',
     titleEn: 'Another business',
     descriptionFa: 'ماژول‌های موردنیازتان را آزادانه انتخاب و بعداً تغییر دهید',
     descriptionEn: 'Choose the operational modules you need and change them later',
+    featuresFa: ['انتخاب آزاد ماژول‌ها', 'پاسخ‌گویی هوشمند', 'قابل تغییر بعداً'],
+    featuresEn: ['Free module selection', 'Smart replies', 'Changeable later'],
     coreModules: CORE_DASHBOARD_MODULES,
     optionalModules: ['products', 'appointments'],
     capabilities: CORE_CAPABILITY_PACKS,
@@ -177,6 +224,7 @@ export function getDashboardModules(value: unknown): DashboardModuleKey[] {
 export function fromLegacyBusinessKey(value: string | null | undefined): BusinessTypeValue {
   switch (value?.toLowerCase()) {
     case 'instagram':
+      return 'SOCIAL'
     case 'store':
     case 'commerce':
       return 'COMMERCE'
@@ -189,6 +237,8 @@ export function fromLegacyBusinessKey(value: string | null | undefined): Busines
       return 'SERVICES'
     case 'education':
       return 'EDUCATION'
+    case 'support':
+      return 'SUPPORT'
     default:
       return 'CUSTOM'
   }

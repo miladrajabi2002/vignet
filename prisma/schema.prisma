@@ -77,6 +77,8 @@ enum BusinessType {
   APPOINTMENTS
   SERVICES
   EDUCATION
+  SUPPORT
+  SOCIAL
   CUSTOM
 }
 

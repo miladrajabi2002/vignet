@@ -199,12 +199,11 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="dashboard-card relative overflow-hidden rounded-[1.6rem] border border-[var(--border-default)] bg-white/[0.94] p-5 sm:p-7">
-          <div aria-hidden className="absolute -end-20 -top-24 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-5 sm:p-7" style={{ boxShadow: 'var(--shadow-card)' }}>
           <div className="relative">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-3 text-[11px] font-semibold text-[var(--accent-foreground)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-primary)]" />
                 {businessLabel}
               </span>
               <span className="text-[11px] text-[var(--text-muted)]">
@@ -212,33 +211,44 @@ export default async function OverviewPage() {
               </span>
             </div>
 
-            <p className="mt-6 text-xs font-medium text-[var(--text-muted)]">
+            <p className="mt-5 text-xs font-medium text-[var(--text-muted)]">
               {fa ? `سلام ${user.name || ''}`.trim() : `Hello ${user.name || ''}`.trim()}
             </p>
-            <h1 className="mt-2 max-w-xl text-[clamp(1.7rem,4vw,2.7rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-[var(--text-primary)] rtl:tracking-normal">
+            <h1 className="mt-1.5 max-w-xl text-[clamp(1.5rem,3.5vw,2.2rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-[var(--text-primary)] rtl:tracking-normal">
               {fa ? `مرکز عملیات ${displayName}` : `${displayName} operations center`}
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-2.5 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
               {businessDescription}
             </p>
 
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <Link href="/conversations" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-medium text-white transition-transform hover:-translate-y-0.5">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Link href="/conversations" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-4 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black">
                 <MessagesSquare className="h-4 w-4" />
                 {fa ? 'رسیدگی به گفتگوها' : 'Open conversations'}
-                <Arrow className="h-3.5 w-3.5" />
               </Link>
-              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]">
+              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)]">
                 {hasBookingModule ? <CalendarCheck2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                 {hasBookingModule
                   ? fa ? 'مدیریت نوبت‌ها' : 'Manage appointments'
-                  : fa ? 'ساخت ایجنت با ویجنتو' : 'Build with Vigento'}
+                  : fa ? 'ساخت ایجنت' : 'Build agent'}
               </Link>
             </div>
           </div>
         </div>
 
-        <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} />
+        {/* IntelligenceCore only shows after onboarding is complete */}
+        {onboarding.completed ? (
+          <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} />
+        ) : (
+          <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
+            <div>
+              <Sparkles className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
+              <p className="mt-3 text-sm text-[var(--text-muted)]">
+                {fa ? 'پس از تکمیل راه‌اندازی، هسته هوشمند فعال می‌شود' : 'Complete setup to activate the intelligence core'}
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {!onboarding.completed && <OnboardingChecklist initialState={onboarding} />}

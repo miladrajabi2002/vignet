@@ -115,15 +115,18 @@
         --amber: #f59e0b;            /* warning */
         --blue: #0a84ff;             /* primary blue (legacy alias) */
 
-        /* ─── Primary accent: blue (interactive elements only) ───
-           Used for links, focus rings, active indicators, chart primary.
-           NOT for large fills or decorative elements. */
-        --accent: #0a84ff;
-        --accent-strong: #0077ed;    /* hover state */
-        --accent-soft: rgba(10, 132, 255, 0.08);
-        --accent-border: rgba(10, 132, 255, 0.20);
-        --accent-foreground: #0077ed;
-        --accent-rgb: 10, 132, 255;
+        /* ─── Primary accent: black (default interactive color) ───
+           Blue is reserved ONLY for focus rings and text links.
+           Active states, live dots, and indicators use black/gray. */
+        --accent: #111111;
+        --accent-strong: #000000;
+        --accent-soft: #f7f7f8;
+        --accent-border: #e5e7eb;
+        --accent-foreground: #111111;
+        --accent-rgb: 17, 17, 17;
+        /* Blue kept only for focus rings and links */
+        --blue-accent: #0a84ff;
+        --blue-accent-soft: rgba(10, 132, 255, 0.08);
 
         /* Secondary accent — consolidated to the same blue (no indigo) */
         --accent2: #0a84ff;
@@ -204,7 +207,7 @@
         }
 
         :where(a, button, input, select, textarea):focus-visible {
-                outline: 2px solid var(--accent-strong);
+                outline: 2px solid var(--blue-accent);
                 outline-offset: 3px;
         }
 
@@ -406,9 +409,9 @@
                 color: var(--text-hint);
         }
         .input:focus {
-                border-color: var(--accent);
+                border-color: var(--blue-accent);
                 background: var(--bg-base);
-                box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
+                box-shadow: 0 0 0 3px var(--blue-accent-soft);
         }
 
         /* Native <select> with the .input class: hide the OS arrow and draw a single
