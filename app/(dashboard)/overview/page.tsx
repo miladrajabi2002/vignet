@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
 import {
   AlertCircle,
@@ -64,6 +65,15 @@ export default async function OverviewPage() {
   const now = new Date()
   const sevenDaysAgo = daysAgo(7)
   const fourteenDaysAgo = daysAgo(14)
+
+  // Redirect to onboarding if not complete
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { onboardingCompleted: true },
+  })
+  if (!ws?.onboardingCompleted) {
+    redirect('/onboarding')
+  }
 
   const [
     workspace,
