@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { newWebhookToken } from '@/lib/channels/config'
+import { isWhatsappQrChannel, readQrToken } from '@/lib/whatsapp/qr-config'
 
 /**
  * WhatsApp Cloud API OAuth connection config — stored encrypted in
@@ -104,6 +105,12 @@ export function buildWhatsappOAuthConfig(input: {
  */
 export function readWhatsappToken(config: Prisma.JsonValue): string | null {
   const c = config as Partial<WhatsappOAuthConfig> | null
+  // QR-bridge channels (Baileys): the synthetic `qr:<sessionId>` token is
+  // stored under `botTokenEnc`; the whatsappAdapter recognises the `qr:`
+  // prefix and routes the send through the bridge instead of Meta's Graph API.
+  if (isWhatsappQrChannel(config)) {
+    return readQrToken(config)
+  }
   if (c?.mode === 'OAUTH') {
     // Prefer the packed botTokenEnc (legacy-compatible) so the downstream
     // `whatsappAdapter` parses it directly.

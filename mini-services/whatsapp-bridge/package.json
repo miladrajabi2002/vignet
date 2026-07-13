@@ -1,0 +1,26 @@
+{
+  "name": "vigent-whatsapp-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WhatsApp Web (Baileys) bridge for the vigent platform. Holds long-lived QR-login sessions and forwards inbound messages to the Next.js app.",
+  "scripts": {
+    "dev": "bun --hot index.ts",
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "express": "^4.21.2",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  },
+  "optionalDependencies": {
+    "jimp": "^0.22.12",
+    "link-preview-js": "^3.0.5",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/qrcode": "^1.5.5"
+  }
+}

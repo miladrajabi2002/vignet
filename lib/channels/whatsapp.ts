@@ -1,13 +1,27 @@
 import type { InboundMessage, MessengerAdapter, SendOptions } from '@/lib/channels/types'
+import {
+  bridgeBaseUrl,
+  bridgeHeaders,
+  parseQrToken,
+} from '@/lib/whatsapp/qr-config'
 
 /**
- * WhatsApp Cloud API (Meta Graph API) adapter.
+ * WhatsApp adapter — covers THREE connection models through one interface:
  *
- * Unlike Telegram/Bale, WhatsApp needs two credentials: a permanent access
- * token and a phone-number id. We pack them into the single stored token as
- * `accessToken|phoneNumberId` so the channel still flows through the shared
- * messenger pipeline. The inbound webhook is configured in the Meta dashboard,
- * using our webhookToken as the verify token.
+ *  1. LEGACY   — the operator pasted `accessToken|phoneNumberId` from the Meta
+ *                dashboard. Token format: `accessToken|phoneNumberId`.
+ *  2. OAUTH    — platform-managed OAuth (WhatsApp Embedded Signup). Same packed
+ *                token format as LEGACY (`accessToken|phoneNumberId`), built by
+ *                `buildWhatsappOAuthConfig`. Send goes through the Graph API.
+ *  3. QR       — operator scanned a QR (or paired by phone) in the dashboard;
+ *                a long-running Baileys bridge (`mini-services/whatsapp-bridge`)
+ *                holds the WhatsApp Web session. Token format: `qr:<sessionId>`.
+ *                Send is forwarded to the bridge's `/send-text` endpoint.
+ *
+ * `parseUpdate` is the SAME for all three: the QR bridge reshapes Baileys'
+ * events into the Meta Cloud API webhook shape (see `forwardInbound` in
+ * `mini-services/whatsapp-bridge/index.ts`), so the existing parsing logic
+ * runs unchanged. Only `sendText` branches on the `qr:` prefix.
  */
 export const GRAPH_BASE = 'https://graph.facebook.com/v21.0'
 
@@ -23,7 +37,8 @@ export function parseWhatsappToken(token: string): WaCreds | null {
 }
 
 export function whatsappAdapter(token: string): MessengerAdapter {
-  const creds = parseWhatsappToken(token)
+  const qrSessionId = parseQrToken(token)
+  const creds = qrSessionId ? null : parseWhatsappToken(token)
 
   return {
     channel: 'WHATSAPP',
@@ -54,7 +69,61 @@ export function whatsappAdapter(token: string): MessengerAdapter {
       return out
     },
 
+    async sendTyping(chatId: string): Promise<void> {
+      // QR mode: ask the bridge to show a "typing…" presence. Best-effort —
+      // failures are swallowed so they never block the actual reply.
+      if (!qrSessionId) return
+      try {
+        await fetch(
+          `${bridgeBaseUrl()}/typing?sessionId=${encodeURIComponent(qrSessionId)}&jid=${encodeURIComponent(chatId)}`,
+          { method: 'POST', headers: bridgeHeaders() },
+        )
+      } catch {
+        /* ignore — typing is best-effort */
+      }
+    },
+
     async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
+      // ── QR mode: forward the send to the Baileys bridge ──────────────────
+      // The bridge holds the WhatsApp Web socket and sends the message via
+      // `sock.sendMessage(jid, { text })`. Quick-reply buttons are NOT
+      // supported in this mode (the WhatsApp Web protocol's list messages are
+      // clunky and have stricter limits than the Cloud API's interactive
+      // buttons); we send plain text only. The text body itself may carry the
+      // suggestions inline if the operator wants them visible.
+      if (qrSessionId) {
+        // If quick replies are configured, append them as a simple numbered
+        // list at the end of the message body — visible to the customer as
+        // plain text, and tapping reply sends the number/text back as a normal
+        // message which the AI can interpret.
+        let body = text
+        const buttons = (opts?.quickReplies ?? []).slice(0, 3)
+        if (buttons.length && text.length + 200 < 4096) {
+          body =
+            text +
+            '\n\n' +
+            buttons.map((q, i) => `${i + 1}. ${q.slice(0, 40)}`).join('\n')
+        }
+        const url = `${bridgeBaseUrl()}/send-text`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: bridgeHeaders(),
+          body: JSON.stringify({
+            sessionId: qrSessionId,
+            jid: chatId,
+            text: body,
+          }),
+        })
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          throw new Error(
+            `WHATSAPP(QR) sendText failed (${res.status}): ${detail}`,
+          )
+        }
+        return
+      }
+
+      // ── LEGACY / OAUTH mode: Graph API as before ─────────────────────────
       if (!creds) throw new Error('WHATSAPP invalid credentials')
 
       async function post(payload: Record<string, unknown>): Promise<Response> {

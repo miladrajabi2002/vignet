@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { useRouter } from 'next/navigation'
 import {
   MessageCircle,
@@ -15,124 +16,316 @@ import {
   ShieldAlert,
   X,
   Phone,
+  QrCode,
+  KeyRound,
+  RefreshCw,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 
 /**
- * WhatsApp connection flow — platform-managed OAuth (mirrors Instagram).
+ * WhatsApp QR-bridge connection flow.
  *
- * The operator never creates a Meta App, never pastes an access token, never
- * configures a webhook. They click "اتصال واتساپ" → we redirect them to
- * Facebook's OAuth dialog with WhatsApp Embedded Signup scopes → Meta
- * redirects back to our callback → we exchange the code, list their WhatsApp
- * Business phone numbers, and either connect immediately (single number) or
- * stash the candidates in a cookie and show a picker on the channels page.
+ * The operator scans a QR code with their phone (WhatsApp → Linked devices →
+ * Link a device), OR enters their phone number to receive an 8-char pairing
+ * code they type into the same WhatsApp screen. Either way, once their phone
+ * connects, the bridge holds the WhatsApp Web session and forwards every
+ * inbound message to the AI agent.
  *
- * This component renders:
- *   - a prerequisites card (shown FIRST, before any connect button)
- *   - the prominent black "اتصال واتساپ" button that starts the OAuth flow
- *   - a loading state during the round-trip to the start endpoint
- *   - a back button that closes the inline panel
+ * Lifecycle (all via HTTP polling — no websocket needed):
+ *   1. POST /api/agents/[id]/channels/whatsapp-qr/start
+ *      → backend creates a bridge session id, asks the bridge to spin up a
+ *        Baileys socket, returns { sessionId }
+ *   2. GET  /api/agents/[id]/channels/whatsapp-qr/status?sessionId=…
+ *      → polled every 2s. Returns { state, qr?, pairingCode?, phone?, name? }
+ *        state goes: starting → qr|pairing → connecting → open
+ *   3. PUT  /api/agents/[id]/channels/whatsapp-qr/start   (body: { sessionId })
+ *      → once state === 'open', persist the AgentChannel row with mode='QR'
  *
- * The OAuth flow itself happens off-site (on facebook.com). The channels
- * page (not this component) handles the redirect-back via query params
- * (`?wa_connected=1`, `?wa_error=...`, `?wa_pick=1`).
+ * The QR string from the bridge is rendered client-side with the `qrcode`
+ * npm package (already a dependency). QR strings rotate every ~20s on
+ * WhatsApp's side; the poll picks up the new string and re-renders.
+ *
+ * The OAuth (Meta) flow is kept as a secondary "advanced" option for users
+ * who already have a verified WhatsApp Business Account — accessible via a
+ * small link at the bottom of the card.
  */
-export function WhatsAppConnectFlow({
+
+type QrState =
+  | 'idle' // before /start is called
+  | 'starting' // bridge is spinning up the socket
+  | 'qr' // QR emitted, waiting for scan
+  | 'pairing' // phone-number pairing requested, waiting for code entry on phone
+  | 'connecting' // phone scanned QR / accepted pairing, WA logging us in
+  | 'open' // connected!
+  | 'closed' // logged out or fatally disconnected
+  | 'error' // local error (bridge unreachable, etc.)
+
+interface StatusResponse {
+  ok: boolean
+  state?: QrState
+  qr?: string | null
+  pairingCode?: string | null
+  phone?: string | null
+  name?: string | null
+  error?: string | null
+  persisted?: boolean
+  detail?: string
+}
+
+const POLL_INTERVAL_MS = 2000
+const QR_TIMEOUT_MS = 90_000 // give up after 90s with no connection
+
+export function WhatsAppQrConnect({
   agentId,
   onClose,
+  onSwitchToOAuth,
 }: {
   agentId: string
   onClose?: () => void
+  onSwitchToOAuth?: () => void
 }) {
   const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const [state, setState] = useState<QrState>('idle')
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [pairingCode, setPairingCode] = useState<string | null>(null)
+  const [phone, setPhone] = useState('')
+  const [phoneMode, setPhoneMode] = useState(false) // false = QR, true = pairing
+  const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
+  const [connectedName, setConnectedName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [vpnModalOpen, setVpnModalOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
 
-  // VPN warning modal: BEFORE the OAuth flow starts, the operator must
-  // confirm their VPN is on. Facebook's OAuth + Graph servers are blocked
-  // from Iranian IPs without a VPN, so the flow will silently fail (the
-  // Facebook dialog page won't even load). The modal intercepts the
-  // "اتصال واتساپ" click and only proceeds once the user confirms.
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedAtRef = useRef<number | null>(null)
+
+  // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!vpnModalOpen) return
-    function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === 'Escape') setVpnModalOpen(false)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      if (tickRef.current) clearInterval(tickRef.current)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [vpnModalOpen])
+  }, [])
 
-  // Intercept the connect button: open the VPN modal first instead of
-  // starting OAuth directly. The actual OAuth start happens in `confirmVpn`.
-  function onConnectClick() {
-    setVpnModalOpen(true)
-  }
-
-  // User confirmed VPN is on → close the modal and start the OAuth flow.
-  function confirmVpn() {
-    setVpnModalOpen(false)
-    void startOAuth()
-  }
-
-  async function startOAuth() {
-    setBusy(true)
-    setError(null)
+  // ── Render the QR string into a data URL (client-side) ────────────────────
+  const renderQr = useCallback(async (qrStr: string) => {
     try {
-      // Ask the backend for the signed WhatsApp OAuth dialog URL. The backend
-      // verifies the user owns the agent, signs a state token (HMAC), and
-      // returns the URL we should redirect the browser to.
-      const res = await fetch('/api/whatsapp/oauth/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId }),
+      const dataUrl = await QRCode.toDataURL(qrStr, {
+        margin: 1,
+        width: 256,
+        color: { dark: '#0a0a0a', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
       })
-      const data = (await res.json().catch(() => ({}))) as {
-        url?: string
-        error?: string
-      }
-      if (!res.ok || !data.url) {
-        if (data.error === 'UNAUTHORIZED') {
-          setError('ابتدا وارد شوید.')
-        } else if (data.error === 'NOT_FOUND') {
-          setError('این ایجنت پیدا نشد.')
-        } else if (res.status === 500) {
-          setError(
-            'خطای سرور هنگام ساخت URL اتصال. احتمالاً متغیرهای محیطی واتساپ ' +
-              '(META_APP_ID / META_APP_SECRET / WHATSAPP_REDIRECT_URI) در .env تنظیم نشده‌اند. ' +
-              'راهنما: این مقادیر را از App Dashboard → Facebook Login → Settings بگیرید ' +
-              'و مطمئن شوید محصول WhatsApp Business API به اپ اضافه شده است.',
-          )
-        } else {
-          setError('شروع اتصال ناموفق بود. دوباره تلاش کنید.')
-        }
-        return
-      }
-      // Full-page redirect to Facebook's OAuth dialog. After the user
-      // authorizes, Meta redirects to /api/whatsapp/oauth/callback which
-      // either connects the channel immediately and redirects with
-      // ?wa_connected=1, or stashes a cookie and redirects with ?wa_pick=1
-      // (multiple phone numbers), or redirects with ?wa_error=... on failure.
-      window.location.href = data.url
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      // Note: if the redirect succeeded, we never reach this — the browser
-      // has already navigated away. This only fires on error.
-      setBusy(false)
+      setQrDataUrl(dataUrl)
+    } catch {
+      setQrDataUrl(null)
     }
-  }
+  }, [])
 
-  function back() {
-    if (onClose) {
-      onClose()
+  // ── Start a session (QR or phone-pairing) ─────────────────────────────────
+  const start = useCallback(
+    async (opts?: { phone?: string }) => {
+      setBusy(true)
+      setError(null)
+      setQrDataUrl(null)
+      setPairingCode(null)
+      setConnectedPhone(null)
+      setConnectedName(null)
+      setState('starting')
+      setElapsedMs(0)
+      startedAtRef.current = Date.now()
+
+      try {
+        const res = await fetch(
+          `/api/agents/${agentId}/channels/whatsapp-qr/start`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(opts?.phone ? { phone: opts.phone } : {}),
+          },
+        )
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean
+          sessionId?: string
+          error?: string
+          detail?: string
+        }
+        if (!res.ok || !data.ok || !data.sessionId) {
+          setState('error')
+          setError(
+            data.detail ??
+              (data.error === 'BRIDGE_UNREACHABLE'
+                ? 'سرویس واتساپ در دسترس نیست. مطمئن شوید whatsapp-bridge روی پورت 3040 در حال اجرا است.'
+                : 'شروع اتصال ناموفق بود. دوباره تلاش کنید.'),
+          )
+          return
+        }
+        setSessionId(data.sessionId)
+        // Start polling.
+        if (pollRef.current) clearInterval(pollRef.current)
+        pollRef.current = setInterval(
+          () => pollStatus(data.sessionId!),
+          POLL_INTERVAL_MS,
+        )
+        if (tickRef.current) clearInterval(tickRef.current)
+        tickRef.current = setInterval(() => {
+          if (startedAtRef.current) {
+            const el = Date.now() - startedAtRef.current
+            setElapsedMs(el)
+            if (el > QR_TIMEOUT_MS) {
+              setError(
+                'اتصال در زمان مقرر انجام نشد. لطفاً دوباره تلاش کنید.',
+              )
+              setState('error')
+              stopPolling()
+            }
+          }
+        }, 1000)
+        // Immediate first poll (don't wait the full interval).
+        void pollStatus(data.sessionId)
+      } catch (e) {
+        setState('error')
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [agentId],
+  )
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+    if (tickRef.current) {
+      clearInterval(tickRef.current)
+      tickRef.current = null
+    }
+  }, [])
+
+  // ── Poll the bridge for status ────────────────────────────────────────────
+  const pollStatus = useCallback(
+    async (sid: string) => {
+      try {
+        const res = await fetch(
+          `/api/agents/${agentId}/channels/whatsapp-qr/status?sessionId=${encodeURIComponent(sid)}`,
+        )
+        const data = (await res.json().catch(() => ({}))) as StatusResponse
+        if (!data.ok) {
+          // Network blip — keep the last state, don't error out yet.
+          return
+        }
+        const s = (data.state ?? 'closed') as QrState
+        setState(s)
+
+        if (data.qr) {
+          void renderQr(data.qr)
+        } else if (s !== 'qr') {
+          setQrDataUrl(null)
+        }
+
+        if (data.pairingCode) {
+          setPairingCode(data.pairingCode)
+        } else if (s !== 'pairing') {
+          setPairingCode(null)
+        }
+
+        if (s === 'open') {
+          setConnectedPhone(data.phone ?? null)
+          setConnectedName(data.name ?? null)
+          stopPolling()
+          // Persist the channel (PUT /start).
+          void persist(sid)
+        }
+
+        if (s === 'closed' && data.error) {
+          setError(
+            data.error === 'BRIDGE_UNREACHABLE'
+              ? 'سرویس واتساپ قطع شد.'
+              : `اتصال بسته شد. ${data.error}`,
+          )
+        }
+      } catch {
+        /* swallow — polling is best-effort */
+      }
+    },
+    [agentId, renderQr, stopPolling],
+  )
+
+  // ── Persist the channel once the phone connects ───────────────────────────
+  const persist = useCallback(
+    async (sid: string) => {
+      try {
+        const res = await fetch(
+          `/api/agents/${agentId}/channels/whatsapp-qr/start`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid }),
+          },
+        )
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean
+          phone?: string
+          name?: string
+          error?: string
+        }
+        if (res.ok && data.ok) {
+          setConnectedPhone(data.phone ?? connectedPhone)
+          setConnectedName(data.name ?? connectedName)
+          // Refresh server data so the channels page shows the new connection.
+          router.refresh()
+        }
+      } catch {
+        /* best-effort — the channel may still be persisted server-side */
+      }
+    },
+    [agentId, connectedPhone, connectedName, router],
+  )
+
+  // ── User actions ──────────────────────────────────────────────────────────
+  function handleStartQr() {
+    setPhoneMode(false)
+    void start()
+  }
+  function handleStartPairing() {
+    const cleaned = phone.replace(/[^\d+]/g, '')
+    if (!/^\+?\d{6,15}$/.test(cleaned)) {
+      setError('شمارهٔ تلفن معتبر وارد کنید. مثال: +989121234567')
       return
     }
-    // Fallback: navigate back to the channels list.
-    router.push(`/agents/${agentId}/channels`)
-    router.refresh()
+    setPhoneMode(true)
+    void start({ phone: cleaned })
   }
+  function handleCancel() {
+    stopPolling()
+    setState('idle')
+    setQrDataUrl(null)
+    setPairingCode(null)
+    setError(null)
+    setSessionId(null)
+    if (onClose) onClose()
+  }
+  function handleRetry() {
+    stopPolling()
+    setState('idle')
+    setQrDataUrl(null)
+    setPairingCode(null)
+    setError(null)
+    setSessionId(null)
+    setElapsedMs(0)
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  const showQr = state === 'qr' && qrDataUrl
+  const showPairing = state === 'pairing' && pairingCode
+  const showConnecting = state === 'connecting' || state === 'starting'
+  const showOpen = state === 'open'
+  const showError = state === 'error' || (state === 'closed' && error)
 
   return (
     <div className="mt-4 space-y-3">
@@ -144,199 +337,334 @@ export function WhatsAppConnectFlow({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-medium text-[var(--text-primary)]">
-              اتصال واتساپ
+              اتصال واتساپ با QR
             </h3>
             <p className="text-xs text-[var(--text-secondary)]">
-              با یک کلیک، مستقیم از طریق متا
+              بدون نیاز به اپ متا، VPN یا تأیید کسب‌وکار — فقط اسکن QR
             </p>
           </div>
         </div>
 
-        {/* Prerequisites */}
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-[var(--text-primary)]">
-            قبل از اتصال، مطمئن شوید:
-          </p>
-          <ul className="space-y-2.5">
-            <PrereqItem icon={CheckCircle2} tone="brand">
-              برای اتصال واتساپ فقط روی دکمه زیر بزنید و در پنجرهٔ متا اجازه
-              دهید. نیازی به ساخت اپ متا یا کپی توکن نیست.
-            </PrereqItem>
-            <PrereqItem icon={Smartphone}>
-              مراحل اتصال را حتماً در <b>مرورگر</b> انجام دهید (نه داخل اپلیکیشن
-              واتساپ) — در موبایل لینک را در Chrome باز کنید.
-            </PrereqItem>
-            <PrereqItem icon={Monitor}>
-              توصیه: اتصال را روی <b>دسکتاپ</b> انجام دهید برای اطمینان از تکمیل
-              فرآیند.
-            </PrereqItem>
-            <PrereqItem icon={CheckCircle2} tone="brand">
-              شمارهٔ واتساپ Business شما باید در یک WhatsApp Business Account
-              متعلق به بیزینس‌منیجر شما باشد. اگر چند شماره دارید، بعد از اتصال
-              می‌توانید یکی را انتخاب کنید.
-            </PrereqItem>
-          </ul>
-        </div>
+        {/* Idle: choose QR or phone pairing */}
+        {state === 'idle' && (
+          <div className="mt-4 space-y-4">
+            {/* QR scan option (primary) */}
+            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#25D366]/10 text-[#25D366]">
+                  <QrCode className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    روش ۱: اسکن QR
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    یک QR نمایش داده می‌شود. در گوشی‌تان وارد{' '}
+                    <b>WhatsApp → Settings → Linked devices → Link a device</b>{' '}
+                    بشید و QR رو اسکن کنید.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleStartQr}
+                disabled={busy}
+                className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <QrCode className="h-4 w-4" />
+                )}
+                {busy ? 'در حال شروع…' : 'نمایش QR'}
+              </button>
+            </div>
 
-        {/* Help link */}
-        <a
-          href="/docs/instagram-connection"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-          مشکل دارید؟ راهنمای کامل
-          <ArrowLeft className="h-3 w-3 rtl:rotate-180" />
-        </a>
+            {/* Phone pairing option */}
+            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    روش ۲: اتصال با شماره تلفن
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    اگر روی موبایل هستید و نمی‌تونید QR رو اسکن کنید، شماره رو
+                    وارد کنید تا یک کد ۸ رقمی دریافت کنید. این کد رو در همان
+                    صفحهٔ Linked devices → <b>Link with phone number</b> وارد
+                    کنید.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  dir="ltr"
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+989121234567"
+                  className="min-w-0 flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
+                />
+                <button
+                  type="button"
+                  onClick={handleStartPairing}
+                  disabled={busy || !phone.trim()}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Phone className="h-4 w-4" />
+                  )}
+                  دریافت کد
+                </button>
+              </div>
+            </div>
 
-        {/* Error */}
-        {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-2.5 text-xs text-danger">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="leading-relaxed">{error}</span>
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-2.5 text-xs text-danger">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="leading-relaxed">{error}</span>
+              </div>
+            )}
+
+            {/* Tip */}
+            <div className="flex items-start gap-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+              <Zap className="mt-0.5 h-4 w-4 shrink-0 text-[#25D366]" />
+              <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                این روش از پروتکل WhatsApp Web استفاده می‌کنه. واتساپ روی گوشی
+                شما باید فعال باشه و هر ۱۴ روز حداقل یک‌بار آنلاین بشه (در غیر
+                این صورت session منقضی می‌شه و باید دوباره اسکن کنید).
+              </p>
+            </div>
+
+            {/* Footer: switch to OAuth + back */}
+            <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+              >
+                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                بازگشت
+              </button>
+              {onSwitchToOAuth && (
+                <button
+                  type="button"
+                  onClick={onSwitchToOAuth}
+                  className="inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                >
+                  اتصال رسمی متا (OAuth)
+                  <ArrowLeft className="h-3 w-3 rtl:rotate-180" />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Actions */}
-        <div className="mt-5 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={back}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-          >
-            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-            بازگشت
-          </button>
-          <button
-            type="button"
-            onClick={onConnectClick}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <MessageCircle className="h-4 w-4" />
-            )}
-            {busy ? 'در حال انتقال به متا…' : 'اتصال واتساپ'}
-          </button>
-        </div>
-      </div>
+        {/* Starting / Connecting spinner */}
+        {showConnecting && !showQr && !showPairing && (
+          <div className="mt-6 flex flex-col items-center justify-center py-8 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#25D366]" />
+            <p className="mt-3 text-sm text-[var(--text-secondary)]">
+              {state === 'starting'
+                ? 'در حال آماده‌سازی اتصال…'
+                : 'در حال اتصال به واتساپ…'}
+            </p>
+            <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+              ممکن است چند ثانیه طول بکشد.
+            </p>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="mt-4 text-xs text-[var(--text-secondary)] hover:text-danger"
+            >
+              انصراف
+            </button>
+          </div>
+        )}
 
-      {/* VPN warning modal — shown when the user clicks "اتصال واتساپ".
-          Must be confirmed before the OAuth flow starts. */}
-      {vpnModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="هشدار VPN"
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setVpnModalOpen(false)}
-            aria-hidden
-          />
-          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl">
-            {/* Header strip */}
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--amber)]/20 text-[var(--amber)]">
-                  <ShieldAlert className="h-4 w-4" />
-                </div>
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                  قبل از اتصال، VPN خود را روشن کنید
-                </h3>
+        {/* QR display */}
+        {showQr && (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-col items-center">
+              <div className="rounded-2xl bg-white p-3 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl ?? undefined}
+                  alt="WhatsApp QR"
+                  width={240}
+                  height={240}
+                  className="h-60 w-60"
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => setVpnModalOpen(false)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                aria-label="بستن"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            {/* Body */}
-            <div className="px-5 py-5">
-              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                اتصال به واتساپ از سرورهای متا (Facebook) رد می‌شود که در ایران
-                بدون VPN باز نمی‌شوند. اگه VPN روشن نباشه، صفحهٔ متا بالا نمیاد.
-                روشنش کن، بعد ادامه بده.
+              <p className="mt-3 text-center text-xs leading-relaxed text-[var(--text-secondary)]">
+                روی گوشی: <b>WhatsApp</b> ← <b>Settings</b> ←{' '}
+                <b>Linked devices</b> ← <b>Link a device</b>، سپس این QR رو
+                اسکن کنید.
               </p>
-              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                  اگر قبلاً VPN روشن کرده‌اید و صفحهٔ متا در مرورگر باز می‌شود،
-                  می‌توانید ادامه دهید.
-                </p>
-              </div>
+              <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+                QR هر ~۲۰ ثانیه تجدید می‌شود. اگر منقضی شد، دوباره اسکن کنید.
+              </p>
             </div>
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+            <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] pt-3">
               <button
                 type="button"
-                onClick={() => setVpnModalOpen(false)}
-                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                onClick={handleRetry}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                QR جدید
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-xs text-[var(--text-secondary)] hover:text-danger"
               >
                 انصراف
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pairing code display */}
+        {showPairing && (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-col items-center">
+              <div className="rounded-2xl border-2 border-dashed border-[#25D366]/40 bg-[#25D366]/5 p-6">
+                <p className="text-center text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+                  کد اتصال
+                </p>
+                <p
+                  dir="ltr"
+                  className="mt-2 text-center font-mono text-3xl font-bold tracking-[0.3em] text-[var(--text-primary)]"
+                >
+                  {pairingCode}
+                </p>
+              </div>
+              <p className="mt-4 max-w-xs text-center text-xs leading-relaxed text-[var(--text-secondary)]">
+                روی گوشی: <b>WhatsApp</b> ← <b>Settings</b> ←{' '}
+                <b>Linked devices</b> ← <b>Link a device</b> ←{' '}
+                <b>Link with phone number</b>، سپس این کد رو وارد کنید.
+              </p>
+              <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+                کد تا ۶۰ ثانیه معتبر است.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] pt-3">
               <button
                 type="button"
-                onClick={confirmVpn}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+                onClick={handleRetry}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
               >
-                <CheckCircle2 className="h-4 w-4" />
-                روشنه
+                <RefreshCw className="h-3.5 w-3.5" />
+                کد جدید
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-xs text-[var(--text-secondary)] hover:text-danger"
+              >
+                انصراف
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Success — connected */}
+        {showOpen && (
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-col items-center py-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366]/10">
+                <CheckCircle2 className="h-8 w-8 text-[#25D366]" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">
+                واتساپ متصل شد!
+              </p>
+              {connectedPhone && (
+                <p
+                  dir="ltr"
+                  className="mt-1 text-xs text-[var(--text-secondary)]"
+                >
+                  {connectedPhone}
+                  {connectedName ? ` · ${connectedName}` : ''}
+                </p>
+              )}
+              <p className="mt-2 max-w-xs text-center text-[11px] leading-relaxed text-[var(--text-tertiary)]">
+                حالا پیام‌های جدید واتساپ به‌صورت خودکار به ایجنت شما ارسال
+                می‌شوند و پاسخ هوش مصنوعی برای مخاطب ارسال می‌گردد.
+              </p>
+            </div>
+            <div className="flex justify-center border-t border-[var(--border-subtle)] pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  handleCancel()
+                  router.refresh()
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                تمام
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {showError && (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-danger">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">اتصال ناموفق بود.</p>
+                <p className="mt-0.5 leading-relaxed">{error}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] pt-3">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-4 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                تلاش دوباره
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-xs text-[var(--text-secondary)] hover:text-danger"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Trust note */}
       <p className="text-center text-[11px] leading-relaxed text-[var(--text-tertiary)]">
-        اتصال مستقیم از طریق متا انجام می‌شود — vigent هیچ رمز عبوری ذخیره
-        نمی‌کند. شما هر زمان می‌توانید از داشبورد متا دسترسی را لغو کنید.
+        vigent هیچ رمز عبوری ذخیره نمی‌کند. session واتساپ روی سرور خود شما (در
+        whatsapp-bridge) نگهداری می‌شود و هر زمان می‌توانید از داشبورد قطع کنید.
       </p>
     </div>
   )
 }
 
-function PrereqItem({
-  icon: Icon,
-  children,
-  tone = 'default',
-}: {
-  icon: LucideIcon
-  children: ReactNode
-  tone?: 'default' | 'brand'
-}) {
-  return (
-    <li className="flex items-start gap-2.5">
-      <Icon
-        className={`mt-0.5 h-4 w-4 shrink-0 ${
-          tone === 'brand' ? 'text-[#25D366]' : 'text-[var(--text-tertiary)]'
-        }`}
-      />
-      <span className="flex-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-        {children}
-      </span>
-    </li>
-  )
-}
-
 /**
- * Backward-compat alias, mirroring the Instagram wizard's alias pattern.
+ * Backward-compat re-export. The channels page imports `WhatsAppConnectFlow`
+ * and `WhatsAppNumberPicker` from this file; we keep those names working and
+ * add the new QR flow as the default.
  */
-export const WhatsAppConnectWizard = WhatsAppConnectFlow
-
-export default WhatsAppConnectFlow
+export { WhatsAppQrConnect as WhatsAppConnectFlow }
+export default WhatsAppQrConnect
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/*  Multi-number picker                                                       */
+/*  Multi-number picker (OAuth flow — kept for backward compat)               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /** Shape of a pending WhatsApp phone number, as stashed in the
@@ -350,15 +678,8 @@ export interface PendingWhatsappNumber {
 
 /**
  * Renders when Meta's OAuth callback found MORE than one WhatsApp phone number
- * on the operator's account. The callback stashed the candidate numbers in a
- * short-lived `wa_oauth_pending` cookie (server-side read by the channels page
- * and passed here as `numbers`). The operator picks one; we POST its
- * `phoneNumberId` to `/api/agents/[agentId]/channels/whatsapp-connect`, which
- * reads the cookie, persists the channel for the chosen number, subscribes the
- * WABA to the global webhook, and clears the cookie.
- *
- * On success we hard-navigate to `?wa_connected=1` (mirroring the
- * single-number callback path) so the success banner shows.
+ * on the operator's account. Kept verbatim from the original implementation —
+ * only used by the OAuth flow.
  */
 export function WhatsAppNumberPicker({
   agentId,
@@ -401,8 +722,6 @@ export function WhatsAppNumberPicker({
         }
         return
       }
-      // Success — replace the URL so the picker disappears and the success
-      // banner shows. We strip `wa_pick=1` and add `wa_connected=1`.
       router.replace(`/agents/${agentId}/channels?wa_connected=1`)
       router.refresh()
     } catch (e) {
@@ -413,8 +732,6 @@ export function WhatsAppNumberPicker({
   }
 
   if (!numbers.length) {
-    // Defensive: the cookie was present but empty / malformed. Tell the user
-    // to retry rather than rendering an empty picker.
     return (
       <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
@@ -513,5 +830,254 @@ export function WhatsAppNumberPicker({
         این نشست ۱۰ دقیقه اعتبار دارد. اگر منقضی شد، دوباره روی «اتصال واتساپ» بزنید.
       </p>
     </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  OAuth flow (kept as a named export for the "advanced" switch)             */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The original Meta OAuth flow, kept for users who already have a verified
+ * WhatsApp Business Account and prefer the official Cloud API. The QR wizard
+ * exposes a small "اتصال رسمی متا (OAuth)" link that swaps to this view.
+ */
+export function WhatsAppOAuthFlow({
+  agentId,
+  onClose,
+}: {
+  agentId: string
+  onClose?: () => void
+}) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [vpnModalOpen, setVpnModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (!vpnModalOpen) return
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') setVpnModalOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [vpnModalOpen])
+
+  function onConnectClick() {
+    setVpnModalOpen(true)
+  }
+  function confirmVpn() {
+    setVpnModalOpen(false)
+    void startOAuth()
+  }
+
+  async function startOAuth() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/whatsapp/oauth/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+      }
+      if (!res.ok || !data.url) {
+        if (data.error === 'UNAUTHORIZED') {
+          setError('ابتدا وارد شوید.')
+        } else if (data.error === 'NOT_FOUND') {
+          setError('این ایجنت پیدا نشد.')
+        } else if (res.status === 500) {
+          setError(
+            'خطای سرور هنگام ساخت URL اتصال. احتمالاً متغیرهای محیطی واتساپ ' +
+              '(META_APP_ID / META_APP_SECRET / WHATSAPP_REDIRECT_URI) در .env تنظیم نشده‌اند.',
+          )
+        } else {
+          setError('شروع اتصال ناموفق بود. دوباره تلاش کنید.')
+        }
+        return
+      }
+      window.location.href = data.url
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function back() {
+    if (onClose) {
+      onClose()
+      return
+    }
+    router.push(`/agents/${agentId}/channels`)
+    router.refresh()
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#25D366] to-[#128C7E] text-white">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-medium text-[var(--text-primary)]">
+              اتصال رسمی متا (OAuth)
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)]">
+              برای کسب‌وکارهای تأییدشده با WhatsApp Business Account
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-[var(--text-primary)]">
+            قبل از اتصال، مطمئن شوید:
+          </p>
+          <ul className="space-y-2.5">
+            <PrereqItem icon={CheckCircle2} tone="brand">
+              یک WhatsApp Business Account متعلق به Business Manager دارید.
+            </PrereqItem>
+            <PrereqItem icon={Smartphone}>
+              مراحل اتصال را حتماً در <b>مرورگر</b> انجام دهید (نه داخل اپلیکیشن
+              واتساپ).
+            </PrereqItem>
+            <PrereqItem icon={ShieldAlert} tone="warn">
+              <b>VPN خود را روشن کنید.</b> سرورهای متا از ایران بدون VPN باز
+              نمی‌شوند.
+            </PrereqItem>
+          </ul>
+        </div>
+
+        <a
+          href="/docs/instagram-connection"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          راهنمای کامل
+          <ArrowLeft className="h-3 w-3 rtl:rotate-180" />
+        </a>
+
+        {error && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-2.5 text-xs text-danger">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="leading-relaxed">{error}</span>
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={back}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+          >
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+            بازگشت
+          </button>
+          <button
+            type="button"
+            onClick={onConnectClick}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            {busy ? 'در حال انتقال به متا…' : 'اتصال با متا'}
+          </button>
+        </div>
+      </div>
+
+      {vpnModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="هشدار VPN"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setVpnModalOpen(false)}
+            aria-hidden
+          />
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--amber)]/20 text-[var(--amber)]">
+                  <ShieldAlert className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                  قبل از اتصال، VPN خود را روشن کنید
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVpnModalOpen(false)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                aria-label="بستن"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-5 py-5">
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                اتصال به واتساپ از سرورهای متا (Facebook) رد می‌شود که در ایران
+                بدون VPN باز نمی‌شوند.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setVpnModalOpen(false)}
+                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={confirmVpn}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                روشنه
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PrereqItem({
+  icon: Icon,
+  children,
+  tone = 'default',
+}: {
+  icon: LucideIcon
+  children: React.ReactNode
+  tone?: 'default' | 'brand' | 'warn'
+}) {
+  const color =
+    tone === 'brand'
+      ? 'text-[#25D366]'
+      : tone === 'warn'
+        ? 'text-[var(--amber)]'
+        : 'text-[var(--text-tertiary)]'
+  return (
+    <li className="flex items-start gap-2.5">
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${color}`} />
+      <span className="flex-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+        {children}
+      </span>
+    </li>
   )
 }
