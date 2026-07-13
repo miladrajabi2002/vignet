@@ -7,7 +7,6 @@ import {
   type AgentSettingsData,
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
-import { AgentVersions } from '@/components/agents/agent-versions'
 import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
 
 export default async function AgentSettingsPage(
@@ -70,7 +69,6 @@ export default async function AgentSettingsPage(
           customerInfoPrompt: agent.customerInfoPrompt,
         }}
       />
-      <AgentVersions agentId={agent.id} />
     </div>
   )
 }

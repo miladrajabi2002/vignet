@@ -126,17 +126,19 @@ export function KbManager({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-        <div className="mb-4 flex gap-2">
+      {/* ── Add form ──────────────────────────────────────────────────── */}
+      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+        {/* Tabs: text / url / file — pill style with active fill */}
+        <div className="mb-5 flex gap-1.5 rounded-xl bg-[var(--bg-muted)] p-1">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setMode(key)}
               className={cn(
-                'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors',
+                'inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all',
                 mode === key
-                  ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-                  : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                  ? 'bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
               )}
             >
               <Icon className="h-4 w-4" />
@@ -145,33 +147,48 @@ export function KbManager({
           ))}
         </div>
 
+        {/* Name field — always shown */}
+        <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+          {t('namePlaceholder')}
+        </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('namePlaceholder')}
-          className="input mb-3"
+          className="input mb-4"
         />
 
         {mode === 'text' && (
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={t('contentPlaceholder')}
-            rows={5}
-            className="input resize-none"
-          />
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+              {t('contentPlaceholder')}
+            </label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={t('contentPlaceholder')}
+              rows={5}
+              className="input resize-none"
+            />
+          </div>
         )}
         {mode === 'url' && (
-          <div className="space-y-3">
-            <input
-              dir="ltr"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('urlPlaceholder')}
-              className="input font-mono text-sm"
-            />
-            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-              <label className="mb-1.5 block text-xs text-[var(--text-muted)]">
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+                {t('urlPlaceholder')}
+              </label>
+              <input
+                dir="ltr"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder={t('urlPlaceholder')}
+                className="input font-mono text-sm"
+              />
+            </div>
+            {/* Refresh interval — inset card */}
+            <div className="spatial-inset rounded-xl p-4">
+              <label className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">
                 {t('refreshIntervalLabel')}
               </label>
               <div className="flex flex-wrap gap-2">
@@ -181,10 +198,10 @@ export function KbManager({
                     type="button"
                     onClick={() => setRefreshHours(h)}
                     className={cn(
-                      'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+                      'rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
                       refreshHours === h
-                        ? 'border-[var(--border-strong)] bg-[var(--bg-base)] text-[var(--text-primary)]'
-                        : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
+                        ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]'
+                        : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]',
                     )}
                   >
                     {h === 0
@@ -195,7 +212,7 @@ export function KbManager({
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
                 {t('refreshIntervalHint')}
               </p>
             </div>
@@ -203,6 +220,9 @@ export function KbManager({
         )}
         {mode === 'file' && (
           <div>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+              {t('tabFile')}
+            </label>
             <input
               ref={fileRef}
               type="file"
@@ -214,44 +234,56 @@ export function KbManager({
           </div>
         )}
 
-        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+        {error && (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
 
         <button
           onClick={submit}
           disabled={!canSubmit}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {submitting ? t('adding') : t('add')}
         </button>
       </div>
 
+      {/* ── Added items list ──────────────────────────────────────────── */}
       {items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-          {t('empty')}
-        </p>
+        <div className="spatial-surface rounded-[1.5rem] p-8 text-center">
+          <FileText className="mx-auto h-8 w-8 text-[var(--text-muted)]" />
+          <p className="mt-3 text-sm text-[var(--text-muted)]">{t('empty')}</p>
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <div className="space-y-2.5">
           {items.map((item) => (
-            <li
+            <div
               key={item.id}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4"
+              className="spatial-inset flex items-center gap-3 rounded-2xl p-4 transition-colors hover:border-[var(--border-hover)]"
             >
               <StatusIcon status={item.status} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm text-[var(--text-primary)]">
+                <div className="truncate text-sm font-medium text-[var(--text-primary)]">
                   {item.name}
                 </div>
-                <div className="text-xs text-[var(--text-muted)]">
-                  {item.type} · {t(`status.${item.status}`)}
-                  {item.status === 'READY' &&
-                    ` · ${t('chunks', { count: item.chunkCount })}`}
-                  {item.status === 'ERROR' && item.errorMsg
-                    ? ` · ${item.errorMsg}`
-                    : ''}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide">
+                    {item.type}
+                  </span>
+                  <span>{t(`status.${item.status}`)}</span>
+                  {item.status === 'READY' && (
+                    <span>· {t('chunks', { count: item.chunkCount })}</span>
+                  )}
+                  {item.status === 'ERROR' && item.errorMsg && (
+                    <span className="text-danger">· {item.errorMsg}</span>
+                  )}
                 </div>
                 {item.type === 'URL' && item.lastIngestedAt && (
-                  <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                  <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                    <Clock className="h-3 w-3" />
                     {t('lastRefreshed', {
                       when: new Date(item.lastIngestedAt).toLocaleString('fa-IR'),
                     })}
@@ -264,21 +296,21 @@ export function KbManager({
                   item.refreshIntervalHours &&
                   item.refreshIntervalHours > 0 &&
                   !item.lastIngestedAt && (
-                    <div className="mt-0.5 text-[11px] text-[var(--amber)]">
+                    <div className="mt-1 text-[11px] text-[var(--amber)]">
                       {t('refreshScheduled')}
                     </div>
                   )}
               </div>
               <button
                 onClick={() => remove(item.id)}
-                className="text-[var(--text-muted)] transition-colors hover:text-danger"
+                className="shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-danger/10 hover:text-danger"
                 aria-label={t('delete')}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )

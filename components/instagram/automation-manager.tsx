@@ -15,6 +15,7 @@ import {
         Settings2,
         Save,
         X,
+        ChevronDown,
         type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
@@ -185,7 +186,7 @@ export function InstagramAutomationManager({
                         {/* Page header */}
                         <header className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                        <h1 className="text-2xl font-light text-[var(--text-primary)]">
+                                        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                                                 {t('manager.title')}
                                         </h1>
                                         <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -200,7 +201,7 @@ export function InstagramAutomationManager({
                                                                 `/agents/${agentId}/instagram/new?type=${activeTab}`,
                                                         )
                                                 }
-                                                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-all hover:opacity-90 hover:shadow-sm"
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
                                         >
                                                 <Plus className="h-4 w-4" />
                                                 {t('manager.addScenario')}
@@ -208,7 +209,7 @@ export function InstagramAutomationManager({
                                 </div>
                         </header>
 
-                        <section className="spatial-surface flex flex-col gap-3 rounded-[1.4rem] p-4 sm:flex-row sm:items-center">
+                        <section className="spatial-surface flex flex-col gap-3 rounded-[1.5rem] p-5 sm:flex-row sm:items-center">
                                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
                                         <Zap className="h-4 w-4" />
                                 </span>
@@ -234,11 +235,8 @@ export function InstagramAutomationManager({
                                 accountUsername={accountUsername}
                         />
 
-                        {/* Sub-tabs */}
-                        <nav
-                                className="-mx-1 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] px-1"
-                                aria-label={t('manager.tabAria')}
-                        >
+                        {/* Sub-tabs — pill style */}
+                        <div className="flex gap-1.5 rounded-xl bg-[var(--bg-muted)] p-1">
                                 {TABS.map(({ key, labelKey, Icon }) => {
                                         const count = byType[key].length
                                         const activeCount = byType[key].filter((a) => a.active).length
@@ -248,26 +246,25 @@ export function InstagramAutomationManager({
                                                         key={key}
                                                         type="button"
                                                         onClick={() => setActiveTab(key)}
-                                                        className={`relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm transition-colors ${
+                                                        className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                                                                 active
-                                                                        ? 'text-[var(--text-primary)]'
+                                                                        ? 'bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm'
                                                                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                                         }`}
                                                 >
                                                         <Icon className="h-4 w-4" />
                                                         {t(labelKey)}
                                                         {count > 0 && (
-                                                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--bg-muted)] px-1.5 text-[11px] text-[var(--text-secondary)]">
+                                                                <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] ${
+                                                                        active ? 'bg-[var(--text-primary)] text-[var(--bg-base)]' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                                                                }`}>
                                                                         {activeCount.toLocaleString(numLocale)}
                                                                 </span>
-                                                        )}
-                                                        {active && (
-                                                                <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--text-primary)]" />
                                                         )}
                                                 </button>
                                         )
                                 })}
-                        </nav>
+                        </div>
 
                         {/* Active tab content */}
                         <div className="space-y-3">
@@ -460,7 +457,7 @@ function ChannelSettingsCard({
         ]
 
         return (
-                <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+                <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}
@@ -468,7 +465,7 @@ function ChannelSettingsCard({
                                 aria-expanded={open}
                         >
                                 <div className="flex items-center gap-3">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
                                                 <Settings2 className="h-4 w-4" />
                                         </div>
                                         <div>
@@ -483,16 +480,16 @@ function ChannelSettingsCard({
                                                 </p>
                                         </div>
                                 </div>
-                                <span className="text-[var(--text-muted)]">{open ? '−' : '+'}</span>
+                                <ChevronDown className={`h-5 w-5 shrink-0 text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />
                         </button>
 
                         {open && (
                                 <div className="space-y-5 border-t border-[var(--border-subtle)] px-5 py-5">
-                                        <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)]" role="group" aria-label={t('manager.settingsTabsAria')}>
+                                        <div className="flex gap-1.5 rounded-xl bg-[var(--bg-muted)] p-1" role="group" aria-label={t('manager.settingsTabsAria')}>
                                                 {(['dm', 'story', 'comment', 'reaction'] as const).map((tab) => {
                                                         const labelKey = `manager.settingsTab${tab[0].toUpperCase()}${tab.slice(1)}`
                                                         return (
-                                                                <button key={tab} type="button" aria-pressed={settingsTab === tab} onClick={() => setSettingsTab(tab)} className={`shrink-0 border-b-2 px-3 py-2 text-xs ${settingsTab === tab ? 'border-[var(--text-primary)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)]'}`}>
+                                                                <button key={tab} type="button" aria-pressed={settingsTab === tab} onClick={() => setSettingsTab(tab)} className={`flex-1 shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-all ${settingsTab === tab ? 'bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                                                                         {t(labelKey)}
                                                                 </button>
                                                         )
@@ -629,7 +626,7 @@ function ChannelSettingsCard({
                                                         type="button"
                                                         onClick={handleSave}
                                                         disabled={!dirty || saving || (draft.storyReactionReplyEnabled && !draft.storyReactionReplyText?.trim()) || (draft.commentEmojiReplyEnabled && !draft.commentEmojiReplyText?.trim())}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
+                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
                                                 >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                                         {t('manager.saveSettings')}
@@ -653,8 +650,8 @@ function EmptyState({
 }) {
         const t = useTranslations('instagram')
         return (
-                <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center sm:p-12">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-muted)]">
+                <div className="rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center sm:p-12">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
                                 <Icon className="h-5 w-5" />
                         </div>
                         <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -663,7 +660,7 @@ function EmptyState({
                         <button
                                 type="button"
                                 onClick={onCreate}
-                                className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+                                className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
                         >
                                 <Plus className="h-4 w-4" />
                                 {t('manager.addScenario')}

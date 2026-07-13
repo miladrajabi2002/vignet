@@ -532,74 +532,79 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
         const monogram = (name || '؟').trim().charAt(0)
 
         return (
-                <div className="mx-auto w-full max-w-[280px]">
-                        <div className="relative overflow-hidden rounded-[2rem] border-[6px] border-neutral-800 bg-[#fafafa] shadow-xl">
-                                {/* ambient */}
+                <div className="mx-auto w-full max-w-[300px]">
+                        <div className="relative overflow-hidden rounded-[2rem] border-[6px] border-neutral-800 bg-[#f2f2f0] shadow-xl">
+                                {/* Ambient background blurs — match the actual /c/[slug] page */}
                                 {settings.background !== 'minimal' && (
                                         <>
                                                 <span
-                                                        className="pointer-events-none absolute -start-8 -top-8 h-32 w-32 rounded-full blur-2xl"
+                                                        className="pointer-events-none absolute -start-10 -top-10 h-36 w-36 rounded-full blur-3xl"
                                                         style={{
                                                                 backgroundColor: settings.background === 'mesh' ? accent : '#94a3b8',
-                                                                opacity: 0.16,
+                                                                opacity: 0.18,
                                                         }}
                                                 />
                                                 <span
-                                                        className="pointer-events-none absolute -end-8 bottom-16 h-28 w-28 rounded-full blur-2xl"
-                                                        style={{ backgroundColor: accent, opacity: 0.12 }}
+                                                        className="pointer-events-none absolute -end-10 bottom-20 h-32 w-32 rounded-full blur-3xl"
+                                                        style={{ backgroundColor: accent, opacity: 0.14 }}
                                                 />
                                         </>
                                 )}
 
-                                <div className="relative flex h-[420px] flex-col">
-                                        {/* header */}
-                                        <div className="flex items-center gap-2 border-b border-black/[0.06] bg-white/70 px-3 py-2.5 backdrop-blur">
+                                {/* App column — mirrors the actual page's white/55 backdrop-blur container */}
+                                <div className="relative flex h-[460px] flex-col bg-white/55 backdrop-blur-sm">
+                                        {/* Header — matches actual: larger avatar, "آنلاین — پاسخ فوری" with ping dot */}
+                                        <div className="flex items-center gap-3 border-b border-black/[0.06] bg-white/82 px-3.5 py-3 backdrop-blur-2xl">
                                                 <span
-                                                        className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold"
+                                                        className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-black/10"
                                                         style={{ backgroundColor: accent, color: onAccent }}
                                                 >
                                                         {monogram}
+                                                        <span className="absolute -bottom-0.5 -end-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
                                                 </span>
-                                                <div className="min-w-0">
-                                                        <div className="truncate text-[11px] font-semibold text-neutral-900">
+                                                <div className="min-w-0 flex-1">
+                                                        <div className="truncate text-xs font-semibold leading-tight text-neutral-900">
                                                                 {name}
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-[9px] text-neutral-500">
-                                                                <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                                                                آنلاین
+                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-neutral-500">
+                                                                <span className="relative flex h-1.5 w-1.5">
+                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                                                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                </span>
+                                                                آنلاین — پاسخ فوری
                                                         </div>
                                                 </div>
                                         </div>
 
-                                        {/* intro */}
+                                        {/* Intro — matches actual: large avatar with ring, AI badge with shadow, semibold name */}
                                         <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
                                                 <span
-                                                        className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold"
+                                                        className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-semibold ring-1 ring-black/10"
                                                         style={{ backgroundColor: accent, color: onAccent }}
                                                 >
                                                         {monogram}
                                                 </span>
                                                 {settings.showAiBadge && (
-                                                        <span className="mt-3 inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-white/80 px-2 py-1 text-[8px] text-neutral-600">
-                                                                <Sparkles className="h-2 w-2" style={{ color: accent }} />
+                                                        <span className="mt-4 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3 text-[10px] tracking-wide text-neutral-600 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur">
+                                                                <Sparkles className="h-2.5 w-2.5" style={{ color: accent }} />
                                                                 پاسخ فوری با هوش مصنوعی
                                                         </span>
                                                 )}
-                                                <div className="mt-2 text-sm font-light text-neutral-900">{name}</div>
+                                                <div className="mt-2.5 text-lg font-semibold tracking-tight text-neutral-900">{name}</div>
                                                 {settings.tagline && (
-                                                        <div className="mt-0.5 text-[10px] text-neutral-500">
+                                                        <div className="mt-1 max-w-[220px] text-[11px] leading-relaxed text-neutral-500">
                                                                 {settings.tagline}
                                                         </div>
                                                 )}
                                                 {settings.quickReplies.filter(Boolean).length > 0 && (
-                                                        <div className="mt-3 flex flex-wrap justify-center gap-1">
+                                                        <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                                                                 {settings.quickReplies
                                                                         .filter(Boolean)
                                                                         .slice(0, 3)
                                                                         .map((q, i) => (
                                                                                 <span
                                                                                         key={i}
-                                                                                        className="rounded-full border border-black/10 bg-white/80 px-2 py-1 text-[9px] text-neutral-700"
+                                                                                        className="rounded-full border border-black/10 bg-white/85 px-2.5 py-1 text-[10px] text-neutral-700 shadow-sm backdrop-blur"
                                                                                 >
                                                                                         {q}
                                                                                 </span>
@@ -608,29 +613,35 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                 )}
                                         </div>
 
-                                        {/* composer */}
-                                        <div className="border-t border-black/[0.06] bg-white/80 px-2.5 py-2 backdrop-blur">
+                                        {/* Composer — matches actual lead-capture card or message input */}
+                                        <div className="border-t border-black/[0.06] bg-white/82 px-3 py-2.5 backdrop-blur-2xl">
                                                 {settings.leadCapture ? (
-                                                        <div className="space-y-1.5">
-                                                                <div className="flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-1.5">
-                                                                        <User className="h-3 w-3 text-neutral-400" />
-                                                                        <span className="text-[9px] text-neutral-400">نام شما</span>
+                                                        <div className="space-y-2 rounded-[1.2rem] border border-black/[0.08] bg-white/90 p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.05)]">
+                                                                <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
+                                                                        <User className="h-3 w-3 shrink-0 text-neutral-400" />
+                                                                        <span className="text-[10px] text-neutral-400">نام شما</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-1.5">
-                                                                        <Phone className="h-3 w-3 text-neutral-400" />
-                                                                        <span className="text-[9px] text-neutral-400">شماره موبایل</span>
+                                                                <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
+                                                                        <Phone className="h-3 w-3 shrink-0 text-neutral-400" />
+                                                                        <span className="text-[10px] text-neutral-400">شماره موبایل</span>
+                                                                </div>
+                                                                <div
+                                                                        className="flex items-center justify-center rounded-xl py-2 text-[10px] font-medium"
+                                                                        style={{ backgroundColor: accent, color: onAccent }}
+                                                                >
+                                                                        شروع گفتگو
                                                                 </div>
                                                         </div>
                                                 ) : (
-                                                        <div className="flex items-center gap-1.5">
-                                                                <div className="flex-1 rounded-full border border-black/10 bg-white px-3 py-2 text-[9px] text-neutral-400">
+                                                        <div className="flex items-center gap-2">
+                                                                <div className="flex-1 rounded-full border border-black/10 bg-white px-3 py-2 text-[10px] text-neutral-400">
                                                                         پیام خود را بنویسید…
                                                                 </div>
                                                                 <span
-                                                                        className="flex h-7 w-7 items-center justify-center rounded-full"
+                                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                                                                         style={{ backgroundColor: accent, color: onAccent }}
                                                                 >
-                                                                        <Send className="h-3 w-3" />
+                                                                        <Send className="h-3.5 w-3.5" />
                                                                 </span>
                                                         </div>
                                                 )}

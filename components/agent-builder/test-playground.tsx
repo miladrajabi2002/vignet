@@ -133,11 +133,14 @@ export function TestPlayground({
         }
 
         return (
-                <div className="flex h-[520px] flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
-                        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-5">
+                <div className="flex h-[480px] flex-col overflow-hidden rounded-2xl bg-[var(--bg-muted)]">
+                        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
                                 {messages.length === 0 ? (
-                                        <div className="flex h-full items-center justify-center text-center text-sm text-[var(--text-muted)]">
-                                                {t('empty')}
+                                        <div className="flex h-full flex-col items-center justify-center text-center">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--bg-base)] text-[var(--text-muted)] shadow-sm">
+                                                        <Send className="h-5 w-5" />
+                                                </div>
+                                                <p className="mt-3 text-sm text-[var(--text-muted)]">{t('empty')}</p>
                                         </div>
                                 ) : (
                                         messages.map((m, i) => (
@@ -201,12 +204,12 @@ export function TestPlayground({
                         </div>
 
                         {error && (
-                                <div className="border-t border-[var(--border-subtle)] px-5 py-2 text-xs text-danger">
+                                <div className="border-t border-danger/20 bg-danger/5 px-5 py-2 text-xs text-danger">
                                         {error}
                                 </div>
                         )}
 
-                        <div className="flex items-center gap-2 border-t border-[var(--border-default)] p-3">
+                        <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
                                 <VoiceRecorder
                                         vad
                                         disabled={streaming}
@@ -214,7 +217,7 @@ export function TestPlayground({
                                         onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
                                         onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
                                 />
-                                <div className="relative flex min-w-0 flex-1 items-center rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] pe-1 ps-3.5">
+                                <div className="relative flex min-w-0 flex-1 items-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] pe-1 ps-3.5 focus-within:border-[var(--border-strong)]">
                                         <input
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
@@ -225,7 +228,7 @@ export function TestPlayground({
                                         <button
                                                 onClick={send}
                                                 disabled={streaming || !input.trim()}
-                                                className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-transform hover:scale-[1.04] active:scale-95 disabled:opacity-40"
+                                                className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-[var(--text-primary)] text-[var(--bg-base)] transition-opacity hover:opacity-90 active:opacity-100 disabled:opacity-40"
                                                 aria-label={t('send')}
                                         >
                                                 {streaming ? (
