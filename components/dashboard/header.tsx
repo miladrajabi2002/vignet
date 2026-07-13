@@ -1,8 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
-import { LogOut, Wallet } from 'lucide-react'
-import { LanguageSwitcher } from '@/components/ui/language-switcher'
+import { House, LogOut, Wallet } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
@@ -80,7 +79,14 @@ export async function Header({
           </span>
         </Link>
         <NotificationBell />
-        <LanguageSwitcher />
+        <Link
+          href="/"
+          aria-label={fa ? 'بازگشت به صفحه اصلی سایت' : 'Back to website home'}
+          title={fa ? 'صفحه اصلی' : 'Home'}
+          className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+        >
+          <House className="h-[1.05rem] w-[1.05rem]" />
+        </Link>
         <form action={logout}>
           <button
             type="submit"

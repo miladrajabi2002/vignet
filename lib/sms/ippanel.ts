@@ -16,9 +16,12 @@ import { normalizePhone } from '@/lib/phone'
  */
 const IPPANEL_SEND_URL = 'https://edge.ippanel.com/v1/api/send'
 
-const OTP_TTL_SECONDS = 300 // 5 minutes
+const OTP_TTL_SECONDS = 600 // 10 minutes
 const RATE_WINDOW_SECONDS = 3600 // 1 hour
 const RATE_MAX = 3 // max 3 OTPs per phone per hour
+// IPPanel/proxy calls can cross two networks. The shared 30-second window
+// applies to OTP, free-form notifications and every pattern SMS.
+const SMS_REQUEST_TIMEOUT_MS = 30_000
 
 export class OtpRateLimitError extends Error {
   constructor() {
@@ -68,6 +71,7 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SMS_REQUEST_TIMEOUT_MS),
   })
 
   if (!res.ok) {
@@ -87,7 +91,7 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
 }
 
 /**
- * Send a 6-digit OTP via an IPPanel pattern. Stores the code in Redis (TTL 5m)
+ * Send a 6-digit OTP via an IPPanel pattern. Stores the code in Redis (TTL 10m)
  * and rate-limits to 3 per hour per phone.
  *
  * Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL), IPPANEL_PATTERN_CODE and

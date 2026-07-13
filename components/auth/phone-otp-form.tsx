@@ -9,7 +9,7 @@ import { toEnglishDigits } from '@/lib/phone'
 
 type Step = 'phone' | 'otp'
 const OTP_LENGTH = 6
-const RESEND_SECONDS = 120
+const RESEND_SECONDS = 240
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -221,9 +221,9 @@ export function PhoneOtpForm({
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-black/[0.08] bg-white p-7 shadow-[0_22px_70px_rgba(0,0,0,0.1)] sm:p-8">
+    <div className="rounded-[1.5rem] border border-black/[0.08] bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.1)] sm:rounded-[1.75rem] sm:p-8">
       {/* "Easy sign-in" badge */}
-      <div className="mb-6 flex justify-center">
+      <div className="mb-4 flex justify-center sm:mb-6">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-xs tracking-wide text-[var(--text-muted)]">
           <Sparkles className="h-3.5 w-3.5" />
           {t('badge')}
@@ -240,7 +240,7 @@ export function PhoneOtpForm({
               {t('subtitle')}
             </p>
 
-            <div className="mt-7">
+            <div className="mt-5 sm:mt-7">
               <label className="mb-2 block text-sm text-[var(--text-secondary)]">
                 {t('phoneLabel')}
               </label>
@@ -265,13 +265,13 @@ export function PhoneOtpForm({
             <button
               onClick={requestOtp}
               disabled={loading}
-              className="marketing-pressable mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] py-3 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
+              className="marketing-pressable mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-50 sm:mt-6"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? t('sending') : t('sendCode')}
             </button>
 
-            <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
+            <p className="mt-4 text-center text-xs text-[var(--text-muted)] sm:mt-6">
               {t('noCard')}
             </p>
           </motion.div>
@@ -284,21 +284,21 @@ export function PhoneOtpForm({
                 setCode(Array(OTP_LENGTH).fill(''))
                 submittingRef.current = false
               }}
-              className="mb-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              className="mb-2 inline-flex min-h-10 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
             >
               <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
               {t('changeNumber')}
             </button>
 
-            <h1 className="text-2xl font-light tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-center text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
               {t('otpTitle')}
             </h1>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            <p dir="auto" className="mt-2 text-center text-sm text-[var(--text-muted)]">
               {t('otpSubtitle', { phone })}
             </p>
 
             {isNewUser && (
-              <div className="mt-5">
+              <div className="mt-4 sm:mt-5">
                 <label className="mb-2 block text-sm text-[var(--text-secondary)]">
                   {t('nameLabel')} <span className="text-danger">*</span>
                 </label>
@@ -313,7 +313,7 @@ export function PhoneOtpForm({
                   placeholder={t('namePlaceholder')}
                   autoFocus
                   required
-                  className={`w-full rounded-xl border bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-hint)] focus:border-[var(--border-strong)] ${
+                  className={`min-h-12 w-full rounded-xl border bg-[var(--bg-surface)] px-4 text-base text-[var(--text-primary)] outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-[var(--text-hint)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.12)] ${
                     error === 'NAME_REQUIRED'
                       ? 'border-danger'
                       : 'border-[var(--border-default)]'
@@ -335,7 +335,7 @@ export function PhoneOtpForm({
                   : undefined
               }
               transition={{ duration: 0.4 }}
-              className="mt-6 flex justify-center gap-2.5"
+              className="mt-5 flex justify-center gap-1.5 sm:mt-6 sm:gap-2.5"
             >
               {code.map((digit, i) => (
                 <motion.input
@@ -363,7 +363,7 @@ export function PhoneOtpForm({
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
                   aria-label={`digit ${i + 1}`}
-                  className={`h-14 w-12 rounded-2xl border text-center font-mono text-2xl outline-none transition-colors ${
+                  className={`h-12 w-[clamp(2.35rem,11vw,3rem)] rounded-xl border text-center font-mono text-xl outline-none transition-[border-color,background-color,box-shadow] sm:h-14 sm:rounded-2xl sm:text-2xl ${
                     success
                       ? 'border-success text-success'
                       : error
@@ -371,13 +371,13 @@ export function PhoneOtpForm({
                         : digit
                           ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
                           : 'border-[var(--border-default)] text-[var(--text-primary)]'
-                  } bg-[var(--bg-base)] focus:border-[var(--border-strong)]`}
+                  } bg-[var(--bg-surface)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.1)]`}
                 />
               ))}
             </motion.div>
 
             {/* Status line: verifying spinner → success check → error */}
-            <div className="mt-4 flex min-h-6 items-center justify-center text-sm">
+            <div className="mt-3 flex min-h-6 items-center justify-center text-sm sm:mt-4">
               <AnimatePresence mode="wait">
                 {success ? (
                   <motion.span
@@ -437,14 +437,14 @@ export function PhoneOtpForm({
                   }
                 }}
                 disabled={loading || success || code.join('').length < OTP_LENGTH}
-                className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--white)] px-5 text-sm font-semibold text-[var(--bg-base)] transition-[opacity,transform] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transform-none"
+                className="marketing-pressable mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 {t('verify')}
               </button>
             )}
 
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-3 text-center text-sm sm:mt-4">
               {resendIn > 0 ? (
                 <span className="text-[var(--text-muted)]">
                   {t('resendIn', { seconds: resendIn })}

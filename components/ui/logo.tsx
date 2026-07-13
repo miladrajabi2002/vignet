@@ -8,14 +8,16 @@ import { cn } from '@/lib/utils'
 export function Logo({
 	className,
 	priority = false,
+	variant = 'dark',
 }: {
 	className?: string
 	priority?: boolean
+	variant?: 'dark' | 'white'
 }) {
 	return (
 		<span className={cn('relative block h-12 w-48 shrink-0 overflow-hidden', className)}>
 			<Image
-				src="/logo.svg"
+				src={variant === 'white' ? '/logo-white.svg' : '/logo.svg'}
 				alt="Vigent"
 				fill
 				priority={priority}

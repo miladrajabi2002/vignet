@@ -65,7 +65,7 @@ export function Footer() {
 
 					<div className="grid gap-12 py-10 lg:grid-cols-[1.05fr_1.95fr]">
 						<div>
-							<div className="inline-flex rounded-xl bg-white px-3 py-1.5"><Logo className="h-8 w-32" /></div>
+							<Logo variant="white" className="h-8 w-32" />
 							<p className="mt-5 max-w-sm text-sm leading-7 text-white/42">{copy.desc}</p>
 							<SocialLinks variant="default" className="mt-5 [&_a]:border-white/15 [&_a]:text-white/60 [&_a:hover]:text-white" />
 						</div>

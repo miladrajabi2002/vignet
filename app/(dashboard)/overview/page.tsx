@@ -267,7 +267,7 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCore locale={lang} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} />
+          <IntelligenceCore locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} />
         ) : (
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
             <div>
