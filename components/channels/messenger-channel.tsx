@@ -21,10 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
-import {
-  WhatsAppConnectFlow,
-  WhatsAppOAuthFlow,
-} from '@/components/channels/whatsapp-connect-wizard'
+import { WhatsAppConnectFlow } from '@/components/channels/whatsapp-connect-wizard'
 
 export type MessengerKind =
   | 'TELEGRAM'
@@ -312,9 +309,6 @@ export function MessengerChannel({
   const [showGuide, setShowGuide] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
-  // For WhatsApp: which connect sub-flow is currently shown in the open panel.
-  // 'qr' (default, new) | 'oauth' (advanced, the original Meta OAuth flow).
-  const [waFlow, setWaFlow] = useState<'qr' | 'oauth'>('qr')
 
   const isInstagram = type === 'INSTAGRAM'
   const guideSteps = t.raw(`guide.${type}`) as unknown
@@ -347,36 +341,13 @@ export function MessengerChannel({
   async function disable() {
     if (!channelId) return
     setBusy(true)
-    // QR-connected WhatsApp channels must be disconnected through the QR
-    // disconnect endpoint so the bridge can log out the Baileys session and
-    // wipe its auth folder (otherwise the WhatsApp Web session lingers and
-    // keeps receiving messages that now go nowhere). We detect QR mode via
-    // the `mode` field in the channel config, which the parent server
-    // component passes to us as `botUsername`/`verifyToken` indirectly — but
-    // to be safe we just always use the QR disconnect for WHATSAPP channels
-    // when the verify-token block is hidden (which is true for both QR and
-    // OAuth modes). The QR endpoint gracefully no-ops the bridge logout when
-    // the channel turns out to be OAuth mode.
-    if (type === 'WHATSAPP' && !verifyToken) {
-      try {
-        await fetch(
-          `/api/agents/${agentId}/channels/whatsapp-qr/disconnect`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' } },
-        )
-      } catch {
-        /* fall through to the generic delete as a safety net */
-      }
-    } else {
-      await fetch(`/api/agents/${agentId}/channels/${channelId}`, {
-        method: 'DELETE',
-      })
-    }
+    await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
     setBusy(false)
     router.refresh()
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex items-center gap-3">
         {enabled && isInstagram && botAvatar ? (
           // Connected Instagram OAuth channel — show the IG profile avatar
@@ -495,26 +466,17 @@ export function MessengerChannel({
               onClose={() => setOpen(false)}
             />
           ) : type === 'WHATSAPP' ? (
-            // WhatsApp now defaults to the QR-bridge flow (scan QR or pair by
-            // phone — no Meta App, no VPN, no business verification needed).
-            // The OAuth flow is kept as a secondary "advanced" option for
-            // users who already have a verified WhatsApp Business Account;
-            // the QR wizard exposes a small link to switch to it.
-            waFlow === 'oauth' ? (
-              <WhatsAppOAuthFlow
-                agentId={agentId}
-                onClose={() => {
-                  setWaFlow('qr')
-                  setOpen(false)
-                }}
-              />
-            ) : (
-              <WhatsAppConnectFlow
-                agentId={agentId}
-                onClose={() => setOpen(false)}
-                onSwitchToOAuth={() => setWaFlow('oauth')}
-              />
-            )
+            // WhatsApp mirrors Instagram: platform-managed OAuth via the
+            // WhatsApp Embedded Signup. The operator clicks "اتصال واتساپ",
+            // authorizes in Facebook's dialog, and the callback either
+            // connects immediately (single number) or stashes a cookie and
+            // shows the number picker on the channels page. No Meta App
+            // creation, no token pasting, no manual webhook setup — the
+            // backend subscribes the WABA to the global webhook for them.
+            <WhatsAppConnectFlow
+              agentId={agentId}
+              onClose={() => setOpen(false)}
+            />
           ) : (
             <>
               {steps.length > 0 && (

@@ -271,19 +271,16 @@ export default async function AgentChannelsPage(
             ? (ch.config as Record<string, unknown>)
             : null
         // WhatsApp OAuth channels store mode='OAUTH' (plus displayPhoneNumber
-        // / verifiedName) in their config. QR-bridge channels store mode='QR'
-        // (plus bridgeSessionId, displayPhoneNumber, verifiedName). Legacy
-        // token-paste channels have mode='LEGACY' or no mode at all.
+        // / verifiedName) in their config. Legacy token-paste channels have
+        // mode='LEGACY' or no mode at all.
         const waIsOAuth =
           m.type === 'WHATSAPP' && config?.mode === 'OAUTH'
-        const waIsQr =
-          m.type === 'WHATSAPP' && config?.mode === 'QR'
-        // For OAuth + QR WhatsApp channels, show the verified business name (or
+        // For OAuth WhatsApp channels, show the verified business name (or
         // display phone number) as the "username" so the connected card
         // identifies which number is wired up. For all other channels, fall
         // back to the legacy `botUsername` field.
         const waDisplay =
-          m.type === 'WHATSAPP' && (waIsOAuth || waIsQr)
+          m.type === 'WHATSAPP' && waIsOAuth
             ? String(config?.verifiedName ?? config?.displayPhoneNumber ?? '')
             : ''
         const botUsername =
@@ -295,18 +292,16 @@ export default async function AgentChannelsPage(
             : ''
         const isMeta = m.type === 'WHATSAPP' || m.type === 'INSTAGRAM'
         // LEGACY WhatsApp channels still need manual webhook setup in the
-        // Meta dashboard; OAuth WhatsApp channels (mode='OAUTH') AND QR-bridge
-        // channels (mode='QR') are managed by the platform — OAuth via the
-        // global /api/webhook/whatsapp (demuxed by phoneNumberId), QR via the
-        // global /api/webhook/whatsapp-qr (demuxed by bridgeSessionId). In
-        // both cases we hide the per-token callback URL / verify token block.
-        // Instagram OAuth channels are likewise globally managed.
+        // Meta dashboard; OAuth WhatsApp channels (mode='OAUTH') are managed
+        // globally by the platform app — the backend already subscribed the
+        // WABA to the global webhook during the OAuth callback, so we hide
+        // the per-token callback URL / verify token block for them. Instagram
+        // OAuth channels are likewise globally managed.
         const callbackUrl =
           isMeta &&
           m.type === 'WHATSAPP' &&
           webhookToken &&
-          !waIsOAuth &&
-          !waIsQr
+          !waIsOAuth
             ? `${appUrl}/api/webhook/${WEBHOOK_PATH[m.type]}/${webhookToken}`
             : null
         // FRONTEND-AUTO-V3: Instagram no longer renders the legacy quick-replies
@@ -334,7 +329,7 @@ export default async function AgentChannelsPage(
             botUsername={botUsername || null}
             callbackUrl={callbackUrl}
             verifyToken={
-              m.type === 'WHATSAPP' && !waIsOAuth && !waIsQr
+              m.type === 'WHATSAPP' && !waIsOAuth
                 ? webhookToken || null
                 : null
             }
@@ -349,7 +344,7 @@ export default async function AgentChannelsPage(
           without cluttering the channel list with a toggle that doesn't belong. */}
       <Link
         href="/integrations"
-        className="group flex items-start gap-4 rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-strong)]"
+        className="group flex items-start gap-4 rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6 transition-colors hover:border-[var(--border-strong)]"
       >
         <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
           <Store className="h-5 w-5" />
