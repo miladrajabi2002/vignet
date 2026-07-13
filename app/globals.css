@@ -423,6 +423,41 @@
                 line-height: 1.9;
                 color: rgba(0, 0, 0, 0.62);
         }
+
+	.marketing-pressable {
+		transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+			box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1),
+			background-color 160ms ease;
+	}
+
+	.marketing-pressable:active {
+		transform: scale(0.97);
+	}
+
+	.marketing-page-hero {
+		position: relative;
+		overflow: hidden;
+		border-radius: 2rem;
+		background: #050505;
+		color: white;
+		box-shadow: 0 30px 90px rgba(0, 0, 0, 0.18);
+	}
+
+	.marketing-page-hero::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background:
+			radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.12), transparent 30%),
+			linear-gradient(120deg, transparent 45%, rgba(255, 255, 255, 0.045), transparent 62%);
+	}
+
+	.marketing-page-shell {
+		background:
+			radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95), transparent 32rem),
+			var(--bg-base);
+	}
         .marketing-eyebrow {
                 display: inline-flex;
                 align-items: center;

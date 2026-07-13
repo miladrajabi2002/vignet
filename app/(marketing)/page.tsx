@@ -2,6 +2,7 @@ import dynamicImport from 'next/dynamic'
 import { getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
+import { ValueModelSection } from '@/components/marketing/value-model-section'
 import { DemoSection } from '@/components/marketing/demo-section'
 import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
@@ -61,7 +62,7 @@ export default async function HomePage() {
 				'@type': 'Offer',
 				price: '0',
 				priceCurrency: 'IRR',
-				description: '۱۴ روز آزمایش رایگان',
+				description: 'یک ماه استفاده رایگان همراه اعتبار اولیه پیام؛ اتوماسیون ثابت اینستاگرام رایگان است',
 			},
 		},
 		...(faqItems.length
@@ -88,6 +89,7 @@ export default async function HomePage() {
 			/>
 			<Hero />
 			<SocialProof />
+			<ValueModelSection />
 			<ChannelsSection />
 			<DemoSection />
 			<UseCasesSection />

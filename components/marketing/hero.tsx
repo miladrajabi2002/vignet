@@ -13,6 +13,7 @@ import {
 	CalendarCheck2,
 	Check,
 	GraduationCap,
+	Gift,
 	MessageCircleMore,
 	PackageSearch,
 	Play,
@@ -28,13 +29,13 @@ const COPY = {
 		headlineTop: 'هر پیام، یک پاسخ دقیق',
 		headlineBottom: 'از همه‌جا، در یک پنل',
 		stageAria: 'نمایش پنج پنل تخصصی فروشگاه، سفارش غذا، نوبت‌دهی، خدمات و آموزش که به هسته هوشمند ویجنت و همه کانال‌های ارتباطی متصل‌اند.',
-		stageTitle: 'سیستم‌عامل هوشمند کسب‌وکار',
+		stageTitle: 'مرکز عملیات هوشمند کسب‌وکار',
 		connected: '۵ پنل تخصصی · همه کانال‌ها',
 		live: 'پاسخ‌گویی زنده',
 		verticalLabel: 'ویجنت متناسب با مدل کار شما ساخته می‌شود',
 		verticals: ['فروشگاه', 'سفارش غذا', 'نوبت‌دهی', 'خدمات', 'آموزش'],
-		core: 'هسته هوشمند ویجنت',
-		coreHint: 'AI · CRM · Automation',
+		core: 'Vigento AI',
+		coreHint: 'هوش مصنوعی ویجنتو · CRM · Automation',
 		allMessages: 'پیام‌های تازه از همه‌جا',
 		sharedBrain: 'یک ایجنت، یک پاسخ دقیق',
 		sharedBrainDesc: 'ویجنت پیام را می‌فهمد، دانش مرتبط را پیدا می‌کند و پاسخ یا اقدام درست را به همان کانال برمی‌گرداند.',
@@ -48,6 +49,7 @@ const COPY = {
 		source: 'کاتالوگ + موجودی زنده',
 		result: 'موجودی تأیید شد · لینک خرید ارسال شد',
 		flow: ['پیام دریافت شد', 'دانش پیدا شد', 'پاسخ و اقدام ثبت شد'],
+		promises: ['یک ماه استفاده رایگان', 'اتوماسیون ثابت اینستاگرام رایگان', 'هزینه فقط برای پاسخ موفق AI'],
 	},
 	en: {
 		kicker: 'Persian AI for sales and support',
@@ -59,8 +61,8 @@ const COPY = {
 		live: 'Live replies',
 		verticalLabel: 'Vigent adapts to how your business actually operates',
 		verticals: ['Commerce', 'Food', 'Booking', 'Services', 'Education'],
-		core: 'Vigent intelligence core',
-		coreHint: 'AI · CRM · Automation',
+		core: 'Vigento AI',
+		coreHint: 'Business intelligence · CRM · Automation',
 		allMessages: 'New messages from everywhere',
 		sharedBrain: 'One agent, one precise answer',
 		sharedBrainDesc: 'Vigent understands the message, finds the right knowledge, then returns the answer or action to the same channel.',
@@ -74,6 +76,7 @@ const COPY = {
 		source: 'Catalog + live inventory',
 		result: 'Stock confirmed · checkout link sent',
 		flow: ['Message received', 'Knowledge found', 'Reply and action logged'],
+		promises: ['One month free', 'Free deterministic Instagram automation', 'Credit only for successful AI replies'],
 	},
 } as const
 
@@ -415,7 +418,7 @@ export function Hero() {
 						transition={reduce ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
 						className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start"
 					>
-						<Link href="/login?next=/onboarding" className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white transition-colors duration-150 hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2" >
+						<Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2" >
 							{t('ctaPrimary')}
 							<Arrow className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" aria-hidden />
 						</Link>
@@ -423,6 +426,20 @@ export function Hero() {
 							<Play className="h-3.5 w-3.5 fill-[var(--text-primary)]" aria-hidden />
 							{t('ctaSecondary')}
 						</Link>
+					</motion.div>
+
+					<motion.div
+						initial={reduce ? false : { opacity: 0, y: 8 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={reduce ? { duration: 0 } : { delay: 0.27, duration: 0.45 }}
+						className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
+					>
+						{copy.promises.map((promise, index) => (
+							<span key={promise} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[10px] font-medium text-black/55 shadow-[0_4px_14px_rgba(0,0,0,0.04)]">
+								{index === 0 ? <Gift className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+								{promise}
+							</span>
+						))}
 					</motion.div>
 
 					<motion.p

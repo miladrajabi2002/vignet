@@ -12,27 +12,27 @@ export function DocContent({
   locale: Locale
 }) {
   return (
-    <article className="max-w-4xl rounded-[1.75rem] border border-black/10 bg-white p-5 sm:p-8 lg:p-10">
-      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.35rem] bg-black px-5 py-8 text-white sm:px-8 sm:py-10">
+    <article className="max-w-4xl rounded-[1.75rem] border border-black/[0.08] bg-white p-4 shadow-[0_22px_65px_rgba(0,0,0,0.07)] sm:p-7 lg:p-9">
+      <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.5rem] bg-black px-5 py-8 text-white shadow-[0_18px_50px_rgba(0,0,0,0.16)] sm:px-8 sm:py-11">
         <div className="relative">
-        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Documentation</p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em]">{pick(page.title, locale)}</h1>
+        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</p>
+        <h1 className="mt-4 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{pick(page.description, locale)}</p>
         </div>
       </header>
 
-      <div className="space-y-6">
+      <div className="mx-auto max-w-3xl space-y-7">
         {page.blocks.map((block, i) => {
           switch (block.type) {
             case 'h2':
               return (
-                <h2 key={i} className="pt-4 text-xl font-medium text-[var(--text-primary)]">
+                <h2 key={i} className="border-t border-black/[0.07] pt-7 text-xl font-semibold text-[var(--text-primary)]">
                   {pick(block, locale)}
                 </h2>
               )
             case 'p':
               return (
-                <p key={i} className="leading-relaxed text-[var(--text-secondary)]">
+                <p key={i} className="text-[15px] leading-8 text-[var(--text-secondary)]">
                   {pick(block, locale)}
                 </p>
               )
@@ -52,7 +52,7 @@ export function DocContent({
                 <ol key={i} className="space-y-3">
                   {block.items.map((item, j) => (
                     <li key={j} className="flex gap-4">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-hover)] font-mono text-sm text-[var(--text-primary)]">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black font-mono text-xs text-white shadow-sm">
                         {j + 1}
                       </span>
                       <span className="pt-0.5 leading-relaxed text-[var(--text-secondary)]">
@@ -72,7 +72,7 @@ export function DocContent({
                   )}
                   <pre
                     dir="ltr"
-                    className="overflow-x-auto rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-sm leading-relaxed text-[var(--text-secondary)]"
+                    className="overflow-x-auto rounded-2xl border border-white/10 bg-black p-5 text-sm leading-relaxed text-white/70 shadow-[0_16px_45px_rgba(0,0,0,0.12)]"
                   >
                     <code>{block.code}</code>
                   </pre>
@@ -82,7 +82,7 @@ export function DocContent({
               return (
                 <div
                   key={i}
-                  className="rounded-xl border border-[var(--border-hover)] bg-[var(--white-05)] p-4 text-sm leading-relaxed text-[var(--text-secondary)]"
+                  className="rounded-2xl border border-black/[0.08] bg-[var(--bg-base)] p-5 text-sm leading-7 text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                 >
                   {pick(block, locale)}
                 </div>

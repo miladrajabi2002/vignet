@@ -53,7 +53,7 @@ function VisPickTemplate() {
             <span className="h-1 w-4 rounded-full bg-[var(--white-05)]" />
             {selected && (
               <motion.span
-                initial={reduce ? false : { opacity: 0, scale: 0.4 }}
+                initial={reduce ? false : { opacity: 0, scale: 0.96 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 22, delay: 0.5 }}

@@ -165,7 +165,7 @@ export default async function PublicBlogPostPage(props: Props) {
 	])
 
     return (
-        <article className="mx-auto max-w-4xl px-5 pb-24 pt-32 sm:px-8 sm:pt-36">
+        <article className="marketing-page-shell mx-auto min-h-screen max-w-6xl px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
             <script
 				type="application/ld+json"
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -175,21 +175,21 @@ export default async function PublicBlogPostPage(props: Props) {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
 			/>
             {/* Header */}
-			<header className="mb-10 border-t border-black/10 pt-7">
+			<header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-10 sm:px-9 sm:py-14">
 				{post.category && (
 					<Link
 						href={`/blog/category/${post.category.slug}`}
-						className="inline-flex min-h-9 items-center rounded-full border border-black/10 px-3 text-[10px] font-medium text-black/50"
+						className="relative z-10 inline-flex min-h-9 items-center rounded-full border border-white/15 bg-white/[0.06] px-3 text-[10px] font-medium text-white/55"
 					>
 						{post.category.name}
 					</Link>
 				)}
-				<h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.15] tracking-[-0.04em] text-black sm:text-5xl">
+				<h1 className="relative z-10 mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.18] tracking-[-0.04em] text-white sm:text-5xl rtl:tracking-normal">
 					{post.title}
 				</h1>
-				<p className="mt-5 max-w-3xl text-[15px] leading-8 text-black/50">{plainExcerpt}</p>
-				<div className="mt-5 flex items-center justify-between gap-4">
-					<div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+				<p className="relative z-10 mt-5 max-w-3xl text-[15px] leading-8 text-white/50">{plainExcerpt}</p>
+				<div className="relative z-10 mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
+					<div className="flex flex-wrap items-center gap-4 text-xs text-white/35">
 						<span className="inline-flex items-center gap-1">
 							<Calendar className="h-3.5 w-3.5" />
 							{relativeTime(post.publishedAt ?? post.createdAt, locale)}
@@ -201,7 +201,7 @@ export default async function PublicBlogPostPage(props: Props) {
 								: `${post.readingMinutes} min read`}
 						</span>
 					</div>
-					<TrendSpark seed={post.id} width={80} height={26} />
+					<div className="rounded-full bg-white px-3 py-1"><TrendSpark seed={post.id} width={80} height={26} /></div>
 				</div>
 			</header>
             {post.coverImage && (
@@ -211,17 +211,17 @@ export default async function PublicBlogPostPage(props: Props) {
 					alt={post.title}
 					loading="eager"
 					decoding="async"
-					className="mb-10 aspect-[16/10] w-full rounded-[1.5rem] border border-black/10 object-cover"
+					className="mx-auto mb-10 aspect-[16/10] w-full max-w-5xl rounded-[1.75rem] border border-black/10 object-cover shadow-[0_22px_65px_rgba(0,0,0,0.12)]"
 				/>)
 			)}
             {/* Body */}
             <div
 				dir="auto"
-				className="blog-content text-[15px] leading-8 text-[var(--text-primary)]"
+				className="blog-content mx-auto max-w-3xl rounded-[1.75rem] border border-black/[0.07] bg-white p-5 text-[15px] leading-8 text-[var(--text-primary)] shadow-[0_14px_45px_rgba(0,0,0,0.055)] sm:p-8"
 				dangerouslySetInnerHTML={{ __html: html }}
 			/>
             {/* Social follow bar — keep readers connected after they finish */}
-            <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:flex-row sm:justify-between">
+            <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white p-5 shadow-[0_10px_35px_rgba(0,0,0,0.05)] sm:flex-row sm:justify-between">
 				<div>
 					<p className="text-sm font-medium text-[var(--text-primary)]">
 						{locale === 'fa' ? 'ما را دنبال کنید' : 'Follow us'}
@@ -235,7 +235,7 @@ export default async function PublicBlogPostPage(props: Props) {
 				<SocialLinks variant="default" />
 			</div>
             {/* Footer nav */}
-            <footer className="mt-12 border-t border-[var(--border-default)] pt-6">
+            <footer className="mx-auto mt-12 max-w-3xl border-t border-[var(--border-default)] pt-6">
 				<div className="grid gap-4 sm:grid-cols-2">
 					{prev ? (
 						<Link

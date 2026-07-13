@@ -24,14 +24,14 @@ import { InstagramIcon, TelegramIcon } from './social-links'
 
 const COPY = {
 	fa: {
-		eyebrow: 'معرفی ویجنتو',
-		title: 'فقط بگو چه ایجنتی می‌خواهی؛ ویجنتو مسیر ساخت را می‌چیند.',
-		subtitle: 'ویجنتو دستیار هوشمند ساخت ایجنت شماست. هدف کسب‌وکار را از زبان خودتان می‌فهمد، شش لایه پرامپت را می‌سازد، دانش و کانال‌ها را پیشنهاد می‌دهد، سناریوها را تست می‌کند و یک ایجنت آمادهٔ انتشار تحویل می‌دهد.',
-		cta: 'ساخت ایجنت با ویجنتو',
+		eyebrow: 'Vigento AI | هوش مصنوعی ویجنتو',
+		title: 'فقط ایجنت نمی‌سازد؛ هسته‌ای است که کسب‌وکارتان را مدیریت می‌کند',
+		subtitle: 'ویجنتو هدف کسب‌وکار را از زبان خودتان می‌فهمد، ایجنت شش‌لایه را می‌سازد و بعد از راه‌اندازی کنار CRM، محصول، رزرو، گفتگوها و کانال‌ها می‌ماند تا هم پاسخ بدهد و هم کار انجام دهد.',
+		cta: 'شروع کار با Vigento AI',
 		trust: 'هر پیشنهاد قابل ویرایش است · انتشار فقط با تأیید شما',
 		demoAria: 'دموی ویجنتو که از یک درخواست ساده، نقشه کامل ایجنت شامل هدف، موتور پرامپت شش‌لایه، پایگاه دانش، کانال‌ها، تست و انتشار می‌سازد.',
 		workspace: 'استودیوی ساخت ایجنت',
-		status: 'ویجنتو آنلاین است',
+		status: 'Vigento AI آنلاین است',
 		promptLabel: 'درخواست شما',
 		prompt: 'برای فروشگاه پوشاکم یک مشاور فروش می‌خواهم؛ موجودی را بداند، محصول مقایسه کند و در اینستاگرام و واتساپ پاسخ بدهد.',
 		building: 'ویجنتو دارد نقشهٔ ایجنت را می‌سازد',
@@ -58,14 +58,14 @@ const COPY = {
 		review: 'بازبینی و ساخت ایجنت',
 	},
 	en: {
-		eyebrow: 'Meet Vigento',
-		title: 'Describe the agent you need. Vigento maps the whole build.',
-		subtitle: 'Vigento is your AI agent-building copilot. It understands the business goal in plain language, builds the six-layer prompt, recommends knowledge and channels, tests key scenarios, and prepares an agent for launch.',
-		cta: 'Build with Vigento',
+		eyebrow: 'Vigento AI | Business intelligence core',
+		title: 'It does not just build an agent. It helps operate the business around it.',
+		subtitle: 'Vigento understands the goal, builds the six-layer agent, then stays connected to CRM, products, bookings, conversations and channels to answer questions and carry out approved actions.',
+		cta: 'Start with Vigento AI',
 		trust: 'Every suggestion is editable · Nothing goes live without approval',
 		demoAria: 'A Vigento demo turning one plain-language request into a complete agent blueprint with a goal, six-layer prompt engine, knowledge base, channels, tests and launch review.',
 		workspace: 'Agent build studio',
-		status: 'Vigento is online',
+		status: 'Vigento AI is online',
 		promptLabel: 'Your request',
 		prompt: 'I need a sales advisor for my clothing store. It should know stock, compare products, and reply on Instagram and WhatsApp.',
 		building: 'Vigento is mapping your agent',
@@ -292,7 +292,7 @@ export function VigentoSection() {
 	return (
 		<section id="vigento" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="relative overflow-hidden rounded-[2rem] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-6 text-[var(--text-primary)] sm:px-7 sm:py-8 lg:px-10 lg:py-10" style={{ boxShadow: 'var(--shadow-card)' }}>
+				<div className="marketing-grid-dark relative overflow-hidden rounded-[2rem] bg-black px-4 py-6 text-white shadow-[0_32px_100px_rgba(0,0,0,0.2)] sm:px-7 sm:py-8 lg:px-10 lg:py-10">
 					<div className="relative grid items-center gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:gap-10 xl:gap-14">
 						<motion.div
 							initial={reduce ? false : { opacity: 0, y: 18 }}
@@ -301,26 +301,26 @@ export function VigentoSection() {
 							transition={reduce ? { duration: 0 } : { duration: 0.6 }}
 							className="text-center lg:text-start"
 						>
-							<span className="inline-flex items-center gap-2 text-[11px] font-semibold text-[var(--text-secondary)]">
-								<span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-default)] bg-white">
+							<span className="inline-flex items-center gap-2 text-[11px] font-semibold text-white/60">
+								<span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-black">
 									<Wand2 className="h-3.5 w-3.5" aria-hidden />
 								</span>
 								{copy.eyebrow}
 							</span>
-							<h2 className="mt-5 text-[clamp(1.7rem,4.8vw,3.1rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-[var(--text-primary)] rtl:tracking-normal">
+							<h2 className="mt-5 text-[clamp(1.7rem,4.8vw,3.1rem)] font-semibold leading-[1.25] tracking-[-0.035em] text-white rtl:tracking-normal">
 								{copy.title}
 							</h2>
-							<p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[var(--text-secondary)] sm:text-[15px] sm:leading-8 lg:mx-0">
+							<p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-white/55 sm:text-[15px] sm:leading-8 lg:mx-0">
 								{copy.subtitle}
 							</p>
 							<Link
 								href="/login?next=/onboarding"
-								className="group mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+								className="marketing-pressable group mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
 							>
 								{copy.cta}
 								<Arrow className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" aria-hidden />
 							</Link>
-							<p className="mt-4 flex items-center justify-center gap-2 text-[10px] leading-5 text-[var(--text-muted)] lg:justify-start">
+							<p className="mt-4 flex items-center justify-center gap-2 text-[10px] leading-5 text-white/35 lg:justify-start">
 								<ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
 								{copy.trust}
 							</p>

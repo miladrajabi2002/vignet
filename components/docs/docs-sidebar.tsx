@@ -11,7 +11,7 @@ export function DocsSidebar() {
   const locale = useLocale() as 'fa' | 'en'
 
   return (
-    <nav className="space-y-1">
+    <nav className="flex min-w-max gap-1 md:min-w-0 md:flex-col" aria-label={locale === 'fa' ? 'فهرست مستندات' : 'Documentation navigation'}>
       {DOCS_NAV.map(({ slug, href, icon: Icon, title }) => {
         const active = pathname === href
         return (
@@ -19,10 +19,10 @@ export function DocsSidebar() {
             key={slug}
             href={href}
             className={cn(
-              'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
+              'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               active
-                ? 'bg-[var(--white-10)] text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--white-05)] hover:text-[var(--text-primary)]',
+                ? 'bg-white text-black shadow-[0_8px_20px_rgba(255,255,255,0.08)]'
+                : 'text-white/50 hover:bg-white/[0.08] hover:text-white',
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />

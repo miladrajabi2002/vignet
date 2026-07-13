@@ -221,7 +221,7 @@ export function PhoneOtpForm({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-white p-8" style={{ boxShadow: 'var(--shadow-float)' }}>
+    <div className="rounded-[1.75rem] border border-black/[0.08] bg-white p-7 shadow-[0_22px_70px_rgba(0,0,0,0.1)] sm:p-8">
       {/* "Easy sign-in" badge */}
       <div className="mb-6 flex justify-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-xs tracking-wide text-[var(--text-muted)]">
@@ -254,7 +254,7 @@ export function PhoneOtpForm({
                 onChange={(e) => setPhone(toEnglishDigits(e.target.value))}
                 onKeyDown={(e) => e.key === 'Enter' && requestOtp()}
                 placeholder={t('phonePlaceholder')}
-                className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center font-mono text-lg tracking-wider text-[var(--text-primary)] outline-none transition-all duration-150 placeholder:text-[var(--text-hint)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.12)]"
+                className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-center font-mono text-lg tracking-wider text-[var(--text-primary)] outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-[var(--text-hint)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.12)]"
               />
             </div>
 
@@ -265,7 +265,7 @@ export function PhoneOtpForm({
             <button
               onClick={requestOtp}
               disabled={loading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] py-3 text-sm font-medium text-white transition-all duration-150 hover:bg-black disabled:opacity-50"
+              className="marketing-pressable mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] py-3 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? t('sending') : t('sendCode')}

@@ -5,6 +5,7 @@ import { getPlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { getReplyPriceIRR } from '@/lib/ai/models'
 import { discountedReplyPriceIRR, estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { cn } from '@/lib/utils'
+import { InstagramIcon } from '@/components/marketing/social-links'
 
 const PLAN_TRANSLATION_KEY: Record<PaidPlan, 'starter' | 'pro' | 'business'> = {
         STARTER: 'starter',
@@ -30,17 +31,28 @@ export async function PricingSection() {
                                         <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
                                 </div>
 
-                                <div className="mx-auto mt-10 flex max-w-3xl flex-col items-start gap-4 border-y border-[var(--border-default)] py-5 sm:flex-row sm:items-center sm:justify-between">
+				<div className="mx-auto mt-9 grid max-w-3xl gap-3 sm:grid-cols-2">
+					<div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
+						<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><InstagramIcon className="h-4 w-4" /></span>
+						<div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'اتوماسیون ثابت اینستاگرام رایگان' : 'Deterministic Instagram automation is free'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'تا وقتی پاسخ به AI نیاز ندارد، از اعتبار شما چیزی کم نمی‌شود' : 'When a reply does not need AI, no credit is deducted'}</p></div>
+					</div>
+					<div className="spatial-surface flex items-start gap-3 rounded-[1.35rem] p-4">
+						<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><MessageSquareText className="h-4 w-4" /></span>
+						<div><p className="text-sm font-semibold text-black">{locale === 'fa' ? 'AI فقط بعد از پاسخ موفق' : 'AI credit only after a successful reply'}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{locale === 'fa' ? 'پاسخ ناموفق هزینه‌ای ندارد و مصرف اعتبار شفاف نمایش داده می‌شود' : 'Failed replies cost nothing and credit usage stays transparent'}</p></div>
+					</div>
+				</div>
+
+				<div className="mx-auto mt-4 flex max-w-3xl flex-col items-start gap-4 rounded-[1.35rem] bg-black p-5 text-white shadow-[0_20px_55px_rgba(0,0,0,0.13)] sm:flex-row sm:items-center sm:justify-between">
                                         <div className="flex items-start gap-3">
-                                                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)]">
-                                                        <MessageSquareText className="h-4 w-4 text-[var(--text-secondary)]" />
+								<span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black">
+								<MessageSquareText className="h-4 w-4" />
                                                 </span>
                                                 <div>
-                                                        <p className="text-sm font-medium text-[var(--text-primary)]">{t('trialTitle')}</p>
-                                                        <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{t('trialNote', { count: number.format(Number(process.env.AI_TRIAL_CREDIT_IRR ?? 100000) / 10) })}</p>
+								<p className="text-sm font-medium text-white">{t('trialTitle')}</p>
+								<p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote', { count: number.format(Number(process.env.AI_TRIAL_CREDIT_IRR ?? 100000) / 10) })}</p>
                                                 </div>
                                         </div>
-                                        <Link href="/login?next=/onboarding" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)]">
+						<Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black">
                                                 {t('trialCta')}
                                         </Link>
                                 </div>

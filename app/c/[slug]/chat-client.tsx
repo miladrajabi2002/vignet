@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
@@ -105,6 +105,7 @@ const nextId = () => `m${Date.now()}-${++idCounter}`
 export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }: Props) {
 	const accent = settings.primaryColor
 	const onAccent = contrastOn(accent)
+	const reduce = useReducedMotion()
 
 	const convKey = `vgt-cl-conv-${slug}`
 	const msgsKey = `vgt-cl-msgs-${slug}`
@@ -472,15 +473,15 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	return (
 		<div
 			ref={rootRef}
-			className="relative flex h-[100dvh] flex-col overflow-hidden overscroll-none bg-[#fafafa] text-neutral-900"
+			className="relative flex h-[100dvh] flex-col overflow-hidden overscroll-none bg-[#f2f2f0] text-neutral-900"
 		>
-			<Background kind={settings.background} accent={accent} />
+			<Background kind={settings.background} accent={accent} reduce={Boolean(reduce)} />
 
 			{/* App column */}
-			<div className="relative z-10 mx-auto flex h-full w-full max-w-2xl flex-col md:border-x md:border-black/[0.06] md:bg-white/40 md:shadow-[0_0_80px_rgba(0,0,0,0.04)] md:backdrop-blur-sm">
+			<div className="relative z-10 mx-auto flex h-full w-full max-w-3xl flex-col overflow-hidden bg-white/55 backdrop-blur-sm md:my-3 md:h-[calc(100%-1.5rem)] md:rounded-[2rem] md:border md:border-white/70 md:shadow-[0_28px_90px_rgba(0,0,0,0.13)]">
 				{/* Header — pt uses safe-area so it clears the notch/Dynamic Island
                                     in standalone or in-app browsers with viewport-fit=cover. */}
-				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/70 px-4 pb-3 backdrop-blur-xl [padding-top:max(env(safe-area-inset-top),12px)]">
+				<header className="flex items-center gap-3 border-b border-black/[0.06] bg-white/82 px-4 pb-3 backdrop-blur-2xl [padding-top:max(env(safe-area-inset-top),12px)] md:px-5">
 					<Avatar avatar={avatar} monogram={monogram} accent={accent} size={40} online />
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-sm font-semibold leading-tight">{name}</p>
@@ -553,7 +554,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				</div>
 
 				{/* Composer */}
-				<div className="border-t border-black/[0.06] bg-white/80 px-3 pt-3 backdrop-blur-xl [padding-bottom:max(env(safe-area-inset-bottom),12px)]">
+				<div className="border-t border-black/[0.06] bg-white/88 px-3 pt-3 backdrop-blur-2xl [padding-bottom:max(env(safe-area-inset-bottom),12px)] md:px-4">
 					{leadPending ? (
 						<div className="px-4 py-5 text-center">
 							<p className="text-[13px] text-neutral-400">
@@ -571,7 +572,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							>
 								<div
 									dir="ltr"
-									className="relative flex min-w-0 flex-1 items-end rounded-3xl border border-black/10 bg-white pr-1.5 pl-1 py-1.5 shadow-sm transition-all focus-within:shadow-md focus-within:[box-shadow:0_0_0_3px_var(--vgt-accent)] focus-within:border-[var(--vgt-accent)]"
+									className="relative flex min-w-0 flex-1 items-end rounded-[1.35rem] border border-black/10 bg-white pr-1.5 pl-1 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.07)] transition-[border-color,box-shadow] duration-200 focus-within:border-[var(--vgt-accent)] focus-within:[box-shadow:0_0_0_3px_color-mix(in_srgb,var(--vgt-accent)_16%,transparent),0_12px_30px_rgba(0,0,0,0.08)]"
 								>
 									<textarea
 										dir="rtl"
@@ -600,7 +601,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 										type="submit"
 										disabled={!input.trim() || streaming || leadPending || !hydrated}
 										aria-label="ارسال"
-										className="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center rounded-full transition-all active:scale-90 disabled:opacity-30"
+										className="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center rounded-full shadow-sm transition-[transform,opacity] duration-150 active:scale-[0.94] disabled:opacity-30"
 										style={{ backgroundColor: accent, color: onAccent }}
 									>
 										{streaming ? (
@@ -622,7 +623,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 										height="11"
 										className="inline-block fill-current"
 										xmlns="http://www.w3.org/2000/svg"
-										aria-label="Vigent"
+									aria-label="Vigento AI by Vigent"
 									>
 										<g transform="matrix(2.4635 0 0 2.4635 512 360.934)">
 											<g transform="translate(-111.996 0)">
@@ -751,6 +752,7 @@ function Intro(props: {
 	onSkip: () => void
 	onPick: (q: string) => void
 }) {
+	const reduce = useReducedMotion()
 	const {
 		name,
 		avatar,
@@ -773,9 +775,9 @@ function Intro(props: {
 	} = props
 
 	return (
-		<div className="flex min-h-full flex-col items-center justify-center py-6 text-center">
+		<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center px-1 py-7 text-center">
 			<motion.div
-				initial={{ opacity: 0, scale: 0.9 }}
+				initial={reduce ? false : { opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ duration: 0.5, ease: 'easeOut' }}
 			>
@@ -784,10 +786,10 @@ function Intro(props: {
 
 			{showAiBadge && (
 				<motion.span
-					initial={{ opacity: 0, y: 10 }}
+					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.15, duration: 0.45 }}
-					className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/80 px-3.5 py-1.5 text-[11px] tracking-wide text-neutral-600 shadow-sm backdrop-blur"
+					className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3.5 text-[11px] tracking-wide text-neutral-600 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur"
 				>
 					<Sparkles className="h-3 w-3" style={{ color: accent }} />
 					پاسخ فوری با هوش مصنوعی
@@ -795,17 +797,17 @@ function Intro(props: {
 			)}
 
 			<motion.h1
-				initial={{ opacity: 0, y: 10 }}
+				initial={reduce ? false : { opacity: 0, y: 8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.22, duration: 0.45 }}
-				className="mt-3 text-2xl font-light tracking-tight"
+				className="mt-3 text-2xl font-semibold tracking-tight"
 			>
 				{name}
 			</motion.h1>
 
 			{tagline && (
 				<motion.p
-					initial={{ opacity: 0, y: 10 }}
+					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.3, duration: 0.45 }}
 					className="mt-1.5 max-w-xs text-sm text-neutral-500"
@@ -816,10 +818,10 @@ function Intro(props: {
 
 			{leadPending ? (
 				<motion.div
-					initial={{ opacity: 0, y: 14 }}
+					initial={reduce ? false : { opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.4, duration: 0.5 }}
-					className="mt-7 w-full max-w-sm rounded-3xl border border-black/[0.07] bg-white/85 p-5 text-start shadow-sm backdrop-blur"
+					className="mt-7 w-full max-w-sm rounded-[1.6rem] border border-black/[0.08] bg-white/90 p-5 text-start shadow-[0_18px_55px_rgba(0,0,0,0.09)] backdrop-blur-xl"
 				>
 					<p className="text-sm text-neutral-700">
 						{leadMessage ?? 'برای شروع گفتگو، یک معرفی کوتاه بنویسید:'}
@@ -852,7 +854,7 @@ function Intro(props: {
 								!leadName.trim() ||
 								toEnglishDigits(leadPhone).replace(/\D/g, '').length < 10
 							}
-							className="w-full rounded-2xl py-2.5 text-sm font-medium shadow-sm transition-all active:scale-[0.98] disabled:opacity-40"
+							className="w-full rounded-2xl py-2.5 text-sm font-medium shadow-sm transition-[transform,opacity,box-shadow] duration-150 active:scale-[0.98] disabled:opacity-40"
 							style={{ backgroundColor: accent, color: props.onAccent }}
 						>
 							شروع گفتگو
@@ -871,10 +873,10 @@ function Intro(props: {
 				<>
 					{welcomeMessage && (
 						<motion.div
-							initial={{ opacity: 0, y: 12 }}
+							initial={reduce ? false : { opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ delay: 0.4, duration: 0.5 }}
-							className="mt-7 max-w-sm rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white/90 px-4 py-3 text-start text-sm leading-7 text-neutral-800 shadow-sm backdrop-blur"
+							className="mt-7 max-w-sm rounded-[1.5rem] rounded-ss-lg border border-black/[0.07] bg-white/92 px-4 py-3.5 text-start text-sm leading-7 text-neutral-800 shadow-[0_14px_40px_rgba(0,0,0,0.08)] backdrop-blur"
 						>
 							{welcomeMessage}
 						</motion.div>
@@ -885,11 +887,11 @@ function Intro(props: {
 							{quickReplies.map((q, i) => (
 								<motion.button
 									key={q}
-									initial={{ opacity: 0, y: 10 }}
+									initial={reduce ? false : { opacity: 0, y: 8 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ delay: 0.5 + i * 0.07, duration: 0.4 }}
 									onClick={() => onPick(q)}
-									className="rounded-full border border-black/10 bg-white/80 px-4 py-2 text-[13px] text-neutral-700 shadow-sm backdrop-blur transition-all hover:border-black/25 hover:shadow active:scale-95"
+									className="min-h-11 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-[13px] text-neutral-700 shadow-sm backdrop-blur transition-[border-color,box-shadow,transform] duration-150 hover:border-black/25 hover:shadow active:scale-[0.97]"
 								>
 									{q}
 								</motion.button>
@@ -1037,9 +1039,11 @@ function TypingDots({ accent }: { accent: string }) {
 function Background({
 	kind,
 	accent,
+	reduce,
 }: {
 	kind: ChatLinkSettings['background']
 	accent: string
+	reduce: boolean
 }) {
 	if (kind === 'minimal') return null
 
@@ -1067,13 +1071,13 @@ function Background({
 			<motion.div
 				className="absolute -top-32 start-[-15%] h-[420px] w-[420px] rounded-full blur-[110px]"
 				style={{ backgroundColor: blobA, opacity: 0.14 }}
-				animate={{ x: [0, 40, 0], y: [0, 24, 0] }}
+				animate={reduce ? undefined : { x: [0, 40, 0], y: [0, 24, 0] }}
 				transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
 			/>
 			<motion.div
 				className="absolute bottom-[-20%] end-[-10%] h-[380px] w-[380px] rounded-full blur-[110px]"
 				style={{ backgroundColor: blobB, opacity: 0.1 }}
-				animate={{ x: [0, -32, 0], y: [0, -20, 0] }}
+				animate={reduce ? undefined : { x: [0, -32, 0], y: [0, -20, 0] }}
 				transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
 			/>
 		</div>

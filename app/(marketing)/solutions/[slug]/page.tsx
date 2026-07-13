@@ -61,7 +61,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 	}
 
 	return (
-		<div className="bg-white">
+		<div className="marketing-page-shell bg-white">
 			<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
 			<section className="relative overflow-hidden pb-20 pt-28 sm:pt-32 lg:pb-28 lg:pt-40">
@@ -77,10 +77,14 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 							<h1 className="mt-7 max-w-3xl text-balance text-4xl font-semibold leading-[1.12] tracking-[-0.045em] text-black sm:text-5xl lg:text-6xl">{solution.title}</h1>
 							<p className="mt-6 max-w-2xl text-[15px] leading-8 text-black/55 sm:text-base">{solution.subtitle}</p>
 							<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-								<Link href="/login?next=/onboarding" className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">شروع رایگان — ۱۴ روز<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /></Link>
+								<Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">شروع رایگان — یک ماه<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /></Link>
 								<Link href="/#demo" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 text-sm font-medium text-black transition-colors hover:bg-black/[0.04]">مشاهده دموی واقعی</Link>
 							</div>
-							<p className="mt-5 text-[10px] text-black/35">راه‌اندازی همان روز · بدون نیاز به برنامه‌نویسی · قابل تغییر در هر زمان</p>
+							<p className="mt-5 text-[10px] text-black/35">یک ماه رایگان · اتوماسیون ثابت اینستاگرام رایگان · هزینه فقط برای پاسخ موفق AI</p>
+							<div className="mt-5 grid max-w-2xl gap-2 sm:grid-cols-2">
+								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-[10px] text-black/40">اتوماسیون</p><p className="mt-1 text-sm font-semibold text-black">کارهای ثابت اینستاگرام رایگان</p></div>
+								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-[10px] text-black/40">پاسخ هوشمند</p><p className="mt-1 text-sm font-semibold text-black">کسر اعتبار فقط پس از پاسخ موفق</p></div>
+							</div>
 						</div>
 
 						<div className="relative mx-auto w-full max-w-lg rounded-[1.75rem] border border-black/10 bg-[#f7f7f5] p-4 shadow-[0_26px_80px_rgba(0,0,0,0.11)] sm:p-6">
@@ -125,7 +129,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 			</section>
 
 			<section className="px-5 pb-24 sm:px-8 lg:pb-32">
-				<div className="marketing-grid-dark relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-black px-6 py-14 text-center text-white sm:px-10 sm:py-16"><div className="relative"><h2 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">این راهکار را با اطلاعات خودتان ببینید.</h2><p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/50">۱۴ روز فرصت دارید ایجنت را بسازید، پاسخ‌ها را آزمایش کنید و کانال واقعی خودتان را وصل کنید.</p><Link href="/login?next=/onboarding" className="mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black">شروع رایگان<ArrowLeft className="h-4 w-4" /></Link></div></div>
+				<div className="marketing-grid-dark relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-black px-6 py-14 text-center text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)] sm:px-10 sm:py-16"><div className="relative"><p className="text-[10px] font-medium text-white/35">Vigento AI | هوش مصنوعی ویجنتو</p><h2 className="mt-5 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">این راهکار را با اطلاعات خودتان ببینید</h2><p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/50">یک ماه فرصت دارید ایجنت را بسازید، محصولات و دانش را اضافه کنید و کانال واقعی خودتان را وصل کنید</p><Link href="/login?next=/onboarding" className="marketing-pressable mt-7 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black">شروع دوره یک‌ماهه<ArrowLeft className="h-4 w-4" /></Link></div></div>
 			</section>
 		</div>
 	)

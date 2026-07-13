@@ -39,9 +39,9 @@ export function BackToTop() {
                                         type="button"
                                         onClick={scrollToTop}
                                         aria-label="بازگشت به بالا"
-                                        initial={reduce ? false : { opacity: 0, scale: 0.8, y: 12 }}
+                                        initial={reduce ? false : { opacity: 0, scale: 0.95, y: 8 }}
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.8, y: 12 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
                                         transition={reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                                         whileHover={reduce ? undefined : { y: -2 }}
                                         whileTap={reduce ? undefined : { scale: 0.94 }}
