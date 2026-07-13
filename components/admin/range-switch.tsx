@@ -12,18 +12,18 @@ const OPTIONS: { label: string; value: RangeKind }[] = [
 ]
 
 /** Pill-style range switcher that updates the URL search param `range`. */
-export function RangeSwitch({ current }: { current: RangeKind }) {
+export function RangeSwitch({ current, basePath = '/admin' }: { current: RangeKind; basePath?: string }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-1 text-xs">
+    <div className="spatial-control inline-flex items-center gap-1 rounded-xl p-1 text-[11px]">
       {OPTIONS.map((o) => (
         <Link
           key={o.value}
-          href={`/admin?range=${o.value}`}
+          href={`${basePath}?range=${o.value}`}
           className={cn(
-            'rounded-lg px-3 py-1.5 font-medium transition-colors',
+            'min-h-9 rounded-lg px-3 py-2 font-bold transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[.97]',
             current === o.value
-              ? 'bg-zinc-900 text-white'
-              : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900',
+              ? 'bg-black text-white shadow-[var(--shadow-control)]'
+              : 'text-black/45 hover:bg-black/[0.045] hover:text-black',
           )}
         >
           {o.label}

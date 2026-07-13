@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /**
  * Text-to-speech via the platform-managed OpenRouter account.
@@ -63,7 +64,8 @@ export async function synthesizeSpeech(
   if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
 
   const format = input.format ?? 'mp3'
-  const model = process.env.OPENROUTER_TTS_MODEL?.trim() || DEFAULT_TTS_MODEL
+  const runtime = await getPlatformCommercialConfig()
+  const model = runtime.ttsModel || DEFAULT_TTS_MODEL
   const ws = await prisma.workspace.findUnique({
     where: { id: input.workspaceId },
     select: { defaultTtsVoice: true },
@@ -85,7 +87,7 @@ export async function synthesizeSpeech(
       response_format: format,
       provider: {
         data_collection: 'deny',
-        zdr: process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
+        zdr: runtime.zeroDataRetention,
       },
     }),
     signal: AbortSignal.timeout(90_000),

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
-import { getPlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
@@ -76,7 +76,7 @@ export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
     }
   }
 
-  const limit = getPlanDefs()[ws.plan].monthlyMessages
+  const limit = (await getEffectivePlanDefs())[ws.plan].monthlyMessages
   const used = await getMonthlyMessageCount(workspaceId)
   if (used >= limit) return { allowed: false, reason: 'PLAN_LIMIT' }
 
@@ -91,7 +91,7 @@ export async function checkAgentCreateAllowed(workspaceId: string): Promise<bool
   })
   if (!ws) return false
   const [limit, count] = [
-    getPlanDefs()[ws.plan].maxAgents,
+    (await getEffectivePlanDefs())[ws.plan].maxAgents,
     await prisma.agent.count({ where: { workspaceId } }),
   ]
   return count < limit
@@ -201,6 +201,7 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
   paymentId: string
   paymentUpdate: Prisma.PaymentUpdateManyMutationInput
 }): Promise<boolean> {
+  const includedCreditIRR = (await getEffectivePlanDefs())[params.plan].includedCreditIRR
   const currentPeriodEnd = await prisma.$transaction(async (tx) => {
     const claimed = await tx.payment.updateMany({
       where: {
@@ -218,6 +219,7 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
       paymentId: params.paymentId,
       workspaceId: params.workspaceId,
       plan: params.plan,
+      amountIRR: includedCreditIRR,
     })
     return currentPeriodEnd
   })

@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Check, MessageSquareText } from 'lucide-react'
-import { getPlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
-import { getReplyPriceIRR } from '@/lib/ai/models'
+import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { discountedReplyPriceIRR, estimateRemainingReplies } from '@/lib/billing/credit-estimates'
 import { cn } from '@/lib/utils'
 import { InstagramIcon } from '@/components/marketing/social-links'
@@ -17,7 +17,10 @@ const PLAN_TRANSLATION_KEY: Record<PaidPlan, 'starter' | 'pro' | 'business'> = {
 export async function PricingSection() {
         const t = await getTranslations('marketing.pricing')
         const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
-        const defs = getPlanDefs()
+        const [defs, commercialConfig] = await Promise.all([
+                getEffectivePlanDefs(),
+                getPlatformCommercialConfig(),
+        ])
         const number = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
         return (
@@ -49,7 +52,7 @@ export async function PricingSection() {
                                                 </span>
                                                 <div>
 								<p className="text-sm font-medium text-white">{t('trialTitle')}</p>
-								<p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote', { count: number.format(Number(process.env.AI_TRIAL_CREDIT_IRR ?? 100000) / 10) })}</p>
+								<p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote', { count: number.format(commercialConfig.trialCreditIRR / 10) })}</p>
                                                 </div>
                                         </div>
 						<Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black">
@@ -62,7 +65,7 @@ export async function PricingSection() {
                                                 const def = defs[plan]
                                                 const key = PLAN_TRANSLATION_KEY[plan]
                                                 const featured = plan === 'PRO'
-                                                const replyPriceIRR = discountedReplyPriceIRR(getReplyPriceIRR('fast'), def.replyDiscountBps)
+                                                const replyPriceIRR = discountedReplyPriceIRR(commercialConfig.replyPricesIRR.fast, def.replyDiscountBps)
                                                 const replyPriceToman = replyPriceIRR / 10
                                                 const includedReplies = estimateRemainingReplies(def.includedCreditIRR, replyPriceIRR)
                                                 return (

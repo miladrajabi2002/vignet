@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendWelcomeSms, verifyOTP } from '@/lib/sms/ippanel'
 import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -39,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // client-side too). Reject if somehow empty so we never create a
           // workspace/user without an owner name.
           if (!name) return null
+          const commercialConfig = await getPlatformCommercialConfig()
           const workspace = await prisma.workspace.create({
             data: {
               name: name || 'کسب‌وکار من',
@@ -46,10 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               // One full month to experience the platform. The starter reply
               // credit remains unchanged; only successful AI replies consume it.
               trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              aiCreditBalanceIRR: (() => {
-                const value = Number(process.env.AI_TRIAL_CREDIT_IRR)
-                return Number.isFinite(value) && value >= 0 ? Math.round(value) : 100_000
-              })(),
+              aiCreditBalanceIRR: commercialConfig.trialCreditIRR,
             },
           })
           user = await prisma.user.create({

@@ -36,6 +36,7 @@ import {
 } from '@/lib/admin/ai-usage'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getVigentoAdminReport, type VigentoAdminReport } from '@/lib/admin/vigento'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import {
   Badge,
   Card,
@@ -52,18 +53,18 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-type UsageRange = '7d' | '30d' | '90d'
+type UsageRange = '7d' | '30d' | 'monthly'
 
 const RANGE_DAYS: Record<UsageRange, number> = {
   '7d': 7,
   '30d': 30,
-  '90d': 90,
+  monthly: 365,
 }
 
 const RANGE_LABELS: Record<UsageRange, string> = {
   '7d': '۷ روز',
   '30d': '۳۰ روز',
-  '90d': '۹۰ روز',
+  monthly: '۱۲ ماه',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -84,7 +85,7 @@ const PLAN_LABELS: Record<string, string> = {
 }
 
 function parseRange(value: string | undefined): UsageRange {
-  if (value === '7d' || value === '90d') return value
+  if (value === '7d' || value === 'monthly') return value
   return '30d'
 }
 
@@ -110,7 +111,7 @@ function totalTokens(row: {
 function RangeTabs({ current }: { current: UsageRange }) {
   return (
     <div
-      className="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-sm"
+      className="spatial-control inline-flex rounded-xl p-1"
       aria-label="بازه گزارش مصرف"
     >
       {(Object.keys(RANGE_DAYS) as UsageRange[]).map((range) => (
@@ -120,10 +121,10 @@ function RangeTabs({ current }: { current: UsageRange }) {
           scroll={false}
           aria-current={current === range ? 'page' : undefined}
           className={cn(
-            'inline-flex min-h-10 items-center rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2',
+            'inline-flex min-h-10 items-center rounded-lg px-3 text-[11px] font-bold transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[.97]',
             current === range
-              ? 'bg-zinc-900 text-white'
-              : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900',
+              ? 'bg-black text-white shadow-[var(--shadow-control)]'
+              : 'text-black/45 hover:bg-black/[0.045] hover:text-black',
           )}
         >
           {RANGE_LABELS[range]}
@@ -549,14 +550,15 @@ export default async function AdminAiPage({
   const params = await searchParams
   const range = parseRange(params.range)
   const days = RANGE_DAYS[range]
-  const [report, platformPolicy, currentMonthSpendUSD, openRouterAccount, vigentoReport] = await Promise.all([
+  const [report, platformPolicy, commercialConfig, currentMonthSpendUSD, openRouterAccount, vigentoReport] = await Promise.all([
     getAiUsageReport(days),
     getPlatformAiConfig(),
+    getPlatformCommercialConfig(),
     getCurrentMonthAiSpendUSD(),
     getOpenRouterAccountUsage(),
     getVigentoAdminReport(days),
   ])
-  const config = getOpenRouterConfigStatus(platformPolicy)
+  const config = getOpenRouterConfigStatus(platformPolicy, commercialConfig)
   const costCoverage = report.totals.requests > 0
     ? Math.round((report.totals.pricedRequests / report.totals.requests) * 100)
     : 0

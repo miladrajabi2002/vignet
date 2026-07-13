@@ -36,19 +36,19 @@ export function MiniTrend({
   // Card container — matches StatsCard in each context.
   const cardCls =
     variant === 'light'
-      ? 'rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm'
+      ? 'admin-panel rounded-[1.35rem] p-4 sm:p-5'
       : 'rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]'
 
   // Label — same position and style as StatsCard.
   const labelCls =
     variant === 'light'
-      ? 'text-xs font-medium text-zinc-500'
+      ? 'text-[11px] font-medium text-black/45'
       : 'text-sm text-[var(--text-secondary)]'
 
   // Value — same size and weight as StatsCard.
   const valueCls =
     variant === 'light'
-      ? 'mt-2 text-3xl font-semibold tracking-tight text-zinc-900'
+      ? 'mt-2 text-[clamp(1.25rem,3vw,1.8rem)] font-bold tracking-tight text-black tabular-nums'
       : 'mt-3 text-3xl font-light text-[var(--text-primary)]'
 
   // Hint — same as StatsCard's sub/hint.

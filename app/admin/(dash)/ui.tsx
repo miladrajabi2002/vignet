@@ -71,8 +71,8 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-zinc-200 bg-white shadow-sm',
-        pad && 'p-5',
+        'admin-panel rounded-[1.35rem]',
+        pad && 'p-4 sm:p-5',
         className,
       )}
     >
@@ -101,15 +101,15 @@ export function Panel({
 }) {
   return (
     <Card className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex items-start justify-between gap-3 border-b border-black/[0.055] pb-3.5">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+          <h2 className="text-sm font-bold text-black">{title}</h2>
+          {subtitle && <p className="mt-1 text-[11px] leading-5 text-black/40">{subtitle}</p>}
         </div>
         {href && linkLabel ? (
           <Link
             href={href}
-            className="shrink-0 text-xs font-medium text-zinc-900 underline-offset-4 hover:underline"
+            className="shrink-0 rounded-lg px-2 py-1.5 text-[11px] font-bold text-black/55 transition-colors hover:bg-black/[0.045] hover:text-black"
           >
             {linkLabel}
           </Link>
@@ -169,17 +169,17 @@ export function StatCard({
             : '#18181b'
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="group relative min-h-[8.5rem] overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-card)] active:scale-[.995]">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-zinc-500">{label}</p>
-          <p className={cn('mt-2 text-3xl font-semibold tracking-tight', valueColor)}>
+          <p className="text-[11px] font-medium text-black/45">{label}</p>
+          <p className={cn('mt-2 text-[clamp(1.25rem,3vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums', valueColor)}>
             {typeof value === 'number' ? fa(value) : value}
           </p>
-          {sub && <p className="mt-1 text-xs text-zinc-500">{sub}</p>}
+          {sub && <p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/40">{sub}</p>}
         </div>
         {icon && (
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', toneRing)}>
+          <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-[1.04]', toneRing)}>
             {icon}
           </span>
         )}
@@ -303,7 +303,7 @@ export function TableShell({
   minWidth?: number
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <div className="admin-panel overflow-x-auto rounded-[1.35rem]">
       <table className="w-full" style={{ minWidth }}>
         {children}
       </table>
@@ -349,7 +349,7 @@ export function PageHeader({
   breadcrumbs?: { label: string; href?: string }[]
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
         {breadcrumbs && breadcrumbs.length > 0 && (
           <nav className="mb-1.5 flex items-center gap-1 text-xs text-zinc-400">
@@ -367,8 +367,8 @@ export function PageHeader({
             ))}
           </nav>
         )}
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>}
+        <h1 className="text-[clamp(1.35rem,3vw,1.8rem)] font-bold leading-tight text-black">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-xs leading-6 text-black/45">{subtitle}</p>}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}
     </div>

@@ -8,6 +8,7 @@ import {
   type ModelAlias,
 } from '@/lib/ai/models'
 import type { PlatformAiConfig } from '@/lib/ai/platform-config'
+import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 const DASHBOARD_TZ = process.env.DASHBOARD_TZ || 'Asia/Tehran'
 
@@ -212,7 +213,10 @@ function fillDaily(rows: DailyRow[], days: number): AiDailyUsage[] {
  * Server-only configuration summary. The OpenRouter key is deliberately reduced
  * to a boolean and is never returned, masked, logged, or sent to the client.
  */
-export function getOpenRouterConfigStatus(platformPolicy?: PlatformAiConfig): OpenRouterConfigStatus {
+export function getOpenRouterConfigStatus(
+  platformPolicy?: PlatformAiConfig,
+  commercialConfig?: PlatformCommercialConfig,
+): OpenRouterConfigStatus {
   const envByAlias: Record<ModelAlias, string> = {
     fast: 'OPENROUTER_MODEL_FAST',
     standard: 'OPENROUTER_MODEL_STANDARD',
@@ -222,8 +226,8 @@ export function getOpenRouterConfigStatus(platformPolicy?: PlatformAiConfig): Op
 
   return {
     apiKeyConfigured: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
-    providerSort: process.env.OPENROUTER_PROVIDER_SORT?.trim() || 'price',
-    zeroDataRetention: process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
+    providerSort: commercialConfig?.providerSort || process.env.OPENROUTER_PROVIDER_SORT?.trim() || 'price',
+    zeroDataRetention: commercialConfig?.zeroDataRetention ?? process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
     models: AGENT_MODELS.map((model) => {
       const envName = envByAlias[model.id]
       return {
@@ -234,7 +238,7 @@ export function getOpenRouterConfigStatus(platformPolicy?: PlatformAiConfig): Op
         providerId: resolveModelId(model.id, platformPolicy?.providerModels),
         providerLabel: model.provider,
         usingEnvOverride: !platformPolicy && Boolean(process.env[envName]?.trim()),
-        replyPriceIRR: getReplyPriceIRR(model.id),
+        replyPriceIRR: commercialConfig?.replyPricesIRR[model.id] ?? getReplyPriceIRR(model.id),
         priceEnvName: `AI_REPLY_PRICE_${model.id.toUpperCase()}_IRR`,
         inputUsdPerMillion: model.inputUsdPerMillion,
         outputUsdPerMillion: model.outputUsdPerMillion,

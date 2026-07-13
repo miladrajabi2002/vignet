@@ -1,7 +1,8 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { ShieldCheck, Loader2 } from 'lucide-react'
+import { ShieldCheck, Loader2, Sparkles } from 'lucide-react'
+import { Logo } from '@/components/ui/logo'
 import { adminLogin, type AdminLoginState } from './actions'
 
 const initial: AdminLoginState = {}
@@ -12,7 +13,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-zinc-800 disabled:opacity-50"
+      className="admin-primary-button w-full text-sm"
     >
       {pending && <Loader2 className="h-4 w-4 animate-spin" />}
       {pending ? 'در حال ورود…' : 'ورود به پنل مدیریت'}
@@ -24,7 +25,7 @@ export function AdminLoginForm() {
   const [state, formAction] = useFormState(adminLogin, initial)
 
   return (
-    <div dir="rtl" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 font-fa">
+    <div dir="rtl" className="admin-root relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-6 font-fa">
       {/* Decorative grid background */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.04]"
@@ -36,14 +37,20 @@ export function AdminLoginForm() {
       />
       <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-zinc-900/5 blur-3xl" />
 
-      <div className="relative w-full max-w-sm">
-        <div className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-200/50">
+      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white shadow-[0_32px_100px_-48px_rgba(0,0,0,.65)] lg:grid-cols-2">
+        <div className="relative hidden min-h-[560px] overflow-hidden bg-black p-8 text-white lg:block">
+          <div className="admin-vigento-grid absolute inset-0 opacity-60" />
+          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigento AI</p><p className="mt-1 text-[9px] text-white/40">OWNER OPERATIONS CORE</p></div></div>
+          <div className="relative mt-24"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08]"><Sparkles className="h-5 w-5" /></span><h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2><p className="mt-4 max-w-sm text-xs leading-7 text-white/45">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنتو.</p></div>
+          <p className="absolute bottom-8 text-[9px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
+        </div>
+        <div className="p-6 sm:p-10">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-lg shadow-zinc-900/20">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
               <ShieldCheck className="h-7 w-7" />
             </div>
-            <h1 className="mt-5 text-xl font-bold text-zinc-900">پنل مدیریت ویجنت</h1>
-            <p className="mt-1.5 text-sm text-zinc-500">دسترسی اختصاصی میلاد</p>
+            <h1 className="mt-5 text-xl font-bold text-black">ورود مالک پلتفرم</h1>
+            <p className="mt-1.5 text-xs text-black/45">دسترسی اختصاصی میلاد</p>
           </div>
 
           <form action={formAction} className="mt-7 space-y-3">
@@ -54,7 +61,7 @@ export function AdminLoginForm() {
                 inputMode="tel"
                 autoComplete="tel"
                 placeholder="۰۹۱۲۸۳۵۲۲۷۱"
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                className="admin-input bg-[#f8f8f6] text-sm"
               />
             </div>
             <div>
@@ -64,7 +71,7 @@ export function AdminLoginForm() {
                 type="password"
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                className="admin-input bg-[#f8f8f6] text-sm"
               />
             </div>
             {state.error ? (
@@ -74,10 +81,8 @@ export function AdminLoginForm() {
               <SubmitButton />
             </div>
           </form>
+          <p className="mt-8 text-center text-[10px] text-black/30">© ویجنت — نشست امضاشده و زمان‌دار</p>
         </div>
-        <p className="mt-6 text-center text-xs text-zinc-400">
-          © ویجنت — تمامی حقوق محفوظ است
-        </p>
       </div>
     </div>
   )

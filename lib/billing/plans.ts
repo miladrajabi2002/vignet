@@ -1,6 +1,7 @@
 import type { Plan } from '@prisma/client'
 import { MODEL_ALIASES, getReplyPriceIRR, type ModelAlias } from '@/lib/ai/models'
 import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /**
  * Plan catalog — the subscription pays for platform/service capacity while AI
@@ -81,6 +82,14 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
   }
 }
 
+/** DB-backed runtime catalog. Environment values remain first-deploy fallbacks. */
+export async function getEffectivePlanDefs(): Promise<Record<Plan, PlanDef>> {
+  const config = await getPlatformCommercialConfig()
+  return Object.fromEntries(
+    (Object.keys(config.plans) as Plan[]).map((plan) => [plan, { plan, ...config.plans[plan] }]),
+  ) as Record<Plan, PlanDef>
+}
+
 export const PAID_PLANS = ['STARTER', 'PRO', 'BUSINESS'] as const satisfies readonly Plan[]
 export type PaidPlan = (typeof PAID_PLANS)[number]
 
@@ -95,6 +104,19 @@ export function getPlanReplyPricesIRR(plan: Plan): Record<ModelAlias, number> {
     MODEL_ALIASES.map((alias) => [
       alias,
       discountedReplyPriceIRR(getReplyPriceIRR(alias), discountBps),
+    ]),
+  ) as Record<ModelAlias, number>
+}
+
+export async function getEffectivePlanReplyPricesIRR(plan: Plan): Promise<Record<ModelAlias, number>> {
+  const [defs, commercial] = await Promise.all([
+    getEffectivePlanDefs(),
+    getPlatformCommercialConfig(),
+  ])
+  return Object.fromEntries(
+    MODEL_ALIASES.map((alias) => [
+      alias,
+      discountedReplyPriceIRR(commercial.replyPricesIRR[alias], defs[plan].replyDiscountBps),
     ]),
   ) as Record<ModelAlias, number>
 }

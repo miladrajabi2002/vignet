@@ -114,7 +114,7 @@ export function TrendChart({
   const gradId = `grad-${title.replace(/\s/g, '')}-${variant}`
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -194,7 +194,7 @@ export function DonutChart({
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -275,7 +275,7 @@ export function BarList({
   const max = Math.max(1, ...data.map((d) => d.value))
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -320,7 +320,7 @@ export function MonthlyBarChart({
   format?: FormatKind
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}

@@ -1,14 +1,15 @@
 import { prisma } from '@/lib/prisma'
-import { getPlanDefs } from '@/lib/billing/plans'
 import {
   calculateFinanceSummary,
   parseUsdToIrrRate,
   type FinanceSummary,
 } from '@/lib/admin/finance'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /** Consolidated cash/profit report with explicit USD -> IRR conversion. */
 export async function getFinanceSummary(): Promise<FinanceSummary> {
-  const [paymentRows, providerCost, giftedCredit] = await Promise.all([
+  const [paymentRows, providerCost, giftedCredit, commercialConfig] = await Promise.all([
     prisma.payment.groupBy({
       by: ['kind', 'currency'],
       where: { status: 'PAID' },
@@ -22,6 +23,7 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
       where: { type: 'PLAN_CREDIT_GRANT' },
       _sum: { amountIRR: true },
     }),
+    getPlatformCommercialConfig(),
   ])
 
   const paid = (kind: 'SUBSCRIPTION' | 'AI_CREDIT', currency: 'IRR' | 'USD') =>
@@ -34,7 +36,7 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
     creditTopupUSD: paid('AI_CREDIT', 'USD'),
     openRouterCostUSD: providerCost._sum.cost ?? 0,
     giftedCreditIRR: giftedCredit._sum.amountIRR ?? 0,
-    usdToIRR: parseUsdToIrrRate(process.env.FINANCE_USD_TO_IRR),
+    usdToIRR: parseUsdToIrrRate(commercialConfig.financeUsdToIRR?.toString()),
   })
 }
 
@@ -211,7 +213,7 @@ export interface PlanRevenueRow {
 
 /** Revenue + workspace count per plan. */
 export async function getPlanRevenue(): Promise<PlanRevenueRow[]> {
-  const planDefs = getPlanDefs()
+  const planDefs = await getEffectivePlanDefs()
   const labels: Record<string, string> = {
     TRIAL: 'آزمایشی',
     STARTER: 'استارتر',

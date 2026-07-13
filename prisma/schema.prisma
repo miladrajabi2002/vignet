@@ -656,13 +656,38 @@ model CreditAlertState {
 // Singleton runtime policy for the platform-owned AI account. Secrets remain
 // in environment variables; this table stores only safe aliases and budgets.
 model PlatformAiSettings {
-  id               String   @id @default("primary")
-  defaultModel     String   @default("fast")
-  enabledModels    String[] @default(["fast", "standard", "balanced", "premium"])
-  trialModel       String   @default("fast")
-  providerModels   Json     @default("{}")
-  monthlyBudgetUSD Float?
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default("primary")
+  defaultModel          String   @default("fast")
+  enabledModels         String[] @default(["fast", "standard", "balanced", "premium"])
+  trialModel            String   @default("fast")
+  providerModels        Json     @default("{}")
+  monthlyBudgetUSD      Float?
+  sttModel              String   @default("openai/whisper-large-v3-turbo")
+  ttsModel              String   @default("openai/gpt-4o-mini-tts-2025-12-15")
+  providerSort          String   @default("price")
+  zeroDataRetention     Boolean  @default(true)
+  replyPricesIRR        Json     @default("{}")
+  trialCreditIRR        Int      @default(100000)
+  planConfig            Json     @default("{}")
+  financeUsdToIRR       Int?
+  updatedAt             DateTime @updatedAt
+}
+
+// Durable audit trail for every confirmed operation performed from the
+// owner-only Vigento admin console. Prompts are never stored here; only the
+// allow-listed action receipt and its exact target are persisted.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminPhone String
+  action     String
+  targetType String
+  targetId   String
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
 }
 
 // Privacy-safe operational telemetry for Vigento, the agent-building

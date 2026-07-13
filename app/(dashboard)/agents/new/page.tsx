@@ -2,7 +2,7 @@ import { AgentBuilderEntry } from '@/components/agent-builder/agent-builder-entr
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
-import { getPlanReplyPricesIRR } from '@/lib/billing/plans'
+import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
 
 const BUSINESSES = new Set([
   'instagram',
@@ -47,7 +47,7 @@ export default async function NewAgentPage({
           enabledModels: policy.enabledModels,
           trialModel: policy.trialModel,
           creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0,
-          replyPricesIRR: getPlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
+          replyPricesIRR: await getEffectivePlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
         }}
       />
     </div>

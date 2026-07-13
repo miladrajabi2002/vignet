@@ -30,7 +30,7 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import { getDashboardModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
-import { getPlanDefs } from '@/lib/billing/plans'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
@@ -216,7 +216,7 @@ export default async function OverviewPage() {
           href: '/agents',
         }
 
-  const planDef = getPlanDefs()[workspace.plan]
+  const planDef = (await getEffectivePlanDefs())[workspace.plan]
   const planEnd = workspace.plan === 'TRIAL' ? workspace.trialEndsAt : subscription?.currentPeriodEnd
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - now.getTime()) / 86_400_000))

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
-import { getPlanDefs } from '@/lib/billing/plans'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { computeOnboarding } from '@/lib/onboarding'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
@@ -58,7 +58,7 @@ export default async function DashboardLayout({
 
   const messagesUsed = await getMonthlyMessageCount(user.workspaceId)
   const plan = workspace?.plan ?? 'TRIAL'
-  const planDef = getPlanDefs()[plan]
+  const planDef = (await getEffectivePlanDefs())[plan]
   const planEnd = plan === 'TRIAL'
     ? workspace?.trialEndsAt
     : workspace?.subscriptions[0]?.currentPeriodEnd

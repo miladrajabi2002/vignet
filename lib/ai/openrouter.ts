@@ -1,4 +1,5 @@
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
+import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
@@ -46,13 +47,11 @@ function appHeaders(): Record<string, string> {
   }
 }
 
-function envBoolean(name: string, fallback: boolean): boolean {
-  const raw = process.env[name]?.trim().toLowerCase()
-  if (!raw) return fallback
-  return raw === '1' || raw === 'true' || raw === 'yes'
-}
-
-function requestBody(opts: ChatOptions, stream: boolean): Record<string, unknown> {
+function requestBody(
+  opts: ChatOptions,
+  stream: boolean,
+  runtime: Pick<PlatformCommercialConfig, 'providerSort' | 'zeroDataRetention'>,
+): Record<string, unknown> {
   const maxPrice = opts.model.includes('v4-pro')
     ? { prompt: 1.2, completion: 2.4 }
     : opts.model.includes('qwen3.5')
@@ -68,9 +67,9 @@ function requestBody(opts: ChatOptions, stream: boolean): Record<string, unknown
     stream,
     reasoning: { enabled: false },
     provider: {
-      sort: process.env.OPENROUTER_PROVIDER_SORT || 'price',
+      sort: runtime.providerSort,
       data_collection: 'deny',
-      zdr: envBoolean('OPENROUTER_ZDR', true),
+      zdr: runtime.zeroDataRetention,
       allow_fallbacks: true,
       max_price: maxPrice,
     },
@@ -129,10 +128,12 @@ function parseUsage(payload: unknown): ChatUsage {
 export async function chatCompletion(
   opts: ChatOptions,
 ): Promise<{ content: string; usage: ChatUsage; toolCalls: ChatToolCall[] }> {
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
+  const runtime = await getPlatformCommercialConfig()
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
-    body: JSON.stringify(requestBody(opts, false)),
+    body: JSON.stringify(requestBody(opts, false, runtime)),
     signal: AbortSignal.timeout(60_000),
   })
   if (!res.ok) {
@@ -168,10 +169,12 @@ export async function chatCompletion(
 export async function* streamChat(
   opts: ChatOptions,
 ): AsyncGenerator<string, void, unknown> {
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
+  const runtime = await getPlatformCommercialConfig()
   const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
-    body: JSON.stringify(requestBody(opts, true)),
+    body: JSON.stringify(requestBody(opts, true, runtime)),
     signal: AbortSignal.timeout(90_000),
   })
   if (!res.ok || !res.body) {

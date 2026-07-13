@@ -2,6 +2,7 @@ import { Gauge, Wallet, DollarSign } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { TrendChart, BarList } from '@/components/admin/trend-chart'
 import { usageChargesDaily } from '@/lib/admin/charts'
+import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import {
   PageHeader,
   StatCard,
@@ -20,10 +21,22 @@ const TYPE_LABEL: Record<string, string> = {
   EMBEDDING: 'امبدینگ',
   TTS: 'تبدیل متن به گفتار',
   STT: 'تبدیل گفتار به متن',
+  SUMMARY: 'خلاصه‌سازی',
+  LEARNING: 'یادگیری',
+  VIGENTO_DRAFT: 'ساخت ایجنت با ویجنتو',
+  VIGENTO_ASSISTANT: 'دستیار ویجنتو',
 }
 
-export default async function AdminUsagePage() {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+function parseRange(value?: string): RangeKind {
+  if (value === '7d' || value === 'monthly') return value
+  return '30d'
+}
+
+export default async function AdminUsagePage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const range = parseRange((await searchParams).range)
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 365
+  const rangeLabel = range === '7d' ? '۷ روز' : range === '30d' ? '۳۰ روز' : '۱۲ ماه'
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const where = { date: { gte: since } }
 
   const [totals, byType, byModel, callCount, chargeTrend] = await Promise.all([
@@ -46,7 +59,7 @@ export default async function AdminUsagePage() {
       take: 10,
     }),
     prisma.usageLog.count({ where }),
-    usageChargesDaily(14),
+    usageChargesDaily(days),
   ])
 
   const totalChargedIRR = totals._sum.chargedIRR ?? 0
@@ -76,12 +89,13 @@ export default async function AdminUsagePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="مصرف و توکن"
-        subtitle="آمار مصرف AI — ۳۰ روز اخیر"
+        title="مصرف و هزینه AI"
+        subtitle={`تصویر مالی درخواست‌های هوش مصنوعی در ${rangeLabel} اخیر`}
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
           { label: 'مصرف' },
         ]}
+        action={<RangeSwitch current={range} basePath="/admin/usage" />}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -106,10 +120,10 @@ export default async function AdminUsagePage() {
       </div>
 
       <TrendChart
-         title="مبلغ مصرف‌شده ۱۴ روز اخیر"
+         title={`مبلغ مصرف‌شده ${rangeLabel} اخیر`}
          subtitle="مجموع مبلغ کسرشده از اعتبار روزانه"
          data={chargeTrend.map((point) => ({ ...point, value: Math.round(point.value / 10) }))}
-        color="#a855f7"
+        color="#18181b"
         variant="area"
       />
 

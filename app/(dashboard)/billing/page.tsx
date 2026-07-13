@@ -9,7 +9,7 @@ import { ReplyCreditEstimator } from '@/components/dashboard/reply-credit-estima
 import { MiniTrend } from '@/components/admin/mini-trend'
 import { messagesDailyByWorkspace, chargesDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
-import { getPlanDefs, getPlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 
 const PLAN_KEY: Record<string, string> = {
@@ -60,8 +60,8 @@ export default async function BillingPage(
   const plan = workspace?.plan ?? 'TRIAL'
   const chargedIRR = usage._sum.chargedIRR ?? 0
 
-  const defs = getPlanDefs()
-  const replyPricesIRR = getPlanReplyPricesIRR(plan)
+  const defs = await getEffectivePlanDefs()
+  const replyPricesIRR = await getEffectivePlanReplyPricesIRR(plan)
   const trialExpired =
     plan === 'TRIAL' &&
     !!workspace?.trialEndsAt &&

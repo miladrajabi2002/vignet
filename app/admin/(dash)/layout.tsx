@@ -1,10 +1,11 @@
-import { ShieldCheck, LogOut } from 'lucide-react'
+import Link from 'next/link'
+import { Home, LogOut, ShieldCheck } from 'lucide-react'
 import { requireAdmin } from '@/lib/admin/auth'
 import { adminLogout } from '../login/actions'
 import { AdminNavContent, BrandHeader } from './admin-nav'
 import { MobileNavTrigger } from './mobile-nav'
 
-export const metadata = { title: 'پنل مدیریت — ویجنت' }
+export const metadata = { title: 'پنل مالک | Vigento AI — ویجنت' }
 export const dynamic = 'force-dynamic'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -12,40 +13,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   requireAdmin()
 
   return (
-    <div dir="rtl" className="min-h-screen bg-zinc-50 font-fa text-zinc-900">
+    <div dir="rtl" className="admin-root min-h-dvh bg-[var(--bg-base)] font-fa text-[var(--text-primary)]">
       <MobileNavTrigger />
-      <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 md:px-6">
+      <div className="mx-auto flex max-w-[1600px] gap-4 px-3 py-3 sm:px-4 md:gap-5 md:px-5 md:py-5">
         {/* Desktop sidebar */}
-        <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-64 shrink-0 flex-col rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:flex">
-          <div className="px-1 pb-5">
+        <aside className="spatial-surface sticky top-5 hidden h-[calc(100dvh-2.5rem)] w-[15.5rem] shrink-0 flex-col rounded-[1.65rem] p-3.5 md:flex">
+          <div className="px-1 pb-3 pt-1">
             <BrandHeader />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto pe-0.5">
             <AdminNavContent />
           </div>
-          <div className="mt-3 border-t border-zinc-100 pt-3">
-            <div className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              دسترسی مدیر سیستم
+          <div className="mt-2 border-t border-black/[0.06] pt-3">
+            <div className="flex items-center gap-2 rounded-xl bg-[#f4f4f2] px-3 py-2.5 text-[10px] text-black/45">
+              <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40 motion-reduce:animate-none" /><span className="relative h-2 w-2 rounded-full bg-emerald-500" /></span>
+              <span className="min-w-0 flex-1"><b className="block truncate text-[11px] text-black/75">میلاد · مالک پلتفرم</b><span className="mt-0.5 block truncate">دسترسی امن و ثبت‌شونده</span></span>
+              <ShieldCheck className="h-4 w-4 text-black/50" />
             </div>
           </div>
         </aside>
 
         {/* Main content */}
-        <main className="min-w-0 flex-1">
-          {/* Top-left logout (desktop) — in RTL, justify-end = left side */}
-          <div className="mb-4 hidden items-center justify-end md:flex">
-            <form action={adminLogout}>
+        <main className="min-w-0 flex-1 pb-8">
+          <div className="spatial-control sticky top-3 z-20 mb-5 hidden min-h-[4.25rem] items-center justify-between rounded-2xl px-4 md:flex">
+            <div><p className="text-sm font-bold text-black">سلام میلاد</p><p className="mt-1 flex items-center gap-1.5 text-[10px] text-black/45"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> مرکز عملیات Vigento AI</p></div>
+            <div className="flex items-center gap-2">
+              <Link href="/" className="admin-toolbar-button"><Home className="h-4 w-4" /> خانه سایت</Link>
+              <form action={adminLogout}>
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-600 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                className="admin-toolbar-button hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               >
                 <LogOut className="h-4 w-4" />
                 خروج
               </button>
             </form>
+            </div>
           </div>
-          {children}
+          <div className="mx-auto w-full max-w-[84rem]">{children}</div>
         </main>
       </div>
     </div>

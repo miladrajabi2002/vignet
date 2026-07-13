@@ -19,7 +19,7 @@ export function planCreditGrantKey(paymentId: string): string {
  */
 export async function grantIncludedPlanCredit(
   tx: Prisma.TransactionClient,
-  params: { paymentId: string; workspaceId: string; plan: PaidPlan },
+  params: { paymentId: string; workspaceId: string; plan: PaidPlan; amountIRR?: number },
 ): Promise<PlanCreditGrantResult> {
   const grantKey = planCreditGrantKey(params.paymentId)
   const existing = await tx.walletLedger.findUnique({
@@ -35,7 +35,7 @@ export async function grantIncludedPlanCredit(
     }
   }
 
-  const amountIRR = getPlanDefs()[params.plan].includedCreditIRR
+  const amountIRR = params.amountIRR ?? getPlanDefs()[params.plan].includedCreditIRR
   const workspace = await tx.workspace.update({
     where: { id: params.workspaceId },
     data: { aiCreditBalanceIRR: { increment: amountIRR } },

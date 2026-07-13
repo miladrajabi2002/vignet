@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
-import { getPlanDefs, isPaidPlan } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, isPaidPlan } from '@/lib/billing/plans'
 import { createZarinPayPayment } from '@/lib/billing/zarinpay'
 import { createNowPaymentsInvoice } from '@/lib/billing/nowpayments'
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   }
   const { gateway } = parsed.data
   const plan = parsed.data.kind === 'SUBSCRIPTION' ? parsed.data.plan : null
-  const def = plan ? getPlanDefs()[plan] : null
+  const def = plan ? (await getEffectivePlanDefs())[plan] : null
   const amount = parsed.data.kind === 'AI_CREDIT'
     ? parsed.data.amountIRR
     : gateway === 'ZARINPAY'

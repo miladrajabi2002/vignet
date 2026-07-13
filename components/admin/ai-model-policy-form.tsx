@@ -155,7 +155,7 @@ export function AiModelPolicyForm({
   }
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="admin-panel rounded-[1.35rem] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export function AiModelPolicyForm({
           type="button"
           onClick={savePolicy}
           disabled={isPending || !dirty}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+          className="admin-primary-button"
         >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

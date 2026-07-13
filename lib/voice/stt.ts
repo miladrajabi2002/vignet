@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
+import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /**
  * Speech-to-text via Vigent's platform-managed OpenRouter account.
@@ -32,7 +33,8 @@ export async function transcribeAudio(
   const key = getPlatformOpenRouterKey()
   if (!key) throw new Error('PLATFORM_AI_NOT_CONFIGURED')
 
-  const model = process.env.OPENROUTER_STT_MODEL?.trim() || DEFAULT_STT_MODEL
+  const runtime = await getPlatformCommercialConfig()
+  const model = runtime.sttModel || DEFAULT_STT_MODEL
 
   const res = await fetch(`${OPENROUTER_BASE}/audio/transcriptions`, {
     method: 'POST',
@@ -51,7 +53,7 @@ export async function transcribeAudio(
       ...(input.language ? { language: input.language } : {}),
       provider: {
         data_collection: 'deny',
-        zdr: process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
+        zdr: runtime.zeroDataRetention,
       },
     }),
     signal: AbortSignal.timeout(90_000),

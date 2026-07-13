@@ -12,7 +12,10 @@ import { normalizePhone } from '@/lib/phone'
 
 const COOKIE_NAME = 'admin_session'
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
-const ADMIN_OWNER_PHONE = normalizePhone(process.env.ADMIN_OWNER_PHONE || '09128352271')
+// Product invariant: the platform owner is Milad. Do not infer admin access
+// from a dashboard user role or workspace ownership.
+export const ADMIN_OWNER_PHONE = normalizePhone('09128352271')
+export const ADMIN_OWNER_NAME = 'میلاد'
 
 function secret(): string {
   const s = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
@@ -70,8 +73,8 @@ export function isAdminAuthed(): boolean {
 /**
  * Auth check for API route handlers. Accepts the admin session cookie (from the
  * normal /admin login flow) AND, as a fallback for direct API calls (fresh tab,
- * Postman, curl — where the cookie isn't sent), an `admin_token` supplied via
- * either the `?admin_token=…` query parameter or the `X-Admin-Token` header.
+ * Postman or curl — where the cookie isn't sent), the admin password supplied
+ * via `X-Admin-Token` together with the fixed owner phone in `X-Admin-Phone`.
  *
  * The fallback token must equal the ADMIN_PASS env var — the same secret the
  * operator typed at the /admin login screen. This keeps diagnostics gated
@@ -91,19 +94,8 @@ export function isAdminAuthedRequest(req: Request): boolean {
     && safeEqual(headerTok, process.env.ADMIN_PASS)) {
     return true
   }
-  // 3) Query-param token (?admin_token=…).
-  try {
-    const url = new URL(req.url)
-    const q = url.searchParams.get('admin_token')
-    const qPhone = normalizePhone(url.searchParams.get('admin_phone') || '')
-    if (q && qPhone && ADMIN_OWNER_PHONE && process.env.ADMIN_PASS
-      && safeEqual(qPhone, ADMIN_OWNER_PHONE)
-      && safeEqual(q, process.env.ADMIN_PASS)) {
-      return true
-    }
-  } catch {
-    /* req.url malformed — ignore */
-  }
+  // Secrets are deliberately never accepted in query parameters because URLs
+  // are commonly retained in proxy, browser and analytics logs.
   return false
 }
 

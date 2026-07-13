@@ -12,7 +12,6 @@ import {
   Activity,
   BrainCircuit,
   CircleDollarSign,
-  Coins,
 } from 'lucide-react'
 import {
   PageHeader,
@@ -49,6 +48,7 @@ import {
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
+import { VigentoAdminConsole } from '@/components/admin/vigento-admin-console'
 
 export const dynamic = 'force-dynamic'
 
@@ -162,9 +162,11 @@ export default async function AdminOverviewPage(
 
   return (
     <div className="space-y-6">
+      <VigentoAdminConsole />
+
       <PageHeader
-        title="داشبورد"
-        subtitle="نمای کلی وضعیت پلتفرم ویجنت"
+        title="نبض پلتفرم"
+        subtitle="نمای یکپارچه عملکرد، درآمد و سلامت Vigento AI"
         action={<RangeSwitch current={range} />}
       />
 
@@ -257,10 +259,10 @@ export default async function AdminOverviewPage(
             tone="success"
           />
           <StatCard
-            label="توکن ورودی + خروجی"
-            value={fa(aiOverview.promptTokens + aiOverview.completionTokens)}
-            sub={`${fa(aiOverview.cachedTokens)} توکن کش`}
-            icon={<Coins className="h-5 w-5" />}
+            label="میانگین کسر هر پاسخ"
+            value={fmtIRR(aiOverview.requests > 0 ? Math.round(aiOverview.chargedIRR / aiOverview.requests) : 0)}
+            sub="بر اساس پاسخ‌های موفق ثبت‌شده"
+            icon={<Activity className="h-5 w-5" />}
             tone="warning"
           />
           <StatCard

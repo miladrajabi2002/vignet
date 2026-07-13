@@ -159,7 +159,7 @@ function Card({
   tone?: keyof typeof TONES
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium text-zinc-500">{label}</p>
@@ -193,7 +193,7 @@ function Chart({
   color: string
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
       <h3 className="mb-4 text-sm font-semibold text-zinc-900">{title}</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, LogOut } from 'lucide-react'
+import Link from 'next/link'
+import { Home, Menu, X, LogOut } from 'lucide-react'
 import { AdminNavContent, BrandHeader } from './admin-nav'
 import { adminLogout } from '../login/actions'
 
@@ -11,28 +12,25 @@ export function MobileNavTrigger() {
 
   return (
     <>
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur md:hidden">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
-            <span className="text-xs font-bold">و</span>
-          </div>
-          <span className="text-sm font-bold text-zinc-900">پنل مدیریت ویجنت</span>
-        </div>
+      <div className="spatial-control sticky top-2 z-30 mx-2 mt-2 flex min-h-14 items-center justify-between rounded-2xl px-3 md:hidden">
+        <BrandHeader />
         <div className="flex items-center gap-2">
           <form action={adminLogout}>
             <button
               type="submit"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.07] bg-white text-black/45 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               aria-label="خروج"
             >
               <LogOut className="h-5 w-5" />
             </button>
           </form>
+          <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.07] bg-white text-black/55" aria-label="خانه سایت"><Home className="h-4 w-4" /></Link>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]"
             aria-label="منو"
+            aria-expanded={open}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -41,17 +39,19 @@ export function MobileNavTrigger() {
 
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
+          <button
+            type="button"
+            aria-label="بستن منو"
+            className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+          <div className="absolute inset-y-2 right-2 flex w-[19rem] max-w-[calc(100vw-1rem)] flex-col rounded-[1.6rem] border border-white/60 bg-white/95 shadow-[0_30px_90px_-35px_rgba(0,0,0,.75)] backdrop-blur-2xl">
+            <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
               <BrandHeader />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.07] text-black/50"
                 aria-label="بستن"
               >
                 <X className="h-5 w-5" />

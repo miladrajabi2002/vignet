@@ -162,3 +162,10 @@ export function getReplyPriceIRR(value: string | null | undefined): number {
   const override = Number(process.env[envName])
   return Number.isFinite(override) && override > 0 ? Math.round(override) : model.replyPriceIRR
 }
+
+/** Runtime price selected in the owner panel, with the env catalog as fallback. */
+export async function getEffectiveReplyPriceIRR(value: string | null | undefined): Promise<number> {
+  const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
+  const alias = resolveModelAlias(value)
+  return (await getPlatformCommercialConfig()).replyPricesIRR[alias]
+}

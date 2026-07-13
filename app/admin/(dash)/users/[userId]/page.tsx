@@ -8,7 +8,7 @@ import {
   Mail,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { getPlanDefs } from '@/lib/billing/plans'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { MiniTrend } from '@/components/admin/mini-trend'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import {
@@ -154,7 +154,7 @@ export default async function AdminUserDetailPage(
 
   const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
   const plan = PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }
-  const planDef = getPlanDefs()[ws.plan]
+  const planDef = (await getEffectivePlanDefs())[ws.plan]
   const totalChargedIRR = usage._sum.chargedIRR ?? 0
   const totalCost = usage._sum.cost ?? 0
 

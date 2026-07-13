@@ -262,6 +262,130 @@
 }
 
 @layer components {
+        .admin-root {
+                --admin-surface: rgba(255, 255, 255, 0.96);
+                font-family: var(--font-fa), system-ui, sans-serif;
+                background-image:
+                        radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.95), transparent 28rem),
+                        linear-gradient(180deg, #f7f7f5 0%, #f2f2f0 100%);
+        }
+
+        .admin-panel {
+                border: 1px solid rgba(17, 17, 17, 0.075);
+                background: var(--admin-surface);
+                box-shadow: var(--shadow-soft);
+        }
+
+        .admin-primary-button {
+                display: inline-flex;
+                min-height: 2.75rem;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                border-radius: 0.8rem;
+                background: #0b0b0b;
+                padding-inline: 1rem;
+                color: white;
+                font-size: 0.75rem;
+                font-weight: 700;
+                box-shadow: var(--shadow-control);
+                transition: transform 160ms var(--ease-spatial), opacity 160ms ease, background-color 160ms ease;
+        }
+
+        .admin-primary-button:active { transform: scale(0.97); }
+        .admin-primary-button:disabled { cursor: not-allowed; opacity: 0.38; box-shadow: none; }
+
+        .admin-toolbar-button {
+                display: inline-flex;
+                min-height: 2.5rem;
+                align-items: center;
+                justify-content: center;
+                gap: 0.45rem;
+                border: 1px solid rgba(17, 17, 17, 0.075);
+                border-radius: 0.75rem;
+                background: rgba(255, 255, 255, 0.8);
+                padding-inline: 0.8rem;
+                color: rgba(17, 17, 17, 0.58);
+                font-size: 0.7rem;
+                font-weight: 600;
+                transition: transform 160ms var(--ease-spatial), border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+        }
+
+        .admin-toolbar-button:active { transform: scale(0.97); }
+
+        .admin-input {
+                width: 100%;
+                min-height: 2.85rem;
+                border: 1px solid rgba(17, 17, 17, 0.085);
+                border-radius: 0.85rem;
+                background: white;
+                padding-inline: 0.85rem;
+                color: #111;
+                font-size: 0.75rem;
+                outline: none;
+                transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+        }
+
+        .admin-input:focus {
+                border-color: rgba(17, 17, 17, 0.28);
+                box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.045);
+        }
+
+        .admin-icon-well {
+                display: inline-flex;
+                height: 2.5rem;
+                width: 2.5rem;
+                flex-shrink: 0;
+                align-items: center;
+                justify-content: center;
+                border-radius: 0.8rem;
+                background: #0b0b0b;
+                color: white;
+                box-shadow: var(--shadow-control);
+        }
+
+        .admin-vigento-grid {
+                background-image:
+                        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+                background-size: 34px 34px;
+                mask-image: radial-gradient(circle at center, black 20%, transparent 78%);
+        }
+
+        .admin-vigento-orbit::before,
+        .admin-vigento-orbit::after {
+                content: '';
+                position: absolute;
+                width: 0.42rem;
+                height: 0.42rem;
+                border-radius: 999px;
+                background: #6ee7b7;
+                box-shadow: 0 0 18px rgba(110, 231, 183, 0.75);
+        }
+
+        .admin-vigento-orbit::before { inset-inline-start: -0.21rem; top: 50%; }
+        .admin-vigento-orbit::after { inset-inline-end: -0.21rem; top: 50%; }
+
+        .admin-vigento-shell [class*='absolute flex items-center'][class*='backdrop-blur'] {
+                animation: admin-node-arrive 420ms var(--ease-spatial) both;
+        }
+
+        .admin-vigento-messages { scrollbar-width: thin; }
+
+        @keyframes admin-node-arrive {
+                from { opacity: 0; transform: translateY(6px) scale(0.97); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+                .admin-primary-button,
+                .admin-toolbar-button,
+                .admin-vigento-shell * {
+                        animation: none !important;
+                        transition-duration: 0.01ms !important;
+                }
+        }
+
         /* Shared application canvas — pure white, no decorative backgrounds. */
         .dashboard-canvas {
                 background:

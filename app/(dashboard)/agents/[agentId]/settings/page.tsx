@@ -8,7 +8,7 @@ import {
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { AgentVersions } from '@/components/agents/agent-versions'
-import { getPlanReplyPricesIRR } from '@/lib/billing/plans'
+import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
 
 export default async function AgentSettingsPage(
   props: {
@@ -43,7 +43,7 @@ export default async function AgentSettingsPage(
           enabledModels: platformPolicy.enabledModels,
           trialModel: platformPolicy.trialModel,
           creditBalanceIRR: workspace?.aiCreditBalanceIRR ?? 0,
-          replyPricesIRR: getPlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
+          replyPricesIRR: await getEffectivePlanReplyPricesIRR(workspace?.plan ?? 'TRIAL'),
         }}
         agent={{
           id: agent.id,

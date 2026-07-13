@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getPlanDefs } from '@/lib/billing/plans'
-import { getReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getEffectiveReplyPriceIRR, resolveModelAlias, type ModelAlias } from '@/lib/ai/models'
 import type { ChatUsage } from '@/lib/ai/openrouter'
 import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
 import { processLowCreditAlert } from '@/lib/billing/low-credit-alert'
@@ -25,8 +25,8 @@ export async function getReplyChargeIRR(
     select: { plan: true },
   })
   if (!workspace) return null
-  const def = getPlanDefs()[workspace.plan]
-  return discountedReplyPriceIRR(getReplyPriceIRR(model), def.replyDiscountBps)
+  const def = (await getEffectivePlanDefs())[workspace.plan]
+  return discountedReplyPriceIRR(await getEffectiveReplyPriceIRR(model), def.replyDiscountBps)
 }
 
 /**
@@ -43,6 +43,10 @@ export async function reserveChatCredit(params: {
   idempotencyKey: string
 }): Promise<ReserveCreditResult> {
   const alias = resolveModelAlias(params.model)
+  const [planDefs, replyPriceIRR] = await Promise.all([
+    getEffectivePlanDefs(),
+    getEffectiveReplyPriceIRR(alias),
+  ])
 
   try {
     const reservation = await prisma.$transaction(async (tx) => {
@@ -68,9 +72,9 @@ export async function reserveChatCredit(params: {
       })
       if (!workspace) throw new Error('WORKSPACE_NOT_FOUND')
 
-      const def = getPlanDefs()[workspace.plan]
+      const def = planDefs[workspace.plan]
       const chargeIRR = discountedReplyPriceIRR(
-        getReplyPriceIRR(alias),
+        replyPriceIRR,
         def.replyDiscountBps,
       )
 
