@@ -25,6 +25,10 @@ describe('vertical workspace registry', () => {
     expect(getDashboardModules('APPOINTMENTS')).not.toContain('products')
     expect(getDashboardModules('COMMERCE')).toContain('products')
     expect(getDashboardModules('COMMERCE')).not.toContain('appointments')
+    expect(getDashboardModules('FOOD')).toEqual(expect.arrayContaining(['products', 'appointments']))
+    expect(getDashboardModules('CUSTOM')).not.toContain('appointments')
+    expect(getDashboardModules('CUSTOM', ['مشاوره و رزرو وقت'])).toContain('appointments')
+    expect(getDashboardModules('CUSTOM', ['فروش محصولات دست‌ساز'])).toContain('products')
     expect(getDashboardModules('EDUCATION')).toEqual(expect.arrayContaining([
       'agents',
       'conversations',

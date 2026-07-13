@@ -86,7 +86,7 @@ export default async function ProductsPage(
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Catalog intelligence</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1></div>
         <div className="flex items-center gap-2">
           <Link
             href="/products/categories"
@@ -97,7 +97,7 @@ export default async function ProductsPage(
           </Link>
           <Link
             href="/products/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
           >
             <Plus className="h-4 w-4" />
             {t('new')}

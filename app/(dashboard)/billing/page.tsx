@@ -78,7 +78,8 @@ export default async function BillingPage(
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-2xl font-light text-[var(--text-primary)]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Credit &amp; plan</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           {t('title')}
         </h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -123,7 +124,7 @@ export default async function BillingPage(
       </section>
 
       {/* Plan card */}
-      <section className="spatial-surface rounded-[1.5rem] p-6">
+      <section className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="text-sm text-[var(--text-secondary)]">
@@ -131,7 +132,7 @@ export default async function BillingPage(
             </span>
             <div className="mt-1 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-[var(--text-primary)]" />
-              <span className="text-2xl font-light text-[var(--text-primary)]">
+              <span className="text-lg font-bold text-[var(--text-primary)]">
                 {t(PLAN_KEY[plan] ?? 'planTrial')}
               </span>
             </div>
@@ -145,7 +146,7 @@ export default async function BillingPage(
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 border-t border-[var(--border-subtle)] pt-5 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-3">
           <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
           <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format(messagesUsed)}</p></div>
           <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
@@ -176,7 +177,7 @@ export default async function BillingPage(
             return (
               <section
                 key={p}
-                className={`flex flex-col rounded-2xl border bg-[var(--bg-surface)] p-6 ${
+                className={`spatial-surface flex flex-col rounded-[1.5rem] p-5 ${
                   highlight
                     ? 'border-[var(--text-primary)]'
                     : 'border-[var(--border-default)]'
@@ -255,9 +256,9 @@ export default async function BillingPage(
             value={nf.format(convoCount)}
             icon={MessagesSquare}
           />
-          <StatsCard label={locale === 'fa' ? 'هزینه پاسخ‌ها' : 'Reply cost'} value={`${nf.format(Math.round(chargedIRR / 10))} ${locale === 'fa' ? 'تومان' : 'toman'}`} icon={Cpu} />
+          <StatsCard label={locale === 'fa' ? 'پاسخ موفق هوش مصنوعی' : 'Successful AI replies'} value={nf.format(messagesUsed)} icon={Cpu} />
           <StatsCard
-            label={t('estCost')}
+            label={locale === 'fa' ? 'اعتبار مصرف‌شده' : 'Credit charged'}
             value={`${nf.format(chargedIRR / 10)} ${locale === 'fa' ? 'تومان' : 'toman'}`}
             icon={Wallet}
           />

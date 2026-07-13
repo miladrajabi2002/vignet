@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   BUSINESS_TYPES,
+  getDashboardModules,
   getVerticalPack,
   type BusinessTypeValue,
 } from '@/lib/verticals/registry'
@@ -136,8 +137,8 @@ export function BusinessProfileStep({
     setSelectedType(type)
     setServices([...(fa ? pack.suggestedServicesFa : pack.suggestedServicesEn)].slice(0, 2))
     setError('')
-    // Auto-advance to next sub-step after a brief moment
-    setTimeout(() => setSubStep(1), 350)
+    // Short spatial hand-off; fast enough to keep the selection responsive.
+    setTimeout(() => setSubStep(1), 180)
   }
 
   function toggleService(service: string) {
@@ -180,6 +181,25 @@ export function BusinessProfileStep({
         }),
       })
       if (!response.ok) throw new Error('save failed')
+      const result = await response.json()
+
+      if (mode === 'settings') {
+        const previousModules = getDashboardModules(initialType, initialProfile?.services ?? [])
+        const nextModules = getDashboardModules(selectedType, services)
+        const newlyEnabled = nextModules.filter((module) => !previousModules.includes(module))
+        const detail = {
+          businessType: selectedType,
+          services,
+          modules: nextModules,
+          newlyEnabled,
+          verticalTitle: fa ? result.vertical?.titleFa : result.vertical?.titleEn,
+          changedAt: Date.now(),
+        }
+        try {
+          localStorage.setItem('vigent:vertical-change', JSON.stringify(detail))
+        } catch {}
+        window.dispatchEvent(new CustomEvent('vigent:vertical-changed', { detail }))
+      }
       // Auto-advance to review step
       setSubStep(2)
       router.refresh()

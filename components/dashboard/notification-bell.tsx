@@ -1,147 +1,98 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
-import { Bell } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { Bell, CalendarCheck2, CheckCheck, MessageCircleWarning, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NotificationItem {
-  id: string
-  type: string
-  title: string
-  body: string | null
-  link: string | null
-  read: boolean
-  createdAt: string
+	id: string
+	type: string
+	title: string
+	body: string | null
+	link: string | null
+	read: boolean
+	createdAt: string
 }
 
 const POLL_MS = 30_000
 
 export function NotificationBell() {
-  const t = useTranslations('notifications')
-  const [open, setOpen] = useState(false)
-  const [items, setItems] = useState<NotificationItem[]>([])
-  const [unread, setUnread] = useState(0)
-  const ref = useRef<HTMLDivElement>(null)
+	const t = useTranslations('notifications')
+	const fa = useLocale() !== 'en'
+	const [open, setOpen] = useState(false)
+	const [items, setItems] = useState<NotificationItem[]>([])
+	const [unread, setUnread] = useState(0)
+	const ref = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/notifications', { cache: 'no-store' })
-      if (!res.ok) return
-      const data = await res.json()
-      setItems(data.items ?? [])
-      setUnread(data.unread ?? 0)
-    } catch {
-      // silent — the bell must never break the header
-    }
-  }, [])
+	const load = useCallback(async () => {
+		try {
+			const res = await fetch('/api/notifications', { cache: 'no-store' })
+			if (!res.ok) return
+			const data = await res.json()
+			setItems(data.items ?? [])
+			setUnread(data.unread ?? 0)
+		} catch {}
+	}, [])
 
-  // Poll for new notifications.
-  useEffect(() => {
-    load()
-    const id = setInterval(load, POLL_MS)
-    return () => clearInterval(id)
-  }, [load])
+	useEffect(() => {
+		load()
+		const id = setInterval(load, POLL_MS)
+		return () => clearInterval(id)
+	}, [load])
 
-  // Close on outside click.
-  useEffect(() => {
-    if (!open) return
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+	useEffect(() => {
+		if (!open) return
+		function close(event: MouseEvent) {
+			if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+		}
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') setOpen(false)
+		}
+		document.addEventListener('mousedown', close)
+		document.addEventListener('keydown', onKeyDown)
+		return () => {
+			document.removeEventListener('mousedown', close)
+			document.removeEventListener('keydown', onKeyDown)
+		}
+	}, [open])
 
-  async function markAllRead() {
-    setUnread(0)
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })))
-    await fetch('/api/notifications/read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    }).catch(() => {})
-  }
+	async function markRead(id?: string) {
+		setItems((current) => current.map((item) => !id || item.id === id ? { ...item, read: true } : item))
+		setUnread((current) => id ? Math.max(0, current - (items.find((item) => item.id === id && !item.read) ? 1 : 0)) : 0)
+		await fetch('/api/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { id } : {}) }).catch(() => {})
+	}
 
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={t('title')}
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-      >
-        <Bell className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium text-white">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
+	return (
+		<div className="relative" ref={ref}>
+			<button type="button" onClick={() => setOpen((current) => !current)} aria-label={t('title')} aria-expanded={open} aria-haspopup="dialog" className={cn('spatial-press relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black', open && 'bg-black text-white hover:bg-black hover:text-white')}>
+				<Bell className="h-4 w-4" />
+				{unread > 0 && <span className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-bold text-black ring-2 ring-white">{unread > 9 ? '9+' : unread}</span>}
+			</button>
 
-      {open && (
-        <div className="absolute end-0 mt-2 w-80 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              {t('title')}
-            </span>
-            {unread > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                {t('markAllRead')}
-              </button>
-            )}
-          </div>
+			{open && (
+				<section role="dialog" aria-label={t('title')} className="material-select-menu absolute end-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white/95 shadow-[0_24px_75px_rgba(0,0,0,0.2)] backdrop-blur-xl">
+					<header className="flex items-center justify-between border-b border-black/[0.07] px-4 py-3.5">
+						<div><h2 className="text-sm font-bold text-black">{t('title')}</h2><p className="mt-0.5 text-[10px] text-black/40">{unread ? (fa ? `${unread.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : `${unread} unread notifications`) : (fa ? 'همه اعلان‌ها دیده شده‌اند' : 'You are all caught up')}</p></div>
+						{unread > 0 && <button type="button" onClick={() => markRead()} className="spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-black px-3 text-[10px] font-semibold text-white"><CheckCheck className="h-3.5 w-3.5" />{t('markAllRead')}</button>}
+					</header>
 
-          <div className="max-h-96 overflow-y-auto">
-            {items.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">
-                {t('empty')}
-              </p>
-            ) : (
-              <ul className="divide-y divide-[var(--border-subtle)]">
-                {items.map((n) => {
-                  const inner = (
-                    <div
-                      className={cn(
-                        'px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]',
-                        !n.read && 'bg-[var(--bg-hover)]/50',
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        {!n.read && (
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />
-                        )}
-                        <span className="truncate text-sm font-medium text-[var(--text-primary)]">
-                          {n.title}
-                        </span>
-                      </div>
-                      {n.body && (
-                        <p className="mt-0.5 line-clamp-2 text-xs text-[var(--text-secondary)]">
-                          {n.body}
-                        </p>
-                      )}
-                    </div>
-                  )
-                  return (
-                    <li key={n.id}>
-                      {n.link ? (
-                        <Link href={n.link} onClick={() => setOpen(false)}>
-                          {inner}
-                        </Link>
-                      ) : (
-                        inner
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
+					<div className="max-h-[min(26rem,60dvh)] overflow-y-auto p-1.5">
+						{items.length === 0 ? (
+							<div className="flex flex-col items-center px-4 py-10 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/[0.045] text-black/35"><Bell className="h-5 w-5" /></span><p className="mt-3 text-sm font-medium text-black/55">{t('empty')}</p></div>
+						) : (
+							<ul className="space-y-1">
+								{items.map((item) => {
+									const Icon = /appointment|booking/i.test(item.type) ? CalendarCheck2 : /handoff|operator/i.test(item.type) ? MessageCircleWarning : Sparkles
+									const content = <div className={cn('flex min-h-16 gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-black/[0.045]', !item.read && 'bg-amber-400/[0.08]')}><span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', !item.read ? 'bg-black text-white' : 'bg-black/[0.045] text-black/40')}><Icon className="h-3.5 w-3.5" /></span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-xs font-bold text-black/75">{item.title}</p>{!item.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />}</div>{item.body && <p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{item.body}</p>}<time className="mt-1 block text-[9px] text-black/30">{new Date(item.createdAt).toLocaleString(fa ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}</time></div></div>
+									return <li key={item.id}>{item.link ? <Link href={item.link} onClick={() => { void markRead(item.id); setOpen(false) }}>{content}</Link> : <button type="button" onClick={() => void markRead(item.id)} className="w-full text-start">{content}</button>}</li>
+								})}
+							</ul>
+						)}
+					</div>
+				</section>
+			)}
+		</div>
+	)
 }

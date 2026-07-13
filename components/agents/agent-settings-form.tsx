@@ -20,6 +20,7 @@ import {
         ListChecks,
 } from 'lucide-react'
 import { ModelSelect } from '@/components/agent-builder/model-select'
+import { MaterialSelect } from '@/components/ui/material-select'
 import type { ModelAlias } from '@/lib/ai/models'
 import {
         ROLE_TEMPLATES,
@@ -271,7 +272,7 @@ export function AgentSettingsForm({
         return (
                 <div className="space-y-6">
                         {/* ─ Basic identity + model ───────────────────────────────────── */}
-                        <div className="space-y-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+                        <div className="spatial-surface space-y-5 rounded-[1.75rem] p-5 sm:p-6">
                                 <Field label={tw('name')}>
                                         <input
                                                 value={form.name}
@@ -300,14 +301,12 @@ export function AgentSettingsForm({
                                 </Field>
                                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                         <Field label={tw('language')}>
-                                                <select
+                                                <MaterialSelect
                                                         value={form.language}
-                                                        onChange={(e) => set('language', e.target.value as 'fa' | 'en')}
-                                                        className="input"
-                                                >
-                                                        <option value="fa">فارسی</option>
-                                                        <option value="en">English</option>
-                                                </select>
+                                                        onValueChange={(value) => set('language', value as 'fa' | 'en')}
+                                                        ariaLabel={tw('language')}
+                                                        options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
+                                                />
                                         </Field>
                                         <Field label={`${tw('temperature')}: ${form.temperature.toFixed(1)}`}>
                                                 <div className="w-full">
@@ -363,7 +362,7 @@ export function AgentSettingsForm({
                         </div>
 
                         {/* ─ 6-LAYER PROMPT ENGINE ──────────────────────────────────── */}
-                        <div className="space-y-5 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+                        <div className="spatial-surface space-y-5 rounded-[1.75rem] p-5 sm:p-6">
                                 <div className="flex items-start justify-between gap-3">
                                         <div>
                                                 <h3 className="text-base font-medium text-[var(--text-primary)]">
@@ -537,7 +536,7 @@ export function AgentSettingsForm({
                         </div>
 
                         {/* ─ CUSTOMER IDENTIFICATION (F3) ──────────────────────────── */}
-                        <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+                        <div className="spatial-surface space-y-4 rounded-[1.75rem] p-5 sm:p-6">
                                 <div>
                                         <h3 className="text-base font-medium text-[var(--text-primary)]">
                                                 {tf('customerIdentificationTitle')}
@@ -568,7 +567,7 @@ export function AgentSettingsForm({
                         </div>
 
                         {/* ─ Handoff ─────────────────────────────────────────────────── */}
-                        <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+                        <div className="spatial-surface space-y-4 rounded-[1.75rem] p-5 sm:p-6">
                                 <Toggle
                                         label={tf('handoffEnabled')}
                                         checked={form.handoffEnabled}
@@ -624,7 +623,7 @@ export function AgentSettingsForm({
                                 </div>
                         </div>
 
-                        <div className="rounded-2xl border border-danger/30 bg-[var(--bg-surface)] p-6">
+                        <div className="rounded-[1.5rem] border border-danger/20 bg-danger/[0.03] p-5 sm:p-6">
                                 <button
                                         onClick={remove}
                                         className="inline-flex items-center gap-2 text-sm text-danger transition-opacity hover:opacity-80"

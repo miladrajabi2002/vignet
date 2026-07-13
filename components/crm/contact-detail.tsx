@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, Loader2 } from 'lucide-react'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
 type Stage = (typeof STAGES)[number]
@@ -102,17 +103,13 @@ export function ContactDetailEditor({
         <label className="text-xs text-[var(--text-secondary)]">
           {t('stage')}
         </label>
-        <select
+        <MaterialSelect
           value={stage}
-          onChange={(e) => setStage(e.target.value as Stage)}
-          className="mt-1 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-strong)]"
-        >
-          {STAGES.map((s) => (
-            <option key={s} value={s}>
-              {t(STAGE_KEY[s])}
-            </option>
-          ))}
-        </select>
+          onValueChange={(value) => setStage(value as Stage)}
+          ariaLabel={t('stage')}
+          className="mt-1"
+          options={STAGES.map((item) => ({ value: item, label: t(STAGE_KEY[item]) }))}
+        />
       </div>
 
       <div>

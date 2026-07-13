@@ -1,20 +1,23 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import {
   ArrowRight,
   CheckCircle2,
   Circle,
   Database,
-  MessageSquare,
+  CalendarDays,
   Package,
   Share2,
   Store,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { TestPlayground } from '@/components/agent-builder/test-playground'
 import { cn } from '@/lib/utils'
+import { getDashboardModules } from '@/lib/verticals/registry'
+import { readBusinessProfile } from '@/lib/verticals/profile'
 
 export default async function AgentDetailPage(
   props: {
@@ -24,6 +27,7 @@ export default async function AgentDetailPage(
   const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('agents')
+  const fa = (await getLocale()) !== 'en'
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
@@ -31,21 +35,40 @@ export default async function AgentDetailPage(
   })
   if (!agent) notFound()
 
-  const [storeCount, productCount, kbCount, channelCount, convCount] =
+  const [workspace, storeCount, productCount, serviceCount, kbCount, channelCount] =
     await Promise.all([
+      prisma.workspace.findUnique({
+        where: { id: user.workspaceId },
+        select: { businessType: true, businessProfile: true },
+      }),
       prisma.storeIntegration.count({
         where: { workspaceId: user.workspaceId, active: true },
       }),
       prisma.product.count({ where: { workspaceId: user.workspaceId } }),
+      prisma.service.count({ where: { workspaceId: user.workspaceId, active: true } }),
       prisma.knowledgeBase.count({
         where: { agentId: agent.id, type: { not: 'PRODUCT_CATALOG' } },
       }),
       prisma.agentChannel.count({ where: { agentId: agent.id } }),
-      prisma.conversation.count({ where: { agentId: agent.id } }),
     ])
+
+  const profile = readBusinessProfile(workspace?.businessProfile)
+  const modules = getDashboardModules(workspace?.businessType, profile?.services)
+  const hasProducts = modules.includes('products')
+  const hasAppointments = modules.includes('appointments')
 
   const steps = [
     {
+      key: 'settings',
+      done: true,
+      optional: false,
+      icon: SlidersHorizontal,
+      title: fa ? 'هویت و رفتار ایجنت' : 'Agent identity and behavior',
+      desc: fa ? 'تنظیمات پایه هنگام ساخت ایجنت ذخیره شده است.' : 'Core settings were saved when the agent was created.',
+      href: `/agents/${agent.id}/settings`,
+      cta: fa ? 'بازبینی' : 'Review',
+    },
+    ...(hasProducts ? [{
       key: 'store',
       done: storeCount > 0,
       optional: true,
@@ -54,8 +77,8 @@ export default async function AgentDetailPage(
       desc: t('setup.storeDesc'),
       href: '/integrations',
       cta: t('setup.storeCta'),
-    },
-    {
+    }] : []),
+    ...(hasProducts ? [{
       key: 'products',
       done: productCount > 0,
       optional: true,
@@ -64,11 +87,21 @@ export default async function AgentDetailPage(
       desc: t('setup.productsDesc'),
       href: '/products',
       cta: t('setup.productsCta'),
-    },
+    }] : []),
+    ...(hasAppointments ? [{
+      key: 'appointments',
+      done: serviceCount > 0,
+      optional: true,
+      icon: CalendarDays,
+      title: fa ? 'خدمات قابل رزرو' : 'Bookable services',
+      desc: fa ? 'خدمت، ظرفیت و ساعات کاری را تعریف کنید تا ایجنت رزرو ثبت کند.' : 'Define services, capacity and hours so the agent can book appointments.',
+      href: '/appointments',
+      cta: fa ? 'تعریف خدمات' : 'Add services',
+    }] : []),
     {
       key: 'knowledge',
       done: kbCount > 0,
-      optional: false,
+      optional: true,
       icon: Database,
       title: t('setup.knowledgeTitle'),
       desc: t('setup.knowledgeDesc'),
@@ -78,50 +111,41 @@ export default async function AgentDetailPage(
     {
       key: 'channel',
       done: channelCount > 0,
-      optional: false,
+      optional: true,
       icon: Share2,
       title: t('setup.channelTitle'),
       desc: t('setup.channelDesc'),
       href: `/agents/${agent.id}/channels`,
       cta: t('setup.channelCta'),
     },
-    {
-      key: 'test',
-      done: convCount > 0,
-      optional: false,
-      icon: MessageSquare,
-      title: t('setup.testTitle'),
-      desc: t('setup.testDesc'),
-      href: null,
-      cta: null,
-    },
-  ] as const
+  ]
 
   const doneCount = steps.filter((s) => s.done).length
-  const allDone = steps.every((s) => s.done || s.optional)
-    && steps.filter((s) => !s.optional).every((s) => s.done)
+  const progress = Math.round((doneCount / Math.max(1, steps.length)) * 100)
 
   return (
     <div className="space-y-6">
-      {!allDone && (
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--text-primary)]">
-              {t('setup.title')}
-            </h2>
-            <span className="text-xs text-[var(--text-muted)]">
-              {t('setup.progress', { done: doneCount, total: steps.length })}
-            </span>
+      <div className="spatial-surface overflow-hidden rounded-[1.75rem]">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-black p-5 text-white sm:p-6">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Agent readiness</p>
+              <h2 className="mt-1 text-base font-bold">{fa ? 'آماده‌سازی و رشد ایجنت' : 'Agent readiness and growth'}</h2>
+              <p className="mt-1 text-xs text-white/55">{fa ? 'هیچ‌کدام از پیشنهادها مانع شروع کار نیست؛ هر زمان آماده بودید کاملشان کنید.' : 'These are recommendations, not blockers. Complete them whenever you are ready.'}</p>
+            </div>
+            <div className="min-w-36 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
+              <div className="flex items-center justify-between text-[10px] text-white/60"><span>{doneCount}/{steps.length}</span><span>{progress}%</span></div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progress}%` }} /></div>
+            </div>
           </div>
-          <ol className="space-y-1">
+          <ol className="grid gap-2 p-4 sm:grid-cols-2 sm:p-5">
             {steps.map((step) => {
               const Icon = step.icon
               return (
                 <li
                   key={step.key}
                   className={cn(
-                    'flex items-center gap-3 rounded-xl px-3 py-2.5',
-                    !step.done && 'hover:bg-[var(--bg-muted)]',
+                    'flex min-h-24 items-center gap-3 rounded-2xl border px-3 py-3',
+                    step.done ? 'border-emerald-500/15 bg-emerald-500/[0.04]' : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
                   )}
                 >
                   {step.done ? (
@@ -135,7 +159,7 @@ export default async function AgentDetailPage(
                       className={cn(
                         'text-sm',
                         step.done
-                          ? 'text-[var(--text-muted)] line-through'
+                          ? 'text-[var(--text-secondary)]'
                           : 'text-[var(--text-primary)]',
                       )}
                     >
@@ -155,7 +179,7 @@ export default async function AgentDetailPage(
                   {!step.done && step.href && (
                     <Link
                       href={step.href}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                        className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl bg-black px-3 text-xs font-bold text-white"
                     >
                       {step.cta}
                       <ArrowRight className="h-3 w-3 rtl:rotate-180" />
@@ -166,7 +190,6 @@ export default async function AgentDetailPage(
             })}
           </ol>
         </div>
-      )}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">

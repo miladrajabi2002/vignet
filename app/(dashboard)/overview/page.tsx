@@ -28,6 +28,7 @@ import { IntelligenceCore } from '@/components/dashboard/intelligence-core'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { getDashboardModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
+import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { getPlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
@@ -173,7 +174,8 @@ export default async function OverviewPage() {
   ])
 
   const pack = getVerticalPack(workspace.businessType)
-  const modules = getDashboardModules(workspace.businessType).filter(
+  const businessProfile = readBusinessProfile(workspace.businessProfile)
+  const modules = getDashboardModules(workspace.businessType, businessProfile?.services).filter(
     (module) => !['overview', 'billing', 'settings'].includes(module),
   )
   const businessLabel = fa ? pack.titleFa : pack.titleEn

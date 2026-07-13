@@ -11,6 +11,7 @@ import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registr
 export async function Header({
   name,
   businessType,
+  services,
   plan,
   creditIRR,
   usagePercent,
@@ -18,6 +19,7 @@ export async function Header({
 }: {
   name?: string | null
   businessType?: BusinessTypeValue | null
+  services?: readonly string[]
   plan: Plan
   creditIRR: number
   usagePercent: number
@@ -40,9 +42,9 @@ export async function Header({
 
   return (
     <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6 lg:px-8 xl:px-10">
-      <div className="spatial-control flex min-h-16 items-center justify-between gap-3 rounded-[1.3rem] px-3 sm:px-4">
+      <div className="spatial-control flex min-h-14 items-center justify-between gap-2 rounded-[1.15rem] px-2.5 sm:px-3.5">
       <div className="flex min-w-0 items-center gap-3.5">
-        <MobileNav businessType={businessType} />
+        <MobileNav businessType={businessType} services={services} />
         <div className="min-w-0">
           <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">
             {name ? t('greeting', { name }) : t('welcome')}
@@ -58,22 +60,22 @@ export async function Header({
         <Link
           href="/billing"
           aria-label={fa ? 'مشاهده پلن و اعتبار' : 'View plan and credit'}
-          className="spatial-press relative me-1 flex min-h-12 items-center gap-2.5 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white px-2.5 pb-2.5 md:min-w-[13.5rem] md:px-3"
+          className="spatial-press relative me-0.5 flex h-10 items-center gap-2 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white px-1.5 shadow-[var(--shadow-xs)] md:min-w-[10.75rem] md:px-2.5 md:pb-1"
         >
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-black text-white shadow-[var(--shadow-control)]">
             <Wallet className="h-3.5 w-3.5" />
           </span>
           <span className="hidden min-w-0 flex-1 md:block">
-            <span className="flex items-center justify-between gap-3 text-[10px] font-bold text-[var(--text-primary)]">
+            <span className="flex items-center justify-between gap-2 text-[9px] font-bold text-[var(--text-primary)]">
               <span>{fa ? `پلن ${planLabel}` : `${planLabel} plan`}</span>
-              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-0.5 tabular-nums text-[9px]">{nf.format(remaining)}{fa ? '٪ باقی' : '% left'}</span>
+              <span className="tabular-nums text-[8px] text-[var(--text-muted)]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
             </span>
-            <span className="mt-1.5 flex items-center justify-between gap-2 text-[9px] leading-4 text-[var(--text-muted)]">
+            <span className="mt-0.5 flex items-center justify-between gap-2 text-[8px] leading-3 text-[var(--text-muted)]">
               <span>{nf.format(Math.round(creditIRR / 10))} {fa ? 'تومان اعتبار' : 'toman credit'}</span>
-              {daysLeft !== null && <span>{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
+              {daysLeft !== null && daysLeft <= 7 && <span>{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
             </span>
           </span>
-          <span className="absolute inset-x-3 bottom-1 h-0.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+          <span className="absolute inset-x-2 bottom-0.5 hidden h-px overflow-hidden rounded-full bg-[var(--bg-muted)] md:block">
             <span className="block h-full rounded-full bg-black" style={{ width: `${remaining}%` }} />
           </span>
         </Link>

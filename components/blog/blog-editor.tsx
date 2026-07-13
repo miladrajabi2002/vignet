@@ -28,6 +28,7 @@ import {
 	toPersianDigits,
 	type SeoAnalysis,
 } from '@/lib/blog/helpers'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface BlogPostData {
 	id?: string
@@ -608,18 +609,15 @@ export function BlogEditor({
 						<h3 className="text-sm font-semibold text-zinc-900">{t('publishSettings')}</h3>
 						<label className="block">
 							<span className="mb-1 block text-xs text-zinc-600">{t('category')}</span>
-							<select
+							<MaterialSelect
 								value={post.categoryId ?? ''}
-								onChange={(e) => patch({ categoryId: e.target.value || null })}
-								className={inputCls}
-							>
-								<option value="">{t('noCategory')}</option>
-								{categories.map((c) => (
-									<option key={c.id} value={c.id}>
-										{c.name}
-									</option>
-								))}
-							</select>
+								onValueChange={(value) => patch({ categoryId: value || null })}
+								ariaLabel={t('category')}
+								options={[
+									{ value: '', label: t('noCategory') },
+									...categories.map((category) => ({ value: category.id, label: category.name })),
+								]}
+							/>
 						</label>
 
 						{/* Cover image: URL + Upload + preview */}

@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 type ModelAlias = 'fast' | 'standard' | 'balanced' | 'premium'
 
@@ -252,13 +253,13 @@ export function AiModelPolicyForm({
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
         <label className="block text-xs font-semibold text-amber-950">
           مدل فعال پلن آزمایشی
-          <select
+          <MaterialSelect
             value={trialModel}
-            onChange={(event) => setTrialModel(event.target.value as ModelAlias)}
-            className="mt-2 h-10 w-full rounded-lg border border-amber-200 bg-white px-3 text-sm font-medium text-zinc-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-          >
-            {models.map((model) => <option key={model.alias} value={model.alias}>{model.name}</option>)}
-          </select>
+            onValueChange={(value) => setTrialModel(value as ModelAlias)}
+            ariaLabel="مدل فعال پلن آزمایشی"
+            className="mt-2"
+            options={models.map((model) => ({ value: model.alias, label: model.name }))}
+          />
           <span className="mt-1 block text-[11px] font-normal leading-5 text-amber-800">
             این مدل مستقل از فعال/غیرفعال بودن مدل‌های پلن‌های پولی انتخاب می‌شود؛ بقیه مدل‌ها در پلن آزمایشی بسته نمایش داده می‌شوند.
           </span>

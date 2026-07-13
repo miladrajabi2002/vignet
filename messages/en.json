@@ -113,7 +113,8 @@
                 "onboarding": "Get started",
                 "logout": "Log out",
                 "welcome": "Welcome",
-                "greeting": "Hi, {name}"
+                "greeting": "Hi, {name}",
+                "newLabel": "New"
         },
         "onboarding": {
                 "title": "Set up Vigent",

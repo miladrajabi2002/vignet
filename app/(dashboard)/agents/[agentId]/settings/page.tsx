@@ -33,9 +33,10 @@ export default async function AgentSettingsPage(
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-light text-[var(--text-primary)]">
-        {t('title')}
-      </h1>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Agent control</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
+      </div>
       <AgentSettingsForm
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',

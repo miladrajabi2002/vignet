@@ -8,6 +8,7 @@ import { getPlanDefs } from '@/lib/billing/plans'
 import { computeOnboarding } from '@/lib/onboarding'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
+import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
   })
 
   const onboardingDone = workspace?.onboardingCompleted ?? false
+  const businessProfile = readBusinessProfile(workspace?.businessProfile)
 
   // During onboarding: hide sidebar + header entirely. The user sees ONLY
   // the onboarding flow, full-screen, with its own progress indicator.
@@ -44,7 +46,7 @@ export default async function DashboardLayout({
     const state = await computeOnboarding(user.workspaceId)
     return (
       <OnboardingShell
-        profileComplete={!!readBusinessProfile(workspace?.businessProfile)}
+        profileComplete={!!businessProfile}
         hasAgent={state.checks.hasAgent}
         hasKnowledge={state.checks.hasKnowledge}
         hasChannel={state.checks.hasChannel}
@@ -68,15 +70,20 @@ export default async function DashboardLayout({
   // Normal dashboard with sidebar + header
   return (
     <div className="dashboard-canvas flex min-h-dvh bg-[var(--bg-base)]">
-      <Sidebar businessType={workspace?.businessType} />
+      <Sidebar businessType={workspace?.businessType} services={businessProfile?.services} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           name={user.name}
           businessType={workspace?.businessType}
+          services={businessProfile?.services}
           plan={plan}
           creditIRR={workspace?.aiCreditBalanceIRR ?? 0}
           usagePercent={usagePercent}
           daysLeft={daysLeft}
+        />
+        <VerticalChangeNotice
+          businessType={workspace?.businessType}
+          services={businessProfile?.services ?? []}
         />
         <main className="flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10">
           <div className="dashboard-main">{children}</div>

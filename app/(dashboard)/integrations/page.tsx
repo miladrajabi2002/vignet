@@ -36,11 +36,14 @@ export default async function IntegrationsPage() {
         const user = await requireUser()
         const t = await getTranslations('integrations')
 
-        const groups = await prisma.agentChannel.groupBy({
-                by: ['type'],
-                where: { agent: { workspaceId: user.workspaceId }, active: true },
-                _count: { _all: true },
-        })
+        const [groups, primaryAgent] = await Promise.all([
+                prisma.agentChannel.groupBy({
+                        by: ['type'],
+                        where: { agent: { workspaceId: user.workspaceId }, active: true },
+                        _count: { _all: true },
+                }),
+                prisma.agent.findFirst({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: 'asc' }, select: { id: true } }),
+        ])
         const counts = new Map<ChannelType, number>(
                 groups.map((g) => [g.type, g._count._all]),
         )
@@ -117,7 +120,8 @@ export default async function IntegrationsPage() {
         return (
                 <div className="mx-auto max-w-5xl space-y-6">
                         <div>
-                                <h1 className="text-2xl font-light text-[var(--text-primary)]">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Connection hub</p>
+                                <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                                         {t('title')}
                                 </h1>
                                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -132,7 +136,7 @@ export default async function IntegrationsPage() {
                                         {t('channels')}
                                 </h2>
                                 <Link
-                                        href="/agents"
+                                        href={primaryAgent ? `/agents/${primaryAgent.id}/channels` : '/agents/new'}
                                         className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                                 >
                                         {t('openAgents')}
@@ -143,8 +147,8 @@ export default async function IntegrationsPage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 {/* Chat Link — a Vigent-native channel (public standalone chat page). */}
                                 <Link
-                                        href="/agents"
-                                        className="group flex flex-col gap-3 rounded-2xl border border-[var(--border-hover)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--text-secondary)]"
+                                        href={primaryAgent ? `/agents/${primaryAgent.id}/channels` : '/agents/new'}
+                                        className="spatial-surface group flex flex-col gap-3 rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                 >
                                         <div className="flex items-center justify-between">
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--white)] text-[var(--bg-base)]">
@@ -180,11 +184,11 @@ export default async function IntegrationsPage() {
                                         return (
                                                 <Link
                                                         key={type}
-                                                        href="/agents"
-                                                        className="group flex flex-col gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]"
+                                                        href={primaryAgent ? (type === 'INSTAGRAM' ? `/agents/${primaryAgent.id}/instagram` : `/agents/${primaryAgent.id}/channels`) : '/agents/new'}
+                                                        className="spatial-surface group flex flex-col gap-3 rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                                 >
                                                         <div className="flex items-center justify-between">
-                                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-primary)]">
+                                                                <div className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]">
                                                                         <Icon className="h-5 w-5" />
                                                                 </div>
                                                                 <span

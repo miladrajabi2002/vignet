@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
-import { Users, ChevronRight } from 'lucide-react'
+import { getLocale, getTranslations } from 'next-intl/server'
+import { UserRound, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -14,14 +14,15 @@ import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
+  const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const user = await requireUser()
 
   const items = [
     {
       href: '/settings/team',
-      icon: Users,
-      title: t('dashboard.contacts'),
-      desc: t('settings.title'),
+      icon: UserRound,
+      title: locale === 'fa' ? 'تنظیمات مشتری' : 'Customer settings',
+      desc: locale === 'fa' ? 'نام، زبان و اطلاعات حساب کاربری' : 'Name, language and account identity',
     },
   ]
 
@@ -62,17 +63,22 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="text-2xl font-light text-[var(--text-primary)]">
-        {t('settings.title')}
-      </h1>
-      <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><SlidersHorizontal className="h-5 w-5" /></span>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Vigento AI</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('settings.title')}</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{locale === 'fa' ? 'هویت کسب‌وکار، حساب، گزارش‌ها و مسیر تحویل اپراتور را مدیریت کنید.' : 'Manage business identity, account, reports and operator handoff.'}</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
         {items.map(({ href, icon: Icon, title, desc }) => (
           <Link
             key={href}
             href={href}
-            className="flex items-center gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-colors hover:border-[var(--border-hover)]"
+            className="spatial-surface group flex items-center gap-4 rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)]">
               <Icon className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -83,7 +89,7 @@ export default async function SettingsPage() {
                 {desc}
               </div>
             </div>
-            <ChevronRight className="h-4 w-4 text-[var(--text-muted)] rtl:rotate-180" />
+            <ChevronRight className="h-4 w-4 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
           </Link>
         ))}
       </div>

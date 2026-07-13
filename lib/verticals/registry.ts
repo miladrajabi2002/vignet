@@ -183,7 +183,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['انتخاب آزاد ماژول‌ها', 'پاسخ‌گویی هوشمند', 'قابل تغییر بعداً'],
     featuresEn: ['Free module selection', 'Smart replies', 'Changeable later'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products', 'appointments'],
+    optionalModules: [],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['پاسخ‌گویی', 'فروش', 'رزرو', 'پیگیری مشتری'],
     suggestedServicesEn: ['Support', 'Sales', 'Booking', 'Customer follow-up'],
@@ -213,12 +213,29 @@ export function getVerticalPack(value: unknown): VerticalPack {
   return PACKS[isBusinessType(value) ? value : 'CUSTOM']
 }
 
-export function getDashboardModules(value: unknown): DashboardModuleKey[] {
+const PRODUCT_INTENT = /(محصول|فروش|کالا|منو|سفارش|product|store|shop|catalog|menu|order|commerce)/i
+const BOOKING_INTENT = /(رزرو|نوبت|وقت|قرار|جلسه|ملاقات|booking|appointment|reservation|schedule|meeting)/i
+
+/**
+ * Resolve visible modules from the selected vertical and, for CUSTOM only,
+ * the services the owner explicitly chose. This prevents optional tools such
+ * as booking from appearing when the owner never selected a booking workflow.
+ */
+export function getDashboardModules(
+  value: unknown,
+  services: readonly string[] = [],
+): DashboardModuleKey[] {
   const pack = getVerticalPack(value)
   const enabled = new Set<DashboardModuleKey>([
     ...pack.coreModules,
     ...pack.optionalModules,
   ])
+
+  if (pack.key === 'CUSTOM') {
+    const serviceText = services.join(' ')
+    if (PRODUCT_INTENT.test(serviceText)) enabled.add('products')
+    if (BOOKING_INTENT.test(serviceText)) enabled.add('appointments')
+  }
   return MODULE_ORDER.filter((module) => enabled.has(module))
 }
 

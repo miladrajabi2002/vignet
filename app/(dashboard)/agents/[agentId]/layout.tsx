@@ -6,6 +6,8 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { AgentTabs, type AgentTabItem } from '@/components/agents/agent-tabs'
 import { cn } from '@/lib/utils'
+import { getDashboardModules } from '@/lib/verticals/registry'
+import { readBusinessProfile } from '@/lib/verticals/profile'
 
 export default async function AgentLayout(
   props: {
@@ -24,7 +26,7 @@ export default async function AgentLayout(
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: { id: true, name: true, description: true, active: true },
+    select: { id: true, name: true, description: true, active: true, workspace: { select: { businessType: true, businessProfile: true } } },
   })
   if (!agent) notFound()
 
@@ -36,11 +38,13 @@ export default async function AgentLayout(
     },
   })
 
+  const profile = readBusinessProfile(agent.workspace.businessProfile)
+  const modules = getDashboardModules(agent.workspace.businessType, profile?.services)
   const tabs: AgentTabItem[] = [
     { key: 'overview', href: `/agents/${agent.id}`, label: t('overview') },
     { key: 'settings', href: `/agents/${agent.id}/settings`, label: t('settings') },
     { key: 'knowledge', href: `/agents/${agent.id}/knowledge`, label: t('knowledge') },
-    { key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('products') },
+    ...(modules.includes('products') ? [{ key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('products') }] : []),
     { key: 'channels', href: `/agents/${agent.id}/channels`, label: t('channels') },
     { key: 'instagram', href: `/agents/${agent.id}/instagram`, label: 'اینستاگرام' },
     { key: 'learning', href: `/agents/${agent.id}/learning`, label: t('learning'), badge: learningCount },
@@ -57,12 +61,12 @@ export default async function AgentLayout(
           <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
           {t('title')}
         </Link>
-        <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-default)] text-[var(--text-secondary)]">
+        <div className="spatial-surface flex items-center gap-4 rounded-[1.5rem] p-4 sm:p-5">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
             <Bot className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-medium text-[var(--text-primary)]">
+            <h1 className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">
               {agent.name}
             </h1>
             {agent.description && (

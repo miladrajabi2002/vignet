@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, Trash2, FolderTree, Loader2 } from 'lucide-react'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface CategoryNode {
   id: string
@@ -73,12 +74,16 @@ export function CategoryTree({ categories }: { categories: CategoryNode[] }) {
             placeholder={t('namePlaceholder')}
             className="input flex-1"
           />
-          <select value={parentId} onChange={(e) => setParentId(e.target.value)} className="input w-auto">
-            <option value="">—</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <MaterialSelect
+            value={parentId}
+            onValueChange={setParentId}
+            ariaLabel={t('namePlaceholder')}
+            className="min-w-40"
+            options={[
+              { value: '', label: '—' },
+              ...categories.map((category) => ({ value: category.id, label: category.name })),
+            ]}
+          />
           <button
             onClick={add}
             disabled={busy || !name.trim()}

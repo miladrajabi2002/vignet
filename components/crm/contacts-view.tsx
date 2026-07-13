@@ -11,6 +11,7 @@ import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
 import { CampaignComposer } from '@/components/crm/campaign-composer'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface ContactRow {
         id: string
@@ -183,9 +184,9 @@ export function ContactsView({
                                                 className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] py-2.5 pe-3 ps-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
                                         />
                                 </div>
-                                <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as Stage | '')} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه مراحل' : 'All stages'}</option>{STAGES.map((stage) => <option key={stage} value={stage}>{t(STAGE_KEY[stage])}</option>)}</select>
-                                <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value as ChannelType | '')} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه کانال‌ها' : 'All channels'}</option>{['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select>
-                                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="input min-h-11"><option value="">{locale === 'fa' ? 'همه تگ‌ها' : 'All tags'}</option>{availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}</select>
+                                <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} options={[{ value: '', label: locale === 'fa' ? 'همه مراحل' : 'All stages' }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
+                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: channel }))]} />
+                                <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} options={[{ value: '', label: locale === 'fa' ? 'همه تگ‌ها' : 'All tags' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
                                 <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] disabled:opacity-40"><X className="h-3.5 w-3.5" />{locale === 'fa' ? 'پاک‌کردن' : 'Clear'}</button>
                         </div>
 
@@ -252,17 +253,13 @@ function StageSelect({
 }) {
         const t = useTranslations('contacts')
         return (
-                <select
+                <MaterialSelect
                         value={STAGES.includes(value as Stage) ? value : 'lead'}
-                        onChange={(e) => onChange(e.target.value as Stage)}
-                        className="rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 py-1 text-xs text-[var(--text-secondary)] focus:border-[var(--border-strong)] focus:outline-none"
-                >
-                        {STAGES.map((s) => (
-                                <option key={s} value={s}>
-                                        {t(STAGE_KEY[s])}
-                                </option>
-                        ))}
-                </select>
+                        onValueChange={(next) => onChange(next as Stage)}
+                        ariaLabel={t('stage')}
+                        buttonClassName="min-h-9 rounded-lg px-2 text-xs"
+                        options={STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))}
+                />
         )
 }
 

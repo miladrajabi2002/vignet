@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, Plus, X } from 'lucide-react'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface CategoryOption {
   id: string
@@ -120,12 +121,15 @@ export function ProductForm({
       </div>
 
       <Field label={t('category')}>
-        <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} className="input">
-          <option value="">{t('noCategory')}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <MaterialSelect
+          value={form.categoryId}
+          onValueChange={(value) => set('categoryId', value)}
+          ariaLabel={t('category')}
+          options={[
+            { value: '', label: t('noCategory') },
+            ...categories.map((category) => ({ value: category.id, label: category.name })),
+          ]}
+        />
       </Field>
 
       <Field label={t('tags')}>
@@ -199,7 +203,7 @@ export function ProductForm({
       <button
         onClick={submit}
         disabled={submitting || !form.name.trim()}
-        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transform-none"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? 'ذخیره و ادامه' : t('create')}

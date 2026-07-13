@@ -31,6 +31,7 @@ import {
 } from '@/lib/ai/prompt-builder'
 import type { VigentoDraft } from '@/lib/ai/vigento-draft'
 import { VigentoComposer } from './vigento-composer'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 const TOTAL = 5
 
@@ -679,14 +680,12 @@ export function AgentWizard({
                                                                 />
                                                                 </Field>
                                                                 <Field label={t('language')}>
-                                                                        <select
+                                                                        <MaterialSelect
                                                                                 value={form.language}
-                                                                                onChange={(e) => set('language', e.target.value as 'fa' | 'en')}
-                                                                                className="input"
-                                                                        >
-                                                                                <option value="fa">فارسی</option>
-                                                                                <option value="en">English</option>
-                                                                        </select>
+                                                                                onValueChange={(value) => set('language', value as 'fa' | 'en')}
+                                                                                ariaLabel={t('language')}
+                                                                                options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
+                                                                        />
                                                                 </Field>
                                                                 <Field label={`${t('temperature')}: ${form.temperature.toFixed(1)}`}>
                                                                         <div className="w-full">

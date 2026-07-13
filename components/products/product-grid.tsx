@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Package, Pencil, Trash2, Search as SearchIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface ProductCard {
   id: string
@@ -50,7 +51,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
         return (
           <div
             key={p.id}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors hover:border-[var(--border-hover)]"
+            className="spatial-surface group flex flex-col overflow-hidden rounded-[1.5rem] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
           >
             <div className="relative aspect-video bg-[var(--bg-muted)]">
               {p.images[0] ? (
@@ -140,18 +141,28 @@ export function ProductsToolbar({
           className="input ps-9"
         />
       </div>
-      <select defaultValue={defaultCategory} onChange={(e) => update({ categoryId: e.target.value })} className="input w-auto">
-        <option value="">{t('allCategories')}</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </select>
-      <select defaultValue={defaultSort} onChange={(e) => update({ sort: e.target.value })} className="input w-auto">
-        <option value="newest">{t('sortNewest')}</option>
-        <option value="price_asc">{t('sortPriceAsc')}</option>
-        <option value="price_desc">{t('sortPriceDesc')}</option>
-        <option value="queried">{t('sortQueried')}</option>
-      </select>
+      <MaterialSelect
+        value={defaultCategory}
+        onValueChange={(value) => update({ categoryId: value })}
+        ariaLabel={t('allCategories')}
+        className="min-w-44"
+        options={[
+          { value: '', label: t('allCategories') },
+          ...categories.map((category) => ({ value: category.id, label: category.name })),
+        ]}
+      />
+      <MaterialSelect
+        value={defaultSort}
+        onValueChange={(value) => update({ sort: value })}
+        ariaLabel={t('sortNewest')}
+        className="min-w-44"
+        options={[
+          { value: 'newest', label: t('sortNewest') },
+          { value: 'price_asc', label: t('sortPriceAsc') },
+          { value: 'price_desc', label: t('sortPriceDesc') },
+          { value: 'queried', label: t('sortQueried') },
+        ]}
+      />
     </div>
   )
 }

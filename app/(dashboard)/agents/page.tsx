@@ -6,7 +6,6 @@ import {
         MessagesSquare,
         Share2,
         Database,
-        Play,
         Settings,
         Sparkles,
 } from 'lucide-react'
@@ -47,12 +46,13 @@ export default async function AgentsPage() {
                 <div className="mx-auto max-w-6xl space-y-6">
                         <div className="flex items-center justify-between gap-4">
                                 <div>
-                                        <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Vigento AI</p>
+                                        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
                                         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
                                 </div>
                                 <Link
                                         href="/agents/new"
-                                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
                                 >
                                         <Plus className="h-4 w-4" />
                                         {t('new')}
@@ -77,11 +77,11 @@ export default async function AgentsPage() {
                                                 <Link
                                                         key={agent.id}
                                                         href={`/agents/${agent.id}`}
-                                                        className="group flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-lg hover:shadow-black/5"
+                                                        className="spatial-surface group flex flex-col rounded-[1.5rem] p-5 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--border-strong)] motion-reduce:transform-none"
                                                 >
                                                         {/* Header */}
                                                         <div className="flex items-start justify-between">
-                                                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors group-hover:bg-[var(--white)] group-hover:text-[var(--bg-base)]">
+                                                                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
                                                                         <Bot className="h-5 w-5" />
                                                                 </div>
                                                                 <span
@@ -141,7 +141,7 @@ export default async function AgentsPage() {
                                                                 if (!spark || spark.total === 0) return null
                                                                 return (
                                                                         <div className="mt-3 flex items-center gap-2">
-                                                                                <Sparkline data={spark.series} color="#3b82f6" width={100} height={24} fluid />
+                                                                                <Sparkline data={spark.series} color="#111111" width={100} height={24} fluid />
                                                                                 <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                                                                                         {spark.total.toLocaleString('fa-IR')} در ۷ روز
                                                                                 </span>
@@ -151,10 +151,6 @@ export default async function AgentsPage() {
 
                                                         {/* Action hints */}
                                                         <div className="mt-4 flex items-center gap-1 border-t border-[var(--border-subtle)] pt-3 text-[11px] text-[var(--text-muted)]">
-                                                                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-base)] px-2 py-1 transition-colors group-hover:bg-[var(--bg-hover)] group-hover:text-[var(--text-secondary)]">
-                                                                        <Play className="h-3 w-3" />
-                                                                        {t('test')}
-                                                                </span>
                                                                 <span className="inline-flex items-center gap-1 rounded-md bg-[var(--bg-base)] px-2 py-1 transition-colors group-hover:bg-[var(--bg-hover)] group-hover:text-[var(--text-secondary)]">
                                                                         <Settings className="h-3 w-3" />
                                                                         {t('settings')}
