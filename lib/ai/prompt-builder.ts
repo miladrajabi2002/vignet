@@ -56,6 +56,14 @@ export interface PromptConfig {
 
 /** Role template keys — the "core" business archetypes the user can start from. */
 export type RoleTemplateKey =
+  | 'commerce_recommended'
+  | 'food_recommended'
+  | 'appointments_recommended'
+  | 'services_recommended'
+  | 'education_recommended'
+  | 'support_recommended'
+  | 'social_recommended'
+  | 'general_recommended'
   | 'commerce_sales'
   | 'commerce_after_sales'
   | 'commerce_product_support'
@@ -737,10 +745,9 @@ interface BusinessRoleSpec {
 }
 
 /**
- * Three opinionated starting roles per vertical. They intentionally reuse the
- * proven six-layer archetypes above, then specialize the personality and scope
- * for the selected business. This keeps the prompt engine editable and avoids
- * maintaining 24 divergent copies of the same safety rules.
+ * The proven role fragments used to assemble one complete recommendation for
+ * each vertical. They are not shown as separate choices: sales, support,
+ * follow-up and capture behaviors are merged into a single editable config.
  */
 const BUSINESS_ROLE_SPECS: Record<BusinessType, readonly [BusinessRoleSpec, BusinessRoleSpec, BusinessRoleSpec]> = {
   COMMERCE: [
@@ -785,22 +792,63 @@ const BUSINESS_ROLE_SPECS: Record<BusinessType, readonly [BusinessRoleSpec, Busi
   ],
 }
 
-function makeBusinessRole(spec: BusinessRoleSpec): RoleTemplate {
-  const base = ROLE_TEMPLATES.find((role) => role.key === spec.base)!
+const RECOMMENDED_ROLE_KEYS: Record<BusinessType, RoleTemplateKey> = {
+  COMMERCE: 'commerce_recommended',
+  FOOD: 'food_recommended',
+  APPOINTMENTS: 'appointments_recommended',
+  SERVICES: 'services_recommended',
+  EDUCATION: 'education_recommended',
+  SUPPORT: 'support_recommended',
+  SOCIAL: 'social_recommended',
+  CUSTOM: 'general_recommended',
+}
+
+const RECOMMENDED_DESCRIPTIONS: Record<BusinessType, { fa: string; en: string }> = {
+  COMMERCE: { fa: 'فروش، مشاوره محصول، پیگیری سفارش و پشتیبانی پس از خرید در یک ایجنت کامل', en: 'Sales, product advice, order follow-up and after-sales support in one complete agent' },
+  FOOD: { fa: 'راهنمای منو، سفارش‌گیری، رزرو میز و پیگیری سفارش در یک ایجنت کامل', en: 'Menu guidance, ordering, table booking and order follow-up in one complete agent' },
+  APPOINTMENTS: { fa: 'راهنمای خدمات، نوبت‌دهی، تغییر نوبت و پیگیری مراجعه در یک ایجنت کامل', en: 'Service guidance, booking, rescheduling and visit follow-up in one complete agent' },
+  SERVICES: { fa: 'نیازسنجی، ثبت درخواست، برآورد و پشتیبانی اجرای خدمت در یک ایجنت کامل', en: 'Needs discovery, request capture, estimates and delivery support in one complete agent' },
+  EDUCATION: { fa: 'مشاوره دوره، ثبت‌نام، هماهنگی کلاس و پشتیبانی دانشجو در یک ایجنت کامل', en: 'Course advice, enrollment, class coordination and learner support in one complete agent' },
+  SUPPORT: { fa: 'پاسخ خط اول، حل مسئله، ثبت و پیگیری تیکت در یک ایجنت کامل', en: 'Frontline answers, troubleshooting, ticket capture and follow-up in one complete agent' },
+  SOCIAL: { fa: 'فروش در دایرکت، پاسخ کامنت و پیگیری سفارش اینستاگرام در یک ایجنت کامل', en: 'DM sales, comment replies and Instagram order follow-up in one complete agent' },
+  CUSTOM: { fa: 'فروش، پاسخ‌گویی، ثبت درخواست و پیگیری مشتری در یک ایجنت کامل', en: 'Sales, support, request capture and customer follow-up in one complete agent' },
+}
+
+function uniqueLines(lines: string[], limit = 20): string[] {
+  return [...new Set(lines)].slice(0, limit)
+}
+
+function makeRecommendedBusinessRole(businessType: BusinessType, specs: readonly BusinessRoleSpec[]): RoleTemplate {
+  const bases = specs.map((spec) => ROLE_TEMPLATES.find((role) => role.key === spec.base)!)
+  const primary = bases[0]
+  const contextsFa = specs.map((spec) => spec.contextFa).join(' ')
+  const contextsEn = specs.map((spec) => spec.contextEn).join(' ')
   return {
-    key: spec.key,
-    nameFa: spec.nameFa,
-    nameEn: spec.nameEn,
-    descFa: spec.descFa,
-    descEn: spec.descEn,
-    icon: base.icon,
+    key: RECOMMENDED_ROLE_KEYS[businessType],
+    nameFa: 'پیشنهادی برای کسب‌وکار شما',
+    nameEn: 'Recommended for your business',
+    descFa: RECOMMENDED_DESCRIPTIONS[businessType].fa,
+    descEn: RECOMMENDED_DESCRIPTIONS[businessType].en,
+    icon: 'sparkles',
     config: {
-      ...base.config,
-      personality: `${spec.contextFa}\n${spec.contextEn}\n\n${base.config.personality}`,
-      doSay: [`پاسخ و اقدام بعدی را با فرایند واقعی همین نوع کسب‌وکار هماهنگ کن`, ...base.config.doSay],
-      dontSay: [...base.config.dontSay],
-      format: { ...base.config.format },
-      qaPairs: [...base.config.qaPairs],
+      personality:
+        `تو دستیار کامل و اصلی این کسب‌وکار هستی و هم‌زمان نقش مشاور، پاسخ‌گو، ثبت‌کننده درخواست و پیگیر را انجام می‌دهی. ` +
+        `در هر گفتگو ابتدا هدف و مرحله مشتری را تشخیص بده، سپس مناسب‌ترین نقش را بدون اشاره به تغییر نقش اجرا کن. ${contextsFa}\n${contextsEn}`,
+      tone: primary.config.tone,
+      doSay: uniqueLines([
+        'ابتدا هدف پیام و مرحله مشتری را تشخیص بده، سپس پاسخ یا اقدام بعدی متناسب را انجام بده',
+        'فروش، پشتیبانی، ثبت درخواست و پیگیری را در یک گفتگوی پیوسته و بدون تکرار اطلاعات انجام بده',
+        'پاسخ و اقدام بعدی را با فرایند واقعی همین نوع کسب‌وکار هماهنگ کن',
+        ...bases.flatMap((base) => base.config.doSay),
+      ]),
+      dontSay: uniqueLines([
+        'بین نقش‌های داخلی خودت تفکیک ایجاد نکن و مشتری را بی‌دلیل بین بخش‌ها جابه‌جا نکن',
+        ...bases.flatMap((base) => base.config.dontSay),
+      ]),
+      fallbackBehavior:
+        'اگر پاسخ یا داده قطعی در دانش، کاتالوگ یا اطلاعات زنده نبود، چیزی حدس نزن. موضوع را کوتاه جمع‌بندی کن، فقط اطلاعات تماس ضروری را بگیر و با زمینه کامل به اپراتور تحویل بده.',
+      format: { ...primary.config.format },
+      qaPairs: bases.flatMap((base) => base.config.qaPairs).slice(0, 12),
     },
   }
 }
@@ -808,7 +856,7 @@ function makeBusinessRole(spec: BusinessRoleSpec): RoleTemplate {
 const BUSINESS_ROLE_TEMPLATES = Object.fromEntries(
   Object.entries(BUSINESS_ROLE_SPECS).map(([businessType, specs]) => [
     businessType,
-    specs.map(makeBusinessRole),
+    [makeRecommendedBusinessRole(businessType as BusinessType, specs)],
   ]),
 ) as Record<BusinessType, RoleTemplate[]>
 
@@ -818,24 +866,26 @@ function normalizeBusinessType(value: unknown): BusinessType {
     : 'CUSTOM'
 }
 
-/** The exact four choices shown in builder/settings: 3 relevant roles + custom. */
+/** The only two choices shown in builder/settings: complete recommendation + custom. */
 export function getRoleTemplatesForBusiness(businessType: unknown): RoleTemplate[] {
   const custom = ROLE_TEMPLATES.find((role) => role.key === 'custom')!
   return [...BUSINESS_ROLE_TEMPLATES[normalizeBusinessType(businessType)], custom]
 }
 
-/** Map Vigento/legacy generic roles to the closest role for this business. */
+/** Map every Vigento/legacy role to the single complete recommendation. */
 export function getSuggestedRoleTemplate(businessType: unknown, baseKey?: string | null): RoleTemplate {
   const type = normalizeBusinessType(businessType)
-  const specs = BUSINESS_ROLE_SPECS[type]
-  const match = specs.find((spec) => spec.base === baseKey)
-  return BUSINESS_ROLE_TEMPLATES[type][Math.max(0, match ? specs.indexOf(match) : 0)]
+  if (baseKey === 'custom') return ROLE_TEMPLATES.find((role) => role.key === 'custom')!
+  return BUSINESS_ROLE_TEMPLATES[type][0]
 }
 
 export function getRoleTemplate(key: string): RoleTemplate | undefined {
+  const legacyBusinessType = (Object.entries(BUSINESS_ROLE_SPECS) as [BusinessType, readonly BusinessRoleSpec[]][])
+    .find(([, specs]) => specs.some((spec) => spec.key === key))?.[0]
   return (
     ROLE_TEMPLATES.find((t) => t.key === key) ??
     Object.values(BUSINESS_ROLE_TEMPLATES).flat().find((t) => t.key === key) ??
+    (legacyBusinessType ? BUSINESS_ROLE_TEMPLATES[legacyBusinessType][0] : undefined) ??
     LEGACY_ROLE_TEMPLATES.find((t) => t.key === key)
   )
 }

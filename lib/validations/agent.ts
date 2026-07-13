@@ -32,7 +32,16 @@ export const promptConfigSchema = z.object({
 })
 
 export const roleTemplateKeys = [
-  // Three business-specific templates per vertical
+  // One complete recommended template per business type
+  'commerce_recommended',
+  'food_recommended',
+  'appointments_recommended',
+  'services_recommended',
+  'education_recommended',
+  'support_recommended',
+  'social_recommended',
+  'general_recommended',
+  // Previous business-specific keys remain accepted for existing agents
   'commerce_sales',
   'commerce_after_sales',
   'commerce_product_support',

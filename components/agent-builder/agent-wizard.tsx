@@ -449,11 +449,11 @@ export function AgentWizard({
                                                                                         {t('roleTemplateLabel')}
                                                                                 </p>
                                                                                 <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                                                                                        {locale === 'fa' ? `پیشنهادهای مناسب ${businessLabel}` : `Recommended for ${businessLabel}`}
+                                                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
                                                                                 </span>
                                                                         </div>
                                                                         <div className="grid gap-2 sm:grid-cols-2">
-                                                                                {roleTemplates.map((role, index) => {
+                                                                                {roleTemplates.map((role) => {
                                                                                         const selected = selectedRole.key === role.key
                                                                                         const custom = role.key === 'custom'
                                                                                         return (
@@ -472,7 +472,7 @@ export function AgentWizard({
                                                                                                         {locale === 'fa' ? role.nameFa : role.nameEn}
                                                                                                 </p>
                                                                                                 <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
-                                                                                                        {custom ? <Zap className="h-3 w-3" /> : index + 1}
+                                                                                                        {custom ? <Zap className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                                                                                                 </span>
                                                                                         </div>
                                                                                         <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
@@ -481,7 +481,7 @@ export function AgentWizard({
                                                                                         <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
                                                                                                 {custom
                                                                                                         ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
-                                                                                                        : (locale === 'fa' ? 'قابل ویرایش در موتور ۶ لایه‌ای' : 'Editable in the six-layer engine')}
+                                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
                                                                                         </p>
                                                                                                 </button>
                                                                                         )

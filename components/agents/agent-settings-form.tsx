@@ -4,8 +4,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
-        ChevronDown,
-        ChevronUp,
         Loader2,
         Check,
         Trash2,
@@ -33,57 +31,6 @@ import {
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
 import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
-
-// ── Legacy free-form templates (kept for the "quick start" chips) ─────────
-const LEGACY_PROMPT_TEMPLATES = {
-        shop: `تو دستیار فروش {{business}} هستی. شخصیتت: صمیمی، کوتاه‌گو، حرفه‌ای — مثل یک فروشنده خوب، نه ربات.
-
-قوانین پاسخ‌دهی:
-• پاسخ‌ها زیر ۴۰ کلمه باشن مگر توضیح بیشتری لازم باشه
-• قبل از گفتن هر قیمتی، اول کاتالوگ محصولات رو چک کن
-• اگه محصولی در لیست ما نبود، بگو: "این محصول الان در لیست ما نیست"
-• موجودی رو صادقانه اعلام کن
-• ساعت کاری: {{hours}}
-• اگه نتونستی کمک کنی، بگو: "برای کمک بیشتر با ما تماس بگیرید: {{phone}}"`,
-        support: `تو متخصص پشتیبانی {{business}} هستی. شخصیتت: صبور، همدل، راه‌حل‌محور.
-
-قوانین پاسخ‌دهی:
-• اول مشکل مشتری رو کامل بفهم، بعد جواب بده
-• راه‌حل‌های عملی و ساده بده، گام‌به‌گام
-• اگه مشکل پیچیده بود، بگو: "این موضوع نیاز به بررسی تیم ما داره — تماس: {{phone}}"
-• هرگز اطلاعات شخصی مشتری رو نخواه مگر ضروری باشه
-• صادق باش — اگه جواب نداری بگو، حدس نزن`,
-        restaurant: `تو دستیار {{business}} هستی. شخصیتت: گرم، دوستانه، مهمان‌نواز.
-
-قوانین پاسخ‌دهی:
-• قیمت و منو رو دقیقاً از کاتالوگ بگو، حدس نزن
-• غذاهای پرطرفدار رو با اشتیاق معرفی کن
-• ساعت کاری: {{hours}} | تماس: {{phone}}
-• برای رزرو یا سفارش، اطلاعات تماس یا لینک بده
-• اگه سوالی داشتی که جوابش رو نمی‌دونی، بگو: "برای اطلاعات بیشتر تماس بگیرید"`,
-        general: `تو دستیار هوشمند {{business}} هستی. شخصیتت: مودب، مختصر، مفید.
-
-قوانین پاسخ‌دهی:
-• پاسخ‌ها کوتاه و دقیق باشن
-• اگه اطلاعاتی نداری، صادقانه بگو به‌جای حدس زدن
-• مشتری رو به بخش مناسب هدایت کن
-• راه تماس: {{phone}} | ساعت کاری: {{hours}}`,
-} as const
-
-type LegacyKey = keyof typeof LEGACY_PROMPT_TEMPLATES
-
-interface BizVars {
-        name: string
-        phone: string
-        hours: string
-}
-
-function applyBizVars(text: string, vars: BizVars): string {
-        return text
-                .replace(/\{\{business\}\}/g, vars.name || '{{business}}')
-                .replace(/\{\{phone\}\}/g, vars.phone || '{{phone}}')
-                .replace(/\{\{hours\}\}/g, vars.hours || '{{hours}}')
-}
 
 const EMPTY_CONFIG: PromptConfig = {
         personality: '',
@@ -193,10 +140,8 @@ export function AgentSettingsForm({
         })
         const [activeTab, setActiveTab] = useState<LayerTab>('personality')
         const [showPreview, setShowPreview] = useState(false)
-        const [showLegacy, setShowLegacy] = useState(false)
 
         const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-        const [bizVars, setBizVars] = useState<BizVars>({ name: '', phone: '', hours: '' })
 
         // ─ F3: customer identification
         const [requireCustomerInfo, setRequireCustomerInfo] = useState(
@@ -209,17 +154,9 @@ export function AgentSettingsForm({
         const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
                 setForm((f) => ({ ...f, [k]: v }))
 
-        const setBiz = (k: keyof BizVars, v: string) => setBizVars((b) => ({ ...b, [k]: v }))
-
         function applyRoleTemplate(role: RoleTemplate) {
                 setActiveRole(role)
                 setPromptConfig({ ...role.config })
-        }
-
-        function selectLegacyTemplate(key: LegacyKey) {
-                set('systemPrompt', applyBizVars(LEGACY_PROMPT_TEMPLATES[key], bizVars))
-                setActiveRole(null)
-                setPromptConfig(EMPTY_CONFIG)
         }
 
         const previewPrompt = useMemo(() => {
@@ -399,11 +336,11 @@ export function AgentSettingsForm({
                                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                                 <p className="text-xs text-[var(--text-muted)]">{tf('roleTemplateLabel')}</p>
                                                 <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
-                                                        {locale === 'fa' ? `پیشنهادهای مناسب ${businessLabel}` : `Recommended for ${businessLabel}`}
+                                                        {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
                                                 </span>
                                         </div>
                                         <div className="grid gap-2 sm:grid-cols-2">
-                                                {roleTemplates.map((role, index) => {
+                                                {roleTemplates.map((role) => {
                                                         const selected = activeRole?.key === role.key
                                                         const custom = role.key === 'custom'
                                                         return (
@@ -422,7 +359,7 @@ export function AgentSettingsForm({
                                                                                         {locale === 'fa' ? role.nameFa : role.nameEn}
                                                                                 </p>
                                                                                 <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
-                                                                                        {custom ? <Sparkles className="h-3 w-3" /> : index + 1}
+                                                                                        <Sparkles className="h-3 w-3" />
                                                                                 </span>
                                                                         </div>
                                                                         <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
@@ -431,93 +368,12 @@ export function AgentSettingsForm({
                                                                         <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
                                                                                 {custom
                                                                                         ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
-                                                                                        : (locale === 'fa' ? 'قابل ویرایش در موتور ۶ لایه‌ای' : 'Editable in the six-layer engine')}
+                                                                                        : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
                                                                         </p>
                                                                 </button>
                                                         )
                                                 })}
                                         </div>
-                                        {activeRole && (
-                                                <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                                setActiveRole(null)
-                                                                setPromptConfig(EMPTY_CONFIG)
-                                                        }}
-                                                        className="mt-2 text-xs text-[var(--text-muted)] transition-colors hover:text-danger"
-                                                >
-                                                        {tf('clearRole')}
-                                                </button>
-                                        )}
-                                </div>
-
-                                {/* Legacy free-form templates (collapsible) */}
-                                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-                                        <button
-                                                type="button"
-                                                onClick={() => setShowLegacy((v) => !v)}
-                                                className="flex w-full items-center justify-between text-xs text-[var(--text-secondary)]"
-                                        >
-                                                <span>{tf('legacyTemplatesHint')}</span>
-                                                {showLegacy ? (
-                                                        <ChevronUp className="h-3.5 w-3.5" />
-                                                ) : (
-                                                        <ChevronDown className="h-3.5 w-3.5" />
-                                                )}
-                                        </button>
-                                        {showLegacy && (
-                                                <div className="mt-3 space-y-3">
-                                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                                <input
-                                                                        value={bizVars.name}
-                                                                        onChange={(e) => setBiz('name', e.target.value)}
-                                                                        placeholder={tf('bizName')}
-                                                                        className="input text-xs"
-                                                                />
-                                                                <input
-                                                                        value={bizVars.phone}
-                                                                        onChange={(e) => setBiz('phone', e.target.value)}
-                                                                        placeholder={tf('bizPhone')}
-                                                                        className="input text-xs"
-                                                                />
-                                                                <input
-                                                                        value={bizVars.hours}
-                                                                        onChange={(e) => setBiz('hours', e.target.value)}
-                                                                        placeholder={tf('bizHours')}
-                                                                        className="input text-xs"
-                                                                />
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                                {(['shop', 'support', 'restaurant', 'general'] as LegacyKey[]).map(
-                                                                        (key) => (
-                                                                                <button
-                                                                                        key={key}
-                                                                                        type="button"
-                                                                                        onClick={() => selectLegacyTemplate(key)}
-                                                                                        className="rounded-md border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                                                                >
-                                                                                        {tw(
-                                                                                                `template${
-                                                                                                        key.charAt(0).toUpperCase() + key.slice(1)
-                                                                                                }` as Parameters<typeof tw>[0],
-                                                                                        )}
-                                                                                </button>
-                                                                        ),
-                                                                )}
-                                                        </div>
-                                                        <Field label={tw('systemPrompt')}>
-                                                                <textarea
-                                                                        value={form.systemPrompt}
-                                                                        onChange={(e) => set('systemPrompt', e.target.value)}
-                                                                        rows={5}
-                                                                        className="input resize-none font-mono text-sm"
-                                                                />
-                                                        </Field>
-                                                        <p className="text-[11px] text-[var(--text-muted)]">
-                                                                {tf('legacyTemplatesNote')}
-                                                        </p>
-                                                </div>
-                                        )}
                                 </div>
 
                                 {/* Layer tabs */}
