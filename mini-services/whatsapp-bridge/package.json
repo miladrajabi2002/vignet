@@ -5,8 +5,10 @@
   "type": "module",
   "description": "WhatsApp Web (Baileys) bridge for the vigent platform. Holds long-lived QR-login sessions and forwards inbound messages to the Next.js app.",
   "scripts": {
-    "dev": "if command -v bun >/dev/null 2>&1; then bun --hot index.ts; else npx tsx watch index.ts; fi",
-    "start": "if command -v bun >/dev/null 2>&1; then bun index.ts; else npx tsx index.ts; fi"
+    "dev": "tsx watch index.ts",
+    "start": "tsx index.ts",
+    "start:bun": "bun --hot index.ts",
+    "start:bun:prod": "bun index.ts"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",

@@ -81,44 +81,38 @@ append_env "WHATSAPP_BRIDGE_URL" "http://localhost:$BRIDGE_PORT" "$ENV_MAIN"
 append_env "WHATSAPP_BRIDGE_SECRET" "$SECRET" "$ENV_MAIN"
 
 # ─── ۵. نصب وابستگی‌های bridge ────────────────────────────────────────────────
-# متغیر BRIDGE_RUNNER به ecosystem.config.js می‌گوید با چه runtimeای bridge
-# را اجرا کند: "bun" (ترجیح) یا "tsx" (fallback وقتی bun نصب نیست).
-BRIDGE_RUNNER="tsx"
 echo "==> نصب وابستگی‌های bridge"
 cd "$BRIDGE_DIR"
 if command -v bun >/dev/null 2>&1; then
   echo "    استفاده از bun (پیشنهاد شده — سریع‌تر و بی‌مشکل با peer deps)"
   bun install
-  BRIDGE_RUNNER="bun"
 elif command -v npm >/dev/null 2>&1; then
   echo "    bun پیدا نشد — استفاده از npm --legacy-peer-deps"
   echo "    (پیشنهاد: bun را نصب کنید:  curl -fsSL https://bun.sh/install | bash)"
   # --legacy-peer-deps الزامی است چون Baileys peer deps سخت‌گیرانه دارد
   # و بدون این flag، npm با ERESOLVE خطا می‌دهد.
+  # tsx به‌عنوان devDependency در package.json موجود است و بعد از نصب،
+  # `npm run start` از آن استفاده می‌کند.
   npm install --legacy-peer-deps
-  # tsx باید به‌صورت محلی در bridge نصب باشد تا pm2 بتواند با آن اجرا کند.
-  echo "    نصب tsx به‌عنوان runtime fallback..."
-  npm install --legacy-peer-deps --save-dev tsx
-  BRIDGE_RUNNER="tsx"
 else
   echo "✗ نه bun و نه npm پیدا نشد. یکی را نصب کنید:"
   echo "    curl -fsSL https://bun.sh/install | bash"
   exit 1
 fi
 cd "$ROOT"
-echo "    runtime انتخاب شده: $BRIDGE_RUNNER"
 
 # ─── ۶. ثبت bridge در pm2 ────────────────────────────────────────────────────
 echo "==> ثبت سرویس‌ها در pm2"
-# متغیرهای محیطی برای ecosystem.config.js
+# متغیر محیطی برای ecosystem.config.js (همان secret را می‌خواند)
 export WHATSAPP_BRIDGE_SECRET="$SECRET"
 export NEXT_JS_BASE_URL="$NEXT_JS_BASE_URL"
 export WHATSAPP_BRIDGE_PORT="$BRIDGE_PORT"
-export BRIDGE_RUNNER="$BRIDGE_RUNNER"
 
 if pm2 describe vignet-whatsapp-bridge >/dev/null 2>&1; then
-  echo "    bridge از قبل در pm2 موجود است — reload"
-  pm2 reload deploy/ecosystem.config.js
+  echo "    bridge از قبل در pm2 موجود است — restart (برای اعمال .env جدید)"
+  # از restart استفاده می‌کنیم نه reload، چون bridge احتمالاً با config
+  # قدیمی اجرا شده یا اصلاً اجرا نشده (خطای Script not found).
+  pm2 restart vignet-whatsapp-bridge --update-env 2>/dev/null || pm2 reload deploy/ecosystem.config.js
 else
   echo "    اولین ثبت bridge در pm2"
   pm2 start deploy/ecosystem.config.js
@@ -129,7 +123,9 @@ pm2 save  # ذخیره برای استارت خودکار بعد از ریبوت
 # ─── ۷. خلاصه ─────────────────────────────────────────────────────────────────
 echo ""
 echo "==> ✅ راه‌اندازی whatsapp-bridge کامل شد"
-echo "    runtime: $BRIDGE_RUNNER"
+echo "    bridge با `npm run start` اجرا می‌شود (از tsx استفاده می‌کند)"
+echo "    اگر bun نصب دارید، می‌توانید ecosystem.config.js را ویرایش کنید"
+echo "    و args را به `run start:bun:prod` تغییر دهید."
 echo ""
 echo "وضعیت سرویس‌ها:"
 pm2 status

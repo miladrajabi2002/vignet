@@ -51,13 +51,6 @@ echo "==> ساخت نسخه production"
 npm run build
 
 echo "==> ری‌استارت سرویس‌ها"
-# تشخیص runtime bridge برای ecosystem.config.js (درست همان منطق setup-whatsapp-bridge.sh)
-if command -v bun >/dev/null 2>&1; then
-  export BRIDGE_RUNNER="bun"
-else
-  export BRIDGE_RUNNER="tsx"
-fi
-
 if pm2 describe vignet-web >/dev/null 2>&1; then
   pm2 reload deploy/ecosystem.config.js   # بدون قطعی (zero-downtime)
 else

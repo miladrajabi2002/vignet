@@ -1,14 +1,9 @@
 // PM2 process config — اپ Next.js + worker پس‌زمینه + WhatsApp bridge را با هم مدیریت می‌کند.
 // اجرا: pm2 start deploy/ecosystem.config.js
 //
-// bridge از bun استفاده می‌کند اگر نصب باشد (سریع‌تر)، در غیر این صورت از
-// npx tsx (که در حال حاضر به‌عنوان dependency پروژه‌ی اصلی موجود است).
-// setup-whatsapp-bridge.sh به‌صورت خودکار تشخیص می‌دهد و متغیر محیطی
-// BRIDGE_RUNNER را تنظیم می‌کند.
-const bridgeRunner = process.env.BRIDGE_RUNNER || "bun"; // "bun" | "tsx"
-const bridgeScript = bridgeRunner === "tsx" ? "tsx" : "bun";
-const bridgeArgs = bridgeRunner === "tsx" ? "index.ts" : "run start";
-
+// bridge با `npm run start` اجرا می‌شود (مثل vignet-web و vignet-worker).
+// package.json خود bridge تشخیص می‌دهد که bun موجود است یا نه و از tsx
+// به‌عنوان fallback استفاده می‌کند.
 module.exports = {
   apps: [
     {
@@ -29,8 +24,8 @@ module.exports = {
     },
     {
       name: "vignet-whatsapp-bridge",
-      script: bridgeScript,     // "bun" (ترجیح) یا "tsx" (fallback)
-      args: bridgeArgs,         // "run start" (bun) یا "index.ts" (tsx)
+      script: "npm",
+      args: "run start",        // → package.json "start": tsx index.ts (یا bun)
       cwd: __dirname + "/../mini-services/whatsapp-bridge",
       env: {
         NODE_ENV: "production",

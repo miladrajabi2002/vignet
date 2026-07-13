@@ -40,21 +40,11 @@ internet traffic can't trigger inbound message processing.
 
 ## Install & run
 
-The bridge prefers **bun** (faster, no peer-dep conflicts) but also works with
-**npm + tsx** as a fallback. The `start` script auto-detects which runtime is
-available.
+The bridge uses **tsx** by default (always available after `npm install`).
+If you have **bun** installed and prefer it (faster startup, less memory),
+use the `start:bun:prod` script instead.
 
-### With bun (recommended)
-
-```bash
-cd mini-services/whatsapp-bridge
-bun install
-cp .env.example .env
-# edit .env — set WHATSAPP_BRIDGE_SECRET to a long random string
-bun run dev
-```
-
-### With npm (when bun is not installed)
+### With npm + tsx (default — works everywhere)
 
 ```bash
 cd mini-services/whatsapp-bridge
@@ -63,15 +53,38 @@ cd mini-services/whatsapp-bridge
 npm install --legacy-peer-deps
 cp .env.example .env
 # edit .env — set WHATSAPP_BRIDGE_SECRET to a long random string
-npm run dev    # uses tsx under the hood (added as a devDependency)
+npm run dev    # tsx watch index.ts (hot reload)
 ```
+
+### With bun (optional — faster)
+
+```bash
+cd mini-services/whatsapp-bridge
+bun install
+cp .env.example .env
+# edit .env — set WHATSAPP_BRIDGE_SECRET to a long random string
+bun run start:bun   # bun --hot index.ts (hot reload)
+```
+
+### Available scripts
+
+| Script | Runtime | Purpose |
+| --- | --- | --- |
+| `npm run dev` | tsx watch | Dev with hot reload |
+| `npm run start` | tsx | Production (used by pm2) |
+| `npm run start:bun` | bun --hot | Dev with bun (if installed) |
+| `npm run start:bun:prod` | bun | Production with bun |
 
 The bridge listens on port **3040** by default. To change it, set
 `WHATSAPP_BRIDGE_PORT` in `.env`.
 
-In production run it under pm2 — see `deploy/ecosystem.config.js` (already
-includes a `vignet-whatsapp-bridge` app) and `deploy/setup-whatsapp-bridge.sh`
-(one-time setup: generates secret, writes `.env`, installs deps, starts pm2).
+In production run it under pm2 — `deploy/ecosystem.config.js` already includes
+a `vignet-whatsapp-bridge` app that calls `npm run start`. To switch to bun,
+edit `ecosystem.config.js` and change `args: "run start"` to
+`args: "run start:bun:prod"`. Then `pm2 restart vignet-whatsapp-bridge`.
+
+The one-time setup script `deploy/setup-whatsapp-bridge.sh` generates the
+secret, writes `.env`, installs deps, and starts pm2 for you.
 
 ## Environment
 
