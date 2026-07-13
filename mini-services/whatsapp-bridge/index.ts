@@ -302,39 +302,54 @@ async function startSession(sessionId: string, opts?: { phone?: string }) {
     }
     if (connection === 'close') {
       const code = (lastDisconnect?.error as any)?.output?.statusCode
-      const restartable =
-        code !== DisconnectReason.loggedOut &&
-        code !== 515 && // 515 = restart needed (Baileys will reconnect itself)
-        code !== 401
+      // Baileys disconnect codes:
+      //   401 / DisconnectReason.loggedOut (403) → phone unlinked the device.
+      //       Must wipe auth + re-scan QR.
+      //   515 → "restart required". The WebSocket stream died (common right
+      //       after QR scan — Baileys' internal state machine hiccups). The
+      //       old socket is DEAD; Baileys does NOT reconnect itself. We must
+      //       build a NEW socket. Because creds.update already saved the
+      //       scanned credentials, the new socket reconnects WITHOUT a new QR.
+      //   408 / 428 / 440 / 500 / 5xx → transient. Same treatment: rebuild.
+      const loggedOut =
+        code === DisconnectReason.loggedOut || code === 401
       patch(sessionId, {
         state: 'closed',
         qr: null,
         pairingCode: null,
         error: lastDisconnect?.error?.message ?? `closed (code ${code})`,
       })
-      log.warn(
-        { sessionId, code, restartable },
-        'connection closed',
-      )
-      // 515 = "restart required" → Baileys handles the reconnect itself; we
-      // must NOT start a new socket or we'll end up with two sockets fighting.
-      if (code === 515) return
-      if (restartable) {
-        // Transient (network blip, server 5xx) → auto-restart after a short
-        // delay so the operator doesn't have to re-scan the QR.
-        await delay(2000)
-        if (sessions.get(sessionId)?.state === 'closed') {
-          void startSession(sessionId)
-        }
-      } else {
-        // Logged out (403) or explicitly logged out → wipe the auth folder so
-        // the next /start emits a fresh QR.
+      log.warn({ sessionId, code, loggedOut }, 'connection closed')
+
+      if (loggedOut) {
+        // Phone unlinked the device → wipe auth so next /start emits fresh QR.
         try {
           await rm(authDir, { recursive: true, force: true })
         } catch {
           /* ignore */
         }
         patch(sessionId, { sock: null })
+      } else {
+        // 515 (restart required) + all transient errors → build a new socket.
+        // Wait briefly so we don't hammer WhatsApp's servers on a flapping
+        // connection. The new socket picks up the saved auth state and
+        // reconnects without re-scanning the QR (unless the auth was wiped,
+        // in which case a fresh QR is emitted).
+        //
+        // Set state to 'connecting' immediately so the dashboard wizard (which
+        // polls /status every 2s) shows "در حال اتصال…" instead of the scary
+        // "اتصال بسته شد" message during the restart window.
+        patch(sessionId, { state: 'connecting', error: null })
+        await delay(2000)
+        // Guard: only restart if we haven't been stopped/disconnected in the
+        // meantime (operator clicked "disconnect" or "new QR").
+        const cur2 = sessions.get(sessionId)
+        if (cur2 && cur2.state !== 'closed') {
+          // startSession will reset state to 'starting' then progress through
+          // 'connecting' → 'open' (or 'qr' if auth was wiped).
+          log.info({ sessionId, code }, 'auto-restarting session')
+          void startSession(sessionId)
+        }
       }
     }
     if (receivedPendingNotifications) {
