@@ -26,7 +26,7 @@ export default async function AgentSettingsPage(
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { plan: true, aiCreditBalanceIRR: true },
+      select: { plan: true, aiCreditBalanceIRR: true, businessType: true },
     }),
     getPlatformAiConfig(),
   ])
@@ -39,6 +39,7 @@ export default async function AgentSettingsPage(
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
       </div>
       <AgentSettingsForm
+        businessType={workspace?.businessType}
         modelPolicy={{
           plan: workspace?.plan ?? 'TRIAL',
           enabledModels: platformPolicy.enabledModels,

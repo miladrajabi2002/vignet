@@ -32,6 +32,31 @@ export const promptConfigSchema = z.object({
 })
 
 export const roleTemplateKeys = [
+  // Three business-specific templates per vertical
+  'commerce_sales',
+  'commerce_after_sales',
+  'commerce_product_support',
+  'food_order_guide',
+  'food_booking_host',
+  'food_order_support',
+  'appointments_reception',
+  'appointments_service_guide',
+  'appointments_follow_up',
+  'services_consultant',
+  'services_request_capture',
+  'services_delivery_support',
+  'education_course_advisor',
+  'education_enrollment',
+  'education_student_support',
+  'support_frontline',
+  'support_troubleshooter',
+  'support_ticket_follow_up',
+  'social_dm_sales',
+  'social_engagement',
+  'social_order_follow_up',
+  'custom_full_service',
+  'custom_sales',
+  'custom_support',
   // Current need-based templates
   'full_service',
   'sales_consultant',

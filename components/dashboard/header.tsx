@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
-import { LogOut } from 'lucide-react'
+import { ChevronRight, Gem, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
@@ -40,11 +40,11 @@ export async function Header({
     : getVerticalPack(businessType).titleEn
 
   return (
-    <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6 lg:px-8 xl:px-10">
-      <div className="spatial-control flex min-h-14 items-center justify-between gap-2 rounded-[1.15rem] px-2.5 sm:px-3.5">
+    <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 lg:px-8 xl:px-10">
+      <div className="spatial-control flex min-h-16 items-center justify-between gap-2 rounded-[1.35rem] px-2 sm:px-3.5">
       <div className="flex min-w-0 items-center gap-3.5">
         <MobileNav businessType={businessType} services={services} />
-        <div className="min-w-0">
+        <div className="hidden min-w-0 sm:block">
           <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">
             {name ? t('greeting', { name }) : t('welcome')}
           </div>
@@ -55,22 +55,38 @@ export async function Header({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:flex-none">
         <Link
           href="/billing"
+          dir="ltr"
           aria-label={fa ? 'مشاهده پلن و اعتبار' : 'View plan and credit'}
-          className="spatial-press relative me-0.5 flex h-11 w-[8.8rem] flex-col justify-center overflow-hidden rounded-xl border border-[var(--border-default)] bg-white px-2.5 pb-1.5 shadow-[var(--shadow-xs)] sm:w-[10.5rem]"
+          className="spatial-press group me-0.5 flex h-14 min-w-0 w-full max-w-[13rem] items-center gap-2 rounded-[1.45rem] border border-black/[0.08] bg-white px-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow,transform] duration-200 hover:border-black/15 hover:shadow-[0_12px_34px_rgba(0,0,0,0.09)] sm:w-[16rem] sm:max-w-none sm:gap-2.5 sm:px-3"
         >
-          <span className="flex w-full min-w-0 items-center justify-between gap-2 text-[9px] font-bold text-[var(--text-primary)] sm:text-[10px]">
-            <span className="truncate">{fa ? `پلن ${planLabel}` : `${planLabel} plan`}</span>
-            <span className="shrink-0 tabular-nums text-[8px] font-medium text-[var(--text-muted)]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-black/[0.06] bg-[radial-gradient(circle_at_35%_30%,white_0%,#f7f7f7_48%,#eeeeee_100%)] text-black shadow-[inset_0_1px_0_white,0_3px_10px_rgba(0,0,0,0.06)] sm:h-10 sm:w-10">
+            <Gem className="h-[1.05rem] w-[1.05rem] stroke-[1.8] sm:h-[1.15rem] sm:w-[1.15rem]" />
           </span>
-          <span className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-1 text-[8px] leading-3 text-[var(--text-muted)]">
-            <span className="truncate">{nf.format(Math.round(creditIRR / 10))} {fa ? 'تومان' : 'toman'}</span>
-            {daysLeft !== null && <span className="shrink-0">{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
+
+          <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>
+            <span className="block truncate text-[11px] font-bold leading-4 text-[var(--text-primary)] sm:text-xs">
+              {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
+            </span>
+            <span className="mt-0.5 block truncate text-[9px] leading-3.5 text-[var(--text-muted)] sm:text-[10px]">
+              {daysLeft !== null
+                ? fa
+                  ? `${nf.format(daysLeft)} روز باقی‌مانده · ${nf.format(Math.round(creditIRR / 10))} تومان`
+                  : `${nf.format(daysLeft)} days left · ${nf.format(Math.round(creditIRR / 10))} toman`
+                : fa
+                  ? `${nf.format(Math.round(creditIRR / 10))} تومان اعتبار`
+                  : `${nf.format(Math.round(creditIRR / 10))} toman credit`}
+            </span>
+            <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-black/[0.075]">
+              <span className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${remaining}%` }} />
+            </span>
           </span>
-          <span className="absolute inset-x-2 bottom-0.5 h-1 overflow-hidden rounded-full bg-black/[0.08]">
-            <span className="block h-full rounded-full bg-black" style={{ width: `${remaining}%` }} />
+
+          <span className="flex shrink-0 items-center gap-0.5 text-black/65" dir="ltr">
+            <span className="text-[10px] font-bold tabular-nums sm:text-[11px]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
           </span>
         </Link>
         <NotificationBell />
@@ -78,7 +94,7 @@ export async function Header({
           <button
             type="submit"
             aria-label={t('logout')}
-            className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+            className="spatial-press hidden h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] sm:inline-flex"
           >
             <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
           </button>

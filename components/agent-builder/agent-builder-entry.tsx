@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Settings, Wand2 } from 'lucide-react'
 import { AgentWizard } from '@/components/agent-builder/agent-wizard'
+import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
 type BuildMode = 'choice' | 'ai' | 'manual'
 
 interface Props {
   initialBusiness?: string
+  businessType?: BusinessTypeValue | null
   workspaceProductCount?: number
   onboardingMode?: boolean
   modelPolicy: {
@@ -20,7 +22,7 @@ interface Props {
   }
 }
 
-export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, onboardingMode = false, modelPolicy }: Props) {
+export function AgentBuilderEntry({ initialBusiness, businessType, workspaceProductCount, onboardingMode = false, modelPolicy }: Props) {
   const [mode, setMode] = useState<BuildMode>('choice')
 
   // The choice screen lets the user pick AI-guided or manual
@@ -40,6 +42,7 @@ export function AgentBuilderEntry({ initialBusiness, workspaceProductCount, onbo
       </button>
       <AgentWizard
         initialBusiness={initialBusiness}
+        businessType={businessType}
         workspaceProductCount={workspaceProductCount}
         modelPolicy={modelPolicy as never}
         showVigento={mode === 'ai'}

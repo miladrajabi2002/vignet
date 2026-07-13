@@ -25,10 +25,12 @@ import {
 import { ModelSelect } from './model-select'
 import type { ModelAlias } from '@/lib/ai/models'
 import {
-        ROLE_TEMPLATES,
+        getRoleTemplatesForBusiness,
+        getSuggestedRoleTemplate,
         type PromptConfig,
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
+import { fromLegacyBusinessKey, getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
 import type { VigentoDraft } from '@/lib/ai/vigento-draft'
 import { VigentoComposer } from './vigento-composer'
 import { MaterialSelect } from '@/components/ui/material-select'
@@ -179,12 +181,14 @@ const BUSINESS_PRESETS = {
 
 export function AgentWizard({
         initialBusiness,
+        businessType,
         modelPolicy,
         workspaceProductCount = 0,
         showVigento = true,
         onboardingMode = false,
 }: {
         initialBusiness?: string
+        businessType?: BusinessTypeValue | null
         workspaceProductCount?: number
         showVigento?: boolean
         onboardingMode?: boolean
@@ -205,7 +209,12 @@ export function AgentWizard({
         const preset = initialBusiness && initialBusiness in BUSINESS_PRESETS
                 ? BUSINESS_PRESETS[initialBusiness as keyof typeof BUSINESS_PRESETS]
                 : null
-        const defaultRole = ROLE_TEMPLATES.find((r) => r.key === (preset?.role ?? 'full_service')) ?? ROLE_TEMPLATES[0]
+        const resolvedBusinessType = businessType ?? fromLegacyBusinessKey(initialBusiness)
+        const roleTemplates = getRoleTemplatesForBusiness(resolvedBusinessType)
+        const defaultRole = getSuggestedRoleTemplate(resolvedBusinessType, preset?.role ?? 'full_service')
+        const businessLabel = locale === 'fa'
+                ? getVerticalPack(resolvedBusinessType).titleFa
+                : getVerticalPack(resolvedBusinessType).titleEn
         const presetCopy = preset?.[locale]
 
         const [step, setStep] = useState(0)
@@ -245,7 +254,7 @@ export function AgentWizard({
         }
 
         function applyVigentoDraft(next: VigentoDraft) {
-                const role = ROLE_TEMPLATES.find((item) => item.key === next.roleTemplate) ?? ROLE_TEMPLATES[0]
+                const role = getSuggestedRoleTemplate(resolvedBusinessType, next.roleTemplate)
                 setSelectedRole(role)
                 setDraft({
                         personality: next.promptConfig.personality,
@@ -434,30 +443,46 @@ export function AgentWizard({
                                                         <>
                                                                 {/* Role template picker (6-layer engine) */}
                                                                 <div>
-                                                                        <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                                                                                <Sparkles className="h-3.5 w-3.5" />
-                                                                                {t('roleTemplateLabel')}
-                                                                        </p>
+                                                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                                                                <p className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                                                                                        <Sparkles className="h-3.5 w-3.5" />
+                                                                                        {t('roleTemplateLabel')}
+                                                                                </p>
+                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
+                                                                                        {locale === 'fa' ? `پیشنهادهای مناسب ${businessLabel}` : `Recommended for ${businessLabel}`}
+                                                                                </span>
+                                                                        </div>
                                                                         <div className="grid gap-2 sm:grid-cols-2">
-                                                                                {ROLE_TEMPLATES.map((role) => {
+                                                                                {roleTemplates.map((role, index) => {
                                                                                         const selected = selectedRole.key === role.key
+                                                                                        const custom = role.key === 'custom'
                                                                                         return (
                                                                                                 <button
                                                                                                         key={role.key}
                                                                                                         type="button"
                                                                                                         onClick={() => selectRole(role)}
-                                                                                                        className={`w-full rounded-xl border p-3 text-start transition-colors ${
+                                                                                                        className={`w-full min-h-[7.25rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
                                                                                                                 selected
-                                                                                                                        ? 'border-[var(--border-strong)] bg-[var(--bg-muted)]'
-                                                                                                                        : 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
+                                                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
+                                                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
                                                                                                         }`}
                                                                                                 >
-                                                                                        <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                                                {locale === 'fa' ? role.nameFa : role.nameEn}
-                                                                                        </p>
-                                                                                        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                                                        <div className="flex items-start justify-between gap-3">
+                                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
+                                                                                                </p>
+                                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
+                                                                                                        {custom ? <Zap className="h-3 w-3" /> : index + 1}
+                                                                                                </span>
+                                                                                        </div>
+                                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
                                                                                                 {locale === 'fa' ? role.descFa : role.descEn}
                                                                                                         </p>
+                                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
+                                                                                                {custom
+                                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
+                                                                                                        : (locale === 'fa' ? 'قابل ویرایش در موتور ۶ لایه‌ای' : 'Editable in the six-layer engine')}
+                                                                                        </p>
                                                                                                 </button>
                                                                                         )
                                                                                 })}

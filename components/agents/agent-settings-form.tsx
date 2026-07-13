@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
         ChevronDown,
         ChevronUp,
@@ -23,13 +23,16 @@ import { ModelSelect } from '@/components/agent-builder/model-select'
 import { MaterialSelect } from '@/components/ui/material-select'
 import type { ModelAlias } from '@/lib/ai/models'
 import {
-        ROLE_TEMPLATES,
         buildLayeredPrompt,
+        getRoleTemplate,
+        getRoleTemplatesForBusiness,
+        getSuggestedRoleTemplate,
         type PromptConfig,
         type PromptFormatConfig,
         type PromptQAPair,
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
+import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
 
 // ── Legacy free-form templates (kept for the "quick start" chips) ─────────
 const LEGACY_PROMPT_TEMPLATES = {
@@ -119,9 +122,11 @@ export interface AgentSettingsData {
 
 export function AgentSettingsForm({
         agent,
+        businessType,
         modelPolicy,
 }: {
         agent: AgentSettingsData
+        businessType?: BusinessTypeValue | null
         modelPolicy: {
                 plan: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
                 enabledModels: ModelAlias[]
@@ -134,7 +139,12 @@ export function AgentSettingsForm({
         const tw = useTranslations('agents.wizard')
         const tf = useTranslations('agents.settingsForm')
         const tc = useTranslations('common')
+        const locale = useLocale() === 'en' ? 'en' : 'fa'
         const router = useRouter()
+        const roleTemplates = useMemo(() => getRoleTemplatesForBusiness(businessType), [businessType])
+        const businessLabel = locale === 'fa'
+                ? getVerticalPack(businessType).titleFa
+                : getVerticalPack(businessType).titleEn
 
         const [form, setForm] = useState({
                 name: agent.name,
@@ -175,7 +185,9 @@ export function AgentSettingsForm({
         }, [])
         const [activeRole, setActiveRole] = useState<RoleTemplate | null>(() => {
                 if (agent.roleTemplate) {
-                        return ROLE_TEMPLATES.find((r) => r.key === agent.roleTemplate) ?? null
+                        const exact = getRoleTemplate(agent.roleTemplate)
+                        if (exact && roleTemplates.some((role) => role.key === exact.key)) return exact
+                        return getSuggestedRoleTemplate(businessType, agent.roleTemplate)
                 }
                 return null
         })
@@ -384,28 +396,42 @@ export function AgentSettingsForm({
 
                                 {/* Role template picker */}
                                 <div>
-                                        <p className="mb-2 text-xs text-[var(--text-muted)]">
-                                                {tf('roleTemplateLabel')}
-                                        </p>
-                                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                                {ROLE_TEMPLATES.map((role) => {
+                                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                                <p className="text-xs text-[var(--text-muted)]">{tf('roleTemplateLabel')}</p>
+                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
+                                                        {locale === 'fa' ? `پیشنهادهای مناسب ${businessLabel}` : `Recommended for ${businessLabel}`}
+                                                </span>
+                                        </div>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                                {roleTemplates.map((role, index) => {
                                                         const selected = activeRole?.key === role.key
+                                                        const custom = role.key === 'custom'
                                                         return (
                                                                 <button
                                                                         key={role.key}
                                                                         type="button"
                                                                         onClick={() => applyRoleTemplate(role)}
-                                                                        className={`rounded-xl border p-3 text-start transition-colors ${
+                                                                        className={`min-h-[7rem] rounded-2xl border p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-200 ${
                                                                                 selected
-                                                                                        ? 'border-[var(--border-strong)] bg-[var(--bg-muted)]'
-                                                                                        : 'border-[var(--border-default)] hover:border-[var(--border-hover)]'
+                                                                                        ? 'border-black bg-black/[0.035] shadow-[var(--shadow-xs)]'
+                                                                                        : 'border-[var(--border-default)] bg-white hover:border-black/25 hover:bg-black/[0.015]'
                                                                         }`}
                                                                 >
-                                                                        <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                                                {role.nameFa}
+                                                                        <div className="flex items-start justify-between gap-3">
+                                                                                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                                                                        {locale === 'fa' ? role.nameFa : role.nameEn}
+                                                                                </p>
+                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
+                                                                                        {custom ? <Sparkles className="h-3 w-3" /> : index + 1}
+                                                                                </span>
+                                                                        </div>
+                                                                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                                                {locale === 'fa' ? role.descFa : role.descEn}
                                                                         </p>
-                                                                        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                                                                {role.descFa}
+                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
+                                                                                {custom
+                                                                                        ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
+                                                                                        : (locale === 'fa' ? 'قابل ویرایش در موتور ۶ لایه‌ای' : 'Editable in the six-layer engine')}
                                                                         </p>
                                                                 </button>
                                                         )
