@@ -11,8 +11,6 @@ import { MiniTrend } from '@/components/admin/mini-trend'
 import { ConversationFilters } from '@/components/dashboard/conversation-filters'
 import {
         conversationsDailyByWorkspace,
-        resolvedDailyByWorkspace,
-        handoffsDailyByWorkspace,
 } from '@/lib/dashboard/charts'
 import { relativeTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
@@ -101,8 +99,6 @@ export default async function ConversationsPage(props: {
                 resolvedCount,
                 handedOffCount,
                 convTrend7,
-                resolvedTrend7,
-                handoffTrend7,
                 channelGroups,
                 agents,
         ] = await Promise.all([
@@ -159,8 +155,6 @@ export default async function ConversationsPage(props: {
                         where: { workspaceId: user.workspaceId, status: 'HANDED_OFF', handedOff: true },
                 }),
                 conversationsDailyByWorkspace(user.workspaceId, 7),
-                resolvedDailyByWorkspace(user.workspaceId, 7),
-                handoffsDailyByWorkspace(user.workspaceId, 7),
                 // Available channels for the filter pills.
                 prisma.conversation.groupBy({
                         by: ['channel'],
@@ -191,10 +185,6 @@ export default async function ConversationsPage(props: {
                 { label: isFa ? 'حل‌شده' : 'Resolved', value: resolvedCount },
                 { label: isFa ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
         ].filter((item) => item.value > 0)
-        const channelDonut = availableChannels.map((item) => ({
-                label: channelLabels?.[item.channel] ?? item.channel.charAt(0) + item.channel.slice(1).toLowerCase(),
-                value: item.count,
-        }))
 
         return (
                 <div className="min-w-0 space-y-6">
@@ -210,45 +200,13 @@ export default async function ConversationsPage(props: {
                                 >
                                         <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
                                 </DashboardPanel>
-                                <DashboardPanel
-                                        title={isFa ? 'توزیع کانال‌ها' : 'Channel distribution'}
-                                        subtitle={isFa ? 'گفتگوها بر اساس کانال ورودی' : 'Conversations by inbound channel'}
-                                >
-                                        <DashboardDonut data={channelDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
-                                </DashboardPanel>
-                        </div>
-
-                        {/* ─── 7-day MiniTrends ─── */}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 <MiniTrend
                                         label={isFa ? 'مکالمات ۷ روز' : 'Conversations 7d'}
                                         value={convTrend7.total}
                                         series={convTrend7.series}
-                                        color="#3b82f6"
+                                        color="#111111"
                                         hint={
                                                 isFa ? `کل: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`
-                                        }
-                                />
-                                <MiniTrend
-                                        label={isFa ? 'بسته‌شده ۷ روز' : 'Resolved 7d'}
-                                        value={resolvedTrend7.total}
-                                        series={resolvedTrend7.series}
-                                        color="#22c55e"
-                                        hint={
-                                                isFa
-                                                        ? `کل: ${resolvedCount.toLocaleString('fa-IR')}`
-                                                        : `Total: ${resolvedCount}`
-                                        }
-                                />
-                                <MiniTrend
-                                        label={isFa ? 'تحویل اپراتور ۷ روز' : 'Handoffs 7d'}
-                                        value={handoffTrend7.total}
-                                        series={handoffTrend7.series}
-                                        color="#f59e0b"
-                                        hint={
-                                                isFa
-                                                        ? `کل: ${handedOffCount.toLocaleString('fa-IR')}`
-                                                        : `Total: ${handedOffCount}`
                                         }
                                 />
                         </div>

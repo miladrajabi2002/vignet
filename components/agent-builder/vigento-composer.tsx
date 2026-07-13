@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  FlaskConical,
   Loader2,
   ShieldCheck,
   Sparkles,
@@ -15,6 +14,7 @@ import {
   ThumbsUp,
 } from 'lucide-react'
 import type { VigentoDraft } from '@/lib/ai/vigento-draft'
+import { ROLE_TEMPLATES } from '@/lib/ai/prompt-builder'
 
 export function VigentoComposer({
   locale,
@@ -35,6 +35,9 @@ export function VigentoComposer({
   const [expanded, setExpanded] = useState(false)
   const [applied, setApplied] = useState(false)
   const [helpful, setHelpful] = useState<boolean | null>(null)
+  const roleLabel = draft
+    ? (ROLE_TEMPLATES.find((item) => item.key === draft.roleTemplate)?.[isFa ? 'nameFa' : 'nameEn'] ?? draft.roleTemplate)
+    : ''
 
   async function generate() {
     if (description.trim().length < 20 || loading) return
@@ -172,12 +175,12 @@ export function VigentoComposer({
           {expanded && (
             <div className="mt-4 space-y-4">
               <div className="grid gap-3 sm:grid-cols-3">
-                <PreviewStat icon={<ArrowLeftRight className="h-4 w-4" />} label={isFa ? 'نقش' : 'Role'} value={draft.roleTemplate} />
+                <PreviewStat icon={<ArrowLeftRight className="h-4 w-4" />} label={isFa ? 'نقش' : 'Role'} value={roleLabel} />
                 <PreviewStat icon={<ShieldCheck className="h-4 w-4" />} label={isFa ? 'قوانین ممنوع' : 'Guardrails'} value={String(draft.promptConfig.dontSay.length)} />
-                <PreviewStat icon={<FlaskConical className="h-4 w-4" />} label={isFa ? 'تست آماده' : 'Ready tests'} value={String(draft.evalCases.length)} />
+                <PreviewStat icon={<Bot className="h-4 w-4" />} label={isFa ? 'منابع پیشنهادی' : 'Suggested sources'} value={String(draft.knowledgePlan.length)} />
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">{isFa ? 'منابع پیشنهادی RAG' : 'Suggested RAG sources'}</h3>
                   <ul className="mt-3 space-y-2">
@@ -185,17 +188,6 @@ export function VigentoComposer({
                       <li key={`${item.type}-${item.label}`} className="flex gap-2 text-xs text-[var(--text-secondary)]">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                         <span><strong className="font-medium text-[var(--text-primary)]">{item.label}</strong><span className="block text-[10px] leading-5 text-[var(--text-muted)]">{item.reason}</span></span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{isFa ? 'سناریوهای ارزیابی' : 'Evaluation scenarios'}</h3>
-                  <ul className="mt-3 space-y-2">
-                    {draft.evalCases.map((item) => (
-                      <li key={item.input} className="rounded-lg bg-[var(--bg-base)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-                        <span className="line-clamp-1 text-[var(--text-primary)]">{item.input}</span>
-                        <span className="mt-1 block text-[10px] text-[var(--text-muted)]">{item.expectedBehavior}</span>
                       </li>
                     ))}
                   </ul>

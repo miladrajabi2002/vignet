@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import type { ChannelType } from '@prisma/client'
 import type { ChatMessage } from '@/lib/ai/openrouter'
 import type { CatalogProduct } from '@/lib/ai/rag'
+import type { CatalogService } from '@/lib/ai/rag'
 import type { StartChatParams } from '@/lib/ai/chat-types'
 
 /**
@@ -10,6 +11,13 @@ import type { StartChatParams } from '@/lib/ai/chat-types'
  */
 
 export const HISTORY_LIMIT = 12
+
+export function isHumanOwnedConversation(conversation: {
+        status: 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
+        handedOff: boolean
+}): boolean {
+        return conversation.handedOff || conversation.status === 'HANDED_OFF'
+}
 
 /**
  * Find an existing conversation (by id, or by channel + externalId) or create
@@ -26,18 +34,25 @@ export const HISTORY_LIMIT = 12
  */
 export async function resolveConversation(
         params: StartChatParams,
-): Promise<{ id: string; customerInfoState: string }> {
+): Promise<{
+        id: string
+        customerInfoState: string
+        status: 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
+        handedOff: boolean
+}> {
         const { workspaceId, agent } = params
 
         if (params.conversationId) {
                 const found = await prisma.conversation.findFirst({
                         where: { id: params.conversationId, workspaceId, agentId: agent.id },
-                        select: { id: true, customerInfoState: true },
+                        select: { id: true, customerInfoState: true, status: true, handedOff: true },
                 })
                 if (found)
                         return {
                                 id: found.id,
                                 customerInfoState: found.customerInfoState,
+                                status: found.status,
+                                handedOff: found.handedOff,
                         }
         }
 
@@ -50,12 +65,13 @@ export async function resolveConversation(
                                 externalId: params.externalId,
                         },
                         orderBy: { createdAt: 'desc' },
-                        select: { id: true, status: true, customerInfoState: true },
+                        select: { id: true, status: true, handedOff: true, customerInfoState: true },
                 })
                 if (found) {
-                        // Reopen a conversation the stale-sweep (or a handoff) had closed so the
-                        // thread shows as active again and continuity is preserved.
-                        if (found.status !== 'OPEN') {
+                        // A resolved thread may resume when the customer returns. A human
+                        // handoff is intentionally sticky: only the operator-facing reset
+                        // action is allowed to give control back to the AI.
+                        if (found.status === 'RESOLVED' && !found.handedOff) {
                                 await prisma.conversation.update({
                                         where: { id: found.id },
                                         data: { status: 'OPEN' },
@@ -64,6 +80,8 @@ export async function resolveConversation(
                         return {
                                 id: found.id,
                                 customerInfoState: found.customerInfoState,
+                                status: found.status === 'RESOLVED' && !found.handedOff ? 'OPEN' : found.status,
+                                handedOff: found.handedOff,
                         }
                 }
         }
@@ -89,7 +107,12 @@ export async function resolveConversation(
                         },
                         select: { id: true },
                 })
-                return { id: created.id, customerInfoState: initialState }
+                return {
+                        id: created.id,
+                        customerInfoState: initialState,
+                        status: 'OPEN',
+                        handedOff: false,
+                }
         } catch (e) {
                 // Unique-constraint race: a concurrent delivery created the row first.
                 if (
@@ -107,12 +130,14 @@ export async function resolveConversation(
                                         externalId: params.externalId,
                                 },
                                 orderBy: { createdAt: 'desc' },
-                                select: { id: true, customerInfoState: true },
+                                select: { id: true, customerInfoState: true, status: true, handedOff: true },
                         })
                         if (winner)
                                 return {
                                         id: winner.id,
                                         customerInfoState: winner.customerInfoState,
+                                        status: winner.status,
+                                        handedOff: winner.handedOff,
                                 }
                 }
                 throw e
@@ -165,4 +190,14 @@ export async function fetchCatalogProducts(agentId: string): Promise<CatalogProd
                         stock: r.product.stock,
                         category: r.product.category?.name ?? null,
                 }))
+}
+
+/** Active services are a shared operational catalog for chat and booking tools. */
+export async function fetchCatalogServices(workspaceId: string): Promise<CatalogService[]> {
+        return prisma.service.findMany({
+                where: { workspaceId, active: true },
+                orderBy: { createdAt: 'asc' },
+                take: 30,
+                select: { name: true, description: true, durationMinutes: true, location: true },
+        })
 }

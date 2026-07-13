@@ -39,7 +39,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
 
   return (
     <nav
-      className="scrollbar-none -mx-1 flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] px-1"
+      className="spatial-control scrollbar-none sticky top-[4.65rem] z-20 -mx-1 flex gap-1 overflow-x-auto rounded-[1.25rem] p-1.5 shadow-[var(--shadow-sm)]"
       aria-label="Agent sections"
     >
       {tabs.map(({ key, href, label, badge }) => {
@@ -50,10 +50,10 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
             key={key}
             href={href}
             className={cn(
-              'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm transition-colors',
+              'relative inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-medium transition-[background-color,color,transform] active:scale-[0.98]',
               active
-                ? 'text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                ? 'bg-black text-white shadow-[var(--shadow-control)]'
+                : 'text-[var(--text-secondary)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]',
             )}
           >
             <Icon className="h-4 w-4" />
@@ -64,7 +64,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
               </span>
             )}
             {active && (
-              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--text-primary)]" />
+              <span className="sr-only">Current</span>
             )}
           </Link>
         )

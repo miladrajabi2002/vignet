@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import {
         Bot,
         Plus,
@@ -18,6 +18,7 @@ import { conversationsDailyByAgent } from '@/lib/dashboard/charts'
 export default async function AgentsPage() {
         const user = await requireUser()
         const t = await getTranslations('agents')
+        const fa = (await getLocale()) !== 'en'
 
         const [agents, agentSparks] = await Promise.all([
                 prisma.agent.findMany({
@@ -46,7 +47,7 @@ export default async function AgentsPage() {
                 <div className="mx-auto max-w-6xl space-y-6">
                         <div className="flex items-center justify-between gap-4">
                                 <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Vigento AI</p>
+                                        <p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'هسته ایجنت‌های هوشمند' : 'Vigento AI agents'}</p>
                                         <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
                                         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
                                 </div>

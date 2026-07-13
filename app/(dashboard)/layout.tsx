@@ -3,8 +3,6 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
-import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
-import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { computeOnboarding } from '@/lib/onboarding'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
@@ -26,12 +24,13 @@ export default async function DashboardLayout({
       plan: true,
       trialEndsAt: true,
       aiCreditBalanceIRR: true,
+      createdAt: true,
       businessProfile: true,
       subscriptions: {
         where: { status: 'ACTIVE' },
         orderBy: { currentPeriodEnd: 'desc' },
         take: 1,
-        select: { currentPeriodEnd: true },
+        select: { createdAt: true, currentPeriodEnd: true },
       },
     },
   })
@@ -56,16 +55,25 @@ export default async function DashboardLayout({
     )
   }
 
-  const messagesUsed = await getMonthlyMessageCount(user.workspaceId)
   const plan = workspace?.plan ?? 'TRIAL'
-  const planDef = (await getEffectivePlanDefs())[plan]
   const planEnd = plan === 'TRIAL'
     ? workspace?.trialEndsAt
     : workspace?.subscriptions[0]?.currentPeriodEnd
+  const subscriptionCreatedAt = workspace?.subscriptions[0]?.createdAt
+  const paidCycleStart = planEnd
+    ? new Date(planEnd.getTime() - 30 * 86_400_000)
+    : null
+  const planStart = plan === 'TRIAL'
+    ? workspace?.createdAt
+    : subscriptionCreatedAt && paidCycleStart
+      ? new Date(Math.max(subscriptionCreatedAt.getTime(), paidCycleStart.getTime()))
+      : paidCycleStart
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
     : null
-  const usagePercent = Math.min(100, Math.round((messagesUsed / planDef.monthlyMessages) * 100))
+  const remainingPercent = planStart && planEnd && planEnd > planStart
+    ? Math.max(0, Math.min(100, Math.round(((planEnd.getTime() - Date.now()) / (planEnd.getTime() - planStart.getTime())) * 100)))
+    : 0
 
   // Normal dashboard with sidebar + header
   return (
@@ -78,7 +86,7 @@ export default async function DashboardLayout({
           services={businessProfile?.services}
           plan={plan}
           creditIRR={workspace?.aiCreditBalanceIRR ?? 0}
-          usagePercent={usagePercent}
+          remainingPercent={remainingPercent}
           daysLeft={daysLeft}
         />
         <VerticalChangeNotice

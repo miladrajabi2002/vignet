@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   BUSINESS_TYPES,
+  getBusinessServiceOptions,
   getDashboardModules,
   getVerticalPack,
   type BusinessTypeValue,
@@ -72,11 +73,7 @@ export function BusinessProfileStep({
     () => (selectedType ? getVerticalPack(selectedType) : null),
     [selectedType],
   )
-  const suggestions = selectedPack
-    ? fa
-      ? selectedPack.suggestedServicesFa
-      : selectedPack.suggestedServicesEn
-    : []
+  const suggestions = selectedType ? getBusinessServiceOptions(selectedType) : []
 
   const copy = fa
     ? {
@@ -133,9 +130,8 @@ export function BusinessProfileStep({
       }
 
   function selectType(type: BusinessTypeValue) {
-    const pack = getVerticalPack(type)
     setSelectedType(type)
-    setServices([...(fa ? pack.suggestedServicesFa : pack.suggestedServicesEn)].slice(0, 2))
+    setServices(getBusinessServiceOptions(type).slice(0, 2).map((option) => fa ? option.fa : option.en))
     setError('')
     // Short spatial hand-off; fast enough to keep the selection responsive.
     setTimeout(() => setSubStep(1), 180)
@@ -367,24 +363,27 @@ export function BusinessProfileStep({
               <div>
                 <div className="mb-1.5 text-[13px] font-medium text-[var(--text-primary)]">{copy.services}</div>
                 <p className="mb-2.5 text-xs text-[var(--text-muted)]">{copy.servicesHint}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {suggestions.map((service) => {
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {suggestions.map((option) => {
+                    const service = fa ? option.fa : option.en
                     const active = services.includes(service)
+                    const recommended = selectedType ? option.recommendedFor.includes(selectedType) : false
                     return (
                       <button
-                        key={service}
+                        key={option.key}
                         type="button"
                         aria-pressed={active}
                         onClick={() => toggleService(service)}
                         className={cn(
-                          'min-h-9 rounded-lg border px-3 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-accent)]',
+                          'relative min-h-[5.25rem] rounded-xl border p-3 text-start transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
                           active
                             ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
                             : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
                         )}
                       >
-                        {active && <Check className="me-1 inline h-3 w-3" />}
-                        {service}
+                        <span className="flex items-center justify-between gap-2"><span className="font-semibold">{service}</span><span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md', active ? 'bg-white text-black' : 'bg-black/[0.05] text-transparent')}><Check className="h-3 w-3" /></span></span>
+                        <span className={cn('mt-1.5 block text-[10px] leading-5', active ? 'text-white/65' : 'text-[var(--text-muted)]')}>{fa ? option.descriptionFa : option.descriptionEn}</span>
+                        {recommended && <span className={cn('mt-2 inline-block rounded-full px-2 py-0.5 text-[8px] font-bold', active ? 'bg-white/12 text-white' : 'bg-black/[0.05] text-black/55')}>{fa ? 'پیشنهادی' : 'Recommended'}</span>}
                       </button>
                     )
                   })}
@@ -467,10 +466,10 @@ export function BusinessProfileStep({
               <div>
                 <p className="mb-2 text-xs font-medium text-[var(--text-muted)]">{fa ? 'امکانات اختصاصی شما' : 'Your dedicated features'}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {(fa ? selectedPack.featuresFa : selectedPack.featuresEn).map((f) => (
-                    <div key={f} className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-white px-2.5 py-2 text-[11px] text-[var(--text-secondary)]">
+                  {suggestions.filter((option) => services.includes(fa ? option.fa : option.en)).map((option) => (
+                    <div key={option.key} className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-white px-2.5 py-2 text-[11px] text-[var(--text-secondary)]">
                       <Check className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
-                      {f}
+                      {fa ? option.fa : option.en}
                     </div>
                   ))}
                 </div>

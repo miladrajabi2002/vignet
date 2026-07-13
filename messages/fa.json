@@ -101,7 +101,9 @@
         "dashboard": {
                 "overview": "نمای کلی",
                 "agents": "ایجنت‌ها",
-                "products": "محصولات",
+    "products": "محصولات",
+    "services": "خدمات",
+    "menu": "منوی دیجیتال",
                 "appointments": "رزروها",
                 "conversations": "گفتگوها",
                 "contacts": "مشتریان",

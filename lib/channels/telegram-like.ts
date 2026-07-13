@@ -6,6 +6,18 @@ import type {
   SendOptions,
 } from '@/lib/channels/types'
 
+/** Convert the small Markdown subset our agents use into Telegram-safe HTML. */
+export function telegramMarkdownToHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+    .replace(/__([^_\n]+)__/g, '<b>$1</b>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=$|[\s).،؛!?])/gm, '$1<i>$2</i>')
+}
+
 /**
  * Telegram and Bale share (nearly) the same Bot API. This factory builds an
  * adapter for either by making the base URL configurable. ~80% reuse.
@@ -64,7 +76,11 @@ export function createTelegramLikeAdapter(opts: {
     },
 
     async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
-      const payload: Record<string, unknown> = { chat_id: chatId, text }
+      const payload: Record<string, unknown> = {
+        chat_id: chatId,
+        text: channel === 'TELEGRAM' ? telegramMarkdownToHtml(text) : text,
+      }
+      if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
       // Quick replies → a one-time reply keyboard: tapping a button sends its
       // text as a regular message, so no callback_query handling is needed.
       if (opts?.quickReplies?.length) {
@@ -78,7 +94,17 @@ export function createTelegramLikeAdapter(opts: {
           one_time_keyboard: true,
         }
       }
-      await call('sendMessage', payload)
+      try {
+        await call('sendMessage', payload)
+      } catch (error) {
+        // A malformed model fragment must not make the whole reply disappear.
+        // Telegram accepts the escaped markup in normal cases; retrying without
+        // parse_mode is a truthful plain-text fallback for edge cases.
+        if (channel !== 'TELEGRAM') throw error
+        const fallback: Record<string, unknown> = { ...payload, text }
+        delete fallback.parse_mode
+        await call('sendMessage', fallback)
+      }
     },
 
     async sendTyping(chatId: string): Promise<void> {

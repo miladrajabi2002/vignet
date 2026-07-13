@@ -86,24 +86,33 @@ enum BusinessType {
 
 // ─── USER (phone-based, no email/password) ────────────────────────
 model User {
-  id          String   @id @default(cuid())
-  workspaceId String
-  phone       String   @unique // e.g. +989121234567
-  name        String?
-  role        UserRole @default(OWNER)
-  language    String   @default("fa")
-  createdAt   DateTime @default(now())
+  id           String       @id @default(cuid())
+  workspaceId  String
+  phone        String       @unique // e.g. +989121234567
+  name         String?
+  // Ownership inside one business workspace. This is not platform admin.
+  role         UserRole     @default(OWNER)
+  // Platform-wide authority is intentionally separate and has one owner.
+  platformRole PlatformRole @default(USER)
+  language     String       @default("fa")
+  createdAt    DateTime     @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@index([workspaceId])
   @@index([phone])
+  @@index([platformRole])
 }
 
 enum UserRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum PlatformRole {
+  USER
+  ADMIN
 }
 
 // ─── OTP STORE (audit trail; live OTPs in Redis) ──────────────────
@@ -656,21 +665,21 @@ model CreditAlertState {
 // Singleton runtime policy for the platform-owned AI account. Secrets remain
 // in environment variables; this table stores only safe aliases and budgets.
 model PlatformAiSettings {
-  id                    String   @id @default("primary")
-  defaultModel          String   @default("fast")
-  enabledModels         String[] @default(["fast", "standard", "balanced", "premium"])
-  trialModel            String   @default("fast")
-  providerModels        Json     @default("{}")
-  monthlyBudgetUSD      Float?
-  sttModel              String   @default("openai/whisper-large-v3-turbo")
-  ttsModel              String   @default("openai/gpt-4o-mini-tts-2025-12-15")
-  providerSort          String   @default("price")
-  zeroDataRetention     Boolean  @default(true)
-  replyPricesIRR        Json     @default("{}")
-  trialCreditIRR        Int      @default(100000)
-  planConfig            Json     @default("{}")
-  financeUsdToIRR       Int?
-  updatedAt             DateTime @updatedAt
+  id                String   @id @default("primary")
+  defaultModel      String   @default("fast")
+  enabledModels     String[] @default(["fast", "standard", "balanced", "premium"])
+  trialModel        String   @default("fast")
+  providerModels    Json     @default("{}")
+  monthlyBudgetUSD  Float?
+  sttModel          String   @default("openai/whisper-large-v3-turbo")
+  ttsModel          String   @default("openai/gpt-4o-mini-tts-2025-12-15")
+  providerSort      String   @default("price")
+  zeroDataRetention Boolean  @default(true)
+  replyPricesIRR    Json     @default("{}")
+  trialCreditIRR    Int      @default(100000)
+  planConfig        Json     @default("{}")
+  financeUsdToIRR   Int?
+  updatedAt         DateTime @updatedAt
 }
 
 // Durable audit trail for every confirmed operation performed from the

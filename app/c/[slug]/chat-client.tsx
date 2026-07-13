@@ -92,6 +92,8 @@ function errorText(code?: string): string {
 			return 'تعداد پیام‌ها زیاد شد — چند لحظه صبر کنید و دوباره بفرستید.'
 		case 'PLAN_BLOCKED':
 			return 'ظرفیت گفتگوی این صفحه فعلاً تکمیل است. کمی بعد سر بزنید.'
+		case 'OPERATOR_ACTIVE':
+			return 'پیامت ثبت شد؛ ادامه این گفتگو در اختیار اپراتور است.'
 		default:
 			return 'ارسال پیام ناموفق بود. دوباره تلاش کنید.'
 	}

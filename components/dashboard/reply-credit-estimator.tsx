@@ -1,6 +1,3 @@
-'use client'
-
-import { useState } from 'react'
 import { Calculator, MessageSquareText } from 'lucide-react'
 import { AGENT_MODELS, type ModelAlias } from '@/lib/ai/models'
 import { estimateRemainingReplies } from '@/lib/billing/credit-estimates'
@@ -14,15 +11,14 @@ export function ReplyCreditEstimator({
   pricesIRR: Record<ModelAlias, number>
   locale: 'fa' | 'en'
 }) {
-  const [model, setModel] = useState<ModelAlias>('fast')
   const fa = locale === 'fa'
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
-  const selected = AGENT_MODELS.find((item) => item.id === model) ?? AGENT_MODELS[0]
-  const replyPriceIRR = pricesIRR[model]
-  const remaining = estimateRemainingReplies(balanceIRR, replyPriceIRR)
+  const estimates = AGENT_MODELS.map((item) => ({ ...item, price: pricesIRR[item.id], replies: estimateRemainingReplies(balanceIRR, pricesIRR[item.id]) }))
+  const minimum = Math.min(...estimates.map((item) => item.replies))
+  const maximum = Math.max(...estimates.map((item) => item.replies))
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+    <section className="spatial-surface overflow-hidden rounded-[1.75rem]">
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-muted)]">
@@ -34,8 +30,8 @@ export function ReplyCreditEstimator({
             </h2>
             <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
               {fa
-                ? 'مدل را عوض کنید تا برآورد زنده با قیمت دقیق پلن شما به‌روزرسانی شود.'
-                : 'Switch models to update the estimate using your plan’s exact price.'}
+                ? 'این بازه بر اساس سطح پاسخ تعیین‌شده توسط مدیر سامانه و قیمت دقیق پلن شماست.'
+                : 'This range uses the platform-managed response tier and your plan’s exact price.'}
             </p>
           </div>
         </div>
@@ -43,33 +39,27 @@ export function ReplyCreditEstimator({
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-3 text-center sm:min-w-52">
           <div className="flex items-center justify-center gap-2 text-emerald-700">
             <MessageSquareText className="h-4 w-4" />
-            <strong className="text-2xl font-semibold tabular-nums">≈ {nf.format(remaining)}</strong>
+            <strong className="text-xl font-semibold tabular-nums">≈ {nf.format(minimum)} تا {nf.format(maximum)}</strong>
           </div>
           <p className="mt-1 text-[11px] text-emerald-700/80">
-            {fa ? `پاسخ موفق با «${selected.name}»` : `successful replies with ${selected.provider}`}
+            {fa ? 'پاسخ موفق، بسته به سطح پاسخ' : 'successful replies by response tier'}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 border-t border-[var(--border-subtle)] sm:grid-cols-4">
-        {AGENT_MODELS.map((item) => {
-          const selectedModel = item.id === model
-          const price = pricesIRR[item.id]
+        {estimates.map((item) => {
           return (
-            <button
+            <div
               key={item.id}
-              type="button"
-              aria-pressed={selectedModel}
-              onClick={() => setModel(item.id)}
-              className={`min-h-16 border-s border-[var(--border-subtle)] px-3 py-2 text-start transition-colors first:border-s-0 ${
-                selectedModel ? 'bg-[var(--bg-hover)]' : 'hover:bg-[var(--bg-muted)]'
-              }`}
+              className="min-h-20 border-s border-[var(--border-subtle)] px-3 py-3 text-start first:border-s-0"
             >
               <span className="block truncate text-xs font-medium text-[var(--text-primary)]">{item.name}</span>
               <span className="mt-1 block text-[10px] text-[var(--text-muted)]">
-                {nf.format(price / 10)} {fa ? 'تومان / پاسخ' : 'toman / reply'}
+                {nf.format(item.price / 10)} {fa ? 'تومان / پاسخ' : 'toman / reply'}
               </span>
-            </button>
+              <span className="mt-1 block text-[11px] font-bold text-black">≈ {nf.format(item.replies)}</span>
+            </div>
           )
         })}
       </div>

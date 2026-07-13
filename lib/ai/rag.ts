@@ -16,6 +16,13 @@ export interface CatalogProduct {
   category: string | null
 }
 
+export interface CatalogService {
+  name: string
+  description: string | null
+  durationMinutes: number
+  location: string | null
+}
+
 /**
  * Neutralize prompt-injection vectors in untrusted text before it enters the
  * system prompt: retrieved chunks can contain crawled web pages or uploaded
@@ -106,6 +113,20 @@ Mandatory rules:
   }
 }
 
+function buildServiceBlock(services: CatalogService[], isFa: boolean): string {
+  if (!services.length) return ''
+  const lines = services.map((service, index) => {
+    const parts = [isFa ? `نام: ${service.name}` : `Name: ${service.name}`]
+    parts.push(isFa ? `مدت معمول: ${service.durationMinutes} دقیقه` : `Typical duration: ${service.durationMinutes} minutes`)
+    if (service.location) parts.push(isFa ? `محل: ${sanitizeUntrusted(service.location, 120)}` : `Location: ${sanitizeUntrusted(service.location, 120)}`)
+    if (service.description) parts.push(isFa ? `توضیح: ${sanitizeUntrusted(service.description, 300)}` : `Description: ${sanitizeUntrusted(service.description, 300)}`)
+    return `${index + 1}. ${parts.join(' | ')}`
+  })
+  return isFa
+    ? `\n\n=== خدمات فعال کسب‌وکار ===\n${lines.join('\n')}\n============================\nفقط خدمات ثبت‌شده بالا را معرفی کن؛ جزئیات ناموجود را حدس نزن.`
+    : `\n\n=== Active business services ===\n${lines.join('\n')}\n================================\nOnly introduce the registered services above; do not invent missing details.`
+}
+
 /**
  * Assemble the message list for the model: the agent's system prompt,
  * retrieved context, prior history, and the new user message.
@@ -115,6 +136,7 @@ export function buildMessages(params: {
   language: string
   contextText: string
   catalogProducts: CatalogProduct[]
+  catalogServices?: CatalogService[]
   history: ChatMessage[]
   userMessage: string
   /**
@@ -136,6 +158,7 @@ export function buildMessages(params: {
     : "Be warm, concise and human — like a good salesperson, not a robot. Use short, clear sentences. On the first message just greet and ask how you can help; don't pitch a product or price until the user's need is clear."
 
   const catalogBlock = buildCatalogBlock(params.catalogProducts, isFa)
+  const serviceBlock = buildServiceBlock(params.catalogServices ?? [], isFa)
 
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
   // token so the widget can render a real card (name/price/desc/badge) with
@@ -158,7 +181,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${cardInstruction}${contextBlock}`,
+    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${serviceBlock}${cardInstruction}${contextBlock}`,
   }
 
   return [

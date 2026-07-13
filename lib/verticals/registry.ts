@@ -15,6 +15,8 @@ export type DashboardModuleKey =
   | 'overview'
   | 'agents'
   | 'products'
+  | 'services'
+  | 'menu'
   | 'appointments'
   | 'conversations'
   | 'contacts'
@@ -49,6 +51,26 @@ export interface VerticalPack {
   /** Existing agent-builder preset used after onboarding. */
   agentTemplate: 'commerce' | 'food' | 'appointments' | 'services' | 'education' | 'support' | 'instagram' | 'custom'
 }
+
+export interface BusinessServiceOption {
+  key: string
+  fa: string
+  en: string
+  descriptionFa: string
+  descriptionEn: string
+  modules: readonly DashboardModuleKey[]
+  recommendedFor: readonly BusinessTypeValue[]
+}
+
+export const BUSINESS_SERVICE_OPTIONS: readonly BusinessServiceOption[] = [
+  { key: 'instagram', fa: 'مدیریت و فروش در اینستاگرام', en: 'Instagram sales & management', descriptionFa: 'پاسخ دایرکت، مدیریت کامنت، فروش در دایرکت و اتوماسیون رایگان', descriptionEn: 'DM replies, comment management, in-DM sales and free automations', modules: ['instagram'], recommendedFor: ['SOCIAL', 'COMMERCE', 'FOOD', 'SERVICES', 'EDUCATION'] },
+  { key: 'products', fa: 'فروش و مدیریت محصولات', en: 'Product sales & management', descriptionFa: 'کاتالوگ، قیمت، موجودی و پیشنهاد محصول در پاسخ ایجنت', descriptionEn: 'Catalog, pricing, stock and product recommendations', modules: ['products'], recommendedFor: ['COMMERCE', 'SOCIAL', 'FOOD'] },
+  { key: 'bookings', fa: 'رزرو و نوبت‌دهی', en: 'Bookings & appointments', descriptionFa: 'تقویم، ظرفیت، زمان آزاد و ثبت نوبت بدون تداخل', descriptionEn: 'Calendar, capacity, availability and conflict-free booking', modules: ['appointments', 'services'], recommendedFor: ['APPOINTMENTS', 'FOOD', 'SERVICES', 'EDUCATION'] },
+  { key: 'services', fa: 'معرفی و مدیریت خدمات', en: 'Service catalog & management', descriptionFa: 'ثبت خدمات، مدت، محل ارائه و استفاده مستقیم توسط ایجنت', descriptionEn: 'Service catalog, duration, location and direct agent usage', modules: ['services'], recommendedFor: ['SERVICES', 'APPOINTMENTS', 'EDUCATION', 'SUPPORT'] },
+  { key: 'digital-menu', fa: 'منوی دیجیتال و سفارش‌گیری', en: 'Digital menu & ordering', descriptionFa: 'لینک عمومی، QR Code و منوی حرفه‌ای متصل به کاتالوگ', descriptionEn: 'Public link, QR code and a catalog-connected menu', modules: ['menu', 'products'], recommendedFor: ['FOOD'] },
+  { key: 'courses', fa: 'دوره، مشاوره و ثبت‌نام', en: 'Courses, consulting & enrollment', descriptionFa: 'معرفی دوره و جلسه، دریافت درخواست و هماهنگی ثبت‌نام', descriptionEn: 'Courses and sessions, lead capture and enrollment', modules: ['services', 'appointments'], recommendedFor: ['EDUCATION', 'SERVICES'] },
+  { key: 'support', fa: 'پشتیبانی و پیگیری مشتری', en: 'Customer support & follow-up', descriptionFa: 'پاسخ دانش‌محور، ثبت درخواست و تحویل موارد حساس به اپراتور', descriptionEn: 'Knowledge-grounded support, requests and safe handoff', modules: [], recommendedFor: ['SUPPORT', 'COMMERCE', 'SERVICES'] },
+] as const
 
 export const CORE_DASHBOARD_MODULES = [
   'overview',
@@ -93,7 +115,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['منو دیجیتال', 'ثبت سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سریع سفارش'],
     featuresEn: ['Digital menu', 'Takeaway ordering', 'Table booking', 'Fast order support'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['products', 'appointments'],
+    optionalModules: ['products', 'menu'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['سفارش بیرون‌بر', 'رزرو میز', 'پشتیبانی سفارش'],
     suggestedServicesEn: ['Takeaway orders', 'Table booking', 'Order support'],
@@ -108,7 +130,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['تقویم و ظرفیت زنده', 'رزرو بدون تداخل', 'یادآوری خودکار', 'مدیریت لغو و تغییر'],
     featuresEn: ['Live calendar & capacity', 'Conflict-free booking', 'Auto reminders', 'Cancel & reschedule'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['appointments'],
+    optionalModules: ['appointments', 'services'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['مشاوره', 'ویزیت', 'خدمات زیبایی', 'رزرو جلسه'],
     suggestedServicesEn: ['Consultation', 'Visit', 'Beauty service', 'Meeting'],
@@ -123,7 +145,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['جمع‌آوری نیاز و سرنخ', 'ثبت درخواست', 'پیگیری مشتری', 'هماهنگی انجام کار'],
     featuresEn: ['Lead & need capture', 'Request logging', 'Customer follow-up', 'Work coordination'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: ['appointments'],
+    optionalModules: ['services'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['برآورد و مشاوره', 'ثبت درخواست', 'بازدید حضوری'],
     suggestedServicesEn: ['Estimate & consultation', 'Service request', 'On-site visit'],
@@ -138,7 +160,7 @@ const PACKS: Record<BusinessTypeValue, VerticalPack> = {
     featuresFa: ['راهنمای انتخاب دوره', 'ثبت‌نام آنلاین', 'پاسخ به سؤالات', 'پیگیری دانشجو'],
     featuresEn: ['Course selection guide', 'Online enrollment', 'Q&A support', 'Learner follow-up'],
     coreModules: CORE_DASHBOARD_MODULES,
-    optionalModules: [],
+    optionalModules: ['services'],
     capabilities: CORE_CAPABILITY_PACKS,
     suggestedServicesFa: ['مشاوره دوره', 'ثبت‌نام', 'پشتیبانی دانشجو'],
     suggestedServicesEn: ['Course advice', 'Enrollment', 'Learner support'],
@@ -195,6 +217,8 @@ const MODULE_ORDER: readonly DashboardModuleKey[] = [
   'overview',
   'agents',
   'products',
+  'services',
+  'menu',
   'appointments',
   'conversations',
   'contacts',
@@ -215,11 +239,14 @@ export function getVerticalPack(value: unknown): VerticalPack {
 
 const PRODUCT_INTENT = /(محصول|فروش|کالا|منو|سفارش|product|store|shop|catalog|menu|order|commerce)/i
 const BOOKING_INTENT = /(رزرو|نوبت|وقت|قرار|جلسه|ملاقات|booking|appointment|reservation|schedule|meeting)/i
+const SERVICE_INTENT = /(خدمت|خدمات|مشاوره|دوره|ویزیت|بازدید|درخواست|service|consult|course|visit)/i
+const MENU_INTENT = /(منو|غذا|کافه|رستوران|menu|food|restaurant|cafe)/i
+const INSTAGRAM_INTENT = /(اینستاگرام|دایرکت|کامنت|instagram|direct|\bdm\b|comment)/i
 
 /**
- * Resolve visible modules from the selected vertical and, for CUSTOM only,
- * the services the owner explicitly chose. This prevents optional tools such
- * as booking from appearing when the owner never selected a booking workflow.
+ * Resolve visible modules from the vertical plus every additive capability the
+ * owner selected. Capabilities never replace each other: a business can sell
+ * products, offer services, accept bookings and use Instagram at the same time.
  */
 export function getDashboardModules(
   value: unknown,
@@ -231,12 +258,54 @@ export function getDashboardModules(
     ...pack.optionalModules,
   ])
 
-  if (pack.key === 'CUSTOM') {
-    const serviceText = services.join(' ')
-    if (PRODUCT_INTENT.test(serviceText)) enabled.add('products')
-    if (BOOKING_INTENT.test(serviceText)) enabled.add('appointments')
-  }
+  const serviceText = services.join(' ')
+  if (PRODUCT_INTENT.test(serviceText)) enabled.add('products')
+  if (BOOKING_INTENT.test(serviceText)) { enabled.add('appointments'); enabled.add('services') }
+  if (SERVICE_INTENT.test(serviceText)) enabled.add('services')
+  if (MENU_INTENT.test(serviceText)) { enabled.add('menu'); enabled.add('products') }
+  if (INSTAGRAM_INTENT.test(serviceText)) enabled.add('instagram')
   return MODULE_ORDER.filter((module) => enabled.has(module))
+}
+
+/** All useful cross-business capabilities, with the relevant ones shown first. */
+export function getBusinessServiceOptions(value: unknown): BusinessServiceOption[] {
+  const type = getVerticalPack(value).key
+  const priority: Record<BusinessTypeValue, readonly string[]> = {
+    COMMERCE: ['products', 'instagram', 'support', 'bookings', 'services'],
+    FOOD: ['digital-menu', 'products', 'bookings', 'instagram', 'services'],
+    APPOINTMENTS: ['bookings', 'services', 'instagram', 'support'],
+    SERVICES: ['services', 'bookings', 'instagram', 'courses', 'support'],
+    EDUCATION: ['courses', 'services', 'bookings', 'instagram', 'support'],
+    SUPPORT: ['support', 'services', 'instagram', 'bookings'],
+    SOCIAL: ['instagram', 'products', 'support', 'services'],
+    CUSTOM: ['services', 'products', 'bookings', 'instagram', 'digital-menu', 'courses', 'support'],
+  }
+  const order = priority[type]
+  return [...BUSINESS_SERVICE_OPTIONS].sort((a, b) => {
+    const ai = order.indexOf(a.key)
+    const bi = order.indexOf(b.key)
+    return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi)
+  })
+}
+
+export function getDashboardModuleLabel(
+  module: DashboardModuleKey,
+  businessType: unknown,
+  locale: string,
+  fallback: string,
+): string {
+  const fa = locale !== 'en'
+  if (module === 'services') {
+    if (businessType === 'EDUCATION') return fa ? 'دوره‌ها و خدمات' : 'Courses & services'
+    return fa ? 'خدمات' : 'Services'
+  }
+  if (module === 'menu') return fa ? 'منوی دیجیتال' : 'Digital menu'
+  if (module === 'appointments') {
+    if (businessType === 'FOOD') return fa ? 'رزرو میز' : 'Table bookings'
+    if (businessType === 'SERVICES') return fa ? 'درخواست‌ها و زمان‌بندی' : 'Requests & schedule'
+    if (businessType === 'EDUCATION') return fa ? 'جلسات و مشاوره' : 'Sessions & consulting'
+  }
+  return fallback
 }
 
 /** Backwards-compatible mapping for existing onboarding/template query values. */

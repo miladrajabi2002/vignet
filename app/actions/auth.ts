@@ -5,7 +5,7 @@ import { signOut } from '@/auth'
 import { ONBOARDING_SKIP_COOKIE } from '@/lib/onboarding'
 
 export async function logout() {
-  await signOut({ redirectTo: '/login' })
+  await signOut({ redirectTo: '/' })
 }
 
 /** Hide the onboarding flow without marking it complete (per spec). */

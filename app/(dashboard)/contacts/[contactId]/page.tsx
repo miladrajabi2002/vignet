@@ -116,7 +116,7 @@ export default async function ContactDetailPage(
     contact.createdAt
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5">
       <Link
         href="/contacts"
         className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
@@ -126,7 +126,7 @@ export default async function ContactDetailPage(
       </Link>
 
       {/* Header */}
-      <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+      <div className="spatial-surface flex items-center gap-4 rounded-[1.75rem] p-5 sm:p-7">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -145,7 +145,7 @@ export default async function ContactDetailPage(
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-light text-[var(--text-primary)]">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               {who}
             </h1>
             {channels.map((ch) => (
@@ -166,7 +166,7 @@ export default async function ContactDetailPage(
 
       {/* Per-channel identities */}
       {identities.length > 0 && (
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+        <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5">
           <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
             {locale === 'fa' ? 'هویت در کانال‌ها' : 'Channel identities'}
           </h2>
@@ -221,7 +221,7 @@ export default async function ContactDetailPage(
         />
 
         {/* Conversation history */}
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+        <div className="spatial-surface rounded-[1.5rem] p-5">
           <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
             {t('detail.history')}
           </h2>
@@ -235,7 +235,7 @@ export default async function ContactDetailPage(
                 <Link
                   key={c.id}
                   href={`/conversations/${c.id}`}
-                  className="flex items-center gap-3 py-3 transition-colors hover:opacity-80"
+                  className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-black/[0.035]"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
                     <MessageSquare className="h-4 w-4" />

@@ -6,6 +6,7 @@ import { sendWelcomeSms, verifyOTP } from '@/lib/sms/ippanel'
 import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -57,13 +58,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name,
               workspaceId: workspace.id,
               role: 'OWNER',
+              platformRole: isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER',
             },
           })
           await sendWelcomeSms(phone, { name })
-        } else if (name && !user.name) {
+        } else if ((name && !user.name) || user.platformRole !== (isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER')) {
           user = await prisma.user.update({
             where: { id: user.id },
-            data: { name },
+            data: {
+              ...(name && !user.name ? { name } : {}),
+              platformRole: isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER',
+            },
           })
         }
 
@@ -73,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           phone: user.phone,
           workspaceId: user.workspaceId,
           role: user.role,
+          platformRole: user.platformRole,
         }
       },
     }),

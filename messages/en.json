@@ -101,7 +101,9 @@
         "dashboard": {
                 "overview": "Overview",
                 "agents": "Agents",
-                "products": "Products",
+    "products": "Products",
+    "services": "Services",
+    "menu": "Digital menu",
                 "appointments": "Appointments",
                 "conversations": "Conversations",
                 "contacts": "Customers",

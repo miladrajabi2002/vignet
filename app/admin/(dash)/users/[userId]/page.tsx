@@ -31,8 +31,8 @@ export const dynamic = 'force-dynamic'
 type BadgeTone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
 const ROLE_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
-  OWNER: { label: 'مدیر', tone: 'default' },
-  ADMIN: { label: 'ادمین', tone: 'info' },
+  OWNER: { label: 'مالک کسب‌وکار', tone: 'default' },
+  ADMIN: { label: 'مدیر کسب‌وکار', tone: 'info' },
   MEMBER: { label: 'عضو', tone: 'muted' },
 }
 
@@ -219,7 +219,10 @@ export default async function AdminUserDetailPage(
                 <span dir="ltr">{user.phone}</span>
               </KV>
               <KV label="نقش">
-                <Badge tone={role.tone}>{role.label}</Badge>
+                <span className="flex flex-wrap gap-1.5">
+                  <Badge tone={role.tone}>{role.label}</Badge>
+                  {user.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
+                </span>
               </KV>
               <KV label="زبان">{user.language}</KV>
               <KV label="تاریخ عضویت">{memberSince}</KV>

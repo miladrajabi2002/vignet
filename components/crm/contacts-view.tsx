@@ -37,6 +37,10 @@ const STAGE_KEY: Record<Stage, string> = {
         lost: 'stageLost',
 }
 
+const CHANNEL_LABEL: Record<string, readonly [string, string]> = {
+        INSTAGRAM: ['اینستاگرام', 'Instagram'], WHATSAPP: ['واتساپ', 'WhatsApp'], TELEGRAM: ['تلگرام', 'Telegram'], BALE: ['بله', 'Bale'], RUBIKA: ['روبیکا', 'Rubika'],
+}
+
 /**
  * Resolve a contact's display name with a per-channel fallback. When the
  * contact has no name/phone/handle, we show "کاربر اینستاگرام" (etc.) based
@@ -174,7 +178,7 @@ export function ContactsView({
                                 </div>
                         </div>
 
-                        <div className="grid gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
+                        <div className="spatial-surface grid gap-2 rounded-[1.5rem] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
                                 <div className="relative">
                                         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                                         <input
@@ -185,7 +189,7 @@ export function ContactsView({
                                         />
                                 </div>
                                 <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} options={[{ value: '', label: locale === 'fa' ? 'همه مراحل' : 'All stages' }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
-                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: channel }))]} />
+                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
                                 <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} options={[{ value: '', label: locale === 'fa' ? 'همه تگ‌ها' : 'All tags' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
                                 <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] disabled:opacity-40"><X className="h-3.5 w-3.5" />{locale === 'fa' ? 'پاک‌کردن' : 'Clear'}</button>
                         </div>
@@ -303,7 +307,7 @@ function ListView({
 }) {
         const t = useTranslations('contacts')
         return (
-                <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+                <div className="spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]">
                         {rows.map((c) => (
                                 // ── Whole row is clickable: wrap avatar + content in a Link so a single
                                 //    click anywhere on the row (except the stage dropdown) opens the

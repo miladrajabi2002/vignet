@@ -2,6 +2,9 @@ import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import { redirect } from 'next/navigation'
 import crypto from 'crypto'
 import { normalizePhone } from '@/lib/phone'
+import { ADMIN_OWNER_PHONE } from '@/lib/admin/owner'
+
+export { ADMIN_OWNER_NAME, ADMIN_OWNER_PHONE } from '@/lib/admin/owner'
 
 /**
  * Standalone admin authentication — completely separate from the OTP-based
@@ -12,11 +15,6 @@ import { normalizePhone } from '@/lib/phone'
 
 const COOKIE_NAME = 'admin_session'
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
-// Product invariant: the platform owner is Milad. Do not infer admin access
-// from a dashboard user role or workspace ownership.
-export const ADMIN_OWNER_PHONE = normalizePhone('09128352271')
-export const ADMIN_OWNER_NAME = 'میلاد'
-
 function secret(): string {
   const s = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
   if (!s) throw new Error('ADMIN_SESSION_SECRET (or AUTH_SECRET) is not set')

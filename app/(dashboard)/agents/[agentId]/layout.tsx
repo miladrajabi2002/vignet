@@ -52,7 +52,7 @@ export default async function AgentLayout(
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div className="space-y-4">
         <Link
           href="/agents"

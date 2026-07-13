@@ -5,6 +5,7 @@ export interface SessionUser {
   id: string
   workspaceId: string
   role: string
+  platformRole: string
   phone: string
   name?: string | null
 }

@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
         ArrowLeft,
         ArrowRight,
+        Check,
         CheckCircle2,
         ChevronDown,
         ChevronUp,
@@ -17,7 +18,6 @@ import {
         Sparkles,
         ShieldCheck,
         Radio,
-        FlaskConical,
         DatabaseZap,
         CircleDashed,
         Eye,
@@ -42,7 +42,6 @@ interface FormState {
         fallbackMessage: string
         model: string
         language: 'fa' | 'en'
-        temperature: number
         maxTokens: number
         handoffEnabled: boolean
         handoffMessage: string
@@ -215,7 +214,7 @@ export function AgentWizard({
         const [created, setCreated] = useState<CreatedAgent | null>(null)
         const [selectedRole, setSelectedRole] = useState<RoleTemplate>(defaultRole)
         const [draft, setDraft] = useState<ConfigDraft>(draftFromRole(defaultRole))
-        const [showEditor, setShowEditor] = useState(true)
+        const [showEditor, setShowEditor] = useState(false)
         const [vigentoDraft, setVigentoDraft] = useState<VigentoDraft | null>(null)
         const [form, setForm] = useState<FormState>({
                 name: presetCopy?.name ?? '',
@@ -224,7 +223,6 @@ export function AgentWizard({
                 fallbackMessage: '',
                 model: '',
                 language: 'fa',
-                temperature: 0.7,
                 maxTokens: 1000,
                 handoffEnabled: true,
                 handoffMessage: '',
@@ -297,7 +295,6 @@ export function AgentWizard({
                                         fallbackMessage: form.fallbackMessage || undefined,
                                         model: form.model || undefined,
                                         language: form.language,
-                                        temperature: form.temperature,
                                         maxTokens: form.maxTokens,
                                         handoffEnabled: form.handoffEnabled,
                                         handoffMessage: form.handoffMessage || undefined,
@@ -332,8 +329,8 @@ export function AgentWizard({
         }
 
         const stepTitles = locale === 'fa'
-                ? ['هدف', 'شخصیت و قوانین', 'دانش و تحویل', 'مدل و ارزیابی', 'بازبینی و انتشار']
-                : ['Goal', 'Persona & guardrails', 'Knowledge & handoff', 'Model & evaluation', 'Review & publish']
+                ? ['هدف', 'شخصیت و قوانین', 'دانش و تحویل', 'مدل و پاسخ', 'بازبینی و انتشار']
+                : ['Goal', 'Persona & guardrails', 'Knowledge & handoff', 'Model & response', 'Review & publish']
 
         if (created) {
                 return (
@@ -508,25 +505,13 @@ export function AgentWizard({
                                                                                                                 className="input resize-none text-sm"
                                                                                                         />
                                                                                                 </LayerField>
-                                                                                                <LayerField n={3} label={t('layerDoSay')}>
-                                                                                                        <textarea
-                                                                                                                value={draft.doSay}
-                                                                                                                onChange={(e) => setD('doSay', e.target.value)}
-                                                                                                                rows={4}
-                                                                                                                placeholder={t('layerListPh')}
-                                                                                                                className="input resize-none text-sm"
-                                                                                                        />
+                                                                                                <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
+                                                                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-emerald-700">{t('layerDoSay')}</span><textarea value={draft.doSay} onChange={(e) => setD('doSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /></label>
+                                                                                                                <label className="block"><span className="mb-1.5 block text-[11px] font-medium text-rose-700">{t('layerDontSay')}</span><textarea value={draft.dontSay} onChange={(e) => setD('dontSay', e.target.value)} rows={4} placeholder={t('layerListPh')} className="input resize-none text-sm" /></label>
+                                                                                                        </div>
                                                                                                 </LayerField>
-                                                                                                <LayerField n={4} label={t('layerDontSay')}>
-                                                                                                        <textarea
-                                                                                                                value={draft.dontSay}
-                                                                                                                onChange={(e) => setD('dontSay', e.target.value)}
-                                                                                                                rows={4}
-                                                                                                                placeholder={t('layerListPh')}
-                                                                                                                className="input resize-none text-sm"
-                                                                                                        />
-                                                                                                </LayerField>
-                                                                                                <LayerField n={5} label={t('layerFallback')}>
+                                                                                                <LayerField n={4} label={t('layerFallback')}>
                                                                                                         <textarea
                                                                                                                 value={draft.fallbackBehavior}
                                                                                                                 onChange={(e) => setD('fallbackBehavior', e.target.value)}
@@ -535,25 +520,18 @@ export function AgentWizard({
                                                                                                                 className="input resize-none text-sm"
                                                                                                         />
                                                                                                 </LayerField>
-                                                                                                {/* Layer 5 — Response format */}
-                                                                                                <LayerField n={5} label={t('layerFormat')}>
-                                                                                                        <div className="flex flex-wrap items-center gap-2">
-                                                                                                                <label className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-[var(--border-strong)]">
-                                                                                                                        <input type="checkbox" checked={draft.fmtBold} onChange={(e) => setD('fmtBold', e.target.checked)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
-                                                                                                                        {tA('settingsForm.fmt_bold')}
-                                                                                                                </label>
-                                                                                                                <label className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-[var(--border-strong)]">
-                                                                                                                        <input type="checkbox" checked={draft.fmtEmoji} onChange={(e) => setD('fmtEmoji', e.target.checked)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
-                                                                                                                        {tA('settingsForm.fmt_emoji')}
-                                                                                                                </label>
-                                                                                                                <label className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-[var(--border-strong)]">
-                                                                                                                        <input type="checkbox" checked={draft.fmtLinks} onChange={(e) => setD('fmtLinks', e.target.checked)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
-                                                                                                                        {tA('settingsForm.fmt_links')}
-                                                                                                                </label>
-                                                                                                                <label className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-[var(--border-strong)]">
-                                                                                                                        <input type="checkbox" checked={draft.fmtBullets} onChange={(e) => setD('fmtBullets', e.target.checked)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
-                                                                                                                        {tA('settingsForm.fmt_bullets')}
-                                                                                                                </label>
+                                                                                                <LayerField n={5} label={tA('settingsForm.layerFormat')}>
+                                                                                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                                                                                {([
+                                                                                                                        ['fmtBold', draft.fmtBold, tA('settingsForm.fmt_bold')],
+                                                                                                                        ['fmtEmoji', draft.fmtEmoji, tA('settingsForm.fmt_emoji')],
+                                                                                                                        ['fmtLinks', draft.fmtLinks, tA('settingsForm.fmt_links')],
+                                                                                                                        ['fmtBullets', draft.fmtBullets, tA('settingsForm.fmt_bullets')],
+                                                                                                                ] as const).map(([key, active, label]) => (
+                                                                                                                        <button key={key} type="button" aria-pressed={active} onClick={() => setD(key, !active)} className={`spatial-press flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 text-xs font-medium ${active ? 'border-black bg-black text-white shadow-[var(--shadow-control)]' : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-black/30'}`}>
+                                                                                                                                <span>{label}</span><span className={`grid h-5 w-5 place-items-center rounded-md ${active ? 'bg-white text-black' : 'bg-black/[0.05] text-transparent'}`}><Check className="h-3 w-3" /></span>
+                                                                                                                        </button>
+                                                                                                                ))}
                                                                                                         </div>
                                                                                                         <p className="mt-2 text-[11px] font-medium text-[var(--text-secondary)]">{tA('settingsForm.formatLength')}</p>
                                                                                                         <div className="mt-1.5 flex gap-1.5">
@@ -570,7 +548,7 @@ export function AgentWizard({
                                                                                                         </div>
                                                                                                 </LayerField>
                                                                                                 {/* Layer 6 — Q&A pairs */}
-                                                                                                <LayerField n={6} label={t('layerQA')}>
+                                                                                                <LayerField n={6} label={tA('settingsForm.layerQA')}>
                                                                                                         <textarea
                                                                                                                 value={draft.qaPairsText}
                                                                                                                 onChange={(e) => setD('qaPairsText', e.target.value)}
@@ -660,7 +638,7 @@ export function AgentWizard({
                                                         {vigentoDraft?.channelPolicy && (
                                                                 <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
                                                                         <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><Radio className="h-4 w-4 text-violet-400" />{locale === 'fa' ? 'سیاست پیشنهادی کانال‌ها' : 'Recommended channel policy'}</h3>
-                                                                        <div className="mt-3 flex flex-wrap gap-2">{vigentoDraft.channelPolicy.recommended.map((channel) => <span key={channel} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">{channel}</span>)}</div>
+                                                                        <div className="mt-3 flex flex-wrap gap-2">{vigentoDraft.channelPolicy.recommended.map((channel) => <span key={channel} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">{channelLabel(channel, locale)}</span>)}</div>
                                                                 </section>
                                                         )}
                                                 </>
@@ -687,30 +665,6 @@ export function AgentWizard({
                                                                                 options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
                                                                         />
                                                                 </Field>
-                                                                <Field label={`${t('temperature')}: ${form.temperature.toFixed(1)}`}>
-                                                                        <div className="w-full">
-                                                                                {/* Force LTR so the slider fills left→right (increasing = more
-                        fill = "more intensity"), matching the numeric label. */}
-                                                                                <div dir="ltr" className="w-full">
-                                                                                        <input
-                                                                                                type="range"
-                                                                                                min={0}
-                                                                                                max={2}
-                                                                                                step={0.1}
-                                                                                                value={form.temperature}
-                                                                                                onChange={(e) => set('temperature', Number(e.target.value))}
-                                                                                                className="h-2 w-full cursor-pointer appearance-none rounded-full outline-none [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
-                                                                                                style={{
-                                                                                                        background: `linear-gradient(to right, #a855f7 0%, #ec4899 ${(form.temperature / 2) * 100}%, rgba(255,255,255,0.12) ${(form.temperature / 2) * 100}%, rgba(255,255,255,0.12) 100%)`,
-                                                                                                }}
-                                                                                        />
-                                                                                </div>
-                                                                                <div className="mt-1.5 flex justify-between text-[10px] text-[var(--text-muted)]">
-                                                                                        <span>دقیق</span>
-                                                                                        <span>خلاقانه</span>
-                                                                                </div>
-                                                                        </div>
-                                                                </Field>
                                                                 <Field label={t('maxTokens')}>
                                                                         <input
                                                                                 type="number"
@@ -721,12 +675,6 @@ export function AgentWizard({
                                                                                 className="input"
                                                                         />
                                                         </Field>
-                                                        <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                                                <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><FlaskConical className="h-4 w-4 text-violet-400" />{locale === 'fa' ? 'سناریوهای ارزیابی قبل از انتشار' : 'Pre-publish evaluation scenarios'}</h3>
-                                                                {vigentoDraft?.evalCases?.length ? (
-                                                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">{vigentoDraft.evalCases.map((item) => <div key={item.input} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3"><div className="flex items-center justify-between gap-2"><span className="line-clamp-1 text-xs text-[var(--text-primary)]">{item.input}</span><span className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[9px] text-[var(--text-muted)]">{item.risk}</span></div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-[var(--text-muted)]">{item.expectedBehavior}</p></div>)}</div>
-                                                                ) : <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">{locale === 'fa' ? 'پس از ساخت، در Playground حداقل یک سؤال عادی، یک سؤال خارج از دانش و یک درخواست اپراتور را تست کنید.' : 'After creation, test one normal question, one out-of-knowledge request, and one operator request in the Playground.'}</p>}
-                                                        </section>
                                                 </>
                                         )}
 
@@ -736,7 +684,6 @@ export function AgentWizard({
                                                         form={form}
                                                         role={selectedRole}
                                                         knowledgeCount={workspaceProductCount}
-                                                        evalCount={vigentoDraft?.evalCases.length ?? 0}
                                                 />
                                         )}
                                         </motion.div>
@@ -804,6 +751,19 @@ function LayerField({ n, label, children }: { n: number; label: string; children
         )
 }
 
+function channelLabel(channel: string, locale: 'fa' | 'en'): string {
+        const labels: Record<string, readonly [string, string]> = {
+                TELEGRAM: ['تلگرام', 'Telegram'],
+                WHATSAPP: ['واتساپ', 'WhatsApp'],
+                WEB_WIDGET: ['گفتگوی سایت', 'Website chat'],
+                INSTAGRAM: ['اینستاگرام', 'Instagram'],
+                BALE: ['بله', 'Bale'],
+                RUBIKA: ['روبیکا', 'Rubika'],
+        }
+        const value = labels[channel]
+        return value ? value[locale === 'fa' ? 0 : 1] : channel
+}
+
 function ReadinessRow({
         label,
         state,
@@ -831,20 +791,17 @@ function ReviewCard({
         form,
         role,
         knowledgeCount,
-        evalCount,
 }: {
         locale: 'fa' | 'en'
         form: FormState
         role: RoleTemplate
         knowledgeCount: number
-        evalCount: number
 }) {
         const isFa = locale === 'fa'
         const checklist = [
                 { ok: form.name.trim().length > 0, text: isFa ? 'هدف و نام ایجنت مشخص است' : 'Agent goal and name are defined' },
                 { ok: form.handoffEnabled && form.handoffKeywords.trim().length > 0, text: isFa ? 'مسیر تحویل انسانی تنظیم شده' : 'Human handoff path is configured' },
                 { ok: knowledgeCount > 0, text: isFa ? 'حداقل یک منبع کاتالوگ در دسترس است' : 'At least one catalog source is available' },
-                { ok: evalCount >= 3, text: isFa ? 'سناریوهای تست عادی، مرزی و تحویل آماده‌اند' : 'Normal, boundary, and handoff evals are ready' },
         ]
         return (
                 <div className="space-y-4">

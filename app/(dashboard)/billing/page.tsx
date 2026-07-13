@@ -74,11 +74,16 @@ export default async function BillingPage(
     crypto: t('payCrypto'),
     error: t('paymentError'),
   }
+  const subscriptionStatus = subscription
+    ? locale === 'fa'
+      ? ({ ACTIVE: 'فعال', CANCELLED: 'لغوشده', PAST_DUE: 'نیازمند پرداخت' } as const)[subscription.status]
+      : subscription.status.charAt(0) + subscription.status.slice(1).toLowerCase().replace('_', ' ')
+    : ''
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Credit &amp; plan</p>
+        <p className="text-[10px] font-bold text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار و اشتراک' : 'Credit and subscription'}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           {t('title')}
         </h1>
@@ -138,7 +143,7 @@ export default async function BillingPage(
             </div>
             <p className="mt-2 text-xs text-[var(--text-muted)]">
               {subscription
-                ? `${t('status')}: ${subscription.status} · ${t('renewsOn')} ${formatDateTime(subscription.currentPeriodEnd, locale)}`
+                ? `${t('status')}: ${subscriptionStatus} · ${t('renewsOn')} ${formatDateTime(subscription.currentPeriodEnd, locale)}`
                 : workspace?.trialEndsAt
                   ? `${t('trialEnds')} ${formatDateTime(workspace.trialEndsAt, locale)}`
                   : t('noSubscription')}
@@ -152,6 +157,11 @@ export default async function BillingPage(
           <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
         </div>
       </section>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <MiniTrend label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'} value={msgTrend7.total} series={msgTrend7.series} color="#111111" hint={locale === 'fa' ? 'روند روزانه' : 'daily trend'} />
+        <MiniTrend label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'} value={Math.round(chargeTrend7.total / 10)} series={chargeTrend7.series.map((value) => Math.round(value / 10))} color="#111111" hint={locale === 'fa' ? 'تومان در روز' : 'toman / day'} />
+      </div>
 
       <ReplyCreditEstimator
         balanceIRR={workspace?.aiCreditBalanceIRR ?? 0}
@@ -264,23 +274,6 @@ export default async function BillingPage(
           />
         </div>
 
-        {/* ─── 7-day usage trends ─── */}
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <MiniTrend
-            label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'}
-            value={msgTrend7.total}
-            series={msgTrend7.series}
-            color="#3b82f6"
-            hint={locale === 'fa' ? 'روزانه' : 'daily'}
-          />
-          <MiniTrend
-            label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'}
-            value={Math.round(chargeTrend7.total / 10)}
-            series={chargeTrend7.series.map((value) => Math.round(value / 10))}
-            color="#f59e0b"
-            hint={locale === 'fa' ? 'تومان روزانه' : 'toman / day'}
-          />
-        </div>
       </div>
 
       <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-4 text-xs leading-relaxed text-[var(--text-secondary)]">

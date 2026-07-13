@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { BarChart3, Check, Loader2, Mail, MessageSquareText, TrendingUp } from 'lucide-react'
 
 /**
@@ -10,6 +10,7 @@ import { BarChart3, Check, Loader2, Mail, MessageSquareText, TrendingUp } from '
  */
 export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
   const t = useTranslations('settings.weeklyReport')
+  const fa = useLocale() !== 'en'
   const [email, setEmail] = useState(initialEmail)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -69,7 +70,7 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
         <div className="relative overflow-hidden border-t border-[var(--border-default)] bg-black p-5 text-white lg:border-s lg:border-t-0">
           <div className="absolute -end-12 -top-12 h-36 w-36 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Weekly pulse</span>
+            <span className="text-[10px] font-bold text-white/45">{fa ? 'نبض هفتگی کسب‌وکار' : 'Weekly pulse'}</span>
             <TrendingUp className="h-4 w-4 text-emerald-400" />
           </div>
           <svg viewBox="0 0 220 54" className="relative mt-4 h-14 w-full" aria-hidden="true">
@@ -77,8 +78,8 @@ export function WeeklyReportCard({ initialEmail }: { initialEmail: string }) {
             <path d="M2 45 C28 42 35 30 57 35 S92 48 111 27 S145 16 164 23 S193 12 218 5 V54 H2 Z" fill="rgba(255,255,255,.07)" />
           </svg>
           <div className="relative mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-white/[0.07] p-3 ring-1 ring-white/10"><MessageSquareText className="h-4 w-4 text-white/60" /><p className="mt-2 text-[10px] text-white/45">Conversation health</p></div>
-            <div className="rounded-xl bg-white/[0.07] p-3 ring-1 ring-white/10"><BarChart3 className="h-4 w-4 text-white/60" /><p className="mt-2 text-[10px] text-white/45">Growth &amp; gaps</p></div>
+            <div className="rounded-xl bg-white/[0.07] p-3 ring-1 ring-white/10"><MessageSquareText className="h-4 w-4 text-white/60" /><p className="mt-2 text-[10px] text-white/45">{fa ? 'سلامت گفتگوها' : 'Conversation health'}</p></div>
+            <div className="rounded-xl bg-white/[0.07] p-3 ring-1 ring-white/10"><BarChart3 className="h-4 w-4 text-white/60" /><p className="mt-2 text-[10px] text-white/45">{fa ? 'رشد و نقاط ضعف' : 'Growth & gaps'}</p></div>
           </div>
         </div>
       </div>

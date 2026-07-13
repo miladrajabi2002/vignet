@@ -14,6 +14,7 @@ const SECTION_IDS = ['product', 'demo', 'businesses', 'pricing'] as const
 
 const COPY = {
 	fa: {
+		home: 'صفحه اصلی',
 		product: 'محصول',
 		demo: 'دموی زنده',
 		businesses: 'راهکارها',
@@ -24,6 +25,7 @@ const COPY = {
 		primaryNav: 'ناوبری اصلی',
 	},
 	en: {
+		home: 'Home',
 		product: 'Product',
 		demo: 'Live demo',
 		businesses: 'Solutions',
@@ -89,6 +91,7 @@ function NavbarContent() {
 	}, [pathname])
 
 	const links = [
+		{ href: '/', id: 'home', label: copy.home },
 		{ href: '/#product', id: 'product', label: copy.product },
 		{ href: '/#demo', id: 'demo', label: copy.demo },
 		{ href: '/#businesses', id: 'businesses', label: copy.businesses },
@@ -110,7 +113,9 @@ function NavbarContent() {
 			>
 				<div className="hidden items-center gap-1 lg:flex">
 					{links.map((link) => {
-						const active = link.id === 'blog' || link.id === 'docs'
+						const active = link.id === 'home'
+							? pathname === '/' && activeSection === ''
+							: link.id === 'blog' || link.id === 'docs'
 							? pathname.startsWith(`/${link.id}`)
 							: pathname === '/' && activeSection === link.id
 						return (

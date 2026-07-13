@@ -40,6 +40,7 @@ export default async function ConversationThreadPage(props: {
                         agent: { select: { id: true, name: true } },
                         contact: {
                                 select: {
+                                        id: true,
                                         name: true,
                                         phone: true,
                                         telegramUsername: true,
@@ -153,7 +154,7 @@ export default async function ConversationThreadPage(props: {
                         (handoffAlertProp != null && handoffAlertProp.state !== 'resolved'))
 
         return (
-                <div className="mx-auto flex h-full max-w-3xl flex-col gap-4">
+                <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
                         <Link
                                 href="/conversations"
                                 className="inline-flex shrink-0 items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
@@ -162,7 +163,7 @@ export default async function ConversationThreadPage(props: {
                                 {t('title')}
                         </Link>
 
-                        <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                        <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-[1.5rem] p-4 sm:p-5">
                                 {contactAvatarUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
@@ -181,7 +182,7 @@ export default async function ConversationThreadPage(props: {
                                 )}
                                 <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                                <span className="truncate font-medium text-[var(--text-primary)]">{who}</span>
+                                                {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate font-bold text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate font-bold text-[var(--text-primary)]">{who}</span>}
                                                 <ChannelBadge type={conversation.channel} />
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
@@ -202,6 +203,14 @@ export default async function ConversationThreadPage(props: {
                                 </div>
                         </div>
 
+                        <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+                          <ConversationThread
+                                initialMessages={conversation.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString(), contentType: m.contentType, metadata: m.metadata as Record<string, unknown> | null })) as ThreadMessage[]}
+                                conversationId={conversation.id}
+                                canDeliver={canDeliver}
+                                locale={locale}
+                          />
+                          <aside className="space-y-3">
                         {showPanel && (
                                 <ConversationPanel
                                         conversationId={conversation.id}
@@ -225,7 +234,7 @@ export default async function ConversationThreadPage(props: {
                         />
 
                         {conversation.summary && (
-                                <div className="shrink-0 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                                <div className="spatial-surface shrink-0 rounded-[1.5rem] p-4">
                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                                                 <Sparkles className="h-3.5 w-3.5" />
                                                 {t('summary')}
@@ -236,27 +245,8 @@ export default async function ConversationThreadPage(props: {
                                 </div>
                         )}
 
-                        {/* ── Chat thread + composer (client component) ──
-                            ConversationThread is a client component so it can display
-                            new operator messages INSTANTLY via optimistic state — no
-                            page refresh needed. The server passes initial messages;
-                            the client appends new ones locally and syncs via
-                            router.refresh() in the background. */}
-                        <ConversationThread
-                                initialMessages={
-                                        conversation.messages.map((m) => ({
-                                                id: m.id,
-                                                role: m.role,
-                                                content: m.content,
-                                                createdAt: m.createdAt.toISOString(),
-                                                contentType: m.contentType,
-                                                metadata: m.metadata as Record<string, unknown> | null,
-                                        })) as ThreadMessage[]
-                                }
-                                conversationId={conversation.id}
-                                canDeliver={canDeliver}
-                                locale={locale}
-                        />
+                          </aside>
+                        </div>
                 </div>
         )
 }

@@ -65,6 +65,8 @@ export async function POST(req: Request) {
   if ('error' in result) {
     const status = result.error === 'AI_UNAVAILABLE'
       ? 503
+      : result.error === 'OPERATOR_ACTIVE'
+        ? 409
       : result.error === 'PLAN_BLOCKED' || result.error === 'NO_CREDIT'
         ? 402
         : 400

@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Menu, X, LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
 import { getDashboardNavForProfile, getDashboardNavFromModules } from '@/components/dashboard/nav-items'
 import type { BusinessTypeValue, DashboardModuleKey } from '@/lib/verticals/registry'
+import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 import { logout } from '@/app/actions/auth'
 
 /**
@@ -20,6 +21,7 @@ import { logout } from '@/app/actions/auth'
  */
 export function MobileNav({ businessType, services = [] }: { businessType?: BusinessTypeValue | null; services?: readonly string[] }) {
         const t = useTranslations('dashboard')
+        const locale = useLocale()
         const pathname = usePathname()
 	const [nav, setNav] = useState(() => getDashboardNavForProfile(businessType, services))
 	const [newModules, setNewModules] = useState<DashboardModuleKey[]>([])
@@ -105,7 +107,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                         className="spatial-control absolute inset-y-3 start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)]"
                                                 >
                                                         <div className="mb-4 flex items-center justify-between px-1">
-                                                                <Link href="/overview" onClick={() => setOpen(false)} className="flex-1 flex justify-center">
+                                                                <Link href="/" onClick={() => setOpen(false)} className="flex-1 flex justify-center">
                                                                         <Logo priority className="h-7 w-28" />
                                                                 </Link>
                                                                 <button
@@ -144,7 +146,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                                                         )}
                                                                                 >
                                                                                         <Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
-													<span className="min-w-0 flex-1 truncate">{t(key)}</span>
+													<span className="min-w-0 flex-1 truncate">{getDashboardModuleLabel(key, businessType, locale, t(key))}</span>
 													{newModules.includes(key) && <span className="rounded-full bg-black px-2 py-0.5 text-[8px] font-bold text-white">{t('newLabel')}</span>}
                                                                                 </Link>
                                                                         )

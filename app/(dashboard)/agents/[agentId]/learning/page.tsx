@@ -53,20 +53,20 @@ export default async function AgentLearningPage(
     .filter((m) => m.question.length > 0)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+        <div className="spatial-surface rounded-[1.5rem] p-4">
           <span className="text-xs text-[var(--text-secondary)]">{t('pending')}</span>
           <p className="mt-1 text-2xl font-light text-[var(--text-primary)]">
             {items.length.toLocaleString('fa-IR')}
           </p>
         </div>
-        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+        <div className="spatial-surface rounded-[1.5rem] p-4">
           <span className="text-xs text-[var(--text-secondary)]">{t('learned')}</span>
           <p className="mt-1 text-2xl font-light text-success">
             {learnedCount.toLocaleString('fa-IR')}

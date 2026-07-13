@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import {
   BUSINESS_TYPES,
   getVerticalPack,
+  getBusinessServiceOptions,
   type BusinessTypeValue,
 } from '@/lib/verticals/registry'
 
@@ -338,9 +339,9 @@ function DetailsStep({
   onNext: () => void
 }) {
   const pack = getVerticalPack(initialType)
-  const suggestions = pack.suggestedServicesFa
+  const suggestions = getBusinessServiceOptions(initialType)
   const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? workspaceName)
-  const [services, setServices] = useState<string[]>(initialProfile?.services ?? suggestions.slice(0, 2))
+  const [services, setServices] = useState<string[]>(initialProfile?.services ?? suggestions.slice(0, 2).map((option) => option.fa))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -417,26 +418,27 @@ function DetailsStep({
         <div>
           <div className="mb-2 text-[13px] font-medium text-[var(--text-primary)]">خدمات اصلی</div>
           <p className="mb-3 text-[12px] text-[var(--text-muted)]">حداقل یک مورد را انتخاب کنید</p>
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((service) => {
+          <div className="grid gap-2 sm:grid-cols-2">
+            {suggestions.map((option) => {
+              const service = option.fa
               const active = services.includes(service)
               return (
                 <button
-                  key={service}
+                  key={option.key}
                   type="button"
                   onClick={() => {
                     setServices((s) => s.includes(service) ? s.filter((x) => x !== service) : [...s, service])
                     setError('')
                   }}
                   className={cn(
-                    'min-h-10 rounded-xl border px-4 text-[13px] transition-all duration-200',
+                    'min-h-[5.5rem] rounded-xl border p-3 text-start text-[13px] transition-all duration-200',
                     active
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
                       : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
                   )}
                 >
-                  {active && <Check className="me-1.5 inline h-3.5 w-3.5" strokeWidth={3} />}
-                  {service}
+                  <span className="flex items-center justify-between gap-2"><span className="font-semibold">{service}</span>{active && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+                  <span className={cn('mt-1.5 block text-[10px] leading-5', active ? 'text-white/65' : 'text-[var(--text-muted)]')}>{option.descriptionFa}</span>
                 </button>
               )
             })}

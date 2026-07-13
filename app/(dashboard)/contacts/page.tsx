@@ -26,14 +26,6 @@ const STAGE_LABELS_EN: Record<string, string> = {
   lost: 'Lost',
 }
 
-const CHANNEL_LABELS_FA: Record<string, string> = {
-  TELEGRAM: 'تلگرام',
-  WHATSAPP: 'واتساپ',
-  INSTAGRAM: 'اینستاگرام',
-  RUBIKA: 'روبیکا',
-  BALE: 'بله',
-}
-
 export default async function ContactsPage(
   props: {
     searchParams: Promise<{ page?: string }>
@@ -144,41 +136,9 @@ export default async function ContactsPage(
     }))
     .sort((a, b) => b.value - a.value)
 
-  // Channel distribution (count contacts per channel).
-  const channelCounts: Record<string, number> = {
-    TELEGRAM: 0,
-    WHATSAPP: 0,
-    INSTAGRAM: 0,
-    RUBIKA: 0,
-    BALE: 0,
-  }
-  for (const c of pageContacts) {
-    if (c.telegramId) channelCounts.TELEGRAM++
-    if (c.whatsappId) channelCounts.WHATSAPP++
-    if (c.instagramId) channelCounts.INSTAGRAM++
-    if (c.rubikaId) channelCounts.RUBIKA++
-    if (c.baleId) channelCounts.BALE++
-  }
-  const channelDonut = Object.entries(channelCounts)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({
-      label: isFa ? (CHANNEL_LABELS_FA[k] ?? k) : k.charAt(0) + k.slice(1).toLowerCase(),
-      value: v,
-    }))
-    .sort((a, b) => b.value - a.value)
-
   return (
     <div className="space-y-6">
-      {/* ─── 7-day MiniTrend ─── */}
-      <MiniTrend
-        label={isFa ? 'مشتریان جدید ۷ روز' : 'New customers 7d'}
-        value={contactTrend7.total}
-        series={contactTrend7.series}
-        color="#a855f7"
-        hint={isFa ? `کل مشتریان: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`}
-      />
-
-      {/* ─── Stage + Channel donuts ─── */}
+      {/* ─── Pipeline + new-customer trend ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <DashboardPanel
           title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
@@ -190,16 +150,7 @@ export default async function ContactsPage(
             centerLabel={isFa ? 'مشتری' : 'customers'}
           />
         </DashboardPanel>
-        <DashboardPanel
-          title={isFa ? 'توزیع کانال‌ها' : 'Channel Distribution'}
-          subtitle={isFa ? 'مشتریان بر اساس کانال ارتباطی (در این صفحه)' : 'Customers by channel (on this page)'}
-        >
-          <DashboardDonut
-            data={channelDonut}
-            centerValue={pageContacts.length}
-            centerLabel={isFa ? 'در این صفحه' : 'on this page'}
-          />
-        </DashboardPanel>
+        <MiniTrend label={isFa ? 'مشتریان جدید ۷ روز' : 'New customers 7d'} value={contactTrend7.total} series={contactTrend7.series} color="#111111" hint={isFa ? `کل مشتریان: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`} />
       </div>
 
       <ContactsView

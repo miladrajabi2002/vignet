@@ -13,6 +13,8 @@ import {
 
 const MODULES: Partial<Record<DashboardModuleKey, { href: string; fa: string; en: string }>> = {
 	products: { href: '/products', fa: 'محصولات و منو', en: 'Products & menu' },
+	services: { href: '/services', fa: 'خدمات', en: 'Services' },
+	menu: { href: '/menu', fa: 'منوی دیجیتال', en: 'Digital menu' },
 	appointments: { href: '/appointments', fa: 'رزروها و نوبت‌ها', en: 'Bookings & appointments' },
 	instagram: { href: '/instagram', fa: 'اتوماسیون اینستاگرام', en: 'Instagram automation' },
 }
@@ -33,7 +35,7 @@ export function VerticalChangeNotice({ businessType, services }: { businessType?
 
 	useEffect(() => {
 		function accept(detail: ChangeDetail | null) {
-			if (!detail || Date.now() - Number(detail.changedAt) > 7 * 86_400_000) return
+			if (!detail || Date.now() - Number(detail.changedAt) > 5_000) return
 			setChange(detail)
 		}
 		function onChange(event: Event) {
@@ -46,6 +48,15 @@ export function VerticalChangeNotice({ businessType, services }: { businessType?
 		} catch {}
 		return () => window.removeEventListener('vigent:vertical-changed', onChange)
 	}, [businessType])
+
+	useEffect(() => {
+		if (!change) return
+		const timer = window.setTimeout(() => {
+			setChange(null)
+			try { localStorage.removeItem('vigent:vertical-change') } catch {}
+		}, Math.max(0, 5_000 - (Date.now() - Number(change.changedAt))))
+		return () => window.clearTimeout(timer)
+	}, [change])
 
 	function dismiss() {
 		setChange(null)

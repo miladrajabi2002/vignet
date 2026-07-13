@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { Bell, CalendarCheck2, CheckCheck, MessageCircleWarning, Sparkles } from 'lucide-react'
@@ -24,7 +25,11 @@ export function NotificationBell() {
 	const [open, setOpen] = useState(false)
 	const [items, setItems] = useState<NotificationItem[]>([])
 	const [unread, setUnread] = useState(0)
-	const ref = useRef<HTMLDivElement>(null)
+	const [mounted, setMounted] = useState(false)
+	const triggerRef = useRef<HTMLButtonElement>(null)
+	const panelRef = useRef<HTMLElement>(null)
+
+	useEffect(() => setMounted(true), [])
 
 	const load = useCallback(async () => {
 		try {
@@ -45,7 +50,8 @@ export function NotificationBell() {
 	useEffect(() => {
 		if (!open) return
 		function close(event: MouseEvent) {
-			if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+			const target = event.target as Node
+			if (!panelRef.current?.contains(target) && !triggerRef.current?.contains(target)) setOpen(false)
 		}
 		function onKeyDown(event: KeyboardEvent) {
 			if (event.key === 'Escape') setOpen(false)
@@ -65,20 +71,21 @@ export function NotificationBell() {
 	}
 
 	return (
-		<div className="relative" ref={ref}>
-			<button type="button" onClick={() => setOpen((current) => !current)} aria-label={t('title')} aria-expanded={open} aria-haspopup="dialog" className={cn('spatial-press relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black', open && 'bg-black text-white hover:bg-black hover:text-white')}>
+		<div className="relative">
+			<button ref={triggerRef} type="button" onClick={() => setOpen((current) => !current)} aria-label={t('title')} aria-expanded={open} aria-haspopup="dialog" className={cn('spatial-press relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black', open && 'bg-black text-white hover:bg-black hover:text-white')}>
 				<Bell className="h-4 w-4" />
-				{unread > 0 && <span className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] font-bold text-black ring-2 ring-white">{unread > 9 ? '9+' : unread}</span>}
+				{unread > 0 && <span aria-live="polite" className="absolute -end-1.5 -top-1.5 flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[8px] font-black tabular-nums text-black shadow-sm ring-2 ring-white">{unread > 99 ? '99+' : unread.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>}
 			</button>
 
-			{open && (
-				<section role="dialog" aria-label={t('title')} className="material-select-menu absolute end-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white/95 shadow-[0_24px_75px_rgba(0,0,0,0.2)] backdrop-blur-xl">
+			{mounted && open && createPortal(<>
+				<button type="button" aria-label={fa ? 'بستن اعلان‌ها' : 'Close notifications'} onClick={() => setOpen(false)} className="fixed inset-0 z-[98] bg-black/25 backdrop-blur-[2px] sm:bg-transparent sm:backdrop-blur-none" />
+				<section ref={panelRef} role="dialog" aria-modal="true" aria-label={t('title')} className="material-select-menu fixed inset-x-3 bottom-3 z-[99] max-h-[calc(100dvh-5rem)] overflow-hidden rounded-[1.65rem] border border-black/10 bg-white/97 shadow-[0_28px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl [animation:spatial-pop_220ms_cubic-bezier(.2,.8,.2,1)] motion-reduce:animate-none sm:inset-x-auto sm:bottom-auto sm:end-5 sm:top-[4.75rem] sm:w-96">
 					<header className="flex items-center justify-between border-b border-black/[0.07] px-4 py-3.5">
 						<div><h2 className="text-sm font-bold text-black">{t('title')}</h2><p className="mt-0.5 text-[10px] text-black/40">{unread ? (fa ? `${unread.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : `${unread} unread notifications`) : (fa ? 'همه اعلان‌ها دیده شده‌اند' : 'You are all caught up')}</p></div>
 						{unread > 0 && <button type="button" onClick={() => markRead()} className="spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-black px-3 text-[10px] font-semibold text-white"><CheckCheck className="h-3.5 w-3.5" />{t('markAllRead')}</button>}
 					</header>
 
-					<div className="max-h-[min(26rem,60dvh)] overflow-y-auto p-1.5">
+					<div className="max-h-[min(31rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain p-1.5">
 						{items.length === 0 ? (
 							<div className="flex flex-col items-center px-4 py-10 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black/[0.045] text-black/35"><Bell className="h-5 w-5" /></span><p className="mt-3 text-sm font-medium text-black/55">{t('empty')}</p></div>
 						) : (
@@ -92,7 +99,7 @@ export function NotificationBell() {
 						)}
 					</div>
 				</section>
-			)}
+			</>, document.body)}
 		</div>
 	)
 }

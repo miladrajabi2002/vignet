@@ -41,8 +41,8 @@ const PLAN_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
 }
 
 const ROLE_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
-  OWNER: { tone: 'default', label: 'مدیر' },
-  ADMIN: { tone: 'info', label: 'ادمین' },
+  OWNER: { tone: 'default', label: 'مالک کسب‌وکار' },
+  ADMIN: { tone: 'info', label: 'مدیر کسب‌وکار' },
   MEMBER: { tone: 'muted', label: 'عضو' },
 }
 

@@ -16,6 +16,8 @@ import {
         resolveConversation,
         loadHistory,
         fetchCatalogProducts,
+        fetchCatalogServices,
+        isHumanOwnedConversation,
 } from '@/lib/ai/conversation'
 import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from '@/lib/ai/handoff'
 import { syncOnboarding } from '@/lib/onboarding'
@@ -123,6 +125,7 @@ function buildSystemPrompt(params: {
 async function prepareTurn(params: StartChatParams): Promise<
         | { error: 'AI_UNAVAILABLE' }
         | { error: 'NO_CREDIT' }
+        | { error: 'OPERATOR_ACTIVE'; conversationId: string }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | {
                   model: string
@@ -138,6 +141,33 @@ async function prepareTurn(params: StartChatParams): Promise<
 > {
         const { workspaceId, agent, message } = params
 
+        // Resolve first so a returning messenger thread keeps its operator/AI
+        // ownership state even when the workspace plan is currently blocked.
+        const conversation = await resolveConversation(params)
+        const conversationId = conversation.id
+
+        // Human ownership is a hard, channel-agnostic gate. Persist the inbound
+        // message for the inbox, but never reserve credit or call a model until
+        // the operator explicitly returns the conversation to the agent.
+        if (isHumanOwnedConversation(conversation)) {
+                await prisma.$transaction([
+                        prisma.message.create({
+                                data: { conversationId, role: 'USER', content: message },
+                        }),
+                        prisma.conversation.update({
+                                where: { id: conversationId },
+                                data: {
+                                        status: 'HANDED_OFF',
+                                        handedOff: true,
+                                        messageCount: { increment: 1 },
+                                        lastMessageAt: new Date(),
+                                },
+                        }),
+                ])
+                bumpContactActivity(conversationId)
+                return { error: 'OPERATOR_ACTIVE', conversationId }
+        }
+
         // Plan gate: expired trial/subscription or exhausted monthly quota.
         const gate = await checkChatAllowed(workspaceId)
         if (!gate.allowed) return { error: 'PLAN_BLOCKED', reason: gate.reason }
@@ -149,10 +179,6 @@ async function prepareTurn(params: StartChatParams): Promise<
         const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig, gate.plan)
         const model = resolveModelId(modelAlias, platformConfig.providerModels)
         if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
-
-        // Resolve (or create) the conversation, scoped to the workspace.
-        const conversation = await resolveConversation(params)
-        const conversationId = conversation.id
 
         // F3: best-effort identity extraction from the inbound user message,
         // merged with structured identity from the widget's pre-chat lead form.
@@ -243,9 +269,10 @@ async function prepareTurn(params: StartChatParams): Promise<
         const reservation = reserved.reservation
 
         try {
-                const [history, catalogProducts] = await Promise.all([
+                const [history, catalogProducts, catalogServices] = await Promise.all([
                         loadHistory(conversationId),
                         fetchCatalogProducts(agent.id),
+                        fetchCatalogServices(workspaceId),
                 ])
 
         // Persist the incoming user message.
@@ -274,6 +301,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         language: agent.language,
                         contextText,
                         catalogProducts,
+                        catalogServices,
                         history,
                         userMessage: message,
                 // Rich [[product:{…}]] cards are renderable by the web widget AND the
@@ -397,6 +425,7 @@ async function persistAssistantTurn(params: {
 export type StartChatResult =
         | { error: 'AI_UNAVAILABLE' }
         | { error: 'NO_CREDIT' }
+        | { error: 'OPERATOR_ACTIVE'; conversationId: string }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; stream: ReadableStream<Uint8Array> }
 
@@ -554,6 +583,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
 export type GenerateReplyResult =
         | { error: 'AI_UNAVAILABLE' }
         | { error: 'NO_CREDIT' }
+        | { error: 'OPERATOR_ACTIVE'; conversationId: string }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; reply: string }
 

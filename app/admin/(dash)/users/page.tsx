@@ -26,8 +26,8 @@ const PAGE_SIZE = 30
 type BadgeTone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
 const ROLE_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
-  OWNER: { label: 'مدیر', tone: 'default' },
-  ADMIN: { label: 'ادمین', tone: 'info' },
+  OWNER: { label: 'مالک کسب‌وکار', tone: 'default' },
+  ADMIN: { label: 'مدیر کسب‌وکار', tone: 'info' },
   MEMBER: { label: 'عضو', tone: 'muted' },
 }
 
@@ -184,9 +184,9 @@ export default async function AdminUsersPage(
           tone="success"
         />
         <StatCard
-          label="آزمایشی / اونرها"
+          label="آزمایشی / مالک‌ها"
           value={trialWorkspaces}
-          sub={`${fa(ownerCount)} مدیر کسب‌وکار`}
+          sub={`${fa(ownerCount)} مالک فضای کاری`}
           icon={planFilter === 'TRIAL' ? <Clock className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
           tone="warning"
         />
@@ -234,7 +234,10 @@ export default async function AdminUsersPage(
                     </Link>
                   </Td>
                   <Td>
-                    <Badge tone={role.tone}>{role.label}</Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge tone={role.tone}>{role.label}</Badge>
+                      {u.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
+                    </div>
                   </Td>
                   <Td>
                     {ws ? (

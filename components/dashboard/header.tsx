@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
-import { House, LogOut, Wallet } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
@@ -13,7 +13,7 @@ export async function Header({
   services,
   plan,
   creditIRR,
-  usagePercent,
+  remainingPercent,
   daysLeft,
 }: {
   name?: string | null
@@ -21,7 +21,7 @@ export async function Header({
   services?: readonly string[]
   plan: Plan
   creditIRR: number
-  usagePercent: number
+  remainingPercent: number
   daysLeft: number | null
 }) {
   const [t, locale] = await Promise.all([
@@ -33,7 +33,7 @@ export async function Header({
   const planLabel = fa
     ? ({ TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' } as const)[plan]
     : plan.charAt(0) + plan.slice(1).toLowerCase()
-  const remaining = Math.max(0, 100 - usagePercent)
+  const remaining = Math.max(0, Math.min(100, remainingPercent))
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const businessLabel = fa
     ? getVerticalPack(businessType).titleFa
@@ -59,34 +59,21 @@ export async function Header({
         <Link
           href="/billing"
           aria-label={fa ? 'مشاهده پلن و اعتبار' : 'View plan and credit'}
-          className="spatial-press relative me-0.5 flex h-10 items-center gap-2 overflow-hidden rounded-xl border border-[var(--border-default)] bg-white px-1.5 shadow-[var(--shadow-xs)] md:min-w-[10.75rem] md:px-2.5 md:pb-1"
+          className="spatial-press relative me-0.5 flex h-11 w-[8.8rem] flex-col justify-center overflow-hidden rounded-xl border border-[var(--border-default)] bg-white px-2.5 pb-1.5 shadow-[var(--shadow-xs)] sm:w-[10.5rem]"
         >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-black text-white shadow-[var(--shadow-control)]">
-            <Wallet className="h-3.5 w-3.5" />
+          <span className="flex w-full min-w-0 items-center justify-between gap-2 text-[9px] font-bold text-[var(--text-primary)] sm:text-[10px]">
+            <span className="truncate">{fa ? `پلن ${planLabel}` : `${planLabel} plan`}</span>
+            <span className="shrink-0 tabular-nums text-[8px] font-medium text-[var(--text-muted)]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
           </span>
-          <span className="hidden min-w-0 flex-1 md:block">
-            <span className="flex items-center justify-between gap-2 text-[9px] font-bold text-[var(--text-primary)]">
-              <span>{fa ? `پلن ${planLabel}` : `${planLabel} plan`}</span>
-              <span className="tabular-nums text-[8px] text-[var(--text-muted)]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
-            </span>
-            <span className="mt-0.5 flex items-center justify-between gap-2 text-[8px] leading-3 text-[var(--text-muted)]">
-              <span>{nf.format(Math.round(creditIRR / 10))} {fa ? 'تومان اعتبار' : 'toman credit'}</span>
-              {daysLeft !== null && daysLeft <= 7 && <span>{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
-            </span>
+          <span className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-1 text-[8px] leading-3 text-[var(--text-muted)]">
+            <span className="truncate">{nf.format(Math.round(creditIRR / 10))} {fa ? 'تومان' : 'toman'}</span>
+            {daysLeft !== null && <span className="shrink-0">{nf.format(daysLeft)} {fa ? 'روز' : 'days'}</span>}
           </span>
-          <span className="absolute inset-x-2 bottom-0.5 hidden h-px overflow-hidden rounded-full bg-[var(--bg-muted)] md:block">
+          <span className="absolute inset-x-2 bottom-0.5 h-1 overflow-hidden rounded-full bg-black/[0.08]">
             <span className="block h-full rounded-full bg-black" style={{ width: `${remaining}%` }} />
           </span>
         </Link>
         <NotificationBell />
-        <Link
-          href="/"
-          aria-label={fa ? 'بازگشت به صفحه اصلی سایت' : 'Back to website home'}
-          title={fa ? 'صفحه اصلی' : 'Home'}
-          className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-        >
-          <House className="h-[1.05rem] w-[1.05rem]" />
-        </Link>
         <form action={logout}>
           <button
             type="submit"

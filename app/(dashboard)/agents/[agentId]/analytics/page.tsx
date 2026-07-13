@@ -127,7 +127,7 @@ export default async function AgentAnalyticsPage(
     <div className="mx-auto max-w-6xl space-y-6">
 
       <div>
-        <h1 className="text-2xl font-light text-[var(--text-primary)]">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
           {ta('analytics')}
         </h1>
       </div>
@@ -160,7 +160,7 @@ export default async function AgentAnalyticsPage(
         label={locale === 'fa' ? 'مکالمات ۷ روز اخیر' : 'Conversations last 7d'}
         value={trend.slice(-7).reduce((s, p) => s + p.value, 0)}
         series={trend.slice(-7).map((p) => p.value)}
-        color="#3b82f6"
+        color="#111111"
         hint={locale === 'fa' ? 'روزانه' : 'daily'}
       />
 
@@ -243,7 +243,7 @@ export default async function AgentAnalyticsPage(
             term: locale === 'fa' ? 'نرخ تکمیل: ' : 'Resolve rate: ',
             body:
               locale === 'fa'
-                ? 'درصد گفتگوهایی که با وضعیت RESOLVED بسته شده‌اند. گفتگوهای باز یا تحویل‌داده‌شده به اپراتور در این درصد حساب نمی‌شوند. بسته‌شدن خودکار پس از ۲۴ ساعت بی‌فعالیتی.'
+                ? 'درصد گفتگوهایی که با وضعیت تکمیل‌شده بسته شده‌اند. گفتگوهای باز یا تحویل‌داده‌شده به اپراتور در این درصد حساب نمی‌شوند. بسته‌شدن خودکار پس از ۲۴ ساعت بی‌فعالیتی.'
                 : 'Percentage of conversations closed with status RESOLVED. Open or handed-off conversations are excluded. Auto-close after 24h of inactivity.',
           },
           {
@@ -291,7 +291,7 @@ export default async function AgentAnalyticsPage(
                 : 'Top products: ',
             body:
               locale === 'fa'
-                ? 'محصولات این ایجنت که بیشترین بار در پاسخ‌ها retriev شده‌اند. شمارنده هر بار که محصول در context پرامپت ظاهر می‌شود افزایش می‌یابد.'
+                ? 'محصولاتی که این ایجنت بیشترین بار برای پاسخ بازیابی کرده است. شمارنده هر بار که محصول در زمینه پاسخ قرار می‌گیرد افزایش می‌یابد.'
                 : 'This agent\'s products retrieved most often in replies. Counter increments each time the product appears in the prompt context.',
           },
           {
@@ -303,7 +303,7 @@ export default async function AgentAnalyticsPage(
                 : 'Unanswered queries: ',
             body:
               locale === 'fa'
-                ? 'پیام‌های کاربر که ایجنت نتوانسته پاسخ بدهد (fallback message داده یا گفتگو بی‌جواب مانده). این‌ها فرصت‌های بهبود پایگاه دانش هستند — به صفحه یادگیری بروید تا پاسخ اضافه کنید.'
+                ? 'پیام‌هایی که ایجنت نتوانسته پاسخ بدهد و پیام جایگزین داده یا بی‌جواب مانده‌اند. این‌ها فرصت‌های بهبود پایگاه دانش هستند؛ از صفحه یادگیری پاسخ درست را اضافه کنید.'
                 : 'User messages the agent could not answer (fallback given or left unanswered). These are knowledge-base improvement opportunities — visit the Learning page to add answers.',
           },
         ]}
@@ -314,8 +314,8 @@ export default async function AgentAnalyticsPage(
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-      <h2 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">{title}</h2>
+    <section className="spatial-surface rounded-[1.5rem] p-5">
+      <h2 className="mb-4 text-sm font-bold text-[var(--text-secondary)]">{title}</h2>
       {children}
     </section>
   )

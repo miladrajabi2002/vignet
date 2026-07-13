@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useMemo, useState } from 'react'
 import { LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,9 +10,11 @@ import { Logo } from '@/components/ui/logo'
 import { getDashboardNavForProfile, getDashboardNavFromModules } from '@/components/dashboard/nav-items'
 import { logout } from '@/app/actions/auth'
 import type { BusinessTypeValue, DashboardModuleKey } from '@/lib/verticals/registry'
+import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 
 export function Sidebar({ businessType, services = [] }: { businessType?: BusinessTypeValue | null; services?: readonly string[] }) {
 	const t = useTranslations('dashboard')
+	const locale = useLocale()
 	const pathname = usePathname()
 	const initialNav = useMemo(() => getDashboardNavForProfile(businessType, services), [businessType, services])
 	const [nav, setNav] = useState(initialNav)
@@ -39,7 +41,7 @@ export function Sidebar({ businessType, services = [] }: { businessType?: Busine
 		<aside className="spatial-surface sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[17rem] shrink-0 flex-col rounded-[1.75rem] p-3 md:flex">
 			{/* Logo — clean, no box */}
 			<Link
-				href="/overview"
+				href="/"
 				aria-label={t('overview')}
 				className="mb-3 flex min-h-12 items-center justify-center px-2"
 			>
@@ -73,7 +75,7 @@ export function Sidebar({ businessType, services = [] }: { businessType?: Busine
 							)}
 						>
 							<Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-white' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
-							<span className="min-w-0 flex-1 truncate">{t(key)}</span>
+							<span className="min-w-0 flex-1 truncate">{getDashboardModuleLabel(key, businessType, locale, t(key))}</span>
 							{newModules.includes(key) && !active && (
 								<span className="rounded-full bg-black px-2 py-0.5 text-[8px] font-bold text-white">{t('newLabel')}</span>
 							)}

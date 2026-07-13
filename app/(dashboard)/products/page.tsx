@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { Plus, Package, FolderTree } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
@@ -21,6 +21,7 @@ export default async function ProductsPage(
   const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('products')
+  const fa = (await getLocale()) !== 'en'
 
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
@@ -86,7 +87,7 @@ export default async function ProductsPage(
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
-        <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Catalog intelligence</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1></div>
+        <div><p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'هوش کاتالوگ' : 'Catalog intelligence'}</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1></div>
         <div className="flex items-center gap-2">
           <Link
             href="/products/categories"

@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import { verifyAdminCredentials } from '@/lib/admin/auth'
 import { createAdminActionToken, verifyAdminActionToken } from '@/lib/admin/vigento-actions'
+import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 
 describe('owner-only admin security', () => {
   const previousPass = process.env.ADMIN_PASS
@@ -21,6 +22,14 @@ describe('owner-only admin security', () => {
   it('accepts only Milad owner phone even when a valid password is supplied', () => {
     expect(verifyAdminCredentials('09128352271', 'test-admin-password')).toBe(true)
     expect(verifyAdminCredentials('09120000000', 'test-admin-password')).toBe(false)
+  })
+
+  it('keeps platform authority separate from workspace ownership', () => {
+    expect(isPlatformOwnerPhone('+989128352271')).toBe(true)
+    expect(isPlatformOwnerPhone('+989120000000')).toBe(false)
+    const migration = readFileSync(path.join(process.cwd(), 'prisma/migrations/20260713233000_separate_platform_admin_role/migration.sql'), 'utf8')
+    expect(migration).toContain('"platformRole"')
+    expect(migration).toContain("WHERE \"phone\" = '+989128352271'")
   })
 
   it('signs confirmation payloads and rejects tampering', () => {

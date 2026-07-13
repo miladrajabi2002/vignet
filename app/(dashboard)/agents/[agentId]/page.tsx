@@ -56,6 +56,7 @@ export default async function AgentDetailPage(
   const modules = getDashboardModules(workspace?.businessType, profile?.services)
   const hasProducts = modules.includes('products')
   const hasAppointments = modules.includes('appointments')
+  const hasServices = modules.includes('services')
 
   const steps = [
     {
@@ -77,6 +78,12 @@ export default async function AgentDetailPage(
       desc: t('setup.storeDesc'),
       href: '/integrations',
       cta: t('setup.storeCta'),
+    }] : []),
+    ...(hasServices && !hasAppointments ? [{
+      key: 'services', done: serviceCount > 0, optional: true, icon: CalendarDays,
+      title: fa ? 'کاتالوگ خدمات' : 'Service catalog',
+      desc: fa ? 'خدمات واقعی را ثبت کنید تا ایجنت فقط از اطلاعات تأییدشده استفاده کند.' : 'Register real services so the agent uses verified information.',
+      href: '/services', cta: fa ? 'افزودن خدمت' : 'Add service',
     }] : []),
     ...(hasProducts ? [{
       key: 'products',
@@ -125,10 +132,15 @@ export default async function AgentDetailPage(
 
   return (
     <div className="space-y-6">
+      <section className="spatial-surface overflow-hidden rounded-[1.75rem] p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold text-black/40">{fa ? 'آزمایش فوری پاسخ' : 'Instant response test'}</p><h2 className="mt-1 text-base font-bold">{t('test')}</h2><p className="mt-1 text-[11px] text-black/45">{fa ? 'بدون خروج از این صفحه، تجربه واقعی مشتری را بررسی کنید.' : 'Check the real customer experience without leaving this page.'}</p></div><span className="rounded-full bg-black px-3 py-1 text-[9px] font-bold text-white">{fa ? 'در دسترس' : 'Available'}</span></div>
+        <TestPlayground agentId={agent.id} welcomeMessage={agent.welcomeMessage} />
+      </section>
+
       <div className="spatial-surface overflow-hidden rounded-[1.75rem]">
           <div className="flex flex-wrap items-center justify-between gap-4 bg-black p-5 text-white sm:p-6">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Agent readiness</p>
+              <p className="text-[10px] font-bold text-white/45">{fa ? 'چک‌لیست پیشنهادی' : 'Recommended checklist'}</p>
               <h2 className="mt-1 text-base font-bold">{fa ? 'آماده‌سازی و رشد ایجنت' : 'Agent readiness and growth'}</h2>
               <p className="mt-1 text-xs text-white/55">{fa ? 'هیچ‌کدام از پیشنهادها مانع شروع کار نیست؛ هر زمان آماده بودید کاملشان کنید.' : 'These are recommendations, not blockers. Complete them whenever you are ready.'}</p>
             </div>
@@ -190,13 +202,6 @@ export default async function AgentDetailPage(
             })}
           </ol>
         </div>
-
-      <div>
-        <h2 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
-          {t('test')}
-        </h2>
-        <TestPlayground agentId={agent.id} welcomeMessage={agent.welcomeMessage} />
-      </div>
     </div>
   )
 }

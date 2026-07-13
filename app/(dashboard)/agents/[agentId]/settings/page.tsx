@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -18,6 +18,7 @@ export default async function AgentSettingsPage(
   const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('agents.settingsForm')
+  const fa = (await getLocale()) !== 'en'
 
   const [agent, workspace, platformPolicy] = await Promise.all([
     prisma.agent.findFirst({
@@ -32,9 +33,9 @@ export default async function AgentSettingsPage(
   if (!agent) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Agent control</p>
+        <p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'کنترل رفتار ایجنت' : 'Agent control'}</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
       </div>
       <AgentSettingsForm

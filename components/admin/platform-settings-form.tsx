@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ChevronDown, Loader2, Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
+import { Check, Loader2, Save, ShieldCheck, Volume2, WalletCards } from 'lucide-react'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { cn } from '@/lib/utils'
+import { MaterialSelect } from '@/components/ui/material-select'
 
 type NumberPath =
   | ['trialCreditIRR']
@@ -102,14 +103,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             <input dir="ltr" value={value.ttsModel} onChange={(event) => setField('ttsModel', event.target.value)} className="admin-input" />
           </Field>
           <Field label="اولویت انتخاب Provider" hint="در تمام درخواست‌های OpenRouter">
-            <div className="relative">
-              <select value={value.providerSort} onChange={(event) => setField('providerSort', event.target.value as PlatformCommercialConfig['providerSort'])} className="admin-input appearance-none ps-10">
-                <option value="price">کمترین قیمت</option>
-                <option value="latency">کمترین تأخیر</option>
-                <option value="throughput">بیشترین توان پردازش</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" />
-            </div>
+            <MaterialSelect value={value.providerSort} onValueChange={(next) => setField('providerSort', next as PlatformCommercialConfig['providerSort'])} ariaLabel="اولویت انتخاب Provider" buttonClassName="admin-input" options={[{ value: 'price', label: 'کمترین قیمت' }, { value: 'latency', label: 'کمترین تأخیر' }, { value: 'throughput', label: 'بیشترین توان پردازش' }]} />
           </Field>
           <label className="flex min-h-[76px] cursor-pointer items-center justify-between gap-4 rounded-2xl border border-black/[0.07] bg-[#f7f7f5] px-4 py-3">
             <div><span className="text-sm font-bold text-black">Zero Data Retention</span><span className="mt-1 block text-[11px] text-black/45">عدم نگهداری داده توسط Provider</span></div>
