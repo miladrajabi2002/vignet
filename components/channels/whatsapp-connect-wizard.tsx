@@ -12,7 +12,6 @@ import {
   Loader2,
   BookOpen,
   Smartphone,
-  Monitor,
   ShieldAlert,
   X,
   Phone,
@@ -87,16 +86,13 @@ export function WhatsAppQrConnect({
 }) {
   const router = useRouter()
   const [state, setState] = useState<QrState>('idle')
-  const [sessionId, setSessionId] = useState<string | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [phoneMode, setPhoneMode] = useState(false) // false = QR, true = pairing
   const [connectedPhone, setConnectedPhone] = useState<string | null>(null)
   const [connectedName, setConnectedName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [elapsedMs, setElapsedMs] = useState(0)
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -125,77 +121,6 @@ export function WhatsAppQrConnect({
     }
   }, [])
 
-  // ── Start a session (QR or phone-pairing) ─────────────────────────────────
-  const start = useCallback(
-    async (opts?: { phone?: string }) => {
-      setBusy(true)
-      setError(null)
-      setQrDataUrl(null)
-      setPairingCode(null)
-      setConnectedPhone(null)
-      setConnectedName(null)
-      setState('starting')
-      setElapsedMs(0)
-      startedAtRef.current = Date.now()
-
-      try {
-        const res = await fetch(
-          `/api/agents/${agentId}/channels/whatsapp-qr/start`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(opts?.phone ? { phone: opts.phone } : {}),
-          },
-        )
-        const data = (await res.json().catch(() => ({}))) as {
-          ok?: boolean
-          sessionId?: string
-          error?: string
-          detail?: string
-        }
-        if (!res.ok || !data.ok || !data.sessionId) {
-          setState('error')
-          setError(
-            data.detail ??
-              (data.error === 'BRIDGE_UNREACHABLE'
-                ? 'سرویس واتساپ در دسترس نیست. مطمئن شوید whatsapp-bridge روی پورت 3040 در حال اجرا است.'
-                : 'شروع اتصال ناموفق بود. دوباره تلاش کنید.'),
-          )
-          return
-        }
-        setSessionId(data.sessionId)
-        // Start polling.
-        if (pollRef.current) clearInterval(pollRef.current)
-        pollRef.current = setInterval(
-          () => pollStatus(data.sessionId!),
-          POLL_INTERVAL_MS,
-        )
-        if (tickRef.current) clearInterval(tickRef.current)
-        tickRef.current = setInterval(() => {
-          if (startedAtRef.current) {
-            const el = Date.now() - startedAtRef.current
-            setElapsedMs(el)
-            if (el > QR_TIMEOUT_MS) {
-              setError(
-                'اتصال در زمان مقرر انجام نشد. لطفاً دوباره تلاش کنید.',
-              )
-              setState('error')
-              stopPolling()
-            }
-          }
-        }, 1000)
-        // Immediate first poll (don't wait the full interval).
-        void pollStatus(data.sessionId)
-      } catch (e) {
-        setState('error')
-        setError(e instanceof Error ? e.message : String(e))
-      } finally {
-        setBusy(false)
-      }
-    },
-    [agentId],
-  )
-
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current)
@@ -206,6 +131,40 @@ export function WhatsAppQrConnect({
       tickRef.current = null
     }
   }, [])
+
+  // ── Persist the channel once the phone connects ───────────────────────────
+  // phone/name are passed in from the poll response so this callback has no
+  // dependency on the connectedPhone/connectedName state (which would otherwise
+  // re-create it on every status update and cascade through pollStatus → start).
+  const persist = useCallback(
+    async (sid: string, phoneInfo?: string, nameInfo?: string) => {
+      try {
+        const res = await fetch(
+          `/api/agents/${agentId}/channels/whatsapp-qr/start`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid }),
+          },
+        )
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean
+          phone?: string
+          name?: string
+          error?: string
+        }
+        if (res.ok && data.ok) {
+          setConnectedPhone(data.phone ?? phoneInfo ?? null)
+          setConnectedName(data.name ?? nameInfo ?? null)
+          // Refresh server data so the channels page shows the new connection.
+          router.refresh()
+        }
+      } catch {
+        /* best-effort — the channel may still be persisted server-side */
+      }
+    },
+    [agentId, router],
+  )
 
   // ── Poll the bridge for status ────────────────────────────────────────────
   const pollStatus = useCallback(
@@ -238,8 +197,9 @@ export function WhatsAppQrConnect({
           setConnectedPhone(data.phone ?? null)
           setConnectedName(data.name ?? null)
           stopPolling()
-          // Persist the channel (PUT /start).
-          void persist(sid)
+          // Persist the channel (PUT /start), passing the phone/name we just
+          // got so the persist callback doesn't need to read them from state.
+          void persist(sid, data.phone ?? undefined, data.name ?? undefined)
         }
 
         if (s === 'closed' && data.error) {
@@ -253,43 +213,79 @@ export function WhatsAppQrConnect({
         /* swallow — polling is best-effort */
       }
     },
-    [agentId, renderQr, stopPolling],
+    [agentId, renderQr, stopPolling, persist],
   )
 
-  // ── Persist the channel once the phone connects ───────────────────────────
-  const persist = useCallback(
-    async (sid: string) => {
+  // ── Start a session (QR or phone-pairing) ─────────────────────────────────
+  const start = useCallback(
+    async (opts?: { phone?: string }) => {
+      setBusy(true)
+      setError(null)
+      setQrDataUrl(null)
+      setPairingCode(null)
+      setConnectedPhone(null)
+      setConnectedName(null)
+      setState('starting')
+      startedAtRef.current = Date.now()
+
       try {
         const res = await fetch(
           `/api/agents/${agentId}/channels/whatsapp-qr/start`,
           {
-            method: 'PUT',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: sid }),
+            body: JSON.stringify(opts?.phone ? { phone: opts.phone } : {}),
           },
         )
         const data = (await res.json().catch(() => ({}))) as {
           ok?: boolean
-          phone?: string
-          name?: string
+          sessionId?: string
           error?: string
+          detail?: string
         }
-        if (res.ok && data.ok) {
-          setConnectedPhone(data.phone ?? connectedPhone)
-          setConnectedName(data.name ?? connectedName)
-          // Refresh server data so the channels page shows the new connection.
-          router.refresh()
+        if (!res.ok || !data.ok || !data.sessionId) {
+          setState('error')
+          setError(
+            data.detail ??
+              (data.error === 'BRIDGE_UNREACHABLE'
+                ? 'سرویس واتساپ در دسترس نیست. مطمئن شوید whatsapp-bridge روی پورت 3040 در حال اجرا است.'
+                : 'شروع اتصال ناموفق بود. دوباره تلاش کنید.'),
+          )
+          return
         }
-      } catch {
-        /* best-effort — the channel may still be persisted server-side */
+        // Start polling.
+        if (pollRef.current) clearInterval(pollRef.current)
+        pollRef.current = setInterval(
+          () => pollStatus(data.sessionId!),
+          POLL_INTERVAL_MS,
+        )
+        if (tickRef.current) clearInterval(tickRef.current)
+        tickRef.current = setInterval(() => {
+          if (startedAtRef.current) {
+            const el = Date.now() - startedAtRef.current
+            if (el > QR_TIMEOUT_MS) {
+              setError(
+                'اتصال در زمان مقرر انجام نشد. لطفاً دوباره تلاش کنید.',
+              )
+              setState('error')
+              stopPolling()
+            }
+          }
+        }, 1000)
+        // Immediate first poll (don't wait the full interval).
+        void pollStatus(data.sessionId)
+      } catch (e) {
+        setState('error')
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setBusy(false)
       }
     },
-    [agentId, connectedPhone, connectedName, router],
+    [agentId, pollStatus, stopPolling],
   )
 
   // ── User actions ──────────────────────────────────────────────────────────
   function handleStartQr() {
-    setPhoneMode(false)
     void start()
   }
   function handleStartPairing() {
@@ -298,7 +294,6 @@ export function WhatsAppQrConnect({
       setError('شمارهٔ تلفن معتبر وارد کنید. مثال: +989121234567')
       return
     }
-    setPhoneMode(true)
     void start({ phone: cleaned })
   }
   function handleCancel() {
@@ -307,7 +302,6 @@ export function WhatsAppQrConnect({
     setQrDataUrl(null)
     setPairingCode(null)
     setError(null)
-    setSessionId(null)
     if (onClose) onClose()
   }
   function handleRetry() {
@@ -316,8 +310,6 @@ export function WhatsAppQrConnect({
     setQrDataUrl(null)
     setPairingCode(null)
     setError(null)
-    setSessionId(null)
-    setElapsedMs(0)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

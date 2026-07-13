@@ -84,7 +84,7 @@ export async function POST(req: Request, props: Params) {
         { status: 502 },
       )
     }
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       {
         error: 'BRIDGE_UNREACHABLE',
