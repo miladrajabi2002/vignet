@@ -40,6 +40,12 @@ internet traffic can't trigger inbound message processing.
 
 ## Install & run
 
+The bridge prefers **bun** (faster, no peer-dep conflicts) but also works with
+**npm + tsx** as a fallback. The `start` script auto-detects which runtime is
+available.
+
+### With bun (recommended)
+
 ```bash
 cd mini-services/whatsapp-bridge
 bun install
@@ -48,11 +54,24 @@ cp .env.example .env
 bun run dev
 ```
 
+### With npm (when bun is not installed)
+
+```bash
+cd mini-services/whatsapp-bridge
+# --legacy-peer-deps is REQUIRED: Baileys has strict peer deps that npm
+# rejects by default (ERESOLVE error). bun handles this automatically.
+npm install --legacy-peer-deps
+cp .env.example .env
+# edit .env — set WHATSAPP_BRIDGE_SECRET to a long random string
+npm run dev    # uses tsx under the hood (added as a devDependency)
+```
+
 The bridge listens on port **3040** by default. To change it, set
 `WHATSAPP_BRIDGE_PORT` in `.env`.
 
-In production run it under pm2 / systemd alongside the Next.js app and the
-worker — see `deploy/ecosystem.config.js` (add a new entry for the bridge).
+In production run it under pm2 — see `deploy/ecosystem.config.js` (already
+includes a `vignet-whatsapp-bridge` app) and `deploy/setup-whatsapp-bridge.sh`
+(one-time setup: generates secret, writes `.env`, installs deps, starts pm2).
 
 ## Environment
 

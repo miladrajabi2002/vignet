@@ -22,14 +22,18 @@ npm ci || {
 }
 
 echo "==> نصب وابستگی‌ها (whatsapp-bridge mini-service)"
-# Bridge یک پروژه‌ی مستقل bun با package.json خودش است. اگر این اولین
-# deploy بعد از اضافه‌شدن bridge است، deploy/setup-whatsapp-bridge.sh را
-# یک‌بار جداگانه اجرا کنید تا .env و secret ساخته شود.
+# Bridge یک پروژه‌ی مستقل با package.json خودش است. ترجیح بر bun است (سریع‌تر
+# و بی‌مشکل با peer deps) اما npm هم با --legacy-peer-deps کار می‌کند.
+# اگر این اولین deploy بعد از اضافه‌شدن bridge است،
+# deploy/setup-whatsapp-bridge.sh را یک‌بار جداگانه اجرا کنید تا .env و
+# secret ساخته شود.
 if [ -f mini-services/whatsapp-bridge/package.json ]; then
   if command -v bun >/dev/null 2>&1; then
     (cd mini-services/whatsapp-bridge && bun install)
   elif command -v npm >/dev/null 2>&1; then
-    (cd mini-services/whatsapp-bridge && npm install)
+    # --legacy-peer-deps برای جلوگیری از خطای ERESOLVE روی conflictهای
+    # peer dependency (Baileys peer deps سخت‌گیرانه هستند).
+    (cd mini-services/whatsapp-bridge && npm install --legacy-peer-deps)
   else
     echo "⚠ نه bun و نه npm پیدا نشد — نصب وابستگی‌های bridge رد شد"
     echo "  bridge اجرا نخواهد شد. برای اتصال QR واتساپ ابتدا bun را نصب کنید:"
@@ -47,6 +51,13 @@ echo "==> ساخت نسخه production"
 npm run build
 
 echo "==> ری‌استارت سرویس‌ها"
+# تشخیص runtime bridge برای ecosystem.config.js (درست همان منطق setup-whatsapp-bridge.sh)
+if command -v bun >/dev/null 2>&1; then
+  export BRIDGE_RUNNER="bun"
+else
+  export BRIDGE_RUNNER="tsx"
+fi
+
 if pm2 describe vignet-web >/dev/null 2>&1; then
   pm2 reload deploy/ecosystem.config.js   # بدون قطعی (zero-downtime)
 else

@@ -81,27 +81,40 @@ append_env "WHATSAPP_BRIDGE_URL" "http://localhost:$BRIDGE_PORT" "$ENV_MAIN"
 append_env "WHATSAPP_BRIDGE_SECRET" "$SECRET" "$ENV_MAIN"
 
 # ─── ۵. نصب وابستگی‌های bridge ────────────────────────────────────────────────
+# متغیر BRIDGE_RUNNER به ecosystem.config.js می‌گوید با چه runtimeای bridge
+# را اجرا کند: "bun" (ترجیح) یا "tsx" (fallback وقتی bun نصب نیست).
+BRIDGE_RUNNER="tsx"
 echo "==> نصب وابستگی‌های bridge"
 cd "$BRIDGE_DIR"
 if command -v bun >/dev/null 2>&1; then
-  echo "    استفاده از bun"
+  echo "    استفاده از bun (پیشنهاد شده — سریع‌تر و بی‌مشکل با peer deps)"
   bun install
+  BRIDGE_RUNNER="bun"
 elif command -v npm >/dev/null 2>&1; then
-  echo "    bun پیدا نشد — استفاده از npm (پیشنهاد: bun را نصب کنید)"
-  npm install
+  echo "    bun پیدا نشد — استفاده از npm --legacy-peer-deps"
+  echo "    (پیشنهاد: bun را نصب کنید:  curl -fsSL https://bun.sh/install | bash)"
+  # --legacy-peer-deps الزامی است چون Baileys peer deps سخت‌گیرانه دارد
+  # و بدون این flag، npm با ERESOLVE خطا می‌دهد.
+  npm install --legacy-peer-deps
+  # tsx باید به‌صورت محلی در bridge نصب باشد تا pm2 بتواند با آن اجرا کند.
+  echo "    نصب tsx به‌عنوان runtime fallback..."
+  npm install --legacy-peer-deps --save-dev tsx
+  BRIDGE_RUNNER="tsx"
 else
   echo "✗ نه bun و نه npm پیدا نشد. یکی را نصب کنید:"
   echo "    curl -fsSL https://bun.sh/install | bash"
   exit 1
 fi
 cd "$ROOT"
+echo "    runtime انتخاب شده: $BRIDGE_RUNNER"
 
 # ─── ۶. ثبت bridge در pm2 ────────────────────────────────────────────────────
 echo "==> ثبت سرویس‌ها در pm2"
-# متغیر محیطی برای ecosystem.config.js (همان secret را می‌خواند)
+# متغیرهای محیطی برای ecosystem.config.js
 export WHATSAPP_BRIDGE_SECRET="$SECRET"
 export NEXT_JS_BASE_URL="$NEXT_JS_BASE_URL"
 export WHATSAPP_BRIDGE_PORT="$BRIDGE_PORT"
+export BRIDGE_RUNNER="$BRIDGE_RUNNER"
 
 if pm2 describe vignet-whatsapp-bridge >/dev/null 2>&1; then
   echo "    bridge از قبل در pm2 موجود است — reload"
@@ -116,6 +129,7 @@ pm2 save  # ذخیره برای استارت خودکار بعد از ریبوت
 # ─── ۷. خلاصه ─────────────────────────────────────────────────────────────────
 echo ""
 echo "==> ✅ راه‌اندازی whatsapp-bridge کامل شد"
+echo "    runtime: $BRIDGE_RUNNER"
 echo ""
 echo "وضعیت سرویس‌ها:"
 pm2 status
