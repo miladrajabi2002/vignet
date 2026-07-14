@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CreditCard, Loader2, WalletCards } from 'lucide-react'
+import { CreditCard, Loader2, WalletCards, Check } from 'lucide-react'
 
 const AMOUNTS_IRR = [1_000_000, 2_500_000, 5_000_000, 10_000_000]
 
@@ -38,13 +38,14 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]">
-          <WalletCards className="h-5 w-5 text-[var(--text-secondary)]" />
+    <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+      {/* Header */}
+      <div className="flex items-start gap-3 border-b border-[var(--border-subtle)] p-5 sm:p-6">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+          <WalletCards className="h-5 w-5" />
         </span>
         <div>
-          <h2 className="font-medium text-[var(--text-primary)]">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">
             {fa ? 'افزایش اعتبار پاسخ‌ها' : 'Top up reply credit'}
           </h2>
           <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
@@ -55,34 +56,70 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {AMOUNTS_IRR.map((amount) => (
-          <button
-            key={amount}
-            type="button"
-            onClick={() => setAmountIRR(amount)}
-            aria-pressed={amountIRR === amount}
-            className={`min-h-11 rounded-xl border px-2 text-xs font-medium transition-colors ${
-              amountIRR === amount
-                ? 'border-black bg-black text-white'
-                : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]'
-            }`}
-          >
-            {number.format(amount / 10)} {fa ? 'تومان' : 'toman'}
-          </button>
-        ))}
-      </div>
+      {/* Amount selection */}
+      <div className="p-5 sm:p-6">
+        <label className="mb-3 block text-xs font-medium text-[var(--text-secondary)]">
+          {fa ? 'مبلغ را انتخاب کنید' : 'Choose an amount'}
+        </label>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {AMOUNTS_IRR.map((amount) => {
+            const selected = amountIRR === amount
+            return (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => setAmountIRR(amount)}
+                aria-pressed={selected}
+                className={`relative flex min-h-14 flex-col items-center justify-center rounded-xl border p-2 text-center transition-all ${
+                  selected
+                    ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-sm'
+                    : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {selected && (
+                  <span className="absolute end-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/20">
+                    <Check className="h-2.5 w-2.5" />
+                  </span>
+                )}
+                <span className="text-sm font-bold tabular-nums">
+                  {number.format(amount / 10)}
+                </span>
+                <span className={`text-[9px] ${selected ? 'opacity-70' : 'text-[var(--text-muted)]'}`}>
+                  {fa ? 'تومان' : 'toman'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-      <button
-        type="button"
-        onClick={checkout}
-        disabled={loading}
-        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-medium text-white disabled:opacity-50"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-        {fa ? 'پرداخت و افزایش اعتبار' : 'Pay and add credit'}
-      </button>
-      {error && <p className="mt-2 text-center text-xs text-red-600">{fa ? 'ساخت لینک پرداخت ناموفق بود.' : 'Could not create the payment link.'}</p>}
-    </div>
+        {/* Pay button */}
+        <button
+          type="button"
+          onClick={checkout}
+          disabled={loading}
+          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CreditCard className="h-4 w-4" />
+          )}
+          {fa ? `پرداخت ${number.format(amountIRR / 10)} تومان` : `Pay ${number.format(amountIRR / 10)} toman`}
+        </button>
+
+        {error && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+            {fa ? 'ساخت لینک پرداخت ناموفق بود.' : 'Could not create the payment link.'}
+          </div>
+        )}
+
+        {/* Trust note */}
+        <p className="mt-3 text-center text-[10px] text-[var(--text-muted)]">
+          {fa
+            ? 'پرداخت از طریق درگاه زرین‌پال — امن و سریع'
+            : 'Payment via Zarinpal gateway — secure and fast'}
+        </p>
+      </div>
+    </section>
   )
 }

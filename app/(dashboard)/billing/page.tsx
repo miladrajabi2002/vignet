@@ -6,8 +6,6 @@ import { StatsCard } from '@/components/dashboard/stats-card'
 import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
 import { ReplyCreditEstimator } from '@/components/dashboard/reply-credit-estimator'
-import { MiniTrend } from '@/components/admin/mini-trend'
-import { messagesDailyByWorkspace, chargesDailyByWorkspace } from '@/lib/dashboard/charts'
 import { formatDateTime } from '@/lib/format'
 import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
@@ -35,7 +33,7 @@ export default async function BillingPage(
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [workspace, subscription, convoCount, usage, messagesUsed, msgTrend7, chargeTrend7] =
+  const [workspace, subscription, convoCount, usage, messagesUsed] =
     await Promise.all([
       prisma.workspace.findUnique({
         where: { id: ws },
@@ -53,8 +51,6 @@ export default async function BillingPage(
         _sum: { promptTokens: true, completionTokens: true, cost: true, chargedIRR: true },
       }),
       getMonthlyMessageCount(ws),
-      messagesDailyByWorkspace(ws, 7),
-      chargesDailyByWorkspace(ws, 7),
     ])
 
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
@@ -149,16 +145,20 @@ export default async function BillingPage(
         </div>
 
         <div className="mt-4 grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-3">
-          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
-          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format(messagesUsed)}</p></div>
-          <div><p className="text-xs text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p><p className="mt-1 text-lg font-medium text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} {locale === 'fa' ? 'تومان' : 'toman'}</p></div>
+          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
+            <p className="text-[10px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار قابل استفاده' : 'Available credit'}</p>
+            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format((workspace?.aiCreditBalanceIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
+          </div>
+          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
+            <p className="text-[10px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
+            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
+          </div>
+          <div className="rounded-xl bg-[var(--bg-muted)] p-3">
+            <p className="text-[10px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'در حال پردازش' : 'Currently reserved'}</p>
+            <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">{nf.format((workspace?.aiCreditReservedIRR ?? 0) / 10)} <span className="text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'تومان' : 'toman'}</span></p>
+          </div>
         </div>
       </section>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <MiniTrend label={locale === 'fa' ? 'پیام‌های ۷ روز' : 'Messages 7d'} value={msgTrend7.total} series={msgTrend7.series} color="#111111" hint={locale === 'fa' ? 'روند روزانه' : 'daily trend'} />
-        <MiniTrend label={locale === 'fa' ? 'هزینه ۷ روز' : 'Cost 7d'} value={Math.round(chargeTrend7.total / 10)} series={chargeTrend7.series.map((value) => Math.round(value / 10))} color="#111111" hint={locale === 'fa' ? 'تومان در روز' : 'toman / day'} />
-      </div>
 
       <ReplyCreditEstimator
         balanceIRR={workspace?.aiCreditBalanceIRR ?? 0}
@@ -184,24 +184,24 @@ export default async function BillingPage(
             return (
               <section
                 key={p}
-                className={`spatial-surface flex flex-col rounded-[1.5rem] p-5 ${
+                className={`spatial-surface relative flex flex-col rounded-[1.5rem] p-5 ${
                   highlight
-                    ? 'border-[var(--text-primary)]'
-                    : 'border-[var(--border-default)]'
+                    ? 'ring-2 ring-[var(--text-primary)]'
+                    : ''
                 }`}
               >
+                {highlight && (
+                  <span className="absolute -top-2.5 end-5 rounded-full bg-[var(--text-primary)] px-3 py-0.5 text-[10px] font-bold text-[var(--bg-base)] shadow-sm">
+                    {t('popular')}
+                  </span>
+                )}
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-[var(--text-primary)]">
+                  <h3 className="text-lg font-bold text-[var(--text-primary)]">
                     {t(PLAN_KEY[p])}
                   </h3>
-                  {highlight && (
-                    <span className="rounded-full bg-[var(--white)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--bg-base)]">
-                      {t('popular')}
-                    </span>
-                  )}
                 </div>
                 <div className="mt-3">
-                  <span className="text-2xl font-light text-[var(--text-primary)]">
+                  <span className="text-2xl font-bold text-[var(--text-primary)]">
                     {nf.format(def.priceIRR / 10)}
                   </span>
                   <span className="ms-1 text-xs text-[var(--text-muted)]">
