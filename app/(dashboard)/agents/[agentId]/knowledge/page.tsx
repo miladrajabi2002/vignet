@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { Database } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { KbManager } from '@/components/knowledge/kb-manager'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function AgentKnowledgePage(
   props: {
@@ -37,14 +39,11 @@ export default async function AgentKnowledgePage(
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {t('title')}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          {t('subtitle')}
-        </p>
-      </div>
+      <PageHeader
+        icon={Database}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
       <KbManager agentId={agent.id} items={items} />
     </div>
   )

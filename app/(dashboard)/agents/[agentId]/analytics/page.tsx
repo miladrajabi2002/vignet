@@ -24,6 +24,7 @@ import {
 } from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const DAYS = 14
 
@@ -126,11 +127,10 @@ export default async function AgentAnalyticsPage(
   return (
     <div className="mx-auto max-w-6xl space-y-6">
 
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {ta('analytics')}
-        </h1>
-      </div>
+      <PageHeader
+        icon={BarChart3}
+        title={ta('analytics')}
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatsCard

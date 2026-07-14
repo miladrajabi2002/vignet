@@ -14,6 +14,7 @@ import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByAgent } from '@/lib/dashboard/charts'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function AgentsPage() {
         const user = await requireUser()
@@ -45,20 +46,20 @@ export default async function AgentsPage() {
 
         return (
                 <div className="mx-auto max-w-6xl space-y-6">
-                        <div className="flex items-center justify-between gap-4">
-                                <div>
-                                        <p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'هسته ایجنت‌های هوشمند' : 'Vigento AI agents'}</p>
-                                        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
-                                        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-                                </div>
-                                <Link
-                                        href="/agents/new"
-                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
-                                >
-                                        <Plus className="h-4 w-4" />
-                                        {t('new')}
-                                </Link>
-                        </div>
+                        <PageHeader
+                                icon={Bot}
+                                title={t('title')}
+                                subtitle={t('subtitle')}
+                                actions={
+                                        <Link
+                                                href="/agents/new"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+                                        >
+                                                <Plus className="h-4 w-4" />
+                                                {t('new')}
+                                        </Link>
+                                }
+                        />
 
                         {agents.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">

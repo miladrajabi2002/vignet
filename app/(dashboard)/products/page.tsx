@@ -10,6 +10,7 @@ import { MiniTrend } from '@/components/admin/mini-trend'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardBarList } from '@/components/dashboard/bar-list'
 import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const PAGE_SIZE = 24
 
@@ -86,25 +87,28 @@ export default async function ProductsPage(
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div><p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'هوش کاتالوگ' : 'Catalog intelligence'}</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1></div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/products/categories"
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-          >
-            <FolderTree className="h-4 w-4" />
-            {t('manageCategories')}
-          </Link>
-          <Link
-            href="/products/new"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
-          >
-            <Plus className="h-4 w-4" />
-            {t('new')}
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        icon={Package}
+        title={t('title')}
+        actions={
+          <>
+            <Link
+              href="/products/categories"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <FolderTree className="h-4 w-4" />
+              {t('manageCategories')}
+            </Link>
+            <Link
+              href="/products/new"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              {t('new')}
+            </Link>
+          </>
+        }
+      />
 
       {/* ─── MiniTrend + top products (hidden when filtering/searching) ─── */}
       {!q && !categoryId && (

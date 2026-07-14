@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
+import { SlidersHorizontal } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -8,6 +9,7 @@ import {
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function AgentSettingsPage(
   props: {
@@ -33,10 +35,10 @@ export default async function AgentSettingsPage(
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'کنترل رفتار ایجنت' : 'Agent control'}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title={t('title')}
+      />
       <AgentSettingsForm
         businessType={workspace?.businessType}
         modelPolicy={{

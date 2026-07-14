@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { GraduationCap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { LEARNED_PREFIX } from '@/lib/ai/learning'
 import { LearningCenter, type LearningItem } from '@/components/agent-builder/learning-center'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,10 +56,11 @@ export default async function AgentLearningPage(
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-      </div>
+      <PageHeader
+        icon={GraduationCap}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <div className="spatial-surface rounded-[1.5rem] p-4">

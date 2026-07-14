@@ -11,6 +11,7 @@ import { messagesDailyByWorkspace, chargesDailyByWorkspace } from '@/lib/dashboa
 import { formatDateTime } from '@/lib/format'
 import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const PLAN_KEY: Record<string, string> = {
   TRIAL: 'planTrial',
@@ -82,15 +83,11 @@ export default async function BillingPage(
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <p className="text-[10px] font-bold text-[var(--text-muted)]">{locale === 'fa' ? 'اعتبار و اشتراک' : 'Credit and subscription'}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {t('title')}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          {t('subtitle')}
-        </p>
-      </div>
+      <PageHeader
+        icon={Wallet}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
 
       {/* Payment result banner (after gateway redirect) */}
       {paymentStatus === 'success' && (

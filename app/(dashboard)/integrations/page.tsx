@@ -10,6 +10,7 @@ import {
         Camera,
         ArrowRight,
         Link2,
+        Plug,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -17,6 +18,7 @@ import {
         StoreIntegrationsSection,
         type StoreIntegrationItem,
 } from '@/components/integrations/store-integrations-section'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const CHANNELS: {
         type: ChannelType
@@ -120,15 +122,11 @@ export default async function IntegrationsPage() {
 
         return (
                 <div className="mx-auto max-w-5xl space-y-6">
-                        <div>
-                                <p className="text-[10px] font-bold text-[var(--text-muted)]">{fa ? 'مرکز اتصال‌ها' : 'Connection hub'}</p>
-                                <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                                        {t('title')}
-                                </h1>
-                                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                                        {t('subtitle')}
-                                </p>
-                        </div>
+                        <PageHeader
+                                icon={Plug}
+                                title={t('title')}
+                                subtitle={t('subtitle')}
+                        />
 
                         <StoreIntegrationsSection integrations={storeIntegrations} />
 

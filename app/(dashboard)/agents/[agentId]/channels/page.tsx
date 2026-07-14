@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
+  Share2,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -26,6 +27,7 @@ import {
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -147,10 +149,11 @@ export default async function AgentChannelsPage(
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('title')}</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-      </div>
+      <PageHeader
+        icon={Share2}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
 
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}
       {igConnected && (

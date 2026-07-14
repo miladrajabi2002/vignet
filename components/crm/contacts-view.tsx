@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { CampaignComposer } from '@/components/crm/campaign-composer'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export interface ContactRow {
         id: string
@@ -98,7 +99,7 @@ export function ContactsView({
                                 Object.values(r.channelUsernames ?? {}).some((handle) => (handle ?? '').toLowerCase().includes(q))
                         )
                 })
-	}, [rows, query, stageFilter, channelFilter, tagFilter])
+        }, [rows, query, stageFilter, channelFilter, tagFilter])
 
         const campaignAudience = useMemo<CampaignAudienceInput>(() => {
                 if (selected.size > 0) return { selectedContactIds: [...selected] }
@@ -144,39 +145,40 @@ export function ContactsView({
 
         return (
                 <div className="mx-auto max-w-6xl space-y-6">
-                        <div className="flex flex-wrap items-end justify-between gap-4">
-                                <div>
-                                        <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
-                                        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-                                </div>
-                                <div className="flex flex-wrap items-center justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setCampaignOpen(true)}
-                                    disabled={filtered.length === 0}
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
-                                  >
-                                    <Megaphone className="h-4 w-4" />
-                                    {locale === 'fa'
-                                      ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
-                                      : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
-                                  </button>
-                                  <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
-                                        <ToggleBtn
-                                                active={view === 'list'}
-                                                onClick={() => setView('list')}
-                                                icon={<LayoutList className="h-4 w-4" />}
-                                                label={t('list')}
-                                        />
-                                        <ToggleBtn
-                                                active={view === 'pipeline'}
-                                                onClick={() => setView('pipeline')}
-                                                icon={<Columns3 className="h-4 w-4" />}
-                                                label={t('pipeline')}
-                                        />
-                                  </div>
-                                </div>
-                        </div>
+                        <PageHeader
+                                icon={Users}
+                                title={t('title')}
+                                subtitle={t('subtitle')}
+                                actions={
+                                        <>
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setCampaignOpen(true)}
+                                                        disabled={filtered.length === 0}
+                                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
+                                                >
+                                                        <Megaphone className="h-4 w-4" />
+                                                        {locale === 'fa'
+                                                                ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
+                                                                : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
+                                                </button>
+                                                <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
+                                                        <ToggleBtn
+                                                                active={view === 'list'}
+                                                                onClick={() => setView('list')}
+                                                                icon={<LayoutList className="h-4 w-4" />}
+                                                                label={t('list')}
+                                                        />
+                                                        <ToggleBtn
+                                                                active={view === 'pipeline'}
+                                                                onClick={() => setView('pipeline')}
+                                                                icon={<Columns3 className="h-4 w-4" />}
+                                                                label={t('pipeline')}
+                                                        />
+                                                </div>
+                                        </>
+                                }
+                        />
 
                         <div className="spatial-surface grid gap-2 rounded-[1.5rem] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
                                 <div className="relative">
@@ -205,7 +207,7 @@ export function ContactsView({
                                         <p className="mt-4 text-sm text-[var(--text-secondary)]">{t('empty')}</p>
                                 </div>
                         ) : view === 'list' ? (
-				<ListView rows={filtered} locale={locale} onMove={move} selected={selected} onToggleSelected={toggleSelected} />
+                                <ListView rows={filtered} locale={locale} onMove={move} selected={selected} onToggleSelected={toggleSelected} />
                         ) : (
                                 <PipelineView rows={filtered} onMove={move} />
                         )}
@@ -295,15 +297,15 @@ function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
 function ListView({
         rows,
         locale,
-	onMove,
-	selected,
-	onToggleSelected,
+        onMove,
+        selected,
+        onToggleSelected,
 }: {
         rows: ContactRow[]
         locale: 'fa' | 'en'
-	onMove: (id: string, s: Stage) => void
-	selected: Set<string>
-	onToggleSelected: (id: string) => void
+        onMove: (id: string, s: Stage) => void
+        selected: Set<string>
+        onToggleSelected: (id: string) => void
 }) {
         const t = useTranslations('contacts')
         return (
@@ -317,13 +319,13 @@ function ListView({
                                         key={c.id}
                                         className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
                                 >
-					<input
-						type="checkbox"
-						checked={selected.has(c.id)}
-						onChange={() => onToggleSelected(c.id)}
-						className="h-4 w-4 shrink-0 accent-violet-500"
-						aria-label={locale === 'fa' ? `انتخاب ${rowDisplayName(c, t('anonymous'))}` : `Select ${rowDisplayName(c, t('anonymous'))}`}
-					/>
+                                        <input
+                                                type="checkbox"
+                                                checked={selected.has(c.id)}
+                                                onChange={() => onToggleSelected(c.id)}
+                                                className="h-4 w-4 shrink-0 accent-violet-500"
+                                                aria-label={locale === 'fa' ? `انتخاب ${rowDisplayName(c, t('anonymous'))}` : `Select ${rowDisplayName(c, t('anonymous'))}`}
+                                        />
                                         <Link
                                                 href={`/contacts/${c.id}`}
                                                 className="flex min-w-0 flex-1 items-center gap-3"
@@ -359,7 +361,7 @@ function ListView({
                                                                 {c.conversationCount} {t('conversations')} · {t('lastSeen')}{' '}
                                                                 {relativeTime(new Date(c.lastActivity), locale)}
                                                         </p>
-							{c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-500">{locale === 'fa' ? 'رضایت پیام' : 'Opted in'}</span>}
+                                                        {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-500">{locale === 'fa' ? 'رضایت پیام' : 'Opted in'}</span>}
                                                 </div>
                                         </Link>
                                         <div onClick={(e) => e.stopPropagation()} className="shrink-0">

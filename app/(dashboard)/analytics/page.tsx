@@ -15,6 +15,7 @@ import {
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { DashboardPanel } from '@/components/dashboard/panel'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { ConversationChart, ChannelDonut, SatisfactionGauge } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
@@ -171,28 +172,20 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header — distinct from overview */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1 text-[10px] font-medium text-[var(--text-muted)]">
-            <BarChart3 className="h-3 w-3" />
-            {fa ? 'گزارش‌ها و تحلیل‌ها' : 'Reports & analytics'}
-          </div>
-          <h1 className="mt-2 text-xl font-semibold text-[var(--text-primary)] sm:text-2xl">
-            {fa ? 'تحلیل عمیق گفتگوها و عملکرد' : 'Deep performance analytics'}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {fa ? `۳۰ روز گذشته · ${workspace.name}` : `Last 30 days · ${workspace.name}`}
-          </p>
-        </div>
-        <Link
-          href="/overview"
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
-          {fa ? 'بازگشت به نمای کلی' : 'Back to overview'}
-        </Link>
-      </header>
+      <PageHeader
+        icon={BarChart3}
+        title={fa ? 'تحلیل عمیق گفتگوها و عملکرد' : 'Deep performance analytics'}
+        subtitle={fa ? `۳۰ روز گذشته · ${workspace.name}` : `Last 30 days · ${workspace.name}`}
+        actions={
+          <Link
+            href="/overview"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+          >
+            <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+            {fa ? 'بازگشت به نمای کلی' : 'Back to overview'}
+          </Link>
+        }
+      />
 
       {/* KPI row */}
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">

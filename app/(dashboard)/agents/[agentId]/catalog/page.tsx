@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { Package } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { CatalogAssign } from '@/components/products/catalog-assign'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function AgentCatalogPage(
   props: {
@@ -33,10 +35,11 @@ export default async function AgentCatalogPage(
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-      </div>
+      <PageHeader
+        icon={Package}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
       <CatalogAssign
         agentId={agent.id}
         products={products.map((p) => ({

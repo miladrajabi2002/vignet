@@ -10,6 +10,7 @@ import { WeeklyReportCard } from '@/components/settings/weekly-report-card'
 import { BusinessProfileStep } from '@/components/onboarding/business-profile-step'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
@@ -53,14 +54,11 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><SlidersHorizontal className="h-5 w-5" /></span>
-        <div>
-          <p className="text-[10px] font-bold text-[var(--text-muted)]">{locale === 'fa' ? 'مرکز تنظیمات کسب‌وکار' : 'Business settings center'}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t('settings.title')}</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{locale === 'fa' ? 'هویت کسب‌وکار، حساب، گزارش‌ها و مسیر تحویل اپراتور را مدیریت کنید.' : 'Manage business identity, account, reports and operator handoff.'}</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title={t('settings.title')}
+        subtitle={locale === 'fa' ? 'هویت کسب‌وکار، حساب، گزارش‌ها و مسیر تحویل اپراتور را مدیریت کنید.' : 'Manage business identity, account, reports and operator handoff.'}
+      />
       {workspace && (
         <BusinessProfileStep
           workspaceName={workspace.name}

@@ -23,6 +23,7 @@ import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardDonut } from '@/components/dashboard/donut'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const PAGE_SIZE = 50
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -188,10 +189,11 @@ export default async function ConversationsPage(props: {
 
         return (
                 <div className="min-w-0 space-y-6">
-                        <div>
-                                <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('title')}</h1>
-                                <p className="mt-1 text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
-                        </div>
+                        <PageHeader
+                                icon={MessagesSquare}
+                                title={t('title')}
+                                subtitle={t('subtitle')}
+                        />
 
                         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                                 <DashboardPanel

@@ -16,9 +16,11 @@ import {
         Save,
         X,
         ChevronDown,
+        Camera,
         type LucideIcon,
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { useTranslations, useLocale } from 'next-intl'
 import {
         type Automation,
@@ -184,16 +186,11 @@ export function InstagramAutomationManager({
         return (
                 <div className="space-y-6">
                         {/* Page header */}
-                        <header className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                                                {t('manager.title')}
-                                        </h1>
-                                        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                                                {t('manager.subtitle')}
-                                        </p>
-                                </div>
-                                <div className="flex items-center gap-2">
+                        <PageHeader
+                                icon={Camera}
+                                title={t('manager.title')}
+                                subtitle={t('manager.subtitle')}
+                                actions={
                                         <button
                                                 type="button"
                                                 onClick={() =>
@@ -206,8 +203,8 @@ export function InstagramAutomationManager({
                                                 <Plus className="h-4 w-4" />
                                                 {t('manager.addScenario')}
                                         </button>
-                                </div>
-                        </header>
+                                }
+                        />
 
                         <section className="spatial-surface flex flex-col gap-3 rounded-[1.5rem] p-5 sm:flex-row sm:items-center">
                                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
