@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import {
         Globe,
@@ -37,7 +37,6 @@ const CHANNELS: {
 export default async function IntegrationsPage() {
         const user = await requireUser()
         const t = await getTranslations('integrations')
-        const fa = (await getLocale()) !== 'en'
 
         const [groups, primaryAgent] = await Promise.all([
                 prisma.agentChannel.groupBy({

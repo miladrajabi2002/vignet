@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import { SlidersHorizontal } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -19,7 +19,6 @@ export default async function AgentSettingsPage(
   const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('agents.settingsForm')
-  const fa = (await getLocale()) !== 'en'
 
   const [agent, workspace, platformPolicy] = await Promise.all([
     prisma.agent.findFirst({

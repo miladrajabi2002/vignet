@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import { Plus, Package, FolderTree } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
@@ -22,7 +22,6 @@ export default async function ProductsPage(
   const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('products')
-  const fa = (await getLocale()) !== 'en'
 
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'

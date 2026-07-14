@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import {
         Bot,
         Plus,
@@ -19,7 +19,6 @@ import { PageHeader } from '@/components/dashboard/page-header'
 export default async function AgentsPage() {
         const user = await requireUser()
         const t = await getTranslations('agents')
-        const fa = (await getLocale()) !== 'en'
 
         const [agents, agentSparks] = await Promise.all([
                 prisma.agent.findMany({
