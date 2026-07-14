@@ -73,7 +73,7 @@ export function ContactDetailEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+    <div className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
       <div>
         <label className="text-xs text-[var(--text-secondary)]">
           {t('detail.name')}
@@ -147,7 +147,7 @@ export function ContactDetailEditor({
         <button
           onClick={save}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
         >
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('detail.save')}

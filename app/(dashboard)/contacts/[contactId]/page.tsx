@@ -117,50 +117,53 @@ export default async function ContactDetailPage(
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <Link
-        href="/contacts"
-        className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-      >
-        <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-        {t('title')}
-      </Link>
-
-      {/* Header */}
-      <div className="spatial-surface flex items-center gap-4 rounded-[1.5rem] p-5 sm:p-6">
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt={who}
-            width={48}
-            height={48}
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className="h-12 w-12 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
-          />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-            <User className="h-6 w-6" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              {who}
-            </h1>
-            {channels.map((ch) => (
-              <ChannelBadge key={ch} type={ch} />
-            ))}
-          </div>
-          {contact.phone && (
-            <p
-              dir="ltr"
-              className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              {contact.phone}
-            </p>
+      {/* Header card — avatar + name + channels + phone + back link */}
+      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+        <div className="mb-4">
+          <Link
+            href="/contacts"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+            {t('title')}
+          </Link>
+        </div>
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={who}
+              width={56}
+              height={56}
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="h-14 w-14 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+              <User className="h-7 w-7" />
+            </div>
           )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+                {who}
+              </h1>
+              {channels.map((ch) => (
+                <ChannelBadge key={ch} type={ch} />
+              ))}
+            </div>
+            {contact.phone && (
+              <p
+                dir="ltr"
+                className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {contact.phone}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
