@@ -7,6 +7,7 @@ import { computeOnboarding } from '@/lib/onboarding'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
 
 export default async function DashboardLayout({
   children,
@@ -71,8 +72,14 @@ export default async function DashboardLayout({
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
     : null
-  const remainingPercent = planStart && planEnd && planEnd > planStart
-    ? Math.max(0, Math.min(100, Math.round(((planEnd.getTime() - Date.now()) / (planEnd.getTime() - planStart.getTime())) * 100)))
+  // Credit percentage: how much of the plan's included credit remains.
+  // (Was time-based; now reflects actual AI credit balance so the progress
+  // bar in the header tracks real spending, not the billing cycle.)
+  const planDefs = getEffectivePlanDefs()
+  const includedCreditIRR = planDefs[plan]?.includedCreditIRR ?? 100_000
+  const creditBalanceIRR = workspace?.aiCreditBalanceIRR ?? 0
+  const remainingPercent = includedCreditIRR > 0
+    ? Math.max(0, Math.min(100, Math.round((creditBalanceIRR / includedCreditIRR) * 100)))
     : 0
 
   // Normal dashboard with sidebar + header

@@ -31,6 +31,9 @@ import {
   BarList,
   MonthlyBarChart,
 } from '@/components/admin/trend-chart'
+import { DashboardPanel } from '@/components/dashboard/panel'
+import { ConversationChart } from '@/components/dashboard/charts/lazy'
+import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import { ServerStatsWidget } from '@/components/admin/server-stats-widget'
 import { TrendsStrip } from '@/components/admin/trends-strip'
@@ -303,13 +306,18 @@ export default async function AdminOverviewPage(
         />
       ) : rangeSeries.daily ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          <TrendChart
+          {/* Revenue chart — uses the EXACT same DashboardPanel + ConversationChart
+              pattern as the user dashboard /overview page, so it looks identical.
+              Data is converted from admin DailyPoint[] ({day, value}) to
+              TrendPoint[] ({label, value}). */}
+          <DashboardPanel
             title={`درآمد ${fa(days)} روز اخیر (تومان)`}
-            data={rangeSeries.daily.rev}
-            color="#18181b"
-            variant="area"
-            format="irr"
-          />
+            subtitle={fmtIRR(rangeSeries.daily.rev.reduce((s, p) => s + p.value, 0))}
+          >
+            <ConversationChart
+              data={rangeSeries.daily.rev.map((p) => ({ label: p.day, value: p.value }) as TrendPoint)}
+            />
+          </DashboardPanel>
           <TrendChart
             title={`ثبت‌نام کاربران ${fa(days)} روز اخیر`}
             data={rangeSeries.daily.users}

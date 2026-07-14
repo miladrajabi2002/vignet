@@ -75,22 +75,28 @@ export async function Header({
             <span className="block truncate text-[10px] font-bold leading-4 text-[var(--text-primary)] sm:text-[11px]">
               {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
             </span>
+            {/* Credit amount — the main info shown under the plan name */}
             <span className="mt-0.5 block truncate text-[9px] leading-3.5 text-[var(--text-muted)] sm:text-[10px]">
-              {daysLeft !== null
-                ? fa
-                  ? `${nf.format(daysLeft)} روز باقی‌مانده · ${nf.format(Math.round(creditIRR / 10))} تومان`
-                  : `${nf.format(daysLeft)} days left · ${nf.format(Math.round(creditIRR / 10))} toman`
-                : fa
-                  ? `${nf.format(Math.round(creditIRR / 10))} تومان اعتبار`
-                  : `${nf.format(Math.round(creditIRR / 10))} toman credit`}
+              {fa
+                ? `${nf.format(Math.round(creditIRR / 10))} تومان اعتبار`
+                : `${nf.format(Math.round(creditIRR / 10))} toman credit`}
             </span>
-            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075]">
+            {/* Days left shown ABOVE the progress bar (small, muted) */}
+            {daysLeft !== null && (
+              <span className="mt-1 block text-[8px] leading-3 text-[var(--text-muted)] sm:text-[9px]">
+                {fa
+                  ? `${nf.format(daysLeft)} روز تا پایان پلن`
+                  : `${nf.format(daysLeft)} days left`}
+              </span>
+            )}
+            {/* Progress bar reflects CREDIT remaining (not time) */}
+            <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-black/[0.075]">
               <span className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${remaining}%` }} />
             </span>
           </span>
 
-          <span className="flex shrink-0 items-center gap-0.5 text-black/65" dir="ltr">
-            <span className="text-[9px] font-bold tabular-nums sm:text-[10px]">{nf.format(remaining)}{fa ? '٪' : '%'}</span>
+          {/* Chevron only — percentage removed per request */}
+          <span className="flex shrink-0 items-center text-black/65" dir="ltr">
             <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
           </span>
         </Link>
