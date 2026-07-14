@@ -27,6 +27,32 @@ export interface NamedPoint {
 }
 
 const AXIS = { fill: '#a1a1aa', fontSize: 11 }
+
+// ── Date formatters for X-axis ticks + tooltip labels ──────────────────────
+// Converts ISO date strings ("2026-07-13") to Persian ("۲۱ تیر") so all
+// charts show readable fa-IR dates, matching the /overview ConversationChart.
+const dayFmt = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' })
+const monthFmt = new Intl.DateTimeFormat('fa-IR', { month: 'long' })
+
+/** Format a tick/label value: ISO date → Persian, otherwise pass through. */
+function formatDayTick(value: unknown): string {
+  const s = String(value ?? '')
+  // Match YYYY-MM-DD (daily charts from SQL to_char)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    try { return dayFmt.format(new Date(s + 'T00:00:00')) } catch { return s }
+  }
+  return s
+}
+
+/** Format a month tick: "YYYY-MM" → Persian month name + year. */
+function formatMonthTick(value: unknown): string {
+  const s = String(value ?? '')
+  if (/^\d{4}-\d{2}$/.test(s)) {
+    try { return monthFmt.format(new Date(s + '-01T00:00:00')) } catch { return s }
+  }
+  return s
+}
+
 const TOOLTIP = {
   contentStyle: {
     background: '#ffffff',
@@ -128,9 +154,9 @@ export function TrendChart({
                   <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
-              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
+              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Area
                 type="monotone"
                 dataKey="value"
@@ -144,9 +170,9 @@ export function TrendChart({
             </AreaChart>
           ) : variant === 'line' ? (
             <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
-              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
+              <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Line
                 type="monotone"
                 dataKey="value"
@@ -159,9 +185,9 @@ export function TrendChart({
             </LineChart>
           ) : (
             <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={format === 'usd'} />
-              <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} />
+              <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
               <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
             </BarChart>
           )}
@@ -324,7 +350,7 @@ export function MonthlyBarChart({
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
-            <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatMonthTick} />
             <YAxis
               tick={AXIS}
               axisLine={false}
@@ -337,6 +363,7 @@ export function MonthlyBarChart({
               {...TOOLTIP}
               cursor={{ fill: '#f4f4f5' }}
               formatter={(v) => [formatValue(Number(v), format), title]}
+              labelFormatter={formatMonthTick}
             />
             <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} isAnimationActive={false} />
           </BarChart>
