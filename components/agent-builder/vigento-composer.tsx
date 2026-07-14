@@ -104,7 +104,7 @@ export function VigentoComposer({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold text-[var(--text-primary)]">Vigento AI | هوش مصنوعی ویجنتو</h2>
-              <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-400">
+              <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-400">
                 {isFa ? 'دستیار ساخت ایجنت' : 'Agent-building copilot'}
               </span>
             </div>
@@ -158,7 +158,7 @@ export function VigentoComposer({
               <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
                 {isFa ? 'پیش‌نمایش تغییرات' : 'Review proposed changes'}
                 {source === 'fallback' && (
-                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-500">
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-500">
                     {isFa ? 'نسخه امن آفلاین' : 'Safe offline fallback'}
                   </span>
                 )}
@@ -187,7 +187,7 @@ export function VigentoComposer({
                     {draft.knowledgePlan.map((item) => (
                       <li key={`${item.type}-${item.label}`} className="flex gap-2 text-xs text-[var(--text-secondary)]">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                        <span><strong className="font-medium text-[var(--text-primary)]">{item.label}</strong><span className="block text-[10px] leading-5 text-[var(--text-muted)]">{item.reason}</span></span>
+                        <span><strong className="font-medium text-[var(--text-primary)]">{item.label}</strong><span className="block text-[11px] leading-5 text-[var(--text-muted)]">{item.reason}</span></span>
                       </li>
                     ))}
                   </ul>
@@ -222,7 +222,7 @@ function PreviewStat({ icon, label, value }: { icon: React.ReactNode; label: str
   return (
     <div className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
       <span className="text-violet-400">{icon}</span>
-      <span className="min-w-0"><span className="block text-[10px] text-[var(--text-muted)]">{label}</span><span className="block truncate text-xs font-medium text-[var(--text-primary)]">{value}</span></span>
+      <span className="min-w-0"><span className="block text-[11px] text-[var(--text-muted)]">{label}</span><span className="block truncate text-xs font-medium text-[var(--text-primary)]">{value}</span></span>
     </div>
   )
 }

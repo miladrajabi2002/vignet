@@ -166,7 +166,7 @@ export function WidgetPreview({
                                                         setView(v.id)
                                                         setPanelOpen(true)
                                                 }}
-                                                className={`rounded-md px-2.5 py-1 font-medium transition-all ${
+                                                className={`rounded-md px-2.5 py-1 font-medium transition-[background-color,color,box-shadow] duration-200 ${
                                                         view === v.id
                                                                 ? 'bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm'
                                                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -318,7 +318,7 @@ export function WidgetPreview({
 
                                                         {/* source chip */}
                                                         <span
-                                                                className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                                                                className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold"
                                                                 style={{ border: `1px solid ${c.border}`, background: c.bg, color: c.muted }}
                                                         >
                                                                 <Package className="h-3 w-3" />
@@ -368,7 +368,7 @@ export function WidgetPreview({
                                                                                                 {demo.productName}
                                                                                         </span>
                                                                                         <span
-                                                                                                className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold"
+                                                                                                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                                                                                                 style={{
                                                                                                         color: accentInk,
                                                                                                         background: accentSoft,

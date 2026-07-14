@@ -171,7 +171,7 @@ export function CampaignComposer({
                 {preview && (
                   <div className="mt-4">
                     <div className="grid grid-cols-3 gap-2 text-center"><AudienceStat label={isFa ? 'مجاز برای ارسال' : 'Eligible'} value={preview.eligibleCount} tone="success" /><AudienceStat label={isFa ? 'بدون رضایت' : 'No consent'} value={preview.excludedNoConsent} tone="warning" /><AudienceStat label={isFa ? 'بدون کانال فعال' : 'No active channel'} value={preview.excludedNoChannel} tone="muted" /></div>
-                    {preview.sample.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{preview.sample.map((item) => <span key={item.id} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[10px] text-[var(--text-secondary)]">{item.label} · {item.channel}</span>)}</div>}
+                    {preview.sample.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{preview.sample.map((item) => <span key={item.id} className="rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">{item.label} · {item.channel}</span>)}</div>}
                     {preview.capped && <p className="mt-3 text-[11px] text-amber-500">{isFa ? 'این کمپین برای ایمنی به ۵۰۰ مخاطب اول محدود شده است.' : 'For safety, this campaign is capped at the first 500 contacts.'}</p>}
                   </div>
                 )}
@@ -181,7 +181,7 @@ export function CampaignComposer({
                 <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]"><Send className="h-4 w-4 text-violet-400" />{isFa ? '۲. متن و پیش‌نمایش' : '2. Message & preview'}</h3>
                 <label className="mt-4 block"><span className="mb-1.5 block text-xs text-[var(--text-secondary)]">{isFa ? 'نام داخلی کمپین' : 'Internal campaign name'}</span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} disabled={Boolean(campaign)} className="input" /></label>
                 <label className="mt-3 block"><span className="mb-1.5 block text-xs text-[var(--text-secondary)]">{isFa ? 'پیام' : 'Message'}</span><textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} rows={5} disabled={Boolean(campaign)} className="input resize-y" /></label>
-                <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-xs leading-6 text-[var(--text-secondary)]" dir="auto"><p className="whitespace-pre-wrap">{message || (isFa ? 'پیش‌نمایش پیام اینجا نمایش داده می‌شود.' : 'Message preview appears here.')}</p><p className="mt-2 border-t border-[var(--border-subtle)] pt-2 text-[10px] text-[var(--text-muted)]">{optOutFooter}</p></div>
+                <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-xs leading-6 text-[var(--text-secondary)]" dir="auto"><p className="whitespace-pre-wrap">{message || (isFa ? 'پیش‌نمایش پیام اینجا نمایش داده می‌شود.' : 'Message preview appears here.')}</p><p className="mt-2 border-t border-[var(--border-subtle)] pt-2 text-[11px] text-[var(--text-muted)]">{optOutFooter}</p></div>
               </section>
 
               {!campaign ? (
@@ -204,5 +204,5 @@ export function CampaignComposer({
 }
 
 function AudienceStat({ label, value, tone }: { label: string; value: number; tone: 'success' | 'warning' | 'muted' }) {
-  return <div className={`rounded-xl border p-2.5 ${tone === 'success' ? 'border-emerald-500/20 bg-emerald-500/[0.06]' : tone === 'warning' ? 'border-amber-500/20 bg-amber-500/[0.06]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)]'}`}><span className="block text-lg font-semibold text-[var(--text-primary)]">{value.toLocaleString('fa-IR')}</span><span className="mt-0.5 block text-[9px] text-[var(--text-muted)]">{label}</span></div>
+  return <div className={`rounded-xl border p-2.5 ${tone === 'success' ? 'border-emerald-500/20 bg-emerald-500/[0.06]' : tone === 'warning' ? 'border-amber-500/20 bg-amber-500/[0.06]' : 'border-[var(--border-subtle)] bg-[var(--bg-surface)]'}`}><span className="block text-lg font-semibold text-[var(--text-primary)]">{value.toLocaleString('fa-IR')}</span><span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">{label}</span></div>
 }

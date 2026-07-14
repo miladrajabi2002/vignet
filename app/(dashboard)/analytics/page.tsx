@@ -209,7 +209,7 @@ export default async function AnalyticsPage() {
               </div>
               <p className="mt-3 text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{kpi.value}</p>
               <p className="mt-0.5 text-[11px] font-medium text-[var(--text-secondary)]">{kpi.label}</p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">{kpi.hint}</p>
+              <p className="mt-1 text-[11px] text-[var(--text-muted)]">{kpi.hint}</p>
             </div>
           )
         })}
@@ -270,7 +270,7 @@ export default async function AnalyticsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{agent.name}</span>
-                        <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{nfFa(share, fa)}{fa ? '٪' : '%'}</span>
+                        <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{nfFa(share, fa)}{fa ? '٪' : '%'}</span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
                         <div className="h-full rounded-full bg-[var(--text-primary)]" style={{ width: `${share}%` }} />
@@ -341,15 +341,15 @@ export default async function AnalyticsPage() {
           <div className="grid grid-cols-3 gap-3 py-2">
             <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-center">
               <p className="text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{nfFa(openConversations, fa)}</p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">{fa ? 'گفتگوی باز' : 'Open'}</p>
+              <p className="mt-1 text-[11px] text-[var(--text-muted)]">{fa ? 'گفتگوی باز' : 'Open'}</p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
               <p className="text-2xl font-semibold tabular-nums text-amber-700">{nfFa(handedOff, fa)}</p>
-              <p className="mt-1 text-[10px] text-amber-700/70">{fa ? 'تحویل اپراتور' : 'Handed off'}</p>
+              <p className="mt-1 text-[11px] text-amber-700/70">{fa ? 'تحویل اپراتور' : 'Handed off'}</p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
               <p className="text-2xl font-semibold tabular-nums text-emerald-700">{nfFa(resolvedConversations, fa)}</p>
-              <p className="mt-1 text-[10px] text-emerald-700/70">{fa ? 'حل‌شده (۳۰ روز)' : 'Resolved (30d)'}</p>
+              <p className="mt-1 text-[11px] text-emerald-700/70">{fa ? 'حل‌شده (۳۰ روز)' : 'Resolved (30d)'}</p>
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2 rounded-xl bg-[var(--bg-surface)] p-3 text-[11px] text-[var(--text-muted)]">

@@ -1,4 +1,7 @@
 import type { DocPage, Locale } from '@/lib/docs/content'
+import Link from 'next/link'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { DOCS_NAV } from '@/lib/docs/nav'
 
 function pick(t: { fa: string; en: string }, locale: Locale) {
   return locale === 'fa' ? t.fa : t.en
@@ -11,11 +14,17 @@ export function DocContent({
   page: DocPage
   locale: Locale
 }) {
+  const currentIndex = DOCS_NAV.findIndex((item) => item.slug === page.slug)
+  const previous = currentIndex > 0 ? DOCS_NAV[currentIndex - 1] : null
+  const next = currentIndex >= 0 && currentIndex < DOCS_NAV.length - 1 ? DOCS_NAV[currentIndex + 1] : null
+  const ForwardArrow = locale === 'fa' ? ArrowLeft : ArrowRight
+  const BackArrow = locale === 'fa' ? ArrowRight : ArrowLeft
+
   return (
     <article className="max-w-4xl rounded-[1.75rem] border border-black/[0.08] bg-white p-4 shadow-[0_22px_65px_rgba(0,0,0,0.07)] sm:p-7 lg:p-9">
       <header className="marketing-grid-dark relative mb-10 overflow-hidden rounded-[1.5rem] bg-black px-5 py-8 text-white shadow-[0_18px_50px_rgba(0,0,0,0.16)] sm:px-8 sm:py-11">
         <div className="relative">
-        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/35">Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</p>
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-white/55">Vigent Documentation · {locale === 'fa' ? 'راهنمای گام‌به‌گام' : 'Step-by-step guide'}</p>
         <h1 className="mt-4 text-balance text-4xl font-semibold leading-[1.2] tracking-[-0.04em] rtl:tracking-normal">{pick(page.title, locale)}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/50">{pick(page.description, locale)}</p>
         </div>
@@ -109,6 +118,21 @@ export function DocContent({
               return null
           }
         })}
+
+        <nav aria-label={locale === 'fa' ? 'راهنماهای مرتبط' : 'Related documentation'} className="grid gap-3 border-t border-[var(--border-default)] pt-7 sm:grid-cols-2">
+          {previous ? (
+            <Link href={previous.href} className="spatial-press flex min-h-20 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-sm font-semibold text-[var(--text-primary)]">
+              <BackArrow className="h-4 w-4 text-[var(--text-muted)]" />
+              <span><small className="block text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'راهنمای قبلی' : 'Previous guide'}</small>{pick(previous.title, locale)}</span>
+            </Link>
+          ) : <span />}
+          {next && (
+            <Link href={next.href} className="spatial-press flex min-h-20 items-center justify-end gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 text-end text-sm font-semibold text-[var(--text-primary)]">
+              <span><small className="block text-xs font-normal text-[var(--text-muted)]">{locale === 'fa' ? 'راهنمای بعدی' : 'Next guide'}</small>{pick(next.title, locale)}</span>
+              <ForwardArrow className="h-4 w-4 text-[var(--text-muted)]" />
+            </Link>
+          )}
+        </nav>
       </div>
     </article>
   )

@@ -143,7 +143,7 @@ export function VigentoAdminConsole() {
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/65 backdrop-blur-sm">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
               هسته مالک پلتفرم · آنلاین
@@ -443,7 +443,7 @@ export function VigentoAdminConsole() {
                 <p className="mt-0.5 text-[11px] text-black/50">داده زنده · فایل امن · عملیات با تأیید</p>
               </div>
             </div>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
               فقط میلاد
             </span>
           </div>

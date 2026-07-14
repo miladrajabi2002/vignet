@@ -56,11 +56,11 @@ export function Sidebar({ businessType, services = [] }: { businessType?: Busine
 					<Sparkles className="h-4 w-4" />
 				</span>
 				<span className="flex-1">Vigento AI</span>
-				<span className="text-[8px] font-normal text-white/55">هوش مصنوعی ویجنتو</span>
+				<span className="text-[11px] font-normal text-white/65">همکار هوشمند</span>
 			</Link>
 
-			{/* Navigation — minimal, no scroll, subtle active state */}
-			<nav className="flex flex-1 flex-col gap-0.5 overflow-hidden" aria-label={t('overview')}>
+			{/* Keep every module reachable when vertical profiles produce a long rail. */}
+			<nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-width:thin]" aria-label={t('overview')}>
 				{nav.map(({ key, href, icon: Icon }) => {
 					const active = pathname === href || pathname.startsWith(`${href}/`)
 					return (
@@ -77,7 +77,7 @@ export function Sidebar({ businessType, services = [] }: { businessType?: Busine
 							<Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-white' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
 							<span className="min-w-0 flex-1 truncate">{getDashboardModuleLabel(key, businessType, locale, t(key))}</span>
 							{newModules.includes(key) && !active && (
-								<span className="rounded-full bg-black px-2 py-0.5 text-[8px] font-bold text-white">{t('newLabel')}</span>
+								<span className="rounded-full bg-black px-2 py-0.5 text-[11px] font-bold text-white">{t('newLabel')}</span>
 							)}
 						</Link>
 					)

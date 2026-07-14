@@ -40,9 +40,9 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
       <div className="relative grid w-full max-w-4xl overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white shadow-[0_32px_100px_-48px_rgba(0,0,0,.65)] lg:grid-cols-2">
         <div className="relative hidden min-h-[560px] overflow-hidden bg-black p-8 text-white lg:block">
           <div className="admin-vigento-grid absolute inset-0 opacity-60" />
-          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigento AI</p><p className="mt-1 text-[9px] text-white/40">OWNER OPERATIONS CORE</p></div></div>
-          <div className="relative mt-24"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08]"><Sparkles className="h-5 w-5" /></span><h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2><p className="mt-4 max-w-sm text-xs leading-7 text-white/45">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنتو.</p></div>
-          <p className="absolute bottom-8 text-[9px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
+          <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white"><Logo className="h-4 w-auto max-w-7" /></span><div><p className="text-sm font-bold">Vigent</p><p className="mt-1 text-[11px] text-white/55">OWNER OPERATIONS</p></div></div>
+          <div className="relative mt-24"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08]"><Sparkles className="h-5 w-5" /></span><h2 className="mt-6 text-3xl font-bold leading-[1.45]">تمام پلتفرم،<br />در یک مرکز فرمان.</h2><p className="mt-4 max-w-sm text-xs leading-7 text-white/55">آمار زنده، هزینه‌ها، کاربران، فایل‌های امن و عملیات تأییدشونده فقط برای مالک ویجنت.</p></div>
+          <p className="absolute bottom-8 text-[11px] text-white/25">VIGENT · SECURE ADMIN SESSION</p>
         </div>
         <div className="p-6 sm:p-10">
           <div className="flex flex-col items-center text-center">
@@ -95,7 +95,7 @@ export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
               <SubmitButton />
             </div>
           </form>
-          <p className="mt-8 text-center text-[10px] text-black/30">© ویجنت — نشست امضاشده و زمان‌دار</p>
+          <p className="mt-8 text-center text-[11px] text-black/30">© ویجنت — نشست امضاشده و زمان‌دار</p>
         </div>
       </div>
     </div>

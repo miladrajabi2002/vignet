@@ -17,7 +17,7 @@ const TIER_ICON: Record<ModelTier, typeof Zap> = {
 function Meter({ value, label }: { value: number; label: string }) {
   return (
     <span className="inline-flex items-center gap-1" title={`${label}: ${value}/5`}>
-      <span className="text-[10px] text-[var(--text-muted)]">{label}</span>
+      <span className="text-[11px] text-[var(--text-muted)]">{label}</span>
       <span className="flex gap-0.5">
         {Array.from({ length: 5 }).map((_, i) => (
           <span
@@ -115,12 +115,12 @@ export function ModelSelect({
                   {m.name}
                 </span>
                 {isDefault && (
-                  <span className="rounded-md bg-[var(--white-10)] px-1.5 py-0.5 text-[10px] text-[var(--text-primary)]">
+                  <span className="rounded-md bg-[var(--white-10)] px-1.5 py-0.5 text-[11px] text-[var(--text-primary)]">
                     {t('default')}
                   </span>
                 )}
                 {!allowed && (
-                  <span className="ms-auto rounded-md bg-[var(--bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
+                  <span className="ms-auto rounded-md bg-[var(--bg-muted)] px-1.5 py-0.5 text-[11px] text-[var(--text-muted)]">
                     {isTrial ? (isFa ? 'بسته آزمایشی' : 'Trial locked') : (isFa ? 'غیرفعال' : 'Disabled')}
                   </span>
                 )}
@@ -139,7 +139,7 @@ export function ModelSelect({
               <div className="flex items-center gap-3">
                 <Meter value={m.quality} label={t('quality')} />
                 <Meter value={m.cost} label={t('cost')} />
-                <span className="ms-auto text-[10px] font-medium text-emerald-700">
+                <span className="ms-auto text-[11px] font-medium text-emerald-700">
                   {(replyPriceIRR / 10).toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'تومان / پاسخ' : 'toman / reply'}
                 </span>
               </div>

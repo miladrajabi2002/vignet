@@ -145,7 +145,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             const item = value.plans[plan]
             return (
               <article key={plan} className={cn('rounded-[1.35rem] border p-4 sm:p-5', plan === 'PRO' ? 'border-black bg-black text-white shadow-[0_18px_48px_-30px_rgba(0,0,0,.8)]' : 'border-black/[0.07] bg-[#f8f8f6] text-black')}>
-                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[11px]', plan === 'PRO' ? 'text-white/45' : 'text-black/40')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[9px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-black/55 ring-1 ring-black/[0.06]')}>{plan}</span></div>
+                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[11px]', plan === 'PRO' ? 'text-white/45' : 'text-black/40')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-black/55 ring-1 ring-black/[0.06]')}>{plan}</span></div>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <PlanNumber label="قیمت ماهانه ریال" value={item.priceIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw)} />
                   <PlanNumber label="قیمت دلاری" value={item.priceUSD} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
@@ -172,13 +172,13 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-black/65"><span>{label}</span>{hint && <span dir="ltr" className="truncate text-[9px] font-normal text-black/35">{hint}</span>}</span>{children}</label>
+  return <label className="block"><span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-black/65"><span>{label}</span>{hint && <span dir="ltr" className="truncate text-[11px] font-normal text-black/35">{hint}</span>}</span>{children}</label>
 }
 
 function MoneyInput({ value, onChange, suffix, allowEmpty }: { value: number | ''; onChange: (value: string) => void; suffix: string; allowEmpty?: boolean }) {
-  return <div className="relative"><input dir="ltr" inputMode="numeric" min={allowEmpty ? undefined : 1} type="number" value={value} onChange={(event) => onChange(event.target.value)} className="admin-input pe-14 tabular-nums" /><span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[9px] text-black/35">{suffix}</span></div>
+  return <div className="relative"><input dir="ltr" inputMode="numeric" min={allowEmpty ? undefined : 1} type="number" value={value} onChange={(event) => onChange(event.target.value)} className="admin-input pe-14 tabular-nums" /><span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-[11px] text-black/35">{suffix}</span></div>
 }
 
 function PlanNumber({ label, value, onChange, disabled, dark }: { label: string; value: number; onChange: (value: string) => void; disabled?: boolean; dark?: boolean }) {
-  return <label className="block"><span className={cn('mb-1.5 block text-[10px] font-medium', dark ? 'text-white/45' : 'text-black/45')}>{label}</span><input dir="ltr" type="number" min={0} inputMode="numeric" disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} className={cn('h-11 w-full rounded-xl border px-3 text-xs tabular-nums outline-none transition-[border-color,box-shadow,background-color] duration-200 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40', dark ? 'border-white/10 bg-white/[0.07] text-white focus:border-white/30 focus:ring-white/10' : 'border-black/[0.08] bg-white text-black focus:border-black/25 focus:ring-black/[0.06]')} /></label>
+  return <label className="block"><span className={cn('mb-1.5 block text-[11px] font-medium', dark ? 'text-white/45' : 'text-black/45')}>{label}</span><input dir="ltr" type="number" min={0} inputMode="numeric" disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} className={cn('h-11 w-full rounded-xl border px-3 text-xs tabular-nums outline-none transition-[border-color,box-shadow,background-color] duration-200 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40', dark ? 'border-white/10 bg-white/[0.07] text-white focus:border-white/30 focus:ring-white/10' : 'border-black/[0.08] bg-white text-black focus:border-black/25 focus:ring-black/[0.06]')} /></label>
 }

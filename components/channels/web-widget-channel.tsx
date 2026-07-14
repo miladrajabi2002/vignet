@@ -599,7 +599,7 @@ export function WebWidgetChannel({
                                                                         <span className="text-xs text-[var(--text-secondary)]">
                                                                                 {t('livePreview')}
                                                                         </span>
-                                                                        <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                                                                        <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
                                                                                 <Smartphone className="h-3 w-3" />
                                                                                 {isRtl ? 'پیش‌نمایش تعاملی' : 'Interactive preview'}
                                                                         </span>

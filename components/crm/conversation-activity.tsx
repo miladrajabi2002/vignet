@@ -249,7 +249,7 @@ export function ConversationTimelineActivity({
         </span>
         <span className="min-w-0">
           <span className="block text-xs font-medium text-[var(--text-primary)]">{copy.title}</span>
-          <span className="mt-0.5 block text-[10px] text-[var(--text-muted)]">
+          <span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">
             {copy.detail} · {dateLabel}
           </span>
         </span>

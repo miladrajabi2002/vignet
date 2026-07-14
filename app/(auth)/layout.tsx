@@ -1,8 +1,13 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getLocale } from 'next-intl/server'
+import type { Metadata } from 'next'
 import { Check, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, noarchive: true, nosnippet: true },
+}
 
 export default async function AuthLayout({ children }: { children: ReactNode }) {
 	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'

@@ -137,7 +137,7 @@ export default async function AgentDetailPage(
         {/* Header strip */}
         <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
               {fa ? 'آزمایش فوری پاسخ' : 'Instant response test'}
             </p>
             <h2 className="mt-0.5 text-base font-bold text-[var(--text-primary)]">
@@ -147,7 +147,7 @@ export default async function AgentDetailPage(
               {fa ? 'تجربه واقعی مشتری را بدون خروج از صفحه بررسی کنید.' : 'Check the real customer experience without leaving.'}
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-bold text-success">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-[11px] font-bold text-success">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
             {fa ? 'در دسترس' : 'Live'}
           </span>
@@ -163,7 +163,7 @@ export default async function AgentDetailPage(
         {/* Black header strip with progress */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-black p-5 text-white sm:p-6">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-white/45">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-white/45">
               {fa ? 'چک‌لیست پیشنهادی' : 'Recommended checklist'}
             </p>
             <h2 className="mt-0.5 text-base font-bold">
@@ -174,7 +174,7 @@ export default async function AgentDetailPage(
             </p>
           </div>
           <div className="min-w-36 rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
-            <div className="flex items-center justify-between text-[10px] text-white/60">
+            <div className="flex items-center justify-between text-[11px] text-white/60">
               <span>{doneCount}/{steps.length}</span>
               <span>{progress}%</span>
             </div>

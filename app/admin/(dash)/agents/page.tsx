@@ -127,7 +127,7 @@ export default async function AdminAgentsPage() {
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${health.dot}`} />
                         {CHANNEL_LABEL[ch.type] ?? ch.type}
-                        <span className="text-[10px] text-zinc-400">
+                        <span className="text-[11px] text-zinc-400">
                           {ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : 'بدون پیام'}
                         </span>
                       </span>

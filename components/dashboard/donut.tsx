@@ -86,7 +86,7 @@ export function DashboardDonut({
               {typeof centerValue === 'number' ? centerValue.toLocaleString('fa-IR') : centerValue}
             </span>
             {centerLabel && (
-              <span className="text-[10px] text-[var(--text-muted)]">{centerLabel}</span>
+              <span className="text-[11px] text-[var(--text-muted)]">{centerLabel}</span>
             )}
           </div>
         )}

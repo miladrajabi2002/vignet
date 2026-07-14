@@ -281,9 +281,9 @@ export default async function ConversationsPage(props: {
                                 <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
                                         <div>
                                                 <h2 className="text-xs font-bold text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                <p className="mt-1 text-[10px] text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
+                                                <p className="mt-1 text-[11px] text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
                                         </div>
-                                        <span className="rounded-full bg-[var(--bg-surface)] px-2.5 py-1 text-[9px] font-bold text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
+                                        <span className="rounded-full bg-[var(--bg-surface)] px-2.5 py-1 text-[11px] font-bold text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
                                 </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
@@ -355,15 +355,15 @@ export default async function ConversationsPage(props: {
                                                                                         {who}
                                                                                 </span>
                                                                                 {channelHandle && who !== channelHandle && (
-                                                                                        <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                                                                                        <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]">
                                                                                                 @{channelHandle}
                                                                                         </span>
                                                                                 )}
                                                                                 <ChannelBadge type={c.channel} />
                                                                                 {c.handedOff && c.status !== 'RESOLVED' && (
-                                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-500">
                                                                                                 <span className="relative flex h-1.5 w-1.5">
-                                                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                                                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75 motion-reduce:animate-none" />
                                                                                                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                                                                                                 </span>
                                                                                                 {isFa ? 'تحویل اپراتور' : 'Handed off'}
@@ -376,7 +376,7 @@ export default async function ConversationsPage(props: {
                                                                                         : c.agent.name}
                                                                         </p>
                                                                 </div>
-                                                                <span className="shrink-0 text-end text-[10px] leading-5 text-[var(--text-muted)]">
+                                                                <span className="shrink-0 text-end text-[11px] leading-5 text-[var(--text-muted)]">
                                                                         <span className="block">{relativeTime(when, locale)}</span>
                                                                         <span className="block tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
                                                                 </span>

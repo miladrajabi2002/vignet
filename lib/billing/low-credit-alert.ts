@@ -12,6 +12,8 @@ type AlertPayload = {
   workspaceId: string
   remainingReplies: number
   modelName: string
+  conversationsThisMonth: number
+  bookingsThisMonth: number
 }
 
 /**
@@ -91,17 +93,25 @@ export async function processLowCreditAlert(params: {
         params.replyPriceIRR,
       )
       const modelName = findModel(params.modelAlias).name
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const [conversationsThisMonth, bookingsThisMonth] = await Promise.all([
+        tx.conversation.count({ where: { workspaceId: params.workspaceId, createdAt: { gte: monthStart } } }),
+        tx.appointment.count({ where: { workspaceId: params.workspaceId, createdAt: { gte: monthStart } } }),
+      ])
+      const valueContext = conversationsThisMonth || bookingsThisMonth
+        ? ` این ماه ${conversationsThisMonth.toLocaleString('fa-IR')} گفتگو و ${bookingsThisMonth.toLocaleString('fa-IR')} رزرو در ویجنت ثبت شده است.`
+        : ''
       await tx.notification.create({
         data: {
           workspaceId: params.workspaceId,
           type: 'SYSTEM',
           title: 'اعتبار پاسخ‌ها رو به پایان است',
-          body: `با مدل «${modelName}» حدود ${remainingReplies.toLocaleString('fa-IR')} پاسخ موفق دیگر باقی مانده است. برای جلوگیری از توقف پاسخ‌گویی، اعتبار را افزایش دهید.`,
+          body: `با مدل «${modelName}» حدود ${remainingReplies.toLocaleString('fa-IR')} پاسخ موفق دیگر باقی مانده است.${valueContext} برای حفظ این روند، اعتبار را افزایش دهید.`,
           link: '/billing',
         },
       })
 
-      return { workspaceId: params.workspaceId, remainingReplies, modelName }
+      return { workspaceId: params.workspaceId, remainingReplies, modelName, conversationsThisMonth, bookingsThisMonth }
     })
 
     if (alert) await sendLowCreditSms(alert)
@@ -126,7 +136,7 @@ async function sendLowCreditSms(alert: AlertPayload): Promise<void> {
     await dispatchNotification({
       kind: 'sms',
       to: owner.phone,
-      message: `اعتبار پاسخ‌های ویجنت رو به پایان است. با مدل ${alert.modelName} حدود ${alert.remainingReplies.toLocaleString('fa-IR')} پاسخ دیگر دارید. افزایش اعتبار: ${appUrl}/billing`,
+      message: `اعتبار پاسخ‌های ویجنت رو به پایان است. این ماه ${alert.conversationsThisMonth.toLocaleString('fa-IR')} گفتگو و ${alert.bookingsThisMonth.toLocaleString('fa-IR')} رزرو ثبت شده؛ با مدل ${alert.modelName} حدود ${alert.remainingReplies.toLocaleString('fa-IR')} پاسخ دیگر دارید. حفظ روند پاسخ‌گویی: ${appUrl}/billing`,
     })
   } catch (error) {
     captureError('billing:low-credit-sms', error, { workspaceId: alert.workspaceId })

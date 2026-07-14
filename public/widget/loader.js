@@ -255,7 +255,7 @@
                         // Use env(safe-area-inset-*) so the launcher clears the
                         // iPhone home indicator and notches on rotated devices.
                         '.vgt-root{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));z-index:2147483000;direction:ltr;visibility:hidden;opacity:0;' +
-                        'transition:opacity .28s ease;font-family:var(--vgt-font);font-size:14px;}' +
+                        'transition:opacity var(--vgt-motion-surface) ease;font-family:var(--vgt-font);font-size:14px;}' +
                         '.vgt-root.vgt-ready{visibility:visible;opacity:1;}' +
                         '.vgt-root.vgt-right{inset-inline-end:max(20px,env(safe-area-inset-right));}' +
                         '.vgt-root.vgt-left{inset-inline-start:max(20px,env(safe-area-inset-left));}' +
@@ -268,7 +268,7 @@
                         'border-radius:30px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);box-shadow:0 12px 32px -8px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);' +
                         'font-family:var(--vgt-font);' +
-                        'transition:transform .25s cubic-bezier(.34,1.5,.64,1),box-shadow .25s;}' +
+                        'transition:transform var(--vgt-motion-control) var(--vgt-ease),box-shadow var(--vgt-motion-control) var(--vgt-ease);}' +
                         '.vgt-launcher:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 18px 42px -10px var(--vgt-accent-shadow),inset 0 1px 0 rgba(255,255,255,.14);}' +
                         '.vgt-launcher:active{transform:scale(.95);}' +
                         '.vgt-launcher-ico{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;position:relative;}' +
@@ -286,9 +286,9 @@
                         '.vgt-panel{position:absolute;bottom:74px;width:392px;max-width:calc(100vw - 32px);height:620px;' +
                         'max-height:calc(100dvh - 96px);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;border-radius:var(--vgt-r-panel);' +
                         'background:var(--vgt-bg);color:var(--vgt-text);border:1px solid var(--vgt-border);' +
-                        'box-shadow:0 32px 88px -20px rgba(0,0,0,.42),0 8px 24px -12px rgba(0,0,0,.28),0 0 0 1px rgba(0,0,0,.02);' +
+                        'box-shadow:0 24px 64px -28px rgba(0,0,0,.38),0 8px 20px -14px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.02);' +
                         'opacity:0;transform:translateY(14px) scale(.97);transform-origin:bottom right;pointer-events:none;' +
-                        'transition:opacity .28s ease,transform .32s cubic-bezier(.34,1.28,.64,1);}' +
+                        'transition:opacity var(--vgt-motion-surface) ease,transform var(--vgt-motion-surface) var(--vgt-ease);}' +
                         '.vgt-root.vgt-left .vgt-panel{transform-origin:bottom left;right:auto;left:0;}' +
                         '.vgt-root.vgt-right .vgt-panel{right:0;}' +
                         '.vgt-panel.vgt-show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}' +
@@ -397,9 +397,9 @@
                         '.vgt-root.vgt-rtl .vgt-action svg{transform:scaleX(-1);}' +
                         // intro
                         '.vgt-intro{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin:auto;padding:24px 12px;animation:vgt-in .35s ease both;}' +
-                        '.vgt-intro-ava{width:64px;height:64px;border-radius:22px;display:flex;align-items:center;justify-content:center;' +
+                        '.vgt-intro-ava{width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;' +
                         'background:linear-gradient(135deg,var(--vgt-accent-soft) 0%,transparent 140%);color:var(--vgt-accent);' +
-                        'box-shadow:inset 0 0 0 1px var(--vgt-accent-line);animation:vgt-float 4s ease-in-out infinite;}' +
+                        'box-shadow:inset 0 0 0 1px var(--vgt-accent-line);}' +
                         '.vgt-intro-ava svg{width:32px;height:32px;}' +
                         '.vgt-intro-text{font-size:15.5px;font-weight:500;line-height:1.6;color:var(--vgt-text);max-width:290px;}' +
                         // quick replies
@@ -495,8 +495,8 @@
                         // teaser (auto-greet)
                         '.vgt-teaser{position:absolute;bottom:76px;max-width:260px;background:var(--vgt-bg);color:var(--vgt-text);' +
                         'border:1px solid var(--vgt-border);border-radius:16px;padding:13px 32px 13px 15px;font-size:13.5px;line-height:1.6;cursor:pointer;' +
-                        'box-shadow:0 16px 44px -12px rgba(0,0,0,.4);animation:vgt-teaser-in .45s cubic-bezier(.34,1.4,.64,1) both;' +
-                        'transition:transform .2s;}' +
+                        'box-shadow:0 16px 40px -20px rgba(0,0,0,.34);animation:vgt-teaser-in var(--vgt-motion-surface) var(--vgt-ease) both;' +
+                        'transition:transform var(--vgt-motion-control) var(--vgt-ease);}' +
                         '.vgt-teaser:hover{transform:translateY(-2px);}' +
                         '.vgt-root.vgt-right .vgt-teaser{right:4px;}.vgt-root.vgt-left .vgt-teaser{left:4px;}' +
                         // 32px touch target (was 20px) — teaser close is a frequent tap on mobile.
@@ -714,13 +714,16 @@
                         dark ? (accentIsLight ? accent : '#f3f4f6') : accentIsLight ? '#1a1a1e' : accent,
                 )
                 s.setProperty('--vgt-accent-shadow', soft(accent, dark ? 0.5 : 0.4))
-                s.setProperty('--vgt-bg', dark ? '#0e0e11' : '#ffffff')
-                s.setProperty('--vgt-head-bg', dark ? '#161619' : '#fbfbfc')
-                s.setProperty('--vgt-surface', dark ? '#1c1c21' : '#f3f4f6')
-                s.setProperty('--vgt-text', dark ? '#f3f4f6' : '#1a1a1e')
-                s.setProperty('--vgt-muted', dark ? '#8b8b94' : '#9298a3')
-                s.setProperty('--vgt-border', dark ? 'rgba(255,255,255,.09)' : 'rgba(17,17,20,.08)')
+                s.setProperty('--vgt-bg', dark ? '#111111' : '#ffffff')
+                s.setProperty('--vgt-head-bg', dark ? '#171717' : '#f8f8f7')
+                s.setProperty('--vgt-surface', dark ? '#202020' : '#f5f5f3')
+                s.setProperty('--vgt-text', dark ? '#f5f5f3' : '#111111')
+                s.setProperty('--vgt-muted', dark ? '#a1a1aa' : '#6b7280')
+                s.setProperty('--vgt-border', dark ? 'rgba(255,255,255,.10)' : 'rgba(17,17,17,.09)')
                 s.setProperty('--vgt-font', FONT_FAMILY[config.font] || FONT_FAMILY.vazirmatn)
+                s.setProperty('--vgt-motion-control', '180ms')
+                s.setProperty('--vgt-motion-surface', '280ms')
+                s.setProperty('--vgt-ease', 'cubic-bezier(.23,1,.32,1)')
 
                 var r = resolveCornerRadii()
                 s.setProperty('--vgt-r-panel', r[0])

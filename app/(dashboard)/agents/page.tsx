@@ -95,7 +95,7 @@ export default async function AgentsPage() {
                                                                 >
                                                                         {agent.active && (
                                                                                 <span className="relative flex h-2 w-2">
-                                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75 motion-reduce:animate-none" />
                                                                                         <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
                                                                                 </span>
                                                                         )}
@@ -143,7 +143,7 @@ export default async function AgentsPage() {
                                                                 return (
                                                                         <div className="mt-3 flex items-center gap-2">
                                                                                 <Sparkline data={spark.series} color="#111111" width={100} height={24} fluid />
-                                                                                <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
+                                                                                <span className="shrink-0 text-[11px] text-[var(--text-muted)]">
                                                                                         {spark.total.toLocaleString('fa-IR')} در ۷ روز
                                                                                 </span>
                                                                         </div>

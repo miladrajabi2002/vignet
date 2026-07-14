@@ -70,7 +70,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
                 type="button"
                 onClick={() => setAmountIRR(amount)}
                 aria-pressed={selected}
-                className={`relative flex min-h-14 flex-col items-center justify-center rounded-xl border p-2 text-center transition-all ${
+                className={`relative flex min-h-14 flex-col items-center justify-center rounded-xl border p-2 text-center transition-[border-color,background-color,color,transform,box-shadow] duration-200 ${
                   selected
                     ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-sm'
                     : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
@@ -84,7 +84,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
                 <span className="text-sm font-bold tabular-nums">
                   {number.format(amount / 10)}
                 </span>
-                <span className={`text-[9px] ${selected ? 'opacity-70' : 'text-[var(--text-muted)]'}`}>
+                <span className={`text-[11px] ${selected ? 'opacity-70' : 'text-[var(--text-muted)]'}`}>
                   {fa ? 'تومان' : 'toman'}
                 </span>
               </button>
@@ -114,7 +114,7 @@ export function CreditTopup({ locale }: { locale: 'fa' | 'en' }) {
         )}
 
         {/* Trust note */}
-        <p className="mt-3 text-center text-[10px] text-[var(--text-muted)]">
+        <p className="mt-3 text-center text-[11px] text-[var(--text-muted)]">
           {fa
             ? 'پرداخت از طریق درگاه زرین‌پال — امن و سریع'
             : 'Payment via Zarinpal gateway — secure and fast'}

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import type { BusinessTypeValue, DashboardModuleKey } from '@/lib/verticals/registry'
 
-type Props = {
+export type IntelligenceCoreProps = {
   locale: 'fa' | 'en'
   businessName?: string | null
   businessLabel?: string | null
@@ -52,7 +52,7 @@ export function IntelligenceCore({
   businessLabel,
   modules = [],
   className = '',
-}: Props) {
+}: IntelligenceCoreProps) {
   const reduce = useReducedMotion()
   const fa = locale === 'fa'
   const Arrow = fa ? ArrowLeft : ArrowRight
@@ -75,14 +75,14 @@ export function IntelligenceCore({
             <h2 className="truncate text-[12px] font-black text-[var(--text-primary)] sm:text-[13px]">
               Vigento AI <span className="font-medium text-[var(--text-muted)]">| {fa ? 'هوش مصنوعی ویجنتو' : 'Vigento intelligence'}</span>
             </h2>
-            <p className="mt-1 truncate text-[9px] text-[var(--text-muted)] sm:text-[10px]">
+            <p className="mt-1 truncate text-[11px] text-[var(--text-muted)] sm:text-[11px]">
               {businessLabel || (fa ? 'مرکز هماهنگی کسب‌وکار' : 'Business orchestration center')}
             </p>
           </div>
         </div>
         <span
           aria-label={fa ? 'همه بخش‌ها متصل هستند' : 'All systems are connected'}
-          className="core-connected-pill inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[9px] font-bold text-emerald-700 sm:text-[10px]"
+          className="core-connected-pill inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-emerald-700 sm:text-[11px]"
         >
           <span className="relative flex h-1.5 w-1.5">
             {!reduce && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-40" />}
@@ -146,7 +146,7 @@ export function IntelligenceCore({
                 initial={reduce ? false : { opacity: 0, scale: 0.94 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.22, delay: 0.1 + index * 0.045, ease: [0.23, 1, 0.32, 1] }}
-                className="flex min-h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.075] p-1.5 text-[9px] font-semibold text-white shadow-[0_12px_32px_-20px_rgba(0,0,0,.9)] backdrop-blur-md sm:gap-2 sm:px-2.5"
+                className="flex min-h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.075] p-1.5 text-[11px] font-semibold text-white shadow-[0_12px_32px_-20px_rgba(0,0,0,.9)] backdrop-blur-md sm:gap-2 sm:px-2.5"
               >
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-black sm:h-6 sm:w-6"><Icon className="h-3.5 w-3.5" /></span>
                 <span className="hidden whitespace-nowrap sm:inline">{fa ? meta.fa : meta.en}</span>
@@ -181,9 +181,9 @@ export function IntelligenceCore({
           >
             <span className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)] sm:h-10 sm:w-10"><Sparkles className="h-4 w-4" /></span>
             <p dir="auto" title={coreName} className="mt-2 truncate text-[11px] font-black sm:text-[13px]">{coreName}</p>
-            <p className="mt-0.5 text-[8px] font-medium text-black/45 sm:text-[9px]">{fa ? 'با هسته هوش مصنوعی ویجنتو' : 'Powered by Vigento AI core'}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-black/45 sm:text-[11px]">{fa ? 'با هسته هوش مصنوعی ویجنتو' : 'Powered by Vigento AI core'}</p>
             <div className="mt-2.5 rounded-xl bg-[#f1f1ef] px-2.5 py-2 sm:mt-3 sm:px-3 sm:py-2.5">
-              <p className="text-[8px] font-bold sm:text-[9px]">{fa ? 'همه عملیات، یک مرکز هوشمند' : 'One intelligent operating center'}</p>
+              <p className="text-[11px] font-bold sm:text-[11px]">{fa ? 'همه عملیات، یک مرکز هوشمند' : 'One intelligent operating center'}</p>
               <div className="mt-2 flex items-center gap-1">
                 {[0, 1, 2].map((item) => (
                   <span key={item} className="h-1 flex-1 overflow-hidden rounded-full bg-black/10">
@@ -200,10 +200,10 @@ export function IntelligenceCore({
 
       <footer className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="min-w-0 text-center sm:text-start">
-          <p className="text-[10px] font-bold text-[var(--text-primary)]">{fa ? 'یک ورودی برای تمام عملیات' : 'One entry point for every operation'}</p>
-          <p className="mt-1 truncate text-[9px] text-[var(--text-muted)]">{fa ? 'داده، ایجنت و کانال‌ها زیر نظر ویجنتو' : 'Data, agents and channels under Vigento'}</p>
+          <p className="text-[11px] font-bold text-[var(--text-primary)]">{fa ? 'یک ورودی برای تمام عملیات' : 'One entry point for every operation'}</p>
+          <p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{fa ? 'داده، ایجنت و کانال‌ها زیر نظر ویجنتو' : 'Data, agents and channels under Vigento'}</p>
         </div>
-        <Link href="/vigento" className="spatial-press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-[10px] font-bold text-white shadow-[var(--shadow-control)]">
+        <Link href="/vigento" className="spatial-press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-black px-4 text-[11px] font-bold text-white shadow-[var(--shadow-control)]">
           {fa ? 'باز کردن مرکز هوش مصنوعی' : 'Open AI center'}
           <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
         </Link>

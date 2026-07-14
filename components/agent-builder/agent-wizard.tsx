@@ -448,7 +448,7 @@ export function AgentWizard({
                                                                                         <Sparkles className="h-3.5 w-3.5" />
                                                                                         {t('roleTemplateLabel')}
                                                                                 </p>
-                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[10px] font-medium text-[var(--text-secondary)]">
+                                                                                <span className="rounded-full bg-black/[0.045] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
                                                                                         {locale === 'fa' ? `ساخته‌شده برای ${businessLabel}` : `Built for ${businessLabel}`}
                                                                                 </span>
                                                                         </div>
@@ -471,14 +471,14 @@ export function AgentWizard({
                                                                                                 <p className="text-sm font-semibold text-[var(--text-primary)]">
                                                                                                         {locale === 'fa' ? role.nameFa : role.nameEn}
                                                                                                 </p>
-                                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[9px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
+                                                                                                <span className={`grid h-6 min-w-6 place-items-center rounded-full text-[11px] font-bold tabular-nums ${selected ? 'bg-black text-white' : 'bg-black/[0.05] text-[var(--text-muted)]'}`}>
                                                                                                         {custom ? <Zap className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                                                                                                 </span>
                                                                                         </div>
                                                                                         <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
                                                                                                 {locale === 'fa' ? role.descFa : role.descEn}
                                                                                                         </p>
-                                                                                        <p className="mt-2 text-[9px] font-medium text-[var(--text-hint)]">
+                                                                                        <p className="mt-2 text-[11px] font-medium text-[var(--text-hint)]">
                                                                                                 {custom
                                                                                                         ? (locale === 'fa' ? 'ساخت از صفر با کنترل کامل' : 'Start from scratch with full control')
                                                                                                         : (locale === 'fa' ? 'ترکیب کامل همه نقش‌ها · قابل ویرایش' : 'All roles combined · fully editable')}
@@ -581,7 +581,7 @@ export function AgentWizard({
                                                                                                                 placeholder={locale === 'fa' ? 'سؤال نمونه مشتری|پاسخ ایده‌آل ایجنت\nهر خط یک نمونه' : 'Customer question|Ideal agent answer\nOne pair per line'}
                                                                                                                 className="input resize-none text-sm"
                                                                                                         />
-                                                                                                        <p className="mt-1.5 text-[10px] text-[var(--text-muted)]">
+                                                                                                        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                                                                                                                 {locale === 'fa' ? 'هر خط یک نمونه: سؤال|پاسخ. حداکثر ۲۰ نمونه.' : 'One pair per line: question|answer. Max 20 pairs.'}
                                                                                                         </p>
                                                                                                 </LayerField>
@@ -628,7 +628,7 @@ export function AgentWizard({
                                                                         {form.handoffEnabled && (
                                                                                 <div className="mt-3 space-y-3">
                                                                                         <Field label={locale === 'fa' ? 'پیام تحویل' : 'Handoff message'}><input value={form.handoffMessage} onChange={(e) => set('handoffMessage', e.target.value)} className="input" /></Field>
-                                                                                        <Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[10px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
+                                                                                        <Field label={locale === 'fa' ? 'کلمات تحویل' : 'Handoff keywords'}><input value={form.handoffKeywords} onChange={(e) => set('handoffKeywords', e.target.value)} className="input" /><p className="mt-1 text-[11px] text-[var(--text-muted)]">{locale === 'fa' ? 'با ویرگول جدا کنید؛ مثل اپراتور، شکایت، پرداخت ناموفق' : 'Comma-separated; e.g. operator, complaint, payment failed'}</p></Field>
                                                                                 </div>
                                                                         )}
                                                                         <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
@@ -654,7 +654,7 @@ export function AgentWizard({
                                                                         </div>
                                                                         {vigentoDraft?.knowledgePlan?.length ? (
                                                                                 <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
-                                                                                        <p className="text-[10px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'منابع پیشنهادی ویجنتو' : 'Vigento suggested sources'}</p>
+                                                                                        <p className="text-[11px] font-medium text-[var(--text-muted)]">{locale === 'fa' ? 'منابع پیشنهادی ویجنتو' : 'Vigento suggested sources'}</p>
                                                                                         <ul className="mt-2 space-y-1.5">{vigentoDraft.knowledgePlan.map((item) => <li key={`${item.type}-${item.label}`} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]"><CircleDashed className="h-3.5 w-3.5 text-violet-400" />{item.label}</li>)}</ul>
                                                                                 </div>
                                                                         ) : null}
@@ -768,7 +768,7 @@ function LayerField({ n, label, children }: { n: number; label: string; children
         return (
                 <label className="block">
                         <span className="mb-2 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[10px] font-semibold text-[var(--accent-strong)]">{faNum}</span>
+                                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[11px] font-semibold text-[var(--accent-strong)]">{faNum}</span>
                                 {label}
                         </span>
                         {children}
@@ -806,7 +806,7 @@ function ReadinessRow({
         return (
                 <div className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2">
                         <span className="text-[11px] text-[var(--text-secondary)]">{label}</span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] ${state === 'ready' ? 'bg-emerald-500/10 text-emerald-500' : state === 'roadmap' ? 'bg-[var(--bg-hover)] text-[var(--text-muted)]' : 'bg-amber-500/10 text-amber-500'}`}>{copy}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${state === 'ready' ? 'bg-emerald-500/10 text-emerald-500' : state === 'roadmap' ? 'bg-[var(--bg-hover)] text-[var(--text-muted)]' : 'bg-amber-500/10 text-amber-500'}`}>{copy}</span>
                 </div>
         )
 }
@@ -836,12 +836,12 @@ function ReviewCard({
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                        <p className="text-[10px] text-[var(--text-muted)]">{isFa ? 'ایجنت' : 'Agent'}</p>
+                                        <p className="text-[11px] text-[var(--text-muted)]">{isFa ? 'ایجنت' : 'Agent'}</p>
                                         <p className="mt-1 text-base font-medium text-[var(--text-primary)]">{form.name || '—'}</p>
                                         <p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{form.description || (isFa ? 'بدون توضیح' : 'No description')}</p>
                                 </div>
                                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-                                        <p className="text-[10px] text-[var(--text-muted)]">{isFa ? 'پیکربندی' : 'Configuration'}</p>
+                                        <p className="text-[11px] text-[var(--text-muted)]">{isFa ? 'پیکربندی' : 'Configuration'}</p>
                                         <dl className="mt-2 space-y-2 text-xs"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'نقش' : 'Role'}</dt><dd className="text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'مدل' : 'Model'}</dt><dd className="text-[var(--text-primary)]">{form.model || (isFa ? 'پیش‌فرض امن' : 'Safe default')}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'تحویل اپراتور' : 'Handoff'}</dt><dd className="text-[var(--text-primary)]">{form.handoffEnabled ? (isFa ? 'فعال' : 'Enabled') : (isFa ? 'خاموش' : 'Off')}</dd></div></dl>
                                 </div>
                         </div>

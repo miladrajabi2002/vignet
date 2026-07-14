@@ -222,7 +222,7 @@ export function ConversationPanel({
                                                                 >
                                                                         <Icon className="h-3.5 w-3.5 text-[var(--green)]" />
                                                                         {meta?.label ?? c}
-                                                                        <span className="text-[10px] text-[var(--text-muted)]">
+                                                                        <span className="text-[11px] text-[var(--text-muted)]">
                                                                                 • {t('connectedOn')}
                                                                         </span>
                                                                 </span>
@@ -257,7 +257,7 @@ function Snap({
                                 {icon}
                         </span>
                         <div className="min-w-0">
-                                <div className="text-[10px] text-[var(--text-muted)]">{label}</div>
+                                <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
                                 <div className="truncate text-[13px] text-[var(--text-primary)]" dir="auto">
                                         {value}
                                 </div>

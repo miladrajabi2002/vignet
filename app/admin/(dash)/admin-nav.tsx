@@ -48,7 +48,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         const active = exact ? pathname === href : pathname.startsWith(href)
         return (
           <div key={href}>
-            {group && <p className={cn('px-3 pb-1 pt-3 text-[9px] font-bold text-black/30', index === 0 && 'pt-1')}>{group}</p>}
+            {group && <p className={cn('px-3 pb-1 pt-3 text-[11px] font-bold text-[var(--text-muted)]', index === 0 && 'pt-1')}>{group}</p>}
             <Link
               href={href}
               onClick={onNavigate}
@@ -78,8 +78,8 @@ function BrandHeader() {
         <Logo variant="white" className="h-4 w-auto max-w-6" />
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-bold text-black">Vigento AI</p>
-        <p className="mt-0.5 truncate text-[9px] text-black/40">پنل مالک پلتفرم</p>
+        <p className="truncate text-[13px] font-bold text-black">Vigent</p>
+        <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">پنل مالک پلتفرم</p>
       </div>
     </div>
   )

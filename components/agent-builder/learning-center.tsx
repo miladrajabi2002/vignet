@@ -147,7 +147,7 @@ function LearningCard({
         <div className="min-w-0">
           <span className="text-xs text-[var(--text-secondary)]">{t('question')}</span>
           {item.operatorAnswer && (
-            <span className="ms-2 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">
+            <span className="ms-2 rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
               {t('fromOperator')}
             </span>
           )}

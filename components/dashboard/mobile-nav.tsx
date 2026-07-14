@@ -127,7 +127,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                         >
                                                                 <Sparkles className="h-4 w-4" />
 										<span className="flex-1">Vigento AI</span>
-										<span className="text-[8px] font-normal text-white/55">هوش مصنوعی ویجنتو</span>
+										<span className="text-[11px] font-normal text-white/55">هوش مصنوعی ویجنتو</span>
                                                         </Link>
 
                                                         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
@@ -147,7 +147,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                                                 >
                                                                                         <Icon className={cn('h-[1.05rem] w-[1.05rem] shrink-0', active ? 'text-[var(--text-primary)]' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
 													<span className="min-w-0 flex-1 truncate">{getDashboardModuleLabel(key, businessType, locale, t(key))}</span>
-													{newModules.includes(key) && <span className="rounded-full bg-black px-2 py-0.5 text-[8px] font-bold text-white">{t('newLabel')}</span>}
+													{newModules.includes(key) && <span className="rounded-full bg-black px-2 py-0.5 text-[11px] font-bold text-white">{t('newLabel')}</span>}
                                                                                 </Link>
                                                                         )
                                                                 })}

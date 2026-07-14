@@ -73,15 +73,15 @@ export async function Header({
             <span className="block truncate text-xs font-bold leading-4 text-[var(--text-primary)] sm:text-[13px]">
               {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
               {daysLeft !== null && (
-                <span className="ms-1.5 text-[10px] font-normal text-[var(--text-muted)] sm:text-[11px]">
+                <span className="ms-1.5 text-[11px] font-normal text-[var(--text-muted)] sm:text-[11px]">
                   {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
                 </span>
               )}
             </span>
             {/* Line 2: Credit amount (number only, no "تومان اعتبار" to avoid overflow) */}
-            <span className="mt-0.5 block truncate text-[10px] leading-4 text-[var(--text-muted)] sm:text-[11px]">
+            <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)] sm:text-[11px]">
               {nf.format(Math.round(creditIRR / 10))}
-              <span className="ms-0.5 text-[9px] sm:text-[10px]">{fa ? 'تومان' : 'toman'}</span>
+              <span className="ms-0.5 text-[11px] sm:text-[11px]">{fa ? 'تومان' : 'toman'}</span>
             </span>
             {/* Progress bar — reflects CREDIT remaining */}
             <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075]">

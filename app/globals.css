@@ -59,6 +59,16 @@
         /* ─── Persian font: IRANSansWeb ─── */
         --font-fa: 'IRANSansWeb', var(--font-fa-fallback, system-ui), sans-serif;
 
+        /* ─── Vigent product typography ───
+           Persian UI needs a little more leading than Latin at the same size.
+           These roles keep captions readable and headings optically compact. */
+        --type-caption: 0.75rem;
+        --type-label: 0.8125rem;
+        --type-body: 0.9375rem;
+        --type-title: 1.25rem;
+        --leading-caption: 1.65;
+        --leading-body: 1.8;
+
         /* ─── Backgrounds ─── */
         --bg-base: #f5f5f3;          /* spatial canvas */
         --bg-surface: #f8f8f7;       /* secondary background */
@@ -125,6 +135,10 @@
         --shadow-lift: 0 3px 8px rgba(0, 0, 0, 0.06), 0 32px 72px -34px rgba(0, 0, 0, 0.46);
         --shadow-control: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 10px 24px -14px rgba(0, 0, 0, 0.6);
         --ease-spatial: cubic-bezier(0.23, 1, 0.32, 1);
+        --motion-fast: 140ms;
+        --motion-control: 180ms;
+        --motion-surface: 280ms;
+        --motion-reveal: 420ms;
         --shadow-glow-emerald: 0 1px 3px rgba(0, 0, 0, 0.04);
         --shadow-glow-indigo: 0 1px 3px rgba(0, 0, 0, 0.04);
         /* Aliases */
@@ -161,6 +175,8 @@
                 background: var(--bg-base);
                 color: var(--text-primary);
                 font-family: var(--font-display), var(--font-fa), system-ui, sans-serif;
+                font-size: 1rem;
+                line-height: var(--leading-body);
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
                 letter-spacing: -0.01em;
@@ -170,6 +186,10 @@
         html[dir='rtl'] body {
                 font-family: var(--font-fa), var(--font-display), system-ui, sans-serif;
                 letter-spacing: 0;
+        }
+
+        html[dir='rtl'] :where(p, li, label, input, textarea, select, button) {
+                line-height: var(--leading-body);
         }
 
         html[lang='fa'] :where(body, button, input, textarea, select),
@@ -247,11 +267,11 @@
                 font-family: var(--font-fa), system-ui, sans-serif;
                 background-image:
                         radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.95), transparent 28rem),
-                        linear-gradient(180deg, #f7f7f5 0%, #f2f2f0 100%);
+                        linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%);
         }
 
         .admin-panel {
-                border: 1px solid rgba(17, 17, 17, 0.075);
+                border: 1px solid var(--border-default);
                 background: var(--admin-surface);
                 box-shadow: var(--shadow-soft);
         }
@@ -269,7 +289,7 @@
                 font-size: 0.75rem;
                 font-weight: 700;
                 box-shadow: var(--shadow-control);
-                transition: transform 160ms var(--ease-spatial), opacity 160ms ease, background-color 160ms ease;
+                transition: transform var(--motion-fast) var(--ease-spatial), opacity var(--motion-fast) ease, background-color var(--motion-control) ease;
         }
 
         .admin-primary-button:active { transform: scale(0.97); }
@@ -286,9 +306,9 @@
                 background: rgba(255, 255, 255, 0.8);
                 padding-inline: 0.8rem;
                 color: rgba(17, 17, 17, 0.58);
-                font-size: 0.7rem;
+                font-size: var(--type-caption);
                 font-weight: 600;
-                transition: transform 160ms var(--ease-spatial), border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+                transition: transform var(--motion-fast) var(--ease-spatial), border-color var(--motion-control) ease, color var(--motion-control) ease, background-color var(--motion-control) ease;
         }
 
         .admin-toolbar-button:active { transform: scale(0.97); }
@@ -301,7 +321,7 @@
                 background: white;
                 padding-inline: 0.85rem;
                 color: #111;
-                font-size: 0.75rem;
+                font-size: var(--type-label);
                 outline: none;
                 transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
         }
@@ -406,10 +426,10 @@
 
         .spatial-press {
                 transition:
-                        transform 160ms var(--ease-spatial),
-                        box-shadow 180ms var(--ease-spatial),
-                        border-color 180ms ease,
-                        background-color 180ms ease;
+                        transform var(--motion-fast) var(--ease-spatial),
+                        box-shadow var(--motion-control) var(--ease-spatial),
+                        border-color var(--motion-control) ease,
+                        background-color var(--motion-control) ease;
         }
 
         .spatial-press:active {
@@ -419,7 +439,7 @@
         /* The overview opens like a composed workspace, not a pile of cards.
            These entrances are deliberately one-shot and stay fully interactive. */
         .dashboard-arrival {
-                animation: dashboard-arrive 440ms var(--ease-spatial) both;
+                animation: dashboard-arrive var(--motion-reveal) var(--ease-spatial) both;
         }
 
         .dashboard-arrival--core {
@@ -429,7 +449,7 @@
         .dashboard-page-header {
                 position: relative;
                 isolation: isolate;
-                animation: dashboard-header-arrive 280ms var(--ease-spatial) both;
+                animation: dashboard-header-arrive var(--motion-surface) var(--ease-spatial) both;
         }
 
         .dashboard-page-header::after {

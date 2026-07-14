@@ -26,7 +26,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { computeOnboarding } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/panel'
-import { IntelligenceCore } from '@/components/dashboard/intelligence-core'
+import { IntelligenceCoreLazy } from '@/components/dashboard/intelligence-core-lazy'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { getDashboardModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
@@ -271,7 +271,7 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCore locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
+          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
         ) : (
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
             <div>
@@ -484,11 +484,11 @@ export default async function OverviewPage() {
               <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                 {fa ? PLAN_NAMES_FA[workspace.plan] : workspace.plan.toLowerCase()}
               </p>
-              {daysLeft !== null && <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
+              {daysLeft !== null && <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
             </div>
           </div>
           <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
               <span>{fa ? 'مصرف این دوره' : 'Period usage'}</span>
               <span>{nf.format(messagesUsed)} / {nf.format(planDef.monthlyMessages)}</span>
             </div>
@@ -498,9 +498,9 @@ export default async function OverviewPage() {
           </div>
           <div className="spatial-inset mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-[var(--text-muted)]">{fa ? 'هزینه پاسخ‌های AI در ۳۰ روز' : 'AI reply cost, 30 days'}</p>
+              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'هزینه پاسخ‌های AI در ۳۰ روز' : 'AI reply cost, 30 days'}</p>
               <p className="mt-0.5 text-sm font-bold tabular-nums text-[var(--text-primary)]">
-                {nf.format(Math.round(chargesMonthlyTrend.total / 10))} <span className="text-[10px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
+                {nf.format(Math.round(chargesMonthlyTrend.total / 10))} <span className="text-[11px] font-normal text-[var(--text-muted)]">{fa ? 'تومان' : 'toman'}</span>
               </p>
             </div>
             <div className="w-24 shrink-0"><Sparkline data={chargesMonthlyTrend.series} color="#111111" width={96} height={28} fluid /></div>

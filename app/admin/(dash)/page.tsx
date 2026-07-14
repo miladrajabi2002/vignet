@@ -121,6 +121,7 @@ export default async function AdminOverviewPage(
     channels,
     kpiTrends,
     aiOverview,
+    activation,
   ] = await Promise.all([
     getRevenueKPIs(),
     prisma.workspace.count(),
@@ -161,6 +162,19 @@ export default async function AdminOverviewPage(
       rev, ws, conv, users, err, pays,
     })),
     getAiOverview(30),
+    Promise.all([
+      prisma.workspace.count({ where: { onboardingCompleted: true } }),
+      prisma.workspace.count({ where: { agents: { some: {} } } }),
+      prisma.workspace.count({ where: { agents: { some: { knowledgeBases: { some: { status: 'READY' } } } } } }),
+      prisma.workspace.count({ where: { agents: { some: { channels: { some: { active: true } } } } } }),
+      prisma.workspace.count({ where: { conversations: { some: {} } } }),
+    ]).then(([onboarded, agentBuilt, knowledgeReady, channelConnected, firstConversation]) => ({
+      onboarded,
+      agentBuilt,
+      knowledgeReady,
+      channelConnected,
+      firstConversation,
+    })),
   ])
 
   return (
@@ -169,7 +183,7 @@ export default async function AdminOverviewPage(
 
       <PageHeader
         title="نبض پلتفرم"
-        subtitle="نمای یکپارچه عملکرد، درآمد و سلامت Vigento AI"
+        subtitle="نمای یکپارچه عملکرد، درآمد و سلامت پلتفرم Vigent"
         icon={Activity}
         action={<RangeSwitch current={range} />}
       />
@@ -293,6 +307,35 @@ export default async function AdminOverviewPage(
           { label: 'خطاها', series: kpiTrends.err.map((p) => p.value), invert: true },
         ]}
       />
+
+      <Panel
+        title="قیف فعال‌سازی کسب‌وکارها"
+        subtitle="سیگنال‌های واقعی دیتابیس؛ از تکمیل راه‌اندازی تا دریافت اولین گفتگو"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: 'تکمیل راه‌اندازی', value: activation.onboarded },
+            { label: 'ساخت ایجنت', value: activation.agentBuilt },
+            { label: 'دانش آماده', value: activation.knowledgeReady },
+            { label: 'اتصال کانال', value: activation.channelConnected },
+            { label: 'اولین گفتگو', value: activation.firstConversation },
+          ].map((step, index) => {
+            const percent = workspaceCount > 0 ? Math.round((step.value / workspaceCount) * 100) : 0
+            return (
+              <div key={step.label} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-[var(--text-primary)]">{index + 1}. {step.label}</span>
+                  <span className="text-xs tabular-nums text-[var(--text-muted)]">{fa(percent)}٪</span>
+                </div>
+                <p className="mt-3 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{fa(step.value)}</p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+                  <div className="h-full rounded-full bg-black" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </Panel>
 
       {/* ─── Charts row 1 ───────────────────────────────────────── */}
       {range === 'monthly' && rangeSeries.monthly ? (

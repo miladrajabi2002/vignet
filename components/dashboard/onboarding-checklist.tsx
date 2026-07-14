@@ -102,7 +102,7 @@ export function OnboardingChecklist({
                         {done ? (
                           <Check className="h-3.5 w-3.5" />
                         ) : isCurrent ? (
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--white)]" />
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--white)] motion-reduce:animate-none" />
                         ) : (
                           i + 1
                         )}

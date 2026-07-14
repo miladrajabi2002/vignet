@@ -176,7 +176,7 @@ export function ChatLinkChannel({
                                         <div className="flex items-center gap-2">
                                                 <span className="font-medium text-[var(--text-primary)]">{t('title')}</span>
                                                 {isLive && (
-                                                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--green)]/10 px-2 py-0.5 text-[10px] text-[var(--green)]">
+                                                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--green)]/10 px-2 py-0.5 text-[11px] text-[var(--green)]">
                                                                 ● {t('live')}
                                                         </span>
                                                 )}
@@ -566,9 +566,9 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                         <div className="truncate text-xs font-semibold leading-tight text-neutral-900">
                                                                 {name}
                                                         </div>
-                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-neutral-500">
+                                                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-neutral-500">
                                                                 <span className="relative flex h-1.5 w-1.5">
-                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:animate-none" />
                                                                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                                                 </span>
                                                                 آنلاین — پاسخ فوری
@@ -585,7 +585,7 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                         {monogram}
                                                 </span>
                                                 {settings.showAiBadge && (
-                                                        <span className="mt-4 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3 text-[10px] tracking-wide text-neutral-600 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur">
+                                                        <span className="mt-4 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white/85 px-3 text-[11px] tracking-wide text-neutral-600 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur">
                                                                 <Sparkles className="h-2.5 w-2.5" style={{ color: accent }} />
                                                                 پاسخ فوری با هوش مصنوعی
                                                         </span>
@@ -604,7 +604,7 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                                         .map((q, i) => (
                                                                                 <span
                                                                                         key={i}
-                                                                                        className="rounded-full border border-black/10 bg-white/85 px-2.5 py-1 text-[10px] text-neutral-700 shadow-sm backdrop-blur"
+                                                                                        className="rounded-full border border-black/10 bg-white/85 px-2.5 py-1 text-[11px] text-neutral-700 shadow-sm backdrop-blur"
                                                                                 >
                                                                                         {q}
                                                                                 </span>
@@ -619,14 +619,14 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                         <div className="space-y-2 rounded-[1.2rem] border border-black/[0.08] bg-white/90 p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.05)]">
                                                                 <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
                                                                         <User className="h-3 w-3 shrink-0 text-neutral-400" />
-                                                                        <span className="text-[10px] text-neutral-400">نام شما</span>
+                                                                        <span className="text-[11px] text-neutral-400">نام شما</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-2.5 py-2">
                                                                         <Phone className="h-3 w-3 shrink-0 text-neutral-400" />
-                                                                        <span className="text-[10px] text-neutral-400">شماره موبایل</span>
+                                                                        <span className="text-[11px] text-neutral-400">شماره موبایل</span>
                                                                 </div>
                                                                 <div
-                                                                        className="flex items-center justify-center rounded-xl py-2 text-[10px] font-medium"
+                                                                        className="flex items-center justify-center rounded-xl py-2 text-[11px] font-medium"
                                                                         style={{ backgroundColor: accent, color: onAccent }}
                                                                 >
                                                                         شروع گفتگو
@@ -634,7 +634,7 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                         </div>
                                                 ) : (
                                                         <div className="flex items-center gap-2">
-                                                                <div className="flex-1 rounded-full border border-black/10 bg-white px-3 py-2 text-[10px] text-neutral-400">
+                                                                <div className="flex-1 rounded-full border border-black/10 bg-white px-3 py-2 text-[11px] text-neutral-400">
                                                                         پیام خود را بنویسید…
                                                                 </div>
                                                                 <span

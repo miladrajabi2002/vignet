@@ -176,7 +176,7 @@ export function StatCard({
           <p className={cn('mt-2 text-[clamp(1.25rem,3vw,1.8rem)] font-bold leading-tight tracking-tight tabular-nums', valueColor)}>
             {typeof value === 'number' ? fa(value) : value}
           </p>
-          {sub && <p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/40">{sub}</p>}
+          {sub && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-black/40">{sub}</p>}
         </div>
         {icon && (
           <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-[1.04]', toneRing)}>

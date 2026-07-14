@@ -77,7 +77,7 @@ export function VerticalChangeNotice({ businessType, services }: { businessType?
 				<div className="min-w-0 flex-1">
 					<p className="text-sm font-semibold">{fa ? `پنل برای «${title}» به‌روزرسانی شد` : `Dashboard updated for “${title}”`}</p>
 					<p className="mt-1 text-[11px] leading-5 text-white/45">{enabled.length ? (fa ? 'ابزارهای تازه همین حالا به منو اضافه شدند' : 'New tools are now available in navigation') : (fa ? 'چیدمان و پیشنهادهای پنل با کسب‌وکار جدید هماهنگ شد' : 'Navigation and suggestions now match the new business')}</p>
-					{enabled.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{enabled.map((item) => <Link key={item.key} href={item.href} onClick={dismiss} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 text-[10px] font-semibold text-black"><Check className="h-3 w-3" />{fa ? item.fa : item.en}</Link>)}</div>}
+					{enabled.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{enabled.map((item) => <Link key={item.key} href={item.href} onClick={dismiss} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-semibold text-black"><Check className="h-3 w-3" />{fa ? item.fa : item.en}</Link>)}</div>}
 				</div>
 				<button type="button" onClick={dismiss} aria-label={fa ? 'بستن' : 'Close'} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/45 transition-colors hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
 			</div>

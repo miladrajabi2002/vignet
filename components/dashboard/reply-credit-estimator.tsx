@@ -50,7 +50,7 @@ export function ReplyCreditEstimator({
             <p className="text-lg font-bold tabular-nums text-success">
               ≈ {nf.format(minimum)}–{nf.format(maximum)}
             </p>
-            <p className="text-[10px] text-success/70">
+            <p className="text-[11px] text-success/70">
               {fa ? 'پاسخ موفق' : 'successful replies'}
             </p>
           </div>
@@ -70,7 +70,7 @@ export function ReplyCreditEstimator({
               <Sparkles className="h-3 w-3 text-[var(--text-muted)]" />
               <span className="truncate text-xs font-medium text-[var(--text-primary)]">{item.name}</span>
             </div>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[11px] text-[var(--text-muted)]">
               {nf.format(item.price / 10)} {fa ? 'تومان / پاسخ' : 'toman / reply'}
             </span>
             <span className="mt-0.5 text-base font-bold text-[var(--text-primary)]">

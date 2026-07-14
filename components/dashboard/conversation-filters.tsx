@@ -71,7 +71,7 @@ export function ConversationFilters({
 			<div className="flex flex-col gap-3 border-b border-black/[0.07] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<h2 className="flex items-center gap-2 text-xs font-bold text-black"><SlidersHorizontal className="h-3.5 w-3.5" />{isFa ? 'جست‌وجو و فیلتر گفتگوها' : 'Search and filter conversations'}</h2>
-					<p className="mt-1 text-[10px] text-black/40">{nf.format(totalResults)} {isFa ? 'گفتگو در همه کانال‌ها' : 'conversations across all channels'}</p>
+					<p className="mt-1 text-[11px] text-black/40">{nf.format(totalResults)} {isFa ? 'گفتگو در همه کانال‌ها' : 'conversations across all channels'}</p>
 				</div>
 				<button
 					type="button"

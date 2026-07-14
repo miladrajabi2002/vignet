@@ -332,8 +332,8 @@ export default async function AdminRevenuePage() {
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
                 <Th>پلن</Th>
-                <Th className="px-2 text-[10px]">کسب‌وکار</Th>
-                <Th className="px-2 text-[10px]">پرداخت</Th>
+                <Th className="px-2 text-[11px]">کسب‌وکار</Th>
+                <Th className="px-2 text-[11px]">پرداخت</Th>
                 <Th>درآمد کل</Th>
                 <Th>قیمت ماهانه</Th>
               </tr>

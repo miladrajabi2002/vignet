@@ -344,7 +344,7 @@ function ListView({
                                                                                         {handle && (
                                                                                                 <span
                                                                                                         dir="ltr"
-                                                                                                        className="text-[10px] text-[var(--text-muted)]"
+                                                                                                        className="text-[11px] text-[var(--text-muted)]"
                                                                                                 >
                                                                                                         @{handle}
                                                                                                 </span>
@@ -357,7 +357,7 @@ function ListView({
                                                                 {c.conversationCount} {t('conversations')} · {t('lastSeen')}{' '}
                                                                 {relativeTime(new Date(c.lastActivity), locale)}
                                                         </p>
-                                                        {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] text-emerald-500">{locale === 'fa' ? 'رضایت پیام' : 'Opted in'}</span>}
+                                                        {c.marketingOptIn && <span className="mt-1 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-500">{locale === 'fa' ? 'رضایت پیام' : 'Opted in'}</span>}
                                                 </div>
                                         </Link>
                                         <div onClick={(e) => e.stopPropagation()} className="shrink-0">

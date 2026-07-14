@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next'
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { SOLUTIONS } from '@/lib/marketing/solutions'
+import { DOCS_NAV } from '@/lib/docs/nav'
 
 // Stays dynamic (a static sitemap would need the DB at build time), but the
 // DB reads below are cached for an hour — crawlers hit sitemaps aggressively.
@@ -66,6 +67,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			lastModified: new Date(),
 			changeFrequency: 'monthly',
 			priority: 0.8,
+		})
+	}
+
+	for (const doc of DOCS_NAV) {
+		if (doc.href === '/docs') continue
+		entries.push({
+			url: `${base}${doc.href}`,
+			lastModified: new Date(),
+			changeFrequency: 'monthly',
+			priority: 0.55,
 		})
 	}
 

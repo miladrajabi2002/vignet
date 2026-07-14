@@ -253,7 +253,7 @@ export function DonutChart({
               <span className="text-xl font-bold text-zinc-900">
                 {typeof centerValue === 'number' ? centerValue.toLocaleString('fa-IR') : centerValue}
               </span>
-              {centerLabel && <span className="text-[10px] text-zinc-500">{centerLabel}</span>}
+              {centerLabel && <span className="text-[11px] text-zinc-500">{centerLabel}</span>}
             </div>
           )}
         </div>

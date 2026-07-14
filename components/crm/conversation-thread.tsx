@@ -165,7 +165,7 @@ export function ConversationThread({
 
         return (
                 <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
-                        <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[9px] text-black/35">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'همگام' : 'Synced'}</span></div>
+                        <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[11px] text-black/35">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'همگام' : 'Synced'}</span></div>
                         <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                                 {messages.map((m) => {
                                         const isUser = m.role === 'USER'
@@ -200,7 +200,7 @@ export function ConversationThread({
                                                                         className="max-w-full py-2"
                                                                 >
                                                                         {isOperator && (
-                                                                                <span className="mb-0.5 block text-[10px] font-medium opacity-60">
+                                                                                <span className="mb-0.5 block text-[11px] font-medium opacity-60">
                                                                                         {t('operatorBadge')}
                                                                                 </span>
                                                                         )}
@@ -210,7 +210,7 @@ export function ConversationThread({
                                                                         />
                                                                         <span
                                                                                 className={cn(
-                                                                                        'mt-1 block text-[10px]',
+                                                                                        'mt-1 block text-[11px]',
                                                                                         isUser
                                                                                                 ? 'text-[var(--text-muted)]'
                                                                                                 : 'text-[var(--bg-base)] opacity-40',
@@ -240,7 +240,7 @@ export function ConversationThread({
                                                         setHasNewMessages(false)
                                                         scrollToBottom()
                                                 }}
-                                                className="sticky bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-all hover:scale-105"
+                                                className="sticky bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] motion-reduce:transform-none"
                                         >
                                                 پیام‌های جدید ↓
                                         </button>

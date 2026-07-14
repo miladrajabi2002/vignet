@@ -220,7 +220,7 @@ export function AiModelPolicyForm({
                     dir="ltr"
                     value={providerModels[model.alias] ?? model.providerId}
                     onChange={(event) => setProviderModels((current) => ({ ...current, [model.alias]: event.target.value }))}
-                    className="h-8 w-full rounded-lg border border-zinc-200 bg-white px-2 text-left font-mono text-[10px] text-zinc-700 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100"
+                    className="h-8 w-full rounded-lg border border-zinc-200 bg-white px-2 text-left font-mono text-[11px] text-zinc-700 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-100"
                     aria-label={`OpenRouter model id for ${model.name}`}
                   />
                 </label>

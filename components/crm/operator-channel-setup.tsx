@@ -154,7 +154,7 @@ export function OperatorChannelSetup({
                                 <h2 className="text-lg font-medium text-[var(--text-primary)]">
                                         {t('title')}
                                 </h2>
-                                <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{fa ? 'هشدارها و تحویل اپراتور در تلگرام' : 'Alerts and operator handoff in Telegram'}</p>
+                                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? 'هشدارها و تحویل اپراتور در تلگرام' : 'Alerts and operator handoff in Telegram'}</p>
                                 </div>
                         </div>
                         <p className="mb-5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
