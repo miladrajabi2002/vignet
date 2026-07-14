@@ -5,6 +5,8 @@ import { uploadFile, BUCKETS, isStorageConfigured } from '@/lib/storage'
 import { dispatchIngestion } from '@/lib/queue/jobs'
 import { syncOnboarding } from '@/lib/onboarding'
 import type { KBType } from '@prisma/client'
+import { assertSafeHttpUrl, UnsafeHttpTargetError } from '@/lib/security/safe-http'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -33,6 +35,9 @@ export async function POST(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
   if (!(await ownAgent(user.workspaceId, params.agentId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -78,8 +83,12 @@ export async function POST(req: Request, props: Params) {
     if (mode === 'url') {
       type = 'URL'
       sourceUrl = String(json.url ?? '')
-      if (!/^https?:\/\//.test(sourceUrl))
+      try {
+        await assertSafeHttpUrl(sourceUrl)
+      } catch (error) {
+        if (!(error instanceof UnsafeHttpTargetError)) console.error('[knowledge] URL validation failed:', error)
         return NextResponse.json({ error: 'INVALID_URL' }, { status: 400 })
+      }
       // Parse the optional refresh cadence (0–168 hours, default 0 = manual).
       const rawHours = Number(json.refreshIntervalHours ?? 0)
       refreshIntervalHours =

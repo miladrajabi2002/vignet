@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { withContactIdentityLock } from '@/lib/crm/contact-identity-lock'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
@@ -213,8 +214,9 @@ async function upsertContact(
 ): Promise<string> {
         const field = contactIdField(type)
         const pf = profileFields(type)
+        return withContactIdentityLock(workspaceId, `${type}:${msg.senderId}`, async (tx) => {
         // 1) Match by the channel-specific id first.
-        const byChannel = await prisma.contact.findFirst({
+        const byChannel = await tx.contact.findFirst({
                 where: { workspaceId, [field]: msg.senderId },
                 select: { id: true, name: true, phone: true },
         })
@@ -226,12 +228,10 @@ async function upsertContact(
                 if (msg.senderUsername) data[pf.usernameField as keyof Prisma.ContactUpdateInput] = msg.senderUsername as never
                 if (msg.senderAvatarUrl) data[pf.avatarField as keyof Prisma.ContactUpdateInput] = msg.senderAvatarUrl as never
                 if (Object.keys(data).length) {
-                        await prisma.contact.update({ where: { id: byChannel.id }, data })
+                        await tx.contact.update({ where: { id: byChannel.id }, data })
                 }
                 // Every inbound message keeps the contact's last-activity fresh.
-                prisma.contact
-                        .update({ where: { id: byChannel.id }, data: { lastActivityAt: new Date() } })
-                        .catch(() => {})
+                await tx.contact.update({ where: { id: byChannel.id }, data: { lastActivityAt: new Date() } })
                 return byChannel.id
         }
         // 2) Cross-channel unification: if the visitor gave the same phone on a
@@ -239,7 +239,7 @@ async function upsertContact(
         //    stamping the new channel id onto the existing contact row. This is the
         //    "one customer, many channels" rule.
         if (msg.senderPhone) {
-                const byPhone = await prisma.contact.findFirst({
+                const byPhone = await tx.contact.findFirst({
                         where: { workspaceId, phone: msg.senderPhone },
                         select: { id: true, name: true },
                 })
@@ -251,12 +251,12 @@ async function upsertContact(
                         if (!byPhone.name && msg.senderName) data.name = msg.senderName
                         if (msg.senderUsername) data[pf.usernameField as keyof Prisma.ContactUpdateInput] = msg.senderUsername as never
                         if (msg.senderAvatarUrl) data[pf.avatarField as keyof Prisma.ContactUpdateInput] = msg.senderAvatarUrl as never
-                        await prisma.contact.update({ where: { id: byPhone.id }, data })
+                        await tx.contact.update({ where: { id: byPhone.id }, data })
                         return byPhone.id
                 }
         }
         // 3) New contact.
-        const created = await prisma.contact.create({
+        const created = await tx.contact.create({
                 data: {
                         workspaceId,
                         name: msg.senderName ?? null,
@@ -273,6 +273,7 @@ async function upsertContact(
                 select: { id: true, name: true },
         })
         return created.id
+        })
 }
 
 /** Look up the contact's display name so we can greet them by name. */

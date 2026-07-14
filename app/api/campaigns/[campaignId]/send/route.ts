@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { dispatchCampaign } from '@/lib/queue/jobs'
 import { rateLimit } from '@/lib/ratelimit'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ campaignId: string }> }
 
@@ -17,6 +18,9 @@ export async function POST(req: Request, props: Params) {
   const { campaignId } = await props.params
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
   if (!(await rateLimit(`campaign-send:${user.workspaceId}`, 3, 60))) {
     return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   }
@@ -56,6 +60,15 @@ export async function POST(req: Request, props: Params) {
     return NextResponse.json({ error: 'ALREADY_CONFIRMED' }, { status: 409 })
   }
 
-  await dispatchCampaign({ campaignId: campaign.id })
+  try {
+    await dispatchCampaign({ campaignId: campaign.id })
+  } catch (error) {
+    await prisma.campaign.updateMany({
+      where: { id: campaign.id, workspaceId: user.workspaceId, status: 'QUEUED' },
+      data: { status: 'DRAFT', confirmedAt: null },
+    })
+    console.error('[campaign/send] queue unavailable:', error)
+    return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
+  }
   return NextResponse.json({ ok: true, status: 'QUEUED' }, { status: 202 })
 }

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { dateKeyToDatabaseDate } from '@/lib/bookings/time'
 import { serviceUpdateSchema } from '@/lib/bookings/validation'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Props = { params: Promise<{ serviceId: string }> }
 
@@ -32,6 +33,8 @@ export async function GET(_request: Request, props: Props) {
 export async function PATCH(request: Request, props: Props) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed)
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
   const { serviceId } = await props.params
   if (!(await ownedService(user.workspaceId, serviceId))) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })

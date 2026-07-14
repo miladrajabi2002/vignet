@@ -5,12 +5,18 @@ import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
 import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
 import { stripProductTokens } from '@/lib/widget/config'
+import { getClientIp } from '@/lib/security/request-ip'
+import {
+        createPublicConversationToken,
+        verifyPublicConversationToken,
+} from '@/lib/security/public-conversation'
 
 type Params = { params: Promise<{ slug: string }> }
 
 const bodySchema = z.object({
         message: z.string().min(1).max(4000),
         conversationId: z.string().nullish(),
+        conversationToken: z.string().max(128).nullish(),
         // Pre-chat lead form (sent with the first message when lead capture is on).
         visitorName: z.string().max(60).nullish(),
         visitorPhone: z.string().max(30).nullish(),
@@ -30,8 +36,12 @@ export async function GET(req: Request, props: Params) {
         const params = await props.params
         const url = new URL(req.url)
         const conversationId = url.searchParams.get('conversationId')
+        const conversationToken = req.headers.get('x-vigent-conversation-token')
         if (!conversationId) {
                 return NextResponse.json({ error: 'INVALID' }, { status: 400 })
+        }
+        if (!verifyPublicConversationToken('chat-link', conversationId, params.slug, conversationToken)) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
         }
 
         // Resolve the chat link → its agent, then verify the conversation belongs
@@ -54,7 +64,7 @@ export async function GET(req: Request, props: Params) {
                 select: {
                         id: true,
                         messages: {
-                                orderBy: { createdAt: 'asc' },
+                                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                                 take: 100,
                                 select: {
                                         id: true,
@@ -69,6 +79,7 @@ export async function GET(req: Request, props: Params) {
         }
 
         const messages = conversation.messages
+                .reverse()
                 .filter((m) => m.role !== 'SYSTEM')
                 .map((m) => ({
                         id: m.id,
@@ -83,7 +94,7 @@ export async function GET(req: Request, props: Params) {
 // addressed by slug, so the agent id never appears in the shareable URL.
 export async function POST(req: Request, props: Params) {
         const params = await props.params
-        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon'
+        const ip = getClientIp(req.headers)
 
         // Public endpoint → fail closed if Redis is down (an open limiter here lets
         // anyone drain the workspace's OpenRouter credit).
@@ -99,6 +110,14 @@ export async function POST(req: Request, props: Params) {
         if (!parsed.success) {
                 return NextResponse.json({ error: 'INVALID' }, { status: 400 })
         }
+        const authorizedConversationId = parsed.data.conversationId && verifyPublicConversationToken(
+                'chat-link',
+                parsed.data.conversationId,
+                params.slug,
+                parsed.data.conversationToken,
+        )
+                ? parsed.data.conversationId
+                : undefined
 
         const link = await prisma.chatLink.findUnique({
                 where: { slug: params.slug },
@@ -157,7 +176,7 @@ export async function POST(req: Request, props: Params) {
         if (
                 settings.leadCapture &&
                 settings.leadCaptureRequired &&
-                !parsed.data.conversationId
+                !authorizedConversationId
         ) {
                 const vName = (parsed.data.visitorName ?? '').trim()
                 const vPhone = (parsed.data.visitorPhone ?? '').trim()
@@ -176,7 +195,7 @@ export async function POST(req: Request, props: Params) {
                         >[0]['agent']['promptConfig'],
                 },
                 message: parsed.data.message,
-                conversationId: parsed.data.conversationId ?? undefined,
+                conversationId: authorizedConversationId,
                 channel: 'CHAT_LINK',
                 contactName: settings.leadCapture
                         ? (parsed.data.visitorName ?? undefined)
@@ -197,11 +216,13 @@ export async function POST(req: Request, props: Params) {
                 return NextResponse.json({ error: result.error }, { status })
         }
 
+        const nextToken = createPublicConversationToken('chat-link', result.conversationId, params.slug)
         return new Response(result.stream, {
                 headers: {
                         'Content-Type': 'text/event-stream; charset=utf-8',
                         'Cache-Control': 'no-cache, no-transform',
                         Connection: 'keep-alive',
+                        'X-Vigent-Conversation-Token': nextToken,
                 },
         })
 }

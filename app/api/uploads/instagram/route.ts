@@ -10,6 +10,7 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 const execFileAsync = promisify(execFile)
 
@@ -203,6 +204,9 @@ export async function POST(req: Request) {
         if (!user) {
                 return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
         }
+        if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+                return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+        }
 
         let form: FormData
         try {
@@ -317,10 +321,18 @@ export async function POST(req: Request) {
                         }
                         const filename = `${ts}-${rand}.${actualExt}`
                         // key = relative path on disk (also the URL path after /api/uploads/instagram/)
-                        const key = `instagram/${yyyy}/${mm}/${filename}`
+                        const key = `instagram/${user.workspaceId}/${yyyy}/${mm}/${filename}`
 
                         // Write to public/uploads/instagram/{YYYY}/{MM}/
-                        const dir = join(process.cwd(), 'public', 'uploads', 'instagram', yyyy, mm)
+                        const dir = join(
+                                process.cwd(),
+                                'public',
+                                'uploads',
+                                'instagram',
+                                user.workspaceId,
+                                yyyy,
+                                mm,
+                        )
                         await mkdir(dir, { recursive: true })
                         await writeFile(join(dir, filename), actualBuf)
 
@@ -328,7 +340,7 @@ export async function POST(req: Request) {
                         // route handler (which streams the file from disk with the correct
                         // Content-Type). This is the canonical public path the operator
                         // sees in the browser AND the URL Meta's crawler fetches.
-                        const url = `${base}/api/uploads/instagram/${yyyy}/${mm}/${filename}`
+                        const url = `${base}/api/uploads/instagram/${user.workspaceId}/${yyyy}/${mm}/${filename}`
 
                         uploaded.push({
                                 url,

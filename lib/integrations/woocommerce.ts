@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { processProductEmbed } from '@/lib/products/catalog'
 import { normalizePhone } from '@/lib/phone'
+import { safeHttpGet } from '@/lib/security/safe-http'
 
 /**
  * WooCommerce + generic store integration logic (F2).
@@ -196,27 +197,21 @@ async function fetchWooJson<T>(
         for (const [k, v] of Object.entries(params)) {
                 url.searchParams.set(k, String(v))
         }
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-        try {
-                const res = await fetch(url.toString(), {
-                        headers: {
-                                Authorization: authHeader(creds),
-                                Accept: 'application/json',
-                                'User-Agent': 'VigentSync/1.0',
-                        },
-                        signal: controller.signal,
-                        cache: 'no-store',
-                })
-                if (!res.ok) {
-                        const body = await res.text().catch(() => '')
-                        throw new Error(`WC ${path} HTTP ${res.status}: ${body.slice(0, 200)}`)
-                }
-                const json = (await res.json()) as unknown
-                return Array.isArray(json) ? (json as T[]) : []
-        } finally {
-                clearTimeout(timer)
+        const res = await safeHttpGet(url.toString(), {
+                headers: {
+                        Authorization: authHeader(creds),
+                        Accept: 'application/json',
+                        'User-Agent': 'VigentSync/1.0',
+                },
+                timeoutMs: FETCH_TIMEOUT_MS,
+                maxBytes: 10 * 1024 * 1024,
+                allowedContentTypes: ['application/json'],
+        })
+        if (res.status < 200 || res.status >= 300) {
+                throw new Error(`WC ${path} HTTP ${res.status}: ${res.body.toString('utf8').slice(0, 200)}`)
         }
+        const json = JSON.parse(res.body.toString('utf8')) as unknown
+        return Array.isArray(json) ? (json as T[]) : []
 }
 
 /** Iterate every page of a WC collection until a page returns fewer than PER_PAGE. */

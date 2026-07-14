@@ -44,7 +44,9 @@ export async function GET(_req: Request, props: Params) {
     select: {
       id: true,
       messages: {
-        orderBy: { createdAt: 'asc' },
+        orderBy: sinceDate
+          ? [{ createdAt: 'asc' as const }, { id: 'asc' as const }]
+          : [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
         take: 100,
         where: sinceDate ? { createdAt: { gt: sinceDate } } : undefined,
         select: {
@@ -60,7 +62,8 @@ export async function GET(_req: Request, props: Params) {
   })
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  const messages = conversation.messages
+  const orderedMessages = sinceDate ? conversation.messages : conversation.messages.reverse()
+  const messages = orderedMessages
     .filter((m) => {
       if (m.role !== 'SYSTEM') return true
       const metadata = m.metadata as Record<string, unknown> | null

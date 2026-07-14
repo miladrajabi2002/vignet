@@ -9,6 +9,11 @@ import {
         isOriginAllowed,
         stripProductTokens,
 } from '@/lib/widget/config'
+import { getClientIp } from '@/lib/security/request-ip'
+import {
+        createPublicConversationToken,
+        verifyPublicConversationToken,
+} from '@/lib/security/public-conversation'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -17,6 +22,7 @@ const bodySchema = z.object({
         // Accept null too: older/embedded widgets send `conversationId: null` on the
         // first turn, which `.optional()` alone would reject as INVALID.
         conversationId: z.string().nullish(),
+        conversationToken: z.string().max(128).nullish(),
         // Pre-chat lead form (sent with the first message when lead capture is on).
         visitorName: z.string().max(60).nullish(),
         visitorPhone: z.string().max(30).nullish(),
@@ -40,8 +46,12 @@ export async function GET(req: Request, props: Params) {
         const params = await props.params
         const url = new URL(req.url)
         const conversationId = url.searchParams.get('conversationId')
+        const conversationToken = req.headers.get('x-vigent-conversation-token')
         if (!conversationId) {
                 return NextResponse.json({ error: 'INVALID' }, { status: 400, headers: corsHeaders })
+        }
+        if (!verifyPublicConversationToken('widget', conversationId, params.agentId, conversationToken)) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403, headers: corsHeaders })
         }
 
         // Verify the conversation belongs to this agent (so a visitor can't read
@@ -55,7 +65,7 @@ export async function GET(req: Request, props: Params) {
                 select: {
                         id: true,
                         messages: {
-                                orderBy: { createdAt: 'asc' },
+                                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                                 take: 100,
                                 select: {
                                         id: true,
@@ -73,6 +83,7 @@ export async function GET(req: Request, props: Params) {
         }
 
         const messages = conversation.messages
+                .reverse()
                 .filter((m) => m.role !== 'SYSTEM')
                 .map((m) => ({
                         id: m.id,
@@ -85,7 +96,7 @@ export async function GET(req: Request, props: Params) {
 
 export async function POST(req: Request, props: Params) {
         const params = await props.params
-        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon'
+        const ip = getClientIp(req.headers)
 
         // Public endpoint → fail closed if Redis is down (an open limiter here lets
         // anyone drain the workspace's OpenRouter credit).
@@ -120,6 +131,14 @@ export async function POST(req: Request, props: Params) {
         if (!parsed.success) {
                 return NextResponse.json({ error: 'INVALID' }, { status: 400, headers: corsHeaders })
         }
+        const authorizedConversationId = parsed.data.conversationId && verifyPublicConversationToken(
+                'widget',
+                parsed.data.conversationId,
+                params.agentId,
+                parsed.data.conversationToken,
+        )
+                ? parsed.data.conversationId
+                : undefined
 
         const agent = await prisma.agent.findUnique({
                 where: { id: params.agentId },
@@ -184,7 +203,7 @@ export async function POST(req: Request, props: Params) {
         if (
                 settings.leadCapture &&
                 settings.leadCaptureRequired &&
-                !parsed.data.conversationId
+                !authorizedConversationId
         ) {
                 const vName = (parsed.data.visitorName ?? '').trim()
                 const vPhone = (parsed.data.visitorPhone ?? '').trim()
@@ -206,7 +225,7 @@ export async function POST(req: Request, props: Params) {
                         >[0]['agent']['promptConfig'],
                 },
                 message: parsed.data.message,
-                conversationId: parsed.data.conversationId ?? undefined,
+                conversationId: authorizedConversationId,
                 channel: 'WEB_WIDGET',
                 contactName: parsed.data.visitorName ?? undefined,
                 contactPhone: parsed.data.visitorPhone ?? undefined,
@@ -223,12 +242,14 @@ export async function POST(req: Request, props: Params) {
                 return NextResponse.json({ error: result.error }, { status, headers: corsHeaders })
         }
 
+        const nextToken = createPublicConversationToken('widget', result.conversationId, params.agentId)
         return new Response(result.stream, {
                 headers: {
                         ...corsHeaders,
                         'Content-Type': 'text/event-stream; charset=utf-8',
                         'Cache-Control': 'no-cache, no-transform',
                         Connection: 'keep-alive',
+                        'X-Vigent-Conversation-Token': nextToken,
                 },
         })
 }

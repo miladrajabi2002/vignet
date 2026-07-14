@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { productUpdateSchema } from '@/lib/validations/product'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ productId: string }> }
 
@@ -33,6 +34,8 @@ export async function PATCH(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed)
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
   if (!(await ownProduct(user.workspaceId, params.productId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 

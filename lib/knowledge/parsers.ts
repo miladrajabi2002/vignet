@@ -1,4 +1,5 @@
 import { PDFParse } from 'pdf-parse'
+import { safeHttpGet } from '@/lib/security/safe-http'
 
 /** Extract text from a PDF buffer. */
 export async function parsePdf(buffer: Buffer): Promise<string> {
@@ -71,11 +72,14 @@ function parseCsvRows(content: string): string[][] {
 
 /** Fetch a URL and strip it down to readable text. */
 export async function parseUrl(url: string): Promise<string> {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'VigentBot/1.0' },
+  const res = await safeHttpGet(url, {
+    headers: { 'User-Agent': 'VigentBot/1.0', Accept: 'text/html,text/plain;q=0.9' },
+    timeoutMs: 15_000,
+    maxBytes: 2 * 1024 * 1024,
+    allowedContentTypes: ['text/html', 'text/plain', 'application/xhtml+xml'],
   })
-  if (!res.ok) throw new Error(`Fetch failed (${res.status})`)
-  const html = await res.text()
+  if (res.status < 200 || res.status >= 300) throw new Error(`Fetch failed (${res.status})`)
+  const html = res.body.toString('utf8')
   return stripHtml(html)
 }
 

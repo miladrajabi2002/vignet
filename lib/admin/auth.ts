@@ -14,7 +14,7 @@ export { ADMIN_OWNER_NAME, ADMIN_OWNER_PHONE } from '@/lib/admin/owner'
  */
 
 const COOKIE_NAME = 'admin_session'
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60 // 7 days
+const SESSION_TTL_SECONDS = 12 * 60 * 60
 function secret(): string {
   const s = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
   if (!s) throw new Error('ADMIN_SESSION_SECRET (or AUTH_SECRET) is not set')
@@ -38,27 +38,66 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /** Verify a username/password pair against the configured admin credentials. */
-export function verifyAdminCredentials(username: string, password: string): boolean {
+export function verifyAdminCredentials(username: string, password: string, otp?: string): boolean {
   const p = process.env.ADMIN_PASS
   const phone = normalizePhone(username)
   if (!ADMIN_OWNER_PHONE || !phone || !p) return false
-  return safeEqual(phone, ADMIN_OWNER_PHONE) && safeEqual(password, p)
+  if (!safeEqual(phone, ADMIN_OWNER_PHONE) || !safeEqual(password, p)) return false
+  return verifyTotpIfConfigured(otp)
+}
+
+function decodeBase32(value: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  const clean = value.toUpperCase().replace(/[^A-Z2-7]/g, '')
+  let bits = ''
+  for (const char of clean) {
+    const index = alphabet.indexOf(char)
+    if (index < 0) return Buffer.alloc(0)
+    bits += index.toString(2).padStart(5, '0')
+  }
+  const bytes: number[] = []
+  for (let index = 0; index + 8 <= bits.length; index += 8) {
+    bytes.push(Number.parseInt(bits.slice(index, index + 8), 2))
+  }
+  return Buffer.from(bytes)
+}
+
+function totpAt(secretValue: string, counter: number): string {
+  const key = decodeBase32(secretValue)
+  if (key.length < 10) return ''
+  const input = Buffer.alloc(8)
+  input.writeBigUInt64BE(BigInt(counter))
+  const digest = crypto.createHmac('sha1', key).update(input).digest()
+  const offset = digest[digest.length - 1] & 0x0f
+  const binary = (digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000
+  return String(binary).padStart(6, '0')
+}
+
+function verifyTotpIfConfigured(value: string | undefined): boolean {
+  const configured = process.env.ADMIN_TOTP_SECRET?.trim()
+  if (!configured) return true
+  const candidate = value?.trim() ?? ''
+  if (!/^\d{6}$/.test(candidate)) return false
+  const counter = Math.floor(Date.now() / 30_000)
+  return [-1, 0, 1].some((offset) => safeEqual(candidate, totpAt(configured, counter + offset)))
 }
 
 /** Build the signed cookie value: "<expiryEpoch>.<hmac>". */
 export function createSessionToken(): { value: string; maxAge: number } {
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-  const value = `${exp}.${sign(String(exp))}`
+  const nonce = crypto.randomBytes(24).toString('base64url')
+  const payload = `${exp}.${nonce}`
+  const value = `${payload}.${sign(payload)}`
   return { value, maxAge: SESSION_TTL_SECONDS }
 }
 
 function isValidToken(raw: string | undefined): boolean {
   if (!raw) return false
-  const [expStr, sig] = raw.split('.')
-  if (!expStr || !sig) return false
+  const [expStr, nonce, sig] = raw.split('.')
+  if (!expStr || !nonce || !sig) return false
   const exp = Number(expStr)
   if (!Number.isFinite(exp) || exp * 1000 < Date.now()) return false
-  return safeEqual(sig, sign(expStr))
+  return safeEqual(sig, sign(`${expStr}.${nonce}`))
 }
 
 export const ADMIN_COOKIE = COOKIE_NAME
@@ -86,10 +125,9 @@ export async function isAdminAuthedRequest(req: Request): Promise<boolean> {
   if (await isAdminAuthed()) return true
   // 2) Header-based token (X-Admin-Token).
   const headerTok = req.headers.get('x-admin-token')
-  const headerPhone = normalizePhone(req.headers.get('x-admin-phone') || '')
-  if (headerTok && headerPhone && ADMIN_OWNER_PHONE && process.env.ADMIN_PASS
-    && safeEqual(headerPhone, ADMIN_OWNER_PHONE)
-    && safeEqual(headerTok, process.env.ADMIN_PASS)) {
+  const configuredApiToken = process.env.ADMIN_API_TOKEN
+  if (headerTok && configuredApiToken && configuredApiToken.length >= 32
+    && safeEqual(headerTok, configuredApiToken)) {
     return true
   }
   // Secrets are deliberately never accepted in query parameters because URLs

@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { Send, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
-import { VoiceRecorder } from '@/components/voice/voice-recorder'
 import { SpeakButton } from '@/components/voice/audio-player'
+
+// The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
+// detail route so text chat becomes interactive before voice tooling arrives.
+const VoiceRecorder = dynamic(
+        () => import('@/components/voice/voice-recorder').then((module) => module.VoiceRecorder),
+        { ssr: false, loading: () => <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-[var(--bg-base)]" /> },
+)
 
 interface Msg {
         role: 'user' | 'assistant'

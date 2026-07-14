@@ -1,71 +1,88 @@
 #!/usr/bin/env bash
-# ============================================================================
-#  Vignet — آپدیت و ری‌استارت پروژه
-#  هر بار که کد جدید push کردی، روی سرور این را اجرا کن.
-#  کار می‌کند: git pull → نصب پکیج‌ها → migrate دیتابیس → build → restart
-#  + نصب و ری‌استارت whatsapp-bridge (mini-service مستقل روی پورت 3040)
-# ============================================================================
 set -euo pipefail
 
-# به ریشه‌ی پروژه برو (یک پوشه بالاتر از deploy/)
 cd "$(dirname "$0")/.."
 
-echo "==> دریافت آخرین کد"
+if [ ! -f .env ]; then
+  echo "ERROR: .env is required" >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
+
+required_env=(
+  AUTH_SECRET
+  ADMIN_OWNER_PHONE
+  ADMIN_PASS
+  ADMIN_SESSION_SECRET
+  PUBLIC_CONVERSATION_SECRET
+  REDIS_URL
+)
+for key in "${required_env[@]}"; do
+  if [ -z "${!key:-}" ]; then
+    echo "ERROR: required environment variable ${key} is missing" >&2
+    exit 1
+  fi
+done
+if [ "${TRUST_PROXY_HEADERS:-0}" != "1" ]; then
+  echo "ERROR: TRUST_PROXY_HEADERS=1 is required with the checked-in nginx proxy headers" >&2
+  exit 1
+fi
+if [ -z "${ADMIN_TOTP_SECRET:-}" ]; then
+  echo "WARNING: ADMIN_TOTP_SECRET is not configured; admin MFA remains disabled" >&2
+fi
+
+echo "==> Pulling fast-forward-only source"
 git pull --ff-only
 
-echo "==> نصب وابستگی‌ها (Next.js app)"
-# npm ci سخت‌گیر است و با اختلاف نسخه‌ی npm بین محیط‌ها خطا می‌دهد؛
-# اگر لاک‌فایل کامل هم‌خوان نبود، به npm install برمی‌گردیم.
-npm ci || {
-  echo "⚠ npm ci ناموفق بود (لاک‌فایل ناهمگام) — به npm install برمی‌گردیم"
-  npm install
-}
+echo "==> Installing locked application dependencies"
+npm ci
 
-echo "==> نصب وابستگی‌ها (whatsapp-bridge mini-service)"
-# Bridge یک پروژه‌ی مستقل با package.json خودش است. ترجیح بر bun است (سریع‌تر
-# و بی‌مشکل با peer deps) اما npm هم با --legacy-peer-deps کار می‌کند.
-# اگر این اولین deploy بعد از اضافه‌شدن bridge است،
-# deploy/setup-whatsapp-bridge.sh را یک‌بار جداگانه اجرا کنید تا .env و
-# secret ساخته شود.
-if [ -f mini-services/whatsapp-bridge/package.json ]; then
-  if command -v bun >/dev/null 2>&1; then
-    (cd mini-services/whatsapp-bridge && bun install)
-  elif command -v npm >/dev/null 2>&1; then
-    # --legacy-peer-deps برای جلوگیری از خطای ERESOLVE روی conflictهای
-    # peer dependency (Baileys peer deps سخت‌گیرانه هستند).
-    (cd mini-services/whatsapp-bridge && npm install --legacy-peer-deps)
-  else
-    echo "⚠ نه bun و نه npm پیدا نشد — نصب وابستگی‌های bridge رد شد"
-    echo "  bridge اجرا نخواهد شد. برای اتصال QR واتساپ ابتدا bun را نصب کنید:"
-    echo "    curl -fsSL https://bun.sh/install | bash"
-  fi
-else
-  echo "ℹ پوشه‌ی mini-services/whatsapp-bridge وجود ندارد — bridge رد شد"
+if [ -f mini-services/whatsapp-bridge/package-lock.json ]; then
+  echo "==> Installing locked WhatsApp bridge dependencies"
+  (cd mini-services/whatsapp-bridge && npm ci --legacy-peer-deps)
+elif [ -f mini-services/whatsapp-bridge/package.json ]; then
+  echo "ERROR: WhatsApp bridge package-lock.json is required for a reproducible deploy" >&2
+  exit 1
 fi
 
-echo "==> اجرای migration دیتابیس"
-npx prisma migrate deploy
+echo "==> Generating Prisma client"
 npx prisma generate
 
-echo "==> ساخت نسخه production"
+# Build before changing the database. A compile failure therefore leaves the
+# currently-running application and schema untouched.
+echo "==> Building production artifact"
 npm run build
 
-echo "==> ری‌استارت سرویس‌ها"
+echo "==> Applying checked-in database migrations"
+npx prisma migrate deploy
+
+echo "==> Reloading services"
+pm2 delete vignet-studio >/dev/null 2>&1 || true
 if pm2 describe vignet-web >/dev/null 2>&1; then
-  pm2 reload deploy/ecosystem.config.js   # بدون قطعی (zero-downtime)
+  pm2 reload deploy/ecosystem.config.js --update-env
 else
-  pm2 start deploy/ecosystem.config.js    # اولین اجرا
-  pm2 save                                # ذخیره برای استارت خودکار بعد از ریبوت
+  pm2 start deploy/ecosystem.config.js
+fi
+pm2 save
+
+echo "==> Waiting for application health"
+healthy=0
+for _ in $(seq 1 30); do
+  if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:3003/api/health >/dev/null; then
+    healthy=1
+    break
+  fi
+  sleep 2
+done
+
+if [ "${healthy}" -ne 1 ]; then
+  echo "ERROR: deployment reloaded but health check did not pass" >&2
+  pm2 status
+  exit 1
 fi
 
-echo "==> ✅ انجام شد. وضعیت سرویس‌ها:"
 pm2 status
-
-# Helper reminder اگر bridge هنوز بالا نیامده
-if ! pm2 describe vignet-whatsapp-bridge >/dev/null 2>&1; then
-  echo ""
-  echo "⚠ نکته: سرویس whatsapp-bridge هنوز در pm2 ثبت نشده است."
-  echo "  برای اتصال QR واتساپ، یک‌بار اسکریپت setup را اجرا کنید:"
-  echo "    bash deploy/setup-whatsapp-bridge.sh"
-  echo "  سپس دوباره deploy.sh را اجرا کنید."
-fi
+echo "==> Deployment is healthy"

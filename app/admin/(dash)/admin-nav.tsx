@@ -11,8 +11,6 @@ import {
   Users,
   CreditCard,
   TrendingUp,
-  Database,
-  ExternalLink,
   BrainCircuit,
   BarChart3,
   Settings2,
@@ -68,16 +66,6 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         )
       })}
-      <a
-        href={process.env.NEXT_PUBLIC_DB_STUDIO_URL || 'https://vigent.ir:8443'}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group mt-2 flex min-h-10 items-center gap-3 rounded-xl border border-black/[0.06] bg-[#f7f7f5] px-3 py-2 text-[11px] font-medium text-black/50 transition-colors hover:border-black/15 hover:text-black"
-      >
-        <Database className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-700" />
-        دیتابیس (Studio)
-        <ExternalLink className="ms-auto h-3.5 w-3.5 text-zinc-300" />
-      </a>
     </nav>
   )
 }

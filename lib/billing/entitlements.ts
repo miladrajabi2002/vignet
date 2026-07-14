@@ -13,6 +13,7 @@ import type { Plan, Prisma } from '@prisma/client'
 
 export type BlockReason = 'TRIAL_EXPIRED' | 'SUBSCRIPTION_EXPIRED' | 'PLAN_LIMIT'
 export type ChatGate = { allowed: true; plan: Plan } | { allowed: false; reason: BlockReason }
+export type WorkspaceAccessGate = ChatGate
 
 function monthKey(): string {
   const d = new Date()
@@ -55,6 +56,18 @@ export async function getMonthlyMessageCount(workspaceId: string): Promise<numbe
  *  - the plan's private monthly abuse/safety ceiling is exhausted
  */
 export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
+  const access = await checkWorkspaceActive(workspaceId)
+  if (!access.allowed) return access
+
+  const limit = (await getEffectivePlanDefs())[access.plan].monthlyMessages
+  const used = await getMonthlyMessageCount(workspaceId)
+  if (used >= limit) return { allowed: false, reason: 'PLAN_LIMIT' }
+
+  return access
+}
+
+/** Shared trial/subscription gate for every state-changing paid feature. */
+export async function checkWorkspaceActive(workspaceId: string): Promise<WorkspaceAccessGate> {
   const ws = await prisma.workspace.findUnique({
     where: { id: workspaceId },
     select: { plan: true, trialEndsAt: true },
@@ -63,7 +76,7 @@ export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
 
   const now = new Date()
   if (ws.plan === 'TRIAL') {
-    if (ws.trialEndsAt && ws.trialEndsAt < now) {
+    if (!ws.trialEndsAt || ws.trialEndsAt < now) {
       return { allowed: false, reason: 'TRIAL_EXPIRED' }
     }
   } else {
@@ -76,22 +89,15 @@ export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
     }
   }
 
-  const limit = (await getEffectivePlanDefs())[ws.plan].monthlyMessages
-  const used = await getMonthlyMessageCount(workspaceId)
-  if (used >= limit) return { allowed: false, reason: 'PLAN_LIMIT' }
-
   return { allowed: true, plan: ws.plan }
 }
 
 /** May this workspace create one more agent? */
 export async function checkAgentCreateAllowed(workspaceId: string): Promise<boolean> {
-  const ws = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { plan: true },
-  })
-  if (!ws) return false
+  const access = await checkWorkspaceActive(workspaceId)
+  if (!access.allowed) return false
   const [limit, count] = [
-    (await getEffectivePlanDefs())[ws.plan].maxAgents,
+    (await getEffectivePlanDefs())[access.plan].maxAgents,
     await prisma.agent.count({ where: { workspaceId } }),
   ]
   return count < limit

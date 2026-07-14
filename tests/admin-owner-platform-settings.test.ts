@@ -1,32 +1,43 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import path from 'path'
-import { verifyAdminCredentials } from '@/lib/admin/auth'
 import { createAdminActionToken, verifyAdminActionToken } from '@/lib/admin/vigento-actions'
-import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 
 describe('owner-only admin security', () => {
   const previousPass = process.env.ADMIN_PASS
   const previousSecret = process.env.ADMIN_SESSION_SECRET
+  const previousOwnerPhone = process.env.ADMIN_OWNER_PHONE
+  const previousTotp = process.env.ADMIN_TOTP_SECRET
 
   beforeEach(() => {
     process.env.ADMIN_PASS = 'test-admin-password'
     process.env.ADMIN_SESSION_SECRET = 'test-admin-session-secret-with-enough-entropy'
+    process.env.ADMIN_OWNER_PHONE = '09121112233'
+    delete process.env.ADMIN_TOTP_SECRET
+    vi.resetModules()
   })
 
   afterEach(() => {
     process.env.ADMIN_PASS = previousPass
     process.env.ADMIN_SESSION_SECRET = previousSecret
+    if (previousOwnerPhone === undefined) delete process.env.ADMIN_OWNER_PHONE
+    else process.env.ADMIN_OWNER_PHONE = previousOwnerPhone
+    if (previousTotp === undefined) delete process.env.ADMIN_TOTP_SECRET
+    else process.env.ADMIN_TOTP_SECRET = previousTotp
   })
 
-  it('accepts only Milad owner phone even when a valid password is supplied', () => {
-    expect(verifyAdminCredentials('09128352271', 'test-admin-password')).toBe(true)
+  it('accepts only the environment-configured owner phone', async () => {
+    const { verifyAdminCredentials } = await import('@/lib/admin/auth')
+    expect(verifyAdminCredentials('09121112233', 'test-admin-password')).toBe(true)
     expect(verifyAdminCredentials('09120000000', 'test-admin-password')).toBe(false)
   })
 
-  it('keeps platform authority separate from workspace ownership', () => {
-    expect(isPlatformOwnerPhone('+989128352271')).toBe(true)
+  it('keeps platform authority separate from workspace ownership', async () => {
+    const { isPlatformOwnerPhone } = await import('@/lib/admin/owner')
+    expect(isPlatformOwnerPhone('+989121112233')).toBe(true)
     expect(isPlatformOwnerPhone('+989120000000')).toBe(false)
+    const ownerSource = readFileSync(path.join(process.cwd(), 'lib/admin/owner.ts'), 'utf8')
+    expect(ownerSource).not.toContain('09128352271')
     const migration = readFileSync(path.join(process.cwd(), 'prisma/migrations/20260713233000_separate_platform_admin_role/migration.sql'), 'utf8')
     expect(migration).toContain('"platformRole"')
     expect(migration).toContain("WHERE \"phone\" = '+989128352271'")

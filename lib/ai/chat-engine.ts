@@ -23,6 +23,7 @@ import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
+import { withContactIdentityLock } from '@/lib/crm/contact-identity-lock'
 import { DEFAULT_MODEL, resolveModelAlias, resolveModelId } from '@/lib/ai/models'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import {
@@ -197,22 +198,22 @@ async function prepareTurn(params: StartChatParams): Promise<
         let contactId = params.contactId ?? null
         if (!contactId && (extracted.name || extracted.phone)) {
                 try {
-                        const existing = extracted.phone
-                                ? await prisma.contact.findFirst({
-                                          where: { workspaceId, phone: extracted.phone },
-                                          select: { id: true },
-                                  })
-                                : null
-                        const contact =
-                                existing ??
-                                (await prisma.contact.create({
-                                        data: {
-                                                workspaceId,
-                                                name: extracted.name,
-                                                phone: extracted.phone,
-                                        },
+                        const identity = extracted.phone
+                                ? `phone:${extracted.phone}`
+                                : `conversation:${conversationId}`
+                        const contact = await withContactIdentityLock(workspaceId, identity, async (tx) => {
+                                const existing = extracted.phone
+                                        ? await tx.contact.findFirst({
+                                                  where: { workspaceId, phone: extracted.phone },
+                                                  orderBy: { createdAt: 'asc' },
+                                                  select: { id: true },
+                                          })
+                                        : null
+                                return existing ?? tx.contact.create({
+                                        data: { workspaceId, name: extracted.name, phone: extracted.phone },
                                         select: { id: true },
-                                }))
+                                })
+                        })
                         contactId = contact.id
                         await prisma.conversation.update({
                                 where: { id: conversationId },

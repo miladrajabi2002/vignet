@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { listBookingServices, serviceSlug } from '@/lib/bookings/service'
 import { serviceCreateSchema } from '@/lib/bookings/validation'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -14,6 +15,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed)
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
 
   const parsed = serviceCreateSchema.safeParse(
     await request.json().catch(() => null),

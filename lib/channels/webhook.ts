@@ -58,11 +58,14 @@ export async function handleWebhookRequest(
   }
   logWebhookPayload(type, token, body, parsedCount)
 
-  // Process after responding: durable BullMQ job when the queue is up
-  // (survives restarts, runs in the worker), inline fire-and-forget otherwise.
-  void dispatchInbound({ type, token, body }).catch((e) =>
-    captureError(`webhook:${type}:processing`, e),
-  )
+  // Wait only for Redis to durably accept the job. If the queue is unavailable,
+  // return a retryable error instead of acknowledging and silently losing work.
+  try {
+    await dispatchInbound({ type, token, body })
+  } catch (e) {
+    captureError(`webhook:${type}:enqueue`, e)
+    return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
+  }
 
   return NextResponse.json({ ok: true })
 }

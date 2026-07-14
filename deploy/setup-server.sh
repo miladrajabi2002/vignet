@@ -42,6 +42,12 @@ DOMAIN="${DOMAIN:-vigent.ir}"
 DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN%/}"  # تمیزکردن
 APP_URL="https://${DOMAIN}"
 
+read -rp "Platform owner mobile number (for /admin): " ADMIN_OWNER_PHONE_INPUT
+if [ -z "${ADMIN_OWNER_PHONE_INPUT}" ]; then
+  echo "Admin owner mobile number is required."
+  exit 1
+fi
+
 echo
 echo "خلاصه:  دیتابیس=${DB_NAME}  کاربر=${DB_USER}  دامنه=${DOMAIN}"
 read -rp "ادامه بدهم؟ [Y/n]: " CONFIRM
@@ -243,11 +249,15 @@ set_env "S3_REGION"    "us-east-1"
 ensure_secret "NEXTAUTH_SECRET" "$(openssl rand -base64 32)"
 ensure_secret "AUTH_SECRET"     "$(openssl rand -base64 32)"
 ensure_secret "ENCRYPTION_KEY"  "$(openssl rand -hex 32)"
+ensure_secret "PUBLIC_CONVERSATION_SECRET" "$(openssl rand -base64 32)"
+set_env "TRUST_PROXY_HEADERS" "1"
 
 # اعتبارنامه‌ی داشبورد ادمین (مسیر /admin) — فقط مالک تعیین‌شده
-set_env "ADMIN_OWNER_PHONE" "09128352271"
+set_env "ADMIN_OWNER_PHONE" "${ADMIN_OWNER_PHONE_INPUT}"
 ensure_secret "ADMIN_PASS" "$(openssl rand -hex 12)"
 ensure_secret "ADMIN_SESSION_SECRET" "$(openssl rand -base64 32)"
+ensure_secret "ADMIN_API_TOKEN" "$(openssl rand -hex 32)"
+ensure_secret "ADMIN_TOTP_SECRET" "$(openssl rand 20 | base32 | tr -d '=\n')"
 
 # ─── بک‌آپ شبانه‌ی دیتابیس (cron) ────────────────────────────────────────────
 echo "==> نصب زمان‌بندی بک‌آپ شبانه"
@@ -270,7 +280,7 @@ cat <<DONE
    • S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY → MinIO محلی (bucketها ساخته شد)
    • NEXTAUTH_URL / APP_URL / WIDGET_URL → ${APP_URL}
    • NEXTAUTH_SECRET / AUTH_SECRET / ENCRYPTION_KEY → ساخته شد
-   • ADMIN_OWNER_PHONE / ADMIN_PASS → اعتبارنامه‌ی اختصاصی میلاد برای /admin ساخته شد
+   • ADMIN_OWNER_PHONE / ADMIN_PASS → اعتبارنامه‌ی اختصاصی مالک برای /admin ساخته شد
    • بک‌آپ شبانه‌ی دیتابیس روی cron نصب شد (هر شب ۳ بامداد)
 
  ℹ️  شماره/پسورد ادمین را با این دستور ببین:

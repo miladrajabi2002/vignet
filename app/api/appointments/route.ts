@@ -10,6 +10,7 @@ import {
   appointmentCreateSchema,
   appointmentListQuerySchema,
 } from '@/lib/bookings/validation'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export async function GET(request: Request) {
   const user = await getCurrentUser()
@@ -46,6 +47,8 @@ function bookingErrorResponse(error: BookingError) {
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed)
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
   const parsed = appointmentCreateSchema.safeParse(
     await request.json().catch(() => null),
   )

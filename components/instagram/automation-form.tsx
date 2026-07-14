@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import {
         Loader2,
         X,
@@ -42,8 +43,7 @@ import {
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
-import { MediaUploader, type MediaItem } from '@/components/instagram/media-uploader'
-import { VoiceRecorder } from '@/components/instagram/voice-recorder'
+import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
 import {
         type Automation,
@@ -60,6 +60,17 @@ import {
         MATCH_MODE_DESC,
         newMessageId,
 } from '@/components/instagram/types'
+
+// These tools are only shown after the operator chooses a media/voice action.
+// Keep them out of the initial form chunk without removing any capability.
+const MediaUploader = dynamic(
+        () => import('@/components/instagram/media-uploader').then((module) => module.MediaUploader),
+        { loading: () => <div className="h-24 animate-pulse rounded-2xl bg-[var(--bg-muted)]" /> },
+)
+const VoiceRecorder = dynamic(
+        () => import('@/components/instagram/voice-recorder').then((module) => module.VoiceRecorder),
+        { loading: () => <div className="h-12 animate-pulse rounded-xl bg-[var(--bg-muted)]" /> },
+)
 
 // ── Internal flat form state ────────────────────────────────────────────
 type PostFilter = 'ANY' | 'SPECIFIC'

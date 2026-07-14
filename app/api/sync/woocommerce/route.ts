@@ -10,6 +10,7 @@ import {
 	type StoreIntegrationInput,
 } from '@/lib/integrations/woocommerce'
 import { handleWpContentWebhook } from '@/lib/integrations/wp-content'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +74,11 @@ export async function POST(req: Request) {
 	})
 	if (!integration) {
 		return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+	}
+	if (!(await checkWorkspaceActive(integration.workspaceId)).allowed) {
+		// Keep webhook delivery idempotent and quiet after expiry; no tenant data
+		// is mutated until the workspace is active again.
+		return NextResponse.json({ ok: true, skipped: 'PLAN_BLOCKED' })
 	}
 
 	// Read the raw body for HMAC verification. We clone the request so we can
@@ -148,6 +154,9 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
 	const user = await getCurrentUser()
 	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+		return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+	}
 
 	const { searchParams } = new URL(req.url)
 	const integrationId = searchParams.get('integrationId')

@@ -123,6 +123,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	const [leadPhone, setLeadPhone] = useState('')
 
 	const convIdRef = useRef<string | null>(null)
+	const convTokenRef = useRef<string | null>(null)
 	const leadRef = useRef<{ name: string; phone: string } | null>(null)
 	const rootRef = useRef<HTMLDivElement>(null)
 	const scrollerRef = useRef<HTMLDivElement>(null)
@@ -138,6 +139,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 		async function hydrate() {
 			try {
 				convIdRef.current = localStorage.getItem(convKey)
+				convTokenRef.current = localStorage.getItem(`${convKey}:token`)
 				const storedLead = localStorage.getItem(leadKey)
 				if (storedLead) leadRef.current = JSON.parse(storedLead)
 				const storedMsgs = localStorage.getItem(msgsKey)
@@ -146,11 +148,11 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 					if (Array.isArray(parsed)) setMessages(parsed.slice(-60))
 				}
 				// If we have a conversation but no local transcript, fetch from server.
-				if (convIdRef.current && !storedMsgs) {
+				if (convIdRef.current && convTokenRef.current && !storedMsgs) {
 					try {
 						const res = await fetch(
 							`/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convIdRef.current)}`,
-							{ headers: { Accept: 'application/json' } },
+							{ headers: { Accept: 'application/json', 'X-Vigent-Conversation-Token': convTokenRef.current } },
 						)
 						if (res.ok) {
 							const data = await res.json()
@@ -232,14 +234,15 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	useEffect(() => {
 		if (!hydrated) return
 		const convId = convIdRef.current
-		if (!convId) return
+		const convToken = convTokenRef.current
+		if (!convId || !convToken) return
 		let cancelled = false
 		const interval = setInterval(async () => {
 			if (cancelled || streaming) return
 			try {
 				const res = await fetch(
 					`/api/chat-link/${encodeURIComponent(slug)}/chat?conversationId=${encodeURIComponent(convId)}`,
-					{ headers: { Accept: 'application/json' } },
+					{ headers: { Accept: 'application/json', 'X-Vigent-Conversation-Token': convToken } },
 				)
 				if (!res.ok) return
 				const data = await res.json()
@@ -372,6 +375,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 					body: JSON.stringify({
 						message,
 						conversationId: convIdRef.current,
+						conversationToken: convTokenRef.current,
 						...(isFirst && leadRef.current
 							? {
 									visitorName: leadRef.current.name || undefined,
@@ -388,6 +392,11 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						{ id: nextId(), role: 'error', text: errorText(err?.error) },
 					])
 					return
+				}
+				const issuedToken = res.headers.get('x-vigent-conversation-token')
+				if (issuedToken) {
+					convTokenRef.current = issuedToken
+					try { localStorage.setItem(`${convKey}:token`, issuedToken) } catch {}
 				}
 
 				const reader = res.body.getReader()
@@ -455,9 +464,11 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 
 	const reset = useCallback(() => {
 		convIdRef.current = null
+		convTokenRef.current = null
 		setMessages([])
 		try {
 			localStorage.removeItem(convKey)
+			localStorage.removeItem(`${convKey}:token`)
 			localStorage.removeItem(msgsKey)
 		} catch {}
 	}, [convKey, msgsKey])

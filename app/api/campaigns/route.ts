@@ -8,6 +8,7 @@ import {
   safeAudienceSnapshot,
 } from '@/lib/campaigns/audience'
 import { rateLimit } from '@/lib/ratelimit'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -42,6 +43,9 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
   if (!(await rateLimit(`campaign-create:${user.workspaceId}`, 5, 60))) {
     return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   }

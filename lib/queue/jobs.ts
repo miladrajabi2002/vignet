@@ -30,7 +30,7 @@ async function getQueue(name: string): Promise<Queue> {
  * queue is disabled or unavailable (so dev works without a running worker).
  */
 export async function dispatchIngestion(data: IngestionJobData): Promise<void> {
-  if (isQueueDisabled()) return runInlineIngestion(data)
+  if (isQueueDisabled()) return await runInlineIngestion(data)
   try {
     const q = await getQueue(QUEUE_NAMES.ingestion)
     await q.add('ingest', data, {
@@ -39,8 +39,7 @@ export async function dispatchIngestion(data: IngestionJobData): Promise<void> {
       attempts: 2,
     })
   } catch (e) {
-    console.warn('[queue] ingestion enqueue failed, running inline:', e)
-    return runInlineIngestion(data)
+    return handleEnqueueFailure('ingestion', e, () => runInlineIngestion(data))
   }
 }
 
@@ -48,7 +47,7 @@ export async function dispatchIngestion(data: IngestionJobData): Promise<void> {
 export async function dispatchProductEmbed(
   data: ProductEmbedJobData,
 ): Promise<void> {
-  if (isQueueDisabled()) return runInlineProductEmbed(data)
+  if (isQueueDisabled()) return await runInlineProductEmbed(data)
   try {
     const q = await getQueue(QUEUE_NAMES.productEmbed)
     await q.add('embed', data, {
@@ -57,14 +56,13 @@ export async function dispatchProductEmbed(
       attempts: 2,
     })
   } catch (e) {
-    console.warn('[queue] product-embed enqueue failed, running inline:', e)
-    return runInlineProductEmbed(data)
+    return handleEnqueueFailure('product-embed', e, () => runInlineProductEmbed(data))
   }
 }
 
 /** Enqueue a conversation-summary job. Falls back to inline processing. */
 export async function dispatchSummary(data: SummaryJobData): Promise<void> {
-  if (isQueueDisabled()) return runInlineSummary(data)
+  if (isQueueDisabled()) return await runInlineSummary(data)
   try {
     const q = await getQueue(QUEUE_NAMES.conversationSummary)
     await q.add('summary', data, {
@@ -73,8 +71,7 @@ export async function dispatchSummary(data: SummaryJobData): Promise<void> {
       attempts: 2,
     })
   } catch (e) {
-    console.warn('[queue] summary enqueue failed, running inline:', e)
-    return runInlineSummary(data)
+    return handleEnqueueFailure('summary', e, () => runInlineSummary(data))
   }
 }
 
@@ -82,7 +79,7 @@ export async function dispatchSummary(data: SummaryJobData): Promise<void> {
 export async function dispatchNotification(
   data: NotificationJobData,
 ): Promise<void> {
-  if (isQueueDisabled()) return runInlineNotification(data)
+  if (isQueueDisabled()) return await runInlineNotification(data)
   try {
     const q = await getQueue(QUEUE_NAMES.notifications)
     await q.add('notify', data, {
@@ -91,14 +88,13 @@ export async function dispatchNotification(
       attempts: 3,
     })
   } catch (e) {
-    console.warn('[queue] notification enqueue failed, running inline:', e)
-    return runInlineNotification(data)
+    return handleEnqueueFailure('notification', e, () => runInlineNotification(data))
   }
 }
 
 /** Queue an explicitly-confirmed campaign. Creation/preview never call this. */
 export async function dispatchCampaign(data: CampaignJobData): Promise<void> {
-  if (isQueueDisabled()) return runInlineCampaign(data)
+  if (isQueueDisabled()) return await runInlineCampaign(data)
   try {
     const q = await getQueue(QUEUE_NAMES.campaigns)
     await q.add('campaign', data, {
@@ -112,49 +108,33 @@ export async function dispatchCampaign(data: CampaignJobData): Promise<void> {
       backoff: { type: 'exponential', delay: 2_000 },
     })
   } catch (e) {
-    console.warn('[queue] campaign enqueue failed, running inline:', e)
-    return runInlineCampaign(data)
+    return handleEnqueueFailure('campaign', e, () => runInlineCampaign(data), true)
   }
 }
 
-function runInlineIngestion(data: IngestionJobData): void {
-  void import('@/lib/knowledge/ingest').then(({ processIngestion }) =>
-    processIngestion(data).catch((e) =>
-      console.error('[queue] inline ingestion failed:', e),
-    ),
-  )
+async function runInlineIngestion(data: IngestionJobData): Promise<void> {
+  const { processIngestion } = await import('@/lib/knowledge/ingest')
+  await processIngestion(data)
 }
 
-function runInlineProductEmbed(data: ProductEmbedJobData): void {
-  void import('@/lib/products/catalog').then(({ processProductEmbed }) =>
-    processProductEmbed(data).catch((e) =>
-      console.error('[queue] inline product-embed failed:', e),
-    ),
-  )
+async function runInlineProductEmbed(data: ProductEmbedJobData): Promise<void> {
+  const { processProductEmbed } = await import('@/lib/products/catalog')
+  await processProductEmbed(data)
 }
 
-function runInlineSummary(data: SummaryJobData): void {
-  void import('@/lib/conversations/summary').then(({ processSummary }) =>
-    processSummary(data).catch((e) =>
-      console.error('[queue] inline summary failed:', e),
-    ),
-  )
+async function runInlineSummary(data: SummaryJobData): Promise<void> {
+  const { processSummary } = await import('@/lib/conversations/summary')
+  await processSummary(data)
 }
 
-function runInlineNotification(data: NotificationJobData): void {
-  void import('@/lib/notifications/notify').then(({ processNotification }) =>
-    processNotification(data).catch((e) =>
-      console.error('[queue] inline notification failed:', e),
-    ),
-  )
+async function runInlineNotification(data: NotificationJobData): Promise<void> {
+  const { processNotification } = await import('@/lib/notifications/notify')
+  await processNotification(data)
 }
 
-function runInlineCampaign(data: CampaignJobData): void {
-  void import('@/lib/campaigns/process').then(({ processCampaign }) =>
-    processCampaign(data).catch((e) =>
-      console.error('[queue] inline campaign failed:', e),
-    ),
-  )
+async function runInlineCampaign(data: CampaignJobData): Promise<void> {
+  const { processCampaign } = await import('@/lib/campaigns/process')
+  await processCampaign(data)
 }
 
 /**
@@ -164,7 +144,7 @@ function runInlineCampaign(data: CampaignJobData): void {
  * queue is disabled/unavailable so dev works without a worker.
  */
 export async function dispatchInbound(data: InboundMessageJobData): Promise<void> {
-  if (isQueueDisabled()) return runInlineInbound(data)
+  if (isQueueDisabled()) return await runInlineInbound(data)
   try {
     const q = await getQueue(QUEUE_NAMES.inboundMessage)
     await q.add('inbound', data, {
@@ -173,17 +153,29 @@ export async function dispatchInbound(data: InboundMessageJobData): Promise<void
       attempts: 2,
     })
   } catch (e) {
-    console.warn('[queue] inbound enqueue failed, running inline:', e)
-    return runInlineInbound(data)
+    return handleEnqueueFailure('inbound', e, () => runInlineInbound(data), true)
   }
 }
 
-function runInlineInbound(data: InboundMessageJobData): void {
-  void import('@/lib/channels/handler').then(({ handleInbound }) =>
-    handleInbound(
-      data.type as Parameters<typeof handleInbound>[0],
-      data.token,
-      data.body,
-    ).catch((e) => console.error('[queue] inline inbound failed:', e)),
+async function runInlineInbound(data: InboundMessageJobData): Promise<void> {
+  const { handleInbound } = await import('@/lib/channels/handler')
+  await handleInbound(
+    data.type as Parameters<typeof handleInbound>[0],
+    data.token,
+    data.body,
   )
+}
+
+async function handleEnqueueFailure(
+  name: string,
+  error: unknown,
+  runInline: () => Promise<void>,
+  queueRequired = false,
+): Promise<void> {
+  if (process.env.NODE_ENV === 'production' && queueRequired) {
+    console.error(`[queue] ${name} enqueue failed; refusing non-durable fallback:`, error)
+    throw error
+  }
+  console.warn(`[queue] ${name} enqueue failed; awaiting inline fallback:`, error)
+  await runInline()
 }

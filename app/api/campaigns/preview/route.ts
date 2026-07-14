@@ -5,10 +5,14 @@ import {
   resolveCampaignAudience,
 } from '@/lib/campaigns/audience'
 import { rateLimit } from '@/lib/ratelimit'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
   if (!(await rateLimit(`campaign-preview:${user.workspaceId}`, 12, 60))) {
     return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   }

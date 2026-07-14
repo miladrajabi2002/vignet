@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/crypto'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 /**
  * Single store integration CRUD (F2).
@@ -92,6 +93,9 @@ export async function PATCH(req: Request, props: Params) {
     const params = await props.params;
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+    if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+        return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+    }
 
     const owned = await ownIntegration(user.workspaceId, params.integrationId)
     if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
@@ -137,7 +141,6 @@ export async function DELETE(_req: Request, props: Params) {
     const params = await props.params;
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-
     const owned = await ownIntegration(user.workspaceId, params.integrationId)
     if (!owned) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 

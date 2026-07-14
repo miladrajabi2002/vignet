@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { isAdminAuthed } from '@/lib/admin/auth'
+import { ADMIN_OWNER_NAME, isAdminAuthed } from '@/lib/admin/auth'
 import { rateLimit } from '@/lib/ratelimit'
 import { chatCompletion, getPlatformOpenRouterKey, type ChatMessage, type ChatTool } from '@/lib/ai/openrouter'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
@@ -28,7 +28,7 @@ const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'find_workspace', description: 'Find a business/workspace and its owner by workspace name, owner name, phone or id.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'inspect_conversation', description: 'Inspect one conversation by exact conversation id.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'read_project_file', description: 'Read one safe non-secret source/config/documentation file from the deployed project. Never use for .env, secrets, credentials or node_modules.', parameters: { type: 'object', properties: { path: { type: 'string', description: 'Project-relative file path' } }, required: ['path'] } } },
-  { type: 'function', function: { name: 'propose_credit_adjustment', description: 'Create a confirmation preview to increase or decrease a workspace AI wallet. This never executes until Milad confirms in the UI.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, amountToman: { type: 'integer', minimum: 1 }, direction: { type: 'string', enum: ['increase', 'decrease'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'amountToman', 'direction', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_credit_adjustment', description: 'Create a confirmation preview to increase or decrease a workspace AI wallet. This never executes until the platform owner confirms in the UI.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, amountToman: { type: 'integer', minimum: 1 }, direction: { type: 'string', enum: ['increase', 'decrease'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'amountToman', 'direction', 'reason'] } } },
   { type: 'function', function: { name: 'propose_resolve_conversation', description: 'Create a confirmation preview to mark a conversation resolved and clear operator handoff state.', parameters: { type: 'object', properties: { conversationId: { type: 'string' }, reason: { type: 'string' } }, required: ['conversationId', 'reason'] } } },
 ]
 
@@ -131,7 +131,7 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
 
 export async function POST(request: Request) {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!(await rateLimit('admin-vigento:milad', 18, 60))) return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
+  if (!(await rateLimit('admin-vigento:owner', 18, 60))) return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   const parsed = inputSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     const alias = applyPlatformModelPolicy('fast', config)
     const model = resolveModelId(alias, config.providerModels)
     const messages: ChatMessage[] = [
-      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for Milad (phone 09128352271). Reply in concise Persian. Use tools for every factual platform/database/file claim; never invent values. You may read aggregates, find workspaces, inspect a conversation and read one safe project file. Mutations are strictly allow-listed: only propose_credit_adjustment and propose_resolve_conversation, and both MUST return a confirmation card; never claim a mutation executed. Secrets and .env are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
+      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise Persian. Use tools for every factual platform/database/file claim; never invent values. You may read aggregates, find workspaces, inspect a conversation and read one safe project file. Mutations are strictly allow-listed: only propose_credit_adjustment and propose_resolve_conversation, and both MUST return a confirmation card; never claim a mutation executed. Secrets and .env are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
       { role: 'user', content: parsed.data.message },
     ]
     const first = await chatCompletion({ model, messages, tools: TOOLS, temperature: 0.1, maxTokens: 700 })

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { notifyAppointmentCancellation } from '@/lib/bookings/service'
 import { appointmentUpdateSchema } from '@/lib/bookings/validation'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Props = { params: Promise<{ appointmentId: string }> }
 
@@ -30,6 +31,9 @@ export async function PATCH(request: Request, props: Props) {
       { error: 'INVALID', issues: parsed.error.flatten() },
       { status: 400 },
     )
+  }
+  if (parsed.data.status !== 'CANCELLED' && !(await checkWorkspaceActive(user.workspaceId)).allowed) {
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
   }
 
   const existing = await prisma.appointment.findFirst({

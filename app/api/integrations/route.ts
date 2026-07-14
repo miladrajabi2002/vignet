@@ -5,6 +5,8 @@ import type { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/crypto'
+import { assertSafeHttpUrl, UnsafeHttpTargetError } from '@/lib/security/safe-http'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 /**
  * Store integration list + create (F2).
@@ -104,6 +106,9 @@ export async function GET() {
 export async function POST(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
+                return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+        }
 
         const json = await req.json().catch(() => null)
         const parsed = createSchema.safeParse(json)
@@ -115,6 +120,12 @@ export async function POST(req: Request) {
         }
 
         const { type, storeUrl, credentials, pollIntervalMinutes } = parsed.data
+        try {
+                await assertSafeHttpUrl(storeUrl)
+        } catch (error) {
+                if (!(error instanceof UnsafeHttpTargetError)) console.error('[integrations] URL validation failed:', error)
+                return NextResponse.json({ error: 'UNSAFE_STORE_URL' }, { status: 400 })
+        }
         const webhookSecret = parsed.data.webhookSecret ?? crypto.randomUUID()
 
         // Encrypt sensitive credential fields before persisting.

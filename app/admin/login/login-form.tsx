@@ -21,7 +21,7 @@ function SubmitButton() {
   )
 }
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ totpEnabled }: { totpEnabled: boolean }) {
   const [state, formAction] = useFormState(adminLogin, initial)
 
   return (
@@ -50,7 +50,7 @@ export function AdminLoginForm() {
               <ShieldCheck className="h-7 w-7" />
             </div>
             <h1 className="mt-5 text-xl font-bold text-black">ورود مالک پلتفرم</h1>
-            <p className="mt-1.5 text-xs text-black/45">دسترسی اختصاصی میلاد</p>
+            <p className="mt-1.5 text-xs text-black/45">دسترسی امن مدیریت پلتفرم</p>
           </div>
 
           <form action={formAction} className="mt-7 space-y-3">
@@ -60,7 +60,7 @@ export function AdminLoginForm() {
                 name="username"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder="۰۹۱۲۸۳۵۲۲۷۱"
+                placeholder="شماره موبایل مدیر"
                 className="admin-input bg-[#f8f8f6] text-sm"
               />
             </div>
@@ -74,6 +74,20 @@ export function AdminLoginForm() {
                 className="admin-input bg-[#f8f8f6] text-sm"
               />
             </div>
+            {totpEnabled ? (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-zinc-600">کد یک‌بارمصرف امنیتی</label>
+                <input
+                  name="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="••••••"
+                  className="admin-input bg-[#f8f8f6] text-sm"
+                />
+              </div>
+            ) : null}
             {state.error ? (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
             ) : null}

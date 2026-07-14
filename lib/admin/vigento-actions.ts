@@ -90,7 +90,7 @@ export async function executeAdminAction(token: string) {
       })
       await tx.adminAuditLog.create({
         data: {
-          adminPhone: ADMIN_OWNER_PHONE || '09128352271',
+          adminPhone: ADMIN_OWNER_PHONE || 'unconfigured',
           action: payload.kind,
           targetType: 'Workspace',
           targetId: payload.workspaceId,
@@ -127,7 +127,7 @@ export async function executeAdminAction(token: string) {
     })
     await tx.adminAuditLog.create({
       data: {
-        adminPhone: ADMIN_OWNER_PHONE || '09128352271',
+        adminPhone: ADMIN_OWNER_PHONE || 'unconfigured',
         action: payload.kind,
         targetType: 'Conversation',
         targetId: payload.conversationId,

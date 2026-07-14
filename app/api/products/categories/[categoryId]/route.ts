@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { categoryUpdateSchema } from '@/lib/validations/product'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ categoryId: string }> }
 
@@ -9,6 +10,8 @@ export async function PATCH(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await checkWorkspaceActive(user.workspaceId)).allowed)
+    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
 
   const owned = await prisma.productCategory.findFirst({
     where: { id: params.categoryId, workspaceId: user.workspaceId },

@@ -56,20 +56,22 @@
                                 localStorage.removeItem(CONV_STORAGE_KEY)
                                 return null
                         }
-                        return parsed.id
+                        return { id: parsed.id, token: typeof parsed.token === 'string' ? parsed.token : null }
                 } catch (e) {
                         return null
                 }
         }
-        function saveStoredConv(id) {
+        function saveStoredConv(id, token) {
                 try {
-                        localStorage.setItem(CONV_STORAGE_KEY, JSON.stringify({ id: id, ts: Date.now() }))
+                        localStorage.setItem(CONV_STORAGE_KEY, JSON.stringify({ id: id, token: token, ts: Date.now() }))
                 } catch (e) {
                         /* localStorage may be unavailable (private mode); fail silently */
                 }
         }
 
-        var conversationId = loadStoredConv()
+        var storedConversation = loadStoredConv()
+        var conversationId = storedConversation && storedConversation.id
+        var conversationToken = storedConversation && storedConversation.token
         var isOpen = false
         // Operator-message polling timer. Started when the panel opens,
         // cleared when it closes. Polls GET history for new messages from
@@ -1304,7 +1306,10 @@
                 }
 
                 var payload = { message: text }
-                if (conversationId) payload.conversationId = conversationId
+                if (conversationId && conversationToken) {
+                        payload.conversationId = conversationId
+                        payload.conversationToken = conversationToken
+                }
                 // Attach the lead-form identity to the first message so the server can
                 // create/attach the CRM contact and greet the visitor by name.
                 if (!visitorSent && (visitorName || visitorPhone)) {
@@ -1330,6 +1335,8 @@
                                                         setStreaming(false)
                                                 })
                                 }
+                                var issuedToken = res.headers.get('x-vigent-conversation-token')
+                                if (issuedToken) conversationToken = issuedToken
                                 var reader = res.body.getReader()
                                 var decoder = new TextDecoder()
                                 var buf = ''
@@ -1351,7 +1358,7 @@
                                                                 if (evt.type === 'meta') {
                                                                         if (evt.conversationId && evt.conversationId !== conversationId) {
                                                                                 conversationId = evt.conversationId
-                                                                                saveStoredConv(conversationId)
+                                                                                saveStoredConv(conversationId, conversationToken)
                                                                         }
                                                                 } else if (evt.type === 'delta') {
                                                                         raw += evt.text
@@ -1413,7 +1420,7 @@
          * Only runs once per page load (guarded by `historyLoaded`).
          */
         function loadHistory() {
-                if (historyLoaded || !conversationId) return
+                if (historyLoaded || !conversationId || !conversationToken) return
                 historyLoaded = true
                 fetch(
                         base +
@@ -1423,7 +1430,10 @@
                                 encodeURIComponent(conversationId),
                         {
                                 method: 'GET',
-                                headers: { Accept: 'application/json' },
+                                headers: {
+                                        Accept: 'application/json',
+                                        'X-Vigent-Conversation-Token': conversationToken,
+                                },
                         },
                 )
                         .then(function (r) {
@@ -1468,14 +1478,20 @@
                 // Skip while the tab is hidden — saves battery/mobile data; the
                 // visibilitychange listener below runs a catch-up poll on return.
                 if (document.hidden) return
-                if (!conversationId || streaming) return
+                if (!conversationId || !conversationToken || streaming) return
                 fetch(
                         base +
                                 '/api/widget/' +
                                 agentId +
                                 '/chat?conversationId=' +
                                 encodeURIComponent(conversationId),
-                        { method: 'GET', headers: { Accept: 'application/json' } },
+                        {
+                                method: 'GET',
+                                headers: {
+                                        Accept: 'application/json',
+                                        'X-Vigent-Conversation-Token': conversationToken,
+                                },
+                        },
                 )
                         .then(function (r) {
                                 return r.ok ? r.json() : null
