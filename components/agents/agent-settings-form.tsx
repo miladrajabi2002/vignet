@@ -13,6 +13,7 @@ import {
         Sparkles,
         MessageSquare,
         ShieldAlert,
+        AlertCircle,
         HelpCircle,
         Type,
         ListChecks,
@@ -200,12 +201,31 @@ export function AgentSettingsForm({
                 }
         }
 
+        const [deleteOpen, setDeleteOpen] = useState(false)
+        const [deleting, setDeleting] = useState(false)
+        const [deleteError, setDeleteError] = useState<string | null>(null)
+
+        // Focus-trap for the delete modal.
+        useEffect(() => {
+                if (!deleteOpen) return
+                function onKey(e: globalThis.KeyboardEvent) {
+                        if (e.key === 'Escape') setDeleteOpen(false)
+                }
+                window.addEventListener('keydown', onKey)
+                return () => window.removeEventListener('keydown', onKey)
+        }, [deleteOpen])
+
         async function remove() {
-                if (!confirm(tf('deleteConfirm'))) return
-                const res = await fetch(`/api/agents/${agent.id}`, { method: 'DELETE' })
-                if (res.ok) {
+                setDeleting(true)
+                setDeleteError(null)
+                try {
+                        const res = await fetch(`/api/agents/${agent.id}`, { method: 'DELETE' })
+                        if (!res.ok) throw new Error('DELETE_FAILED')
                         router.push('/agents')
                         router.refresh()
+                } catch {
+                        setDeleteError(tf('deleteError'))
+                        setDeleting(false)
                 }
         }
 
@@ -505,15 +525,106 @@ export function AgentSettingsForm({
                                 </div>
                         </div>
 
-                        <div className="rounded-[1.5rem] border border-danger/20 bg-danger/[0.03] p-5 sm:p-6">
-                                <button
-                                        onClick={remove}
-                                        className="inline-flex items-center gap-2 text-sm text-danger transition-opacity hover:opacity-80"
-                                >
-                                        <Trash2 className="h-4 w-4" />
-                                        {tf('delete')}
-                                </button>
+                        {/* Danger zone — delete agent */}
+                        <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+                                <div className="flex items-start gap-3">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger/10 text-danger">
+                                                <Trash2 className="h-4 w-4" />
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold text-[var(--text-primary)]">
+                                                        {tf('delete')}
+                                                </p>
+                                                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                                                        {tf('deleteHint') || tf('deleteConfirm')}
+                                                </p>
+                                        </div>
+                                        <button
+                                                type="button"
+                                                onClick={() => setDeleteOpen(true)}
+                                                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/5 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
+                                        >
+                                                <Trash2 className="h-4 w-4" />
+                                                {tf('delete')}
+                                        </button>
+                                </div>
                         </div>
+
+                        {/* Delete confirmation modal */}
+                        {deleteOpen && (
+                                <div
+                                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                        role="dialog"
+                                        aria-modal="true"
+                                        aria-label={tf('delete')}
+                                >
+                                        <div
+                                                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                                                onClick={() => !deleting && setDeleteOpen(false)}
+                                                aria-hidden="true"
+                                        />
+                                        <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl">
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-danger/5 px-5 py-4">
+                                                        <div className="flex items-center gap-2.5">
+                                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger/15 text-danger">
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                </div>
+                                                                <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                                                                        {tf('delete')}
+                                                                </h3>
+                                                        </div>
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => !deleting && setDeleteOpen(false)}
+                                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                aria-label="بستن"
+                                                                        >
+                                                                                <X className="h-4 w-4" />
+                                                                        </button>
+                                                </div>
+                                                {/* Body */}
+                                                <div className="px-5 py-5">
+                                                        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                                                                {tf('deleteConfirm')}
+                                                        </p>
+                                                        <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
+                                {tf('deletePermanentHint') || 'این عمل قابل بازگشت نیست.'}
+                                                        </p>
+                                                        {deleteError && (
+                                                                <div className="mt-3 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+                                                                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                                                        {deleteError}
+                                                                </div>
+                                                        )}
+                                                </div>
+                                                {/* Footer */}
+                                                <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
+                                                        <button
+                                                                type="button"
+                                                                onClick={() => !deleting && setDeleteOpen(false)}
+                                                                disabled={deleting}
+                                                                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                                                        >
+                                                                {tf('cancel') || 'انصراف'}
+                                                        </button>
+                                                        <button
+                                                                type="button"
+                                                                onClick={remove}
+                                                                disabled={deleting}
+                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                                                        >
+                                                                {deleting ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                )}
+                                                                {tf('delete')}
+                                                        </button>
+                                                </div>
+                                        </div>
+                                </div>
+                        )}
                 </div>
         )
 }

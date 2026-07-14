@@ -186,16 +186,16 @@ export function ConversationThread({
                                         return (
                                                 <div
                                                         key={m.id}
-                                                        className={cn('flex', isUser ? 'justify-start' : 'justify-end')}
+                                                        className={cn('flex', isUser ? 'justify-end' : 'justify-start')}
                                                 >
                                                         <div
                                                                 className={cn(
                                                                         'flex max-w-[82%] flex-col',
-                                                                        isUser ? 'items-start' : 'items-end',
+                                                                        isUser ? 'items-end' : 'items-start',
                                                                 )}
                                                         >
                                                                 <ConversationBubble
-                                                                        side={isUser ? 'start' : 'end'}
+                                                                        side={isUser ? 'end' : 'start'}
                                                                         tone={isUser ? 'muted' : 'inverse'}
                                                                         className="max-w-full py-2"
                                                                 >

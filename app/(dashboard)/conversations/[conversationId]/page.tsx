@@ -182,7 +182,7 @@ export default async function ConversationThreadPage(props: {
                                 )}
                                 <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                                {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate font-bold text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate font-bold text-[var(--text-primary)]">{who}</span>}
+                                                {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">{who}</span>}
                                                 <ChannelBadge type={conversation.channel} />
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">

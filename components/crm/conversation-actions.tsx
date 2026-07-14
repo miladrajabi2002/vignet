@@ -158,7 +158,7 @@ export function ConversationActions({
   const resolved = status === 'RESOLVED'
 
   return (
-    <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+    <div className="spatial-surface space-y-3 rounded-[1.5rem] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* CSAT rating */}
         <div className="flex items-center gap-2">

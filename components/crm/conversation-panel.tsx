@@ -121,9 +121,9 @@ export function ConversationPanel({
                         {/* Alert banner */}
                         <div
                                 className={cn(
-                                        'rounded-2xl border bg-[var(--bg-surface)] p-4',
+                                        'spatial-surface rounded-[1.5rem] p-5',
                                         resolved
-                                                ? 'border-[var(--border-default)] opacity-70'
+                                                ? 'opacity-70'
                                                 : 'border-[var(--amber)] bg-[var(--white-05)]',
                                 )}
                         >
@@ -166,7 +166,7 @@ export function ConversationPanel({
                         </div>
 
                         {/* Customer snapshot card */}
-                        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                        <div className="spatial-surface rounded-[1.5rem] p-5">
                                 <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">
                                         {t('customerSnapshot')}
                                 </div>
@@ -207,7 +207,7 @@ export function ConversationPanel({
 
                         {/* "Go to specialist" / connected channels */}
                         {activeChannels.length > 0 && (
-                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                                <div className="spatial-surface rounded-[1.5rem] p-5">
                                         <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
                                                 {t('goToSpecialist')}
                                         </div>

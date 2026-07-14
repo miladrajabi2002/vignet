@@ -126,7 +126,7 @@ export default async function ContactDetailPage(
       </Link>
 
       {/* Header */}
-      <div className="spatial-surface flex items-center gap-4 rounded-[1.75rem] p-5 sm:p-7">
+      <div className="spatial-surface flex items-center gap-4 rounded-[1.5rem] p-5 sm:p-6">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
