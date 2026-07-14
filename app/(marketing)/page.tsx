@@ -1,10 +1,9 @@
 import dynamicImport from 'next/dynamic'
+import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
-import { ValueModelSection } from '@/components/marketing/value-model-section'
 import { DemoSection } from '@/components/marketing/demo-section'
-import { UseCasesSection } from '@/components/marketing/use-cases-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
 
@@ -16,9 +15,6 @@ const FeaturesSection = dynamicImport(() =>
 )
 const ChannelsSection = dynamicImport(() =>
 	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
-)
-const HowItWorks = dynamicImport(() =>
-	import('@/components/marketing/how-it-works').then((m) => m.HowItWorks),
 )
 const VigentoSection = dynamicImport(() =>
 	import('@/components/marketing/vigento-section').then((m) => m.VigentoSection),
@@ -33,13 +29,31 @@ const CtaSection = dynamicImport(() =>
 	import('@/components/marketing/cta-section').then((m) => m.CtaSection),
 )
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
+
+export const metadata: Metadata = {
+	title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
+	description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، واتساپ، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
+	keywords: ['ایجنت هوش مصنوعی فارسی', 'اتوماسیون اینستاگرام', 'چت بات فارسی', 'CRM چندکاناله', 'پاسخگویی خودکار مشتری', 'رزرو هوشمند'],
+	alternates: { canonical: SITE_URL },
+	openGraph: {
+		type: 'website',
+		url: SITE_URL,
+		title: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
+		description: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
+		description: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
+	},
+}
 
 export default async function HomePage() {
 	const t = await getTranslations('marketing.faq')
 	const faqItems = (t.raw('items') as { q: string; a: string }[]) ?? []
 
-	// Structured data: Organization + SoftwareApplication + FAQPage — helps
+	// Structured data: Organization + WebSite + SoftwareApplication + FAQPage — helps
 	// Google show the brand card, product info and FAQ rich results.
 	const jsonLd = [
 		{
@@ -52,12 +66,28 @@ export default async function HomePage() {
 		},
 		{
 			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			name: 'Vigent',
+			alternateName: 'ویجنت',
+			url: SITE_URL,
+			inLanguage: ['fa-IR', 'en'],
+		},
+		{
+			'@context': 'https://schema.org',
 			'@type': 'SoftwareApplication',
 			name: 'Vigent',
 			applicationCategory: 'BusinessApplication',
 			operatingSystem: 'Web',
 			description:
 				'پلتفرم ایجنت هوشمند برای کسب‌وکارها — فروش، پشتیبانی و پیگیری سفارش در سایت، تلگرام، واتساپ و اینستاگرام',
+			featureList: [
+				'پاسخ‌گویی هوشمند فارسی بر پایه دانش کسب‌وکار',
+				'صندوق گفتگو و CRM چندکاناله',
+				'اتوماسیون دایرکت، کامنت و استوری اینستاگرام',
+				'کاتالوگ محصول، ووکامرس و پیشنهاد خرید',
+				'رزرو و نوبت‌دهی بدون تداخل',
+				'تحویل گفتگو به اپراتور همراه خلاصه',
+			],
 			offers: {
 				'@type': 'Offer',
 				price: '0',
@@ -89,12 +119,9 @@ export default async function HomePage() {
 			/>
 			<Hero />
 			<SocialProof />
-			<ValueModelSection />
-			<ChannelsSection />
 			<DemoSection />
-			<UseCasesSection />
 			<FeaturesSection />
-			<HowItWorks />
+			<ChannelsSection />
 			<VigentoSection />
 			<PricingSection />
 			<FaqSection />
