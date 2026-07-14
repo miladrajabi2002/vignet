@@ -811,7 +811,7 @@ export function AutomationForm({
                                 {/* ── RIGHT: sticky live iPhone preview ──────────────────── */}
                                 <div className="hidden lg:block">
                                         <div className="sticky top-24">
-                                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6">
+                                                <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
                                                         <div className="mb-4 flex items-center justify-between">
                                                                 <div>
                                                                         <p className="text-xs font-medium text-[var(--text-secondary)]">پیش‌نمایش زنده</p>
@@ -862,7 +862,7 @@ export function AutomationForm({
 function MobilePreviewToggle(props: React.ComponentProps<typeof IphonePreview>) {
         const [open, setOpen] = useState(false)
         return (
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+                <div className="spatial-surface rounded-[1.5rem] p-4">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}

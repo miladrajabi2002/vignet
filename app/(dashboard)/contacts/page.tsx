@@ -1,4 +1,4 @@
-import { getLocale } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import { Users, UserPlus, GitMerge, Tag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -11,6 +11,7 @@ import { DashboardDonut } from '@/components/dashboard/donut'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const PAGE_SIZE = 100
 
@@ -36,6 +37,7 @@ export default async function ContactsPage(
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const isFa = locale === 'fa'
+  const tc = await getTranslations('contacts')
 
   const page = Math.max(1, Number(searchParams.page) || 1)
 
@@ -146,6 +148,12 @@ export default async function ContactsPage(
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        icon={Users}
+        title={tc('title')}
+        subtitle={tc('subtitle')}
+      />
+
       {/* ─── Pipeline + new-customer trend ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <DashboardPanel

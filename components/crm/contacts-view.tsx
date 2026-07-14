@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils'
 import { CampaignComposer } from '@/components/crm/campaign-composer'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 import { MaterialSelect } from '@/components/ui/material-select'
-import { PageHeader } from '@/components/dashboard/page-header'
 
 export interface ContactRow {
         id: string
@@ -145,40 +144,35 @@ export function ContactsView({
 
         return (
                 <div className="mx-auto max-w-6xl space-y-6">
-                        <PageHeader
-                                icon={Users}
-                                title={t('title')}
-                                subtitle={t('subtitle')}
-                                actions={
-                                        <>
-                                                <button
-                                                        type="button"
-                                                        onClick={() => setCampaignOpen(true)}
-                                                        disabled={filtered.length === 0}
-                                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
-                                                >
-                                                        <Megaphone className="h-4 w-4" />
-                                                        {locale === 'fa'
-                                                                ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
-                                                                : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
-                                                </button>
-                                                <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
-                                                        <ToggleBtn
-                                                                active={view === 'list'}
-                                                                onClick={() => setView('list')}
-                                                                icon={<LayoutList className="h-4 w-4" />}
-                                                                label={t('list')}
-                                                        />
-                                                        <ToggleBtn
-                                                                active={view === 'pipeline'}
-                                                                onClick={() => setView('pipeline')}
-                                                                icon={<Columns3 className="h-4 w-4" />}
-                                                                label={t('pipeline')}
-                                                        />
-                                                </div>
-                                        </>
-                                }
-                        />
+                        {/* Action bar — campaign + view toggle (title is rendered by the
+                            parent page's PageHeader, so we only keep the actions here). */}
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                        type="button"
+                                        onClick={() => setCampaignOpen(true)}
+                                        disabled={filtered.length === 0}
+                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
+                                >
+                                        <Megaphone className="h-4 w-4" />
+                                        {locale === 'fa'
+                                                ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
+                                                : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
+                                </button>
+                                <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
+                                        <ToggleBtn
+                                                active={view === 'list'}
+                                                onClick={() => setView('list')}
+                                                icon={<LayoutList className="h-4 w-4" />}
+                                                label={t('list')}
+                                        />
+                                        <ToggleBtn
+                                                active={view === 'pipeline'}
+                                                onClick={() => setView('pipeline')}
+                                                icon={<Columns3 className="h-4 w-4" />}
+                                                label={t('pipeline')}
+                                        />
+                                </div>
+                        </div>
 
                         <div className="spatial-surface grid gap-2 rounded-[1.5rem] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
                                 <div className="relative">
