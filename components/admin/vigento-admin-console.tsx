@@ -4,15 +4,11 @@ import { FormEvent, useState } from 'react'
 import {
   Bot,
   Check,
-  Database,
-  FileCode2,
   Loader2,
   Send,
   ShieldCheck,
   Sparkles,
-  Users,
   X,
-  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,11 +21,16 @@ const QUICK_PROMPTS = [
   'چند گفتگوی انتقال‌یافته نیاز به رسیدگی دارد؟',
 ]
 
-const NODES = [
-  { label: 'کاربران', icon: Users },
-  { label: 'دیتابیس', icon: Database },
-  { label: 'فایل‌ها', icon: FileCode2 },
-  { label: 'عملیات', icon: ShieldCheck },
+// ── Neural network node positions (relative to a 320×280 SVG viewBox) ────────
+// Central core = Vigento AI. 6 satellite nodes represent platform subsystems.
+const CORE = { x: 160, y: 140 }
+const SATELLITES = [
+  { id: 'users', label: 'کاربران', x: 50, y: 60 },
+  { id: 'convos', label: 'گفتگوها', x: 270, y: 60 },
+  { id: 'revenue', label: 'درآمد', x: 30, y: 140 },
+  { id: 'agents', label: 'ایجنت‌ها', x: 290, y: 140 },
+  { id: 'errors', label: 'خطاها', x: 50, y: 220 },
+  { id: 'ai', label: 'هوش مصنوعی', x: 270, y: 220 },
 ] as const
 
 export function VigentoAdminConsole() {
@@ -116,32 +117,29 @@ export function VigentoAdminConsole() {
   return (
     <section
       aria-labelledby="vigento-admin-title"
-      className="relative overflow-hidden rounded-[1.5rem] border border-black/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-900 text-white shadow-[0_26px_80px_-42px_rgba(0,0,0,.9)]"
+      className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-900 text-white shadow-[0_26px_80px_-42px_rgba(0,0,0,.9)]"
     >
-      {/* Animated ambient glow layers */}
+      {/* ═══════════════════════════════════════════════════════════════
+          Ambient glow layers
+         ═══════════════════════════════════════════════════════════════ */}
       <div
-        className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-violet-500/15 blur-[80px]"
+        className="pointer-events-none absolute -left-32 -top-32 h-72 w-72 rounded-full bg-violet-600/20 blur-[100px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-[80px]"
+        className="pointer-events-none absolute -bottom-32 -right-32 h-72 w-72 rounded-full bg-emerald-500/15 blur-[100px]"
         aria-hidden="true"
       />
-      {/* Subtle dot grid pattern */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
+        className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/5 blur-[120px]"
         aria-hidden="true"
       />
 
-      <div className="relative grid min-h-[400px] lg:grid-cols-[.85fr_1.15fr]">
+      <div className="relative grid min-h-[440px] lg:grid-cols-[1fr_1fr]">
         {/* ═══════════════════════════════════════════════════════════════
-            LEFT — Identity + animated node cluster
+            LEFT — Neural network visualization
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="relative flex flex-col justify-between overflow-hidden border-b border-white/8 p-6 sm:p-8 lg:border-b-0 lg:border-l">
+        <div className="relative flex flex-col overflow-hidden border-b border-white/8 p-6 sm:p-8 lg:border-b-0 lg:border-l">
           {/* Header */}
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/50 backdrop-blur-sm">
@@ -149,71 +147,279 @@ export function VigentoAdminConsole() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              آنلاین · هسته مالک پلتفرم
+              هسته مالک پلتفرم · آنلاین
             </div>
-            <h2 id="vigento-admin-title" className="mt-4 text-xl font-bold tracking-tight sm:text-2xl">
+            <h2 id="vigento-admin-title" className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
               Vigento AI
-              <span className="mr-2 font-normal text-white/40">| ویجنتوی ادمین</span>
             </h2>
-            <p className="mt-2 max-w-md text-xs leading-6 text-white/40">
-              مرکز فرمان میلاد برای فهم داده زنده و اجرای عملیات تأییدشونده
+            <p className="mt-1 text-sm text-white/40">ویجنتوی ادمین · مرکز فرمان</p>
+            <p className="mt-3 max-w-md text-xs leading-6 text-white/35">
+              همه‌چیز زیر دست Vigento AI است — کاربران، گفتگوها، درآمد، هوش مصنوعی و خطاها همگی به‌صورت زنده متصل و قابل کنترل.
             </p>
           </div>
 
-          {/* Animated node cluster — 4 nodes orbiting a central core */}
-          <div className="relative my-6 flex items-center justify-center lg:my-0">
-            <div className="relative h-48 w-48 sm:h-56 sm:w-56">
-              {/* Orbit rings */}
-              <div className="absolute inset-0 rounded-full border border-white/8" />
-              <div className="absolute inset-6 rounded-full border border-white/6" />
-              <div className="absolute inset-12 rounded-full border border-white/4" />
+          {/* ── SVG Neural Network Visualization ────────────────────── */}
+          <div className="relative my-4 flex flex-1 items-center justify-center">
+            <svg
+              viewBox="0 0 320 280"
+              className="h-full w-full max-h-[260px]"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* ── Connection lines (neural pathways) ─────────────────── */}
+              <defs>
+                {/* Gradient for connection lines */}
+                <linearGradient id="neural-line" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="rgba(139,92,246,0.5)" />
+                  <stop offset="50%" stopColor="rgba(16,185,129,0.4)" />
+                  <stop offset="100%" stopColor="rgba(59,130,246,0.3)" />
+                </linearGradient>
 
-              {/* Rotating glow ring */}
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'conic-gradient(from 0deg, transparent 0%, rgba(139,92,246,0.15) 25%, transparent 50%, rgba(16,185,129,0.12) 75%, transparent 100%)',
-                  animation: 'vigento-spin 8s linear infinite',
-                }}
-                aria-hidden="true"
-              />
+                {/* Glow filter for core */}
+                <filter id="core-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="6" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
 
-              {/* Center core badge */}
-              <div className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-[1.25rem] border border-white/12 bg-black/60 backdrop-blur-md sm:h-24 sm:w-24">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black sm:h-10 sm:w-10">
-                  <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
-                </span>
-                <p className="mt-1.5 text-[10px] font-bold tracking-wide sm:text-[11px]">MILAD CORE</p>
-              </div>
+                {/* Glow filter for nodes */}
+                <filter id="node-glow" x="-100%" y="-100%" width="300%" height="300%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
 
-              {/* 4 corner nodes */}
-              {NODES.map(({ label, icon: Icon }, index) => {
-                const positions = [
-                  'left-0 top-1/2 -translate-y-1/2',
-                  'right-0 top-1/2 -translate-y-1/2',
-                  'left-1/2 top-0 -translate-x-1/2',
-                  'left-1/2 bottom-0 -translate-x-1/2',
-                ]
+                {/* Pulsing animation for data flow along lines */}
+                <linearGradient id="pulse-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="rgba(16,185,129,0)" />
+                  <stop offset="40%" stopColor="rgba(16,185,129,0.8)" />
+                  <stop offset="60%" stopColor="rgba(16,185,129,0.8)" />
+                  <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+                </linearGradient>
+              </defs>
+
+              {/* Static connection lines from each satellite to core */}
+              {SATELLITES.map((sat) => (
+                <line
+                  key={`line-${sat.id}`}
+                  x1={sat.x}
+                  y1={sat.y}
+                  x2={CORE.x}
+                  y2={CORE.y}
+                  stroke="url(#neural-line)"
+                  strokeWidth="1"
+                  opacity="0.5"
+                />
+              ))}
+
+              {/* Cross-connections between adjacent satellites (neural mesh) */}
+              {SATELLITES.map((sat, i) => {
+                const next = SATELLITES[(i + 1) % SATELLITES.length]
                 return (
-                  <div
-                    key={label}
-                    className={cn(
-                      'absolute flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/8 px-2.5 py-1.5 text-[10px] font-medium text-white/60 backdrop-blur-md transition-colors hover:bg-white/12 hover:text-white/80',
-                      positions[index],
-                    )}
-                    style={{
-                      animation: 'vigento-pulse 3s ease-in-out infinite',
-                      animationDelay: `${index * 0.4}s`,
-                    }}
-                  >
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-black">
-                      <Icon className="h-3 w-3" />
-                    </span>
-                    {label}
-                  </div>
+                  <line
+                    key={`mesh-${sat.id}`}
+                    x1={sat.x}
+                    y1={sat.y}
+                    x2={next.x}
+                    y2={next.y}
+                    stroke="rgba(255,255,255,0.06)"
+                    strokeWidth="0.5"
+                    strokeDasharray="2 4"
+                  />
                 )
               })}
-            </div>
+
+              {/* Animated data pulses traveling along each connection line */}
+              {SATELLITES.map((sat, i) => (
+                <circle key={`pulse-${sat.id}`} r="2" fill="rgba(16,185,129,0.9)" filter="url(#node-glow)">
+                  <animateMotion
+                    dur={`${2.5 + i * 0.3}s`}
+                    repeatCount="indefinite"
+                    path={`M${sat.x},${sat.y} L${CORE.x},${CORE.y}`}
+                    begin={`${i * 0.4}s`}
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0;1;1;0"
+                    dur={`${2.5 + i * 0.3}s`}
+                    repeatCount="indefinite"
+                    begin={`${i * 0.4}s`}
+                  />
+                </circle>
+              ))}
+
+              {/* Return pulses (core → satellite) */}
+              {SATELLITES.map((sat, i) => (
+                <circle key={`pulse-back-${sat.id}`} r="1.5" fill="rgba(139,92,246,0.7)" filter="url(#node-glow)">
+                  <animateMotion
+                    dur={`${3 + i * 0.2}s`}
+                    repeatCount="indefinite"
+                    path={`M${CORE.x},${CORE.y} L${sat.x},${sat.y}`}
+                    begin={`${1.2 + i * 0.3}s`}
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0;0.8;0.8;0"
+                    dur={`${3 + i * 0.2}s`}
+                    repeatCount="indefinite"
+                    begin={`${1.2 + i * 0.3}s`}
+                  />
+                </circle>
+              ))}
+
+              {/* ── Central core: Vigento AI ───────────────────────────── */}
+              {/* Outer pulsing ring */}
+              <circle
+                cx={CORE.x}
+                cy={CORE.y}
+                r="42"
+                fill="none"
+                stroke="rgba(16,185,129,0.2)"
+                strokeWidth="1"
+              >
+                <animate
+                  attributeName="r"
+                  values="42;52;42"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  values="0.4;0;0.4"
+                  dur="3s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Inner pulsing ring */}
+              <circle
+                cx={CORE.x}
+                cy={CORE.y}
+                r="34"
+                fill="none"
+                stroke="rgba(139,92,246,0.15)"
+                strokeWidth="0.5"
+              >
+                <animate
+                  attributeName="r"
+                  values="34;40;34"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Core glow circle */}
+              <circle
+                cx={CORE.x}
+                cy={CORE.y}
+                r="28"
+                fill="rgba(255,255,255,0.04)"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="1"
+                filter="url(#core-glow)"
+              />
+
+              {/* Core center dot */}
+              <circle cx={CORE.x} cy={CORE.y} r="4" fill="white" filter="url(#core-glow)">
+                <animate
+                  attributeName="r"
+                  values="4;5.5;4"
+                  dur="1.5s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Core label */}
+              <text
+                x={CORE.x}
+                y={CORE.y + 52}
+                textAnchor="middle"
+                fill="rgba(255,255,255,0.5)"
+                fontSize="9"
+                fontWeight="700"
+                letterSpacing="1"
+              >
+                VIGENTO AI
+              </text>
+
+              {/* ── Satellite nodes ────────────────────────────────────── */}
+              {SATELLITES.map((sat, i) => (
+                <g key={`sat-${sat.id}`}>
+                  {/* Node glow circle */}
+                  <circle
+                    cx={sat.x}
+                    cy={sat.y}
+                    r="14"
+                    fill="rgba(255,255,255,0.03)"
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeWidth="0.8"
+                    filter="url(#node-glow)"
+                  >
+                    <animate
+                      attributeName="r"
+                      values="14;16;14"
+                      dur="2.5s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.3}s`}
+                    />
+                  </circle>
+
+                  {/* Node center dot */}
+                  <circle cx={sat.x} cy={sat.y} r="3" fill="rgba(16,185,129,0.8)" filter="url(#node-glow)">
+                    <animate
+                      attributeName="opacity"
+                      values="0.6;1;0.6"
+                      dur="2s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.2}s`}
+                    />
+                  </circle>
+
+                  {/* Node label */}
+                  <text
+                    x={sat.x}
+                    y={sat.y - 20}
+                    textAnchor="middle"
+                    fill="rgba(255,255,255,0.4)"
+                    fontSize="8"
+                    fontWeight="600"
+                  >
+                    {sat.label}
+                  </text>
+                </g>
+              ))}
+
+              {/* ── Floating particles (ambient) ──────────────────────── */}
+              {[...Array(6)].map((_, i) => {
+                const angle = (i / 6) * Math.PI * 2
+                const r = 100 + (i % 2) * 20
+                const px = CORE.x + Math.cos(angle) * r
+                const py = CORE.y + Math.sin(angle) * r
+                return (
+                  <circle key={`particle-${i}`} cx={px} cy={py} r="1" fill="rgba(255,255,255,0.3)">
+                    <animate
+                      attributeName="opacity"
+                      values="0;0.6;0"
+                      dur="4s"
+                      repeatCount="indefinite"
+                      begin={`${i * 0.6}s`}
+                    />
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from={`0 ${CORE.x} ${CORE.y}`}
+                      to={`360 ${CORE.x} ${CORE.y}`}
+                      dur={`${20 + i * 3}s`}
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                )
+              })}
+            </svg>
           </div>
 
           {/* Footer badge */}
@@ -362,19 +568,6 @@ export function VigentoAdminConsole() {
           </form>
         </div>
       </div>
-
-      {/* Keyframe animations — scoped to this component via a style tag
-          to avoid global CSS pollution. These are intentionally subtle. */}
-      <style>{`
-        @keyframes vigento-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes vigento-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(0.97); }
-        }
-      `}</style>
     </section>
   )
 }
