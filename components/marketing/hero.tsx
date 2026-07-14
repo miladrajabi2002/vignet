@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useLocale, useTranslations } from 'next-intl'
 import {
 	ArrowLeft,
@@ -14,14 +14,11 @@ import {
 	Check,
 	GraduationCap,
 	Gift,
-	MessageCircleMore,
-	PackageSearch,
 	Play,
 	ShoppingBag,
-	Sparkles,
 	UtensilsCrossed,
 } from 'lucide-react'
-import { InstagramIcon } from './social-links'
+import { NeuralOperationGraph } from './neural-operation-graph'
 import { Spotlight } from './spotlight'
 
 const COPY = {
@@ -155,37 +152,16 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					</div>
 				</div>
 
-				<div className="relative grid items-stretch gap-2.5 px-4 py-4 sm:grid-cols-[1fr_0.78fr_1.15fr] sm:px-5 sm:py-5">
-					<div className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 backdrop-blur-xl">
-						<p className="flex items-center gap-1.5 text-[9px] font-medium text-white/35 sm:text-[10px]"><MessageCircleMore className="h-3 w-3" />{copy.allMessages}</p>
-						<AnimatePresence mode="wait">
-							<motion.div key={scenarioIdx} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -4 }} transition={{ duration: 0.28 }} className="mt-3">
-								<div className="flex items-center gap-2">
-									<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-black">{scenarioIdx === 0 ? <InstagramIcon className="h-3.5 w-3.5" /> : <MessageCircleMore className="h-3.5 w-3.5" />}</span>
-									<div className="min-w-0"><p className="truncate text-[9px] font-medium text-white">{scenario.person} · {scenario.channel}</p><p className="mt-0.5 text-[8px] text-white/35">{scenario.time}</p></div>
-								</div>
-								<p className="mt-3 text-[10px] leading-5 text-white/70">{scenario.text}</p>
-							</motion.div>
-						</AnimatePresence>
-					</div>
-
-					<motion.div animate={reduce ? undefined : { borderColor: ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.12)'] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className="relative flex min-h-28 flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/[0.07] p-3 text-center">
-						{!reduce && <motion.span aria-hidden className="absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent blur-sm" animate={{ x: ['-180%', '180%'] }} transition={{ duration: 2.6, repeat: Infinity, repeatDelay: 1.2, ease: [0.16, 1, 0.3, 1] }} />}
-						<span className="relative grid h-9 w-9 place-items-center rounded-xl bg-white text-black"><Sparkles className="h-4 w-4" /></span>
-						<p className="relative mt-2 text-[10px] font-semibold">{copy.core}</p>
-						<p className="relative mt-1 text-[9px] leading-4 text-white/40">{copy.coreHint}</p>
-						<div className="relative mt-2 flex gap-1">{[0, 1, 2].map((i) => <motion.span key={i} className="h-1 w-1 rounded-full bg-white" animate={reduce ? undefined : { opacity: [0.2, 1, 0.2] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }} />)}</div>
-					</motion.div>
-
-					<div className="rounded-2xl bg-white p-3 text-black shadow-[0_16px_36px_rgba(0,0,0,0.24)]">
-						<div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-lg bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span><p className="text-[10px] font-semibold">{copy.sharedBrain}</p></div>
-						<AnimatePresence mode="wait"><motion.div key={scenarioIdx} initial={reduce ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0 }} transition={{ duration: 0.28 }}>
-							<p className="mt-2.5 text-[10px] leading-5 text-black/70">{scenario.reply}</p>
-							<span className="mt-2 inline-flex items-center gap-1 rounded-full bg-black/[0.045] px-2 py-1 text-[9px] text-black/45"><PackageSearch className="h-2.5 w-2.5" />{scenario.source}</span>
-							<p className="mt-2 flex items-center gap-1.5 text-[9px] font-medium text-emerald-700"><span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-2.5 w-2.5" /></span>{scenario.result}</p>
-						</motion.div></AnimatePresence>
-					</div>
-				</div>
+				<NeuralOperationGraph
+					locale={locale}
+					reduce={reduce}
+					scenarioIdx={scenarioIdx}
+					scenario={scenario}
+					allMessages={copy.allMessages}
+					core={copy.core}
+					coreHint={copy.coreHint}
+					sharedBrain={copy.sharedBrain}
+				/>
 
 				{/* Flow steps footer */}
 				<div className="relative grid grid-cols-3 overflow-hidden border-t border-white/10">
