@@ -13,8 +13,12 @@ export function Spotlight() {
   useEffect(() => {
     const el = ref.current?.parentElement
     if (!el) return
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (!finePointer.matches || reducedMotion.matches) return
+
     let frame = 0
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         const rect = el.getBoundingClientRect()
@@ -22,9 +26,16 @@ export function Spotlight() {
         el.style.setProperty('--my', `${e.clientY - rect.top}px`)
       })
     }
-    el.addEventListener('mousemove', onMove)
+    const onLeave = () => {
+      el.style.setProperty('--mx', '50%')
+      el.style.setProperty('--my', '50%')
+    }
+
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerleave', onLeave)
     return () => {
-      el.removeEventListener('mousemove', onMove)
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerleave', onLeave)
       cancelAnimationFrame(frame)
     }
   }, [])

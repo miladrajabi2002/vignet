@@ -22,6 +22,7 @@ import {
 	UtensilsCrossed,
 } from 'lucide-react'
 import { InstagramIcon } from './social-links'
+import { Spotlight } from './spotlight'
 
 const COPY = {
 	fa: {
@@ -104,9 +105,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 	return (
 		<motion.div
-			initial={reduce ? false : { opacity: 0, y: 18, scale: 0.99 }}
+			initial={reduce ? false : { opacity: 0.42, y: 14, scale: 0.992 }}
 			animate={{ opacity: 1, y: 0, scale: 1 }}
-			transition={reduce ? { duration: 0 } : { duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+			transition={reduce ? { duration: 0 } : { duration: 0.52, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
 			className="relative mx-auto w-full max-w-[620px]"
 			role="img"
 			aria-label={copy.stageAria}
@@ -376,8 +377,9 @@ export function Hero() {
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
 	return (
-		<section className="relative overflow-hidden bg-white pb-14 pt-[94px] sm:pb-16 sm:pt-28 lg:flex lg:min-h-[min(820px,100svh)] lg:items-center lg:pb-14 lg:pt-24">
-			<div className="relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] lg:gap-9 xl:gap-14">
+		<section className="marketing-hero-spatial relative overflow-hidden pb-14 pt-[94px] sm:pb-16 sm:pt-28 lg:flex lg:min-h-[min(820px,100svh)] lg:items-center lg:pb-14 lg:pt-24">
+			<Spotlight />
+			<div className="marketing-hero-content relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] lg:gap-9 xl:gap-14">
 				<div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-start">
 					<motion.div
 						initial={reduce ? false : { opacity: 0, y: 10 }}
@@ -394,9 +396,9 @@ export function Hero() {
 					</motion.div>
 
 					<motion.h1
-						initial={reduce ? false : { opacity: 0, y: 15 }}
+						initial={reduce ? false : { y: 12 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={reduce ? { duration: 0 } : { duration: 0.65, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+						transition={reduce ? { duration: 0 } : { duration: 0.48, delay: 0.03, ease: [0.16, 1, 0.3, 1] }}
 						className="mt-5 font-semibold leading-[1.18] tracking-[-0.03em] text-[var(--text-primary)] rtl:tracking-normal text-[clamp(1.5rem,6vw,2.15rem)] sm:text-[clamp(1.7rem,4.6vw,2.6rem)] md:text-[clamp(1.85rem,3.4vw,2.85rem)] lg:text-[clamp(2rem,2.9vw,3.1rem)] xl:text-[clamp(2.1rem,2.6vw,3.4rem)]"
 					>
 						<span className="marketing-hero-line block md:whitespace-nowrap">{copy.headlineTop}</span>
@@ -404,18 +406,18 @@ export function Hero() {
 					</motion.h1>
 
 					<motion.p
-						initial={reduce ? false : { opacity: 0, y: 12 }}
+						initial={reduce ? false : { y: 9 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={reduce ? { duration: 0 } : { duration: 0.55, delay: 0.12 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.42, delay: 0.08, ease: [0.23, 1, 0.32, 1] }}
 						className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-[var(--text-secondary)] sm:text-base sm:leading-8 lg:mx-0"
 					>
 						{t('subtitle')}
 					</motion.p>
 
 					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 10 }}
+						initial={reduce ? false : { y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={reduce ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
+						transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.14, ease: [0.23, 1, 0.32, 1] }}
 						className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start"
 					>
 						<Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2" >

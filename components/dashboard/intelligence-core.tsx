@@ -65,7 +65,7 @@ export function IntelligenceCore({
   const coreName = businessName?.trim() || businessLabel || (fa ? 'کسب‌وکار شما' : 'Your business')
 
   return (
-    <section className={`spatial-surface min-w-0 overflow-hidden rounded-[1.75rem] ${className}`}>
+    <section className={`spatial-surface relative min-w-0 overflow-hidden rounded-[1.75rem] ${className}`}>
       <header className="flex items-center justify-between gap-2.5 px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
@@ -82,7 +82,7 @@ export function IntelligenceCore({
         </div>
         <span
           aria-label={fa ? 'همه بخش‌ها متصل هستند' : 'All systems are connected'}
-          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[9px] font-bold text-emerald-700 sm:text-[10px]"
+          className="core-connected-pill inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[9px] font-bold text-emerald-700 sm:text-[10px]"
         >
           <span className="relative flex h-1.5 w-1.5">
             {!reduce && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-40" />}
@@ -93,7 +93,7 @@ export function IntelligenceCore({
         </span>
       </header>
 
-      <div className="relative mx-3 h-[18rem] overflow-hidden rounded-[1.5rem] bg-[#080808] shadow-[0_24px_60px_-32px_rgba(0,0,0,.85)] sm:mx-4 sm:h-[20rem] sm:rounded-[1.65rem]">
+      <div className="intelligence-stage relative mx-3 h-[18rem] overflow-hidden rounded-[1.5rem] bg-[#080808] sm:mx-4 sm:h-[20rem] sm:rounded-[1.65rem]">
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,.14),transparent_30%),linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:auto,24px_24px,24px_24px] sm:bg-[size:auto,28px_28px,28px_28px]" />
         <div aria-hidden className="absolute inset-x-[18%] top-1/2 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         <div aria-hidden className="absolute inset-y-[18%] left-1/2 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
@@ -103,13 +103,12 @@ export function IntelligenceCore({
             const point = POSITIONS[index]
             return (
               <g key={key}>
-                <motion.line
-                  x1={point.x}
-                  y1={point.y}
-                  x2="50"
-                  y2="50"
+                <motion.path
+                  d={`M ${point.x} ${point.y} Q ${(point.x + 50) / 2} ${(point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)} 50 50`}
+                  fill="none"
                   stroke="rgba(255,255,255,.22)"
                   strokeWidth="0.55"
+                  strokeDasharray="2.4 2.8"
                   vectorEffect="non-scaling-stroke"
                   initial={reduce ? false : { pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
@@ -120,8 +119,12 @@ export function IntelligenceCore({
                     r="0.9"
                     fill="white"
                     initial={{ cx: point.x, cy: point.y, opacity: 0 }}
-                    animate={{ cx: [point.x, 50], cy: [point.y, 50], opacity: [0, 0.95, 0] }}
-                    transition={{ duration: 2.25, delay: index * 0.28, repeat: Infinity, repeatDelay: 0.2, ease: 'easeInOut' }}
+                    animate={{
+                      cx: [point.x, (point.x + 50) / 2, 50],
+                      cy: [point.y, (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4), 50],
+                      opacity: [0, 0.95, 0],
+                    }}
+                    transition={{ duration: 2, delay: 0.2 + index * 0.24, repeat: Infinity, repeatDelay: 0.45, ease: 'easeInOut' }}
                   />
                 )}
               </g>

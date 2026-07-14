@@ -232,7 +232,7 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-5 sm:p-7" style={{ boxShadow: 'var(--shadow-card)' }}>
+        <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
           <div className="relative">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
@@ -255,11 +255,11 @@ export default async function OverviewPage() {
             </p>
 
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <Link href="/conversations" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-4 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-black">
+              <Link href="/conversations" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black">
                 <MessagesSquare className="h-4 w-4" />
                 {fa ? 'رسیدگی به گفتگوها' : 'Open conversations'}
               </Link>
-              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)]">
+              <Link href={hasBookingModule ? '/appointments' : '/agents/new'} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-[13px] font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)] hover:bg-[var(--bg-surface)]">
                 {hasBookingModule ? <CalendarCheck2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                 {hasBookingModule
                   ? fa ? 'مدیریت نوبت‌ها' : 'Manage appointments'
@@ -271,7 +271,7 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCore locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} />
+          <IntelligenceCore locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
         ) : (
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
             <div>
