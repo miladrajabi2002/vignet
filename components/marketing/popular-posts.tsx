@@ -88,7 +88,7 @@ export async function PopularPosts() {
                                 {/* Three equal cards in a horizontal row */}
                                 <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                         {posts.map((p, i) => (
-                                                <PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
+										<PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} className={i === 2 ? 'hidden lg:flex' : ''} />
                                         ))}
                                 </div>
 
@@ -168,13 +168,15 @@ function ViewsLabel({ views, isFa }: { views: number; isFa: boolean }) {
 function PopularCard({
         post,
         rank,
-        locale,
-        isFa,
+	locale,
+	isFa,
+	className = '',
 }: {
         post: PostPreview
         rank: number
         locale: 'fa' | 'en'
-        isFa: boolean
+	isFa: boolean
+	className?: string
 }) {
         const excerpt = post.excerpt || deriveExcerpt(post.content)
         const time = relativeTime(post.publishedAt ?? post.createdAt, locale)
@@ -182,7 +184,7 @@ function PopularCard({
         return (
                 <Link
                         href={`/blog/${post.slug}`}
-                        className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+						className={`group flex min-h-44 flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:min-h-0 sm:flex-col ${className}`}
                 >
                         {post.coverImage && (
                                 // eslint-disable-next-line @next/next/no-img-element
@@ -191,10 +193,10 @@ function PopularCard({
                                         alt={post.title}
                                         loading="lazy"
                                         decoding="async"
-                                        className="aspect-[3/2] w-full object-cover transition-transform duration-150 group-hover:scale-[1.02]"
+										className="w-28 shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] sm:aspect-[3/2] sm:w-full"
                                 />
                         )}
-                        <div className="flex flex-1 flex-col p-5">
+						<div className="min-w-0 flex flex-1 flex-col p-4 sm:p-5">
                                 <div className="flex items-center justify-between gap-3">
                                         <RankBadge rank={rank} isFa={isFa} />
                                         {post.category && (
@@ -206,14 +208,14 @@ function PopularCard({
                                 <h3 className="mt-3 line-clamp-2 text-base font-medium leading-snug text-[var(--text-primary)]">
                                         {post.title}
                                 </h3>
-                                <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2">
+								<p className="mt-2 hidden flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2 sm:block">
                                         {excerpt}
                                 </p>
-                                <div className="mt-4 flex items-center justify-between gap-3">
+								<div className="mt-auto flex items-center justify-between gap-3 pt-3 sm:mt-4 sm:pt-0">
                                         <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
                                                 <ViewsLabel views={post.views} isFa={isFa} />
-                                                <span>{time}</span>
-                                                <span>
+												<span className="hidden sm:inline">{time}</span>
+												<span className="hidden sm:inline">
                                                         {isFa
                                                                 ? `${toPersianDigits(post.readingMinutes)} دقیقه`
                                                                 : `${post.readingMinutes} min`}

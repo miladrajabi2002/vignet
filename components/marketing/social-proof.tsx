@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, useInView, useReducedMotion } from 'framer-motion'
+import type { PublicPlatformStats } from '@/lib/marketing/platform-stats'
 
 /**
  * SocialProof — a quiet numbers strip right under the hero.
@@ -13,13 +14,11 @@ import { motion, useInView, useReducedMotion } from 'framer-motion'
  * hurt trust more than no numbers, so below the threshold the whole strip
  * silently renders nothing.
  */
-const MIN_VISIBLE = 50
-
-const STATS: { key: 'conversations' | 'businesses' | 'agents'; value: number }[] = [
-	{ key: 'conversations', value: Number(process.env.NEXT_PUBLIC_STAT_CONVERSATIONS ?? 0) },
-	{ key: 'businesses', value: Number(process.env.NEXT_PUBLIC_STAT_BUSINESSES ?? 0) },
-	{ key: 'agents', value: Number(process.env.NEXT_PUBLIC_STAT_AGENTS ?? 0) },
-]
+const MIN_VISIBLE: PublicPlatformStats = {
+	conversations: 100,
+	businesses: 10,
+	agents: 10,
+}
 
 /** Counts up from zero when it scrolls into view. */
 function CountUp({ to, play, duration = 1400 }: { to: number; play: boolean; duration?: number }) {
@@ -47,15 +46,17 @@ function CountUp({ to, play, duration = 1400 }: { to: number; play: boolean; dur
 	return <>{val.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}+</>
 }
 
-export function SocialProof() {
+export function SocialProof({ stats }: { stats: PublicPlatformStats }) {
 	const t = useTranslations('marketing.stats')
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const ref = useRef<HTMLDivElement>(null)
 	const inView = useInView(ref, { once: true, margin: '-40px' })
 	const reduce = useReducedMotion()
 
-	const visible = STATS.filter((s) => Number.isFinite(s.value) && s.value >= MIN_VISIBLE)
-	if (visible.length === 0) return null
+	const visible = (Object.entries(stats) as [keyof PublicPlatformStats, number][])
+		.map(([key, value]) => ({ key, value }))
+		.filter(({ key, value }) => Number.isFinite(value) && value >= MIN_VISIBLE[key])
+	if (visible.length < 2) return null
 
 	return (
 		<section aria-label={locale === 'fa' ? 'آمار ویجنت' : 'Vigent statistics'} className="border-y border-[var(--border-default)] bg-[var(--bg-base)]">

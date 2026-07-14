@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { Check, MessageSquareText } from 'lucide-react'
+import { Check, ChevronDown, MessageSquareText } from 'lucide-react'
 import { getEffectivePlanDefs, PAID_PLANS, type PaidPlan } from '@/lib/billing/plans'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { discountedReplyPriceIRR, estimateRemainingReplies } from '@/lib/billing/credit-estimates'
@@ -22,6 +22,31 @@ export async function PricingSection() {
                 getPlatformCommercialConfig(),
         ])
         const number = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
+	const planViews = PAID_PLANS.map((plan) => {
+		const def = defs[plan]
+		const key = PLAN_TRANSLATION_KEY[plan]
+		const replyPriceIRR = discountedReplyPriceIRR(commercialConfig.replyPricesIRR.fast, def.replyDiscountBps)
+		const replyPriceToman = replyPriceIRR / 10
+		const includedReplies = estimateRemainingReplies(def.includedCreditIRR, replyPriceIRR)
+		return {
+			plan,
+			name: t(`plans.${key}.name`),
+			audience: t(`plans.${key}.audience`),
+			price: number.format(def.priceIRR / 10),
+			features: [
+				locale === 'fa' ? `از ${number.format(replyPriceToman)} تومان برای هر پاسخ موفق` : `From ${number.format(replyPriceToman)} toman per successful reply`,
+				locale === 'fa'
+					? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
+					: `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`,
+				t('agents', { count: number.format(def.maxAgents) }),
+				t('allChannels'),
+				locale === 'fa' ? 'هوش مصنوعی آماده و کاملاً مدیریت‌شده' : 'Fully managed AI service',
+			],
+			value: t(`plans.${key}.value`),
+			cta: t('planCta', { plan: t(`plans.${key}.name`) }),
+		}
+	})
+	const mobilePlans = [...planViews].sort((a, b) => (a.plan === 'PRO' ? -1 : b.plan === 'PRO' ? 1 : 0))
 
         return (
                 <section id="pricing" className="marketing-story-section bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
@@ -60,7 +85,29 @@ export async function PricingSection() {
                                         </Link>
                                 </div>
 
-                                <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+				<div className="mt-10 space-y-3 md:hidden">
+					{mobilePlans.map((view) => view.plan === 'PRO' ? (
+						<article key={view.plan} className="relative rounded-[1.35rem] border border-black/20 bg-white p-5 shadow-[var(--shadow-card)]">
+							<span className="absolute -top-3 start-5 rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">{t('popular')}</span>
+							<MobilePlanHeader view={view} suffix={t('tomanPerMonth')} />
+							<MobilePlanDetails view={view} />
+						</article>
+					) : (
+						<details key={view.plan} className="group rounded-[1.35rem] border border-[var(--border-default)] bg-white open:shadow-[var(--shadow-sm)]">
+							<summary className="flex min-h-[76px] cursor-pointer list-none items-center gap-3 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black [&::-webkit-details-marker]:hidden">
+								<div className="min-w-0 flex-1">
+									<p className="font-semibold text-[var(--text-primary)]">{view.name}</p>
+									<p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">{view.audience}</p>
+								</div>
+								<p className="shrink-0 text-sm font-medium tabular-nums text-[var(--text-primary)]">{view.price} <span className="text-[10px] font-normal text-[var(--text-muted)]">{t('tomanPerMonth')}</span></p>
+								<ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" />
+							</summary>
+							<div className="border-t border-[var(--border-subtle)] px-5 pb-5 pt-4"><MobilePlanDetails view={view} /></div>
+						</details>
+					))}
+				</div>
+
+				<div className="mt-10 hidden grid-cols-1 gap-4 md:grid md:grid-cols-3">
                                         {PAID_PLANS.map((plan) => {
                                                 const def = defs[plan]
                                                 const key = PLAN_TRANSLATION_KEY[plan]
@@ -120,6 +167,43 @@ export async function PricingSection() {
                         </div>
                 </section>
         )
+}
+
+type MobilePlanView = {
+	plan: PaidPlan
+	name: string
+	audience: string
+	price: string
+	features: string[]
+	value: string
+	cta: string
+}
+
+function MobilePlanHeader({ view, suffix }: { view: MobilePlanView; suffix: string }) {
+	return (
+		<>
+			<h3 className="text-xl font-semibold text-[var(--text-primary)]">{view.name}</h3>
+			<p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{view.audience}</p>
+			<div className="mt-4 flex items-baseline gap-1.5">
+				<span className="text-3xl font-light tabular-nums text-[var(--text-primary)]">{view.price}</span>
+				<span className="text-xs text-[var(--text-muted)]">{suffix}</span>
+			</div>
+		</>
+	)
+}
+
+function MobilePlanDetails({ view }: { view: MobilePlanView }) {
+	return (
+		<>
+			<ul className="space-y-3 text-xs leading-5 text-[var(--text-secondary)]">
+				{view.features.map((feature) => <Feature key={feature}>{feature}</Feature>)}
+			</ul>
+			<p className="mt-5 border-t border-[var(--border-subtle)] pt-4 text-xs leading-5 text-[var(--text-muted)]">{view.value}</p>
+			<Link href={`/login?plan=${view.plan}`} className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl text-sm font-medium ${view.plan === 'PRO' ? 'bg-black text-white' : 'border border-[var(--border-hover)] text-[var(--text-primary)]'}`}>
+				{view.cta}
+			</Link>
+		</>
+	)
 }
 
 function Feature({ children }: { children: React.ReactNode }) {

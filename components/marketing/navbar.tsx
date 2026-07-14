@@ -156,14 +156,14 @@ function NavbarContent() {
 						<Link
 							href="/overview"
 							aria-label={copy.dashboardAria}
-							className="marketing-pressable inline-flex min-h-10 items-center gap-2 rounded-xl bg-black px-3 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+							className="marketing-pressable inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-3 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
 						>
 							<span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500"><Check className="h-2.5 w-2.5" /></span>
 							<span className="hidden xl:inline">{copy.signedIn} ·</span>{copy.dashboard}
 						</Link>
 					) : (
 						<>
-							<Link href="/login" className="inline-flex min-h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/60 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+							<Link href="/login" className="inline-flex min-h-11 min-w-12 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/60 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
 								<LogIn className="hidden h-3.5 w-3.5 sm:block" />{t('login')}
 							</Link>
 							<Link href="/login?next=/onboarding" className="marketing-pressable hidden min-h-10 items-center gap-1.5 rounded-xl bg-black px-3.5 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 lg:inline-flex">

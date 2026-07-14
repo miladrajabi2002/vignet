@@ -49,16 +49,17 @@ export function Footer() {
 	const resourceHrefs = ['/docs', '/blog', '/status']
 
 	return (
-		<footer className="bg-[var(--bg-base)] px-3 pb-3 sm:px-5 sm:pb-5">
+		<footer className="bg-[var(--bg-base)] px-3 pb-3 pt-10 sm:px-5 sm:pb-5 sm:pt-14">
 			<div className="marketing-grid-dark relative mx-auto max-w-[1500px] overflow-hidden rounded-[2rem] bg-black text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)]">
 				<div className="relative mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-					<div className="grid gap-8 border-b border-white/10 pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
+					<div className="relative grid gap-8 overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-6 sm:p-9 lg:grid-cols-[1fr_auto] lg:items-end">
+						<div aria-hidden className="pointer-events-none absolute -start-20 -top-24 h-56 w-56 rounded-full bg-white/[0.07] blur-3xl" />
 						<div>
 							<span className="inline-flex items-center gap-2 text-[10px] font-medium text-white/40"><Sparkles className="h-3.5 w-3.5" />{copy.eyebrow}</span>
 							<h2 className="mt-5 max-w-3xl text-balance text-3xl font-semibold leading-[1.25] tracking-[-0.035em] sm:text-4xl rtl:tracking-normal">{copy.title}</h2>
 							<p className="mt-4 max-w-2xl text-sm leading-7 text-white/45">{copy.subtitle}</p>
 						</div>
-						<Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+						<Link href="/login?next=/onboarding" className="marketing-pressable relative inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-black shadow-[0_12px_35px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
 							{copy.button}<Arrow className="h-4 w-4" />
 						</Link>
 					</div>
@@ -78,7 +79,7 @@ export function Footer() {
 
 					<div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-[10px] text-white/35 sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex flex-wrap gap-x-5 gap-y-2"><span>{t('rights')}</span><span>{copy.made}</span></div>
-						<Link href="/status" className="inline-flex min-h-9 items-center gap-2 self-start rounded-full border border-white/10 px-3 transition-colors hover:border-white/25 hover:text-white sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{copy.status}</Link>
+					<Link href="/status" className="inline-flex min-h-11 items-center gap-2 self-start rounded-full border border-white/10 px-3 transition-colors hover:border-white/25 hover:text-white sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{copy.status}</Link>
 					</div>
 				</div>
 			</div>

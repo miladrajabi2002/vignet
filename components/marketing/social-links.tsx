@@ -87,7 +87,7 @@ export function SocialLinks({
 						href={href}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+						className="inline-flex min-h-11 items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
 					>
 						<Icon className="h-4 w-4" />
 						{label}
@@ -99,8 +99,8 @@ export function SocialLinks({
 
 	const btn =
 		variant === 'compact'
-			? 'h-8 w-8 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
-			: 'h-9 w-9 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+			? 'h-11 w-11 rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
+			: 'h-11 w-11 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'
 
 	const iconSize = variant === 'compact' ? 'h-4 w-4' : 'h-[18px] w-[18px]'
 

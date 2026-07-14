@@ -1,6 +1,6 @@
 'use client'
 
-import type { ComponentType } from 'react'
+import { useState, type ComponentType } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
@@ -233,6 +233,96 @@ function StorePreview() {
 	)
 }
 
+type MobileChannelTab = 'messaging' | 'chat' | 'store'
+
+function MobileChannelExplorer() {
+	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const copy = COPY[locale]
+	const [active, setActive] = useState<MobileChannelTab>('messaging')
+	const reduce = useReducedMotion()
+	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
+	const tabs: { id: MobileChannelTab; label: string; Icon: ComponentType<{ className?: string }> }[] = [
+		{ id: 'messaging', label: locale === 'fa' ? 'پیام‌رسان‌ها' : 'Messaging', Icon: MessageCircleMore },
+		{ id: 'chat', label: locale === 'fa' ? 'چت سایت' : 'Site chat', Icon: Globe2 },
+		{ id: 'store', label: locale === 'fa' ? 'فروشگاه' : 'Store', Icon: ShoppingBag },
+	]
+
+	return (
+		<div className="mt-8 lg:hidden">
+			<div className="grid grid-cols-4 gap-2" aria-label={locale === 'fa' ? 'کانال‌های قابل اتصال' : 'Available channels'}>
+				{copy.channels.map((label, index) => {
+					const Icon = CHANNEL_ICONS[index]
+					return (
+						<div key={label} className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-1.5 py-2.5 text-center">
+							<Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+							<span className="min-w-0 text-[9px] font-medium leading-4 text-[var(--text-secondary)]">{label}</span>
+						</div>
+					)
+				})}
+			</div>
+
+			<div role="tablist" aria-label={locale === 'fa' ? 'جزئیات اتصال‌ها' : 'Connection details'} className="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-[var(--bg-surface)] p-1">
+				{tabs.map(({ id, label, Icon }) => (
+					<button
+						key={id}
+						type="button"
+						role="tab"
+						aria-selected={active === id}
+						aria-controls={`mobile-channel-${id}`}
+						onClick={() => setActive(id)}
+						className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${active === id ? 'bg-black text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
+					>
+						<Icon className="h-3.5 w-3.5" />{label}
+					</button>
+				))}
+			</div>
+
+			<motion.div
+				key={active}
+				id={`mobile-channel-${active}`}
+				role="tabpanel"
+				initial={reduce ? false : { opacity: 0, y: 8 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={reduce ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
+				className="mt-3 min-h-[255px] overflow-hidden rounded-[1.4rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5"
+			>
+				{active === 'messaging' && (
+					<div>
+						<div className="flex items-center justify-between">
+							<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span>
+							<span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{copy.connected}</span>
+						</div>
+						<h3 className="mt-5 text-lg font-semibold text-[var(--text-primary)]">{copy.hubTitle}</h3>
+						<p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{copy.hubDesc}</p>
+						<div className="mt-4 space-y-2 rounded-2xl bg-white p-3">
+							<p className="ms-auto max-w-[82%] rounded-xl rounded-ee-sm bg-black px-3 py-2 text-[10px] leading-5 text-white">{copy.customer}</p>
+							<p className="max-w-[90%] rounded-xl rounded-es-sm border border-[var(--border-default)] px-3 py-2 text-[10px] leading-5 text-[var(--text-secondary)]">{copy.reply}</p>
+						</div>
+					</div>
+				)}
+
+				{active === 'chat' && (
+					<div>
+						<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><Link2 className="h-4 w-4" /></span>
+						<h3 className="mt-5 text-lg font-semibold leading-7 text-[var(--text-primary)]">{copy.chatTitle}</h3>
+						<p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{copy.chatDesc}</p>
+						<Link href="/solutions/persian-ai-chatbot" className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">{copy.chatCta}<Arrow className="h-4 w-4" /></Link>
+					</div>
+				)}
+
+				{active === 'store' && (
+					<div>
+						<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><ShoppingBag className="h-4 w-4" /></span>
+						<h3 className="mt-5 text-lg font-semibold leading-7 text-[var(--text-primary)]">{copy.storeTitle}</h3>
+						<p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{copy.storeDesc}</p>
+						<Link href="/solutions/ecommerce-ai" className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">{copy.storeCta}<Arrow className="h-4 w-4" /></Link>
+					</div>
+				)}
+			</motion.div>
+		</div>
+	)
+}
+
 export function ChannelsSection() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
@@ -247,9 +337,10 @@ export function ChannelsSection() {
 					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
 				</div>
 
-				<ConnectionBoard />
+				<div className="hidden lg:block"><ConnectionBoard /></div>
+				<MobileChannelExplorer />
 
-				<div className="mt-5 grid items-stretch gap-5 lg:grid-cols-2">
+				<div className="mt-5 hidden items-stretch gap-5 lg:grid lg:grid-cols-2">
 					<article className="group relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 sm:p-8 lg:min-h-[620px]">
 						<div className="relative z-10">
 							<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white"><Link2 className="h-4 w-4" /></span>

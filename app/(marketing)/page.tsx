@@ -6,6 +6,7 @@ import { SocialProof } from '@/components/marketing/social-proof'
 import { DemoSection } from '@/components/marketing/demo-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
+import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 
 // Below-the-fold sections are code-split so the first paint stays focused on
 // the hero; each product section's JS loads independently.
@@ -25,10 +26,6 @@ const PricingSection = dynamicImport(() =>
 const FaqSection = dynamicImport(() =>
 	import('@/components/marketing/faq-section').then((m) => m.FaqSection),
 )
-const CtaSection = dynamicImport(() =>
-	import('@/components/marketing/cta-section').then((m) => m.CtaSection),
-)
-
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
 
 export const metadata: Metadata = {
@@ -50,7 +47,10 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-	const t = await getTranslations('marketing.faq')
+	const [t, platformStats] = await Promise.all([
+		getTranslations('marketing.faq'),
+		getPublicPlatformStats(),
+	])
 	const faqItems = (t.raw('items') as { q: string; a: string }[]) ?? []
 
 	// Structured data: Organization + WebSite + SoftwareApplication + FAQPage — helps
@@ -118,7 +118,7 @@ export default async function HomePage() {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 			/>
 			<Hero />
-			<SocialProof />
+			<SocialProof stats={platformStats} />
 			<DemoSection />
 			<FeaturesSection />
 			<ChannelsSection />
@@ -126,7 +126,6 @@ export default async function HomePage() {
 			<PricingSection />
 			<FaqSection />
 			<PopularPosts />
-			<CtaSection />
 		</>
 	)
 }
