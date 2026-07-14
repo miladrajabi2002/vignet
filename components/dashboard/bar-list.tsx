@@ -34,7 +34,7 @@ export function DashboardBarList({
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]">
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width] duration-300"
               style={{ width: `${(d.value / max) * 100}%`, background: color }}
             />
           </div>

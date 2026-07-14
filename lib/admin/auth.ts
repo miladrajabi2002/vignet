@@ -1,4 +1,4 @@
-import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import crypto from 'crypto'
 import { normalizePhone } from '@/lib/phone'
@@ -64,8 +64,8 @@ function isValidToken(raw: string | undefined): boolean {
 export const ADMIN_COOKIE = COOKIE_NAME
 
 /** True when the current request carries a valid admin session cookie. */
-export function isAdminAuthed(): boolean {
-  return isValidToken((cookies() as unknown as UnsafeUnwrappedCookies).get(COOKIE_NAME)?.value);
+export async function isAdminAuthed(): Promise<boolean> {
+  return isValidToken((await cookies()).get(COOKIE_NAME)?.value)
 }
 
 /**
@@ -79,11 +79,11 @@ export function isAdminAuthed(): boolean {
  * behind a secret without forcing the operator to manage a second credential.
  *
  * Usage in a route handler:
- *   if (!isAdminAuthedRequest(req)) return NextResponse.json({error:'UNAUTHORIZED'},{status:401})
+ *   if (!(await isAdminAuthedRequest(req))) return NextResponse.json({error:'UNAUTHORIZED'},{status:401})
  */
-export function isAdminAuthedRequest(req: Request): boolean {
+export async function isAdminAuthedRequest(req: Request): Promise<boolean> {
   // 1) Cookie-based session.
-  if (isAdminAuthed()) return true
+  if (await isAdminAuthed()) return true
   // 2) Header-based token (X-Admin-Token).
   const headerTok = req.headers.get('x-admin-token')
   const headerPhone = normalizePhone(req.headers.get('x-admin-phone') || '')
@@ -98,6 +98,6 @@ export function isAdminAuthedRequest(req: Request): boolean {
 }
 
 /** Guard for admin server components/layouts. Redirects to login when absent. */
-export function requireAdmin(): void {
-  if (!isAdminAuthed()) redirect('/admin/login')
+export async function requireAdmin(): Promise<void> {
+  if (!(await isAdminAuthed())) redirect('/admin/login')
 }

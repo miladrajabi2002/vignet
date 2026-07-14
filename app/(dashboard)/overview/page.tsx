@@ -426,9 +426,9 @@ export default async function OverviewPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span dir="auto" className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{customer}</span>
-                    <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
+                    <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
                   </span>
-                  <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
                     <span>{CHANNEL_LABELS[conversation.channel] ?? conversation.channel}</span>
                     <span>·</span>
                     <span>{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
@@ -542,7 +542,7 @@ function AttentionItem({
           <span className="tabular-nums">{value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
           {label}
         </span>
-        <span className="mt-1 block truncate text-[10px] text-[var(--text-muted)]">{hint}</span>
+        <span className="mt-1 block truncate text-[11px] text-[var(--text-muted)]">{hint}</span>
       </span>
       <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
     </Link>
@@ -568,11 +568,11 @@ function OutcomeCard({
     <Link href={href} className="dashboard-card group relative overflow-hidden rounded-[1.3rem] border border-[var(--border-default)] bg-white/[0.94] p-4 transition-[border-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent-border)] sm:p-5">
       <div aria-hidden className="absolute -end-9 -top-12 h-24 w-24 rounded-full bg-[var(--accent-soft)] opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
+        <span className="text-xs font-medium leading-5 text-[var(--text-secondary)]">{label}</span>
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]"><Icon className="h-3.5 w-3.5" /></span>
       </div>
       <p className="relative mt-3 text-2xl font-bold tabular-nums tracking-tight text-[var(--text-primary)] sm:text-3xl">{value}</p>
-      <p className="relative mt-1 min-h-4 text-[9px] leading-4 text-[var(--text-muted)] sm:text-[10px]">{hint}</p>
+      <p className="relative mt-1 min-h-4 text-[11px] leading-5 text-[var(--text-muted)]">{hint}</p>
       {series?.length ? <div className="relative mt-2 h-7"><Sparkline data={series} color="#111111" height={28} fluid /></div> : null}
     </Link>
   )

@@ -48,7 +48,7 @@ export async function Header({
           <div className="truncate text-sm font-bold leading-5 text-[var(--text-primary)]">
             {name ? t('greeting', { name }) : t('welcome')}
           </div>
-          <div className="mt-1 hidden items-center gap-1.5 text-[10px] leading-4 text-[var(--text-muted)] sm:flex">
+          <div className="mt-1 hidden items-center gap-1.5 text-[11px] leading-4 text-[var(--text-muted)] sm:flex">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             {businessLabel} · {fa ? 'مرکز مدیریت ویجنت' : 'Vigent management center'}
           </div>
@@ -70,18 +70,18 @@ export async function Header({
 
           <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>
             {/* Line 1: Plan name + days left (inline, compact) */}
-            <span className="block truncate text-[11px] font-bold leading-4 text-[var(--text-primary)] sm:text-xs">
+            <span className="block truncate text-xs font-bold leading-4 text-[var(--text-primary)] sm:text-[13px]">
               {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
               {daysLeft !== null && (
-                <span className="ms-1.5 text-[9px] font-normal text-[var(--text-muted)] sm:text-[10px]">
+                <span className="ms-1.5 text-[10px] font-normal text-[var(--text-muted)] sm:text-[11px]">
                   {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
                 </span>
               )}
             </span>
             {/* Line 2: Credit amount (number only, no "تومان اعتبار" to avoid overflow) */}
-            <span className="mt-0.5 block truncate text-[9px] leading-3.5 text-[var(--text-muted)] sm:text-[10px]">
+            <span className="mt-0.5 block truncate text-[10px] leading-4 text-[var(--text-muted)] sm:text-[11px]">
               {nf.format(Math.round(creditIRR / 10))}
-              <span className="ms-0.5 text-[8px] sm:text-[9px]">{fa ? 'تومان' : 'toman'}</span>
+              <span className="ms-0.5 text-[9px] sm:text-[10px]">{fa ? 'تومان' : 'toman'}</span>
             </span>
             {/* Progress bar — reflects CREDIT remaining */}
             <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075]">

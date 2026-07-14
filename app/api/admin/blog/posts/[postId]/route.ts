@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ postId: string }> }
 
-function guard(): NextResponse | null {
-  if (!isAdminAuthed()) {
+async function guard(): Promise<NextResponse | null> {
+  if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
   return null
@@ -17,7 +17,7 @@ function guard(): NextResponse | null {
 
 export async function GET(_req: Request, props: Params) {
   const params = await props.params;
-  const unauth = guard()
+  const unauth = await guard()
   if (unauth) return unauth
 
   const post = await prisma.blogPost.findUnique({
@@ -35,7 +35,7 @@ export async function GET(_req: Request, props: Params) {
 
 export async function PATCH(req: Request, props: Params) {
   const params = await props.params;
-  const unauth = guard()
+  const unauth = await guard()
   if (unauth) return unauth
 
   const existing = await prisma.blogPost.findUnique({
@@ -103,7 +103,7 @@ export async function PATCH(req: Request, props: Params) {
 
 export async function DELETE(_req: Request, props: Params) {
   const params = await props.params;
-  const unauth = guard()
+  const unauth = await guard()
   if (unauth) return unauth
 
   const existing = await prisma.blogPost.findUnique({

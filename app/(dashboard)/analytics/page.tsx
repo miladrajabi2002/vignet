@@ -306,7 +306,7 @@ export default async function AnalyticsPage() {
                     <span className="font-medium tabular-nums text-[var(--text-primary)]">{nfFa(step.value, fa)} · {nfFa(pct, fa)}{fa ? '٪' : '%'}</span>
                   </div>
                   <div className="h-7 overflow-hidden rounded-lg bg-[var(--bg-muted)]">
-                    <div className={cn('h-full rounded-lg transition-all', step.color)} style={{ width: `${pct}%` }} />
+                    <div className={cn('h-full rounded-lg transition-[width] duration-300', step.color)} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               )

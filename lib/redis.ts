@@ -11,6 +11,8 @@ const globalForRedis = globalThis as unknown as {
 }
 
 let warnedNoUrl = false
+let lastConnectionErrorAt = 0
+const REDIS_ERROR_LOG_INTERVAL_MS = 30_000
 
 export function getRedis(): Redis {
   if (globalForRedis.redis) return globalForRedis.redis
@@ -27,7 +29,15 @@ export function getRedis(): Redis {
   })
 
   client.on('error', (err) => {
-    console.error('[redis] connection error:', err.message)
+    const now = Date.now()
+    if (now - lastConnectionErrorAt >= REDIS_ERROR_LOG_INTERVAL_MS) {
+      lastConnectionErrorAt = now
+      console.error('[redis] connection error:', err.message)
+    }
+  })
+
+  client.on('ready', () => {
+    lastConnectionErrorAt = 0
   })
 
   if (process.env.NODE_ENV !== 'production') globalForRedis.redis = client

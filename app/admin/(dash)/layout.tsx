@@ -8,9 +8,9 @@ import { MobileNavTrigger } from './mobile-nav'
 export const metadata = { title: 'پنل مالک | Vigento AI — ویجنت' }
 export const dynamic = 'force-dynamic'
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Standalone admin guard — separate from the OTP/next-auth user session.
-  requireAdmin()
+  await requireAdmin()
 
   return (
     <div dir="rtl" className="admin-root min-h-dvh bg-[var(--bg-base)] font-fa text-[var(--text-primary)]">

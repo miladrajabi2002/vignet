@@ -130,7 +130,7 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
 }
 
 export async function POST(request: Request) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await rateLimit('admin-vigento:milad', 18, 60))) return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   const parsed = inputSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })

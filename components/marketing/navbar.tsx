@@ -144,7 +144,14 @@ function NavbarContent() {
 				<div className="col-start-3 flex items-center justify-end gap-2 lg:ms-auto">
 					<LanguageSwitcher className="hidden lg:inline-flex" />
 					{status === 'loading' ? (
-						<span aria-hidden className="h-10 w-20 animate-pulse rounded-xl bg-black/[0.05] motion-reduce:animate-none sm:w-28" />
+						<span
+							aria-label={t('login')}
+							aria-busy="true"
+							className="inline-flex min-h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/55 sm:min-w-20"
+						>
+							<LogIn className="hidden h-3.5 w-3.5 sm:block" />
+							{t('login')}
+						</span>
 					) : status === 'authenticated' ? (
 						<Link
 							href="/overview"

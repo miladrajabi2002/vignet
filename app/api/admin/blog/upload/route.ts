@@ -16,7 +16,7 @@ const ALLOWED = new Set([
 const MAX_BYTES = 6 * 1024 * 1024 // 6 MB
 
 export async function POST(req: Request) {
-	if (!isAdminAuthed()) {
+	if (!(await isAdminAuthed())) {
 		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 	}
 

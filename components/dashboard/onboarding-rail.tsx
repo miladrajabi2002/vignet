@@ -27,7 +27,7 @@ export async function OnboardingRail({ step }: { step: number }) {
       </span>
       <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--bg-muted)] sm:w-40">
         <span
-          className="block h-full rounded-full bg-emerald-500 transition-all"
+          className="block h-full rounded-full bg-emerald-500 transition-[width] duration-300"
           style={{ width: `${pct}%` }}
         />
       </span>

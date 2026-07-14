@@ -6,7 +6,7 @@ import { executeAdminAction } from '@/lib/admin/vigento-actions'
 const schema = z.object({ token: z.string().min(32).max(8_000) })
 
 export async function POST(request: Request) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
   try {

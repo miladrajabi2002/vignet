@@ -401,7 +401,7 @@ export function AgentWizard({
                         </div>
                         <div className="mb-8 h-1 overflow-hidden rounded-full bg-[var(--white-05)]">
                                 <div
-                                        className="h-full bg-[var(--white)] transition-all duration-500"
+                                        className="h-full bg-[var(--white)] transition-[width] duration-300"
                                         style={{ width: `${((step + 1) / TOTAL) * 100}%` }}
                                 />
                         </div>

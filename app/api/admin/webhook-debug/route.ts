@@ -32,7 +32,7 @@ export const dynamic = 'force-dynamic'
  * DELETE (same URL) clears the buffer.
  */
 export async function GET(req: Request) {
-	if (!isAdminAuthedRequest(req)) {
+	if (!(await isAdminAuthedRequest(req))) {
 		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 	}
 	const url = new URL(req.url)
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-	if (!isAdminAuthedRequest(req)) {
+	if (!(await isAdminAuthedRequest(req))) {
 		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 	}
 	const url = new URL(req.url)

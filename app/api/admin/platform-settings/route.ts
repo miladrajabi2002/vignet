@@ -41,12 +41,12 @@ const schema = z.object({
 })
 
 export async function GET() {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   return NextResponse.json(await getPlatformCommercialConfig())
 }
 
 export async function PUT(request: Request) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ error: 'INVALID_SETTINGS', issues: parsed.error.flatten() }, { status: 400 })

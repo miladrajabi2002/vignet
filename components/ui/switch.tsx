@@ -38,7 +38,7 @@ export function Switch({
 		>
 			<span
 				className={cn(
-					'absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full shadow-sm transition-all',
+					'absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full shadow-sm transition-[inset-inline-start,background-color,transform] duration-200',
 					checked
 						? 'start-6 bg-[var(--bg-base)]'
 						: 'start-1 border border-[var(--border-hover)] bg-[var(--bg-base)]',

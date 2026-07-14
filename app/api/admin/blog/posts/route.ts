@@ -7,15 +7,15 @@ import { getMainWorkspaceId } from '@/lib/blog/workspace'
 
 export const dynamic = 'force-dynamic'
 
-function guard(): NextResponse | null {
-	if (!isAdminAuthed()) {
+async function guard(): Promise<NextResponse | null> {
+	if (!(await isAdminAuthed())) {
 		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 	}
 	return null
 }
 
 export async function GET() {
-	const unauth = guard()
+	const unauth = await guard()
 	if (unauth) return unauth
 
 	const posts = await prisma.blogPost.findMany({
@@ -30,7 +30,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-	const unauth = guard()
+	const unauth = await guard()
 	if (unauth) return unauth
 
 	const json = await req.json().catch(() => null)

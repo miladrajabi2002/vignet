@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
  *                       do the static host probe (no /me/messages call).
  */
 export async function GET(req: Request) {
-	if (!isAdminAuthedRequest(req)) {
+	if (!(await isAdminAuthedRequest(req))) {
 		return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 	}
 

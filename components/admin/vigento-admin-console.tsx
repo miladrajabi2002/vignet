@@ -135,14 +135,14 @@ export function VigentoAdminConsole() {
         aria-hidden="true"
       />
 
-      <div className="relative grid min-h-[440px] lg:grid-cols-[1fr_1fr]">
+      <div className="relative grid lg:min-h-[440px] lg:grid-cols-[1fr_1fr]">
         {/* ═══════════════════════════════════════════════════════════════
             LEFT — Neural network visualization
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="relative flex flex-col overflow-hidden border-b border-white/8 p-6 sm:p-8 lg:border-b-0 lg:border-l">
+        <div className="relative flex flex-col overflow-hidden border-b border-white/8 p-4 sm:p-6 lg:border-b-0 lg:border-l lg:p-8">
           {/* Header */}
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/50 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/65 backdrop-blur-sm">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
@@ -152,17 +152,17 @@ export function VigentoAdminConsole() {
             <h2 id="vigento-admin-title" className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
               Vigento AI
             </h2>
-            <p className="mt-1 text-sm text-white/40">ویجنتوی ادمین · مرکز فرمان</p>
-            <p className="mt-3 max-w-md text-xs leading-6 text-white/35">
+            <p className="mt-1 text-sm text-white/55">ویجنتوی ادمین · مرکز فرمان</p>
+            <p className="mt-3 max-w-md text-xs leading-6 text-white/55">
               همه‌چیز زیر دست Vigento AI است — کاربران، گفتگوها، درآمد، هوش مصنوعی و خطاها همگی به‌صورت زنده متصل و قابل کنترل.
             </p>
           </div>
 
           {/* ── SVG Neural Network Visualization ────────────────────── */}
-          <div className="relative my-4 flex flex-1 items-center justify-center">
+          <div className="relative my-2 flex flex-1 items-center justify-center sm:my-4">
             <svg
               viewBox="0 0 320 280"
-              className="h-full w-full max-h-[260px]"
+              className="h-full w-full max-h-[190px] sm:max-h-[230px] lg:max-h-[260px]"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -423,7 +423,7 @@ export function VigentoAdminConsole() {
           </div>
 
           {/* Footer badge */}
-          <div className="relative z-10 flex items-center gap-2 text-[10px] text-white/30">
+          <div className="relative z-10 flex items-center gap-2 text-[11px] text-white/45">
             <ShieldCheck className="h-3.5 w-3.5" />
             OWNER ONLY · دسترسی مالک پلتفرم
           </div>
@@ -432,7 +432,7 @@ export function VigentoAdminConsole() {
         {/* ═══════════════════════════════════════════════════════════════
             RIGHT — Chat interface
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="flex min-h-[400px] flex-col bg-[#f7f7f5] p-4 text-black sm:p-6">
+        <div className="flex min-h-[360px] flex-col bg-[#f7f7f5] p-4 text-black sm:min-h-[400px] sm:p-6">
           {/* Chat header */}
           <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] pb-3">
             <div className="flex items-center gap-2.5">
@@ -441,10 +441,10 @@ export function VigentoAdminConsole() {
               </span>
               <div>
                 <p className="text-sm font-bold">گفتگو با هسته عملیات</p>
-                <p className="mt-0.5 text-[9px] text-black/40">داده زنده · فایل امن · عملیات با تأیید</p>
+                <p className="mt-0.5 text-[11px] text-black/50">داده زنده · فایل امن · عملیات با تأیید</p>
               </div>
             </div>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
               فقط میلاد
             </span>
           </div>
@@ -485,7 +485,7 @@ export function VigentoAdminConsole() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold">{proposal.title}</p>
-                  <p className="mt-1 text-[11px] leading-5 text-black/55">{proposal.description}</p>
+                  <p className="mt-1 text-xs leading-5 text-black/60">{proposal.description}</p>
                 </div>
                 <ShieldCheck
                   className={cn(
@@ -530,7 +530,7 @@ export function VigentoAdminConsole() {
                   key={prompt}
                   type="button"
                   onClick={() => void ask(prompt)}
-                  className="min-h-9 shrink-0 rounded-full border border-black/[0.08] bg-white px-3 text-[10px] font-medium text-black/55 transition-[transform,border-color,color] duration-200 hover:border-black/20 hover:text-black active:scale-[.97]"
+                  className="min-h-10 shrink-0 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-medium text-black/60 transition-[transform,border-color,color] duration-200 hover:border-black/20 hover:text-black active:scale-[.97]"
                 >
                   {prompt}
                 </button>
