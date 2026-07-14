@@ -83,7 +83,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
 
   return (
     <div className="space-y-5">
-      <section className="admin-panel overflow-hidden p-0">
+      <section className="spatial-surface overflow-hidden p-0">
         <div className="flex flex-col gap-4 border-b border-black/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-medium text-black/45"><ShieldCheck className="h-4 w-4" /> سیاست runtime پلتفرم</div>
@@ -114,7 +114,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
-        <div className="admin-panel p-5 sm:p-6">
+        <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
           <div className="flex items-center gap-3"><span className="admin-icon-well"><Volume2 className="h-4 w-4" /></span><div><h2 className="text-base font-bold">تعرفه هر پاسخ موفق</h2><p className="mt-0.5 text-[11px] text-black/45">مقدار داخلی ریال است؛ داشبورد کاربران تومان نمایش می‌دهد.</p></div></div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(Object.keys(MODEL_META) as Array<keyof typeof MODEL_META>).map((model) => (
@@ -124,7 +124,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             ))}
           </div>
         </div>
-        <div className="admin-panel p-5 sm:p-6">
+        <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
           <div className="flex items-center gap-3"><span className="admin-icon-well"><WalletCards className="h-4 w-4" /></span><div><h2 className="text-base font-bold">اعتبار و نرخ مالی</h2><p className="mt-0.5 text-[11px] text-black/45">برای ثبت‌نام جدید و محاسبه سود تلفیقی</p></div></div>
           <div className="mt-5 space-y-4">
             <Field label="اعتبار هدیه ماه آزمایشی" hint={`${Math.round(value.trialCreditIRR / 10).toLocaleString('fa-IR')} تومان`}>
@@ -137,7 +137,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
         </div>
       </section>
 
-      <section className="admin-panel p-5 sm:p-6">
+      <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div><h2 className="text-lg font-bold">پلن‌ها و سقف‌های ایمنی</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه، تخفیف پاسخ، سقف خصوصی پیام و تعداد ایجنت از همین تنظیمات در checkout و entitlement خوانده می‌شود.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {

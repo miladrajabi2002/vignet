@@ -87,7 +87,7 @@ export function ServerStatsWidget() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {/* CPU chart */}
-      <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -150,7 +150,7 @@ export function ServerStatsWidget() {
       </div>
 
       {/* RAM chart */}
-      <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+      <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">

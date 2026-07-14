@@ -14,10 +14,8 @@ import {
   Database,
   ExternalLink,
   BrainCircuit,
-  Activity,
   BarChart3,
   Settings2,
-  Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
@@ -32,7 +30,6 @@ type NavItem = {
 const NAV_ITEMS: Array<NavItem & { group?: string }> = [
   { href: '/admin', label: 'مرکز فرمان', icon: LayoutDashboard, exact: true, group: 'عملیات' },
   { href: '/admin/users', label: 'کاربران', icon: Users },
-  { href: '/admin/workspaces', label: 'کسب‌وکارها', icon: Store },
   { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
   { href: '/admin/agents', label: 'ایجنت‌ها و کانال‌ها', icon: Bot },
   { href: '/admin/revenue', label: 'درآمد و سود', icon: TrendingUp, group: 'مالی و هوش مصنوعی' },
@@ -40,7 +37,6 @@ const NAV_ITEMS: Array<NavItem & { group?: string }> = [
   { href: '/admin/usage', label: 'مصرف و هزینه AI', icon: BarChart3 },
   { href: '/admin/ai', label: 'مدل‌ها و سیاست AI', icon: BrainCircuit },
   { href: '/admin/settings', label: 'تعرفه و پلن‌ها', icon: Settings2, group: 'سیستم' },
-  { href: '/admin/system', label: 'سلامت سرور', icon: Activity },
   { href: '/admin/errors', label: 'خطاها', icon: AlertTriangle },
   { href: '/admin/blog', label: 'مدیریت بلاگ', icon: FileText },
 ]

@@ -14,7 +14,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  CartesianGrid,
 } from 'recharts'
 
 export interface DailyPoint {
@@ -100,7 +99,7 @@ export function TrendChart({
   data,
   color = '#18181b',
   variant = 'bar',
-  height = 176,
+  height = 240,
   format = 'number',
 }: {
   title: string
@@ -114,9 +113,9 @@ export function TrendChart({
   const gradId = `grad-${title.replace(/\s/g, '')}-${variant}`
 
   return (
-    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+        <h3 className="text-[13px] font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
       </div>
       <div style={{ height }}>
@@ -125,11 +124,10 @@ export function TrendChart({
             <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+                  <stop offset="0%" stopColor={color} stopOpacity={0.22} />
                   <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
@@ -141,12 +139,11 @@ export function TrendChart({
                 fill={`url(#${gradId})`}
                 isAnimationActive={false}
                 dot={false}
-                activeDot={{ r: 4, fill: color }}
+                activeDot={{ r: 5, fill: color, strokeWidth: 2, stroke: '#fff' }}
               />
             </AreaChart>
           ) : variant === 'line' ? (
             <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} />
@@ -162,7 +159,6 @@ export function TrendChart({
             </LineChart>
           ) : (
             <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} />
@@ -194,7 +190,7 @@ export function DonutChart({
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -275,7 +271,7 @@ export function BarList({
   const max = Math.max(1, ...data.map((d) => d.value))
 
   return (
-    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -320,7 +316,7 @@ export function MonthlyBarChart({
   format?: FormatKind
 }) {
   return (
-    <div className="admin-panel rounded-[1.35rem] p-4 sm:p-5">
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
@@ -328,7 +324,6 @@ export function MonthlyBarChart({
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
             <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis
               tick={AXIS}

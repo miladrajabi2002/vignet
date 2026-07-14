@@ -155,7 +155,7 @@ export function AiModelPolicyForm({
   }
 
   return (
-    <section className="admin-panel rounded-[1.35rem] p-5 sm:p-6">
+    <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

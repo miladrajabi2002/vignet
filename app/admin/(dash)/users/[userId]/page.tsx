@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
-import { MiniTrend } from '@/components/admin/mini-trend'
+import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import {
   PageHeader,
@@ -164,6 +164,17 @@ export default async function AdminUserDetailPage(
   const paySeries = user.workspaceId ? paySpark.get(user.workspaceId)?.series ?? [] : []
   const payWeekTotal = user.workspaceId ? paySpark.get(user.workspaceId)?.total ?? 0 : 0
 
+  // Build DailyPoint[] for TrendChart (7 days, oldest → newest).
+  const dayFmt = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' })
+  const convTrendData: DailyPoint[] = convSeries.map((value, i) => {
+    const d = new Date(Date.now() - (convSeries.length - 1 - i) * 86_400_000)
+    return { day: dayFmt.format(d), value }
+  })
+  const payTrendData: DailyPoint[] = paySeries.map((value, i) => {
+    const d = new Date(Date.now() - (paySeries.length - 1 - i) * 86_400_000)
+    return { day: dayFmt.format(d), value }
+  })
+
   const userName = user.name ?? user.phone
   const memberSince = fmtDay(user.createdAt)
 
@@ -187,23 +198,25 @@ export default async function AdminUserDetailPage(
         }
       />
 
-      {/* ─── 7-day activity sparklines ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <MiniTrend
-          label="مکالمات ۷ روز اخیر"
-          value={convWeekTotal}
-          series={convSeries}
+      {/* ─── 7-day activity trend charts ─── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TrendChart
+          title="مکالمات ۷ روز اخیر"
+          subtitle={`کل: ${fa(ws._count.conversations)} گفتگو`}
+          data={convTrendData}
           color="#3b82f6"
-          hint={`کل: ${fa(ws._count.conversations)}`}
-          variant="light"
+          variant="area"
+          format="number"
+          height={200}
         />
-        <MiniTrend
-          label="پرداخت‌های ۷ روز اخیر"
-          value={payWeekTotal}
-          series={paySeries}
+        <TrendChart
+          title="پرداخت‌های ۷ روز اخیر"
+          subtitle={`کل: ${fa(ws._count.payments)} پرداخت`}
+          data={payTrendData}
           color="#22c55e"
-          hint={`کل: ${fa(ws._count.payments)}`}
-          variant="light"
+          variant="area"
+          format="compact-irr"
+          height={200}
         />
       </div>
 

@@ -71,8 +71,8 @@ export function Card({
   return (
     <div
       className={cn(
-        'admin-panel rounded-[1.35rem]',
-        pad && 'p-4 sm:p-5',
+        'spatial-surface rounded-[1.5rem]',
+        pad && 'p-5 sm:p-6',
         className,
       )}
     >
@@ -303,7 +303,7 @@ export function TableShell({
   minWidth?: number
 }) {
   return (
-    <div className="admin-panel overflow-x-auto rounded-[1.35rem]">
+    <div className="spatial-surface overflow-x-auto rounded-[1.5rem]">
       <table className="w-full" style={{ minWidth }}>
         {children}
       </table>
@@ -342,35 +342,48 @@ export function PageHeader({
   subtitle,
   action,
   breadcrumbs,
+  icon: Icon,
 }: {
   title: string
   subtitle?: React.ReactNode
   action?: React.ReactNode
   breadcrumbs?: { label: string; href?: string }[]
+  /** Optional icon shown in a black square to the left of the title —
+   *  mirrors the user-dashboard PageHeader pattern. */
+  icon?: React.ComponentType<{ className?: string }>
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="mb-1.5 flex items-center gap-1 text-xs text-zinc-400">
-            {breadcrumbs.map((b, i) => (
-              <span key={i} className="flex items-center gap-1">
-                {b.href ? (
-                  <Link href={b.href} className="hover:text-zinc-700">
-                    {b.label}
-                  </Link>
-                ) : (
-                  <span className="text-zinc-600">{b.label}</span>
-                )}
-                {i < breadcrumbs.length - 1 && <span className="text-zinc-300">/</span>}
-              </span>
-            ))}
-          </nav>
-        )}
-        <h1 className="text-[clamp(1.35rem,3vw,1.8rem)] font-bold leading-tight text-black">{title}</h1>
-        {subtitle && <p className="mt-1.5 text-xs leading-6 text-black/45">{subtitle}</p>}
+    <div className="mb-5 spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          {Icon && (
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+              <Icon className="h-5 w-5" />
+            </span>
+          )}
+          <div>
+            {breadcrumbs && breadcrumbs.length > 0 && (
+              <nav className="mb-1.5 flex items-center gap-1 text-xs text-zinc-400">
+                {breadcrumbs.map((b, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {b.href ? (
+                      <Link href={b.href} className="hover:text-zinc-700">
+                        {b.label}
+                      </Link>
+                    ) : (
+                      <span className="text-zinc-600">{b.label}</span>
+                    )}
+                    {i < breadcrumbs.length - 1 && <span className="text-zinc-300">/</span>}
+                  </span>
+                ))}
+              </nav>
+            )}
+            <h1 className="text-[clamp(1.35rem,3vw,1.8rem)] font-bold leading-tight text-black">{title}</h1>
+            {subtitle && <p className="mt-1.5 text-xs leading-6 text-black/45">{subtitle}</p>}
+          </div>
+        </div>
+        {action && <div className="flex items-center gap-2">{action}</div>}
       </div>
-      {action && <div className="flex items-center gap-2">{action}</div>}
     </div>
   )
 }

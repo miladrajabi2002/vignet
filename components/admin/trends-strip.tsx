@@ -103,7 +103,7 @@ export function TrendsStrip({ tiles }: { tiles: TrendTile[] }) {
         return (
           <div
             key={i}
-            className="admin-panel rounded-[1.2rem] p-3 transition-[border-color,box-shadow] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-card)]"
+            className="spatial-surface rounded-[1rem] p-3 transition-[border-color,box-shadow] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-card)]"
           >
             <div className="mb-1.5 flex items-center justify-between gap-1">
               <span className="truncate text-[11px] font-medium text-zinc-500">
