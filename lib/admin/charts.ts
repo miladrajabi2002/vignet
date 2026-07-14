@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/prisma'
 
 export interface DailyPoint {
-        day: string // Persian short label, e.g. ۰۶/۲۹
+        day: string // Persian label, e.g. "۲۱ تیر"
         value: number
 }
 
 /** A labeled monthly bucket for revenue/usage charts. */
 export interface MonthPoint {
-        month: string // Persian short month label, e.g. ۱۴۰۳/۰۷
+        month: string // Persian month label, e.g. "ژوئیه ۲۰۲۶"
         value: number
         raw?: string // ISO year-month key for sorting
 }
@@ -32,16 +32,16 @@ function tzDayKey(d: Date): string {
 function label(d: Date): string {
         return new Intl.DateTimeFormat('fa-IR', {
                 timeZone: DASHBOARD_TZ,
-                month: '2-digit',
-                day: '2-digit',
+                month: 'short',
+                day: 'numeric',
         }).format(d)
 }
 
 function monthLabel(d: Date): string {
         return new Intl.DateTimeFormat('fa-IR', {
                 timeZone: DASHBOARD_TZ,
-                year: '2-digit',
-                month: '2-digit',
+                year: 'numeric',
+                month: 'long',
         }).format(d)
 }
 
@@ -122,15 +122,15 @@ export async function usageTokensDaily(days = 14): Promise<DailyPoint[]> {
 }
 
 export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
-	const since = new Date(Date.now() - days * 86400000)
-	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
+        const since = new Date(Date.now() - days * 86400000)
+        const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
            COALESCE(sum("chargedIRR"), 0) AS c
     FROM "UsageLog"
     WHERE "date" >= ${since} AND "status" = 'CAPTURED'
     GROUP BY 1 ORDER BY 1
   `
-	return fillSeries(rows.map((r) => ({ d: r.d, v: Number(r.c ?? 0) })), days)
+        return fillSeries(rows.map((r) => ({ d: r.d, v: Number(r.c ?? 0) })), days)
 }
 
 /** New user sign-ups per day. */
