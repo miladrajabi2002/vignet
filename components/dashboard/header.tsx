@@ -69,26 +69,22 @@ export async function Header({
           </span>
 
           <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>
-            {/* Line 1: Plan name */}
+            {/* Line 1: Plan name + days left (inline, compact) */}
             <span className="block truncate text-[11px] font-bold leading-4 text-[var(--text-primary)] sm:text-xs">
               {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
+              {daysLeft !== null && (
+                <span className="ms-1.5 text-[9px] font-normal text-[var(--text-muted)] sm:text-[10px]">
+                  {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
+                </span>
+              )}
             </span>
-            {/* Line 2: Credit amount */}
+            {/* Line 2: Credit amount (number only, no "تومان اعتبار" to avoid overflow) */}
             <span className="mt-0.5 block truncate text-[9px] leading-3.5 text-[var(--text-muted)] sm:text-[10px]">
-              {fa
-                ? `${nf.format(Math.round(creditIRR / 10))} تومان اعتبار`
-                : `${nf.format(Math.round(creditIRR / 10))} toman credit`}
+              {nf.format(Math.round(creditIRR / 10))}
+              <span className="ms-0.5 text-[8px] sm:text-[9px]">{fa ? 'تومان' : 'toman'}</span>
             </span>
-            {/* Line 3: Days left (tiny, above progress bar — only if applicable) */}
-            {daysLeft !== null && (
-              <span className="mt-1 block text-[8px] leading-3 text-[var(--text-muted)] sm:text-[9px]">
-                {fa
-                  ? `${nf.format(daysLeft)} روز اشتراک`
-                  : `${nf.format(daysLeft)} days`}
-              </span>
-            )}
             {/* Progress bar — reflects CREDIT remaining */}
-            <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-black/[0.075]">
+            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075]">
               <span className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${remaining}%` }} />
             </span>
           </span>
