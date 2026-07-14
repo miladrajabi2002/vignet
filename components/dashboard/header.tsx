@@ -41,7 +41,7 @@ export async function Header({
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 lg:px-8 xl:px-10">
-      <div className="spatial-control flex min-h-16 items-center justify-between gap-2 rounded-[1.35rem] px-2 sm:px-3.5">
+      <div className="flex min-h-16 items-center justify-between gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 px-2 shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/90 sm:px-3.5">
       <div className="flex min-w-0 items-center gap-3.5">
         <MobileNav businessType={businessType} services={services} />
         <div className="hidden min-w-0 sm:block">
