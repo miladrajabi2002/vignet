@@ -77,7 +77,7 @@ export function ConversationFilters({
 					type="button"
 					onClick={() => navigate({ status: activeStatus === 'HANDED_OFF' ? undefined : 'HANDED_OFF' })}
 					className={cn(
-						'spatial-press inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 text-[11px] font-semibold transition-[background-color,border-color,color] duration-150',
+						'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 text-[11px] font-semibold transition-[background-color,border-color,color] duration-150',
 						activeStatus === 'HANDED_OFF'
 							? 'border-amber-400 bg-amber-400 text-black'
 							: 'border-amber-400/25 bg-amber-400/[0.08] text-amber-700 hover:bg-amber-400/[0.14]',

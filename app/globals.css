@@ -446,6 +446,22 @@
                 animation-delay: 55ms;
         }
 
+        .dashboard-page-header {
+                position: relative;
+                isolation: isolate;
+                animation: dashboard-header-arrive 280ms var(--ease-spatial) both;
+        }
+
+        .dashboard-page-header::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                z-index: -1;
+                border-radius: inherit;
+                background: radial-gradient(circle at 82% 0%, rgba(17, 17, 17, 0.035), transparent 18rem);
+                pointer-events: none;
+        }
+
         .dashboard-intro {
                 isolation: isolate;
                 background:
@@ -512,6 +528,46 @@
                         opacity: 1;
                         transform: translate3d(0, 0, 0) scale(1);
                 }
+        }
+
+        @keyframes dashboard-header-arrive {
+                from {
+                        opacity: 0.72;
+                        transform: translate3d(0, 0.4rem, 0);
+                }
+                to {
+                        opacity: 1;
+                        transform: translate3d(0, 0, 0);
+                }
+        }
+
+        .dashboard-mobile-backdrop {
+                animation: dashboard-backdrop-in 180ms ease-out both;
+        }
+
+        .dashboard-mobile-sheet {
+                transform-origin: top right;
+                animation: dashboard-sheet-in-rtl 220ms var(--ease-spatial) both;
+        }
+
+        html[dir='ltr'] .dashboard-mobile-sheet {
+                transform-origin: top left;
+                animation-name: dashboard-sheet-in-ltr;
+        }
+
+        @keyframes dashboard-backdrop-in {
+                from { opacity: 0; }
+                to { opacity: 1; }
+        }
+
+        @keyframes dashboard-sheet-in-rtl {
+                from { opacity: 0; transform: translate3d(1rem, 0, 0) scale(0.985); }
+                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+
+        @keyframes dashboard-sheet-in-ltr {
+                from { opacity: 0; transform: translate3d(-1rem, 0, 0) scale(0.985); }
+                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
 
         @media (hover: hover) and (pointer: fine) {
@@ -895,7 +951,10 @@
 
 @media (prefers-reduced-motion: reduce) {
         .dashboard-arrival,
-        .dashboard-arrival--core {
+        .dashboard-arrival--core,
+        .dashboard-page-header,
+        .dashboard-mobile-backdrop,
+        .dashboard-mobile-sheet {
                 animation: none;
         }
 

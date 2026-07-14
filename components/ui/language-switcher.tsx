@@ -24,7 +24,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
       disabled={isPending}
       aria-label="Switch language"
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-50',
+        'inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-2.5 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-50',
         className,
       )}
     >

@@ -41,7 +41,13 @@ export function DashboardDonut({
 
   return (
     <div className="flex items-center gap-4">
-      <div className="relative shrink-0" style={{ width: height, height }}>
+      <div
+        className="relative shrink-0"
+        style={{
+          width: `clamp(9rem, 46vw, ${height}px)`,
+          height: `clamp(9rem, 46vw, ${height}px)`,
+        }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie

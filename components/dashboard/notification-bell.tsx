@@ -72,7 +72,7 @@ export function NotificationBell() {
 
 	return (
 		<div className="relative">
-			<button ref={triggerRef} type="button" onClick={() => setOpen((current) => !current)} aria-label={t('title')} aria-expanded={open} aria-haspopup="dialog" className={cn('spatial-press relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black', open && 'bg-black text-white hover:bg-black hover:text-white')}>
+			<button ref={triggerRef} type="button" onClick={() => setOpen((current) => !current)} aria-label={t('title')} aria-expanded={open} aria-haspopup="dialog" className={cn('spatial-press relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-black', open && 'bg-black text-white hover:bg-black hover:text-white')}>
 				<Bell className="h-4 w-4" />
 				{unread > 0 && <span aria-live="polite" className="absolute -end-1.5 -top-1.5 flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[8px] font-black tabular-nums text-black shadow-sm ring-2 ring-white">{unread > 99 ? '99+' : unread.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>}
 			</button>
@@ -82,7 +82,7 @@ export function NotificationBell() {
 				<section ref={panelRef} role="dialog" aria-modal="true" aria-label={t('title')} className="material-select-menu fixed inset-x-3 bottom-3 z-[99] max-h-[calc(100dvh-5rem)] overflow-hidden rounded-[1.65rem] border border-black/10 bg-white/97 shadow-[0_28px_90px_rgba(0,0,0,0.28)] backdrop-blur-xl [animation:spatial-pop_220ms_cubic-bezier(.2,.8,.2,1)] motion-reduce:animate-none sm:inset-x-auto sm:bottom-auto sm:end-5 sm:top-[4.75rem] sm:w-96">
 					<header className="flex items-center justify-between border-b border-black/[0.07] px-4 py-3.5">
 						<div><h2 className="text-sm font-bold text-black">{t('title')}</h2><p className="mt-0.5 text-[10px] text-black/40">{unread ? (fa ? `${unread.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : `${unread} unread notifications`) : (fa ? 'همه اعلان‌ها دیده شده‌اند' : 'You are all caught up')}</p></div>
-						{unread > 0 && <button type="button" onClick={() => markRead()} className="spatial-press inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-black px-3 text-[10px] font-semibold text-white"><CheckCheck className="h-3.5 w-3.5" />{t('markAllRead')}</button>}
+						{unread > 0 && <button type="button" onClick={() => markRead()} className="spatial-press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-3 text-[10px] font-semibold text-white"><CheckCheck className="h-3.5 w-3.5" />{t('markAllRead')}</button>}
 					</header>
 
 					<div className="max-h-[min(31rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain p-1.5">

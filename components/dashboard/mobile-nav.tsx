@@ -75,7 +75,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                 aria-label="Open dashboard navigation"
                                 aria-expanded={open}
                                 aria-controls="dashboard-mobile-navigation"
-                                className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:text-[var(--text-primary)]"
+                                className="spatial-press inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:text-[var(--text-primary)]"
                         >
                                 <Menu className="h-5 w-5" />
                         </button>
@@ -95,7 +95,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                 <button
                                                         aria-label="Close menu"
                                                         onClick={() => setOpen(false)}
-                                                        className="absolute inset-0 bg-black/38 backdrop-blur-sm"
+                                                        className="dashboard-mobile-backdrop absolute inset-0 bg-black/38 backdrop-blur-sm"
                                                 />
 
                                                 {/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
@@ -104,7 +104,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                         role="dialog"
                                                         aria-modal="true"
                                                         aria-label="Dashboard navigation"
-                                                        className="spatial-control absolute inset-y-3 start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)]"
+                                                        className="dashboard-mobile-sheet spatial-control absolute inset-y-3 start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)]"
                                                 >
                                                         <div className="mb-4 flex items-center justify-between px-1">
                                                                 <Link href="/" onClick={() => setOpen(false)} className="flex-1 flex justify-center">
@@ -114,7 +114,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                                         onClick={() => setOpen(false)}
                                                                         aria-label="Close menu"
                                                                         autoFocus
-                                                                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
+                                                                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
                                                                 >
                                                                         <X className="h-5 w-5" />
                                                                 </button>
@@ -139,7 +139,7 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                                                                                         href={href}
                                                                                         onClick={() => setOpen(false)}
                                                                                         className={cn(
-                                                                                                'group flex min-h-[2.5rem] items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors duration-150',
+														'group flex min-h-11 items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] transition-colors duration-150',
                                                                                                 active
                                                                                                         ? 'bg-[var(--bg-surface)] font-medium text-[var(--text-primary)]'
                                                                                                         : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',

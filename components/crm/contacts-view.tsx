@@ -192,7 +192,7 @@ export function ContactsView({
 
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
                                 <span className="inline-flex items-center gap-1.5"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${filtered.length.toLocaleString('fa-IR')} نتیجه در این صفحه` : `${filtered.length} results on this page`}</span>
-                                {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-9 rounded-lg px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
+                                {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-11 rounded-xl px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
                         </div>
 
                         {filtered.length === 0 ? (
@@ -232,7 +232,7 @@ function ToggleBtn({
                 <button
                         onClick={onClick}
                         className={cn(
-                                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors',
+                                'flex min-h-11 items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm transition-colors',
                                 active
                                         ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
                                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
@@ -257,7 +257,7 @@ function StageSelect({
                         value={STAGES.includes(value as Stage) ? value : 'lead'}
                         onValueChange={(next) => onChange(next as Stage)}
                         ariaLabel={t('stage')}
-                        buttonClassName="min-h-9 rounded-lg px-2 text-xs"
+                        buttonClassName="min-h-11 rounded-xl px-2 text-xs"
                         options={STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))}
                 />
         )
@@ -313,13 +313,15 @@ function ListView({
                                         key={c.id}
                                         className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
                                 >
-                                        <input
-                                                type="checkbox"
-                                                checked={selected.has(c.id)}
-                                                onChange={() => onToggleSelected(c.id)}
-                                                className="h-4 w-4 shrink-0 accent-violet-500"
-                                                aria-label={locale === 'fa' ? `انتخاب ${rowDisplayName(c, t('anonymous'))}` : `Select ${rowDisplayName(c, t('anonymous'))}`}
-                                        />
+                                        <label className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-colors hover:bg-[var(--bg-hover)]">
+                                                <input
+                                                        type="checkbox"
+                                                        checked={selected.has(c.id)}
+                                                        onChange={() => onToggleSelected(c.id)}
+                                                        className="h-4 w-4 accent-violet-500"
+                                                        aria-label={locale === 'fa' ? `انتخاب ${rowDisplayName(c, t('anonymous'))}` : `Select ${rowDisplayName(c, t('anonymous'))}`}
+                                                />
+                                        </label>
                                         <Link
                                                 href={`/contacts/${c.id}`}
                                                 className="flex min-w-0 flex-1 items-center gap-3"

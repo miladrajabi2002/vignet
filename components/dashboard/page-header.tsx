@@ -46,7 +46,7 @@ export function PageHeader({
   actions?: React.ReactNode
 }) {
   return (
-    <header className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+    <header className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {Icon && (

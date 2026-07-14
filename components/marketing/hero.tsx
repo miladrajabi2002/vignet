@@ -299,7 +299,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 					{/* Vigent reply card */}
 					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 8 }}
+						initial={reduce ? false : { y: 6 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.9 }}
 						className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white p-3"
@@ -431,7 +431,7 @@ export function Hero() {
 					</motion.div>
 
 					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 8 }}
+						initial={reduce ? false : { y: 6 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={reduce ? { duration: 0 } : { delay: 0.27, duration: 0.45 }}
 						className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
@@ -445,7 +445,7 @@ export function Hero() {
 					</motion.div>
 
 					<motion.p
-						initial={reduce ? false : { opacity: 0 }}
+						initial={false}
 						animate={{ opacity: 1 }}
 						transition={reduce ? { duration: 0 } : { delay: 0.3, duration: 0.55 }}
 						className="mt-4 text-[11px] leading-5 text-[var(--text-muted)]"
