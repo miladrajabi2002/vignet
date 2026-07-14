@@ -160,9 +160,7 @@ export default async function AdminUserDetailPage(
 
   // 7-day sparkline data for this user's workspace.
   const convSeries = user.workspaceId ? convSpark.get(user.workspaceId)?.series ?? [] : []
-  const convWeekTotal = user.workspaceId ? convSpark.get(user.workspaceId)?.total ?? 0 : 0
   const paySeries = user.workspaceId ? paySpark.get(user.workspaceId)?.series ?? [] : []
-  const payWeekTotal = user.workspaceId ? paySpark.get(user.workspaceId)?.total ?? 0 : 0
 
   // Build DailyPoint[] for TrendChart (7 days, oldest → newest).
   const dayFmt = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' })

@@ -60,22 +60,13 @@ export default async function DashboardLayout({
   const planEnd = plan === 'TRIAL'
     ? workspace?.trialEndsAt
     : workspace?.subscriptions[0]?.currentPeriodEnd
-  const subscriptionCreatedAt = workspace?.subscriptions[0]?.createdAt
-  const paidCycleStart = planEnd
-    ? new Date(planEnd.getTime() - 30 * 86_400_000)
-    : null
-  const planStart = plan === 'TRIAL'
-    ? workspace?.createdAt
-    : subscriptionCreatedAt && paidCycleStart
-      ? new Date(Math.max(subscriptionCreatedAt.getTime(), paidCycleStart.getTime()))
-      : paidCycleStart
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
     : null
   // Credit percentage: how much of the plan's included credit remains.
   // (Was time-based; now reflects actual AI credit balance so the progress
   // bar in the header tracks real spending, not the billing cycle.)
-  const planDefs = getEffectivePlanDefs()
+  const planDefs = await getEffectivePlanDefs()
   const includedCreditIRR = planDefs[plan]?.includedCreditIRR ?? 100_000
   const creditBalanceIRR = workspace?.aiCreditBalanceIRR ?? 0
   const remainingPercent = includedCreditIRR > 0
