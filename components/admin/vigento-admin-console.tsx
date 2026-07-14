@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from 'react'
 import {
-  Bot,
   Check,
   Loader2,
   Send,
