@@ -7,8 +7,9 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import { ConversationFilters } from '@/components/dashboard/conversation-filters'
+import { ConversationChart } from '@/components/dashboard/charts/lazy'
+import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import {
         conversationsDailyByWorkspace,
 } from '@/lib/dashboard/charts'
@@ -99,7 +100,7 @@ export default async function ConversationsPage(props: {
                 openCount,
                 resolvedCount,
                 handedOffCount,
-                convTrend7,
+                convTrend,
                 channelGroups,
                 agents,
         ] = await Promise.all([
@@ -155,7 +156,7 @@ export default async function ConversationsPage(props: {
                 prisma.conversation.count({
                         where: { workspaceId: user.workspaceId, status: 'HANDED_OFF', handedOff: true },
                 }),
-                conversationsDailyByWorkspace(user.workspaceId, 7),
+                conversationsDailyByWorkspace(user.workspaceId, 14),
                 // Available channels for the filter pills.
                 prisma.conversation.groupBy({
                         by: ['channel'],
@@ -175,6 +176,13 @@ export default async function ConversationsPage(props: {
 
         const hasNext = conversations.length > PAGE_SIZE
         const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
+
+        // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
+        const trendFormatter = new Intl.DateTimeFormat(isFa ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' })
+        const convTrendPoints: TrendPoint[] = convTrend.series.map((value, i) => {
+                const d = new Date(Date.now() - (convTrend.series.length - 1 - i) * 86_400_000)
+                return { label: trendFormatter.format(d), value }
+        })
 
         // Build filter pill hrefs (resets to page 1).
         const channelLabels = isFa ? CHANNEL_LABELS_FA : null
@@ -202,15 +210,12 @@ export default async function ConversationsPage(props: {
                                 >
                                         <DashboardDonut data={statusDonut} centerValue={totalCount} centerLabel={isFa ? 'گفتگو' : 'conversations'} />
                                 </DashboardPanel>
-                                <MiniTrend
-                                        label={isFa ? 'مکالمات ۷ روز' : 'Conversations 7d'}
-                                        value={convTrend7.total}
-                                        series={convTrend7.series}
-                                        color="#111111"
-                                        hint={
-                                                isFa ? `کل: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`
-                                        }
-                                />
+                                <DashboardPanel
+                                        title={isFa ? 'روند گفتگوهای ۱۴ روز اخیر' : 'Conversation trend, last 14 days'}
+                                        subtitle={isFa ? `${convTrend.total.toLocaleString('fa-IR')} گفتگو در این دوره` : `${convTrend.total} conversations in this period`}
+                                >
+                                        <ConversationChart data={convTrendPoints} />
+                                </DashboardPanel>
                         </div>
 
                         {/* ─── Filters: status (handed-off prioritized) + channel ─── */}

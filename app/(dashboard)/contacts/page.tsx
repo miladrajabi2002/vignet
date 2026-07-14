@@ -6,9 +6,10 @@ import { prisma } from '@/lib/prisma'
 import { ContactsView, type ContactRow } from '@/components/crm/contacts-view'
 import { MetricsExplainer } from '@/components/dashboard/metrics-explainer'
 import { Pagination } from '@/components/ui/pagination'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardDonut } from '@/components/dashboard/donut'
+import { ConversationChart } from '@/components/dashboard/charts/lazy'
+import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 
 const PAGE_SIZE = 100
@@ -38,7 +39,7 @@ export default async function ContactsPage(
 
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const [contacts, totalCount, stageGroups, contactTrend7] = await Promise.all([
+  const [contacts, totalCount, stageGroups, contactTrend] = await Promise.all([
     prisma.contact.findMany({
       where: { workspaceId: user.workspaceId },
       // Order by denormalized "last activity" first (bumped on every inbound/
@@ -80,11 +81,18 @@ export default async function ContactsPage(
       where: { workspaceId: user.workspaceId },
       _count: { _all: true },
     }),
-    contactsDailyByWorkspace(user.workspaceId, 7),
+    contactsDailyByWorkspace(user.workspaceId, 14),
   ])
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
+
+  // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
+  const trendFormatter = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' })
+  const contactTrendPoints: TrendPoint[] = contactTrend.series.map((value, i) => {
+    const d = new Date(Date.now() - (contactTrend.series.length - 1 - i) * 86_400_000)
+    return { label: trendFormatter.format(d), value }
+  })
 
   const rows: ContactRow[] = pageContacts.map((c) => {
     const channels: ChannelType[] = []
@@ -150,7 +158,12 @@ export default async function ContactsPage(
             centerLabel={isFa ? 'مشتری' : 'customers'}
           />
         </DashboardPanel>
-        <MiniTrend label={isFa ? 'مشتریان جدید ۷ روز' : 'New customers 7d'} value={contactTrend7.total} series={contactTrend7.series} color="#111111" hint={isFa ? `کل مشتریان: ${totalCount.toLocaleString('fa-IR')}` : `Total: ${totalCount}`} />
+        <DashboardPanel
+          title={isFa ? 'مشتریان جدید ۱۴ روز اخیر' : 'New customers, last 14 days'}
+          subtitle={isFa ? `${contactTrend.total.toLocaleString('fa-IR')} مشتری جدید در این دوره` : `${contactTrend.total} new customers in this period`}
+        >
+          <ConversationChart data={contactTrendPoints} />
+        </DashboardPanel>
       </div>
 
       <ContactsView

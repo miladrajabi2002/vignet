@@ -44,6 +44,7 @@ import { Switch } from '@/components/ui/switch'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
 import { MediaUploader, type MediaItem } from '@/components/instagram/media-uploader'
 import { VoiceRecorder } from '@/components/instagram/voice-recorder'
+import { PageHeader } from '@/components/dashboard/page-header'
 import {
         type Automation,
         type AutomationType,
@@ -449,39 +450,27 @@ export function AutomationForm({
                                 : false
 
         return (
-                <div className="mx-auto max-w-7xl">
-                        {/* Back link */}
-                        <div className="mb-4">
-                                <Link
-                                        href={`/agents/${agentId}/instagram`}
-                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                >
-                                        <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
-                                        بازگشت به اتوماسیون
-                                </Link>
-                        </div>
-
-                        {/* Page header */}
-                        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                        <div
-                                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
-                                                style={{ background: 'linear-gradient(45deg, #f58529, #dd2a7b, #8134af)' }}
+                <div className="mx-auto max-w-7xl space-y-5">
+                        {/* Page header — unified with the rest of the dashboard.
+                            The Instagram gradient is preserved on the icon box via inline style. */}
+                        <PageHeader
+                                icon={HeaderIcon}
+                                title={mode === 'create' ? 'افزودن سناریو' : 'ویرایش سناریو'}
+                                subtitle={
+                                        type === 'DIRECT_MESSAGE' ? 'پاسخ خودکار به پیام‌های مستقیم'
+                                        : type === 'COMMENT' ? 'پاسخ خودکار به کامنت پست‌ها'
+                                        : 'پاسخ خودکار به استوری‌ها'
+                                }
+                                actions={
+                                        <Link
+                                                href={`/agents/${agentId}/instagram`}
+                                                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                         >
-                                                <HeaderIcon className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                                <h1 className="text-xl font-medium text-[var(--text-primary)]">
-                                                        {mode === 'create' ? 'افزودن سناریو' : 'ویرایش سناریو'}
-                                                </h1>
-                                                <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-                                                        {type === 'DIRECT_MESSAGE' && 'پاسخ خودکار به پیام‌های مستقیم'}
-                                                        {type === 'COMMENT' && 'پاسخ خودکار به کامنت پست‌ها'}
-                                                        {type === 'STORY' && 'پاسخ خودکار به استوری‌ها'}
-                                                </p>
-                                        </div>
-                                </div>
-                        </header>
+                                                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                                                بازگشت
+                                        </Link>
+                                }
+                        />
 
                         <form onSubmit={submit} className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                                 {/* ── LEFT: form fields ────────────────────────────────────── */}
@@ -795,22 +784,22 @@ export function AutomationForm({
                                                 </p>
                                         )}
 
-                                        {/* Footer */}
-                                        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)]/95 px-4 py-3 backdrop-blur">
-                                                <p className="hidden text-[11px] text-[var(--text-muted)] sm:block">
+                                        {/* Footer — sticky action bar */}
+                                        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-base)]/95 px-5 py-4 backdrop-blur-md">
+                                                <p className="hidden text-[11px] font-medium text-[var(--text-muted)] sm:block">
                                                         پیش‌نمایش زنده در ستون کناری
                                                 </p>
                                                 <div className="flex items-center gap-2">
                                                         <Link
                                                                 href={`/agents/${agentId}/instagram`}
-                                                                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                                                                className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                                         >
                                                                 انصراف
                                                         </Link>
                                                         <button
                                                                 type="submit"
                                                                 disabled={busy || !form.name.trim()}
-                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                                                                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
                                                         >
                                                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                                                 {mode === 'create' ? 'افزودن سناریو' : 'ذخیره تغییرات'}
@@ -913,39 +902,39 @@ function Section({
         const [open, setOpen] = useState(!defaultCollapsed)
         if (!collapsible) {
                 return (
-                        <section className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-                                <div className="flex items-center gap-2">
+                        <section className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+                                <div className="flex items-center gap-2.5">
                                         {Icon && (
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
-                                                        <Icon className="h-3.5 w-3.5" />
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+                                                        <Icon className="h-4 w-4" />
                                                 </div>
                                         )}
-                                        <h2 className="text-sm font-medium text-[var(--text-primary)]">{title}</h2>
+                                        <h2 className="text-sm font-bold tracking-tight text-[var(--text-primary)]">{title}</h2>
                                 </div>
                                 {children}
                         </section>
                 )
         }
         return (
-                <section className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]">
+                <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}
-                                className="flex w-full items-center justify-between gap-2 px-5 py-4 text-start"
+                                className="flex w-full items-center justify-between gap-2 px-5 py-4 text-start transition-colors hover:bg-[var(--bg-hover)] sm:px-6"
                         >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2.5">
                                         {Icon && (
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)]">
-                                                        <Icon className="h-3.5 w-3.5" />
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
+                                                        <Icon className="h-4 w-4" />
                                                 </div>
                                         )}
-                                        <h2 className="text-sm font-medium text-[var(--text-primary)]">{title}</h2>
+                                        <h2 className="text-sm font-bold tracking-tight text-[var(--text-primary)]">{title}</h2>
                                 </div>
                                 <ChevronDown
                                         className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`}
                                 />
                         </button>
-                        {open && <div className="space-y-4 border-t border-[var(--border-subtle)] px-5 py-5">{children}</div>}
+                        {open && <div className="space-y-4 border-t border-[var(--border-subtle)] px-5 py-5 sm:px-6">{children}</div>}
                 </section>
         )
 }
