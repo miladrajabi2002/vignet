@@ -167,6 +167,7 @@ export default async function AdminOverviewPage(
       <PageHeader
         title="نبض پلتفرم"
         subtitle="نمای یکپارچه عملکرد، درآمد و سلامت Vigento AI"
+        icon={Activity}
         action={<RangeSwitch current={range} />}
       />
 
