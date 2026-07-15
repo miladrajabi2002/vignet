@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/knowledge/page.tsx": {
-    "mtime": 1783987299.0,
-    "ast_hash": "4c646d4da2561331259dd71dc3b8e99d",
+    "mtime": 1784120272.7489266,
+    "ast_hash": "ea861c932b2e9df63e7586ad04360a8c",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/layout.tsx": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "components/agents/agent-tabs.tsx": {
-    "mtime": 1784115608.4387133,
-    "ast_hash": "84d979c7b8dddf3bdf7f50157d56bc02",
+    "mtime": 1784120272.7479258,
+    "ast_hash": "079c9e0e9cd607732a4cfe20500af33c",
     "semantic_hash": ""
   },
   "components/agents/agent-versions.tsx": {
@@ -1375,8 +1375,8 @@
     "semantic_hash": ""
   },
   "components/knowledge/kb-manager.tsx": {
-    "mtime": 1784119717.139352,
-    "ast_hash": "97aa27c85d9163bf344f5d92b1709bb2",
+    "mtime": 1784119913.0697436,
+    "ast_hash": "6fe4e6accb5ec0feafc08da199943ba6",
     "semantic_hash": ""
   },
   "components/marketing/back-to-top.tsx": {
@@ -2275,13 +2275,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1784119717.1443467,
-    "ast_hash": "d8b61234ff53fba2ed895039e6f47ad3",
+    "mtime": 1784120272.751926,
+    "ast_hash": "25bcced290a4500eda9b6a0dd5ef41d1",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1784119717.1423466,
-    "ast_hash": "0a524885ae2bc2f487d7b72c4ba28975",
+    "mtime": 1784120272.7509265,
+    "ast_hash": "0bc9615c2c5a40ac3f2acb9586339636",
     "semantic_hash": ""
   },
   "middleware.ts": {

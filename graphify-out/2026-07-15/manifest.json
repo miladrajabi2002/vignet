@@ -1375,8 +1375,8 @@
     "semantic_hash": ""
   },
   "components/knowledge/kb-manager.tsx": {
-    "mtime": 1783986369.0,
-    "ast_hash": "fe1b654e3fd7628a11a1824598724aab",
+    "mtime": 1784119913.0697436,
+    "ast_hash": "6fe4e6accb5ec0feafc08da199943ba6",
     "semantic_hash": ""
   },
   "components/marketing/back-to-top.tsx": {
@@ -2275,13 +2275,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1784044009.018514,
-    "ast_hash": "59f4830a576db0cd5d2321cf62f378fd",
+    "mtime": 1784119717.1443467,
+    "ast_hash": "d8b61234ff53fba2ed895039e6f47ad3",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1784044009.0175138,
-    "ast_hash": "2c5fcd5d335c14f9a11a697b40a882e6",
+    "mtime": 1784119717.1423466,
+    "ast_hash": "0a524885ae2bc2f487d7b72c4ba28975",
     "semantic_hash": ""
   },
   "middleware.ts": {

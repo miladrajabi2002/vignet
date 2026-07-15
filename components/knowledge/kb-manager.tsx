@@ -186,7 +186,7 @@ export function KbManager({
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  aria-controls={`knowledge-panel-${key}`}
+                  aria-controls="knowledge-source-panel"
                   onClick={() => setMode(key)}
                   className={cn(
                     'group flex min-h-[4.5rem] items-center gap-3 rounded-[1.05rem] px-3.5 py-3 text-start transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70',
@@ -222,7 +222,7 @@ export function KbManager({
           </div>
 
           <div
-            id={`knowledge-panel-${mode}`}
+            id="knowledge-source-panel"
             role="tabpanel"
             aria-labelledby={`knowledge-tab-${mode}`}
             className="space-y-4"
