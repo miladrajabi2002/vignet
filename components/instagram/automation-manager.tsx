@@ -23,7 +23,6 @@ import {
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { SectionHeader } from '@/components/dashboard/section-header'
 import { Switch } from '@/components/ui/switch'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -217,16 +216,22 @@ export function InstagramAutomationManager({
                                 accountUsername={accountUsername}
                         />
 
-                        <section className="space-y-4" aria-labelledby="instagram-scenarios-title">
-                                <SectionHeader
-                                        title={locale === 'fa' ? 'سناریوهای پاسخ‌گویی' : 'Reply scenarios'}
-                                        subtitle={locale === 'fa' ? 'برای هر ورودی، قوانین و پاسخ‌های مستقل بسازید.' : 'Create independent rules and replies for each entry point.'}
-                                        meta={
-                                                locale === 'fa'
+                        <section className="spatial-surface space-y-4 rounded-[1.5rem] p-4 sm:p-5" aria-labelledby="instagram-scenarios-title">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="min-w-0">
+                                                <h2 id="instagram-scenarios-title" className="text-base font-bold tracking-tight text-[var(--text-primary)]">
+                                                        {locale === 'fa' ? 'سناریوهای پاسخ‌گویی' : 'Reply scenarios'}
+                                                </h2>
+                                                <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+                                                        {locale === 'fa' ? 'برای هر ورودی، قوانین و پاسخ‌های مستقل بسازید.' : 'Create independent rules and replies for each entry point.'}
+                                                </p>
+                                        </div>
+                                        <span className="shrink-0 text-xs font-medium tabular-nums text-[var(--text-muted)]">
+                                                {locale === 'fa'
                                                         ? `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} سناریوی فعال از ${automations.length.toLocaleString(numLocale)}`
-                                                        : `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} active of ${automations.length.toLocaleString(numLocale)}`
-                                        }
-                                />
+                                                        : `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} active of ${automations.length.toLocaleString(numLocale)}`}
+                                        </span>
+                                </div>
 
                                 <div className="grid grid-cols-1 gap-1.5 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
                                         {TABS.map(({ key, labelKey, Icon }) => {

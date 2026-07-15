@@ -131,8 +131,8 @@ export function ProductsToolbar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative flex-1">
+    <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
+      <div className="relative min-w-[12rem] flex-1">
         <SearchIcon className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
         <input
           defaultValue={defaultQuery}
@@ -145,7 +145,7 @@ export function ProductsToolbar({
         value={defaultCategory}
         onValueChange={(value) => update({ categoryId: value })}
         ariaLabel={t('allCategories')}
-        className="min-w-44"
+        className="min-w-40"
         options={[
           { value: '', label: t('allCategories') },
           ...categories.map((category) => ({ value: category.id, label: category.name })),
@@ -155,7 +155,7 @@ export function ProductsToolbar({
         value={defaultSort}
         onValueChange={(value) => update({ sort: value })}
         ariaLabel={t('sortNewest')}
-        className="min-w-44"
+        className="min-w-40"
         options={[
           { value: 'newest', label: t('sortNewest') },
           { value: 'price_asc', label: t('sortPriceAsc') },

@@ -129,8 +129,8 @@ export default async function ProductsPage(
                 const d = new Date()
                 d.setDate(d.getDate() - (productTrend7.series.length - 1 - i))
                 const label = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+                  month: 'short',
                   day: 'numeric',
-                  month: fa ? 'numeric' : 'short',
                 }).format(d)
                 return { label, value }
               })}

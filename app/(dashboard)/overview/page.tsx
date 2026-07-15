@@ -230,7 +230,7 @@ export default async function OverviewPage() {
   const Arrow = fa ? ArrowLeft : ArrowRight
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
         <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
           <div className="relative">

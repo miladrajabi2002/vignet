@@ -171,7 +171,7 @@ export default async function AnalyticsPage() {
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
         icon={BarChart3}
         title={fa ? 'تحلیل عمیق گفتگوها و عملکرد' : 'Deep performance analytics'}

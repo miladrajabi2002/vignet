@@ -143,7 +143,7 @@ export function ContactsView({
         }
 
         return (
-                <div className="mx-auto max-w-6xl space-y-6">
+                <div className="space-y-6">
                         {/* Action bar — campaign + view toggle (title is rendered by the
                             parent page's PageHeader, so we only keep the actions here). */}
                         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -174,20 +174,22 @@ export function ContactsView({
                                 </div>
                         </div>
 
-                        <div className="spatial-surface grid gap-2 rounded-[1.5rem] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_170px_170px_auto]">
-                                <div className="relative">
+                        <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
+                                <div className="relative min-w-[12rem] flex-1">
                                         <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                                         <input
                                                 value={query}
                                                 onChange={(e) => setQuery(e.target.value)}
                                                 placeholder={t('search')}
-                                                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] py-2.5 pe-3 ps-9 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none"
+                                                className="input ps-9"
                                         />
                                 </div>
-                                <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} options={[{ value: '', label: locale === 'fa' ? 'همه مراحل' : 'All stages' }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
-                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
-                                <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} options={[{ value: '', label: locale === 'fa' ? 'همه تگ‌ها' : 'All tags' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
-                                <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] disabled:opacity-40"><X className="h-3.5 w-3.5" />{locale === 'fa' ? 'پاک‌کردن' : 'Clear'}</button>
+                                <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه مراحل' : 'All stages' }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
+                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
+                                <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه تگ‌ها' : 'All tags' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
+                                {hasFilters && (
+                                        <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40" aria-label={locale === 'fa' ? 'پاک‌کردن فیلترها' : 'Clear filters'}><X className="h-4 w-4" /></button>
+                                )}
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
@@ -302,8 +304,16 @@ function ListView({
         onToggleSelected: (id: string) => void
 }) {
         const t = useTranslations('contacts')
+        const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
         return (
                 <div className="spatial-surface divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]">
+                        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
+                                <div className="min-w-0">
+                                        <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{locale === 'fa' ? 'فهرست مشتریان' : 'Customer list'}</h2>
+                                        <p className="mt-1 text-xs text-[var(--text-muted)]">{locale === 'fa' ? `${nf.format(rows.length)} مشتری در این صفحه` : `${nf.format(rows.length)} customers on this page`}</p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">{locale === 'fa' ? 'آخرین فعالیت' : 'Latest activity'}</span>
+                        </div>
                         {rows.map((c) => (
                                 // ── Whole row is clickable: wrap avatar + content in a Link so a single
                                 //    click anywhere on the row (except the stage dropdown) opens the

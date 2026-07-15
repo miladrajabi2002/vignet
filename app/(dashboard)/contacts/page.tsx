@@ -147,7 +147,7 @@ export default async function ContactsPage(
     .sort((a, b) => b.value - a.value)
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         icon={Users}
         title={tc('title')}

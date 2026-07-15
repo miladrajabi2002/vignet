@@ -196,7 +196,7 @@ export default async function ConversationsPage(props: {
         ].filter((item) => item.value > 0)
 
         return (
-                <div className="min-w-0 space-y-6">
+                <div className="mx-auto max-w-6xl min-w-0 space-y-6">
                         <PageHeader
                                 icon={MessagesSquare}
                                 title={t('title')}
@@ -218,8 +218,9 @@ export default async function ConversationsPage(props: {
                                 </DashboardPanel>
                         </div>
 
-                        {/* ─── Filters: status (handed-off prioritized) + channel ─── */}
-                        <Suspense fallback={<div className="h-16 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
+                        {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
+                        <Suspense fallback={<div className="h-16 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
+                        <div className="spatial-surface rounded-[1.5rem] p-3 sm:p-4">
                         <ConversationFilters
                                 isFa={isFa}
                                 activeStatus={statusFilter}
@@ -255,6 +256,7 @@ export default async function ConversationsPage(props: {
                                         count: agent._count.conversations,
                                 }))}
                         />
+                        </div>
                         </Suspense>
 
                         {pageItems.length === 0 ? (
@@ -278,12 +280,12 @@ export default async function ConversationsPage(props: {
                                 </div>
                         ) : (
                                 <div className="spatial-surface min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]">
-                                <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
-                                        <div>
-                                                <h2 className="text-xs font-bold text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                <p className="mt-1 text-[11px] text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
+                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
+                                        <div className="min-w-0">
+                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
+                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
                                         </div>
-                                        <span className="rounded-full bg-[var(--bg-surface)] px-2.5 py-1 text-[11px] font-bold text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
+                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
                                 </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
