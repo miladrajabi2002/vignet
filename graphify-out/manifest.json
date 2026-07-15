@@ -1965,8 +1965,8 @@
     "semantic_hash": ""
   },
   "lib/crm/contact-identity-lock.ts": {
-    "mtime": 1784065000.2736628,
-    "ast_hash": "47b3b991a8d3c335d557ce3b83cfaac2",
+    "mtime": 1784116316.2626164,
+    "ast_hash": "7a87576595a66517dd8299c029182116",
     "semantic_hash": ""
   },
   "lib/crm/display.ts": {
@@ -2727,6 +2727,11 @@
   "components/channels/instagram-service-setup.tsx": {
     "mtime": 1784115530.8792646,
     "ast_hash": "f18586826fa3a30f9811baadec344108",
+    "semantic_hash": ""
+  },
+  "tests/contact-identity-lock.test.ts": {
+    "mtime": 1784116316.2636182,
+    "ast_hash": "fce4c5d3d68bffc6b4910c40ab78d751",
     "semantic_hash": ""
   }
 }

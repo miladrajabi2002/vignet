@@ -13,7 +13,10 @@ export async function withContactIdentityLock<T>(
 ): Promise<T> {
   const lockKey = `contact:${workspaceId}:${identity}`
   return prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+    // pg_advisory_xact_lock returns PostgreSQL's `void` pseudo-type. Prisma 6
+    // cannot deserialize that value through $queryRaw (P2010), so execute the
+    // statement without asking Prisma to materialize a result column.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
     return operation(tx)
   })
 }
