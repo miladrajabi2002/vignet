@@ -36,7 +36,7 @@ export function HourlyHeatmap({
               {row.map((v, h) => (
                 <div
                   key={h}
-                  title={`${v}`}
+                  title={`${dayLabels[d]} ${String(h).padStart(2, '0')}:00 — ${v.toLocaleString('fa-IR')}`}
                   className="h-3.5 flex-1 rounded-[3px]"
                   style={{
                     backgroundColor:

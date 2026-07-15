@@ -62,6 +62,7 @@ const TOOLTIP = {
     fontSize: 12,
     boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
     fontFamily: 'IRANSansWeb',
+    direction: 'rtl' as const,
   },
   labelStyle: { color: '#71717a', fontWeight: 600 },
   itemStyle: { color: '#18181b' },

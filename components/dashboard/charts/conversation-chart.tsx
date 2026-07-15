@@ -59,8 +59,10 @@ export function ConversationChart({ data }: { data: TrendPoint[] }) {
             borderRadius: 12,
             fontSize: 12,
             color: 'var(--text-primary)',
+            fontFamily: 'IRANSansWeb',
           }}
           labelStyle={{ color: 'var(--text-secondary)' }}
+          formatter={(value: number) => [Number(value).toLocaleString('fa-IR'), 'تعداد']}
         />
         <Area
           type="monotone"

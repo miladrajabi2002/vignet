@@ -71,6 +71,7 @@ export function DashboardDonut({
                 borderRadius: 12,
                 fontSize: 12,
                 color: 'var(--text-primary)',
+                fontFamily: 'IRANSansWeb',
               }}
               labelStyle={{ color: 'var(--text-secondary)', fontWeight: 600 }}
               formatter={(v, n) => [
