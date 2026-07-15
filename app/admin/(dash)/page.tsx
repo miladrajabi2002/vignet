@@ -42,7 +42,6 @@ import {
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
-import { VigentoAdminConsole } from '@/components/admin/vigento-admin-console'
 
 export const dynamic = 'force-dynamic'
 
@@ -172,10 +171,8 @@ export default async function AdminOverviewPage(
 
   return (
     <div className="space-y-6">
-      <VigentoAdminConsole />
-
       <PageHeader
-        title="مرکز فرمان"
+        title="داشبورد"
         subtitle="تصمیم‌های مهم، سلامت عملیات و رشد پلتفرم — در یک نمای واحد"
         icon={Activity}
         action={<RangeSwitch current={range} />}

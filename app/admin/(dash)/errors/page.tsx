@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertOctagon } from 'lucide-react'
+import { Activity, AlertTriangle, AlertOctagon, Radar } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -12,9 +12,9 @@ import {
   fa,
   fmtDate,
 } from '../ui'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import { Sparkline } from '@/components/admin/sparkline'
-import { errorsDaily, errorsDailyBySource } from '@/lib/admin/charts'
+import { BarList, TrendChart } from '@/components/admin/trend-chart'
+import { errorsDaily, errorsDailyByLevel, errorsDailyBySource } from '@/lib/admin/charts'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +41,8 @@ export default async function AdminErrorsPage(
     totalCount,
     errors24h,
     errTrend7,
+    errTrend30,
+    errorTrend7,
     sourceSparks,
   ] = await Promise.all([
     prisma.errorLog.findMany({
@@ -61,18 +63,19 @@ export default async function AdminErrorsPage(
     prisma.errorLog.count({ where }),
     prisma.errorLog.count({ where: { ...since24hWhere, level: 'error' } }),
     errorsDaily(7),
+    errorsDaily(30),
+    errorsDailyByLevel('error', 7),
     errorsDailyBySource(7),
   ])
 
   const hasNext = errors.length > PAGE_SIZE
   const items = hasNext ? errors.slice(0, PAGE_SIZE) : errors
 
-  // 7-day totals.
   const weekTotal = errTrend7.reduce((s, p) => s + p.value, 0)
-  // Top error sources by 7-day total — top 4.
   const topSources = [...sourceSparks.values()]
     .sort((a, b) => b.total - a.total)
     .slice(0, 4)
+  const topSource = topSources[0]
 
   const makeHref = (p: number) => {
     const sp = new URLSearchParams()
@@ -110,40 +113,49 @@ export default async function AdminErrorsPage(
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard
           label="کل خطاها"
           value={fa(totalCount)}
           icon={<AlertOctagon className="h-5 w-5" />}
-          tone="danger"
+          series={errTrend30.map((point) => point.value)}
         />
         <StatCard
           label="خطاهای ۲۴ ساعت"
           value={fa(errors24h)}
           icon={<AlertTriangle className="h-5 w-5" />}
-          tone="warning"
+          series={errorTrend7.map((point) => point.value)}
+        />
+        <StatCard
+          label="رخدادهای ۷ روز اخیر"
+          value={fa(weekTotal)}
+          icon={<Activity className="h-5 w-5" />}
+          series={errTrend7.map((point) => point.value)}
+        />
+        <StatCard
+          label="منبع پرتکرار"
+          value={topSource?.source ?? 'بدون خطا'}
+          sub={topSource ? `${fa(topSource.total)} رخداد در ۷ روز` : 'رخدادی ثبت نشده است'}
+          icon={<Radar className="h-5 w-5" />}
+          series={topSource?.series ?? []}
         />
       </div>
 
-      {/* ─── Mini trends: 7-day error volume + top sources ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <MiniTrend
-          label="خطاهای ۷ روز اخیر"
-          value={weekTotal}
-          series={errTrend7.map((p) => p.value)}
+      <div className="grid gap-3 xl:grid-cols-2">
+        <TrendChart
+          title="روند رخدادهای ۳۰ روز اخیر"
+          subtitle={`${fa(weekTotal)} رخداد در ۷ روز اخیر`}
+          data={errTrend30}
           color="#18181b"
-          hint="میانگین روزانه" variant="light"
+          variant="area"
+          height={230}
         />
-        {topSources.map((s) => (
-          <MiniTrend
-            key={s.source}
-            label={`منبع: ${s.source}`}
-            value={s.total}
-            series={s.series}
-            color="#3f3f46"
-            hint="۷ روز اخیر" variant="light"
-          />
-        ))}
+        <BarList
+          title="منابع پرتکرار خطا"
+          subtitle="رتبه‌بندی بر اساس رخدادهای ۷ روز اخیر"
+          data={topSources.map((source) => ({ label: source.source, value: source.total }))}
+          color="#3f3f46"
+        />
       </div>
 
       {items.length === 0 ? (

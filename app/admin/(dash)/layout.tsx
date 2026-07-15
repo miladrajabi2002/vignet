@@ -38,17 +38,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
         {/* Main content */}
         <main className="min-w-0 flex-1 pb-8">
-          <div className="spatial-control sticky top-3 z-20 mb-4 hidden min-h-[3.5rem] items-center justify-between rounded-2xl px-4 md:flex">
+          <div className="sticky top-3 z-20 mb-4 hidden min-h-16 items-center justify-between rounded-[1.35rem] border border-black/[0.07] bg-white/72 px-3.5 shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/90 md:flex">
             <div><p className="text-sm font-black text-black">مرکز کنترل ویجنت</p><p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-[var(--text-muted)]"><span className="h-1.5 w-1.5 rounded-full bg-black" /> سامانه زنده · {ADMIN_OWNER_NAME}</p></div>
             <div className="flex items-center gap-2">
-              <Link href="/" className="admin-toolbar-button"><ExternalLink className="h-4 w-4" /> مشاهده سایت</Link>
+              <Link href="/" aria-label="مشاهده سایت" title="مشاهده سایت" className="spatial-press inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[11px] font-semibold text-black/55 hover:bg-black/[0.045] hover:text-black"><ExternalLink className="h-4 w-4" /><span>مشاهده سایت</span></Link>
               <form action={adminLogout}>
               <button
                 type="submit"
-                className="admin-toolbar-button hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                aria-label="خروج از پنل مدیریت"
+                title="خروج"
+                className="spatial-press inline-flex h-10 w-10 items-center justify-center rounded-xl text-black/45 hover:bg-black/[0.045] hover:text-black"
               >
-                <LogOut className="h-4 w-4" />
-                خروج
+                <LogOut className="h-[1.05rem] w-[1.05rem] rtl:rotate-180" />
               </button>
             </form>
             </div>

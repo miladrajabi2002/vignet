@@ -13,9 +13,6 @@ import {
   Route,
   ServerCog,
   ShieldCheck,
-  Sparkles,
-  ThumbsUp,
-  TriangleAlert,
   Users,
 } from 'lucide-react'
 import { AiModelPolicyForm } from '@/components/admin/ai-model-policy-form'
@@ -33,7 +30,6 @@ import {
   type RecentAiUsage,
 } from '@/lib/admin/ai-usage'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
-import { getVigentoAdminReport, type VigentoAdminReport } from '@/lib/admin/vigento'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import {
   Badge,
@@ -149,10 +145,10 @@ function AccountStatus({
   return (
     <Card className="overflow-hidden p-0">
       <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="relative overflow-hidden bg-zinc-950 p-5 text-white sm:p-6">
-          <div className="pointer-events-none absolute -start-16 -top-20 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="relative overflow-hidden border-b border-zinc-200 bg-[radial-gradient(circle_at_12%_0%,#fff_0%,#fafafa_42%,#f4f4f5_100%)] p-5 text-zinc-950 sm:p-6 lg:border-b-0 lg:border-l">
+          <div className="pointer-events-none absolute -start-16 -top-20 h-48 w-48 rounded-full bg-black/[0.035] blur-3xl" />
           <div className="relative flex items-start gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+            <span className="admin-icon-well h-12 w-12 rounded-2xl">
               <KeyRound className="h-6 w-6" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -160,7 +156,7 @@ function AccountStatus({
                 <h2 className="text-base font-bold">حساب اصلی OpenRouter</h2>
                 <Badge
                   tone={connected ? 'success' : 'danger'}
-                  className={connected ? 'bg-emerald-400/15 text-emerald-200 ring-emerald-300/25' : undefined}
+                  className={connected ? 'bg-zinc-900 text-white ring-zinc-900' : undefined}
                 >
                   {connected ? (
                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,30 +166,30 @@ function AccountStatus({
                   {connectionLabel}
                 </Badge>
               </div>
-              <p className="mt-2 max-w-xl text-sm leading-7 text-zinc-300">
+              <p className="mt-2 max-w-xl text-sm leading-7 text-zinc-600">
                 تمام درخواست‌های مشتریان از حساب پلتفرم عبور می‌کند. کلید فقط در محیط امن
                 سرور خوانده می‌شود و هیچ مقدار یا بخشی از آن در این صفحه نمایش داده نمی‌شود.
               </p>
             </div>
           </div>
           <div className="relative mt-5 flex flex-wrap gap-2 text-xs">
-            <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-white/5 px-3 text-zinc-200 ring-1 ring-white/10">
-              <Route className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+            <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-white/80 px-3 text-zinc-700 ring-1 ring-zinc-200">
+              <Route className="h-4 w-4 text-zinc-500" aria-hidden="true" />
               مسیریابی: <bdi dir="ltr" className="font-mono">{config.providerSort}</bdi>
             </span>
-            <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-white/5 px-3 text-zinc-200 ring-1 ring-white/10">
-              <ShieldCheck className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+            <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-white/80 px-3 text-zinc-700 ring-1 ring-zinc-200">
+              <ShieldCheck className="h-4 w-4 text-zinc-500" aria-hidden="true" />
               نگهداری صفر داده: {config.zeroDataRetention ? 'فعال' : 'غیرفعال'}
             </span>
           </div>
         </div>
 
         <div className="flex flex-col justify-center gap-3 p-5 sm:p-6">
-          <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-3.5 ring-1 ring-emerald-100">
-            <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+          <div className="flex items-start gap-3 rounded-2xl bg-zinc-50 p-3.5 ring-1 ring-zinc-200">
+            <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-zinc-700" aria-hidden="true" />
             <div>
-              <p className="text-sm font-semibold text-emerald-950">مدیریت امن تنظیمات</p>
-              <p className="mt-1 text-xs leading-6 text-emerald-800">
+              <p className="text-sm font-semibold text-zinc-950">مدیریت امن تنظیمات</p>
+              <p className="mt-1 text-xs leading-6 text-zinc-600">
                 شناسهٔ واقعی ارائه‌دهنده از محیط امن سرور خوانده می‌شود. سیاست فعال‌بودن
                 مدل‌ها و سقف هزینه جداگانه و بدون دسترسی به کلید قابل مدیریت است.
               </p>
@@ -254,7 +250,7 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
             className="flex min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50/70 p-3"
           >
             <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-sm font-bold text-zinc-700">
                 {(index + 1).toLocaleString('fa-IR')}
               </span>
               <div className="min-w-0 flex-1">
@@ -503,43 +499,6 @@ function RecentUsageList({ rows }: { rows: RecentAiUsage[] }) {
   )
 }
 
-function VigentoOperations({ report }: { report: VigentoAdminReport }) {
-  const successRate = report.total > 0 ? Math.round((report.succeeded / report.total) * 100) : 0
-  const applyRate = report.total > 0 ? Math.round((report.applied / report.total) * 100) : 0
-  const feedbackTotal = report.helpful + report.unhelpful
-  const helpfulRate = feedbackTotal > 0 ? Math.round((report.helpful / feedbackTotal) * 100) : 0
-
-  return (
-    <Panel
-      title="عملکرد ویجنتو"
-      subtitle="دستیار ساخت ایجنت؛ فقط متریک عملیاتی و بازخورد ذخیره می‌شود و متن خام کسب‌وکار در گزارش ادمین نگهداری نمی‌شود"
-      action={<Badge tone="info"><Sparkles className="h-3.5 w-3.5" /> {fa(report.total)} پیش‌نویس</Badge>}
-    >
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">نرخ موفقیت</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(successRate)}٪</p><p className="mt-1 text-[11px] text-zinc-400">{fa(report.succeeded)} موفق · {fa(report.failed)} ناموفق</p></div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">اعمال توسط کاربر</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(applyRate)}٪</p><p className="mt-1 text-[11px] text-zinc-400">فقط پس از تأیید صریح</p></div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">بازخورد مفید</p><p className="mt-1 text-xl font-bold text-zinc-900">{fa(helpfulRate)}٪</p><p className="mt-1 text-[11px] text-zinc-400">{fa(feedbackTotal)} بازخورد ثبت‌شده</p></div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><p className="text-[11px] text-zinc-500">میانگین زمان</p><p dir="ltr" className="mt-1 text-left text-xl font-bold text-zinc-900">{report.averageDurationMs.toLocaleString('en-US')} ms</p><p className="mt-1 text-[11px] text-zinc-400">مدل draft: {report.models.map((item) => `${item.modelAlias} (${item.count})`).join(' · ') || '—'}</p></div>
-      </div>
-
-      {report.recent.length > 0 ? (
-        <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 bg-zinc-50 px-3 py-2 text-[11px] font-semibold text-zinc-500"><span>کسب‌وکار / نتیجه</span><span>زمان</span><span>بازخورد</span></div>
-          <ul className="divide-y divide-zinc-100">
-            {report.recent.map((row) => (
-              <li key={row.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-3 py-2.5 text-xs">
-                <div className="min-w-0"><Link href={`/admin/workspaces/${row.workspaceId}`} className="truncate font-semibold text-zinc-900 hover:underline">{row.workspaceName}</Link><div className="mt-1 flex flex-wrap items-center gap-1.5"><Badge tone={row.status === 'SUCCEEDED' ? 'success' : 'danger'}>{row.status === 'SUCCEEDED' ? 'موفق' : row.failureCode ?? 'ناموفق'}</Badge>{row.applied && <Badge tone="info">اعمال شد</Badge>}<span dir="ltr" className="font-mono text-[11px] text-zinc-400">{row.modelAlias ?? 'fallback'}</span></div></div>
-                <span dir="ltr" className="font-mono text-[11px] text-zinc-500">{row.durationMs} ms</span>
-                <span aria-label={row.helpful === true ? 'مفید' : row.helpful === false ? 'نامفید' : 'بدون بازخورد'}>{row.helpful === true ? <ThumbsUp className="h-4 w-4 text-emerald-600" /> : row.helpful === false ? <TriangleAlert className="h-4 w-4 text-amber-600" /> : <span className="text-zinc-300">—</span>}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : <EmptyState icon={<Sparkles className="h-8 w-8" />}>هنوز اجرای ویجنتو ثبت نشده است</EmptyState>}
-    </Panel>
-  )
-}
-
 export default async function AdminAiPage({
   searchParams,
 }: {
@@ -548,13 +507,12 @@ export default async function AdminAiPage({
   const params = await searchParams
   const range = parseRange(params.range)
   const days = RANGE_DAYS[range]
-  const [report, platformPolicy, commercialConfig, currentMonthSpendUSD, openRouterAccount, vigentoReport] = await Promise.all([
+  const [report, platformPolicy, commercialConfig, currentMonthSpendUSD, openRouterAccount] = await Promise.all([
     getAiUsageReport(days),
     getPlatformAiConfig(),
     getPlatformCommercialConfig(),
     getCurrentMonthAiSpendUSD(),
     getOpenRouterAccountUsage(),
-    getVigentoAdminReport(days),
   ])
   const config = getOpenRouterConfigStatus(platformPolicy, commercialConfig)
   const costCoverage = report.totals.requests > 0
@@ -570,7 +528,7 @@ export default async function AdminAiPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="هوش مصنوعی پلتفرم"
+        title="مدل‌ها و سیاست AI"
         subtitle="سلامت اتصال، مدل‌های فعال، مصرف کاربران و هزینهٔ واقعی OpenRouter"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
@@ -580,8 +538,6 @@ export default async function AdminAiPage({
       />
 
       <AccountStatus config={config} account={openRouterAccount} />
-
-      <VigentoOperations report={vigentoReport} />
 
       <AiModelPolicyForm
         models={config.models.map((model) => ({
@@ -630,7 +586,7 @@ export default async function AdminAiPage({
            title={`روند کسر اعتبار — ${RANGE_LABELS[range]}`}
            subtitle="مجموع مبلغ ریالی ثبت‌شده برای پاسخ‌های موفق"
            data={report.daily.map((row) => ({ day: row.day, value: row.chargedIRR }))}
-          color="#2563eb"
+          color="#18181b"
           variant="area"
           format="irr"
           height={210}
@@ -639,7 +595,7 @@ export default async function AdminAiPage({
           title={`هزینه واقعی OpenRouter — ${RANGE_LABELS[range]}`}
           subtitle="جمع دقیق UsageLog.cost، بدون تخمین قیمت مدل"
           data={report.daily.map((row) => ({ day: row.day, value: row.providerCostUSD }))}
-          color="#7c3aed"
+          color="#71717a"
           variant="area"
           format="usd"
           height={210}
@@ -672,7 +628,7 @@ export default async function AdminAiPage({
         subtitle="لاگ مصرف در سطح کسب‌وکار ثبت می‌شود؛ کاربر مالک و تعداد اعضا برای شناسایی نمایش داده شده‌اند"
         action={<Badge tone="muted">۵۰ کسب‌وکار پرمصرف</Badge>}
       >
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-6 text-blue-900">
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-6 text-zinc-700">
           <Users className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
             چون UsageLog شناسهٔ کاربر ندارد، مصرف اعضای یک کسب‌وکار قابل تفکیک قطعی نیست.
@@ -709,8 +665,8 @@ export default async function AdminAiPage({
               </li>
             ))}
           </ol>
-          <div className="mt-5 flex items-start gap-3 rounded-xl bg-zinc-950 p-4 text-zinc-200">
-            <ServerCog className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
+          <div className="mt-5 flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-zinc-700">
+            <span className="admin-icon-well shrink-0"><ServerCog className="h-4 w-4" aria-hidden="true" /></span>
             <p className="text-xs leading-6">
               هیچ فرم و API برای خواندن یا بازنویسی OPENROUTER_API_KEY ساخته نشده است. این
               محدودیت بخشی از طراحی امنیتی پنل است، نه کمبود رابط کاربری.

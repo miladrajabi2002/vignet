@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
 } from 'recharts'
 
 export interface DailyPoint {
@@ -155,6 +156,7 @@ export function TrendChart({
                   <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               </defs>
+              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
@@ -171,6 +173,7 @@ export function TrendChart({
             </AreaChart>
           ) : variant === 'line' ? (
             <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={36} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />
@@ -186,6 +189,7 @@ export function TrendChart({
             </LineChart>
           ) : (
             <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <CartesianGrid vertical={false} stroke="#f1f1f2" strokeDasharray="3 5" />
               <XAxis dataKey="day" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={formatDayTick} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={32} allowDecimals={format === 'usd'} />
               <Tooltip {...TOOLTIP} cursor={{ fill: '#f4f4f5' }} formatter={(v) => [formatValue(Number(v), format), title]} labelFormatter={formatDayTick} />

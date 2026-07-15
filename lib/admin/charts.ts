@@ -106,6 +106,21 @@ export async function errorsDaily(days = 14): Promise<DailyPoint[]> {
         )
 }
 
+/** Error-log volume for one severity, aligned to the dashboard timezone. */
+export async function errorsDailyByLevel(
+        level: 'error' | 'warn',
+        days = 14,
+): Promise<DailyPoint[]> {
+        const since = new Date(Date.now() - days * 86400000)
+        const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
+    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
+    FROM "ErrorLog"
+    WHERE "createdAt" >= ${since} AND "level" = ${level}
+    GROUP BY 1 ORDER BY 1
+  `
+        return fillSeries(rows.map((row) => ({ d: row.d, v: Number(row.c) })), days)
+}
+
 export async function usageTokensDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`

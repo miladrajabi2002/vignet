@@ -155,11 +155,11 @@ export function AiModelPolicyForm({
   }
 
   return (
-    <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+    <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-zinc-700" aria-hidden="true" />
+            <span className="admin-icon-well"><ShieldCheck className="h-4 w-4" aria-hidden="true" /></span>
             <h2 className="text-base font-bold text-zinc-900">سیاست اجرای مدل‌ها</h2>
           </div>
           <p className="mt-1.5 max-w-2xl text-xs leading-6 text-zinc-500">
@@ -194,8 +194,8 @@ export function AiModelPolicyForm({
               <div
                 key={model.alias}
                 className={cn(
-                  'rounded-xl border p-3 transition-colors',
-                  enabled ? 'border-zinc-300 bg-zinc-50' : 'border-zinc-200 bg-white opacity-70',
+                  'rounded-2xl border p-3.5 transition-[border-color,background-color,box-shadow,transform] duration-200',
+                  enabled ? 'border-zinc-300 bg-zinc-50/80 shadow-[0_10px_30px_-26px_rgba(0,0,0,.35)]' : 'border-zinc-200 bg-white opacity-65',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -242,7 +242,7 @@ export function AiModelPolicyForm({
                     className="h-4 w-4 border-zinc-300 accent-zinc-900"
                   />
                   مدل پیش‌فرض
-                  {isDefault && <CheckCircle2 className="ms-auto h-4 w-4 text-emerald-600" aria-hidden="true" />}
+                  {isDefault && <CheckCircle2 className="ms-auto h-4 w-4 text-zinc-700" aria-hidden="true" />}
                 </label>
               </div>
             )
@@ -250,8 +250,8 @@ export function AiModelPolicyForm({
         </div>
       </fieldset>
 
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-        <label className="block text-xs font-semibold text-amber-950">
+      <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5">
+        <label className="block text-xs font-semibold text-zinc-900">
           مدل فعال پلن آزمایشی
           <MaterialSelect
             value={trialModel}
@@ -260,7 +260,7 @@ export function AiModelPolicyForm({
             className="mt-2"
             options={models.map((model) => ({ value: model.alias, label: model.name }))}
           />
-          <span className="mt-1 block text-[11px] font-normal leading-5 text-amber-800">
+          <span className="mt-1 block text-[11px] font-normal leading-5 text-zinc-500">
             این مدل مستقل از فعال/غیرفعال بودن مدل‌های پلن‌های پولی انتخاب می‌شود؛ بقیه مدل‌ها در پلن آزمایشی بسته نمایش داده می‌شوند.
           </span>
         </label>
@@ -316,7 +316,7 @@ export function AiModelPolicyForm({
                 placeholder="100"
                 className="h-10 min-w-0 flex-1 bg-transparent px-2 text-left text-sm font-semibold text-zinc-900 outline-none disabled:text-zinc-400"
               />
-              <span className="text-[11px] text-zinc-400">USD / month</span>
+              <span className="text-[11px] text-zinc-400">دلار در ماه</span>
             </div>
           </label>
         </div>
@@ -338,7 +338,7 @@ export function AiModelPolicyForm({
                 <div
                   className={cn(
                     'h-full rounded-full transition-[width] duration-200',
-                    budgetPercent >= 90 ? 'bg-red-500' : budgetPercent >= 70 ? 'bg-amber-500' : 'bg-emerald-500',
+                    budgetPercent >= 90 ? 'bg-black' : budgetPercent >= 70 ? 'bg-zinc-700' : 'bg-zinc-500',
                   )}
                   style={{ width: `${budgetPercent}%` }}
                 />
@@ -361,7 +361,7 @@ export function AiModelPolicyForm({
           <p
             className={cn(
               'flex items-center gap-2 text-xs font-medium',
-              notice.tone === 'success' ? 'text-emerald-700' : 'text-red-700',
+              notice.tone === 'success' ? 'text-zinc-700' : 'text-zinc-900',
             )}
           >
             {notice.tone === 'success' ? (

@@ -16,6 +16,7 @@ import {
   Settings2,
   ServerCog,
   Send,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
@@ -28,9 +29,10 @@ type NavItem = {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/admin', label: 'مرکز فرمان', icon: LayoutDashboard, exact: true },
+  { href: '/admin', label: 'داشبورد', icon: LayoutDashboard, exact: true },
+  { href: '/admin/vigento', label: 'ویجنتو', icon: Sparkles },
   { href: '/admin/system', label: 'سلامت زیرساخت', icon: ServerCog },
-  { href: '/admin/users', label: 'کاربرا', icon: Users },
+  { href: '/admin/users', label: 'کاربر ها', icon: Users },
   { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
   { href: '/admin/agents', label: 'ایجنت‌ها', icon: Bot },
   { href: '/admin/notifications', label: 'ارسال پیام', icon: Send },

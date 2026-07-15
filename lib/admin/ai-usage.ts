@@ -184,8 +184,8 @@ function dayKey(date: Date): string {
 function dayLabel(date: Date): string {
   return new Intl.DateTimeFormat('fa-IR', {
     timeZone: DASHBOARD_TZ,
-    month: '2-digit',
-    day: '2-digit',
+    month: 'short',
+    day: 'numeric',
   }).format(date)
 }
 

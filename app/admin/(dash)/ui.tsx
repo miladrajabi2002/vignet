@@ -143,10 +143,10 @@ export function StatCard({
 }) {
   const toneRing = {
     default: 'bg-zinc-100 text-zinc-700',
-    success: 'bg-zinc-100 text-zinc-800',
-    warning: 'bg-zinc-100 text-zinc-800',
-    danger: 'bg-zinc-900 text-white',
-    info: 'bg-zinc-100 text-zinc-800',
+    success: 'bg-zinc-100 text-zinc-700',
+    warning: 'bg-zinc-100 text-zinc-700',
+    danger: 'bg-zinc-100 text-zinc-700',
+    info: 'bg-zinc-100 text-zinc-700',
   }[tone]
 
   const valueColor =

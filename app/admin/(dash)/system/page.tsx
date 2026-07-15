@@ -12,7 +12,7 @@ export default function AdminSystemPage() {
         title="سلامت زیرساخت"
         subtitle="کنترل زنده سرویس‌ها، صف‌ها، پردازشگرها، لاگ‌های ناموفق و منابع سرور"
         icon={ServerCog}
-        breadcrumbs={[{ label: 'مرکز فرمان', href: '/admin' }, { label: 'سلامت زیرساخت' }]}
+        breadcrumbs={[{ label: 'داشبورد', href: '/admin' }, { label: 'سلامت زیرساخت' }]}
       />
       <ServiceHealthPanel />
       <ServerStatsWidget />

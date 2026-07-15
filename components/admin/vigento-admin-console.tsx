@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Check, Loader2, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +24,7 @@ const NODES = [
 
 const CORE = { x: 200, y: 100 }
 
-export function VigentoAdminConsole() {
+export function VigentoAdminConsole({ className }: { className?: string }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -36,6 +36,14 @@ export function VigentoAdminConsole() {
   const [loading, setLoading] = useState(false)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [actionState, setActionState] = useState<'idle' | 'running' | 'done'>('idle')
+  const messagesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const panel = messagesRef.current
+    if (!panel) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    panel.scrollTo({ top: panel.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' })
+  }, [messages, loading, proposal])
 
   async function ask(message: string) {
     const prompt = message.trim()
@@ -98,7 +106,7 @@ export function VigentoAdminConsole() {
   }
 
   return (
-    <section aria-labelledby="vigento-admin-title" className="admin-vigento-shell relative overflow-hidden rounded-[1.75rem] border border-black bg-black text-white shadow-[0_32px_90px_-44px_rgba(0,0,0,.92)]">
+    <section aria-labelledby="vigento-admin-title" className={cn('admin-vigento-shell relative flex min-h-[700px] flex-col overflow-hidden rounded-[1.75rem] border border-black bg-black text-white shadow-[0_32px_90px_-44px_rgba(0,0,0,.92)]', className)}>
       <div className="admin-vigento-grid pointer-events-none absolute inset-0 opacity-45" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-[12%] top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden="true" />
 
@@ -125,7 +133,7 @@ export function VigentoAdminConsole() {
         </div>
       </header>
 
-      <div className="relative grid gap-0 lg:grid-cols-[minmax(25rem,.9fr)_minmax(30rem,1.1fr)]">
+      <div className="relative grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(22rem,.82fr)_minmax(32rem,1.18fr)]">
         <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden border-b border-white/[0.08] p-5 lg:border-b-0 lg:border-l">
           <svg viewBox="0 0 400 200" className="h-full max-h-[250px] w-full" role="img" aria-label="اتصال ویجنتو به بخش‌های مختلف پلتفرم">
             <defs>
@@ -153,14 +161,14 @@ export function VigentoAdminConsole() {
           <p className="absolute bottom-4 inset-x-5 text-center text-[10px] leading-5 text-white/35">ویجنتو به داده‌های زنده پلتفرم متصل است؛ تغییرات حساس همیشه نیازمند تأیید شما هستند.</p>
         </div>
 
-        <div className="flex min-h-[380px] flex-col p-4 sm:p-5">
+        <div className="flex min-h-[520px] flex-col overflow-hidden p-4 sm:p-5 lg:min-h-0">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div><p className="text-sm font-bold">گفتگو با ویجنتو</p><p className="mt-0.5 text-[10px] text-white/40">پرسش، تحلیل و عملیات مدیریتی</p></div>
             <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-white/45">فقط مالک</span>
           </div>
 
-          <div className="admin-vigento-messages min-h-0 flex-1 space-y-2.5 overflow-y-auto rounded-[1.35rem] border border-white/[0.08] bg-white/[0.035] p-3" aria-live="polite">
-            {messages.slice(-6).map((message) => (
+          <div ref={messagesRef} className="admin-vigento-messages min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain rounded-[1.35rem] border border-white/[0.08] bg-white/[0.035] p-3" aria-live="polite">
+            {messages.map((message) => (
               <div key={message.id} className={cn('max-w-[92%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-xs leading-6', message.role === 'user' ? 'me-auto bg-white text-black' : 'ms-auto border border-white/[0.09] bg-white/[0.055] text-white/72')}>
                 {message.text}
               </div>
@@ -183,8 +191,8 @@ export function VigentoAdminConsole() {
 
           {!proposal && messages.length < 3 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{QUICK_PROMPTS.map((prompt) => <button key={prompt} type="button" onClick={() => void ask(prompt)} className="min-h-10 shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 text-[10px] font-medium text-white/55 transition-[background-color,transform] duration-150 hover:bg-white/[0.08] active:scale-[.97]">{prompt}</button>)}</div>}
 
-          <form onSubmit={submit} className="mt-3 flex items-end gap-2 rounded-2xl border border-white/12 bg-white p-1.5 text-black shadow-[0_16px_40px_-32px_rgba(0,0,0,.8)] focus-within:ring-4 focus-within:ring-white/10">
-            <textarea rows={1} maxLength={1800} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(input) } }} placeholder="درباره وضعیت پلتفرم بپرسید یا یک عملیات را درخواست کنید…" className="min-h-11 flex-1 resize-none bg-transparent px-2 py-3 text-xs leading-5 outline-none placeholder:text-black/35" />
+          <form dir="ltr" onSubmit={submit} className="mt-3 flex items-end gap-2 rounded-2xl border border-white/12 bg-white p-1.5 text-black shadow-[0_16px_40px_-32px_rgba(0,0,0,.8)] focus-within:ring-4 focus-within:ring-white/10">
+            <textarea dir="rtl" rows={1} maxLength={1800} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void ask(input) } }} placeholder="درباره وضعیت پلتفرم بپرسید یا یک عملیات را درخواست کنید…" className="min-h-11 flex-1 resize-none bg-transparent px-2 py-3 text-right text-xs leading-5 outline-none placeholder:text-black/35" />
             <button type="submit" disabled={!input.trim() || loading} aria-label="ارسال" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black text-white transition-transform duration-150 active:scale-[.95] disabled:cursor-not-allowed disabled:opacity-30"><Send className="h-4 w-4" /></button>
           </form>
         </div>

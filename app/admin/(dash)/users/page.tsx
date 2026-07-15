@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Search, Users, Building2, CreditCard, Clock } from 'lucide-react'
+import { Search, Users, Building2, CreditCard, Clock, UserRound } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -9,7 +9,6 @@ import {
   Th,
   Td,
   Badge,
-  Avatar,
   AdminPagination,
   EmptyState,
   FilterPills,
@@ -76,7 +75,11 @@ export default async function AdminUsersPage(
 
   const where: Prisma.UserWhereInput = {}
   if (q) {
-    where.OR = [{ phone: { contains: q } }, { name: { contains: q } }]
+    where.OR = [
+      { phone: { contains: q } },
+      { name: { contains: q, mode: 'insensitive' } },
+      { workspace: { name: { contains: q, mode: 'insensitive' } } },
+    ]
   }
   if (planFilter) {
     where.workspace = { plan: planFilter }
@@ -143,7 +146,7 @@ export default async function AdminUsersPage(
   return (
     <div className="space-y-6">
       <PageHeader
-        title="کاربرا"
+        title="کاربر ها"
         subtitle="مدیریت کاربران، کسب‌وکارها و پلن‌های آن‌ها در یک نمای واحد"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
@@ -151,21 +154,21 @@ export default async function AdminUsersPage(
         ]}
       />
 
-      {/* Search bar */}
-      <form method="GET" className="relative" autoComplete="off">
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="جستجو بر اساس نام یا تلفن…"
-          className="admin-input pr-10"
-        />
-        {planFilter && <input type="hidden" name="plan" value={planFilter} />}
-      </form>
-
-      {/* Plan filter pills */}
-      <FilterPills options={filterPillOptions} />
+      <div className="flex flex-col gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
+        <form method="GET" className="relative min-w-0 flex-1" autoComplete="off">
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
+            aria-label="جستجوی کاربرها"
+            className="admin-input border-0 bg-black/[0.025] pr-10 shadow-none"
+          />
+          {planFilter && <input type="hidden" name="plan" value={planFilter} />}
+        </form>
+        <div className="shrink-0 overflow-x-auto"><FilterPills options={filterPillOptions} /></div>
+      </div>
 
       {/* Stats — merged from old users + workspaces pages */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -224,7 +227,9 @@ export default async function AdminUsersPage(
                 <tr key={u.id} className="hover:bg-zinc-50">
                   <Td>
                     <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-black/20">
-                      <Avatar name={u.name} size={36} />
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[.9rem] border border-black/[0.06] bg-[radial-gradient(circle_at_35%_25%,#fff_0%,#f4f4f5_58%,#e4e4e7_100%)] text-zinc-600 shadow-[inset_0_1px_0_white,0_4px_12px_rgba(0,0,0,.055)]">
+                        <UserRound className="h-4 w-4 stroke-[1.8]" />
+                      </span>
                       <div className="min-w-0">
                         <div className="truncate font-semibold text-zinc-900 transition-opacity group-hover:opacity-65">
                           {u.name ?? 'بدون نام'}
