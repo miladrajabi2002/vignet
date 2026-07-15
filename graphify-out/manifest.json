@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/channels/page.tsx": {
-    "mtime": 1783988230.0,
-    "ast_hash": "773d2399b0d2a520f3b304701112ace3",
+    "mtime": 1784115608.4397097,
+    "ast_hash": "d64e27934f148717d5f4ee6070e861a6",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/instagram/[automationId]/edit/page.tsx": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/instagram/page.tsx": {
-    "mtime": 1783687032.6991618,
-    "ast_hash": "70100c10ecd0fc6867a1f3099d7b322e",
+    "mtime": 1784115681.8096628,
+    "ast_hash": "50ccc4197755360ae596ddce37e80e09",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/knowledge/page.tsx": {
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/layout.tsx": {
-    "mtime": 1784067811.3509388,
-    "ast_hash": "4d39527c9f9c5da0cb4cfb276741d4e9",
+    "mtime": 1784115608.4377139,
+    "ast_hash": "09b5a9bee4dab0952676e3c7b9fb7c93",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/learning/page.tsx": {
@@ -125,8 +125,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/instagram/page.tsx": {
-    "mtime": 1783894703.2541862,
-    "ast_hash": "91a45693af1f550a064f824e4cd23d0c",
+    "mtime": 1784115681.8116627,
+    "ast_hash": "c0a1d377f4e16c4475827c254abf6232",
     "semantic_hash": ""
   },
   "app/(dashboard)/integrations/page.tsx": {
@@ -355,13 +355,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/[userId]/page.tsx": {
-    "mtime": 1784078405.9630446,
-    "ast_hash": "b052b0a9043f97e5fd0d74ae57a80426",
+    "mtime": 1784115535.7974927,
+    "ast_hash": "999c8f07f20bb85ac232612f87d22e3e",
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/page.tsx": {
-    "mtime": 1784112706.505777,
-    "ast_hash": "9f0630dad83c935e2ef704a1492d474c",
+    "mtime": 1784115535.7984908,
+    "ast_hash": "e6c65eba26908fcbb2bfc8ce7d7ed7e3",
     "semantic_hash": ""
   },
   "app/admin/(dash)/vigento/page.tsx": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/[workspaceId]/page.tsx": {
-    "mtime": 1783939483.6666076,
-    "ast_hash": "33530b67aa7e948de46cfef89eb5e231",
+    "mtime": 1784115547.7699313,
+    "ast_hash": "f5d1fe3d3ac30bc4a14423ff2298b69b",
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/page.tsx": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "components/agents/agent-tabs.tsx": {
-    "mtime": 1783940372.2016802,
-    "ast_hash": "dd23774a752e01781c0674950d65bc0d",
+    "mtime": 1784115608.4387133,
+    "ast_hash": "84d979c7b8dddf3bdf7f50157d56bc02",
     "semantic_hash": ""
   },
   "components/agents/agent-versions.tsx": {
@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "components/channels/messenger-channel.tsx": {
-    "mtime": 1783984333.0,
-    "ast_hash": "0e6330deea731c0d5c47edd63e09053b",
+    "mtime": 1784115608.4417126,
+    "ast_hash": "3e87b76a59978770f4830cb3901dc8dc",
     "semantic_hash": ""
   },
   "components/channels/web-widget-channel.tsx": {
@@ -2722,6 +2722,11 @@
   "components/admin/system-errors-panel.tsx": {
     "mtime": 1784112815.7505825,
     "ast_hash": "4e9a03d7197d668b98faafbae5bb8167",
+    "semantic_hash": ""
+  },
+  "components/channels/instagram-service-setup.tsx": {
+    "mtime": 1784115530.8792646,
+    "ast_hash": "f18586826fa3a30f9811baadec344108",
     "semantic_hash": ""
   }
 }

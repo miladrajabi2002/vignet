@@ -268,7 +268,7 @@ export default async function AdminUsersPage(
                     {ws ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/admin/workspaces/${ws.id}`}
+                          href={`/admin/users/${u.id}`}
                           className="text-zinc-700 hover:text-zinc-900 hover:underline"
                         >
                           {ws.name}

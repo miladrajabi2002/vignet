@@ -383,7 +383,7 @@ export function MessengerChannel({
                 This is the entry point to DM/comment triggers, follow-gate, etc. */}
             {isInstagram && (
               <Link
-                href={`/agents/${agentId}/instagram`}
+                href="/instagram"
                 className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-base)]"
               >
                 مدیریت اتوماسیون

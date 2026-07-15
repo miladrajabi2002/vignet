@@ -15,6 +15,13 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+export default async function InstagramAutomationPage(
+	props: { params: Promise<{ agentId: string }> },
+) {
+	const params = await props.params
+	return <InstagramAutomationContent agentId={params.agentId} />
+}
+
 /**
  * Per-agent Instagram automation dashboard (v3). Loads the connected IG
  * channel + its automation scenarios + the channel-level
@@ -28,16 +35,11 @@ export const dynamic = 'force-dynamic'
  * surfaced in the UI (welcomeMessage + followUp* were removed). The backend
  * PATCH treats omitted fields as "skip", so we don't touch them.
  */
-export default async function InstagramAutomationPage(
-	props: {
-		params: Promise<{ agentId: string }>
-	},
-) {
-	const params = await props.params
+async function InstagramAutomationContent({ agentId }: { agentId: string }) {
 	const user = await requireUser()
 
 	const agent = await prisma.agent.findFirst({
-		where: { id: params.agentId, workspaceId: user.workspaceId },
+		where: { id: agentId, workspaceId: user.workspaceId },
 		select: {
 			id: true,
 			name: true,

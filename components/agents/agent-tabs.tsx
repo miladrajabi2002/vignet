@@ -10,7 +10,6 @@ import {
   Package,
   BarChart3,
   GraduationCap,
-  Camera,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,7 +20,6 @@ const ICONS: Record<string, LucideIcon> = {
   knowledge: Database,
   catalog: Package,
   channels: Share2,
-  instagram: Camera,
   learning: GraduationCap,
   analytics: BarChart3,
 }

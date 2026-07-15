@@ -16,6 +16,8 @@ import {
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import { getVerticalPack } from '@/lib/verticals/registry'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import {
@@ -99,7 +101,19 @@ export default async function AdminUserDetailPage(
           trialEndsAt: true,
           onboardingCompleted: true,
           onboardingStep: true,
+          businessType: true,
+          businessProfile: true,
           createdAt: true,
+          services: {
+            orderBy: [{ active: 'desc' }, { createdAt: 'asc' }],
+            select: {
+              id: true,
+              name: true,
+              active: true,
+              durationMinutes: true,
+              location: true,
+            },
+          },
           _count: {
             select: {
               agents: true,
@@ -171,6 +185,12 @@ export default async function AdminUserDetailPage(
   const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
   const plan = PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }
   const planDef = (await getEffectivePlanDefs())[ws.plan]
+  const businessProfile = readBusinessProfile(ws.businessProfile)
+  const vertical = getVerticalPack(ws.businessType)
+  const serviceNames = Array.from(new Set([
+    ...(businessProfile?.services ?? []),
+    ...ws.services.map((service) => service.name),
+  ]))
   const totalChargedIRR = usage._sum.chargedIRR ?? 0
   const totalCost = usage._sum.cost ?? 0
 
@@ -219,21 +239,13 @@ export default async function AdminUserDetailPage(
   return (
     <div className="space-y-6">
       <PageHeader
-        title={userName}
-        subtitle={`${role.label} · عضو از ${memberSince}`}
+        title={`${userName} · ${businessProfile?.businessName ?? ws.name}`}
+        subtitle={`نمای یکپارچه کاربر و کسب‌وکار · ${vertical.titleFa} · عضو از ${memberSince}`}
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
           { label: 'کاربران', href: '/admin/users' },
           { label: userName },
         ]}
-        action={
-          <Link
-            href={`/admin/workspaces/${ws.id}`}
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium hover:bg-zinc-50"
-          >
-            مشاهده کسب‌وکار
-          </Link>
-        }
       />
 
       <section className="admin-panel overflow-hidden rounded-[1.6rem]" aria-labelledby="user-journey-title">
@@ -293,56 +305,61 @@ export default async function AdminUserDetailPage(
       <div className="grid gap-5 lg:grid-cols-3">
         {/* ─── MAIN COLUMN ─── */}
         <div className="space-y-5 lg:col-span-2">
-          {/* User info */}
-          <Panel title="اطلاعات کاربر">
-            <SectionLabel>پروفایل</SectionLabel>
-            <div className="divide-y divide-zinc-100">
-              <KV label="نام">{user.name ?? '—'}</KV>
-              <KV label="تلفن" mono>
-                <span dir="ltr">{user.phone}</span>
-              </KV>
-              <KV label="نقش">
-                <span className="flex flex-wrap gap-1.5">
-                  <Badge tone={role.tone}>{role.label}</Badge>
-                  {user.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
-                </span>
-              </KV>
-              <KV label="زبان">{user.language}</KV>
-              <KV label="تاریخ عضویت">{memberSince}</KV>
-              <KV label="شناسه" mono>
-                <span dir="ltr" className="block max-w-[220px] truncate">{user.id}</span>
-              </KV>
-            </div>
-          </Panel>
+          <Panel title="کاربر و کسب‌وکار" subtitle="تمام اطلاعات هویتی و عملیاتی در یک نمای واحد">
+            <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
+              <div>
+                <SectionLabel>اطلاعات کاربر</SectionLabel>
+                <div className="divide-y divide-zinc-100">
+                  <KV label="نام">{user.name ?? '—'}</KV>
+                  <KV label="تلفن" mono><span dir="ltr">{user.phone}</span></KV>
+                  <KV label="دسترسی">
+                    <span className="flex flex-wrap gap-1.5">
+                      <Badge tone={role.tone}>{role.label}</Badge>
+                      {user.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
+                    </span>
+                  </KV>
+                  <KV label="زبان">{user.language}</KV>
+                  <KV label="تاریخ عضویت">{memberSince}</KV>
+                  <KV label="شناسه" mono><span dir="ltr" className="block max-w-[220px] truncate">{user.id}</span></KV>
+                </div>
+              </div>
 
-          {/* Workspace */}
-          <Panel title="کسب‌وکار">
-            <SectionLabel>{ws.name}</SectionLabel>
-            <div className="divide-y divide-zinc-100">
-              <KV label="نام کسب‌وکار">{ws.name}</KV>
-              <KV label="اسلاگ" mono>
-                <span dir="ltr">{ws.slug}</span>
-              </KV>
-              <KV label="پلن">
-                <Badge tone={plan.tone}>{plan.label}</Badge>
-              </KV>
-              <KV label="ایمیل گزارش کسب‌وکار">
-                {ws.reportEmail ? (
-                  <span dir="ltr">{ws.reportEmail}</span>
-                ) : (
-                  <span className="text-zinc-400">—</span>
-                )}
-              </KV>
-              <KV label="پایان آزمایشی">
-                {ws.trialEndsAt ? fmtDay(ws.trialEndsAt) : <span className="text-zinc-400">—</span>}
-              </KV>
-              <KV label="وضعیت آنبوردینگ">
-                {ws.onboardingCompleted ? (
-                  <Badge tone="success">تکمیل شده</Badge>
-                ) : (
-                  <Badge tone="warning">در حال انجام (گام {fa(ws.onboardingStep)})</Badge>
-                )}
-              </KV>
+              <div>
+                <SectionLabel>اطلاعات کسب‌وکار</SectionLabel>
+                <div className="divide-y divide-zinc-100">
+                  <KV label="نام کسب‌وکار">{businessProfile?.businessName ?? ws.name}</KV>
+                  <KV label="نوع کسب‌وکار"><Badge tone="info">{vertical.titleFa}</Badge></KV>
+                  <KV label="اسلاگ" mono><span dir="ltr">{ws.slug}</span></KV>
+                  <KV label="پلن"><Badge tone={plan.tone}>{plan.label}</Badge></KV>
+                  <KV label="ایمیل گزارش">{ws.reportEmail ? <span dir="ltr">{ws.reportEmail}</span> : <span className="text-zinc-400">—</span>}</KV>
+                  <KV label="وضعیت راه‌اندازی">
+                    {ws.onboardingCompleted ? <Badge tone="success">فعال‌شده</Badge> : <Badge tone="warning">در حال راه‌اندازی · گام {fa(ws.onboardingStep)}</Badge>}
+                  </KV>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-zinc-100 pt-5">
+              <SectionLabel>خدمات کسب‌وکار</SectionLabel>
+              {serviceNames.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {serviceNames.map((serviceName) => {
+                    const operationalService = ws.services.find((service) => service.name === serviceName)
+                    return (
+                      <span key={serviceName} className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-black/[0.07] bg-zinc-50 px-3 text-xs font-semibold text-zinc-700">
+                        {serviceName}
+                        {operationalService && (
+                          <span className="text-[10px] font-normal text-zinc-400">
+                            {fa(operationalService.durationMinutes)} دقیقه{operationalService.location ? ` · ${operationalService.location}` : ''}{!operationalService.active ? ' · غیرفعال' : ''}
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-5 text-center text-xs text-zinc-400">هنوز خدمتی برای این کسب‌وکار ثبت نشده است</p>
+              )}
             </div>
           </Panel>
 
