@@ -22,14 +22,14 @@ const QUICK_PROMPTS = [
 
 // ── Neural network node positions (relative to a 320×280 SVG viewBox) ────────
 // Central core = Vigento AI. 6 satellite nodes represent platform subsystems.
-const CORE = { x: 160, y: 140 }
+const CORE = { x: 210, y: 110 }
 const SATELLITES = [
-  { id: 'users', label: 'کاربران', x: 50, y: 60 },
-  { id: 'convos', label: 'گفتگوها', x: 270, y: 60 },
-  { id: 'revenue', label: 'درآمد', x: 30, y: 140 },
-  { id: 'agents', label: 'ایجنت‌ها', x: 290, y: 140 },
-  { id: 'errors', label: 'خطاها', x: 50, y: 220 },
-  { id: 'ai', label: 'هوش مصنوعی', x: 270, y: 220 },
+  { id: 'users', label: 'کاربران', x: 46, y: 42 },
+  { id: 'convos', label: 'گفتگوها', x: 374, y: 42 },
+  { id: 'revenue', label: 'درآمد', x: 78, y: 110 },
+  { id: 'agents', label: 'ایجنت‌ها', x: 342, y: 110 },
+  { id: 'errors', label: 'خطاها', x: 46, y: 178 },
+  { id: 'ai', label: 'زیرساخت AI', x: 374, y: 178 },
 ] as const
 
 export function VigentoAdminConsole() {
@@ -134,11 +134,11 @@ export function VigentoAdminConsole() {
         aria-hidden="true"
       />
 
-      <div className="relative grid lg:min-h-[440px] lg:grid-cols-[1fr_1fr]">
+      <div className="relative grid lg:min-h-[370px] lg:grid-cols-[1.35fr_.65fr]">
         {/* ═══════════════════════════════════════════════════════════════
             LEFT — Neural network visualization
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="relative flex flex-col overflow-hidden border-b border-white/8 p-4 sm:p-6 lg:border-b-0 lg:border-l lg:p-8">
+        <div className="relative grid content-center overflow-hidden border-b border-white/8 p-4 sm:p-6 lg:border-b-0 lg:border-l xl:grid-cols-[minmax(13rem,.72fr)_minmax(22rem,1.28fr)] xl:items-center xl:gap-2 xl:p-7">
           {/* Header */}
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/65 backdrop-blur-sm">
@@ -152,16 +152,16 @@ export function VigentoAdminConsole() {
               Vigento AI
             </h2>
             <p className="mt-1 text-sm text-white/55">ویجنتوی ادمین · مرکز فرمان</p>
-            <p className="mt-3 max-w-md text-xs leading-6 text-white/55">
+            <p className="mt-3 max-w-sm text-xs leading-6 text-white/55">
               کاربران، گفتگوها، درآمد، ایجنت‌ها، سرویس‌ها و سیاست AI به هسته فرمان متصل‌اند؛ تغییرات حساس همیشه با تأیید و رسید حسابرسی انجام می‌شوند.
             </p>
           </div>
 
           {/* ── SVG Neural Network Visualization ────────────────────── */}
-          <div className="relative my-2 flex flex-1 items-center justify-center sm:my-4">
+          <div className="relative my-2 flex min-h-[210px] items-center justify-center sm:my-3 xl:my-0">
             <svg
-              viewBox="0 0 320 280"
-              className="h-full w-full max-h-[190px] sm:max-h-[230px] lg:max-h-[260px]"
+              viewBox="0 0 420 220"
+              className="h-full w-full max-h-[210px] sm:max-h-[235px]"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -422,7 +422,7 @@ export function VigentoAdminConsole() {
           </div>
 
           {/* Footer badge */}
-          <div className="relative z-10 flex items-center gap-2 text-[11px] text-white/45">
+          <div className="relative z-10 flex items-center gap-2 text-[11px] text-white/45 xl:col-span-2">
             <ShieldCheck className="h-3.5 w-3.5" />
             OWNER ONLY · دسترسی مالک پلتفرم
           </div>
@@ -431,7 +431,7 @@ export function VigentoAdminConsole() {
         {/* ═══════════════════════════════════════════════════════════════
             RIGHT — Chat interface
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="flex min-h-[360px] flex-col bg-[#f7f7f5] p-4 text-black sm:min-h-[400px] sm:p-6">
+        <div className="flex min-h-[360px] flex-col bg-[#f7f7f5] p-4 text-black sm:p-5 lg:min-h-[370px]">
           {/* Chat header */}
           <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] pb-3">
             <div className="flex items-center gap-2.5">

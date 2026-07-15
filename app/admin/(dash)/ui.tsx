@@ -101,7 +101,7 @@ export function Panel({
 }) {
   return (
     <Card className={className}>
-      <div className="mb-4 flex items-start justify-between gap-3 border-b border-black/[0.055] pb-3.5">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold text-black">{title}</h2>
           {subtitle && <p className="mt-1 text-[11px] leading-5 text-black/40">{subtitle}</p>}
@@ -169,7 +169,7 @@ export function StatCard({
             : '#18181b'
 
   return (
-    <Card className="group relative min-h-[8.5rem] overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-card)] active:scale-[.995]">
+    <Card className="group relative min-h-[8.25rem] overflow-hidden transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.14] hover:shadow-[var(--shadow-float)] active:scale-[.995]">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-black/45">{label}</p>
@@ -276,7 +276,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        'whitespace-nowrap px-4 py-3 text-start text-[11px] font-semibold uppercase tracking-wide text-zinc-500',
+        'whitespace-nowrap px-4 py-3.5 text-start text-[11px] font-semibold text-zinc-500',
         className,
       )}
     >
@@ -292,7 +292,7 @@ export function Td({
   children?: React.ReactNode
   className?: string
 }) {
-  return <td className={cn('px-4 py-3 text-sm text-zinc-700', className)}>{children}</td>
+  return <td className={cn('px-4 py-3.5 text-[13px] text-zinc-700', className)}>{children}</td>
 }
 
 export function TableShell({
@@ -303,7 +303,7 @@ export function TableShell({
   minWidth?: number
 }) {
   return (
-    <div className="spatial-surface overflow-x-auto rounded-[1.5rem]">
+    <div className="spatial-surface overflow-x-auto rounded-[1.5rem] [scrollbar-width:thin]">
       <table className="w-full" style={{ minWidth }}>
         {children}
       </table>
@@ -353,8 +353,8 @@ export function PageHeader({
   icon?: React.ComponentType<{ className?: string }>
 }) {
   return (
-    <div className="mb-5 spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <header className="dashboard-page-header mb-5 spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {Icon && (
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
@@ -378,13 +378,13 @@ export function PageHeader({
                 ))}
               </nav>
             )}
-            <h1 className="text-[clamp(1.35rem,3vw,1.8rem)] font-bold leading-tight text-black">{title}</h1>
-            {subtitle && <p className="mt-1.5 text-xs leading-6 text-black/45">{subtitle}</p>}
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-black">{title}</h1>
+            {subtitle && <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">{subtitle}</p>}
           </div>
         </div>
         {action && <div className="flex items-center gap-2">{action}</div>}
       </div>
-    </div>
+    </header>
   )
 }
 

@@ -3,11 +3,9 @@ import {
   Activity,
   Banknote,
   Bot,
-  BrainCircuit,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
-  Coins,
   DatabaseZap,
   KeyRound,
   LockKeyhole,
@@ -597,20 +595,13 @@ export default async function AdminAiPage({
         currentMonthSpendUSD={currentMonthSpendUSD}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard
           label="درخواست موفق"
           value={fa(report.totals.requests)}
           sub={`${RANGE_LABELS[range]} اخیر`}
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="info"
-        />
-        <StatCard
-           label="مبلغ مصرف‌شده"
-           value={formatRial(report.totals.chargedIRR)}
-           sub={`میانگین ${formatRial(averageCharge)}`}
-          icon={<Coins className="h-5 w-5" />}
-          tone="warning"
         />
         <StatCard
           label="هزینه واقعی OpenRouter"
@@ -632,22 +623,16 @@ export default async function AdminAiPage({
           icon={<DatabaseZap className="h-5 w-5" />}
           tone={costCoverage >= 95 || report.totals.requests === 0 ? 'success' : 'warning'}
         />
-        <StatCard
-           label="هزینه واقعی OpenRouter"
-           value={formatProviderUSD(report.totals.providerCostUSD)}
-           sub="بر اساس UsageLog.cost"
-          icon={<BrainCircuit className="h-5 w-5" />}
-        />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-2">
         <TrendChart
-           title={`روند مبلغ مصرف‌شده — ${RANGE_LABELS[range]}`}
-           subtitle="مجموع مبلغ کسرشده روزانه به تومان"
-           data={report.daily.map((row) => ({ day: row.day, value: Math.round(row.chargedIRR / 10) }))}
+           title={`روند کسر اعتبار — ${RANGE_LABELS[range]}`}
+           subtitle="مجموع مبلغ ریالی ثبت‌شده برای پاسخ‌های موفق"
+           data={report.daily.map((row) => ({ day: row.day, value: row.chargedIRR }))}
           color="#2563eb"
           variant="area"
-           format="irr"
+          format="irr"
           height={210}
         />
         <TrendChart
@@ -659,24 +644,15 @@ export default async function AdminAiPage({
           format="usd"
           height={210}
         />
-        <TrendChart
-          title={`مبلغ کسرشده — ${RANGE_LABELS[range]}`}
-          subtitle="جمع مبلغ ریالی ثبت‌شده برای پاسخ‌های موفق"
-          data={report.daily.map((row) => ({ day: row.day, value: row.chargedIRR }))}
-          color="#059669"
-          variant="area"
-          format="irr"
-          height={210}
-        />
       </div>
 
       <table className="sr-only">
         <caption>جدول جایگزین نمودارهای روزانه مصرف هوش مصنوعی</caption>
-         <thead><tr><th>روز</th><th>درخواست</th><th>مبلغ تومان</th><th>هزینه دلار</th><th>مبلغ تومان</th></tr></thead>
+         <thead><tr><th>روز</th><th>درخواست</th><th>مبلغ تومان</th><th>هزینه دلار</th></tr></thead>
         <tbody>
           {report.daily.map((row) => (
             <tr key={row.day}>
-              <td>{row.day}</td><td>{row.requests}</td><td>{Math.round(row.chargedIRR / 10)}</td><td>{row.providerCostUSD}</td><td>{Math.round(row.chargedIRR / 10)}</td>
+              <td>{row.day}</td><td>{row.requests}</td><td>{Math.round(row.chargedIRR / 10)}</td><td>{row.providerCostUSD}</td>
             </tr>
           ))}
         </tbody>

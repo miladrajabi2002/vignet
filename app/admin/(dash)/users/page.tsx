@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Search, Users, Building2, Crown, CreditCard, Clock } from 'lucide-react'
+import { Search, Users, Building2, CreditCard, Clock } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -79,14 +79,14 @@ export default async function AdminUsersPage(
     where.workspace = { plan: planFilter }
   }
 
-  const [totalCount, todayCount, workspaceCount, ownerCount, paidWorkspaces, trialWorkspaces, rows] =
+  const stalledSince = new Date(Date.now() - 48 * 60 * 60 * 1000)
+  const [totalCount, todayCount, workspaceCount, paidWorkspaces, stalledWorkspaces, rows] =
     await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: startOfToday() } } }),
       prisma.workspace.count(),
-      prisma.user.count({ where: { role: 'OWNER' } }),
       prisma.workspace.count({ where: { plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
-      prisma.workspace.count({ where: { plan: 'TRIAL' } }),
+      prisma.workspace.count({ where: { onboardingCompleted: false, createdAt: { lt: stalledSince } } }),
       prisma.user.findMany({
         where,
         include: {
@@ -96,6 +96,7 @@ export default async function AdminUsersPage(
               name: true,
               plan: true,
               onboardingCompleted: true,
+              createdAt: true,
               _count: { select: { agents: true, conversations: true, payments: true, users: true } },
             },
           },
@@ -155,7 +156,7 @@ export default async function AdminUsersPage(
           name="q"
           defaultValue={q}
           placeholder="جستجو بر اساس نام یا تلفن…"
-          className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-sm focus:border-zinc-900 focus:outline-none"
+          className="admin-input pr-10"
         />
         {planFilter && <input type="hidden" name="plan" value={planFilter} />}
       </form>
@@ -184,11 +185,11 @@ export default async function AdminUsersPage(
           tone="success"
         />
         <StatCard
-          label="آزمایشی / مالک‌ها"
-          value={trialWorkspaces}
-          sub={`${fa(ownerCount)} مالک فضای کاری`}
-          icon={planFilter === 'TRIAL' ? <Clock className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
-          tone="warning"
+          label="راه‌اندازی متوقف"
+          value={stalledWorkspaces}
+          sub="بیش از ۴۸ ساعت بدون تکمیل آنبوردینگ"
+          icon={<Clock className="h-4 w-4" />}
+          tone={stalledWorkspaces > 0 ? 'warning' : 'success'}
         />
       </div>
 
@@ -241,12 +242,21 @@ export default async function AdminUsersPage(
                   </Td>
                   <Td>
                     {ws ? (
-                      <Link
-                        href={`/admin/workspaces/${ws.id}`}
-                        className="text-zinc-700 hover:text-zinc-900 hover:underline"
-                      >
-                        {ws.name}
-                      </Link>
+                      <div className="space-y-1.5">
+                        <Link
+                          href={`/admin/workspaces/${ws.id}`}
+                          className="text-zinc-700 hover:text-zinc-900 hover:underline"
+                        >
+                          {ws.name}
+                        </Link>
+                        <div>
+                          <Badge
+                            tone={ws.onboardingCompleted ? 'success' : (ws.createdAt < stalledSince ? 'warning' : 'info')}
+                          >
+                            {ws.onboardingCompleted ? 'فعال‌شده' : (ws.createdAt < stalledSince ? 'متوقف در راه‌اندازی' : 'در حال راه‌اندازی')}
+                          </Badge>
+                        </div>
+                      </div>
                     ) : (
                       <span className="text-zinc-400">—</span>
                     )}

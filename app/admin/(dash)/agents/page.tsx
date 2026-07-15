@@ -1,4 +1,4 @@
-import { Bot, Cpu, Plug, MessageSquare } from 'lucide-react'
+import { Bot, Cpu, Plug, MessageSquare, TriangleAlert } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import {
   PageHeader,
@@ -38,7 +38,8 @@ function channelHealth(active: boolean, lastInboundAt: Date | null): Health {
 }
 
 export default async function AdminAgentsPage() {
-  const [agents, totalAgents, activeAgents, channelCount] = await Promise.all([
+  const silentSince = new Date(Date.now() - SILENT_AFTER_MS)
+  const [agents, totalAgents, activeAgents, channelCount, activeChannelCount, silentChannelCount] = await Promise.all([
     prisma.agent.findMany({
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -57,6 +58,16 @@ export default async function AdminAgentsPage() {
     prisma.agent.count(),
     prisma.agent.count({ where: { active: true } }),
     prisma.agentChannel.count(),
+    prisma.agentChannel.count({ where: { active: true } }),
+    prisma.agentChannel.count({
+      where: {
+        active: true,
+        OR: [
+          { lastInboundAt: { lt: silentSince } },
+          { lastInboundAt: null, createdAt: { lt: silentSince } },
+        ],
+      },
+    }),
   ])
 
   return (
@@ -70,7 +81,7 @@ export default async function AdminAgentsPage() {
         ]}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="کل ایجنت‌ها"
           value={fa(totalAgents)}
@@ -84,10 +95,17 @@ export default async function AdminAgentsPage() {
           tone="success"
         />
         <StatCard
-          label="کانال‌های متصل"
-          value={fa(channelCount)}
+          label="کانال‌های فعال"
+          value={`${fa(activeChannelCount)} / ${fa(channelCount)}`}
           icon={<Plug className="h-5 w-5" />}
           tone="info"
+        />
+        <StatCard
+          label="کانال نیازمند بررسی"
+          value={fa(silentChannelCount)}
+          sub="فعال اما بدون ورودی بیش از ۴۸ ساعت"
+          icon={<TriangleAlert className="h-5 w-5" />}
+          tone={silentChannelCount > 0 ? 'warning' : 'success'}
         />
       </div>
 

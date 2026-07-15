@@ -5,7 +5,6 @@ import {
   MessagesSquare,
   TrendingUp,
   AlertTriangle,
-  CreditCard,
   Activity,
   BrainCircuit,
   CircleDollarSign,
@@ -19,37 +18,24 @@ import {
   PageHeader,
   StatCard,
   Panel,
-  EmptyState,
-  LevelBadge,
-  Badge,
-  fmtDate,
   fmtIRR,
-  fmtUSD,
   fa,
 } from './ui'
 import {
   TrendChart,
-  DonutChart,
-  BarList,
   MonthlyBarChart,
 } from '@/components/admin/trend-chart'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
-import { ServerStatsWidget } from '@/components/admin/server-stats-widget'
-import { TrendsStrip } from '@/components/admin/trends-strip'
 import {
   conversationsDaily,
   errorsDaily,
   newUsersDaily,
-  newWorkspacesDaily,
   revenueIRRDaily,
   paymentsDaily,
   usageChargesDaily,
-  planDistribution,
-  gatewayBreakdown,
-  channelBreakdown,
   revenueIRRMonthly,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
@@ -57,20 +43,6 @@ import { getAiOverview } from '@/lib/admin/ai-usage'
 import { VigentoAdminConsole } from '@/components/admin/vigento-admin-console'
 
 export const dynamic = 'force-dynamic'
-
-const PLAN_LABELS: Record<string, string> = {
-  TRIAL: 'آزمایشی',
-  STARTER: 'استارتر',
-  PRO: 'حرفه‌ای',
-  BUSINESS: 'سازمانی',
-}
-
-const PLAN_TONES: Record<string, 'muted' | 'info' | 'success' | 'default'> = {
-  TRIAL: 'muted',
-  STARTER: 'info',
-  PRO: 'success',
-  BUSINESS: 'default',
-}
 
 function startOfToday(): Date {
   const d = new Date()
@@ -104,12 +76,10 @@ export default async function AdminOverviewPage(
       ? Promise.resolve(revenueIRRMonthly(12)).then((m) => ({ monthly: m, daily: null as null }))
       : Promise.all([
           revenueIRRDaily(days),
-          conversationsDaily(days),
           newUsersDaily(days),
-          errorsDaily(days),
-        ]).then(([rev, conv, users, err]) => ({
+        ]).then(([rev, users]) => ({
           monthly: null as null,
-          daily: { rev, conv, users, err },
+          daily: { rev, users },
         }))
 
   const [
@@ -118,12 +88,7 @@ export default async function AdminOverviewPage(
     userCount,
     conversationsToday,
     errors24h,
-    recentErrors,
-    recentPayments,
     rangeSeries,
-    plans,
-    gateways,
-    channels,
     kpiTrends,
     aiOverview,
     activation,
@@ -143,39 +108,18 @@ export default async function AdminOverviewPage(
     prisma.user.count(),
     prisma.conversation.count({ where: { createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }),
-    prisma.errorLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        source: true,
-        message: true,
-        level: true,
-        createdAt: true,
-      },
-    }),
-    prisma.payment.findMany({
-      where: { status: 'PAID' },
-      orderBy: { paidAt: 'desc' },
-      take: 5,
-      include: { workspace: { select: { name: true } } },
-    }),
     rangeSeriesPromise,
-    planDistribution(),
-    gatewayBreakdown(),
-    channelBreakdown(),
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
     Promise.all([
       revenueIRRDaily(7),
-      newWorkspacesDaily(7),
       conversationsDaily(7),
       newUsersDaily(7),
       errorsDaily(7),
       paymentsDaily(7),
       usageChargesDaily(7),
-    ]).then(([rev, ws, conv, users, err, pays, ai]) => ({
-      rev, ws, conv, users, err, pays, ai,
+    ]).then(([rev, conv, users, err, pays, ai]) => ({
+      rev, conv, users, err, pays, ai,
     })),
     getAiOverview(30),
     Promise.all([
@@ -379,21 +323,6 @@ export default async function AdminOverviewPage(
         </div>
       </section>
 
-      {/* ─── Trends strip: distinct 7-day sparklines ────────────── */}
-      {/*    Shows site-wide momentum at a glance: green = progressing,
-            gray = flat, red = declining. Errors are inverted (up = bad).
-            One tile per distinct series — no duplicated charts. */}
-      <TrendsStrip
-        tiles={[
-          { label: 'درآمد', series: kpiTrends.rev.map((p) => p.value) },
-          { label: 'کسب‌وکار جدید', series: kpiTrends.ws.map((p) => p.value) },
-          { label: 'کاربر جدید', series: kpiTrends.users.map((p) => p.value) },
-          { label: 'مکالمات', series: kpiTrends.conv.map((p) => p.value) },
-          { label: 'پرداخت جدید', series: kpiTrends.pays.map((p) => p.value) },
-          { label: 'خطاها', series: kpiTrends.err.map((p) => p.value), invert: true },
-        ]}
-      />
-
       <Panel
         title="قیف فعال‌سازی کسب‌وکارها"
         subtitle="سیگنال‌های واقعی دیتابیس؛ از تکمیل راه‌اندازی تا دریافت اولین گفتگو"
@@ -420,6 +349,30 @@ export default async function AdminOverviewPage(
               </div>
             )
           })}
+        </div>
+      </Panel>
+
+      <Panel
+        title="تصویر عملیاتی پلتفرم"
+        subtitle="شاخص‌های تصمیم‌ساز؛ جزئیات هر حوزه در صفحه تخصصی همان بخش"
+      >
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: 'نرخ پاسخ ایجنت', value: `${fa(responseHealth.rate)}٪`, note: `${fa(responseHealth.answered)} از ${fa(responseHealth.total)} گفتگو`, href: '/admin/conversations' },
+            { label: 'ایجنت فعال', value: `${fa(agentHealth.active)} / ${fa(agentHealth.total)}`, note: 'آماده پاسخ‌گویی', href: '/admin/agents' },
+            { label: 'اتصال فعال', value: `${fa(channelHealth.active)} / ${fa(channelHealth.total)}`, note: `${fa(channelHealth.silent)} اتصال ساکت`, href: '/admin/agents' },
+            { label: 'تحویل به اپراتور', value: fa(activeHandoffs), note: 'نیازمند پاسخ انسانی', href: '/admin/conversations?status=HANDED_OFF' },
+            { label: 'اعتبار پایین', value: fa(lowCreditWorkspaces), note: 'ریسک توقف پاسخ AI', href: '/admin/workspaces' },
+          ].map((item) => (
+            <Link key={item.label} href={item.href} className="group rounded-2xl border border-black/[0.065] bg-[var(--bg-surface)] p-4 transition-[border-color,background-color,transform] duration-200 hover:border-black/15 hover:bg-white active:scale-[.99]">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-medium text-black/45">{item.label}</p>
+                <ChevronLeft className="h-3.5 w-3.5 text-black/20 transition-transform group-hover:-translate-x-0.5" />
+              </div>
+              <p className="mt-3 text-xl font-bold tabular-nums text-black">{item.value}</p>
+              <p className="mt-1 text-[10px] text-black/40">{item.note}</p>
+            </Link>
+          ))}
         </div>
       </Panel>
 
@@ -457,118 +410,6 @@ export default async function AdminOverviewPage(
         </div>
       ) : null}
 
-      {/* ─── Charts row 2 ───────────────────────────────────────── */}
-      {range !== 'monthly' && rangeSeries.daily && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <TrendChart
-            title={`مکالمات ${fa(days)} روز اخیر`}
-            data={rangeSeries.daily.conv}
-            color="#3b82f6"
-            variant="bar"
-          />
-          <TrendChart
-            title={`خطاهای ${fa(days)} روز اخیر`}
-            data={rangeSeries.daily.err}
-            color="#ef4444"
-            variant="bar"
-          />
-        </div>
-      )}
-
-      {/* ─── Distribution row ───────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <DonutChart
-          title="توزیع پلن‌ها"
-          data={plans}
-          centerValue={workspaceCount}
-          centerLabel="کسب‌وکار"
-        />
-        <DonutChart
-          title="درگاه‌های پرداخت"
-          data={gateways}
-          centerValue={revenueKPIs.paidCount}
-          centerLabel="پرداخت موفق"
-        />
-        <BarList
-          title="پربازدیدترین کانال‌ها"
-          data={channels.map((c) => ({ label: c.label, value: c.value }))}
-          format="number"
-        />
-      </div>
-
-      {/* ─── Bottom row: recent errors + payments ───────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="آخرین خطاها" href="/admin/errors" linkLabel="همه خطاها">
-          {recentErrors.length === 0 ? (
-            <EmptyState icon={<AlertTriangle className="h-8 w-8" />}>
-              خطایی ثبت نشده
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-zinc-100">
-              {recentErrors.map((e) => (
-                <li key={e.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-2">
-                    <LevelBadge level={e.level} />
-                    <span className="truncate text-xs text-zinc-500">
-                      {e.source ?? '—'}
-                    </span>
-                    <span className="ms-auto shrink-0 text-[11px] text-zinc-400">
-                      {fmtDate(e.createdAt)}
-                    </span>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-zinc-700">{e.message}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="آخرین پرداخت‌ها" href="/admin/payments" linkLabel="همه پرداخت‌ها">
-          {recentPayments.length === 0 ? (
-            <EmptyState icon={<CreditCard className="h-8 w-8" />}>
-              پرداختی ثبت نشده
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-zinc-100">
-              {recentPayments.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium text-zinc-900">
-                        {p.workspace.name}
-                      </span>
-                      <Badge tone={p.kind === 'AI_CREDIT' || !p.plan ? 'info' : (PLAN_TONES[p.plan] ?? 'muted')}>
-                        {p.kind === 'AI_CREDIT' || !p.plan
-                          ? 'اعتبار هوش مصنوعی'
-                          : (PLAN_LABELS[p.plan] ?? p.plan)}
-                      </Badge>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-zinc-400">
-                      {fmtDate(p.paidAt ?? p.createdAt)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold text-zinc-900">
-                    {p.currency === 'IRR' ? fmtIRR(p.amount) : fmtUSD(p.amount)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      {/* ─── Live server resources (CPU + RAM) ──────────────────── */}
-      <div>
-        <div className="mb-3 flex items-center gap-2">
-          <Activity className="h-4 w-4 text-zinc-500" />
-          <h2 className="text-sm font-semibold text-zinc-900">منابع سرور</h2>
-          <span className="text-[11px] text-zinc-400">به‌روزرسانی هر ۵ ثانیه</span>
-        </div>
-        <ServerStatsWidget />
-      </div>
     </div>
   )
 }

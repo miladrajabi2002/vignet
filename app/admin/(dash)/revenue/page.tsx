@@ -4,9 +4,6 @@ import {
   DollarSign,
   Users,
   Percent,
-  CheckCircle,
-  XCircle,
-  Calendar,
 } from 'lucide-react'
 import {
   PageHeader,
@@ -20,9 +17,8 @@ import {
   fmtUSD,
   fa,
 } from '../ui'
-import { MonthlyBarChart, DonutChart } from '@/components/admin/trend-chart'
+import { MonthlyBarChart } from '@/components/admin/trend-chart'
 import { Sparkline } from '@/components/admin/sparkline'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import {
   getRevenueKPIs,
   getTopWorkspacesByRevenue,
@@ -31,12 +27,6 @@ import {
 } from '@/lib/admin/revenue'
 import {
   revenueIRRMonthly,
-  revenueUSDMonthly,
-  paymentsMonthly,
-  newUsersMonthly,
-  planDistribution,
-  revenueIRRDaily,
-  paymentsDaily,
   paymentsDailyByWorkspace,
 } from '@/lib/admin/charts'
 
@@ -67,12 +57,6 @@ export default async function AdminRevenuePage() {
     topWorkspaces,
     planRevenue,
     irrMonthly,
-    usdMonthly,
-    paysMonthly,
-    usersMonthly,
-    planDist,
-    irrTrend7,
-    paysTrend7,
     paySparks,
     finance,
   ] = await Promise.all([
@@ -80,18 +64,9 @@ export default async function AdminRevenuePage() {
     getTopWorkspacesByRevenue(6),
     getPlanRevenue(),
     revenueIRRMonthly(12),
-    revenueUSDMonthly(12),
-    paymentsMonthly(12),
-    newUsersMonthly(12),
-    planDistribution(),
-    revenueIRRDaily(7),
-    paymentsDaily(7),
     paymentsDailyByWorkspace(7),
     getFinanceSummary(),
   ])
-
-  // Map plan distribution slices → DonutChart shape
-  const donutData = planDist.map((s) => ({ label: s.label, value: s.value }))
 
   return (
     <div className="space-y-6">
@@ -162,7 +137,7 @@ export default async function AdminRevenuePage() {
         </div>
       </Panel>
 
-      {/* KPI row 1 */}
+      {/* Commercial growth KPIs — transaction detail belongs to Payments. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="MRR (تومان)"
@@ -172,16 +147,11 @@ export default async function AdminRevenuePage() {
           trend={{ value: kpi.momChange, label: 'نسبت به ماه قبل' }}
         />
         <StatCard
-          label="درآمد کل (تومان)"
-          value={fmtIRR(kpi.totalIRR)}
+          label="درآمد این ماه"
+          value={fmtIRR(kpi.thisMonthIRR)}
           icon={<Wallet className="h-5 w-5" />}
           tone="success"
-        />
-        <StatCard
-          label="درآمد کل (دلار)"
-          value={fmtUSD(kpi.totalUSD)}
-          icon={<DollarSign className="h-5 w-5" />}
-          tone="info"
+          sub={`ماه قبل: ${fmtIRR(kpi.lastMonthIRR)}`}
         />
         <StatCard
           label="ARPU"
@@ -189,52 +159,12 @@ export default async function AdminRevenuePage() {
           icon={<Users className="h-5 w-5" />}
           sub="برای هر کسب‌وکار پرداختی"
         />
-      </div>
-
-      {/* KPI row 2 */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="نرخ تبدیل"
           value={`${kpi.conversionRate.toLocaleString('fa-IR')}٪`}
           icon={<Percent className="h-5 w-5" />}
           tone="success"
           sub={`${kpi.payingWorkspaces.toLocaleString('fa-IR')} از ${kpi.totalWorkspaces.toLocaleString('fa-IR')}`}
-        />
-        <StatCard
-          label="پرداخت‌های موفق"
-          value={kpi.paidCount}
-          icon={<CheckCircle className="h-5 w-5" />}
-          tone="success"
-        />
-        <StatCard
-          label="پرداخت‌های ناموفق"
-          value={kpi.failedCount}
-          icon={<XCircle className="h-5 w-5" />}
-          tone="danger"
-        />
-        <StatCard
-          label="این ماه (تومان)"
-          value={fmtIRR(kpi.thisMonthIRR)}
-          icon={<Calendar className="h-5 w-5" />}
-          sub={`ماه قبل: ${fmtIRR(kpi.lastMonthIRR)}`}
-        />
-      </div>
-
-      {/* ─── Mini trends: 7-day revenue + payments ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <MiniTrend
-          label="درآمد ۷ روز اخیر (تومان)"
-          value={fmtIRR(irrTrend7.reduce((s, p) => s + p.value, 0))}
-          series={irrTrend7.map((p) => p.value)}
-          color="#22c55e"
-          hint="روزانه" variant="light"
-        />
-        <MiniTrend
-          label="پرداخت‌های ۷ روز اخیر"
-          value={paysTrend7.reduce((s, p) => s + p.value, 0)}
-          series={paysTrend7.map((p) => p.value)}
-          color="#3b82f6"
-          hint="تعداد پرداخت موفق" variant="light"
         />
       </div>
 
@@ -246,37 +176,6 @@ export default async function AdminRevenuePage() {
         format="compact-irr"
       />
 
-      {/* Charts row — IRR USD + payments count */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <MonthlyBarChart
-          title="درآمد دلاری ماهانه"
-          data={usdMonthly}
-          color="#3b82f6"
-          format="usd"
-        />
-        <MonthlyBarChart
-          title="تعداد پرداخت‌های ماهانه"
-          data={paysMonthly}
-          color="#22c55e"
-          format="number"
-        />
-      </div>
-
-      {/* Charts row — new users + plan distribution */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <MonthlyBarChart
-          title="ثبت‌نام کاربران ماهانه"
-          data={usersMonthly}
-          color="#a855f7"
-          format="number"
-        />
-        <DonutChart
-          title="توزیع پلن‌ها"
-          data={donutData}
-          centerValue={kpi.totalWorkspaces}
-          centerLabel="کسب‌وکار"
-        />
-      </div>
 
       {/* Bottom row — top workspaces (with sparkline) + plan revenue table */}
       <div className="grid gap-4 lg:grid-cols-2">
