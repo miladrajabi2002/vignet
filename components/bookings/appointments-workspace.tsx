@@ -8,13 +8,18 @@ import {
   CalendarClock,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
+  Coffee,
   Loader2,
   MapPin,
+  Moon,
   Pencil,
   Plus,
   Settings2,
   Sparkles,
+  Sun,
   UserRound,
   Users,
   X,
@@ -72,12 +77,12 @@ interface SlotRow {
   remainingCapacity: number
 }
 
-const STATUS_COPY: Record<AppointmentStatus, { fa: string; en: string; tone: string }> = {
-  PENDING: { fa: 'در انتظار تأیید', en: 'Pending', tone: 'bg-amber-500/10 text-amber-600 ring-amber-500/15' },
-  CONFIRMED: { fa: 'تأییدشده', en: 'Confirmed', tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/15' },
-  CANCELLED: { fa: 'لغوشده', en: 'Cancelled', tone: 'bg-red-500/10 text-red-600 ring-red-500/15' },
-  COMPLETED: { fa: 'انجام‌شده', en: 'Completed', tone: 'bg-blue-500/10 text-blue-700 ring-blue-500/15' },
-  NO_SHOW: { fa: 'عدم حضور', en: 'No show', tone: 'bg-zinc-500/10 text-zinc-600 ring-zinc-500/15' },
+const STATUS_COPY: Record<AppointmentStatus, { fa: string; en: string; tone: string; dot: string }> = {
+  PENDING: { fa: 'در انتظار تأیید', en: 'Pending', tone: 'bg-amber-500/10 text-amber-700 ring-amber-500/20', dot: 'bg-amber-500' },
+  CONFIRMED: { fa: 'تأییدشده', en: 'Confirmed', tone: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20', dot: 'bg-emerald-500' },
+  CANCELLED: { fa: 'لغوشده', en: 'Cancelled', tone: 'bg-red-500/10 text-red-600 ring-red-500/20', dot: 'bg-red-400' },
+  COMPLETED: { fa: 'انجام‌شده', en: 'Completed', tone: 'bg-blue-500/10 text-blue-700 ring-blue-500/20', dot: 'bg-blue-500' },
+  NO_SHOW: { fa: 'عدم حضور', en: 'No show', tone: 'bg-zinc-500/10 text-zinc-600 ring-zinc-500/20', dot: 'bg-zinc-400' },
 }
 
 const WEEKDAYS = [
@@ -89,6 +94,28 @@ const WEEKDAYS = [
   { value: 4, fa: 'پ', en: 'Thu' },
   { value: 5, fa: 'ج', en: 'Fri' },
 ]
+
+// Deterministic accent color per service — keeps the schedule visually scannable
+// without requiring the user to read every service name. Hue derived from a
+// stable hash of the service id so a given service always renders the same
+// accent across days and reloads.
+const SERVICE_ACCENTS = [
+  { ring: 'ring-black/15', bar: 'bg-[var(--text-primary)]', chip: 'bg-[var(--text-primary)]/5 text-[var(--text-primary)]' },
+  { ring: 'ring-emerald-500/25', bar: 'bg-emerald-500', chip: 'bg-emerald-500/10 text-emerald-700' },
+  { ring: 'ring-blue-500/25', bar: 'bg-blue-500', chip: 'bg-blue-500/10 text-blue-700' },
+  { ring: 'ring-amber-500/25', bar: 'bg-amber-500', chip: 'bg-amber-500/10 text-amber-700' },
+  { ring: 'ring-violet-500/25', bar: 'bg-violet-500', chip: 'bg-violet-500/10 text-violet-700' },
+  { ring: 'ring-rose-500/25', bar: 'bg-rose-500', chip: 'bg-rose-500/10 text-rose-700' },
+  { ring: 'ring-teal-500/25', bar: 'bg-teal-500', chip: 'bg-teal-500/10 text-teal-700' },
+]
+
+function serviceAccent(serviceId: string) {
+  let hash = 0
+  for (let i = 0; i < serviceId.length; i++) {
+    hash = (hash * 31 + serviceId.charCodeAt(i)) >>> 0
+  }
+  return SERVICE_ACCENTS[hash % SERVICE_ACCENTS.length]
+}
 
 function shiftDateKey(dateKey: string, amount: number): string {
   const date = new Date(`${dateKey}T12:00:00.000Z`)
@@ -143,6 +170,34 @@ function serviceFromApi(raw: Record<string, unknown>): ServiceRow {
   }
 }
 
+type TimeSlotKey = 'morning' | 'afternoon' | 'evening'
+
+/** Group appointments into morning / afternoon / evening buckets by start hour. */
+function groupByTimeSlot(items: AppointmentRow[]): Array<{ key: TimeSlotKey; items: AppointmentRow[] }> {
+  const morning: AppointmentRow[] = []
+  const afternoon: AppointmentRow[] = []
+  const evening: AppointmentRow[] = []
+  for (const item of items) {
+    const hour = new Date(item.startsAt).toLocaleString('en-US', { timeZone: item.timezone, hour: '2-digit', hour12: false })
+    const h = Number(hour)
+    if (h < 12) morning.push(item)
+    else if (h < 17) afternoon.push(item)
+    else evening.push(item)
+  }
+  const groups: Array<{ key: TimeSlotKey; items: AppointmentRow[] }> = [
+    { key: 'morning', items: morning },
+    { key: 'afternoon', items: afternoon },
+    { key: 'evening', items: evening },
+  ]
+  return groups.filter((group) => group.items.length > 0)
+}
+
+const TIME_SLOT_COPY: Record<TimeSlotKey, { fa: string; en: string; Icon: typeof Sun }> = {
+  morning: { fa: 'صبح', en: 'Morning', Icon: Sun },
+  afternoon: { fa: 'بعدازظهر', en: 'Afternoon', Icon: Coffee },
+  evening: { fa: 'شب', en: 'Evening', Icon: Moon },
+}
+
 export function AppointmentsWorkspace({
   locale,
   initialDate,
@@ -169,22 +224,37 @@ export function AppointmentsWorkspace({
   const [actionId, setActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({})
+  // Week navigation — start of the 7-day window currently in view. Defaults to
+  // today so the first paint shows the current week.
+  const [weekStart, setWeekStart] = useState(initialDate)
 
-  const days = useMemo(
-    () => Array.from({ length: 14 }, (_, index) => shiftDateKey(initialDate, index)),
-    [initialDate],
+  const todayKey = useMemo(() => dateKeyInTimeZone(new Date(), 'Asia/Tehran'), [])
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStart, index)),
+    [weekStart],
   )
   const activeServices = services.filter((service) => service.active)
   const activeToday = appointments.filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status))
   const usedCapacity = activeToday.reduce((sum, item) => sum + item.partySize, 0)
 
-  // Fetch appointment counts for the whole 14-day window so each day chip can
-  // show a density indicator (empty / some / busy). Runs on mount and whenever
-  // the service filter changes.
+  // Daily summary for the currently selected day — shown above the list so the
+  // manager can see the shape of the day at a glance.
+  const daySummary = useMemo(() => {
+    const pending = appointments.filter((item) => item.status === 'PENDING').length
+    const confirmed = appointments.filter((item) => item.status === 'CONFIRMED').length
+    const completed = appointments.filter((item) => item.status === 'COMPLETED').length
+    const cancelled = appointments.filter((item) => ['CANCELLED', 'NO_SHOW'].includes(item.status)).length
+    return { total: appointments.length, pending, confirmed, completed, cancelled }
+  }, [appointments])
+
+  // Fetch appointment counts for the whole 14-day window (current + next week)
+  // so each day chip can show a numeric badge. Runs on mount, week navigation,
+  // and whenever the service filter changes.
   useEffect(() => {
     let cancelled = false
+    const windowDays = Array.from({ length: 14 }, (_, index) => shiftDateKey(weekStart, index))
     Promise.all(
-      days.map(async (date) => {
+      windowDays.map(async (date) => {
         try {
           const query = new URLSearchParams({ date })
           if (serviceFilter) query.set('serviceId', serviceFilter)
@@ -197,13 +267,13 @@ export function AppointmentsWorkspace({
       }),
     ).then((entries) => {
       if (cancelled) return
-      setDayCounts(Object.fromEntries(entries))
+      setDayCounts((prev) => ({ ...prev, ...Object.fromEntries(entries) }))
     })
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceFilter, initialDate])
+  }, [serviceFilter, weekStart])
 
   async function loadDay(date: string, nextService = serviceFilter) {
     setLoadingDay(true)
@@ -242,6 +312,43 @@ export function AppointmentsWorkspace({
       setActionId(null)
     }
   }
+
+  function goPrevWeek() {
+    setWeekStart((current) => shiftDateKey(current, -7))
+  }
+  function goNextWeek() {
+    setWeekStart((current) => shiftDateKey(current, 7))
+  }
+  function goToday() {
+    setWeekStart(todayKey)
+    void loadDay(todayKey)
+  }
+
+  // Human-friendly month label for the current week window, e.g. "تیر ۱۴۰۴"
+  // or spans two months when the week straddles a boundary.
+  const weekMonthLabel = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { month: 'long', timeZone: 'UTC' })
+    const first = new Date(`${weekDays[0]}T12:00:00Z`)
+    const last = new Date(`${weekDays[6]}T12:00:00Z`)
+    const m1 = fmt.format(first)
+    const m2 = fmt.format(last)
+    const yearFmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { year: 'numeric', timeZone: 'UTC' })
+    const year = yearFmt.format(last)
+    if (m1 === m2) return `${m1} ${year}`
+    return `${m1} – ${m2} ${year}`
+  }, [weekDays, fa])
+
+  const selectedDateLabel = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'UTC',
+    })
+    return fmt.format(new Date(`${selectedDate}T12:00:00Z`))
+  }, [selectedDate, fa])
+
+  const groupedAppointments = useMemo(() => groupByTimeSlot(appointments), [appointments])
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -283,51 +390,91 @@ export function AppointmentsWorkspace({
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        {/* ── Daily schedule — main panel ── */}
+        {/* ── Daily schedule — main panel (redesigned) ── */}
         <div className="spatial-surface min-w-0 rounded-[1.5rem] p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{fa ? 'برنامه روزانه' : 'Daily schedule'}</h2>
               <p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'زمان‌ها با منطقه زمانی تهران نمایش داده می‌شوند.' : 'Times are shown in the service timezone.'}</p>
             </div>
             <MaterialSelect value={serviceFilter} onValueChange={(value) => { setServiceFilter(value); void loadDay(selectedDate, value) }} ariaLabel={fa ? 'فیلتر خدمات' : 'Filter services'} className="min-w-48" options={[{ value: '', label: fa ? 'همه خدمات' : 'All services' }, ...services.map((service) => ({ value: service.id, label: service.name }))]} />
           </div>
 
-          {/* ── Day selector — horizontal strip ── */}
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-2" role="list" aria-label={fa ? 'انتخاب روز' : 'Choose a day'}>
-            {days.map((date, index) => {
+          {/* ── Week navigator — month label + prev/next/today ── */}
+          <div className="mt-4 flex items-center justify-between gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2">
+            <button
+              type="button"
+              onClick={goPrevWeek}
+              disabled={loadingDay}
+              aria-label={fa ? 'هفته قبل' : 'Previous week'}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+              <span className="truncate text-sm font-bold text-[var(--text-primary)]">{weekMonthLabel}</span>
+              <button
+                type="button"
+                onClick={goToday}
+                disabled={selectedDate === todayKey}
+                className="mt-0.5 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+              >
+                {fa ? 'رفتن به امروز' : 'Jump to today'}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={goNextWeek}
+              disabled={loadingDay}
+              aria-label={fa ? 'هفته بعد' : 'Next week'}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* ── Day selector — 7-day grid (no horizontal scroll) ── */}
+          <div className="mt-3 grid grid-cols-7 gap-1.5 sm:gap-2" role="list" aria-label={fa ? 'انتخاب روز' : 'Choose a day'}>
+            {weekDays.map((date) => {
               const isSelected = selectedDate === date
+              const isToday = date === todayKey
               const count = dayCounts[date] ?? 0
+              const dateObj = new Date(`${date}T12:00:00Z`)
+              const weekdayShort = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
+              const dayNum = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
               return (
                 <button
                   key={date}
                   type="button"
                   onClick={() => void loadDay(date)}
                   aria-pressed={isSelected}
+                  aria-label={`${weekdayShort} ${dayNum}${count > 0 ? ` — ${count} ${fa ? 'نوبت' : 'appointments'}` : ''}`}
                   className={cn(
-                    'group relative flex min-w-[72px] shrink-0 flex-col items-center rounded-2xl border px-2.5 py-2.5 text-center transition-[border-color,background-color,transform] hover:-translate-y-0.5 motion-reduce:transform-none',
+                    'group relative flex flex-col items-center rounded-2xl border px-1 py-2.5 text-center transition-[border-color,background-color,transform] hover:-translate-y-0.5 motion-reduce:transform-none sm:px-2',
                     isSelected
                       ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]'
-                      : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
+                      : isToday
+                        ? 'border-emerald-500/40 bg-emerald-500/5 text-[var(--text-primary)]'
+                        : 'border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]',
                   )}
                 >
-                  <span className={cn('block text-[10px] font-medium uppercase tracking-wide', isSelected ? 'text-[var(--bg-base)]/60' : 'text-[var(--text-muted)]')}>
-                    {new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}
+                  <span className={cn('block text-[10px] font-medium uppercase tracking-wide sm:text-[11px]', isSelected ? 'text-[var(--bg-base)]/70' : 'text-[var(--text-muted)]')}>
+                    {weekdayShort}
                   </span>
-                  <span className="mt-0.5 block text-lg font-bold tabular-nums">
-                    {new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}
+                  <span className="mt-0.5 block text-base font-bold tabular-nums sm:text-lg">
+                    {dayNum}
                   </span>
-                  {index === 0 && (
-                    <span className={cn('mt-0.5 block text-[10px] font-semibold', isSelected ? 'text-[var(--bg-base)]/80' : 'text-emerald-600')}>{fa ? 'امروز' : 'Today'}</span>
-                  )}
-                  {/* Density dots */}
-                  <span className="mt-1 flex items-center justify-center gap-0.5">
-                    {count === 0 ? (
-                      <span className={cn('h-1 w-1 rounded-full', isSelected ? 'bg-[var(--bg-base)]/30' : 'bg-[var(--border-strong)] opacity-50')} />
+                  {/* Count badge — replaces the ambiguous density dots */}
+                  <span className="mt-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums">
+                    {count > 0 ? (
+                      <span className={cn(
+                        'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1',
+                        isSelected ? 'bg-[var(--bg-base)]/20 text-[var(--bg-base)]' : 'bg-[var(--text-primary)]/8 text-[var(--text-primary)]',
+                      )}>
+                        {count.toLocaleString(fa ? 'fa-IR' : 'en-US')}
+                      </span>
                     ) : (
-                      Array.from({ length: Math.min(3, Math.ceil(count / 2)) }).map((_, i) => (
-                        <span key={i} className={cn('h-1 w-1 rounded-full', isSelected ? 'bg-[var(--bg-base)]' : 'bg-[var(--text-secondary)]')} />
-                      ))
+                      <span className={cn('h-1 w-1 rounded-full', isSelected ? 'bg-[var(--bg-base)]/30' : 'bg-[var(--border-strong)] opacity-50')} />
                     )}
                   </span>
                 </button>
@@ -335,33 +482,92 @@ export function AppointmentsWorkspace({
             })}
           </div>
 
+          {/* ── Selected day label + inline summary chips ── */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--bg-base)] px-3.5 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <CalendarCheck2 className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <span className="truncate text-sm font-bold text-[var(--text-primary)]">{selectedDateLabel}</span>
+            </div>
+            {daySummary.total > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <SummaryChip count={daySummary.total} label={fa ? 'کل' : 'Total'} tone="neutral" fa={fa} />
+                {daySummary.pending > 0 && <SummaryChip count={daySummary.pending} label={fa ? 'در انتظار' : 'Pending'} tone="amber" fa={fa} />}
+                {daySummary.confirmed > 0 && <SummaryChip count={daySummary.confirmed} label={fa ? 'تأییدشده' : 'Confirmed'} tone="emerald" fa={fa} />}
+                {daySummary.completed > 0 && <SummaryChip count={daySummary.completed} label={fa ? 'انجام‌شده' : 'Done'} tone="blue" fa={fa} />}
+              </div>
+            )}
+          </div>
+
           {error && <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600">{error}</p>}
 
-          {/* ── Appointment list — timeline style ── */}
+          {/* ── Appointment list — grouped by time slot (morning/afternoon/evening) ── */}
           <div className="relative mt-4 min-h-48">
-            {loadingDay && <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-[var(--bg-surface)]/80"><Loader2 className="h-5 w-5 animate-spin text-[var(--text-primary)]" /></div>}
+            {loadingDay && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-[var(--bg-surface)]/80 backdrop-blur-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--text-primary)]" />
+              </div>
+            )}
             {appointments.length === 0 ? (
-              <div className="grid min-h-52 place-items-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-8 text-center">
-                <div><CalendarClock className="mx-auto h-8 w-8 text-[var(--text-muted)]" /><p className="mt-3 text-sm font-medium text-[var(--text-primary)]">{fa ? 'برای این روز نوبتی ثبت نشده' : 'No appointments for this day'}</p><p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'می‌توانید دستی ثبت کنید یا ایجنت از گفتگو رزرو کند.' : 'Create one here or let the agent book from a conversation.'}</p></div>
+              <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-base)] p-8 text-center">
+                <div>
+                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--bg-surface)] ring-1 ring-[var(--border-subtle)]">
+                    <CalendarClock className="h-6 w-6 text-[var(--text-muted)]" />
+                  </span>
+                  <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">{fa ? 'برای این روز نوبتی ثبت نشده' : 'No appointments for this day'}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'می‌توانید دستی ثبت کنید یا ایجنت از گفتگو رزرو کند.' : 'Create one here or let the agent book from a conversation.'}</p>
+                  {activeServices.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setBookingOpen(true)}
+                      className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] transition-opacity hover:opacity-90"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {fa ? 'ثبت اولین نوبت' : 'Book first appointment'}
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {/* Vertical timeline line */}
-                <div className="pointer-events-none absolute bottom-2 start-[26px] top-2 w-px bg-[var(--border-subtle)] sm:start-[30px]" aria-hidden />
-                {appointments.map((appointment) => (
-                  <AppointmentCard
-                    key={appointment.id}
-                    appointment={appointment}
-                    locale={locale}
-                    busy={actionId === appointment.id}
-                    cancelling={cancelId === appointment.id}
-                    cancellationReason={cancelReason}
-                    onCancellationReason={setCancelReason}
-                    onStartCancel={() => setCancelId(appointment.id)}
-                    onStopCancel={() => { setCancelId(null); setCancelReason('') }}
-                    onStatus={(status, reason) => void updateStatus(appointment.id, status, reason)}
-                  />
-                ))}
+              <div className="space-y-5">
+                {groupedAppointments.map((group) => {
+                  const slotCopy = TIME_SLOT_COPY[group.key]
+                  const Icon = slotCopy.Icon
+                  return (
+                    <div key={group.key}>
+                      {/* Time-slot header */}
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="grid h-6 w-6 place-items-center rounded-lg bg-[var(--bg-base)] ring-1 ring-[var(--border-subtle)]">
+                          <Icon className="h-3 w-3 text-[var(--text-secondary)]" />
+                        </span>
+                        <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+                          {fa ? slotCopy.fa : slotCopy.en}
+                        </h3>
+                        <span className="rounded-full bg-[var(--bg-base)] px-2 py-0.5 text-[10px] font-bold tabular-nums text-[var(--text-muted)] ring-1 ring-[var(--border-subtle)]">
+                          {group.items.length.toLocaleString(fa ? 'fa-IR' : 'en-US')}
+                        </span>
+                        <div className="ms-2 h-px flex-1 bg-[var(--border-subtle)]" aria-hidden />
+                      </div>
+                      {/* Vertical timeline line for this slot */}
+                      <div className="relative space-y-2">
+                        <div className="pointer-events-none absolute bottom-2 start-[26px] top-2 w-px bg-[var(--border-subtle)] sm:start-[30px]" aria-hidden />
+                        {group.items.map((appointment) => (
+                          <AppointmentCard
+                            key={appointment.id}
+                            appointment={appointment}
+                            locale={locale}
+                            busy={actionId === appointment.id}
+                            cancelling={cancelId === appointment.id}
+                            cancellationReason={cancelReason}
+                            onCancellationReason={setCancelReason}
+                            onStartCancel={() => setCancelId(appointment.id)}
+                            onStopCancel={() => { setCancelId(null); setCancelReason('') }}
+                            onStatus={(status, reason) => void updateStatus(appointment.id, status, reason)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -382,7 +588,18 @@ export function AppointmentsWorkspace({
               <h2 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'خدمات فعال' : 'Active services'}</h2>
               <span className="rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs font-bold tabular-nums text-[var(--text-secondary)]">{activeServices.length.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>
             </div>
-            <div className="mt-3 space-y-2">{activeServices.slice(0, 4).map((service) => <div key={service.id} className="rounded-xl bg-[var(--bg-base)] p-3"><p className="truncate text-xs font-medium text-[var(--text-primary)]">{service.name}</p><p className="mt-1 text-[11px] text-[var(--text-muted)]">{service.durationMinutes.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'دقیقه' : 'min'} · {fa ? 'ظرفیت' : 'capacity'} {service.capacity.toLocaleString(fa ? 'fa-IR' : 'en-US')}</p></div>)}</div>
+            <div className="mt-3 space-y-2">{activeServices.slice(0, 4).map((service) => {
+              const accent = serviceAccent(service.id)
+              return (
+                <div key={service.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--bg-base)] p-3">
+                  <span className={cn('h-8 w-1 shrink-0 rounded-full', accent.bar)} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-[var(--text-primary)]">{service.name}</p>
+                    <p className="mt-1 text-[11px] text-[var(--text-muted)]">{service.durationMinutes.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'دقیقه' : 'min'} · {fa ? 'ظرفیت' : 'capacity'} {service.capacity.toLocaleString(fa ? 'fa-IR' : 'en-US')}</p>
+                  </div>
+                </div>
+              )
+            })}</div>
           </div>
         </aside>
       </section>
@@ -412,6 +629,22 @@ export function AppointmentsWorkspace({
   )
 }
 
+/** Compact summary chip shown next to the selected-day label. */
+function SummaryChip({ count, label, tone, fa }: { count: number; label: string; tone: 'neutral' | 'amber' | 'emerald' | 'blue'; fa: boolean }) {
+  const tones: Record<typeof tone, string> = {
+    neutral: 'bg-[var(--bg-surface)] text-[var(--text-secondary)] ring-[var(--border-subtle)]',
+    amber: 'bg-amber-500/10 text-amber-700 ring-amber-500/20',
+    emerald: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20',
+    blue: 'bg-blue-500/10 text-blue-700 ring-blue-500/20',
+  }
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1', tones[tone])}>
+      {count.toLocaleString(fa ? 'fa-IR' : 'en-US')}
+      <span className="font-medium opacity-80">{label}</span>
+    </span>
+  )
+}
+
 function StatCard({ icon: Icon, label, value, locale, tone }: { icon: typeof CalendarCheck2; label: string; value: number; locale: Locale; tone?: 'amber' }) {
   return (
     <div className="spatial-surface flex items-center gap-3 rounded-[1.5rem] p-4">
@@ -430,45 +663,143 @@ function StatCard({ icon: Icon, label, value, locale, tone }: { icon: typeof Cal
 
 function AppointmentCard({ appointment, locale, busy, cancelling, cancellationReason, onCancellationReason, onStartCancel, onStopCancel, onStatus }: { appointment: AppointmentRow; locale: Locale; busy: boolean; cancelling: boolean; cancellationReason: string; onCancellationReason: (value: string) => void; onStartCancel: () => void; onStopCancel: () => void; onStatus: (status: AppointmentStatus, reason?: string) => void }) {
   const fa = locale === 'fa'
-  const time = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }).format(new Date(appointment.startsAt))
+  const timeFmt = useMemo(
+    () => new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', { timeZone: appointment.timezone, hour: '2-digit', minute: '2-digit' }),
+    [appointment.timezone, fa],
+  )
+  const start = timeFmt.format(new Date(appointment.startsAt))
+  const end = timeFmt.format(new Date(appointment.endsAt))
   const terminal = ['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appointment.status)
   const copy = STATUS_COPY[appointment.status]
+  const accent = serviceAccent(appointment.serviceId)
+  const dimmed = terminal
   return (
-    <article className="relative flex gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3.5 transition-colors hover:border-[var(--border-strong)] sm:gap-4 sm:p-4">
-      {/* Timeline dot — sits on the vertical line */}
-      <div className="relative z-10 flex shrink-0 flex-col items-center">
-        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-2xl bg-[var(--bg-surface)] ring-1 ring-[var(--border-default)] sm:h-14 sm:w-14">
-          <Clock3 className="h-3 w-3 text-[var(--text-muted)]" />
-          <span dir="ltr" className="mt-0.5 text-xs font-bold tabular-nums text-[var(--text-primary)] sm:text-sm">{time}</span>
+    <article className={cn(
+      'relative flex gap-3 rounded-2xl border bg-[var(--bg-base)] p-3.5 transition-colors hover:border-[var(--border-strong)] sm:gap-4 sm:p-4',
+      'border-[var(--border-default)]',
+      dimmed && 'opacity-65',
+    )}>
+      {/* Service accent bar — left edge, replaces the abstract timeline dot */}
+      <div className={cn('absolute inset-y-3 start-0 w-1 rounded-e-full', accent.bar)} aria-hidden />
+
+      {/* Time block — start + end on one card */}
+      <div className="relative z-10 flex shrink-0 flex-col items-center justify-center">
+        <div className={cn(
+          'flex h-14 w-14 flex-col items-center justify-center rounded-2xl ring-1 sm:h-16 sm:w-16',
+          terminal ? 'bg-[var(--bg-surface)] ring-[var(--border-subtle)]' : 'bg-[var(--bg-surface)] ' + accent.ring,
+        )}>
+          <span dir="ltr" className="text-xs font-bold tabular-nums text-[var(--text-primary)] sm:text-sm">{start}</span>
+          <span dir="ltr" className="mt-0.5 text-[9px] font-medium tabular-nums text-[var(--text-muted)] sm:text-[10px]">
+            {fa ? 'تا' : 'to'} {end}
+          </span>
         </div>
       </div>
+
       <div className="min-w-0 flex-1">
+        {/* Row 1 — customer name + status + source badge */}
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold text-[var(--text-primary)]">{appointment.customerName}</h3>
-          <span className={cn('rounded-full px-2 py-0.5 text-[11px] ring-1', copy.tone)}>{fa ? copy.fa : copy.en}</span>
-          {appointment.source === 'agent' && <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-600"><Sparkles className="h-3 w-3" />{fa ? 'رزرو ایجنت' : 'Agent booked'}</span>}
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', copy.tone)}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', copy.dot)} aria-hidden />
+            {fa ? copy.fa : copy.en}
+          </span>
+          {appointment.source === 'agent' && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-600">
+              <Sparkles className="h-3 w-3" />{fa ? 'رزرو ایجنت' : 'Agent booked'}
+            </span>
+          )}
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)]">
-          <span className="inline-flex items-center gap-1"><CalendarCheck2 className="h-3.5 w-3.5" />{appointment.serviceName}</span>
-          {appointment.customerPhone && <span dir="ltr" className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" />{appointment.customerPhone}</span>}
-          <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{appointment.partySize.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>
-          {appointment.serviceLocation && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{appointment.serviceLocation}</span>}
+
+        {/* Row 2 — service chip (colored) + meta line */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[var(--text-secondary)]">
+          <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', accent.chip)}>
+            <CalendarCheck2 className="h-3 w-3" />
+            {appointment.serviceName}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            {appointment.partySize.toLocaleString(fa ? 'fa-IR' : 'en-US')} {fa ? 'نفر' : 'ppl'}
+          </span>
+          {appointment.customerPhone && (
+            <span dir="ltr" className="inline-flex items-center gap-1">
+              <UserRound className="h-3.5 w-3.5" />
+              {appointment.customerPhone}
+            </span>
+          )}
+          {appointment.serviceLocation && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5" />
+              {appointment.serviceLocation}
+            </span>
+          )}
         </div>
-        {appointment.notes && <p className="mt-2 line-clamp-2 rounded-lg bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-muted)]">{appointment.notes}</p>}
+
+        {/* Row 3 — notes (if any) */}
+        {appointment.notes && (
+          <p className="mt-2 line-clamp-2 rounded-lg bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-muted)]">
+            {appointment.notes}
+          </p>
+        )}
       </div>
+
+      {/* Actions — only for non-terminal appointments */}
       {!terminal && !cancelling && (
         <div className="flex shrink-0 flex-wrap gap-1.5">
-          <button type="button" disabled={busy} onClick={() => onStatus('COMPLETED')} className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-500/20 px-3 text-xs text-emerald-700 transition-colors hover:bg-emerald-50"><CheckCircle2 className="h-3.5 w-3.5" />{fa ? 'انجام شد' : 'Complete'}</button>
-          <button type="button" disabled={busy} onClick={() => onStatus('NO_SHOW')} className="min-h-10 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]">{fa ? 'عدم حضور' : 'No show'}</button>
-          <button type="button" disabled={busy} onClick={onStartCancel} className="grid min-h-10 min-w-10 place-items-center rounded-xl border border-red-500/20 text-red-500 transition-colors hover:bg-red-50" aria-label={fa ? 'لغو نوبت' : 'Cancel appointment'}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}</button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onStatus('COMPLETED')}
+            className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-emerald-500/20 px-2.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{fa ? 'انجام شد' : 'Done'}</span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onStatus('NO_SHOW')}
+            aria-label={fa ? 'عدم حضور' : 'No show'}
+            className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{fa ? 'حاضر نشد' : 'No-show'}</span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onStartCancel}
+            className="grid min-h-9 min-w-9 place-items-center rounded-xl border border-red-500/20 text-red-500 transition-colors hover:bg-red-50"
+            aria-label={fa ? 'لغو نوبت' : 'Cancel appointment'}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+          </button>
         </div>
       )}
       {cancelling && (
         <div className="absolute inset-x-3 bottom-3 flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-50/50 p-3 sm:flex-row sm:items-center sm:inset-x-4 sm:bottom-4">
-          <input autoFocus value={cancellationReason} onChange={(event) => onCancellationReason(event.target.value)} placeholder={fa ? 'دلیل لغو را بنویسید…' : 'Cancellation reason…'} className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm outline-none focus:border-red-500/30" />
+          <input
+            autoFocus
+            value={cancellationReason}
+            onChange={(event) => onCancellationReason(event.target.value)}
+            placeholder={fa ? 'دلیل لغو را بنویسید…' : 'Cancellation reason…'}
+            className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--border-default)] bg-white px-3 text-sm outline-none focus:border-red-500/30"
+          />
           <div className="flex gap-2">
-            <button type="button" onClick={() => onStatus('CANCELLED', cancellationReason.trim())} disabled={cancellationReason.trim().length < 2 || busy} className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-medium text-white disabled:opacity-50">{fa ? 'تأیید لغو' : 'Confirm cancel'}</button>
-            <button type="button" onClick={onStopCancel} className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]">{fa ? 'انصراف' : 'Back'}</button>
+            <button
+              type="button"
+              onClick={() => onStatus('CANCELLED', cancellationReason.trim())}
+              disabled={cancellationReason.trim().length < 2 || busy}
+              className="min-h-11 rounded-xl bg-red-500 px-4 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {fa ? 'تأیید لغو' : 'Confirm cancel'}
+            </button>
+            <button
+              type="button"
+              onClick={onStopCancel}
+              className="min-h-11 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm text-[var(--text-secondary)]"
+            >
+              {fa ? 'انصراف' : 'Back'}
+            </button>
           </div>
         </div>
       )}
