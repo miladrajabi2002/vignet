@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductForm } from '@/components/products/product-form'
+import { BackButton } from '@/components/dashboard/back-button'
 import { Package } from 'lucide-react'
 
 export default async function NewProductPage({
@@ -22,6 +23,7 @@ export default async function NewProductPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {!onboardingMode && <BackButton href="/products" label={t('title')} />}
       {onboardingMode ? (
         <div className="spatial-surface flex items-center gap-3 rounded-[1.4rem] p-4">
           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Package className="h-4 w-4" /></span>

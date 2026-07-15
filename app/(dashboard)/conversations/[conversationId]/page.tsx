@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { ArrowLeft, User, Phone, Sparkles } from 'lucide-react'
+import { User, Phone, Sparkles } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationActions } from '@/components/crm/conversation-actions'
+import { BackButton } from '@/components/dashboard/back-button'
 import {
         ConversationThread,
         type ThreadMessage,
@@ -155,13 +156,7 @@ export default async function ConversationThreadPage(props: {
 
         return (
                 <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
-                        <Link
-                                href="/conversations"
-                                className="inline-flex shrink-0 items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                        >
-                                <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-                                {t('title')}
-                        </Link>
+                        <BackButton href="/conversations" label={t('title')} className="shrink-0" />
 
                         <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-[1.5rem] p-4 sm:p-5">
                                 {contactAvatarUrl ? (

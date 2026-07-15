@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { AutomationCard } from '@/components/instagram/automation-card'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { SectionHeader } from '@/components/dashboard/section-header'
 import { Switch } from '@/components/ui/switch'
 import { useTranslations, useLocale } from 'next-intl'
 import {
@@ -209,26 +210,6 @@ export function InstagramAutomationManager({
                                 }
                         />
 
-                        <section className="overflow-hidden rounded-[1.5rem] border border-black/[0.06] bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(247,247,249,0.78))] p-5 shadow-[0_18px_45px_-34px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:flex sm:items-center sm:gap-4">
-                                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[0_10px_24px_-12px_rgba(0,0,0,0.7)]">
-                                        <Zap className="h-4 w-4" />
-                                </span>
-                                <div className="mt-3 min-w-0 flex-1 sm:mt-0">
-                                        <p className="text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
-                                                {locale === 'fa' ? 'سناریوهای اتوماسیون بدون AI رایگان‌اند' : 'Non-AI automation scenarios are free'}
-                                        </p>
-                                        <p className="mt-1 max-w-3xl text-xs leading-6 text-[var(--text-secondary)]">
-                                                {locale === 'fa'
-                                                        ? 'پیام ثابت، کلیدواژه، پاسخ کامنت و چندپیامی از اعتبار کم نمی‌کنند؛ فقط حالت «پاسخ هوشمند» هزینه دارد.'
-                                                        : 'Static, keyword, comment and multi-message replies use no credit; only AI reply mode is charged.'}
-                                        </p>
-                                </div>
-                                <span className="mt-3 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.08] px-3 py-1.5 text-[10px] font-semibold text-emerald-700 sm:mt-0">
-                                        <Check className="h-3.5 w-3.5" />
-                                        {locale === 'fa' ? 'رایگان و نامحدود' : 'Free & unlimited'}
-                                </span>
-                        </section>
-
                         {/* Channel settings (slimmed down — replyPolicy + stopWords only) */}
                         <ChannelSettingsCard
                                 settings={settings}
@@ -237,21 +218,15 @@ export function InstagramAutomationManager({
                         />
 
                         <section className="space-y-4" aria-labelledby="instagram-scenarios-title">
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                        <div>
-                                                <h2 id="instagram-scenarios-title" className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
-                                                        {locale === 'fa' ? 'سناریوهای پاسخ‌گویی' : 'Reply scenarios'}
-                                                </h2>
-                                                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                                                        {locale === 'fa' ? 'برای هر ورودی، قوانین و پاسخ‌های مستقل بسازید.' : 'Create independent rules and replies for each entry point.'}
-                                                </p>
-                                        </div>
-                                        <p className="text-[11px] font-medium tabular-nums text-[var(--text-muted)]">
-                                                {locale === 'fa'
+                                <SectionHeader
+                                        title={locale === 'fa' ? 'سناریوهای پاسخ‌گویی' : 'Reply scenarios'}
+                                        subtitle={locale === 'fa' ? 'برای هر ورودی، قوانین و پاسخ‌های مستقل بسازید.' : 'Create independent rules and replies for each entry point.'}
+                                        meta={
+                                                locale === 'fa'
                                                         ? `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} سناریوی فعال از ${automations.length.toLocaleString(numLocale)}`
-                                                        : `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} active of ${automations.length.toLocaleString(numLocale)}`}
-                                        </p>
-                                </div>
+                                                        : `${automations.filter((item) => item.active).length.toLocaleString(numLocale)} active of ${automations.length.toLocaleString(numLocale)}`
+                                        }
+                                />
 
                                 <div className="grid grid-cols-1 gap-1.5 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.035] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:grid-cols-3" role="tablist" aria-label={t('manager.tabAria')}>
                                         {TABS.map(({ key, labelKey, Icon }) => {

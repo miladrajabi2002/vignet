@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductForm } from '@/components/products/product-form'
+import { BackButton } from '@/components/dashboard/back-button'
 
 export default async function EditProductPage(
   props: {
@@ -34,6 +35,7 @@ export default async function EditProductPage(
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <BackButton href="/products" label={t('title')} />
       <h1 className="text-2xl font-light text-[var(--text-primary)]">{t('edit')}</h1>
       <ProductForm
         mode="edit"

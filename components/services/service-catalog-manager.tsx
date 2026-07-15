@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { CalendarDays, Check, Clock3, Loader2, MapPin, Plus, Power, Sparkles } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { SectionHeader } from '@/components/dashboard/section-header'
 import { cn } from '@/lib/utils'
 
 type ServiceItem = {
@@ -55,7 +56,13 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-bold">خدمات قابل معرفی</h2><p className="mt-1 text-[11px] text-black/45">فعال‌بودن یعنی ویجنتو می‌تواند این خدمت را به مشتری پیشنهاد دهد.</p></div><button type="button" onClick={() => setOpen((value) => !value)} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white"><Plus className="h-4 w-4"/>خدمت جدید</button></div>
+      <SectionHeader
+        title="خدمات قابل معرفی"
+        subtitle="فعال‌بودن یعنی ویجنتو می‌تواند این خدمت را به مشتری پیشنهاد دهد."
+        action={
+          <button type="button" onClick={() => setOpen((value) => !value)} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white"><Plus className="h-4 w-4"/>خدمت جدید</button>
+        }
+      />
 
       {open && <div className="spatial-surface rounded-[1.5rem] p-4 sm:p-5"><div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-medium">نام خدمت</span><input className="input" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder="مثلاً مشاوره اولیه" /></label><label className="block"><span className="mb-1.5 block text-xs font-medium">مدت معمول</span><MaterialSelect value={form.durationMinutes} onValueChange={(value) => setForm((current) => ({ ...current, durationMinutes: value }))} options={durations} ariaLabel="مدت خدمت" /></label><label className="block"><span className="mb-1.5 block text-xs font-medium">محل ارائه</span><input className="input" value={form.location} onChange={(event) => setForm((value) => ({ ...value, location: event.target.value }))} placeholder="حضوری، آنلاین یا آدرس" /></label><label className="block"><span className="mb-1.5 block text-xs font-medium">توضیح برای مشتری و ایجنت</span><input className="input" value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder="این خدمت برای چه کسی مناسب است؟" /></label></div>{error && <p className="mt-3 text-xs text-rose-600" role="alert">{error}</p>}<div className="mt-4 flex justify-end"><button type="button" disabled={saving || form.name.trim().length < 2} onClick={createService} className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-xs font-bold text-white disabled:opacity-40">{saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4"/>}ذخیره خدمت</button></div></div>}
 

@@ -1,14 +1,14 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { Plus, Package, FolderTree } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ProductGrid, ProductsToolbar } from '@/components/products/product-grid'
 import { Pagination } from '@/components/ui/pagination'
-import { MiniTrend } from '@/components/admin/mini-trend'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardBarList } from '@/components/dashboard/bar-list'
+import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
 
@@ -22,6 +22,8 @@ export default async function ProductsPage(
   const searchParams = await props.searchParams;
   const user = await requireUser()
   const t = await getTranslations('products')
+  const locale = await getLocale()
+  const fa = locale === 'en' ? false : true
 
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
@@ -89,6 +91,7 @@ export default async function ProductsPage(
       <PageHeader
         icon={Package}
         title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <>
             <Link
@@ -109,20 +112,34 @@ export default async function ProductsPage(
         }
       />
 
-      {/* ─── MiniTrend + top products (hidden when filtering/searching) ─── */}
+      {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
       {!q && !categoryId && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <MiniTrend
-            label={t('title') + ' — ۷ روز'}
-            value={productTrend7.total}
-            series={productTrend7.series}
-            color="#22c55e"
-            hint={`کل: ${totalProducts.toLocaleString('fa-IR')}`}
-          />
-          <DashboardPanel title="پربازدیدترین محصولات" subtitle="بر اساس تعداد جستجو توسط ایجنت">
+          <DashboardPanel
+            title={fa ? 'محصولات — ۷ روز' : 'Products — 7 days'}
+            subtitle={fa ? `کل: ${totalProducts.toLocaleString('fa-IR')} محصول` : `Total: ${totalProducts.toLocaleString('en-US')} products`}
+            action={
+              <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">
+                {productTrend7.total.toLocaleString(fa ? 'fa-IR' : 'en-US')}
+              </span>
+            }
+          >
+            <ConversationChart
+              data={productTrend7.series.map((value, i) => {
+                const d = new Date()
+                d.setDate(d.getDate() - (productTrend7.series.length - 1 - i))
+                const label = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+                  day: 'numeric',
+                  month: fa ? 'numeric' : 'short',
+                }).format(d)
+                return { label, value }
+              })}
+            />
+          </DashboardPanel>
+          <DashboardPanel title={fa ? 'پربازدیدترین محصولات' : 'Most viewed products'} subtitle={fa ? 'بر اساس تعداد جستجو توسط ایجنت' : 'By agent query count'}>
             <DashboardBarList
               data={topProductsByQuery.map((p) => ({ label: p.name, value: p.queryCount }))}
-              emptyText="هنوز محصولی جستجو نشده است"
+              emptyText={fa ? 'هنوز محصولی جستجو نشده است' : 'No products queried yet'}
             />
           </DashboardPanel>
         </div>

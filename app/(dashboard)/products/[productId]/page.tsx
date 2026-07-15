@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import {
-  ArrowLeft,
   Pencil,
   Package,
   Search,
@@ -13,6 +12,7 @@ import {
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { formatDateTime } from '@/lib/format'
+import { BackButton } from '@/components/dashboard/back-button'
 
 export default async function ProductDetailPage(
   props: {
@@ -69,13 +69,7 @@ export default async function ProductDetailPage(
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
-        <Link
-          href="/products"
-          className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-        >
-          <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-          {t('title')}
-        </Link>
+        <BackButton href="/products" label={t('title')} />
         <Link
           href={`/products/${product.id}/edit`}
           className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"

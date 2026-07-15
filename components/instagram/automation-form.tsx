@@ -29,7 +29,6 @@ import {
         Zap,
         AlertCircle,
         Check,
-        ArrowRight,
         ArrowUp,
         ArrowDown,
         Trash2,
@@ -45,6 +44,7 @@ import { Switch } from '@/components/ui/switch'
 import { IphonePreview } from '@/components/instagram/iphone-preview'
 import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { BackButton } from '@/components/dashboard/back-button'
 import {
         type Automation,
         type AutomationType,
@@ -473,13 +473,7 @@ export function AutomationForm({
                                         : 'پاسخ خودکار به استوری‌ها'
                                 }
                                 actions={
-                                        <Link
-                                                href="/instagram"
-                                                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
-                                                بازگشت
-                                        </Link>
+                                        <BackButton href="/instagram" label="بازگشت" />
                                 }
                         />
 

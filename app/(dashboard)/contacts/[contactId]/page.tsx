@@ -2,12 +2,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
-import { ArrowLeft, User, Phone, MessageSquare } from 'lucide-react'
+import { User, Phone, MessageSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
 import { contactDisplayName } from '@/lib/crm/display'
+import { BackButton } from '@/components/dashboard/back-button'
 import { relativeTime } from '@/lib/format'
 
 export default async function ContactDetailPage(
@@ -120,13 +121,7 @@ export default async function ContactDetailPage(
       {/* Header card — avatar + name + channels + phone + back link */}
       <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div className="mb-4">
-          <Link
-            href="/contacts"
-            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-          >
-            <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
-            {t('title')}
-          </Link>
+          <BackButton href="/contacts" label={t('title')} />
         </div>
         <div className="flex items-center gap-4">
           {avatarUrl ? (

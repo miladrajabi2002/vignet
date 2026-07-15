@@ -760,6 +760,7 @@
         },
         "products": {
                 "title": "Products",
+                "subtitle": "Add your products so your agent can know, compare and sell them",
                 "new": "Add product",
                 "empty": "No products yet",
                 "emptyDesc": "Add your products so your agent can know and sell them",
@@ -834,7 +835,7 @@
                         "badge": "Persian-first customer & sales AI",
                         "title": "Sales and support, automated across every channel",
                         "rotate": ["for sales", "for support", "for order tracking", "for your business"],
-			"subtitle": "Vigent connects to your real knowledge, products and workflows; it answers, moves sales and bookings forward, and hands sensitive cases to your team with context.",
+                        "subtitle": "Vigent connects to your real knowledge, products and workflows; it answers, moves sales and bookings forward, and hands sensitive cases to your team with context.",
                         "ctaPrimary": "Start free — one month",
                         "ctaSecondary": "Watch demo",
                         "trust": "Set up in under 5 minutes · No technical skills · AI ready to use",
