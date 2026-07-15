@@ -66,6 +66,18 @@ export const INSTAGRAM_OAUTH_SCOPES = [
   'instagram_business_manage_comments',
 ] as const
 
+/**
+ * Valid fields requested when subscribing an Instagram account to webhooks.
+ * Story mentions arrive through `messages` as a `story_mention` attachment;
+ * `story_mention` itself is not a subscribable field in Meta's API.
+ */
+export const INSTAGRAM_WEBHOOK_FIELDS = [
+  'messages',
+  'messaging_postbacks',
+  'comments',
+  'mentions',
+] as const
+
 /** A pending OAuth handshake, signed with HMAC so it can't be tampered with. */
 export interface OAuthState {
   agentId: string
@@ -332,8 +344,10 @@ export async function getInstagramProfile(
  * silently fails and NO events will be delivered.
  *
  * This function explicitly calls `POST /{ig-user-id}/subscribed_apps` to
- * (re)subscribe the IG user to the `messages`, `comments`, `story_mention`,
- * and `mentions` fields. It's idempotent and safe to call on every connect.
+ * (re)subscribe the IG user to the `messages`, `messaging_postbacks`,
+ * `comments`, and `mentions` fields. Story mentions are delivered through
+ * `messages` as attachments with type `story_mention`. It's idempotent and
+ * safe to call on every connect.
  *
  * Returns the list of subscribed fields on success, or null on failure (the
  * channel is still saved — the operator can retry subscription from the
@@ -348,7 +362,7 @@ export async function subscribeIgUserToWebhook(
     url.searchParams.set('access_token', igToken)
     url.searchParams.set(
       'subscribed_fields',
-      'messages,messaging_postbacks,comments,story_mention,mentions',
+      INSTAGRAM_WEBHOOK_FIELDS.join(','),
     )
     const res = await fetch(url, { method: 'POST' })
     const data = (await res.json()) as {
@@ -362,7 +376,7 @@ export async function subscribeIgUserToWebhook(
       )
       return null
     }
-    return ['messages', 'messaging_postbacks', 'comments', 'story_mention', 'mentions']
+    return [...INSTAGRAM_WEBHOOK_FIELDS]
   } catch (e) {
     console.error('[instagram] subscribeIgUserToWebhook error:', e)
     return null

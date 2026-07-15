@@ -1990,8 +1990,8 @@
     "semantic_hash": ""
   },
   "lib/docs/content.ts": {
-    "mtime": 1783894985.0225127,
-    "ast_hash": "88981bef42046ce6a98fe87006713676",
+    "mtime": 1784119037.018103,
+    "ast_hash": "56fb3f2b7cafa3c89cd1c54fdb0c20e5",
     "semantic_hash": ""
   },
   "lib/docs/nav.ts": {
@@ -2040,8 +2040,8 @@
     "semantic_hash": ""
   },
   "lib/instagram/oauth.ts": {
-    "mtime": 1783467548.0,
-    "ast_hash": "6addcb7f221ddc64589724d79c11b103",
+    "mtime": 1784119037.015105,
+    "ast_hash": "a8fa0abe97e8e287128a09cd24e80ef8",
     "semantic_hash": ""
   },
   "lib/instagram/sender-profile.ts": {
@@ -2742,6 +2742,11 @@
   "app/(dashboard)/instagram/new/page.tsx": {
     "mtime": 1784117966.6155398,
     "ast_hash": "5708a1495ec99040ace6d34f1c907c99",
+    "semantic_hash": ""
+  },
+  "tests/instagram-oauth.test.ts": {
+    "mtime": 1784119037.019103,
+    "ast_hash": "a734ccf611f2b5260c5bf49926f4b29e",
     "semantic_hash": ""
   }
 }
