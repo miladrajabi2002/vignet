@@ -1,4 +1,5 @@
-import { MessageCircle, MessagesSquare, Headset } from 'lucide-react'
+import Link from 'next/link'
+import { Eye, MessageCircle, MessagesSquare, Headset } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import {
   PageHeader,
@@ -12,8 +13,6 @@ import {
   fa,
   fmtDate,
 } from '../ui'
-import { MiniTrend } from '@/components/admin/mini-trend'
-import { conversationsDaily, conversationsDailyByChannel } from '@/lib/admin/charts'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,18 +38,6 @@ const CHANNEL_LABEL: Record<string, string> = {
   CHAT_LINK: 'لینک چت',
 }
 
-// Sparkline colors per channel — distinct but harmonious.
-const CHANNEL_COLOR: Record<string, string> = {
-  TELEGRAM: '#3b82f6',
-  WHATSAPP: '#22c55e',
-  INSTAGRAM: '#ec4899',
-  RUBIKA: '#f59e0b',
-  BALE: '#06b6d4',
-  WEB_WIDGET: '#18181b',
-  API: '#a855f7',
-  CHAT_LINK: '#14b8a6',
-}
-
 export default async function AdminConversationsPage(
   props: {
     searchParams: Promise<{ page?: string }>
@@ -59,7 +46,7 @@ export default async function AdminConversationsPage(
   const searchParams = await props.searchParams
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const [rows, totalCount, openCount, handedOffCount, convTrend7, channelSparks] =
+  const [rows, totalCount, openCount, handedOffCount] =
     await Promise.all([
       prisma.conversation.findMany({
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
@@ -80,41 +67,32 @@ export default async function AdminConversationsPage(
       prisma.conversation.count(),
       prisma.conversation.count({ where: { status: 'OPEN' } }),
       prisma.conversation.count({ where: { status: 'HANDED_OFF', handedOff: true } }),
-      conversationsDaily(7),
-      conversationsDailyByChannel(7),
     ])
 
   const hasNext = rows.length > PAGE_SIZE
   const items = hasNext ? rows.slice(0, PAGE_SIZE) : rows
 
-  // 7-day total from the trend series.
-  const weekTotal = convTrend7.reduce((s, p) => s + p.value, 0)
-  // Channel breakdown sorted by 7-day total desc — top 4 channels.
-  const topChannels = [...channelSparks.values()]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 4)
-
   return (
     <div className="space-y-6">
       <PageHeader
-        title="مکالمات"
-        subtitle="تاریخچه تمام مکالمات پلتفرم"
+        title="گفتگوها"
+        subtitle="تاریخچه تمام گفتگوهای پلتفرم"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
-          { label: 'مکالمات' },
+          { label: 'گفتگوها' },
         ]}
       />
 
       {/* Stats row */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
-          label="کل مکالمات"
+          label="کل گفتگوها"
           value={fa(totalCount)}
           icon={<MessagesSquare className="h-5 w-5" />}
           tone="default"
         />
         <StatCard
-          label="مکالمات باز"
+          label="گفتگوهای باز"
           value={fa(openCount)}
           icon={<MessageCircle className="h-5 w-5" />}
           tone="info"
@@ -127,30 +105,9 @@ export default async function AdminConversationsPage(
         />
       </div>
 
-      {/* ─── Mini trends: 7-day conversation volume + top channels ─── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <MiniTrend
-          label="مکالمات ۷ روز اخیر"
-          value={weekTotal}
-          series={convTrend7.map((p) => p.value)}
-          color="#3b82f6"
-          hint="میانگین روزانه" variant="light"
-        />
-        {topChannels.map((ch) => (
-          <MiniTrend
-            key={ch.channel}
-            label={`کانال ${CHANNEL_LABEL[ch.channel] ?? ch.channel}`}
-            value={ch.total}
-            series={ch.series}
-            color={CHANNEL_COLOR[ch.channel] ?? '#18181b'}
-            hint="۷ روز اخیر" variant="light"
-          />
-        ))}
-      </div>
-
       {items.length === 0 ? (
         <EmptyState icon={<MessagesSquare className="h-8 w-8" />}>
-          مکالمه‌ای ثبت نشده است
+          گفتگویی ثبت نشده است
         </EmptyState>
       ) : (
         <TableShell>
@@ -163,6 +120,7 @@ export default async function AdminConversationsPage(
               <Th>وضعیت</Th>
               <Th>پیام‌ها</Th>
               <Th>آخرین فعالیت</Th>
+              <Th>مشاهده</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -191,6 +149,9 @@ export default async function AdminConversationsPage(
                   </Td>
                   <Td className="text-zinc-500">
                     {fmtDate(c.lastMessageAt ?? c.createdAt)}
+                  </Td>
+                  <Td>
+                    <Link href={`/admin/conversations/${c.id}`} aria-label="مشاهده گفتگو" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-semibold text-black/65 transition-[background-color,transform] hover:bg-black/[0.04] active:scale-[.97]"><Eye className="h-4 w-4" /> گفتگو</Link>
                   </Td>
                 </tr>
               )

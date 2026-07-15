@@ -239,7 +239,7 @@ export default async function AdminUserDetailPage(
       <section className="admin-panel overflow-hidden rounded-[1.6rem]" aria-labelledby="user-journey-title">
         <div className="grid lg:grid-cols-[.34fr_.66fr]">
           <div className="border-b border-black/[0.06] bg-[#111214] p-5 text-white lg:border-b-0 lg:border-l sm:p-6">
-            <p className="text-[10px] font-bold tracking-wide text-emerald-300/75">USER JOURNEY</p>
+            <p className="text-[10px] font-bold text-white/60">مسیر فعالیت کاربر</p>
             <h2 id="user-journey-title" className="mt-2 text-xl font-black">گزارش مسیر کاربر</h2>
             <p className="mt-2 text-xs leading-6 text-white/45">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
             <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.055] p-4">
@@ -260,7 +260,7 @@ export default async function AdminUserDetailPage(
               return (
                 <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-[1.15rem] border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === firstIncomplete ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
                   <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === firstIncomplete ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-                  <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === firstIncomplete && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">مرحله فعلی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 font-mono text-[9px] text-black/30">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                  <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === firstIncomplete && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-bold text-zinc-700">مرحله فعلی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 text-[10px] text-black/35">{step.at ? fmtDate(step.at) : '—'}</p></div>
                 </div>
               )
             })}

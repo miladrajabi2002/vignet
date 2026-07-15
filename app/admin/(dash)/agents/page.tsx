@@ -1,162 +1,104 @@
-import { Bot, Cpu, Plug, MessageSquare, TriangleAlert } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowUpLeft, Bot, BrainCircuit, MessageSquare, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import {
-  PageHeader,
-  StatCard,
-  Card,
-  Badge,
-  EmptyState,
-  fa,
-  fmtDate,
-} from '../ui'
+import { conversationsDailyByAgent } from '@/lib/admin/charts'
+import { Sparkline } from '@/components/admin/sparkline'
+import { PageHeader, StatCard, Card, Badge, EmptyState, fa, fmtDate } from '../ui'
 
 export const dynamic = 'force-dynamic'
 
-const SILENT_AFTER_MS = 48 * 60 * 60 * 1000 // a channel silent >48h is suspect
-
-const CHANNEL_LABEL: Record<string, string> = {
-  TELEGRAM: 'تلگرام',
-  WHATSAPP: 'واتساپ',
-  INSTAGRAM: 'اینستاگرام',
-  RUBIKA: 'روبیکا',
-  BALE: 'بله',
-  WEB_WIDGET: 'ویجت وب',
-  API: 'API',
-  CHAT_LINK: 'لینک چت',
-}
-
-type Health = { dot: string; label: string }
-
-function channelHealth(active: boolean, lastInboundAt: Date | null): Health {
-  if (!active) return { dot: 'bg-zinc-300', label: 'غیرفعال' }
-  if (!lastInboundAt)
-    return { dot: 'bg-amber-500', label: 'بدون پیام' }
-  const silent = Date.now() - lastInboundAt.getTime() > SILENT_AFTER_MS
-  return silent
-    ? { dot: 'bg-amber-500', label: 'سکوت >۴۸ ساعت' }
-    : { dot: 'bg-emerald-500', label: 'سالم' }
-}
-
 export default async function AdminAgentsPage() {
-  const silentSince = new Date(Date.now() - SILENT_AFTER_MS)
-  const [agents, totalAgents, activeAgents, channelCount, activeChannelCount, silentChannelCount] = await Promise.all([
-    prisma.agent.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-      select: {
-        id: true,
-        name: true,
-        active: true,
-        createdAt: true,
-        workspace: { select: { name: true } },
-        _count: { select: { conversations: true } },
-        channels: {
-          select: { id: true, type: true, active: true, lastInboundAt: true },
+  const since = new Date(Date.now() - 7 * 86_400_000)
+  const [agents, totalAgents, activeAgents, conversations7d, readyKnowledge, trends] =
+    await Promise.all([
+      prisma.agent.findMany({
+        orderBy: { updatedAt: 'desc' },
+        take: 200,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          active: true,
+          model: true,
+          updatedAt: true,
+          workspace: { select: { name: true } },
+          _count: {
+            select: { conversations: true, channels: true, knowledgeBases: true },
+          },
         },
-      },
-    }),
-    prisma.agent.count(),
-    prisma.agent.count({ where: { active: true } }),
-    prisma.agentChannel.count(),
-    prisma.agentChannel.count({ where: { active: true } }),
-    prisma.agentChannel.count({
-      where: {
-        active: true,
-        OR: [
-          { lastInboundAt: { lt: silentSince } },
-          { lastInboundAt: null, createdAt: { lt: silentSince } },
-        ],
-      },
-    }),
-  ])
+      }),
+      prisma.agent.count(),
+      prisma.agent.count({ where: { active: true } }),
+      prisma.conversation.count({ where: { createdAt: { gte: since } } }),
+      prisma.knowledgeBase.count({ where: { status: 'READY' } }),
+      conversationsDailyByAgent(7),
+    ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="ایجنت‌ها و کانال‌ها"
-        subtitle="وضعیت ایجنت‌ها و کانال‌های متصل"
-        breadcrumbs={[
-          { label: 'داشبورد', href: '/admin' },
-          { label: 'ایجنت‌ها' },
-        ]}
+        title="ایجنت‌ها"
+        subtitle="عملکرد، دانش و وضعیت هر ایجنت هوش مصنوعی در یک نگاه"
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          label="کل ایجنت‌ها"
-          value={fa(totalAgents)}
-          icon={<Bot className="h-5 w-5" />}
-          tone="default"
-        />
-        <StatCard
-          label="ایجنت‌های فعال"
-          value={fa(activeAgents)}
-          icon={<Cpu className="h-5 w-5" />}
-          tone="success"
-        />
-        <StatCard
-          label="کانال‌های فعال"
-          value={`${fa(activeChannelCount)} / ${fa(channelCount)}`}
-          icon={<Plug className="h-5 w-5" />}
-          tone="info"
-        />
-        <StatCard
-          label="کانال نیازمند بررسی"
-          value={fa(silentChannelCount)}
-          sub="فعال اما بدون ورودی بیش از ۴۸ ساعت"
-          icon={<TriangleAlert className="h-5 w-5" />}
-          tone={silentChannelCount > 0 ? 'warning' : 'success'}
-        />
+        <StatCard label="کل ایجنت‌ها" value={fa(totalAgents)} icon={<Bot className="h-5 w-5" />} />
+        <StatCard label="ایجنت فعال" value={fa(activeAgents)} icon={<Sparkles className="h-5 w-5" />} />
+        <StatCard label="گفتگو در ۷ روز" value={fa(conversations7d)} icon={<MessageSquare className="h-5 w-5" />} />
+        <StatCard label="منبع دانش آماده" value={fa(readyKnowledge)} icon={<BrainCircuit className="h-5 w-5" />} />
       </div>
 
       {agents.length === 0 ? (
-        <EmptyState icon={<Bot className="h-8 w-8" />}>
-          ایجنتی ساخته نشده است
-        </EmptyState>
+        <EmptyState icon={<Bot className="h-8 w-8" />}>ایجنتی ساخته نشده است</EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {agents.map((a) => (
-            <Card key={a.id} className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-zinc-900">
-                  {a.name}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  · {a.workspace.name}
-                </span>
-                <Badge tone={a.active ? 'success' : 'muted'}>
-                  {a.active ? 'فعال' : 'غیرفعال'}
-                </Badge>
-                <span className="ms-auto inline-flex items-center gap-1 text-[11px] text-zinc-500">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  {fa(a._count.conversations)} مکالمه
-                </span>
-              </div>
+          {agents.map((agent) => {
+            const trend = trends.get(agent.id)?.series ?? new Array(7).fill(0)
+            return (
+              <Link key={agent.id} href={`/admin/agents/${agent.id}`} className="group outline-none">
+                <Card className="relative h-full overflow-hidden p-0 transition-[border-color,transform,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-black/20 group-hover:shadow-lg group-hover:shadow-black/[0.04] group-focus-visible:ring-2 group-focus-visible:ring-black/25">
+                  <div className="absolute left-0 top-0 h-24 w-24 rounded-full bg-black/[0.035] blur-2xl transition-transform duration-500 group-hover:scale-150" />
+                  <div className="relative space-y-4 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white">
+                        <Bot className="h-5 w-5" />
+                        {agent.active && <span className="absolute -left-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-zinc-500 motion-safe:animate-pulse" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-sm font-bold text-zinc-950">{agent.name}</h2>
+                          <Badge tone="muted">{agent.active ? 'فعال' : 'غیرفعال'}</Badge>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-zinc-500">{agent.workspace.name}</p>
+                      </div>
+                      <ArrowUpLeft className="h-4 w-4 text-zinc-400 transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </div>
 
-              {a.channels.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {a.channels.map((ch) => {
-                    const health = channelHealth(ch.active, ch.lastInboundAt)
-                    return (
-                      <span
-                        key={ch.id}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600"
-                        title={health.label}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${health.dot}`} />
-                        {CHANNEL_LABEL[ch.type] ?? ch.type}
-                        <span className="text-[11px] text-zinc-400">
-                          {ch.lastInboundAt ? fmtDate(ch.lastInboundAt) : 'بدون پیام'}
-                        </span>
-                      </span>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-400">بدون کانال متصل</p>
-              )}
-            </Card>
-          ))}
+                    <p className="line-clamp-2 min-h-10 text-xs leading-5 text-zinc-600">
+                      {agent.description || 'برای این ایجنت هنوز توضیحی ثبت نشده است.'}
+                    </p>
+
+                    <div className="grid grid-cols-3 divide-x divide-x-reverse divide-zinc-100 rounded-2xl border border-zinc-100 bg-zinc-50/70 py-3 text-center">
+                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.conversations)}</div><div className="mt-1 text-[10px] text-zinc-500">کل گفتگو</div></div>
+                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.knowledgeBases)}</div><div className="mt-1 text-[10px] text-zinc-500">منبع دانش</div></div>
+                      <div><div className="text-sm font-bold text-zinc-900">{fa(agent._count.channels)}</div><div className="mt-1 text-[10px] text-zinc-500">اتصال</div></div>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-semibold text-zinc-400">روند ۷ روز اخیر</p>
+                        <Sparkline data={trend} color="#18181b" width={126} height={30} />
+                      </div>
+                      <div className="text-left text-[10px] leading-5 text-zinc-400">
+                        <div>{agent.model || 'مدل پیش‌فرض'}</div>
+                        <div>به‌روزرسانی {fmtDate(agent.updatedAt)}</div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

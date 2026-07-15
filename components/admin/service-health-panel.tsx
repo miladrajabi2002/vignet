@@ -15,20 +15,21 @@ import { cn } from '@/lib/utils'
 
 type HealthState = 'healthy' | 'warning' | 'down' | 'unconfigured'
 type Service = { state: HealthState; latencyMs: number | null; detail: string; creditsRemainingUSD?: number | null; usageMonthlyUSD?: number | null }
+type FailedJobLog = { id: string; name: string; failedReason: string; stacktrace: string[]; data: unknown; timestamp: number; processedOn: number | null; finishedOn: number | null; attemptsMade: number }
 type HealthPayload = {
   sampledAt: number
   services: { database: Service; redis: Service; storage: Service; openRouter: Service }
   queueMode: 'inline' | 'queue'
-  queues: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number; completed: number }>
+  queues: Array<{ name: string; waiting: number; active: number; delayed: number; failed: number; completed: number; failedJobs: FailedJobLog[] }>
   queueSummary: { failed: number; backlog: number }
   channels: Array<{ type: string; active: boolean; count: number; lastInboundAt: string | null }>
   attention: string[]
 }
 
 const STATE_META: Record<HealthState, { label: string; dot: string; panel: string }> = {
-  healthy: { label: 'سالم', dot: 'bg-emerald-500', panel: 'border-emerald-200/70 bg-emerald-50/45' },
-  warning: { label: 'نیازمند بررسی', dot: 'bg-amber-500', panel: 'border-amber-200/70 bg-amber-50/45' },
-  down: { label: 'قطع', dot: 'bg-red-500', panel: 'border-red-200/80 bg-red-50/55' },
+  healthy: { label: 'سالم', dot: 'bg-black', panel: 'border-black/10 bg-white' },
+  warning: { label: 'نیازمند بررسی', dot: 'bg-zinc-500', panel: 'border-black/15 bg-zinc-50' },
+  down: { label: 'قطع', dot: 'bg-black', panel: 'border-black/25 bg-zinc-100' },
   unconfigured: { label: 'تنظیم‌نشده', dot: 'bg-zinc-400', panel: 'border-zinc-200 bg-zinc-50' },
 }
 
@@ -49,6 +50,7 @@ export function ServiceHealthPanel() {
   const [data, setData] = useState<HealthPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
+  const [queueAction, setQueueAction] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
@@ -70,11 +72,27 @@ export function ServiceHealthPanel() {
     return () => window.clearInterval(timer)
   }, [])
 
+  async function runQueueAction(queueName: string, action: 'retryFailed' | 'clearFailed') {
+    if (action === 'clearFailed' && !window.confirm('لاگ همه پردازش‌های ناموفق این صف پاک شود؟')) return
+    const actionKey = `${queueName}:${action}`
+    setQueueAction(actionKey)
+    try {
+      const response = await fetch('/api/admin/health', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ queueName, action }) })
+      const payload = await response.json() as { ok?: boolean; affected?: number; error?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'QUEUE_ACTION_FAILED')
+      await refresh()
+    } catch (error) {
+      window.alert(`عملیات انجام نشد: ${error instanceof Error ? error.message : 'خطای نامشخص'}`)
+    } finally {
+      setQueueAction(null)
+    }
+  }
+
   const services = data ? [
-    { key: 'database', label: 'PostgreSQL', icon: Database, value: data.services.database },
-    { key: 'redis', label: 'Redis / BullMQ', icon: Network, value: data.services.redis },
-    { key: 'storage', label: 'MinIO / S3', icon: HardDrive, value: data.services.storage },
-    { key: 'openrouter', label: 'OpenRouter', icon: Cloud, value: data.services.openRouter },
+    { key: 'database', label: 'پایگاه داده', icon: Database, value: data.services.database },
+    { key: 'redis', label: 'ردیس و صف‌ها', icon: Network, value: data.services.redis },
+    { key: 'storage', label: 'فضای ذخیره‌سازی', icon: HardDrive, value: data.services.storage },
+    { key: 'openrouter', label: 'ارائه‌دهنده هوش مصنوعی', icon: Cloud, value: data.services.openRouter },
   ] : []
 
   return (
@@ -103,8 +121,8 @@ export function ServiceHealthPanel() {
               </div>
               <h3 className="mt-4 text-sm font-black text-black">{label}</h3>
               <p className="mt-1 min-h-9 text-[11px] leading-5 text-black/50">{value.detail}</p>
-              <div className="mt-3 flex items-center justify-between gap-2 font-mono text-[10px] text-black/35">
-                <span>{value.latencyMs === null ? '—' : `${value.latencyMs.toLocaleString('fa-IR')}ms`}</span>
+              <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-black/40">
+                <span>{value.latencyMs === null ? '—' : `${value.latencyMs.toLocaleString('fa-IR')} میلی‌ثانیه`}</span>
                 {typeof value.creditsRemainingUSD === 'number' && <span>${value.creditsRemainingUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} اعتبار</span>}
               </div>
             </article>
@@ -116,8 +134,8 @@ export function ServiceHealthPanel() {
         <section className="admin-panel overflow-hidden rounded-[1.5rem]">
           <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-black text-white"><ServerCog className="h-4 w-4" /></span>
-            <div><h3 className="text-sm font-black text-black">Queue & Worker</h3><p className="mt-0.5 text-[10px] text-black/40">حالت اجرا: {data?.queueMode === 'inline' ? 'Inline (بدون Worker)' : 'BullMQ Worker'}</p></div>
-            {data && <span className={cn('ms-auto rounded-full px-2.5 py-1 text-[10px] font-bold', data.queueSummary.failed > 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700')}>{data.queueSummary.failed.toLocaleString('fa-IR')} ناموفق</span>}
+            <div><h3 className="text-sm font-black text-black">صف‌ها و پردازشگرها</h3><p className="mt-0.5 text-[10px] text-black/40">حالت اجرا: {data?.queueMode === 'inline' ? 'درون‌خطی؛ بدون پردازشگر جدا' : 'پردازشگر صف فعال'}</p></div>
+            {data && <span className="ms-auto rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-800">{data.queueSummary.failed.toLocaleString('fa-IR')} ناموفق</span>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-xs">
@@ -127,6 +145,28 @@ export function ServiceHealthPanel() {
                 {data && data.queues.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-black/40">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</td></tr>}
               </tbody>
             </table>
+          </div>
+          <div className="space-y-2 border-t border-black/[0.06] p-3 sm:p-4">
+            {(data?.queues ?? []).filter((queue) => queue.failedJobs.length > 0).map((queue) => (
+              <details key={`logs-${queue.name}`} className="group overflow-hidden rounded-2xl border border-black/[0.08] bg-zinc-50/70">
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1"><p className="text-xs font-bold text-black">لاگ ناموفق · {QUEUE_LABELS[queue.name] ?? queue.name}</p><p className="mt-0.5 text-[10px] text-black/40">{queue.failedJobs.length.toLocaleString('fa-IR')} مورد اخیر برای بررسی</p></div>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'retryFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">{queueAction === `${queue.name}:retryFailed` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} تلاش مجدد</button>
+                    <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'clearFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">پاک‌کردن لاگ</button>
+                  </div>
+                </summary>
+                <div className="space-y-2 border-t border-black/[0.06] p-3">
+                  {queue.failedJobs.map((job) => (
+                    <details key={job.id} className="rounded-xl border border-black/[0.07] bg-white p-3">
+                      <summary className="cursor-pointer list-none text-xs"><span className="font-bold text-black">{job.name}</span><span className="mx-2 text-black/25">·</span><span className="text-black/55">{job.failedReason}</span><span className="ms-2 text-[10px] text-black/35">{new Date(job.finishedOn ?? job.timestamp).toLocaleString('fa-IR')}</span></summary>
+                      <div className="mt-3 grid gap-2 lg:grid-cols-2"><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black p-3 text-left text-[10px] leading-5 text-white/70">{job.stacktrace.join('\n') || job.failedReason}</pre><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-black/[0.08] bg-zinc-50 p-3 text-left text-[10px] leading-5 text-black/60">{JSON.stringify(job.data, null, 2)}</pre></div>
+                    </details>
+                  ))}
+                </div>
+              </details>
+            ))}
+            {data && data.queues.every((queue) => queue.failedJobs.length === 0) && <p className="py-4 text-center text-xs text-black/40">لاگ ناموفقی برای نمایش وجود ندارد.</p>}
           </div>
         </section>
 
@@ -140,9 +180,9 @@ export function ServiceHealthPanel() {
       </div>
 
       {data && data.attention.length > 0 && (
-        <section className="rounded-[1.4rem] border border-amber-200 bg-amber-50/65 p-4">
-          <div className="flex items-center gap-2 text-xs font-black text-amber-900"><ServerCog className="h-4 w-4" /> موارد نیازمند توجه</div>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">{data.attention.map((item) => <li key={item} className="flex items-center gap-2 text-xs text-amber-800"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{item}</li>)}</ul>
+        <section className="rounded-[1.4rem] border border-black/10 bg-zinc-50 p-4">
+          <div className="flex items-center gap-2 text-xs font-black text-black"><ServerCog className="h-4 w-4" /> موارد نیازمند توجه</div>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">{data.attention.map((item) => <li key={item} className="flex items-center gap-2 text-xs text-black/65"><span className="h-1.5 w-1.5 rounded-full bg-black" />{item}</li>)}</ul>
         </section>
       )}
     </div>

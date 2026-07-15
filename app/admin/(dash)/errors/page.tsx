@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertOctagon, Activity } from 'lucide-react'
+import { AlertTriangle, AlertOctagon } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -40,7 +40,6 @@ export default async function AdminErrorsPage(
     errors,
     totalCount,
     errors24h,
-    warns24h,
     errTrend7,
     sourceSparks,
   ] = await Promise.all([
@@ -61,7 +60,6 @@ export default async function AdminErrorsPage(
     }),
     prisma.errorLog.count({ where }),
     prisma.errorLog.count({ where: { ...since24hWhere, level: 'error' } }),
-    prisma.errorLog.count({ where: { ...since24hWhere, level: 'warn' } }),
     errorsDaily(7),
     errorsDailyBySource(7),
   ])
@@ -112,7 +110,7 @@ export default async function AdminErrorsPage(
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatCard
           label="کل خطاها"
           value={fa(totalCount)}
@@ -125,12 +123,6 @@ export default async function AdminErrorsPage(
           icon={<AlertTriangle className="h-5 w-5" />}
           tone="warning"
         />
-        <StatCard
-          label="هشدارهای ۲۴ ساعت"
-          value={fa(warns24h)}
-          icon={<Activity className="h-5 w-5" />}
-          tone="info"
-        />
       </div>
 
       {/* ─── Mini trends: 7-day error volume + top sources ─── */}
@@ -139,7 +131,7 @@ export default async function AdminErrorsPage(
           label="خطاهای ۷ روز اخیر"
           value={weekTotal}
           series={errTrend7.map((p) => p.value)}
-          color="#ef4444"
+          color="#18181b"
           hint="میانگین روزانه" variant="light"
         />
         {topSources.map((s) => (
@@ -148,7 +140,7 @@ export default async function AdminErrorsPage(
             label={`منبع: ${s.source}`}
             value={s.total}
             series={s.series}
-            color="#f59e0b"
+            color="#3f3f46"
             hint="۷ روز اخیر" variant="light"
           />
         ))}
@@ -169,7 +161,7 @@ export default async function AdminErrorsPage(
                   <span className="text-xs text-zinc-500">{e.source ?? '—'}</span>
                   {spark && (
                     <span className="hidden sm:inline-block">
-                      <Sparkline data={spark.series} color="#ef4444" width={64} height={20} />
+                      <Sparkline data={spark.series} color="#18181b" width={64} height={20} />
                     </span>
                   )}
                   <span className="ms-auto text-[11px] text-zinc-400">

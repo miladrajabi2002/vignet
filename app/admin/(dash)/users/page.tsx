@@ -18,18 +18,13 @@ import {
 } from '../ui'
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
+import { toEnglishDigits } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 30
 
 type BadgeTone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
-
-const ROLE_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
-  OWNER: { label: 'مالک کسب‌وکار', tone: 'default' },
-  ADMIN: { label: 'مدیر کسب‌وکار', tone: 'info' },
-  MEMBER: { label: 'عضو', tone: 'muted' },
-}
 
 const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
@@ -52,6 +47,14 @@ function startOfToday(): Date {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   return d
+}
+
+function displayPhone(value: string): string {
+  const phone = toEnglishDigits(value).replace(/[\s()-]/g, '')
+  if (phone.startsWith('+98')) return `0${phone.slice(3)}`
+  if (phone.startsWith('0098')) return `0${phone.slice(4)}`
+  if (phone.startsWith('98') && phone.length === 12) return `0${phone.slice(2)}`
+  return phone
 }
 
 export default async function AdminUsersPage(
@@ -140,7 +143,7 @@ export default async function AdminUsersPage(
   return (
     <div className="space-y-6">
       <PageHeader
-        title="کاربران"
+        title="کاربرا"
         subtitle="مدیریت کاربران، کسب‌وکارها و پلن‌های آن‌ها در یک نمای واحد"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
@@ -203,7 +206,7 @@ export default async function AdminUsersPage(
           <thead className="border-b border-zinc-200 bg-zinc-50/60">
             <tr>
               <Th>کاربر</Th>
-              <Th>نقش</Th>
+              <Th>شماره تلفن</Th>
               <Th>کسب‌وکار</Th>
               <Th>پلن</Th>
               <Th>ایجنت‌ها</Th>
@@ -214,31 +217,25 @@ export default async function AdminUsersPage(
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {items.map((u) => {
-              const role = ROLE_LABEL[u.role] ?? { label: u.role, tone: 'muted' as BadgeTone }
               const ws = u.workspace
               const plan = ws ? (PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }) : null
               const spark = ws ? sparks.get(ws.id) : undefined
               return (
                 <tr key={u.id} className="hover:bg-zinc-50">
                   <Td>
-                    <Link
-                      href={`/admin/users/${u.id}`}
-                      className="flex items-center gap-2.5"
-                    >
+                    <Link href={`/admin/users/${u.id}`} className="group flex items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-black/20">
                       <Avatar name={u.name} size={36} />
                       <div className="min-w-0">
-                        <div className="truncate font-medium text-zinc-900 hover:underline">
+                        <div className="truncate font-semibold text-zinc-900 transition-opacity group-hover:opacity-65">
                           {u.name ?? 'بدون نام'}
                         </div>
-                        <div className="text-xs text-zinc-500" dir="ltr">{u.phone}</div>
                       </div>
                     </Link>
                   </Td>
-                  <Td>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Badge tone={role.tone}>{role.label}</Badge>
-                      {u.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
-                    </div>
+                  <Td className="text-right text-zinc-700">
+                    <span dir="ltr" className="inline-block">
+                      {displayPhone(u.phone)}
+                    </span>
                   </Td>
                   <Td>
                     {ws ? (
@@ -258,7 +255,7 @@ export default async function AdminUsersPage(
                         </div>
                       </div>
                     ) : (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-zinc-400">نیست</span>
                     )}
                   </Td>
                   <Td>
@@ -275,11 +272,8 @@ export default async function AdminUsersPage(
                     {fa(ws?._count.conversations ?? 0)}
                   </Td>
                   <Td>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       <Sparkline data={spark?.series ?? []} width={88} height={26} />
-                      <span className="text-[11px] font-medium tabular-nums text-zinc-500">
-                        {spark ? fa(spark.total) : '۰'}
-                      </span>
                     </div>
                   </Td>
                   <Td className="text-xs text-zinc-500">{fmtDay(u.createdAt)}</Td>

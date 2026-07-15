@@ -1,7 +1,7 @@
 import { ServerCog } from 'lucide-react'
-import { PageHeader, Panel } from '../ui'
-import { SystemMonitor } from '@/components/admin/system-monitor'
+import { PageHeader } from '../ui'
 import { ServiceHealthPanel } from '@/components/admin/service-health-panel'
+import { ServerStatsWidget } from '@/components/admin/server-stats-widget'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,14 +10,12 @@ export default function AdminSystemPage() {
     <div className="space-y-6">
       <PageHeader
         title="سلامت زیرساخت"
-        subtitle="کنترل زنده سرور، دیتابیس، Redis، Queue، Worker، MinIO، OpenRouter و کانال‌ها"
+        subtitle="کنترل زنده سرویس‌ها، صف‌ها، پردازشگرها، لاگ‌های ناموفق و منابع سرور"
         icon={ServerCog}
         breadcrumbs={[{ label: 'مرکز فرمان', href: '/admin' }, { label: 'سلامت زیرساخت' }]}
       />
       <ServiceHealthPanel />
-      <Panel title="منابع ماشین" subtitle="CPU، حافظه، دیسک و آپ‌تایم سیستم‌عامل؛ بروزرسانی هر ۵ ثانیه">
-        <SystemMonitor />
-      </Panel>
+      <ServerStatsWidget />
     </div>
   )
 }

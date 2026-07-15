@@ -3,6 +3,7 @@ import { Queue, type ConnectionOptions } from 'bullmq'
 import { HeadBucketCommand } from '@aws-sdk/client-s3'
 import { NextResponse } from 'next/server'
 import { isAdminAuthed } from '@/lib/admin/auth'
+import { ADMIN_OWNER_PHONE } from '@/lib/admin/auth'
 import { getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
 import { prisma } from '@/lib/prisma'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
@@ -11,6 +12,30 @@ import { getBucket, getS3Client, isS3Configured } from '@/lib/storage/s3'
 export const dynamic = 'force-dynamic'
 
 type HealthState = 'healthy' | 'warning' | 'down' | 'unconfigured'
+type FailedJobLog = {
+  id: string
+  name: string
+  failedReason: string
+  stacktrace: string[]
+  data: unknown
+  timestamp: number
+  processedOn: number | null
+  finishedOn: number | null
+  attemptsMade: number
+}
+type QueueRow = { name: string; waiting: number; active: number; delayed: number; failed: number; completed: number; failedJobs: FailedJobLog[] }
+
+const SENSITIVE_KEY = /(token|secret|password|authorization|api[-_]?key|cookie|config)/i
+
+function safeJobData(value: unknown, key = ''): unknown {
+  if (SENSITIVE_KEY.test(key)) return '[پنهان‌شده]'
+  if (Array.isArray(value)) return value.slice(0, 30).map((item) => safeJobData(item))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 50).map(([childKey, child]) => [childKey, safeJobData(child, childKey)]))
+  }
+  if (typeof value === 'string' && value.length > 500) return `${value.slice(0, 500)}…`
+  return value
+}
 
 async function timed<T>(work: Promise<T>, timeoutMs = 4_000): Promise<T> {
   return Promise.race([
@@ -33,7 +58,7 @@ async function redisAndQueuesHealth() {
   if (!process.env.REDIS_URL) {
     return {
       redis: { state: 'unconfigured' as HealthState, latencyMs: null, detail: 'REDIS_URL تنظیم نشده است' },
-      queues: [] as Array<{ name: string; waiting: number; active: number; delayed: number; failed: number; completed: number }>,
+      queues: [] as QueueRow[],
       queueMode: isQueueDisabled() ? 'inline' : 'queue',
     }
   }
@@ -65,6 +90,7 @@ async function redisAndQueuesHealth() {
         const queue = new Queue(name, { connection: connection as unknown as ConnectionOptions })
         queues.push(queue)
         const counts = await timed(queue.getJobCounts('waiting', 'active', 'delayed', 'failed', 'completed'), 3_000)
+        const failedJobs = await timed(queue.getJobs(['failed'], 0, 99, false), 3_000)
         return {
           name,
           waiting: counts.waiting ?? 0,
@@ -72,6 +98,17 @@ async function redisAndQueuesHealth() {
           delayed: counts.delayed ?? 0,
           failed: counts.failed ?? 0,
           completed: counts.completed ?? 0,
+          failedJobs: failedJobs.map((job) => ({
+            id: String(job.id ?? 'بدون شناسه'),
+            name: job.name,
+            failedReason: job.failedReason || 'علت ثبت نشده',
+            stacktrace: (job.stacktrace ?? []).slice(0, 4),
+            data: safeJobData(job.data),
+            timestamp: job.timestamp,
+            processedOn: job.processedOn ?? null,
+            finishedOn: job.finishedOn ?? null,
+            attemptsMade: job.attemptsMade,
+          })),
         }
       }),
     )
@@ -161,4 +198,51 @@ export async function GET() {
     channels: channels.map((row) => ({ type: row.type, active: row.active, count: row._count._all, lastInboundAt: row._max.lastInboundAt })),
     attention,
   })
+}
+
+export async function POST(request: Request) {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!process.env.REDIS_URL || isQueueDisabled()) return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 409 })
+
+  const body = await request.json().catch(() => null) as { action?: string; queueName?: string } | null
+  const queueName = body?.queueName
+  const action = body?.action
+  if (!queueName || !Object.values(QUEUE_NAMES).includes(queueName as (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES])) {
+    return NextResponse.json({ error: 'INVALID_QUEUE' }, { status: 400 })
+  }
+  if (action !== 'retryFailed' && action !== 'clearFailed') {
+    return NextResponse.json({ error: 'INVALID_ACTION' }, { status: 400 })
+  }
+
+  const connection = new IORedis(process.env.REDIS_URL, { lazyConnect: true, connectTimeout: 2_500, maxRetriesPerRequest: null, enableOfflineQueue: false, retryStrategy: () => null })
+  connection.on('error', () => undefined)
+  const queue = new Queue(queueName, { connection: connection as unknown as ConnectionOptions })
+  try {
+    await timed(connection.connect(), 3_000)
+    let affected = 0
+    if (action === 'retryFailed') {
+      const jobs = await timed(queue.getJobs(['failed'], 0, 99, false), 4_000)
+      const results = await Promise.allSettled(jobs.map((job) => job.retry()))
+      affected = results.filter((result) => result.status === 'fulfilled').length
+    } else {
+      const removed = await timed(queue.clean(0, 1_000, 'failed'), 5_000)
+      affected = removed.length
+    }
+
+    await prisma.adminAuditLog.create({
+      data: {
+        adminPhone: ADMIN_OWNER_PHONE || 'unconfigured',
+        action: action === 'retryFailed' ? 'RETRY_FAILED_QUEUE_JOBS' : 'CLEAR_FAILED_QUEUE_LOGS',
+        targetType: 'Queue',
+        targetId: queueName,
+        payload: { affected },
+      },
+    })
+    return NextResponse.json({ ok: true, affected })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'QUEUE_ACTION_FAILED' }, { status: 500 })
+  } finally {
+    await queue.close().catch(() => undefined)
+    connection.disconnect()
+  }
 }

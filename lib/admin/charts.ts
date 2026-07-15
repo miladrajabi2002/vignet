@@ -350,6 +350,50 @@ export interface WorkspaceSpark {
         total: number
 }
 
+export interface AgentSpark {
+        agentId: string
+        series: number[]
+        total: number
+}
+
+/** Daily conversation counts grouped by agent, suitable for list sparklines. */
+export async function conversationsDailyByAgent(
+        days = 7,
+): Promise<Map<string, AgentSpark>> {
+        const since = new Date(Date.now() - days * 86_400_000)
+        const rows = await prisma.$queryRaw<{ agentId: string; d: string; c: bigint }[]>`
+    SELECT "agentId",
+           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
+           count(*) AS c
+    FROM "Conversation"
+    WHERE "createdAt" >= ${since}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `
+
+        const out = new Map<string, AgentSpark>()
+        const now = Date.now()
+        const dayKeys = Array.from({ length: days }, (_, index) =>
+                tzDayKey(new Date(now - (days - 1 - index) * 86_400_000)),
+        )
+
+        for (const row of rows) {
+                let entry = out.get(row.agentId)
+                if (!entry) {
+                        entry = { agentId: row.agentId, series: new Array(days).fill(0), total: 0 }
+                        out.set(row.agentId, entry)
+                }
+                const index = dayKeys.indexOf(row.d)
+                if (index >= 0) {
+                        const value = Number(row.c)
+                        entry.series[index] = value
+                        entry.total += value
+                }
+        }
+
+        return out
+}
+
 /**
  * Daily conversation counts for the last 7 days, grouped by workspaceId.
  * Used to render inline sparklines on the users list without N+1 queries.

@@ -192,8 +192,10 @@
                 line-height: var(--leading-body);
         }
 
-        html[lang='fa'] :where(body, button, input, textarea, select),
-        html[dir='rtl'] :where(body, button, input, textarea, select) {
+        html[lang='fa'] body,
+        html[lang='fa'] body *,
+        html[dir='rtl'] body,
+        html[dir='rtl'] body * {
                 font-family: var(--font-fa), system-ui, sans-serif !important;
         }
 
@@ -267,9 +269,37 @@
                 font-family: var(--font-fa), system-ui, sans-serif;
         }
 
+        /* Admin is intentionally single-typeface and monochrome. Utility
+           classes such as font-mono must never swap Persian numerals or dates
+           to a fallback Latin face. */
+        .admin-root,
+        .admin-root * {
+                font-family: var(--font-fa), system-ui, sans-serif !important;
+        }
+
+        .admin-root :where(a, button, input, select, textarea):focus-visible {
+                outline-color: #18181b;
+        }
+
+        .admin-root :is([class*='text-emerald'], [class*='text-green'], [class*='text-blue'], [class*='text-cyan'], [class*='text-sky'], [class*='text-indigo'], [class*='text-amber'], [class*='text-yellow'], [class*='text-orange'], [class*='text-red'], [class*='text-rose'], [class*='text-violet'], [class*='text-purple']) {
+                color: inherit !important;
+        }
+
+        .admin-root :is([class*='bg-emerald'], [class*='bg-green'], [class*='bg-blue'], [class*='bg-cyan'], [class*='bg-sky'], [class*='bg-indigo'], [class*='bg-amber'], [class*='bg-yellow'], [class*='bg-orange'], [class*='bg-red'], [class*='bg-rose'], [class*='bg-violet'], [class*='bg-purple']) {
+                background-color: rgba(24, 24, 27, 0.07) !important;
+        }
+
+        .admin-root :is([class*='border-emerald'], [class*='border-green'], [class*='border-blue'], [class*='border-cyan'], [class*='border-sky'], [class*='border-indigo'], [class*='border-amber'], [class*='border-yellow'], [class*='border-orange'], [class*='border-red'], [class*='border-rose'], [class*='border-violet'], [class*='border-purple']) {
+                border-color: rgba(24, 24, 27, 0.13) !important;
+        }
+
+        .admin-root :is([class*='ring-emerald'], [class*='ring-green'], [class*='ring-blue'], [class*='ring-cyan'], [class*='ring-sky'], [class*='ring-indigo'], [class*='ring-amber'], [class*='ring-yellow'], [class*='ring-orange'], [class*='ring-red'], [class*='ring-rose'], [class*='ring-violet'], [class*='ring-purple']) {
+                --tw-ring-color: rgba(24, 24, 27, 0.14) !important;
+        }
+
         .admin-attention-stage {
                 background-image:
-                        radial-gradient(circle at 8% 0%, rgba(52, 211, 153, 0.1), transparent 22rem),
+                        radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.075), transparent 22rem),
                         linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
                         linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
                 background-size: auto, 34px 34px, 34px 34px;

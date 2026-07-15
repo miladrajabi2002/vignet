@@ -90,7 +90,7 @@ export function ServerStatsWidget() {
       <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-800">
               <Cpu className="h-4 w-4" />
             </span>
             <div>
@@ -110,9 +110,9 @@ export function ServerStatsWidget() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
               <defs>
-                <linearGradient id="g-cpu-widget" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+              <linearGradient id="g-cpu-widget" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#18181b" stopOpacity={0.22} />
+                  <stop offset="100%" stopColor="#18181b" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
@@ -137,12 +137,12 @@ export function ServerStatsWidget() {
               <Area
                 type="monotone"
                 dataKey="cpu"
-                stroke="#3b82f6"
+                stroke="#18181b"
                 strokeWidth={2.5}
                 fill="url(#g-cpu-widget)"
                 isAnimationActive={false}
                 dot={false}
-                activeDot={{ r: 4, fill: '#3b82f6' }}
+                activeDot={{ r: 4, fill: '#18181b' }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -153,7 +153,7 @@ export function ServerStatsWidget() {
       <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-800">
               <MemoryStick className="h-4 w-4" />
             </span>
             <div>
@@ -174,8 +174,8 @@ export function ServerStatsWidget() {
             <AreaChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
               <defs>
                 <linearGradient id="g-mem-widget" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#52525b" stopOpacity={0.22} />
+                  <stop offset="100%" stopColor="#52525b" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
@@ -200,12 +200,12 @@ export function ServerStatsWidget() {
               <Area
                 type="monotone"
                 dataKey="mem"
-                stroke="#22c55e"
+                stroke="#52525b"
                 strokeWidth={2.5}
                 fill="url(#g-mem-widget)"
                 isAnimationActive={false}
                 dot={false}
-                activeDot={{ r: 4, fill: '#22c55e' }}
+                activeDot={{ r: 4, fill: '#52525b' }}
               />
             </AreaChart>
           </ResponsiveContainer>

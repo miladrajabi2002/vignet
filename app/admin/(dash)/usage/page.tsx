@@ -39,7 +39,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const where = { date: { gte: since } }
 
-  const [totals, byType, byModel, callCount, chargeTrend] = await Promise.all([
+  const [totals, byType, byModel, callCount, chargeTrend, byWorkspace] = await Promise.all([
     prisma.usageLog.aggregate({
       where,
       _sum: { chargedIRR: true, cost: true },
@@ -60,6 +60,15 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
     }),
     prisma.usageLog.count({ where }),
     usageChargesDaily(days),
+    prisma.$queryRaw<{ label: string; value: bigint }[]>`
+      SELECT w."name" AS label, COALESCE(SUM(u."chargedIRR"), 0) AS value
+      FROM "UsageLog" u
+      JOIN "Workspace" w ON w."id" = u."workspaceId"
+      WHERE u."date" >= ${since}
+      GROUP BY w."id", w."name"
+      ORDER BY value DESC
+      LIMIT 10
+    `,
   ])
 
   const totalChargedIRR = totals._sum.chargedIRR ?? 0
@@ -85,6 +94,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       value: Math.round((r._sum.chargedIRR ?? 0) / 10),
     }))
     .sort((a, b) => b.value - a.value)
+  const workspaceRows = byWorkspace.map((row) => ({ label: row.label, value: Math.round(Number(row.value) / 10) }))
 
   return (
     <div className="space-y-6">
@@ -98,7 +108,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         action={<RangeSwitch current={range} basePath="/admin/usage" />}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           label="کل درخواست‌ها"
           value={fa(callCount)}
@@ -119,15 +129,17 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         />
       </div>
 
-      <TrendChart
-         title={`مبلغ مصرف‌شده ${rangeLabel} اخیر`}
-         subtitle="مجموع مبلغ کسرشده از اعتبار روزانه"
-         data={chargeTrend.map((point) => ({ ...point, value: Math.round(point.value / 10) }))}
-        color="#18181b"
-        variant="area"
-      />
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <TrendChart
+          title={`مبلغ مصرف‌شده ${rangeLabel} اخیر`}
+          subtitle="مجموع مبلغ کسرشده از اعتبار روزانه"
+          data={chargeTrend.map((point) => ({ ...point, value: Math.round(point.value / 10) }))}
+          color="#18181b"
+          variant="area"
+          height={220}
+        />
 
-      <Panel title="به تفکیک نوع" subtitle="سهم هر نوع درخواست از مصرف">
+        <Panel title="به تفکیک نوع" subtitle="سهم هر نوع درخواست از مصرف">
         {typeRows.length === 0 ? (
           <EmptyState>داده‌ای ثبت نشده است</EmptyState>
         ) : (
@@ -151,15 +163,23 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
             ))}
           </div>
         )}
-      </Panel>
+        </Panel>
 
-      <BarList
-        title="به تفکیک مدل"
-         subtitle="پرکاربردترین مدل‌ها بر اساس مبلغ مصرف‌شده"
-        data={modelRows}
-        color="#18181b"
-         format="number"
-      />
+        <BarList
+          title="به تفکیک مدل"
+          subtitle="پرکاربردترین مدل‌ها بر اساس مبلغ مصرف‌شده"
+          data={modelRows}
+          color="#18181b"
+          format="number"
+        />
+        <BarList
+          title="کسب‌وکارهای پرمصرف"
+          subtitle="مبلغ کسرشده از اعتبار به تومان"
+          data={workspaceRows}
+          color="#3f3f46"
+          format="number"
+        />
+      </div>
     </div>
   )
 }

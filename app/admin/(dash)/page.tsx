@@ -23,6 +23,7 @@ import {
 } from './ui'
 import {
   TrendChart,
+  DonutChart,
   MonthlyBarChart,
 } from '@/components/admin/trend-chart'
 import { DashboardPanel } from '@/components/dashboard/panel'
@@ -37,6 +38,7 @@ import {
   paymentsDaily,
   usageChargesDaily,
   revenueIRRMonthly,
+  planDistribution,
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
@@ -88,6 +90,7 @@ export default async function AdminOverviewPage(
     userCount,
     conversationsToday,
     errors24h,
+    plans,
     rangeSeries,
     kpiTrends,
     aiOverview,
@@ -108,6 +111,7 @@ export default async function AdminOverviewPage(
     prisma.user.count(),
     prisma.conversation.count({ where: { createdAt: { gte: startToday } } }),
     prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }),
+    planDistribution(),
     rangeSeriesPromise,
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
     //   range switch, so the cards always show recent site-wide momentum).
@@ -180,8 +184,8 @@ export default async function AdminOverviewPage(
       {/* ─── Executive pulse — every KPI carries its own mini trend ─── */}
       <section aria-labelledby="executive-pulse-title">
         <div className="mb-3 flex items-end justify-between gap-3">
-          <div><p className="text-[10px] font-bold tracking-wide text-black/35">EXECUTIVE PULSE</p><h2 id="executive-pulse-title" className="mt-1 text-sm font-black text-black">نبض کسب‌وکار و عملیات</h2></div>
-          <span className="text-[10px] text-black/35">Sparkline · ۷ روز اخیر</span>
+          <div><p className="text-[10px] font-bold text-black/35">نمای مدیریتی</p><h2 id="executive-pulse-title" className="mt-1 text-sm font-black text-black">نبض کسب‌وکار و عملیات</h2></div>
+          <span className="text-[10px] text-black/35">روند کوچک · ۷ روز اخیر</span>
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
@@ -255,7 +259,7 @@ export default async function AdminOverviewPage(
           <div className="relative overflow-hidden border-b border-white/[0.08] p-5 lg:border-b-0 lg:border-l sm:p-6">
             <div className="absolute -left-16 -top-20 h-52 w-52 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
             <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold text-white/55"><Gauge className="h-3.5 w-3.5 text-emerald-300" /> MANAGEMENT BRIEFING</span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold text-white/55"><Gauge className="h-3.5 w-3.5" /> گزارش مدیریتی</span>
               <h2 id="attention-title" className="mt-5 max-w-sm text-xl font-black leading-8">امروز چه چیزی نیاز به توجه دارد؟</h2>
               <p className="mt-2 max-w-sm text-xs leading-6 text-white/45">اولویت‌ها از سیگنال‌های زنده خطا، گفتگو، پرداخت، اعتبار، آنبوردینگ و کانال‌ها ساخته شده‌اند.</p>
               <Link href="/admin/system" className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-[11px] font-bold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white">نقشه سلامت زیرساخت <ChevronLeft className="h-3.5 w-3.5" /></Link>
@@ -352,6 +356,24 @@ export default async function AdminOverviewPage(
         </div>
       </Panel>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DonutChart
+          title="توزیع پلن‌ها"
+          subtitle="ترکیب فعلی کسب‌وکارها"
+          data={plans}
+          centerValue={workspaceCount}
+          centerLabel="کسب‌وکار"
+        />
+        <TrendChart
+          title="گفتگوهای ۷ روز اخیر"
+          subtitle="روند روزانه گفتگوهای جدید پلتفرم"
+          data={kpiTrends.conv}
+          color="#18181b"
+          variant="bar"
+          height={200}
+        />
+      </div>
+
       <Panel
         title="تصویر عملیاتی پلتفرم"
         subtitle="شاخص‌های تصمیم‌ساز؛ جزئیات هر حوزه در صفحه تخصصی همان بخش"
@@ -403,7 +425,7 @@ export default async function AdminOverviewPage(
           <TrendChart
             title={`ثبت‌نام کاربران ${fa(days)} روز اخیر`}
             data={rangeSeries.daily.users}
-            color="#22c55e"
+            color="#18181b"
             variant="bar"
             format="number"
           />

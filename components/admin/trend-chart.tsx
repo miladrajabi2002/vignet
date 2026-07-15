@@ -26,7 +26,7 @@ export interface NamedPoint {
   value: number
 }
 
-const AXIS = { fill: '#a1a1aa', fontSize: 11 }
+const AXIS = { fill: '#71717a', fontSize: 11, fontFamily: 'IRANSansWeb' }
 
 // ── Date formatters for X-axis ticks + tooltip labels ──────────────────────
 // Converts ISO date strings ("2026-07-13") to Persian ("۲۱ تیر") so all
@@ -60,6 +60,7 @@ const TOOLTIP = {
     borderRadius: 12,
     fontSize: 12,
     boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+    fontFamily: 'IRANSansWeb',
   },
   labelStyle: { color: '#71717a', fontWeight: 600 },
   itemStyle: { color: '#18181b' },
@@ -71,10 +72,10 @@ export const CHART_COLORS = [
   '#3f3f46', // zinc-700
   '#71717a', // zinc-500
   '#a1a1aa', // zinc-400
-  '#22c55e', // emerald-500
-  '#3b82f6', // blue-500
-  '#f59e0b', // amber-500
-  '#ef4444', // red-500
+  '#d4d4d8', // zinc-300
+  '#52525b', // zinc-600
+  '#e4e4e7', // zinc-200
+  '#27272a', // zinc-800
 ]
 
 /**
