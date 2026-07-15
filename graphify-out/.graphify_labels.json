@@ -194,6 +194,7 @@
   "192": "page.tsx",
   "193": "global-error.tsx",
   "194": "robots.ts",
+  "195": "route.ts",
   "196": "agent-sparkline.tsx",
   "197": "hourly-heatmap.tsx",
   "198": "satisfaction-gauge.tsx",
@@ -208,7 +209,15 @@
   "207": "deploy.sh",
   "208": "index.php",
   "209": "setup-db-studio.sh",
+  "210": "layout.tsx",
+  "211": "server-stats-widget.tsx",
+  "212": "docs-sidebar.tsx",
+  "213": "page.tsx",
   "214": "openai",
+  "215": "@aws-sdk/s3-request-presigner",
+  "216": "gsap",
+  "217": "next-auth",
+  "218": "qrcode",
   "219": "zod",
   "220": "postcss.config.mjs",
   "221": "📊 ADMIN DASHBOARD — ANALYTICS",
@@ -217,5 +226,6 @@
   "224": "business-type-migrations.test.ts",
   "225": "channels-config.test.ts",
   "226": "crypto.test.ts",
-  "227": "vitest.config.ts"
+  "227": "vitest.config.ts",
+  "228": "recharts"
 }

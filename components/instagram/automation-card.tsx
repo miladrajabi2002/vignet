@@ -102,39 +102,38 @@ export function AutomationCard({
                         m.type === 'QUICK_REPLY',
         )
         const messageTypes = new Set(messages.map((m) => m.type))
-        const editHref = `/agents/${agentId}/instagram/${automation.id}/edit`
+        const editHref = `/instagram/${automation.id}/edit?agentId=${agentId}`
 
         return (
-                <div className="group relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-all duration-200 hover:border-[var(--border-hover)] hover:shadow-sm">
-                        {/* Subtle hover gradient strip on the start edge */}
+                <article className="group relative overflow-hidden rounded-[1.35rem] border border-black/[0.07] bg-white/80 shadow-[0_18px_50px_-40px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-black/15 hover:shadow-[0_24px_54px_-38px_rgba(0,0,0,0.72)] motion-reduce:transform-none">
+                        {/* A restrained Instagram accent keeps brand context without competing with content. */}
                         <div
-                                className="pointer-events-none absolute inset-y-0 start-0 w-1 opacity-0 transition-opacity group-hover:opacity-100"
-                                style={{ background: 'linear-gradient(180deg, #f58529, #dd2a7b, #8134af)' }}
+                                className="pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-55 transition-opacity duration-200 group-hover:opacity-100"
+                                style={{ background: 'linear-gradient(90deg, #f58529, #dd2a7b, #8134af)' }}
                                 aria-hidden
                         />
 
                         <Link
                                 href={editHref}
-                                className="flex items-start gap-3 p-4 transition-colors sm:p-5"
+                                className="flex min-h-[9.5rem] items-start gap-3.5 p-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/65 sm:p-5"
                                 aria-label={t('card.editScenarioAria', { name: automation.name })}
                         >
                                 <div
-                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
-                                        style={{ background: 'linear-gradient(45deg, #f58529, #dd2a7b, #8134af)' }}
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white shadow-[0_10px_24px_-14px_rgba(0,0,0,0.85)]"
                                 >
                                         <Icon className="h-4 w-4" />
                                 </div>
 
                                 <div className="min-w-0 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
-                                                <h3 className="truncate text-sm font-medium text-[var(--text-primary)]">
+                                                <h3 className="truncate text-sm font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
                                                         {automation.name}
                                                 </h3>
                                                 <span
                                                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
                                                                 automation.active
-                                                                        ? 'bg-success/10 text-success'
-                                                                        : 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
+                                                                        ? 'border border-emerald-500/15 bg-emerald-500/[0.08] text-emerald-700'
+                                                                        : 'border border-black/[0.05] bg-black/[0.035] text-[var(--text-muted)]'
                                                         }`}
                                                 >
                                                         <span
@@ -156,7 +155,7 @@ export function AutomationCard({
                                                         tr.keywords.slice(0, 6).map((k) => (
                                                                 <span
                                                                         key={k}
-                                                                        className="inline-flex items-center rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                                                                        className="inline-flex items-center rounded-lg border border-black/[0.06] bg-black/[0.025] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)]"
                                                                 >
                                                                         {k}
                                                                 </span>
@@ -213,7 +212,7 @@ export function AutomationCard({
                                         </div>
 
                                         {/* Edit affordance */}
-                                        <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-primary)]">
+                                        <div className="mt-4 inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-black/[0.035] px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-[background-color,color,transform] duration-150 group-hover:bg-black group-hover:text-white group-active:scale-[0.98]">
                                                 <Pencil className="h-3 w-3" />
                                                 {t('card.editScenario')}
                                                 <ChevronLeft className="h-3 w-3 rtl:rotate-180" />
@@ -222,26 +221,28 @@ export function AutomationCard({
                         </Link>
 
                         {/* Actions — kept OUTSIDE the Link so they don't trigger navigation */}
-                        <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-4 py-2.5 sm:px-5">
-                                <Switch
-                                        checked={automation.active}
-                                        onChange={toggle}
-                                        disabled={toggling}
-                                        aria-label={t('card.toggleAria')}
-                                />
-                                <button
-                                        type="button"
-                                        onClick={onDelete}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--danger)]"
-                                        aria-label={t('card.deleteAria')}
-                                >
-                                        {toggling ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                        )}
-                                </button>
+                        <div className="flex min-h-14 items-center justify-between gap-3 border-t border-black/[0.05] bg-black/[0.012] px-4 py-2.5 sm:px-5">
+                                <span className="inline-flex items-center gap-2 text-[11px] font-medium text-[var(--text-secondary)]">
+                                        {toggling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className={`h-1.5 w-1.5 rounded-full ${automation.active ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
+                                        {automation.active ? t('card.active') : t('card.inactive')}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                        <Switch
+                                                checked={automation.active}
+                                                onChange={toggle}
+                                                disabled={toggling}
+                                                aria-label={t('card.toggleAria')}
+                                        />
+                                        <button
+                                                type="button"
+                                                onClick={onDelete}
+                                                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-[background-color,color,transform] duration-150 hover:bg-red-500/[0.08] hover:text-red-600 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                                                aria-label={t('card.deleteAria')}
+                                        >
+                                                <Trash2 className="h-4 w-4" />
+                                        </button>
+                                </div>
                         </div>
-                </div>
+                </article>
         )
 }

@@ -412,7 +412,7 @@ export function AutomationForm({
                                         )
                                         return
                                 }
-                                router.push(`/agents/${agentId}/instagram`)
+                                router.push('/instagram')
                         } else if (initial) {
                                 const res = await fetch(`${base}/${initial.id}`, {
                                         method: 'PATCH',
@@ -424,7 +424,7 @@ export function AutomationForm({
                                         setError('ذخیره ناموفق بود.')
                                         return
                                 }
-                                router.push(`/agents/${agentId}/instagram`)
+                                router.push('/instagram')
                         }
                 } finally {
                         setBusy(false)
@@ -474,7 +474,7 @@ export function AutomationForm({
                                 }
                                 actions={
                                         <Link
-                                                href={`/agents/${agentId}/instagram`}
+                                                href="/instagram"
                                                 className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                         >
                                                 <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
@@ -802,7 +802,7 @@ export function AutomationForm({
                                                 </p>
                                                 <div className="flex items-center gap-2">
                                                         <Link
-                                                                href={`/agents/${agentId}/instagram`}
+                                                                href="/instagram"
                                                                 className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
                                                         >
                                                                 انصراف

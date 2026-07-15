@@ -125,8 +125,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/instagram/page.tsx": {
-    "mtime": 1784115681.8116627,
-    "ast_hash": "c0a1d377f4e16c4475827c254abf6232",
+    "mtime": 1784117985.057191,
+    "ast_hash": "bee8306087ce3967a50cceaa7b04a1c9",
     "semantic_hash": ""
   },
   "app/(dashboard)/integrations/page.tsx": {
@@ -1335,18 +1335,18 @@
     "semantic_hash": ""
   },
   "components/instagram/automation-card.tsx": {
-    "mtime": 1783781668.3420322,
-    "ast_hash": "1c3fd0a34e7263a01ee8bac3239b5284",
+    "mtime": 1784118369.473232,
+    "ast_hash": "cd4be41c4aba340e1628b6846806bc30",
     "semantic_hash": ""
   },
   "components/instagram/automation-form.tsx": {
-    "mtime": 1784065510.9592626,
-    "ast_hash": "01243e07ef2ac4ea33247d779781f39d",
+    "mtime": 1784117985.063202,
+    "ast_hash": "80512ec019902eddb09bd5a08a3e4d21",
     "semantic_hash": ""
   },
   "components/instagram/automation-manager.tsx": {
-    "mtime": 1783987299.0,
-    "ast_hash": "f0a2d1e20fcb2508a4c51832741cb936",
+    "mtime": 1784118369.4672196,
+    "ast_hash": "2f0ba0a864e3a768c4791f9680673b25",
     "semantic_hash": ""
   },
   "components/instagram/iphone-preview.tsx": {
@@ -2732,6 +2732,16 @@
   "tests/contact-identity-lock.test.ts": {
     "mtime": 1784116316.2636182,
     "ast_hash": "fce4c5d3d68bffc6b4910c40ab78d751",
+    "semantic_hash": ""
+  },
+  "app/(dashboard)/instagram/[automationId]/edit/page.tsx": {
+    "mtime": 1784117966.6165378,
+    "ast_hash": "123bdc7a2593ee4bab6753949526dd01",
+    "semantic_hash": ""
+  },
+  "app/(dashboard)/instagram/new/page.tsx": {
+    "mtime": 1784117966.6155398,
+    "ast_hash": "5708a1495ec99040ace6d34f1c907c99",
     "semantic_hash": ""
   }
 }

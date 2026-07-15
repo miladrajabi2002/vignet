@@ -1,9 +1,7 @@
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
-import { Camera } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { PageHeader } from '@/components/dashboard/page-header'
 import AgentInstagramPage from '@/app/(dashboard)/agents/[agentId]/instagram/page'
 
 /**
@@ -20,14 +18,7 @@ export default async function InstagramWorkspacePage() {
   })
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <PageHeader
-        icon={Camera}
-        title={locale === 'fa' ? 'اینستاگرام' : 'Instagram'}
-        subtitle={locale === 'fa'
-          ? 'اتصال حساب، اتوماسیون‌های رایگان و پاسخ‌گویی هوشمند را از اینجا مدیریت کنید.'
-          : 'Manage account connection, free automations and AI replies here.'}
-      />
+    <div className="mx-auto max-w-6xl">
       {agent ? (
         <AgentInstagramPage params={Promise.resolve({ agentId: agent.id })} />
       ) : (
