@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
-  AlertTriangle,
   MessagesSquare,
   Bot,
   FileText,
@@ -15,7 +14,6 @@ import {
   BarChart3,
   Settings2,
   ServerCog,
-  Send,
   Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -31,17 +29,15 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'داشبورد', icon: LayoutDashboard, exact: true },
   { href: '/admin/vigento', label: 'ویجنتو', icon: Sparkles },
-  { href: '/admin/system', label: 'سلامت زیرساخت', icon: ServerCog },
+  { href: '/admin/system', label: 'سلامت و خطاها', icon: ServerCog },
   { href: '/admin/users', label: 'کاربر ها', icon: Users },
   { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
   { href: '/admin/agents', label: 'ایجنت‌ها', icon: Bot },
-  { href: '/admin/notifications', label: 'ارسال پیام', icon: Send },
   { href: '/admin/revenue', label: 'درآمد و سود', icon: TrendingUp },
   { href: '/admin/payments', label: 'پرداخت‌ها و فاکتورها', icon: CreditCard },
   { href: '/admin/usage', label: 'مصرف و هزینه AI', icon: BarChart3 },
   { href: '/admin/ai', label: 'مدل‌ها و سیاست AI', icon: BrainCircuit },
   { href: '/admin/settings', label: 'تعرفه و پلن‌ها', icon: Settings2 },
-  { href: '/admin/errors', label: 'خطاها', icon: AlertTriangle },
   { href: '/admin/blog', label: 'مدیریت بلاگ', icon: FileText },
 ]
 

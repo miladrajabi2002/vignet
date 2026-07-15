@@ -33,7 +33,7 @@ export function fa(n: number | bigint | null | undefined): string {
 /** Format a Rial amount as Persian Toman with separator (Toman = Rial / 10). */
 export function fmtIRR(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return '—'
-  return `${(amount / 10).toLocaleString('fa-IR')} تومان`
+  return `${Math.round(amount / 10).toLocaleString('fa-IR', { maximumFractionDigits: 0 })} تومان`
 }
 
 /** Format USD amount. */

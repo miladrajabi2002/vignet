@@ -71,7 +71,7 @@ export default async function AdminRevenuePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="درآمد و گزارش‌ها"
+        title="درآمد و سود"
         subtitle="تحلیل مالی پلتفرم، MRR و رشد"
         breadcrumbs={[
           { label: 'داشبورد', href: '/admin' },
@@ -180,7 +180,7 @@ export default async function AdminRevenuePage() {
       {/* Bottom row — top workspaces (with sparkline) + plan revenue table */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="پردرآمدترین کسب‌وکارها" subtitle="روند پرداخت ۷ روز اخیر">
-          <TableShell>
+          <TableShell minWidth={0}>
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
                 <Th>کسب‌وکار</Th>
@@ -194,7 +194,7 @@ export default async function AdminRevenuePage() {
                 const spark = paySparks.get(w.id)
                 return (
                   <tr key={w.id} className="hover:bg-zinc-50/60">
-                    <Td className="font-medium text-zinc-900">{w.name}</Td>
+                    <Td className="max-w-32 truncate font-medium text-zinc-900">{w.name}</Td>
                     <Td>
                       <PlanBadge plan={w.plan} />
                     </Td>
@@ -203,8 +203,8 @@ export default async function AdminRevenuePage() {
                       <div className="flex items-center gap-2">
                         <Sparkline
                           data={spark?.series ?? []}
-                          color="#22c55e"
-                          width={72}
+                          color="#18181b"
+                          width={58}
                           height={24}
                         />
                         <span className="text-[11px] tabular-nums text-zinc-500">

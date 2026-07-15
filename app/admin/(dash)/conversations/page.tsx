@@ -60,7 +60,15 @@ export default async function AdminConversationsPage(
           lastMessageAt: true,
           createdAt: true,
           agent: { select: { name: true } },
-          workspace: { select: { name: true } },
+          workspace: {
+            select: {
+              users: {
+                orderBy: { createdAt: 'asc' },
+                take: 1,
+                select: { id: true, name: true, phone: true },
+              },
+            },
+          },
           contact: { select: { name: true, phone: true } },
         },
       }),
@@ -113,7 +121,7 @@ export default async function AdminConversationsPage(
         <TableShell>
           <thead className="border-b border-zinc-200 bg-zinc-50/60">
             <tr>
-              <Th>کسب‌وکار</Th>
+              <Th>کاربر</Th>
               <Th>ایجنت</Th>
               <Th>مخاطب</Th>
               <Th>کانال</Th>
@@ -125,13 +133,22 @@ export default async function AdminConversationsPage(
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {items.map((c) => {
+              const user = c.workspace.users[0]
               const status = STATUS_META[c.status] ?? {
                 label: c.status,
                 tone: 'default' as const,
               }
               return (
                 <tr key={c.id} className="transition-colors hover:bg-zinc-50/60">
-                  <Td className="font-medium text-zinc-900">{c.workspace.name}</Td>
+                  <Td>
+                    {user ? (
+                      <Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-900 hover:underline">
+                        {user.name || user.phone}
+                      </Link>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
+                  </Td>
                   <Td>{c.agent.name}</Td>
                   <Td className="text-zinc-600">
                     {c.contact?.name || c.contact?.phone || '—'}

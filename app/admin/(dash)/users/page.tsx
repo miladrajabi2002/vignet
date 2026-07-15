@@ -18,6 +18,7 @@ import {
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
 import { toEnglishDigits } from '@/lib/phone'
+import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,7 +87,7 @@ export default async function AdminUsersPage(
   }
 
   const stalledSince = new Date(Date.now() - 48 * 60 * 60 * 1000)
-  const [totalCount, todayCount, workspaceCount, paidWorkspaces, stalledWorkspaces, rows] =
+  const [totalCount, todayCount, workspaceCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers] =
     await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: startOfToday() } } }),
@@ -110,6 +111,16 @@ export default async function AdminUsersPage(
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE + 1,
+      }),
+      prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          workspace: { select: { name: true, plan: true } },
+        },
       }),
     ])
 
@@ -152,6 +163,17 @@ export default async function AdminUsersPage(
           { label: 'داشبورد', href: '/admin' },
           { label: 'کاربران' },
         ]}
+        action={
+          <AdminBroadcastDialog
+            users={messageUsers.map((user) => ({
+              id: user.id,
+              name: user.name || 'بدون نام',
+              phone: displayPhone(user.phone),
+              workspace: user.workspace.name,
+              plan: user.workspace.plan,
+            }))}
+          />
+        }
       />
 
       <div className="flex flex-col gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
@@ -244,20 +266,18 @@ export default async function AdminUsersPage(
                   </Td>
                   <Td>
                     {ws ? (
-                      <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Link
                           href={`/admin/workspaces/${ws.id}`}
                           className="text-zinc-700 hover:text-zinc-900 hover:underline"
                         >
                           {ws.name}
                         </Link>
-                        <div>
-                          <Badge
-                            tone={ws.onboardingCompleted ? 'success' : (ws.createdAt < stalledSince ? 'warning' : 'info')}
-                          >
-                            {ws.onboardingCompleted ? 'فعال‌شده' : (ws.createdAt < stalledSince ? 'متوقف در راه‌اندازی' : 'در حال راه‌اندازی')}
-                          </Badge>
-                        </div>
+                        <Badge
+                          tone={ws.onboardingCompleted ? 'success' : (ws.createdAt < stalledSince ? 'warning' : 'info')}
+                        >
+                          {ws.onboardingCompleted ? 'فعال‌شده' : (ws.createdAt < stalledSince ? 'متوقف در راه‌اندازی' : 'در حال راه‌اندازی')}
+                        </Badge>
                       </div>
                     ) : (
                       <span className="text-zinc-400">نیست</span>

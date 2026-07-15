@@ -104,7 +104,17 @@ export default async function AdminPaymentsPage(
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE + 1,
-      include: { workspace: { select: { id: true, name: true } } },
+      include: {
+        workspace: {
+          select: {
+            users: {
+              orderBy: { createdAt: 'asc' },
+              take: 1,
+              select: { id: true, name: true, phone: true },
+            },
+          },
+        },
+      },
     }),
     getRevenueKPIs(),
   ])
@@ -200,7 +210,7 @@ export default async function AdminPaymentsPage(
         <TableShell>
           <thead className="border-b border-zinc-200 bg-zinc-50/50">
             <tr>
-              <Th>کسب‌وکار</Th>
+              <Th>کاربر</Th>
               <Th>پلن</Th>
               <Th>درگاه</Th>
               <Th>مبلغ</Th>
@@ -211,15 +221,18 @@ export default async function AdminPaymentsPage(
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {items.map((p) => (
+            {items.map((p) => {
+              const user = p.workspace.users[0]
+              return (
               <tr key={p.id} className="hover:bg-zinc-50/60">
                 <Td>
-                  <Link
-                    href={`/admin/workspaces/${p.workspace.id}`}
-                    className="font-medium text-zinc-900 hover:underline"
-                  >
-                    {p.workspace.name}
-                  </Link>
+                  {user ? (
+                    <Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-900 hover:underline">
+                      {user.name || user.phone}
+                    </Link>
+                  ) : (
+                    <span className="text-zinc-400">—</span>
+                  )}
                 </Td>
                 <Td>
                   <PlanBadge plan={p.plan} kind={p.kind} />
@@ -244,7 +257,8 @@ export default async function AdminPaymentsPage(
                   </Link>
                 </Td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </TableShell>
       )}

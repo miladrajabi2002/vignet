@@ -106,7 +106,7 @@ export function VigentoAdminConsole({ className }: { className?: string }) {
   }
 
   return (
-    <section aria-labelledby="vigento-admin-title" className={cn('admin-vigento-shell relative flex min-h-[700px] flex-col overflow-hidden rounded-[1.75rem] border border-black bg-black text-white shadow-[0_32px_90px_-44px_rgba(0,0,0,.92)]', className)}>
+    <section aria-labelledby="vigento-admin-title" className={cn('admin-vigento-shell relative flex min-h-[980px] flex-col overflow-hidden rounded-[1.75rem] border border-black bg-black text-white shadow-[0_32px_90px_-44px_rgba(0,0,0,.92)]', className)}>
       <div className="admin-vigento-grid pointer-events-none absolute inset-0 opacity-45" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-[12%] top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden="true" />
 
@@ -133,9 +133,10 @@ export function VigentoAdminConsole({ className }: { className?: string }) {
         </div>
       </header>
 
-      <div className="relative grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(22rem,.82fr)_minmax(32rem,1.18fr)]">
-        <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden border-b border-white/[0.08] p-5 lg:border-b-0 lg:border-l">
-          <svg viewBox="0 0 400 200" className="h-full max-h-[250px] w-full" role="img" aria-label="اتصال ویجنتو به بخش‌های مختلف پلتفرم">
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div className="relative flex min-h-[300px] items-center justify-center overflow-hidden border-b border-white/[0.08] px-5 pb-9 pt-4 sm:min-h-[340px]">
+          <div className="pointer-events-none absolute inset-x-[18%] top-1/2 h-24 -translate-y-1/2 rounded-full bg-white/[0.035] blur-3xl" aria-hidden="true" />
+          <svg viewBox="0 0 400 200" className="relative h-full max-h-[290px] w-full max-w-4xl" role="img" aria-label="اتصال ویجنتو به بخش‌های مختلف پلتفرم">
             <defs>
               <filter id="vigento-core-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             </defs>
@@ -161,7 +162,7 @@ export function VigentoAdminConsole({ className }: { className?: string }) {
           <p className="absolute bottom-4 inset-x-5 text-center text-[10px] leading-5 text-white/35">ویجنتو به داده‌های زنده پلتفرم متصل است؛ تغییرات حساس همیشه نیازمند تأیید شما هستند.</p>
         </div>
 
-        <div className="flex min-h-[520px] flex-col overflow-hidden p-4 sm:p-5 lg:min-h-0">
+        <div className="flex min-h-[640px] flex-1 flex-col overflow-hidden p-4 sm:min-h-[680px] sm:p-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div><p className="text-sm font-bold">گفتگو با ویجنتو</p><p className="mt-0.5 text-[10px] text-white/40">پرسش، تحلیل و عملیات مدیریتی</p></div>
             <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-white/45">فقط مالک</span>

@@ -161,7 +161,7 @@ export default async function AdminOverviewPage(
   ])
 
   const attentionItems = [
-    errors24h > 0 ? { label: `${fa(errors24h)} خطای جدید در ۲۴ ساعت`, detail: 'منبع‌های پرتکرار را بررسی و اولویت‌بندی کنید.', href: '/admin/errors', tone: 'danger' as const } : null,
+    errors24h > 0 ? { label: `${fa(errors24h)} خطای جدید در ۲۴ ساعت`, detail: 'منبع‌های پرتکرار را بررسی و اولویت‌بندی کنید.', href: '/admin/system#errors', tone: 'danger' as const } : null,
     activeHandoffs > 0 ? { label: `${fa(activeHandoffs)} گفتگوی تحویل‌شده به اپراتور`, detail: 'پرونده‌های باز منتظر تصمیم انسانی هستند.', href: '/admin/conversations?status=HANDED_OFF', tone: 'warning' as const } : null,
     stalledWorkspaces > 0 ? { label: `${fa(stalledWorkspaces)} کسب‌وکار در راه‌اندازی متوقف شده`, detail: 'بیش از ۴۸ ساعت از ثبت‌نام گذشته و فعال‌سازی کامل نشده است.', href: '/admin/users', tone: 'warning' as const } : null,
     lowCreditWorkspaces > 0 ? { label: `${fa(lowCreditWorkspaces)} کسب‌وکار با اعتبار AI پایین`, detail: 'موجودی کمتر از ۲ هزار تومان است؛ ریسک توقف پاسخ وجود دارد.', href: '/admin/workspaces', tone: 'warning' as const } : null,

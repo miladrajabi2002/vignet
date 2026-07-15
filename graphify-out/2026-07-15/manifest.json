@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/admin-nav.tsx": {
-    "mtime": 1784112646.8248706,
-    "ast_hash": "a942f2f49b0988958db77ce6efe7583e",
+    "mtime": 1784111020.08555,
+    "ast_hash": "0d22390b7cd4d3e6a84e7d7d9ce17e78",
     "semantic_hash": ""
   },
   "app/admin/(dash)/agents/[agentId]/page.tsx": {
@@ -290,13 +290,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/conversations/page.tsx": {
-    "mtime": 1784112646.8268833,
-    "ast_hash": "6c29a55f0197196eaaf06470ab78ebfb",
+    "mtime": 1784079461.491376,
+    "ast_hash": "c68b1f84f129a367be5dd301e3ba1292",
     "semantic_hash": ""
   },
   "app/admin/(dash)/errors/page.tsx": {
-    "mtime": 1784112826.71832,
-    "ast_hash": "8d26cb346f553c48c883a92c3fa839af",
+    "mtime": 1784110987.47794,
+    "ast_hash": "0f53a33751bc6a3a6b21e11706de12f5",
     "semantic_hash": ""
   },
   "app/admin/(dash)/layout.tsx": {
@@ -310,13 +310,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/notifications/page.tsx": {
-    "mtime": 1784112706.5067747,
-    "ast_hash": "67d208f4622085594d68769eb078444e",
+    "mtime": 1784079171.0460546,
+    "ast_hash": "415c2517f6a63007daf5b7f5ea0b0ce0",
     "semantic_hash": ""
   },
   "app/admin/(dash)/page.tsx": {
-    "mtime": 1784112646.82887,
-    "ast_hash": "7896cae7956ec17e9ffd9a5de5626a96",
+    "mtime": 1784110687.343092,
+    "ast_hash": "b9b01ed0570739a88101add382f05b83",
     "semantic_hash": ""
   },
   "app/admin/(dash)/payments/[paymentId]/page.tsx": {
@@ -325,13 +325,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/payments/page.tsx": {
-    "mtime": 1784112646.8278697,
-    "ast_hash": "c4427280e894107b04c555e6b5f592d7",
+    "mtime": 1783729237.5986063,
+    "ast_hash": "3f496771776d10dc299300c673f9b8c4",
     "semantic_hash": ""
   },
   "app/admin/(dash)/revenue/page.tsx": {
-    "mtime": 1784112646.825872,
-    "ast_hash": "ce49aa249cddfd0ac47c7e5a6a955a17",
+    "mtime": 1784075218.8120399,
+    "ast_hash": "479c950fe4f8286ed0795f0c44d4726a",
     "semantic_hash": ""
   },
   "app/admin/(dash)/settings/page.tsx": {
@@ -340,13 +340,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/system/page.tsx": {
-    "mtime": 1784112826.7153177,
-    "ast_hash": "d03aec5808caa25b21ec0c7d48c7561e",
+    "mtime": 1784111020.0875504,
+    "ast_hash": "8a8fdb628951432119d8e01ba1b8b1c5",
     "semantic_hash": ""
   },
   "app/admin/(dash)/ui.tsx": {
-    "mtime": 1784112646.8238735,
-    "ast_hash": "f15bf495d6d0ef162045eb3f59b395de",
+    "mtime": 1784110687.3450887,
+    "ast_hash": "14d1c5cef0b99c37b1c75fad9afea57e",
     "semantic_hash": ""
   },
   "app/admin/(dash)/usage/page.tsx": {
@@ -360,13 +360,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/page.tsx": {
-    "mtime": 1784112706.505777,
-    "ast_hash": "9f0630dad83c935e2ef704a1492d474c",
+    "mtime": 1784111020.08655,
+    "ast_hash": "8b3e1cd021385447e6039fe48c7a3a0c",
     "semantic_hash": ""
   },
   "app/admin/(dash)/vigento/page.tsx": {
-    "mtime": 1784112722.4827788,
-    "ast_hash": "2834bfdde5132d721d67316a9bbbe0c4",
+    "mtime": 1784110729.578977,
+    "ast_hash": "27b0c606f76549b2cb64695432b9e051",
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/[workspaceId]/page.tsx": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "components/admin/admin-broadcast-form.tsx": {
-    "mtime": 1784112706.5037725,
-    "ast_hash": "5d56155d0a0d8ae7992b82e33c338a04",
+    "mtime": 1784079261.5469937,
+    "ast_hash": "389abd4068d1cbd13d3dc177476a0600",
     "semantic_hash": ""
   },
   "components/admin/ai-model-policy-form.tsx": {
@@ -1000,8 +1000,8 @@
     "semantic_hash": ""
   },
   "components/admin/vigento-admin-console.tsx": {
-    "mtime": 1784112722.480782,
-    "ast_hash": "fdb9d509ebd5c07dd81920e2921587b6",
+    "mtime": 1784110729.5739763,
+    "ast_hash": "5d9935168aba2cf7cad8cf2802fe91f0",
     "semantic_hash": ""
   },
   "components/agent-builder/agent-builder-entry.tsx": {
@@ -2717,11 +2717,6 @@
   "public/logo.svg": {
     "mtime": 1783716950.312445,
     "ast_hash": "f6b749ee2e84dbff54ab0ee9fccafb01",
-    "semantic_hash": ""
-  },
-  "components/admin/system-errors-panel.tsx": {
-    "mtime": 1784112815.7505825,
-    "ast_hash": "4e9a03d7197d668b98faafbae5bb8167",
     "semantic_hash": ""
   }
 }

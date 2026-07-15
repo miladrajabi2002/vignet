@@ -1,9 +1,60 @@
 'use client'
 
-import { useState } from 'react'
-import { Bell, CheckCircle2, Send, Smartphone } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bell, CheckCircle2, Send, Smartphone, X } from 'lucide-react'
 
 type UserOption = { id: string; name: string; phone: string; workspace: string; plan: string }
+
+export function AdminBroadcastDialog({ users }: { users: UserOption[] }) {
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-[opacity,transform] hover:opacity-85 active:scale-[.97]"
+      >
+        <Send className="h-4 w-4" />
+        ارسال پیام
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false)
+          }}
+        >
+          <div role="dialog" aria-modal="true" aria-label="ارسال پیام به کاربران" className="relative max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-[1.75rem] bg-white p-2 shadow-[0_32px_100px_-34px_rgba(0,0,0,.65)]">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-[1.35rem] bg-white/90 px-3 py-2 backdrop-blur-xl">
+              <div>
+                <h2 className="text-sm font-bold text-zinc-950">ارسال پیام</h2>
+                <p className="mt-0.5 text-[10px] text-zinc-400">ارسال تکی یا گروهی اعلان و پیامک</p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} aria-label="بستن" className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <AdminBroadcastForm users={users} />
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 export function AdminBroadcastForm({ users }: { users: UserOption[] }) {
   const [mode, setMode] = useState<'single' | 'bulk'>('single')

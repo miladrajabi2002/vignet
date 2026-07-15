@@ -20,6 +20,8 @@ export default async function AdminVigentoPage() {
         icon={Sparkles}
       />
 
+      <VigentoAdminConsole />
+
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="عملیات ۳۰ روز" value={fa(report.total)} sub={`${fa(report.succeeded)} اجرای موفق`} icon={<Activity className="h-5 w-5" />} />
         <StatCard label="نرخ موفقیت" value={`${fa(successRate)}٪`} sub={`${fa(report.failed)} اجرای ناموفق`} icon={<CheckCircle2 className="h-5 w-5" />} />
@@ -27,7 +29,6 @@ export default async function AdminVigentoPage() {
         <StatCard label="بازخورد مفید" value={`${fa(helpfulRate)}٪`} sub={`میانگین پاسخ ${fa(report.averageDurationMs)} میلی‌ثانیه`} icon={<Clock3 className="h-5 w-5" />} />
       </div>
 
-      <VigentoAdminConsole className="min-h-[calc(100dvh-15rem)]" />
     </div>
   )
 }
