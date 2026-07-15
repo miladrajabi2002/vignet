@@ -483,8 +483,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_dashboard_agents_page",
-      "community": 86,
-      "community_name": "page.tsx",
+      "community": 16,
+      "community_name": "session.ts",
       "norm_label": "page.tsx"
     },
     {
@@ -494,8 +494,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "app_dashboard_agents_page_agentspage",
-      "community": 86,
-      "community_name": "page.tsx",
+      "community": 16,
+      "community_name": "session.ts",
       "norm_label": "agentspage()"
     },
     {
@@ -505,8 +505,8 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "app_dashboard_agents_page_agent_hint_title",
-      "community": 86,
-      "community_name": "page.tsx",
+      "community": 16,
+      "community_name": "session.ts",
       "norm_label": "agent_hint_title()"
     },
     {
@@ -516,8 +516,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "app_dashboard_agents_page_agent_hint_body",
-      "community": 86,
-      "community_name": "page.tsx",
+      "community": 16,
+      "community_name": "session.ts",
       "norm_label": "agent_hint_body()"
     },
     {
@@ -2816,7 +2816,7 @@
       "_origin": "ast",
       "id": "app_admin_dash_ui_progress",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "progress()"
     },
     {
@@ -2893,7 +2893,7 @@
       "_origin": "ast",
       "id": "app_admin_dash_usage_page",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "page.tsx"
     },
     {
@@ -2904,7 +2904,7 @@
       "_origin": "ast",
       "id": "app_admin_dash_usage_page_type_label",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "type_label"
     },
     {
@@ -2915,7 +2915,7 @@
       "_origin": "ast",
       "id": "app_admin_dash_usage_page_parserange",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "parserange()"
     },
     {
@@ -2926,7 +2926,7 @@
       "_origin": "ast",
       "id": "app_admin_dash_usage_page_adminusagepage",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "adminusagepage()"
     },
     {
@@ -3640,8 +3640,8 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "app_api_admin_health_route_storagehealth",
-      "community": 31,
-      "community_name": "route.ts",
+      "community": 82,
+      "community_name": "page.tsx",
       "norm_label": "storagehealth()"
     },
     {
@@ -5015,8 +5015,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_agents_agentid_knowledge_route",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "route.ts"
     },
     {
@@ -5026,8 +5026,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_api_agents_agentid_knowledge_route_params",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "params"
     },
     {
@@ -5037,8 +5037,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "app_api_agents_agentid_knowledge_route_ownagent",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "ownagent()"
     },
     {
@@ -5048,8 +5048,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_api_agents_agentid_knowledge_route_get",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "get()"
     },
     {
@@ -5059,8 +5059,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "app_api_agents_agentid_knowledge_route_post",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "post()"
     },
     {
@@ -6390,8 +6390,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_route",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "route.ts"
     },
     {
@@ -6401,8 +6401,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_route_params",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "params"
     },
     {
@@ -6412,8 +6412,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_route_updateschema",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "updateschema"
     },
     {
@@ -6423,8 +6423,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_route_patch",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "patch()"
     },
     {
@@ -6434,8 +6434,8 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_route_delete",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "delete()"
     },
     {
@@ -8609,7 +8609,7 @@
       "label": "UserOption",
       "file_type": "code",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L6",
+      "source_location": "L7",
       "_origin": "ast",
       "id": "components_admin_admin_broadcast_form_useroption",
       "community": 38,
@@ -8620,7 +8620,7 @@
       "label": "AdminBroadcastDialog()",
       "file_type": "code",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L8",
+      "source_location": "L9",
       "_origin": "ast",
       "id": "components_admin_admin_broadcast_form_adminbroadcastdialog",
       "community": 38,
@@ -8631,7 +8631,7 @@
       "label": "AdminBroadcastForm()",
       "file_type": "code",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L59",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "components_admin_admin_broadcast_form_adminbroadcastform",
       "community": 38,
@@ -8844,7 +8844,7 @@
       "_origin": "ast",
       "id": "components_admin_range_switch",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "range-switch.tsx"
     },
     {
@@ -8855,7 +8855,7 @@
       "_origin": "ast",
       "id": "components_admin_range_switch_rangekind",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "rangekind"
     },
     {
@@ -8866,7 +8866,7 @@
       "_origin": "ast",
       "id": "components_admin_range_switch_options",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "options"
     },
     {
@@ -8877,7 +8877,7 @@
       "_origin": "ast",
       "id": "components_admin_range_switch_rangeswitch",
       "community": 111,
-      "community_name": "route.ts",
+      "community_name": "page.tsx",
       "norm_label": "rangeswitch()"
     },
     {
@@ -9448,8 +9448,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "vigento-admin-console.tsx"
     },
     {
@@ -9459,8 +9459,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_message",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "message"
     },
     {
@@ -9470,8 +9470,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_proposal",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "proposal"
     },
     {
@@ -9481,8 +9481,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_quick_prompts",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "quick_prompts"
     },
     {
@@ -9492,8 +9492,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_nodes",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "nodes"
     },
     {
@@ -9503,8 +9503,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_core",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "core"
     },
     {
@@ -9514,8 +9514,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "components_admin_vigento_admin_console_vigentoadminconsole",
-      "community": 1,
-      "community_name": "cn",
+      "community": 146,
+      "community_name": "vigento-admin-console.tsx",
       "norm_label": "vigentoadminconsole()"
     },
     {
@@ -15850,8 +15850,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_products_catalog_assign",
-      "community": 16,
-      "community_name": "session.ts",
+      "community": 1,
+      "community_name": "cn",
       "norm_label": "catalog-assign.tsx"
     },
     {
@@ -15861,8 +15861,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "components_products_catalog_assign_assignableproduct",
-      "community": 16,
-      "community_name": "session.ts",
+      "community": 1,
+      "community_name": "cn",
       "norm_label": "assignableproduct"
     },
     {
@@ -15872,8 +15872,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "components_products_catalog_assign_catalogassign",
-      "community": 16,
-      "community_name": "session.ts",
+      "community": 1,
+      "community_name": "cn",
       "norm_label": "catalogassign()"
     },
     {
@@ -23109,8 +23109,8 @@
       "source_location": "L217",
       "_origin": "ast",
       "id": "lib_dashboard_charts_conversationsdailybyagent",
-      "community": 86,
-      "community_name": "page.tsx",
+      "community": 16,
+      "community_name": "session.ts",
       "norm_label": "conversationsdailybyagent()"
     },
     {
@@ -23736,8 +23736,8 @@
       "source_location": "L1171",
       "_origin": "ast",
       "id": "lib_instagram_automation_resumeaiforconversation",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "resumeaiforconversation()"
     },
     {
@@ -24506,8 +24506,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "lib_integrations_woocommerce_storeintegrationinput",
-      "community": 80,
-      "community_name": "scheduler.ts",
+      "community": 27,
+      "community_name": "woocommerce.ts",
       "norm_label": "storeintegrationinput"
     },
     {
@@ -25837,8 +25837,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "lib_queue_jobs_dispatchsummary",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "dispatchsummary()"
     },
     {
@@ -25980,8 +25980,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_redis",
-      "community": 100,
-      "community_name": "catalog.ts",
+      "community": 80,
+      "community_name": "scheduler.ts",
       "norm_label": "redis.ts"
     },
     {
@@ -25991,8 +25991,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "lib_redis_globalforredis",
-      "community": 100,
-      "community_name": "catalog.ts",
+      "community": 80,
+      "community_name": "scheduler.ts",
       "norm_label": "globalforredis"
     },
     {
@@ -26002,8 +26002,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "lib_redis_getredis",
-      "community": 100,
-      "community_name": "catalog.ts",
+      "community": 80,
+      "community_name": "scheduler.ts",
       "norm_label": "getredis()"
     },
     {
@@ -26497,8 +26497,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_storage",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "storage.ts"
     },
     {
@@ -26508,8 +26508,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "lib_storage_getclient",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "getclient()"
     },
     {
@@ -26519,8 +26519,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "lib_storage_buckets",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "buckets"
     },
     {
@@ -26530,8 +26530,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "lib_storage_uploadfile",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "uploadfile()"
     },
     {
@@ -26541,8 +26541,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "lib_storage_downloadfile",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "downloadfile()"
     },
     {
@@ -26552,8 +26552,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "lib_storage_signedurl",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "signedurl()"
     },
     {
@@ -26563,8 +26563,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "lib_storage_isstorageconfigured",
-      "community": 79,
-      "community_name": "getEffectivePlanDefs",
+      "community": 91,
+      "community_name": "entitlements.ts",
       "norm_label": "isstorageconfigured()"
     },
     {
@@ -26618,8 +26618,8 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "lib_storage_s3_iss3configured",
-      "community": 31,
-      "community_name": "route.ts",
+      "community": 82,
+      "community_name": "page.tsx",
       "norm_label": "iss3configured()"
     },
     {
@@ -28906,8 +28906,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "package_dependencies_gsap_react",
-      "community": 146,
-      "community_name": "route.ts",
+      "community": 163,
+      "community_name": "next-intl",
       "norm_label": "@gsap/react"
     },
     {
@@ -28917,8 +28917,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "gsap_react",
-      "community": 146,
-      "community_name": "route.ts",
+      "community": 163,
+      "community_name": "next-intl",
       "norm_label": "@gsap/react"
     },
     {
@@ -29016,8 +29016,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "package_dependencies_axios",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 79,
+      "community_name": "getEffectivePlanDefs",
       "norm_label": "axios"
     },
     {
@@ -29027,8 +29027,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "axios",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 79,
+      "community_name": "getEffectivePlanDefs",
       "norm_label": "axios"
     },
     {
@@ -29258,8 +29258,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "package_dependencies_next_intl",
-      "community": 163,
-      "community_name": "next-intl",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "next-intl"
     },
     {
@@ -29269,8 +29269,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "next_intl",
-      "community": 163,
-      "community_name": "next-intl",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "next-intl"
     },
     {
@@ -30745,8 +30745,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_conversation_delete_route_test",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "conversation-delete-route.test.ts"
     },
     {
@@ -30756,8 +30756,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "tests_conversation_delete_route_test_mocks",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "mocks"
     },
     {
@@ -30767,8 +30767,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "tests_conversation_delete_route_test_props",
-      "community": 91,
-      "community_name": "entitlements.ts",
+      "community": 43,
+      "community_name": "jobs.ts",
       "norm_label": "props"
     },
     {
@@ -70379,7 +70379,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L8",
+      "source_location": "L9",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_admin_admin_broadcast_form",
@@ -70390,7 +70390,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L59",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_admin_admin_broadcast_form",
@@ -70401,7 +70401,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/admin/admin-broadcast-form.tsx",
-      "source_location": "L6",
+      "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_admin_admin_broadcast_form",
@@ -121225,5 +121225,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "caf11a04447d68411c9069c875bc3c5133e9bb3d"
+  "built_at_commit": "fbf8e7d4e1b8805ab520c97bd7fa8ff7e64fc13e"
 }

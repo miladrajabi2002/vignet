@@ -1,29 +1,65 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, CheckCircle2, Send, Smartphone, X } from 'lucide-react'
 
 type UserOption = { id: string; name: string; phone: string; workspace: string; plan: string }
 
 export function AdminBroadcastDialog({ users }: { users: UserOption[] }) {
   const [open, setOpen] = useState(false)
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setPortalRoot(document.body)
+  }, [])
 
   useEffect(() => {
     if (!open) return
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : triggerRef.current
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') {
+        setOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      )
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     document.body.style.overflow = 'hidden'
+    const focusFrame = requestAnimationFrame(() => closeRef.current?.focus())
     return () => {
+      cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
     }
   }, [open])
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-[opacity,transform] hover:opacity-85 active:scale-[.97]"
@@ -31,26 +67,28 @@ export function AdminBroadcastDialog({ users }: { users: UserOption[] }) {
         <Send className="h-4 w-4" />
         ارسال پیام
       </button>
-      {open && (
+      {open && portalRoot && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-6"
+          dir="rtl"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-3 backdrop-blur-md sm:p-6"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false)
           }}
         >
-          <div role="dialog" aria-modal="true" aria-label="ارسال پیام به کاربران" className="relative max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-[1.75rem] bg-white p-2 shadow-[0_32px_100px_-34px_rgba(0,0,0,.65)]">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="ارسال پیام به کاربران" className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overscroll-contain overflow-y-auto rounded-[1.75rem] bg-white p-2 shadow-[0_32px_100px_-34px_rgba(0,0,0,.65)] sm:max-h-[92dvh]">
             <div className="sticky top-0 z-10 flex items-center justify-between rounded-[1.35rem] bg-white/90 px-3 py-2 backdrop-blur-xl">
               <div>
                 <h2 className="text-sm font-bold text-zinc-950">ارسال پیام</h2>
                 <p className="mt-0.5 text-[10px] text-zinc-400">ارسال تکی یا گروهی اعلان و پیامک</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="بستن" className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200">
+              <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label="بستن" className="grid h-11 w-11 place-items-center rounded-xl bg-zinc-100 text-zinc-600 outline-none transition-colors hover:bg-zinc-200 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <AdminBroadcastForm users={users} />
           </div>
-        </div>
+        </div>,
+        portalRoot,
       )}
     </>
   )
