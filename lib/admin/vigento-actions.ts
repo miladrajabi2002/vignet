@@ -22,10 +22,66 @@ export type AdminActionPayload =
       expiresAt: number
       nonce: string
     }
+  | {
+      kind: 'UPDATE_WORKSPACE'
+      workspaceId: string
+      workspaceName: string
+      nextName?: string
+      nextPlan?: 'TRIAL' | 'STARTER' | 'PRO' | 'BUSINESS'
+      reason: string
+      expiresAt: number
+      nonce: string
+    }
+  | {
+      kind: 'SET_AGENT_ACTIVE'
+      agentId: string
+      workspaceId: string
+      label: string
+      active: boolean
+      reason: string
+      expiresAt: number
+      nonce: string
+    }
+  | {
+      kind: 'CREATE_WORKSPACE_MEMBER'
+      workspaceId: string
+      workspaceName: string
+      phone: string
+      name: string
+      role: 'ADMIN' | 'MEMBER'
+      reason: string
+      expiresAt: number
+      nonce: string
+    }
+  | {
+      kind: 'UPDATE_WORKSPACE_MEMBER'
+      userId: string
+      workspaceId: string
+      label: string
+      nextName?: string
+      nextRole?: 'ADMIN' | 'MEMBER'
+      reason: string
+      expiresAt: number
+      nonce: string
+    }
+  | {
+      kind: 'DELETE_WORKSPACE_MEMBER'
+      userId: string
+      workspaceId: string
+      label: string
+      reason: string
+      expiresAt: number
+      nonce: string
+    }
 
 type AdminActionInput =
   | Omit<Extract<AdminActionPayload, { kind: 'ADJUST_CREDIT' }>, 'expiresAt' | 'nonce'>
   | Omit<Extract<AdminActionPayload, { kind: 'RESOLVE_CONVERSATION' }>, 'expiresAt' | 'nonce'>
+  | Omit<Extract<AdminActionPayload, { kind: 'UPDATE_WORKSPACE' }>, 'expiresAt' | 'nonce'>
+  | Omit<Extract<AdminActionPayload, { kind: 'SET_AGENT_ACTIVE' }>, 'expiresAt' | 'nonce'>
+  | Omit<Extract<AdminActionPayload, { kind: 'CREATE_WORKSPACE_MEMBER' }>, 'expiresAt' | 'nonce'>
+  | Omit<Extract<AdminActionPayload, { kind: 'UPDATE_WORKSPACE_MEMBER' }>, 'expiresAt' | 'nonce'>
+  | Omit<Extract<AdminActionPayload, { kind: 'DELETE_WORKSPACE_MEMBER' }>, 'expiresAt' | 'nonce'>
 
 function secret(): string {
   const value = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
@@ -104,6 +160,72 @@ export async function executeAdminAction(token: string) {
         },
       })
       return { kind: payload.kind, workspaceName: workspace.name, balanceAfterIRR: nextBalance }
+    })
+  }
+
+  if (payload.kind === 'UPDATE_WORKSPACE') {
+    if (!payload.nextName && !payload.nextPlan) throw new Error('NO_WORKSPACE_CHANGE')
+    return prisma.$transaction(async (tx) => {
+      const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.workspaceId, payload: { path: ['nonce'], equals: payload.nonce } } })
+      if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
+      const workspace = await tx.workspace.findUnique({ where: { id: payload.workspaceId }, select: { name: true, plan: true } })
+      if (!workspace) throw new Error('WORKSPACE_NOT_FOUND')
+      const updated = await tx.workspace.update({ where: { id: payload.workspaceId }, data: { ...(payload.nextName ? { name: payload.nextName } : {}), ...(payload.nextPlan ? { plan: payload.nextPlan } : {}) }, select: { id: true, name: true, plan: true } })
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'Workspace', targetId: payload.workspaceId, payload: { before: workspace, after: updated, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, workspace: updated }
+    })
+  }
+
+  if (payload.kind === 'SET_AGENT_ACTIVE') {
+    return prisma.$transaction(async (tx) => {
+      const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.agentId, payload: { path: ['nonce'], equals: payload.nonce } } })
+      if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
+      const agent = await tx.agent.findFirst({ where: { id: payload.agentId, workspaceId: payload.workspaceId }, select: { id: true, name: true, active: true } })
+      if (!agent) throw new Error('AGENT_NOT_FOUND')
+      const updated = await tx.agent.update({ where: { id: agent.id }, data: { active: payload.active }, select: { id: true, name: true, active: true } })
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'Agent', targetId: payload.agentId, payload: { previousActive: agent.active, active: updated.active, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, agent: updated }
+    })
+  }
+
+  if (payload.kind === 'CREATE_WORKSPACE_MEMBER') {
+    return prisma.$transaction(async (tx) => {
+      const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.workspaceId, payload: { path: ['nonce'], equals: payload.nonce } } })
+      if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
+      const workspace = await tx.workspace.findUnique({ where: { id: payload.workspaceId }, select: { id: true, name: true } })
+      if (!workspace) throw new Error('WORKSPACE_NOT_FOUND')
+      const existing = await tx.user.findUnique({ where: { phone: payload.phone }, select: { id: true } })
+      if (existing) throw new Error('PHONE_ALREADY_EXISTS')
+      const user = await tx.user.create({ data: { workspaceId: payload.workspaceId, phone: payload.phone, name: payload.name, role: payload.role, platformRole: 'USER' }, select: { id: true, phone: true, name: true, role: true, platformRole: true } })
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { workspaceId: payload.workspaceId, phone: payload.phone, name: payload.name, role: payload.role, platformRole: 'USER', reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, user }
+    })
+  }
+
+  if (payload.kind === 'UPDATE_WORKSPACE_MEMBER') {
+    if (!payload.nextName && !payload.nextRole) throw new Error('NO_MEMBER_CHANGE')
+    return prisma.$transaction(async (tx) => {
+      const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.userId, payload: { path: ['nonce'], equals: payload.nonce } } })
+      if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
+      const user = await tx.user.findFirst({ where: { id: payload.userId, workspaceId: payload.workspaceId }, select: { id: true, name: true, phone: true, role: true, platformRole: true } })
+      if (!user) throw new Error('USER_NOT_FOUND')
+      if (user.platformRole === 'ADMIN' || user.role === 'OWNER') throw new Error('PROTECTED_USER')
+      const updated = await tx.user.update({ where: { id: user.id }, data: { ...(payload.nextName ? { name: payload.nextName } : {}), ...(payload.nextRole ? { role: payload.nextRole } : {}) }, select: { id: true, name: true, phone: true, role: true, platformRole: true } })
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { before: user, after: updated, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, user: updated }
+    })
+  }
+
+  if (payload.kind === 'DELETE_WORKSPACE_MEMBER') {
+    return prisma.$transaction(async (tx) => {
+      const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.userId, payload: { path: ['nonce'], equals: payload.nonce } } })
+      if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
+      const user = await tx.user.findFirst({ where: { id: payload.userId, workspaceId: payload.workspaceId }, select: { id: true, name: true, phone: true, role: true, platformRole: true } })
+      if (!user) throw new Error('USER_NOT_FOUND')
+      if (user.platformRole === 'ADMIN' || user.role === 'OWNER') throw new Error('PROTECTED_USER')
+      await tx.user.delete({ where: { id: user.id } })
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { deleted: user, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, label: payload.label }
     })
   }
 

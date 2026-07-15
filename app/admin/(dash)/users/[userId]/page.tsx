@@ -6,8 +6,15 @@ import {
   Activity,
   Settings,
   Mail,
+  Bot,
+  Cable,
+  Check,
+  Database,
+  Sparkles,
+  UserRoundCheck,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
@@ -112,7 +119,7 @@ export default async function AdminUserDetailPage(
   const ws = user.workspace
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [conversations, payments, usage, convSpark, paySpark] = await Promise.all([
+  const [conversations, payments, usage, convSpark, paySpark, journeySignals] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: 'desc' },
@@ -150,6 +157,15 @@ export default async function AdminUserDetailPage(
     }),
     conversationsDailyByWorkspace(7),
     paymentsDailyByWorkspace(7),
+    Promise.all([
+      prisma.agent.findFirst({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, createdAt: true, updatedAt: true, active: true } }),
+      prisma.knowledgeBase.findFirst({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, status: true, createdAt: true, updatedAt: true } }),
+      prisma.agentChannel.findFirst({ where: { agent: { workspaceId: user.workspaceId } }, orderBy: { createdAt: 'asc' }, select: { id: true, type: true, active: true, createdAt: true, lastInboundAt: true } }),
+      prisma.conversation.findFirst({ where: { workspaceId: user.workspaceId }, orderBy: { createdAt: 'asc' }, select: { id: true, createdAt: true, lastMessageAt: true } }),
+      prisma.payment.findFirst({ where: { workspaceId: user.workspaceId, status: 'PAID' }, orderBy: { paidAt: 'asc' }, select: { id: true, paidAt: true, createdAt: true, amount: true, currency: true } }),
+      prisma.usageLog.findFirst({ where: { workspaceId: user.workspaceId, status: 'CAPTURED' }, orderBy: { date: 'asc' }, select: { id: true, date: true, type: true, chargedIRR: true } }),
+      prisma.oTPLog.findFirst({ where: { phone: user.phone, verified: true }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } }),
+    ]).then(([agent, knowledge, channel, conversation, payment, firstUsage, lastLogin]) => ({ agent, knowledge, channel, conversation, payment, firstUsage, lastLogin })),
   ])
 
   const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
@@ -175,6 +191,30 @@ export default async function AdminUserDetailPage(
 
   const userName = user.name ?? user.phone
   const memberSince = fmtDay(user.createdAt)
+  const journeySteps = [
+    { label: 'ساخت حساب', detail: 'ثبت‌نام و ایجاد فضای کاری', done: true, at: user.createdAt, icon: UserRoundCheck },
+    { label: 'تکمیل راه‌اندازی', detail: ws.onboardingCompleted ? 'پروفایل کسب‌وکار تکمیل شده' : `متوقف در گام ${fa(ws.onboardingStep)} از ۴`, done: ws.onboardingCompleted, at: ws.onboardingCompleted ? ws.createdAt : null, icon: Check },
+    { label: 'ساخت ایجنت', detail: journeySignals.agent ? journeySignals.agent.name : 'هنوز ایجنتی ساخته نشده', done: Boolean(journeySignals.agent), at: journeySignals.agent?.createdAt ?? null, icon: Bot },
+    { label: 'آماده‌سازی دانش', detail: journeySignals.knowledge ? `${journeySignals.knowledge.name} · ${journeySignals.knowledge.status}` : 'منبع دانشی ثبت نشده', done: journeySignals.knowledge?.status === 'READY', at: journeySignals.knowledge?.createdAt ?? null, icon: Database },
+    { label: 'اتصال کانال', detail: journeySignals.channel ? `${CHANNEL_LABEL[journeySignals.channel.type] ?? journeySignals.channel.type}${journeySignals.channel.active ? ' · فعال' : ' · غیرفعال'}` : 'کانالی متصل نشده', done: Boolean(journeySignals.channel?.active), at: journeySignals.channel?.createdAt ?? null, icon: Cable },
+    { label: 'اولین گفتگو', detail: journeySignals.conversation ? 'ورود به فاز استفاده واقعی' : 'هنوز گفتگویی دریافت نشده', done: Boolean(journeySignals.conversation), at: journeySignals.conversation?.createdAt ?? null, icon: MessageSquare },
+    { label: 'مصرف موفق AI', detail: journeySignals.firstUsage ? `${fmtIRR(journeySignals.firstUsage.chargedIRR)} کسر اعتبار` : 'درخواست موفق ثبت نشده', done: Boolean(journeySignals.firstUsage), at: journeySignals.firstUsage?.date ?? null, icon: Sparkles },
+    { label: 'تبدیل به مشتری', detail: journeySignals.payment ? (journeySignals.payment.currency === 'IRR' ? fmtIRR(journeySignals.payment.amount) : fmtUSD(journeySignals.payment.amount)) : 'پرداخت موفق ثبت نشده', done: Boolean(journeySignals.payment), at: journeySignals.payment?.paidAt ?? journeySignals.payment?.createdAt ?? null, icon: CreditCard },
+  ]
+  const firstIncomplete = journeySteps.findIndex((step) => !step.done)
+  const completedSteps = journeySteps.filter((step) => step.done).length
+  const journeyProgress = Math.round((completedSteps / journeySteps.length) * 100)
+  const currentStage = firstIncomplete === -1 ? 'کاربر فعال و پرداختی' : journeySteps[firstIncomplete].label
+  const latestActivityAt = [
+    user.createdAt,
+    journeySignals.agent?.updatedAt,
+    journeySignals.knowledge?.updatedAt,
+    journeySignals.channel?.lastInboundAt,
+    journeySignals.conversation?.lastMessageAt,
+    journeySignals.payment?.paidAt,
+    journeySignals.firstUsage?.date,
+    journeySignals.lastLogin?.sentAt,
+  ].filter((value): value is Date => Boolean(value)).sort((a, b) => b.getTime() - a.getTime())[0]
 
   return (
     <div className="space-y-6">
@@ -195,6 +235,38 @@ export default async function AdminUserDetailPage(
           </Link>
         }
       />
+
+      <section className="admin-panel overflow-hidden rounded-[1.6rem]" aria-labelledby="user-journey-title">
+        <div className="grid lg:grid-cols-[.34fr_.66fr]">
+          <div className="border-b border-black/[0.06] bg-[#111214] p-5 text-white lg:border-b-0 lg:border-l sm:p-6">
+            <p className="text-[10px] font-bold tracking-wide text-emerald-300/75">USER JOURNEY</p>
+            <h2 id="user-journey-title" className="mt-2 text-xl font-black">گزارش مسیر کاربر</h2>
+            <p className="mt-2 text-xs leading-6 text-white/45">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
+            <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.055] p-4">
+              <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] text-white/40">مرحله فعلی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-black tabular-nums">{fa(journeyProgress)}٪</span></div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${journeyProgress}%` }} /></div>
+              <div className="mt-4 flex items-center justify-between text-[10px] text-white/38"><span>{fa(completedSteps)} از {fa(journeySteps.length)} مرحله</span><span>{latestActivityAt ? `آخرین فعالیت ${fmtDate(latestActivityAt)}` : 'بدون فعالیت'}</span></div>
+            </div>
+            {firstIncomplete !== -1 && (
+              <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] p-3.5">
+                <p className="text-[10px] font-bold text-amber-200">احتمال گیرکردن کاربر</p>
+                <p className="mt-1 text-xs leading-5 text-white/60">مرحله «{journeySteps[firstIncomplete].label}» هنوز کامل نشده: {journeySteps[firstIncomplete].detail}</p>
+              </div>
+            )}
+          </div>
+          <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4">
+            {journeySteps.map((step, index) => {
+              const Icon = step.icon
+              return (
+                <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-[1.15rem] border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === firstIncomplete ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
+                  <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === firstIncomplete ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
+                  <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === firstIncomplete && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">مرحله فعلی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 font-mono text-[9px] text-black/30">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* ─── 7-day activity trend charts ─── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

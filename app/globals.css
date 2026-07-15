@@ -266,8 +266,25 @@
                 --admin-surface: rgba(255, 255, 255, 0.96);
                 font-family: var(--font-fa), system-ui, sans-serif;
                 background-image:
-                        radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.95), transparent 28rem),
-                        linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%);
+                        radial-gradient(circle at 88% -5%, rgba(255, 255, 255, 0.98), transparent 30rem),
+                        radial-gradient(circle at 4% 12%, rgba(17, 17, 17, 0.035), transparent 25rem),
+                        linear-gradient(180deg, #f4f4f2 0%, var(--bg-base) 32rem);
+        }
+
+        .admin-command-rail {
+                background-image:
+                        radial-gradient(circle at 18% -5%, rgba(52, 211, 153, 0.12), transparent 15rem),
+                        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+                background-size: auto, 30px 30px, 30px 30px;
+        }
+
+        .admin-attention-stage {
+                background-image:
+                        radial-gradient(circle at 8% 0%, rgba(52, 211, 153, 0.1), transparent 22rem),
+                        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+                background-size: auto, 34px 34px, 34px 34px;
         }
 
         .admin-panel {
@@ -372,6 +389,25 @@
 
         .admin-vigento-messages { scrollbar-width: thin; }
 
+        .admin-command-backdrop {
+                animation: admin-command-fade 160ms ease-out both;
+        }
+
+        .admin-command-sheet {
+                transform-origin: bottom left;
+                animation: admin-command-enter 220ms var(--ease-spatial) both;
+        }
+
+        @keyframes admin-command-fade {
+                from { opacity: 0; }
+                to { opacity: 1; }
+        }
+
+        @keyframes admin-command-enter {
+                from { opacity: 0; transform: translate3d(0, .6rem, 0) scale(.985); }
+                to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+
         @keyframes admin-node-arrive {
                 from { opacity: 0; transform: translateY(6px) scale(0.97); }
                 to { opacity: 1; transform: translateY(0) scale(1); }
@@ -380,10 +416,22 @@
         @media (prefers-reduced-motion: reduce) {
                 .admin-primary-button,
                 .admin-toolbar-button,
-                .admin-vigento-shell * {
+                .admin-vigento-shell *,
+                .admin-command-backdrop,
+                .admin-command-sheet,
+                .admin-vigento-fab {
                         animation: none !important;
                         transition-duration: 0.01ms !important;
                 }
+                .admin-vigento-shell svg animate,
+                .admin-vigento-shell svg animateMotion,
+                .admin-vigento-shell svg animateTransform {
+                        display: none;
+                }
+        }
+
+        @media (prefers-reduced-transparency: reduce) {
+                .admin-command-sheet { background: #f8f8f6; backdrop-filter: none; }
         }
 
         /* Shared application canvas — pure white, no decorative backgrounds. */

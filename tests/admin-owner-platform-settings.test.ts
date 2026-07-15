@@ -58,6 +58,34 @@ describe('owner-only admin security', () => {
     })
     expect(() => verifyAdminActionToken(`${token.slice(0, -1)}x`)).toThrow('INVALID_ACTION_TOKEN')
   })
+
+  it('keeps natural-language CRUD allow-listed and never grants platform admin', () => {
+    const token = createAdminActionToken({
+      kind: 'CREATE_WORKSPACE_MEMBER',
+      workspaceId: 'workspace-1',
+      workspaceName: 'نمونه',
+      phone: '+989121234567',
+      name: 'عضو آزمایشی',
+      role: 'MEMBER',
+      reason: 'تست ابزار عضو',
+    })
+    const payload = verifyAdminActionToken(token)
+    expect(payload).toMatchObject({ kind: 'CREATE_WORKSPACE_MEMBER', role: 'MEMBER' })
+    expect(payload).not.toHaveProperty('platformRole')
+
+    const actionSource = readFileSync(path.join(process.cwd(), 'lib/admin/vigento-actions.ts'), 'utf8')
+    const routeSource = readFileSync(path.join(process.cwd(), 'app/api/admin/vigento/route.ts'), 'utf8')
+    expect(actionSource).toContain("platformRole: 'USER'")
+    expect(actionSource).toContain("throw new Error('PROTECTED_USER')")
+    expect(routeSource).not.toContain('propose_raw_sql')
+    expect(routeSource).not.toContain('execute_sql')
+  })
+
+  it('guards infrastructure health with the standalone admin session', () => {
+    const healthSource = readFileSync(path.join(process.cwd(), 'app/api/admin/health/route.ts'), 'utf8')
+    expect(healthSource).toContain('isAdminAuthed')
+    expect(healthSource).toContain("{ error: 'UNAUTHORIZED' }")
+  })
 })
 
 describe('platform settings migration coverage', () => {

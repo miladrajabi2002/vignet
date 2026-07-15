@@ -15,9 +15,9 @@ type Message = { id: string; role: 'assistant' | 'user'; text: string }
 type Proposal = { token: string; title: string; description: string; tone: 'warning' | 'danger' }
 
 const QUICK_PROMPTS = [
-  'آمار فروش و هزینه AI در ۷ روز اخیر چطور بوده؟',
-  'کدام کسب‌وکارها بیشترین تعامل را داشته‌اند؟',
-  'چند گفتگوی انتقال‌یافته نیاز به رسیدگی دارد؟',
+  'امروز چه چیزی نیاز به توجه فوری دارد؟',
+  'گزارش سلامت کاربران، ایجنت‌ها و گفتگوها را بده',
+  'چه عملیات مدیریتی را می‌توانی برای من انجام بدهی؟',
 ]
 
 // ── Neural network node positions (relative to a 320×280 SVG viewBox) ────────
@@ -37,7 +37,7 @@ export function VigentoAdminConsole() {
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'سلام میلاد؛ من ویجنتوی ادمین هستم. آمار زنده پلتفرم، کاربران، گفتگوها و فایل‌های امن پروژه را بررسی می‌کنم. عملیات مالی و بستن گفتگو فقط بعد از تأیید صریح شما اجرا می‌شود.',
+      text: 'سلام میلاد؛ من ویجنتوی ادمین هستم. کل پلتفرم را تحلیل می‌کنم و عملیات مجاز روی کسب‌وکار، عضو، ایجنت، اعتبار و گفتگو را فقط بعد از پیش‌نمایش و تأیید صریح شما انجام می‌دهم.',
     },
   ])
   const [input, setInput] = useState('')
@@ -116,7 +116,7 @@ export function VigentoAdminConsole() {
   return (
     <section
       aria-labelledby="vigento-admin-title"
-      className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-900 text-white shadow-[0_26px_80px_-42px_rgba(0,0,0,.9)]"
+      className="admin-vigento-shell relative overflow-hidden rounded-[1.65rem] border border-white/10 bg-gradient-to-br from-zinc-950 via-black to-zinc-900 text-white shadow-[0_30px_90px_-44px_rgba(0,0,0,.95)]"
     >
       {/* ═══════════════════════════════════════════════════════════════
           Ambient glow layers
@@ -153,7 +153,7 @@ export function VigentoAdminConsole() {
             </h2>
             <p className="mt-1 text-sm text-white/55">ویجنتوی ادمین · مرکز فرمان</p>
             <p className="mt-3 max-w-md text-xs leading-6 text-white/55">
-              همه‌چیز زیر دست Vigento AI است — کاربران، گفتگوها، درآمد، هوش مصنوعی و خطاها همگی به‌صورت زنده متصل و قابل کنترل.
+              کاربران، گفتگوها، درآمد، ایجنت‌ها، سرویس‌ها و سیاست AI به هسته فرمان متصل‌اند؛ تغییرات حساس همیشه با تأیید و رسید حسابرسی انجام می‌شوند.
             </p>
           </div>
 

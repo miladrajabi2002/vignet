@@ -22,14 +22,31 @@ const creditSchema = z.object({
   reason: z.string().trim().min(2).max(180),
 })
 const resolveSchema = z.object({ conversationId: z.string().trim().min(8).max(80), reason: z.string().trim().min(2).max(180) })
+const workspaceUpdateSchema = z.object({
+  workspaceQuery: z.string().trim().min(1).max(140),
+  name: z.string().trim().min(2).max(80).optional(),
+  plan: z.enum(['TRIAL', 'STARTER', 'PRO', 'BUSINESS']).optional(),
+  reason: z.string().trim().min(2).max(180),
+}).refine((value) => Boolean(value.name || value.plan), { message: 'NO_WORKSPACE_CHANGE' })
+const agentStateSchema = z.object({ agentQuery: z.string().trim().min(1).max(140), active: z.boolean(), reason: z.string().trim().min(2).max(180) })
+const memberCreateSchema = z.object({ workspaceQuery: z.string().trim().min(1).max(140), phone: z.string().trim().min(8).max(24), name: z.string().trim().min(2).max(80), role: z.enum(['ADMIN', 'MEMBER']), reason: z.string().trim().min(2).max(180) })
+const memberUpdateSchema = z.object({ userQuery: z.string().trim().min(1).max(140), name: z.string().trim().min(2).max(80).optional(), role: z.enum(['ADMIN', 'MEMBER']).optional(), reason: z.string().trim().min(2).max(180) }).refine((value) => Boolean(value.name || value.role), { message: 'NO_MEMBER_CHANGE' })
+const memberDeleteSchema = z.object({ userQuery: z.string().trim().min(1).max(140), reason: z.string().trim().min(2).max(180) })
 
 const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'get_platform_summary', description: 'Read live platform revenue, users, conversations, AI cost, handoffs and top workspaces for a date range.', parameters: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 365 } }, required: ['days'] } } },
   { type: 'function', function: { name: 'find_workspace', description: 'Find a business/workspace and its owner by workspace name, owner name, phone or id.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'inspect_conversation', description: 'Inspect one conversation by exact conversation id.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
+  { type: 'function', function: { name: 'find_user', description: 'Find platform users by id, exact/partial name, phone, or workspace name. Returns role and workspace context without secrets.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
+  { type: 'function', function: { name: 'find_agent', description: 'Find agents by id, name, or workspace name and inspect active state.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'read_project_file', description: 'Read one safe non-secret source/config/documentation file from the deployed project. Never use for .env, secrets, credentials or node_modules.', parameters: { type: 'object', properties: { path: { type: 'string', description: 'Project-relative file path' } }, required: ['path'] } } },
   { type: 'function', function: { name: 'propose_credit_adjustment', description: 'Create a confirmation preview to increase or decrease a workspace AI wallet. This never executes until the platform owner confirms in the UI.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, amountToman: { type: 'integer', minimum: 1 }, direction: { type: 'string', enum: ['increase', 'decrease'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'amountToman', 'direction', 'reason'] } } },
   { type: 'function', function: { name: 'propose_resolve_conversation', description: 'Create a confirmation preview to mark a conversation resolved and clear operator handoff state.', parameters: { type: 'object', properties: { conversationId: { type: 'string' }, reason: { type: 'string' } }, required: ['conversationId', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_update_workspace', description: 'Preview changing a workspace display name and/or plan. Requires owner confirmation and creates an audit receipt.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, name: { type: 'string' }, plan: { type: 'string', enum: ['TRIAL', 'STARTER', 'PRO', 'BUSINESS'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_set_agent_active', description: 'Preview activating or deactivating one agent. Requires owner confirmation.', parameters: { type: 'object', properties: { agentQuery: { type: 'string' }, active: { type: 'boolean' }, reason: { type: 'string' } }, required: ['agentQuery', 'active', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_create_workspace_member', description: 'Preview creating a regular workspace ADMIN or MEMBER. Platform admin role is never granted. Requires owner confirmation.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, phone: { type: 'string' }, name: { type: 'string' }, role: { type: 'string', enum: ['ADMIN', 'MEMBER'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'phone', 'name', 'role', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_update_workspace_member', description: 'Preview changing the name or workspace role of a non-owner member. Platform admins and workspace owners are protected.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, name: { type: 'string' }, role: { type: 'string', enum: ['ADMIN', 'MEMBER'] }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_delete_workspace_member', description: 'Preview deleting a non-owner workspace member. Workspace owners and platform admins can never be deleted through this tool.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
 ]
 
 async function platformSummary(days: number) {
@@ -90,6 +107,34 @@ async function inspectConversation(id: string) {
   })
 }
 
+async function findUsers(query: string) {
+  const normalized = query.replace(/\s+/g, ' ').trim()
+  const phone = normalizePhone(normalized)
+  return prisma.user.findMany({
+    where: {
+      OR: [
+        { id: normalized },
+        { name: { contains: normalized, mode: 'insensitive' } },
+        ...(phone ? [{ phone }] : []),
+        { workspace: { name: { contains: normalized, mode: 'insensitive' } } },
+      ],
+    },
+    take: 8,
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, phone: true, role: true, platformRole: true, createdAt: true, workspace: { select: { id: true, name: true, plan: true } } },
+  })
+}
+
+async function findAgents(query: string) {
+  const normalized = query.replace(/\s+/g, ' ').trim()
+  return prisma.agent.findMany({
+    where: { OR: [{ id: normalized }, { name: { contains: normalized, mode: 'insensitive' } }, { workspace: { name: { contains: normalized, mode: 'insensitive' } } }] },
+    take: 8,
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true, name: true, active: true, model: true, updatedAt: true, workspace: { select: { id: true, name: true } }, _count: { select: { channels: true, conversations: true } } },
+  })
+}
+
 async function safeReadProjectFile(relativePath: string) {
   const root = path.resolve(process.cwd())
   const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
@@ -108,6 +153,8 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
   if (name === 'get_platform_summary') return { result: await platformSummary(summarySchema.parse(args).days) }
   if (name === 'find_workspace') return { result: await findWorkspaces(querySchema.parse(args).query) }
   if (name === 'inspect_conversation') return { result: await inspectConversation(querySchema.parse(args).query) }
+  if (name === 'find_user') return { result: await findUsers(querySchema.parse(args).query) }
+  if (name === 'find_agent') return { result: await findAgents(querySchema.parse(args).query) }
   if (name === 'read_project_file') return { result: await safeReadProjectFile(fileSchema.parse(args).path) }
   if (name === 'propose_credit_adjustment') {
     const input = creditSchema.parse(args)
@@ -125,6 +172,54 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
     const label = conversation.contact?.name || conversation.contact?.phone || conversation.id
     const token = createAdminActionToken({ kind: 'RESOLVE_CONVERSATION', conversationId: conversation.id, workspaceId: conversation.workspace.id, label, reason: input.reason })
     return { result: { readyForConfirmation: true }, proposal: { token, title: 'بستن پرونده گفتگو', description: `گفتگوی «${label}» در ${conversation.workspace.name} حل‌شده می‌شود و وضعیت انتقال اپراتور پاک خواهد شد.`, tone: 'danger' } }
+  }
+  if (name === 'propose_update_workspace') {
+    const input = workspaceUpdateSchema.parse(args)
+    const matches = await findWorkspaces(input.workspaceQuery)
+    if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_WORKSPACE', matches } }
+    const workspace = matches[0]
+    const token = createAdminActionToken({ kind: 'UPDATE_WORKSPACE', workspaceId: workspace.id, workspaceName: workspace.name, nextName: input.name, nextPlan: input.plan, reason: input.reason })
+    const changes = [input.name ? `نام: «${workspace.name}» ← «${input.name}»` : null, input.plan ? `پلن: ${workspace.plan} ← ${input.plan}` : null].filter(Boolean).join(' · ')
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'ویرایش کسب‌وکار', description: changes, tone: 'warning' } }
+  }
+  if (name === 'propose_set_agent_active') {
+    const input = agentStateSchema.parse(args)
+    const matches = await findAgents(input.agentQuery)
+    if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_AGENT', matches } }
+    const agent = matches[0]
+    const token = createAdminActionToken({ kind: 'SET_AGENT_ACTIVE', agentId: agent.id, workspaceId: agent.workspace.id, label: agent.name, active: input.active, reason: input.reason })
+    return { result: { readyForConfirmation: true }, proposal: { token, title: input.active ? 'فعال‌سازی ایجنت' : 'غیرفعال‌سازی ایجنت', description: `ایجنت «${agent.name}» در «${agent.workspace.name}» ${input.active ? 'فعال' : 'غیرفعال'} می‌شود.`, tone: input.active ? 'warning' : 'danger' } }
+  }
+  if (name === 'propose_create_workspace_member') {
+    const input = memberCreateSchema.parse(args)
+    const matches = await findWorkspaces(input.workspaceQuery)
+    if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_WORKSPACE', matches } }
+    const phone = normalizePhone(input.phone)
+    if (!phone) return { result: { error: 'INVALID_PHONE' } }
+    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true, name: true, workspace: { select: { name: true } } } })
+    if (existing) return { result: { error: 'PHONE_ALREADY_EXISTS', existing } }
+    const workspace = matches[0]
+    const token = createAdminActionToken({ kind: 'CREATE_WORKSPACE_MEMBER', workspaceId: workspace.id, workspaceName: workspace.name, phone, name: input.name, role: input.role, reason: input.reason })
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'افزودن عضو کسب‌وکار', description: `${input.name} با نقش ${input.role} و شماره ${phone} به «${workspace.name}» اضافه می‌شود. نقش پلتفرمی او همیشه USER باقی می‌ماند.`, tone: 'warning' } }
+  }
+  if (name === 'propose_update_workspace_member') {
+    const input = memberUpdateSchema.parse(args)
+    const matches = await findUsers(input.userQuery)
+    if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_USER', matches } }
+    const user = matches[0]
+    if (user.platformRole === 'ADMIN' || user.role === 'OWNER') return { result: { error: 'PROTECTED_USER' } }
+    const token = createAdminActionToken({ kind: 'UPDATE_WORKSPACE_MEMBER', userId: user.id, workspaceId: user.workspace.id, label: user.name || user.phone, nextName: input.name, nextRole: input.role, reason: input.reason })
+    const changes = [input.name ? `نام جدید: ${input.name}` : null, input.role ? `نقش جدید: ${input.role}` : null].filter(Boolean).join(' · ')
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'ویرایش عضو', description: `${user.name || user.phone} در «${user.workspace.name}» · ${changes}`, tone: 'warning' } }
+  }
+  if (name === 'propose_delete_workspace_member') {
+    const input = memberDeleteSchema.parse(args)
+    const matches = await findUsers(input.userQuery)
+    if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_USER', matches } }
+    const user = matches[0]
+    if (user.platformRole === 'ADMIN' || user.role === 'OWNER') return { result: { error: 'PROTECTED_USER' } }
+    const token = createAdminActionToken({ kind: 'DELETE_WORKSPACE_MEMBER', userId: user.id, workspaceId: user.workspace.id, label: user.name || user.phone, reason: input.reason })
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف عضو کسب‌وکار', description: `${user.name || user.phone} از «${user.workspace.name}» حذف می‌شود. این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
   }
   return { result: { error: 'UNKNOWN_TOOL' } }
 }
@@ -144,7 +239,7 @@ export async function POST(request: Request) {
     const alias = applyPlatformModelPolicy('fast', config)
     const model = resolveModelId(alias, config.providerModels)
     const messages: ChatMessage[] = [
-      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise Persian. Use tools for every factual platform/database/file claim; never invent values. You may read aggregates, find workspaces, inspect a conversation and read one safe project file. Mutations are strictly allow-listed: only propose_credit_adjustment and propose_resolve_conversation, and both MUST return a confirmation card; never claim a mutation executed. Secrets and .env are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
+      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise Persian. Use tools for every factual platform/database/file claim; never invent values. You may read aggregates, find users/workspaces/agents, inspect a conversation and read one safe project file. Mutations are strictly allow-listed and proposal-only: credit adjustment, resolve conversation, update workspace, toggle agent, and create/update/delete a non-owner workspace member. Every mutation MUST return a confirmation card and is executed only after owner confirmation; never claim it already executed. Workspace owners and platform admins are protected. Creating a member must always keep platformRole USER. Secrets, raw SQL, .env and unrestricted deletion are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
       { role: 'user', content: parsed.data.message },
     ]
     const first = await chatCompletion({ model, messages, tools: TOOLS, temperature: 0.1, maxTokens: 700 })

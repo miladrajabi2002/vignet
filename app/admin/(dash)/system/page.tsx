@@ -1,10 +1,23 @@
-import { redirect } from 'next/navigation'
+import { ServerCog } from 'lucide-react'
+import { PageHeader, Panel } from '../ui'
+import { SystemMonitor } from '@/components/admin/system-monitor'
+import { ServiceHealthPanel } from '@/components/admin/service-health-panel'
 
-/**
- * The "منابع سرور" page has been removed from the admin nav.
- * CPU + RAM live charts now live at the bottom of the dashboard.
- * This route redirects any old bookmarks to the dashboard.
- */
+export const dynamic = 'force-dynamic'
+
 export default function AdminSystemPage() {
-  redirect('/admin')
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="سلامت زیرساخت"
+        subtitle="کنترل زنده سرور، دیتابیس، Redis، Queue، Worker، MinIO، OpenRouter و کانال‌ها"
+        icon={ServerCog}
+        breadcrumbs={[{ label: 'مرکز فرمان', href: '/admin' }, { label: 'سلامت زیرساخت' }]}
+      />
+      <ServiceHealthPanel />
+      <Panel title="منابع ماشین" subtitle="CPU، حافظه، دیسک و آپ‌تایم سیستم‌عامل؛ بروزرسانی هر ۵ ثانیه">
+        <SystemMonitor />
+      </Panel>
+    </div>
+  )
 }
