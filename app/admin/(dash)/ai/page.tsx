@@ -240,7 +240,7 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
   return (
     <Panel
       title="مدل‌های مدیریت‌شده"
-      subtitle="سه انتخاب پایدار برای ایجنت‌ها؛ مدل واقعی هر انتخاب از محیط سرور قابل تعویض است"
+      subtitle="چهار سطح پایدار برای ایجنت‌ها؛ شناسه فعال هر سطح مستقیماً از سیاست ذخیره‌شده پنل خوانده می‌شود"
       action={<Badge tone="info">۴ مدل تعریف‌شده</Badge>}
     >
       <div className="grid gap-2 xl:grid-cols-4">
@@ -256,8 +256,8 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="truncate whitespace-nowrap text-xs font-bold text-zinc-900" title={model.name}>{model.name}</h3>
-                  <Badge tone={model.usingEnvOverride ? 'success' : 'muted'}>
-                    {model.usingEnvOverride ? 'تنظیم محیطی' : 'مقدار پیش‌فرض'}
+                  <Badge tone={model.configurationSource === 'panel' ? 'success' : model.configurationSource === 'environment' ? 'warning' : 'muted'}>
+                    {model.configurationSource === 'panel' ? 'تنظیم پنل' : model.configurationSource === 'environment' ? 'تنظیم محیطی' : 'مقدار پیش‌فرض'}
                   </Badge>
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">{model.providerLabel}</p>
@@ -291,7 +291,7 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
             </dl>
 
             <div className="mt-auto pt-3">
-              <p className="text-[11px] text-zinc-400">شناسه و قیمت از تنظیمات پنل مدیریت خوانده می‌شود.</p>
+              <p className="text-[11px] text-zinc-500">این کارت از همان منبعی خوانده می‌شود که اجرای واقعی درخواست‌ها استفاده می‌کند.</p>
             </div>
           </article>
         ))}
@@ -649,9 +649,9 @@ export default async function AdminAiPage({
         <Panel title="راهنمای تغییر ایمن" subtitle="تنظیمات مدل بدون ذخیره‌سازی کلید در دیتابیس">
           <ol className="space-y-4">
             {[
-              ['مدل را انتخاب کنید', 'شناسه مدل جدید OpenRouter را برای یکی از سه سطح سریع، متعادل یا حرفه‌ای تعیین کنید.'],
-              ['متغیر محیطی را تغییر دهید', 'فقط OPENROUTER_MODEL_FAST، OPENROUTER_MODEL_BALANCED یا OPENROUTER_MODEL_PREMIUM را در محیط سرور ویرایش کنید.'],
-              ['سرویس را دوباره مستقر کنید', 'پس از راه‌اندازی، شناسه فعال و وضعیت «تنظیم محیطی» را در کارت مدل بررسی کنید.'],
+              ['شناسه مدل را ویرایش کنید', 'در بخش سیاست اجرای مدل‌ها، شناسه OpenRouter سطح موردنظر را مستقیماً تغییر دهید.'],
+              ['تنظیمات را ذخیره کنید', 'با ذخیره فرم، سیاست دیتابیس و کارت‌های مدل‌های مدیریت‌شده هم‌زمان تازه می‌شوند.'],
+              ['مدل ویجنتو را تعیین کنید', 'مدل اختصاصی دستیار مدیریتی را مستقل از مدل پیش‌فرض کاربران انتخاب کنید.'],
               ['یک پاسخ آزمایشی بگیرید', 'هزینه دقیق درخواست پس از ثبت UsageLog در نمودار و فهرست آخرین درخواست‌ها دیده می‌شود.'],
             ].map(([title, description], index) => (
               <li key={title} className="flex gap-3">

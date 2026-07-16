@@ -222,10 +222,20 @@ export async function executeAdminAction(token: string) {
       if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
       const user = await tx.user.findFirst({ where: { id: payload.userId, workspaceId: payload.workspaceId }, select: { id: true, name: true, phone: true, role: true, platformRole: true } })
       if (!user) throw new Error('USER_NOT_FOUND')
-      if (user.platformRole === 'ADMIN' || user.role === 'OWNER') throw new Error('PROTECTED_USER')
+      if (user.platformRole === 'ADMIN') throw new Error('PROTECTED_USER')
+      const replacementOwner = user.role === 'OWNER'
+        ? await tx.user.findFirst({
+            where: { workspaceId: payload.workspaceId, id: { not: user.id }, platformRole: 'USER' },
+            orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+            select: { id: true, name: true, phone: true, role: true },
+          })
+        : null
+      if (replacementOwner) {
+        await tx.user.update({ where: { id: replacementOwner.id }, data: { role: 'OWNER' } })
+      }
       await tx.user.delete({ where: { id: user.id } })
-      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { deleted: user, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
-      return { kind: payload.kind, label: payload.label }
+      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { deleted: user, replacementOwner: replacementOwner ? { ...replacementOwner, role: 'OWNER' } : null, workspaceDataPreserved: true, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      return { kind: payload.kind, label: payload.label, replacementOwner: replacementOwner ? { ...replacementOwner, role: 'OWNER' as const } : null }
     })
   }
 

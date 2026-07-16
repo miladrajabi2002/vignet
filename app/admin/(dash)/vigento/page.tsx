@@ -1,12 +1,16 @@
 import { Activity, CheckCircle2, Clock3, Sparkles } from 'lucide-react'
 import { VigentoAdminConsole } from '@/components/admin/vigento-admin-console'
 import { getVigentoAdminReport } from '@/lib/admin/vigento'
-import { PageHeader, StatCard, fa } from '../ui'
+import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import { findModel, resolveModelId } from '@/lib/ai/models'
+import { Badge, PageHeader, StatCard, fa } from '../ui'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminVigentoPage() {
-  const report = await getVigentoAdminReport(30)
+  const [report, policy] = await Promise.all([getVigentoAdminReport(30), getPlatformAiConfig()])
+  const vigentoModel = findModel(policy.vigentoModel)
+  const providerId = resolveModelId(policy.vigentoModel, policy.providerModels)
   const successRate = report.total > 0 ? Math.round((report.succeeded / report.total) * 100) : 0
   const applyRate = report.total > 0 ? Math.round((report.applied / report.total) * 100) : 0
   const feedbackTotal = report.helpful + report.unhelpful
@@ -18,9 +22,11 @@ export default async function AdminVigentoPage() {
         title="ویجنتو"
         subtitle="هسته اختصاصی تحلیل، تصمیم‌سازی و اجرای عملیات مدیریتی پلتفرم"
         icon={Sparkles}
+        breadcrumbs={[{ label: 'داشبورد', href: '/admin' }, { label: 'ویجنتو' }]}
+        action={<Badge tone="info">مدل فعال: {vigentoModel.name}</Badge>}
       />
 
-      <VigentoAdminConsole />
+      <VigentoAdminConsole modelLabel={vigentoModel.name} providerId={providerId} />
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard label="عملیات ۳۰ روز" value={fa(report.total)} sub={`${fa(report.succeeded)} اجرای موفق`} icon={<Activity className="h-5 w-5" />} />

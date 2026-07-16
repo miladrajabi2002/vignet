@@ -3,10 +3,10 @@ import { readFile } from 'fs/promises'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ADMIN_OWNER_NAME, isAdminAuthed } from '@/lib/admin/auth'
+import { ADMIN_OWNER_NAME, ADMIN_OWNER_PHONE, isAdminAuthed } from '@/lib/admin/auth'
 import { rateLimit } from '@/lib/ratelimit'
 import { chatCompletion, getPlatformOpenRouterKey, type ChatMessage, type ChatTool } from '@/lib/ai/openrouter'
-import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
+import { getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { resolveModelId } from '@/lib/ai/models'
 import { createAdminActionToken } from '@/lib/admin/vigento-actions'
 import { normalizePhone } from '@/lib/phone'
@@ -33,6 +33,8 @@ const memberCreateSchema = z.object({ workspaceQuery: z.string().trim().min(1).m
 const memberUpdateSchema = z.object({ userQuery: z.string().trim().min(1).max(140), name: z.string().trim().min(2).max(80).optional(), role: z.enum(['ADMIN', 'MEMBER']).optional(), reason: z.string().trim().min(2).max(180) }).refine((value) => Boolean(value.name || value.role), { message: 'NO_MEMBER_CHANGE' })
 const memberDeleteSchema = z.object({ userQuery: z.string().trim().min(1).max(140), reason: z.string().trim().min(2).max(180) })
 
+const WELCOME_MESSAGE = `سلام ${ADMIN_OWNER_NAME}؛ من ویجنتوی ادمین هستم. وضعیت پلتفرم را با داده زنده بررسی می‌کنم و عملیات حساس را فقط بعد از نمایش جزئیات و تأیید شما انجام می‌دهم.`
+
 const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'get_platform_summary', description: 'Read live platform revenue, users, conversations, AI cost, handoffs and top workspaces for a date range.', parameters: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 365 } }, required: ['days'] } } },
   { type: 'function', function: { name: 'find_workspace', description: 'Find a business/workspace and its owner by workspace name, owner name, phone or id.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } },
@@ -46,7 +48,7 @@ const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'propose_set_agent_active', description: 'Preview activating or deactivating one agent. Requires owner confirmation.', parameters: { type: 'object', properties: { agentQuery: { type: 'string' }, active: { type: 'boolean' }, reason: { type: 'string' } }, required: ['agentQuery', 'active', 'reason'] } } },
   { type: 'function', function: { name: 'propose_create_workspace_member', description: 'Preview creating a regular workspace ADMIN or MEMBER. Platform admin role is never granted. Requires owner confirmation.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, phone: { type: 'string' }, name: { type: 'string' }, role: { type: 'string', enum: ['ADMIN', 'MEMBER'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'phone', 'name', 'role', 'reason'] } } },
   { type: 'function', function: { name: 'propose_update_workspace_member', description: 'Preview changing the name or workspace role of a non-owner member. Platform admins and workspace owners are protected.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, name: { type: 'string' }, role: { type: 'string', enum: ['ADMIN', 'MEMBER'] }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
-  { type: 'function', function: { name: 'propose_delete_workspace_member', description: 'Preview deleting a non-owner workspace member. Workspace owners and platform admins can never be deleted through this tool.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_delete_workspace_member', description: 'Preview deleting a platform user account. Platform admins are protected. A workspace OWNER may be deleted after explicit confirmation; another member is promoted when available and workspace data is preserved.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
 ]
 
 async function platformSummary(days: number) {
@@ -110,7 +112,7 @@ async function inspectConversation(id: string) {
 async function findUsers(query: string) {
   const normalized = query.replace(/\s+/g, ' ').trim()
   const phone = normalizePhone(normalized)
-  return prisma.user.findMany({
+  const rows = await prisma.user.findMany({
     where: {
       OR: [
         { id: normalized },
@@ -119,10 +121,85 @@ async function findUsers(query: string) {
         { workspace: { name: { contains: normalized, mode: 'insensitive' } } },
       ],
     },
-    take: 8,
+    take: 12,
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, phone: true, role: true, platformRole: true, createdAt: true, workspace: { select: { id: true, name: true, plan: true } } },
   })
+  const normalizedLower = normalized.toLocaleLowerCase('fa')
+  return rows
+    .map((user) => ({
+      ...user,
+      protectedAs: user.platformRole === 'ADMIN'
+        ? 'PLATFORM_ADMIN'
+        : null,
+      workspaceRole: user.role,
+      matchRank: user.id === normalized || (phone && user.phone === phone)
+        ? 0
+        : user.name?.trim().toLocaleLowerCase('fa') === normalizedLower
+          ? 1
+          : user.name?.toLocaleLowerCase('fa').includes(normalizedLower)
+            ? 2
+            : 3,
+    }))
+    .sort((a, b) => a.matchRank - b.matchRank || b.createdAt.getTime() - a.createdAt.getTime())
+}
+
+async function loadAdminHistory(): Promise<ChatMessage[]> {
+  if (!ADMIN_OWNER_PHONE) return []
+  try {
+    const rows = await prisma.adminVigentoMessage.findMany({
+      where: { adminPhone: ADMIN_OWNER_PHONE },
+      orderBy: { createdAt: 'desc' },
+      take: 18,
+      select: { role: true, content: true },
+    })
+    return rows.reverse().flatMap((row) =>
+      row.role === 'user' || row.role === 'assistant'
+        ? [{ role: row.role, content: row.content.slice(-6_000) } satisfies ChatMessage]
+        : [],
+    )
+  } catch {
+    return []
+  }
+}
+
+async function saveAdminMessage(role: 'user' | 'assistant', content: string): Promise<void> {
+  if (!ADMIN_OWNER_PHONE || !content.trim()) return
+  try {
+    await prisma.adminVigentoMessage.create({
+      data: { adminPhone: ADMIN_OWNER_PHONE, role, content: content.slice(0, 20_000) },
+    })
+  } catch {
+    // Keep the copilot available during the short migration window.
+  }
+}
+
+export async function GET() {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!ADMIN_OWNER_PHONE) return NextResponse.json({ messages: [{ id: 'welcome', role: 'assistant', text: WELCOME_MESSAGE }] })
+  try {
+    const rows = await prisma.adminVigentoMessage.findMany({
+      where: { adminPhone: ADMIN_OWNER_PHONE },
+      orderBy: { createdAt: 'desc' },
+      take: 160,
+      select: { id: true, role: true, content: true },
+    })
+    return NextResponse.json({
+      messages: rows.length
+        ? rows.reverse().map((row) => ({ id: row.id, role: row.role, text: row.content }))
+        : [{ id: 'welcome', role: 'assistant', text: WELCOME_MESSAGE }],
+    })
+  } catch {
+    return NextResponse.json({ messages: [{ id: 'welcome', role: 'assistant', text: WELCOME_MESSAGE }] })
+  }
+}
+
+export async function DELETE() {
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (ADMIN_OWNER_PHONE) {
+    await prisma.adminVigentoMessage.deleteMany({ where: { adminPhone: ADMIN_OWNER_PHONE } })
+  }
+  return NextResponse.json({ ok: true, message: { id: 'welcome', role: 'assistant', text: WELCOME_MESSAGE } })
 }
 
 async function findAgents(query: string) {
@@ -217,9 +294,21 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
     const matches = await findUsers(input.userQuery)
     if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_USER', matches } }
     const user = matches[0]
-    if (user.platformRole === 'ADMIN' || user.role === 'OWNER') return { result: { error: 'PROTECTED_USER' } }
+    if (user.platformRole === 'ADMIN') return { result: { error: 'PROTECTED_USER' } }
+    const replacement = user.role === 'OWNER'
+      ? await prisma.user.findFirst({
+          where: { workspaceId: user.workspace.id, id: { not: user.id }, platformRole: 'USER' },
+          orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+          select: { id: true, name: true, phone: true },
+        })
+      : null
     const token = createAdminActionToken({ kind: 'DELETE_WORKSPACE_MEMBER', userId: user.id, workspaceId: user.workspace.id, label: user.name || user.phone, reason: input.reason })
-    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف عضو کسب‌وکار', description: `${user.name || user.phone} از «${user.workspace.name}» حذف می‌شود. این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
+    const ownershipNote = user.role === 'OWNER'
+      ? replacement
+        ? ` مالکیت کسب‌وکار به ${replacement.name || replacement.phone} منتقل می‌شود.`
+        : ' داده‌های کسب‌وکار حفظ می‌شوند اما تا افزودن مالک جدید، حساب فعالی برای مدیریت آن باقی نمی‌ماند.'
+      : ''
+    return { result: { readyForConfirmation: true, workspaceRole: user.role, replacementOwner: replacement }, proposal: { token, title: 'حذف حساب کاربر', description: `${user.name || user.phone} از «${user.workspace.name}» حذف می‌شود.${ownershipNote} این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
   }
   return { result: { error: 'UNKNOWN_TOOL' } }
 }
@@ -230,20 +319,31 @@ export async function POST(request: Request) {
   const parsed = inputSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
+  const history = await loadAdminHistory()
+  await saveAdminMessage('user', parsed.data.message)
+
+  async function answer(text: string, extra: Record<string, unknown> = {}) {
+    await saveAdminMessage('assistant', text)
+    return NextResponse.json({ answer: text, ...extra })
+  }
+
   const fallback = await platformSummary(7)
-  if (!getPlatformOpenRouterKey()) return NextResponse.json({ answer: `در ۷ روز اخیر ${fallback.conversations.toLocaleString('fa-IR')} گفتگو، ${fallback.successfulPayments.toLocaleString('fa-IR')} پرداخت موفق و ${fallback.activeHandoffs.toLocaleString('fa-IR')} انتقال فعال ثبت شده است.`, source: 'facts' })
+  if (!getPlatformOpenRouterKey()) return answer(`در ۷ روز اخیر ${fallback.conversations.toLocaleString('fa-IR')} گفتگو، ${fallback.successfulPayments.toLocaleString('fa-IR')} پرداخت موفق و ${fallback.activeHandoffs.toLocaleString('fa-IR')} انتقال فعال ثبت شده است.`, { source: 'facts' })
 
   try {
     const config = await getPlatformAiConfig()
-    if (!(await hasPlatformAiBudget(config))) return NextResponse.json({ answer: 'سقف هزینه ماهانه OpenRouter رسیده است؛ آمار خام همچنان از صفحه داشبورد در دسترس است.', source: 'facts' })
-    const alias = applyPlatformModelPolicy('fast', config)
+    if (!(await hasPlatformAiBudget(config))) return answer('سقف هزینه ماهانه OpenRouter رسیده است؛ آمار خام همچنان از صفحه داشبورد در دسترس است.', { source: 'facts' })
+    // The owner copilot has its own explicitly selected model; customer-facing
+    // enabledModels must not silently override this admin-only choice.
+    const alias = config.vigentoModel
     const model = resolveModelId(alias, config.providerModels)
     const messages: ChatMessage[] = [
-      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise Persian. Use tools for every factual platform/database/file claim; never invent values. You may read aggregates, find users/workspaces/agents, inspect a conversation and read one safe project file. Mutations are strictly allow-listed and proposal-only: credit adjustment, resolve conversation, update workspace, toggle agent, and create/update/delete a non-owner workspace member. Every mutation MUST return a confirmation card and is executed only after owner confirmation; never claim it already executed. Workspace owners and platform admins are protected. Creating a member must always keep platformRole USER. Secrets, raw SQL, .env and unrestricted deletion are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
+      { role: 'system', content: `You are Vigento Admin, the owner-only operations copilot for ${ADMIN_OWNER_NAME}. Reply in concise, clear Persian and use the conversation history for follow-ups. Use tools for every factual platform/database/file claim; never invent values. For any person lookup or member mutation, always use find_user and trust that exact user's role/platformRole; never infer that every user is OWNER merely because a workspace has an owner. If multiple people match, show the candidates and ask for a phone or id. You may read aggregates, find users/workspaces/agents, inspect a conversation and read one safe project file. Mutations are strictly allow-listed and proposal-only: credit adjustment, resolve conversation, update workspace, toggle agent, and create/update/delete a workspace user. Every mutation MUST return a confirmation card and is executed only after owner confirmation; never claim it already executed. Platform admins are protected. A workspace OWNER may be deleted through the deletion tool: another member is promoted when available and workspace data is preserved. Creating a member must always keep platformRole USER. Secrets, raw SQL, .env and unrestricted deletion are inaccessible. Prefer toman in user-facing money. Ask for clarification when a target is ambiguous.` },
+      ...history,
       { role: 'user', content: parsed.data.message },
     ]
     const first = await chatCompletion({ model, messages, tools: TOOLS, temperature: 0.1, maxTokens: 700 })
-    if (!first.toolCalls.length) return NextResponse.json({ answer: first.content || 'برای پاسخ دقیق‌تر، نام کسب‌وکار یا شناسه مورد را بفرستید.', source: 'ai' })
+    if (!first.toolCalls.length) return answer(first.content || 'برای پاسخ دقیق‌تر، نام کسب‌وکار یا شناسه مورد را بفرستید.', { source: 'ai', modelAlias: alias })
 
     messages.push({ role: 'assistant', content: first.content, tool_calls: first.toolCalls })
     let proposal: Proposal | undefined
@@ -252,11 +352,11 @@ export async function POST(request: Request) {
       proposal = proposal || output.proposal
       messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(output.result) })
     }
-    if (proposal) return NextResponse.json({ answer: 'عملیات آماده است. جزئیات را بررسی کنید و فقط در صورت اطمینان تأیید بزنید.', source: 'ai', proposal })
+    if (proposal) return answer('عملیات آماده است. جزئیات را بررسی کنید و فقط در صورت اطمینان تأیید بزنید.', { source: 'ai', proposal, modelAlias: alias })
     const final = await chatCompletion({ model, messages, toolChoice: 'none', temperature: 0.1, maxTokens: 780 })
-    return NextResponse.json({ answer: final.content || 'داده پیدا شد، اما امکان خلاصه‌سازی پاسخ وجود نداشت.', source: 'ai' })
+    return answer(final.content || 'داده پیدا شد، اما امکان خلاصه‌سازی پاسخ وجود نداشت.', { source: 'ai', modelAlias: alias })
   } catch (error) {
     const code = error instanceof Error ? error.message : 'UNKNOWN'
-    return NextResponse.json({ answer: `درخواست کامل نشد (${code}). داده‌ای تغییر نکرد.`, source: 'error' }, { status: 200 })
+    return answer(`درخواست کامل نشد (${code}). داده‌ای تغییر نکرد.`, { source: 'error' })
   }
 }

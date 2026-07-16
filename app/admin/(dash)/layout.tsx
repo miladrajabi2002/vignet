@@ -20,11 +20,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <MobileNavTrigger />
       <div className="mx-auto flex max-w-[1720px] gap-4 px-3 py-3 sm:px-4 md:gap-5 md:px-5 md:py-5">
         {/* Desktop sidebar */}
-        <aside className="spatial-surface sticky top-5 hidden h-[calc(100dvh-2.5rem)] w-[16.5rem] shrink-0 flex-col overflow-hidden rounded-[1.75rem] p-3.5 md:flex">
+        <aside className="spatial-surface sticky top-5 hidden h-[calc(100dvh-2.5rem)] w-[17.5rem] shrink-0 flex-col overflow-hidden rounded-[1.75rem] p-3.5 md:flex">
           <div className="px-1 pb-2 pt-0.5">
             <BrandHeader />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pe-0.5">
+          <div className="min-h-0 flex-1 overflow-y-auto pe-0.5 pt-2 [scrollbar-width:thin]">
             <AdminNavContent />
           </div>
           <div className="mt-1 border-t border-black/[0.06] pt-2">

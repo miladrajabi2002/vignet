@@ -265,37 +265,23 @@
 
 @layer components {
         .admin-root {
-                --admin-surface: rgba(255, 255, 255, 0.96);
+                --admin-surface: rgba(255, 255, 255, 0.82);
+                --admin-accent: #0a84ff;
+                --admin-success: #15803d;
+                --admin-warning: #a16207;
+                --admin-danger: #dc2626;
+                --admin-info: #0369a1;
                 font-family: var(--font-fa), system-ui, sans-serif;
         }
 
-        /* Admin is intentionally single-typeface and monochrome. Utility
-           classes such as font-mono must never swap Persian numerals or dates
-           to a fallback Latin face. */
-        .admin-root,
-        .admin-root * {
-                font-family: var(--font-fa), system-ui, sans-serif !important;
-        }
+        .admin-root :where(button, input, select, textarea) { font: inherit; }
+        .admin-root :where(code, pre, .font-mono) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
         .admin-root :where(a, button, input, select, textarea):focus-visible {
                 outline-color: #18181b;
         }
 
-        .admin-root :is([class*='text-emerald'], [class*='text-green'], [class*='text-blue'], [class*='text-cyan'], [class*='text-sky'], [class*='text-indigo'], [class*='text-amber'], [class*='text-yellow'], [class*='text-orange'], [class*='text-red'], [class*='text-rose'], [class*='text-violet'], [class*='text-purple']) {
-                color: inherit !important;
-        }
-
-        .admin-root :is([class*='bg-emerald'], [class*='bg-green'], [class*='bg-blue'], [class*='bg-cyan'], [class*='bg-sky'], [class*='bg-indigo'], [class*='bg-amber'], [class*='bg-yellow'], [class*='bg-orange'], [class*='bg-red'], [class*='bg-rose'], [class*='bg-violet'], [class*='bg-purple']) {
-                background-color: rgba(24, 24, 27, 0.07) !important;
-        }
-
-        .admin-root :is([class*='border-emerald'], [class*='border-green'], [class*='border-blue'], [class*='border-cyan'], [class*='border-sky'], [class*='border-indigo'], [class*='border-amber'], [class*='border-yellow'], [class*='border-orange'], [class*='border-red'], [class*='border-rose'], [class*='border-violet'], [class*='border-purple']) {
-                border-color: rgba(24, 24, 27, 0.13) !important;
-        }
-
-        .admin-root :is([class*='ring-emerald'], [class*='ring-green'], [class*='ring-blue'], [class*='ring-cyan'], [class*='ring-sky'], [class*='ring-indigo'], [class*='ring-amber'], [class*='ring-yellow'], [class*='ring-orange'], [class*='ring-red'], [class*='ring-rose'], [class*='ring-violet'], [class*='ring-purple']) {
-                --tw-ring-color: rgba(24, 24, 27, 0.14) !important;
-        }
+        .admin-root ::selection { background: rgba(10, 132, 255, 0.2); color: #07111f; }
 
         .admin-attention-stage {
                 background-image:
@@ -318,7 +304,7 @@
                 justify-content: center;
                 gap: 0.5rem;
                 border-radius: 0.8rem;
-                background: #0b0b0b;
+                background: linear-gradient(180deg, #202124, #09090b);
                 padding-inline: 1rem;
                 color: white;
                 font-size: 0.75rem;
@@ -338,7 +324,8 @@
                 gap: 0.45rem;
                 border: 1px solid rgba(17, 17, 17, 0.075);
                 border-radius: 0.75rem;
-                background: rgba(255, 255, 255, 0.8);
+                background: rgba(255, 255, 255, 0.72);
+                backdrop-filter: blur(18px) saturate(150%);
                 padding-inline: 0.8rem;
                 color: rgba(17, 17, 17, 0.58);
                 font-size: var(--type-caption);
@@ -407,6 +394,43 @@
 
         .admin-vigento-messages { scrollbar-width: thin; }
 
+        .admin-vigento-toolbar,
+        .admin-vigento-composer {
+                background: rgba(250, 250, 250, 0.82);
+                backdrop-filter: blur(24px) saturate(180%);
+                -webkit-backdrop-filter: blur(24px) saturate(180%);
+        }
+
+        .admin-typing-dot {
+                width: 0.32rem;
+                height: 0.32rem;
+                border-radius: 999px;
+                background: currentColor;
+                animation: admin-typing 900ms ease-in-out infinite alternate;
+        }
+
+        @keyframes admin-typing {
+                from { opacity: 0.25; transform: translateY(1px); }
+                to { opacity: 0.8; transform: translateY(-1px); }
+        }
+
+        .admin-table-shell table thead {
+                position: sticky;
+                top: 0;
+                z-index: 1;
+                background: rgba(250, 250, 250, 0.9);
+                backdrop-filter: blur(16px) saturate(160%);
+        }
+
+        .admin-table-shell table tbody tr {
+                border-top: 1px solid rgba(17, 17, 17, 0.055);
+                transition: background-color 160ms ease;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+                .admin-table-shell table tbody tr:hover { background: rgba(10, 132, 255, 0.035); }
+        }
+
         @keyframes admin-node-arrive {
                 from { opacity: 0; transform: translateY(6px) scale(0.97); }
                 to { opacity: 1; transform: translateY(0) scale(1); }
@@ -445,9 +469,22 @@
         }
 
         .spatial-surface {
-                background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(255, 255, 255, 0.955));
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82));
                 border: 1px solid var(--border-default);
                 box-shadow: 0 1px 0 rgba(255, 255, 255, 0.98) inset, var(--shadow-card);
+                backdrop-filter: blur(22px) saturate(145%);
+                -webkit-backdrop-filter: blur(22px) saturate(145%);
+        }
+
+        @media (prefers-reduced-transparency: reduce) {
+                .admin-root .spatial-surface,
+                .admin-vigento-toolbar,
+                .admin-vigento-composer,
+                .admin-toolbar-button { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+        }
+
+        @media (prefers-contrast: more) {
+                .admin-root .spatial-surface { background: #fff; border-color: rgba(0, 0, 0, 0.28); }
         }
 
         .spatial-inset {

@@ -6,6 +6,7 @@ export type PlatformAiConfig = {
   defaultModel: ModelAlias
   enabledModels: ModelAlias[]
   trialModel: ModelAlias
+  vigentoModel: ModelAlias
   providerModels: Partial<Record<ModelAlias, string>>
   monthlyBudgetUSD: number | null
 }
@@ -14,6 +15,7 @@ const FALLBACK: PlatformAiConfig = {
   defaultModel: DEFAULT_MODEL,
   enabledModels: [...MODEL_ALIASES],
   trialModel: DEFAULT_MODEL,
+  vigentoModel: 'balanced',
   providerModels: {},
   monthlyBudgetUSD: null,
 }
@@ -35,6 +37,7 @@ export async function getPlatformAiConfig(): Promise<PlatformAiConfig> {
     const enabled = row.enabledModels.filter(isModelAlias)
     const defaultModel = isModelAlias(row.defaultModel) ? row.defaultModel : DEFAULT_MODEL
     const trialModel = isModelAlias(row.trialModel) ? row.trialModel : DEFAULT_MODEL
+    const vigentoModel = isModelAlias(row.vigentoModel) ? row.vigentoModel : 'balanced'
     const storedProviders = row.providerModels && typeof row.providerModels === 'object'
       ? row.providerModels as Record<string, unknown>
       : {}
@@ -49,6 +52,7 @@ export async function getPlatformAiConfig(): Promise<PlatformAiConfig> {
       defaultModel,
       enabledModels: enabled.length ? enabled : [defaultModel],
       trialModel,
+      vigentoModel,
       providerModels,
       monthlyBudgetUSD: row.monthlyBudgetUSD,
     }
@@ -75,6 +79,7 @@ export async function updatePlatformAiConfig(input: PlatformAiConfig): Promise<P
   if (!enabledModels.length) throw new Error('AT_LEAST_ONE_MODEL')
   if (!enabledModels.includes(input.defaultModel)) throw new Error('DEFAULT_MUST_BE_ENABLED')
   if (!isModelAlias(input.trialModel)) throw new Error('INVALID_TRIAL_MODEL')
+  if (!isModelAlias(input.vigentoModel)) throw new Error('INVALID_VIGENTO_MODEL')
   const providerModels = Object.fromEntries(
     MODEL_ALIASES.map((alias) => [alias, input.providerModels[alias]?.trim()]).filter((entry): entry is [ModelAlias, string] => Boolean(entry[1])),
   ) as Partial<Record<ModelAlias, string>>
@@ -86,6 +91,7 @@ export async function updatePlatformAiConfig(input: PlatformAiConfig): Promise<P
       defaultModel: input.defaultModel,
       enabledModels,
       trialModel: input.trialModel,
+      vigentoModel: input.vigentoModel,
       providerModels,
       monthlyBudgetUSD: input.monthlyBudgetUSD,
     },
@@ -93,6 +99,7 @@ export async function updatePlatformAiConfig(input: PlatformAiConfig): Promise<P
       defaultModel: input.defaultModel,
       enabledModels,
       trialModel: input.trialModel,
+      vigentoModel: input.vigentoModel,
       providerModels,
       monthlyBudgetUSD: input.monthlyBudgetUSD,
     },
@@ -101,6 +108,7 @@ export async function updatePlatformAiConfig(input: PlatformAiConfig): Promise<P
     defaultModel: row.defaultModel as ModelAlias,
     enabledModels: row.enabledModels as ModelAlias[],
     trialModel: row.trialModel as ModelAlias,
+    vigentoModel: row.vigentoModel as ModelAlias,
     providerModels: row.providerModels as Partial<Record<ModelAlias, string>>,
     monthlyBudgetUSD: row.monthlyBudgetUSD,
   }

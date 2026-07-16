@@ -669,6 +669,7 @@ model PlatformAiSettings {
   defaultModel      String   @default("fast")
   enabledModels     String[] @default(["fast", "standard", "balanced", "premium"])
   trialModel        String   @default("fast")
+  vigentoModel      String   @default("balanced")
   providerModels    Json     @default("{}")
   monthlyBudgetUSD  Float?
   sttModel          String   @default("openai/whisper-large-v3-turbo")
@@ -697,6 +698,19 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([action, createdAt])
   @@index([targetType, targetId])
+}
+
+// Durable owner-only conversation history for the admin Vigento copilot.
+// Resetting the chat explicitly removes these rows; regular navigation and
+// deployments never discard the conversation context.
+model AdminVigentoMessage {
+  id         String   @id @default(cuid())
+  adminPhone String
+  role       String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([adminPhone, createdAt])
 }
 
 // Privacy-safe operational telemetry for Vigento, the agent-building

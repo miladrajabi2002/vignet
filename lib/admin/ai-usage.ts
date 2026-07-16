@@ -80,6 +80,7 @@ export interface OpenRouterManagedModel {
   providerId: string
   providerLabel: string
   usingEnvOverride: boolean
+  configurationSource: 'panel' | 'environment' | 'default'
   replyPriceIRR: number
   priceEnvName: string
   inputUsdPerMillion: number
@@ -224,20 +225,41 @@ export function getOpenRouterConfigStatus(
     premium: 'OPENROUTER_MODEL_PREMIUM',
   }
 
+  const providerDisplayName = (providerId: string) => {
+    const [provider, rawModel = providerId] = providerId.split('/', 2)
+    const clean = rawModel.replace(/[-_:]+/g, ' ').replace(/\s+/g, ' ').trim()
+    const providerName = provider === 'openai'
+      ? 'OpenAI'
+      : provider === 'anthropic'
+        ? 'Anthropic'
+        : provider === 'google'
+          ? 'Google'
+          : provider === 'deepseek'
+            ? 'DeepSeek'
+            : provider === 'qwen'
+              ? 'Qwen'
+              : provider.charAt(0).toUpperCase() + provider.slice(1)
+    return `${providerName} · ${clean}`
+  }
+
   return {
     apiKeyConfigured: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
     providerSort: commercialConfig?.providerSort || process.env.OPENROUTER_PROVIDER_SORT?.trim() || 'price',
     zeroDataRetention: commercialConfig?.zeroDataRetention ?? process.env.OPENROUTER_ZDR?.trim().toLowerCase() !== 'false',
     models: AGENT_MODELS.map((model) => {
       const envName = envByAlias[model.id]
+      const providerId = resolveModelId(model.id, platformPolicy?.providerModels)
+      const configuredInPanel = Boolean(platformPolicy?.providerModels[model.id]?.trim())
+      const configuredInEnvironment = !configuredInPanel && Boolean(process.env[envName]?.trim())
       return {
         alias: model.id,
         name: model.name,
         description: model.descFa,
         envName,
-        providerId: resolveModelId(model.id, platformPolicy?.providerModels),
-        providerLabel: model.provider,
-        usingEnvOverride: !platformPolicy && Boolean(process.env[envName]?.trim()),
+        providerId,
+        providerLabel: providerDisplayName(providerId),
+        usingEnvOverride: configuredInEnvironment,
+        configurationSource: configuredInPanel ? 'panel' : configuredInEnvironment ? 'environment' : 'default',
         replyPriceIRR: commercialConfig?.replyPricesIRR[model.id] ?? getReplyPriceIRR(model.id),
         priceEnvName: `AI_REPLY_PRICE_${model.id.toUpperCase()}_IRR`,
         inputUsdPerMillion: model.inputUsdPerMillion,

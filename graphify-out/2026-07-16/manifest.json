@@ -450,8 +450,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/vigento/route.ts": {
-    "mtime": 1784213089.6249027,
-    "ast_hash": "8626cd868203c4d76c7b3d16cf351a9c",
+    "mtime": 1784212950.2104347,
+    "ast_hash": "8728484639b3e34745f1cc14f333ab95",
     "semantic_hash": ""
   },
   "app/api/admin/webhook-debug/route.ts": {
@@ -1700,8 +1700,8 @@
     "semantic_hash": ""
   },
   "lib/admin/vigento-actions.ts": {
-    "mtime": 1784213089.6294668,
-    "ast_hash": "e1567c40915c9857b47ffa918f18ac38",
+    "mtime": 1784072774.6797898,
+    "ast_hash": "2cf3a781f6da880a197dd7ed9d9caa17",
     "semantic_hash": ""
   },
   "lib/admin/vigento.ts": {

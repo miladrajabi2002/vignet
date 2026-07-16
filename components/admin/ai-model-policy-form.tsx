@@ -28,6 +28,7 @@ type Policy = {
   defaultModel: ModelAlias
   enabledModels: ModelAlias[]
   trialModel: ModelAlias
+  vigentoModel: ModelAlias
   providerModels: Partial<Record<ModelAlias, string>>
   monthlyBudgetUSD: number | null
 }
@@ -65,6 +66,7 @@ export function AiModelPolicyForm({
   const [defaultModel, setDefaultModel] = useState(initialPolicy.defaultModel)
   const [enabledModels, setEnabledModels] = useState<ModelAlias[]>(initialPolicy.enabledModels)
   const [trialModel, setTrialModel] = useState<ModelAlias>(initialPolicy.trialModel)
+  const [vigentoModel, setVigentoModel] = useState<ModelAlias>(initialPolicy.vigentoModel)
   const [providerModels, setProviderModels] = useState<Partial<Record<ModelAlias, string>>>(
     initialPolicy.providerModels,
   )
@@ -91,12 +93,13 @@ export function AiModelPolicyForm({
     return (
       defaultModel !== initialPolicy.defaultModel ||
       trialModel !== initialPolicy.trialModel ||
+      vigentoModel !== initialPolicy.vigentoModel ||
       initialEnabled !== currentEnabled ||
       initialProviders !== currentProviders ||
       budgetEnabled !== (initialPolicy.monthlyBudgetUSD !== null) ||
       budgetValue !== initialPolicy.monthlyBudgetUSD
     )
-  }, [budgetEnabled, budgetValue, defaultModel, enabledModels, initialPolicy, providerModels, trialModel])
+  }, [budgetEnabled, budgetValue, defaultModel, enabledModels, initialPolicy, providerModels, trialModel, vigentoModel])
 
   function toggleModel(alias: ModelAlias) {
     setNotice(null)
@@ -130,6 +133,7 @@ export function AiModelPolicyForm({
             defaultModel,
             enabledModels,
             trialModel,
+            vigentoModel,
             providerModels,
             monthlyBudgetUSD: budgetEnabled ? parsedBudget : null,
           }),
@@ -250,7 +254,8 @@ export function AiModelPolicyForm({
         </div>
       </fieldset>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5">
         <label className="block text-xs font-semibold text-zinc-900">
           مدل فعال پلن آزمایشی
           <MaterialSelect
@@ -264,6 +269,25 @@ export function AiModelPolicyForm({
             این مدل مستقل از فعال/غیرفعال بودن مدل‌های پلن‌های پولی انتخاب می‌شود؛ بقیه مدل‌ها در پلن آزمایشی بسته نمایش داده می‌شوند.
           </span>
         </label>
+      </div>
+      <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5">
+        <label className="block text-xs font-semibold text-zinc-900">
+          مدل اختصاصی ویجنتو ادمین
+          <MaterialSelect
+            value={vigentoModel}
+            onValueChange={(value) => setVigentoModel(value as ModelAlias)}
+            ariaLabel="مدل اختصاصی ویجنتو ادمین"
+            className="mt-2"
+            options={models.map((model) => ({
+              value: model.alias,
+              label: `${model.name} · ${providerModels[model.alias] ?? model.providerId}`,
+            }))}
+          />
+          <span className="mt-1 block text-[11px] font-normal leading-5 text-zinc-600">
+            فقط برای دستیار مدیریتی /admin/vigento استفاده می‌شود و از مدل پیش‌فرض کاربران مستقل است.
+          </span>
+        </label>
+      </div>
       </div>
 
       <div className="mt-5 grid gap-4 border-t border-zinc-100 pt-5 lg:grid-cols-[0.85fr_1.15fr]">

@@ -71,7 +71,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'spatial-surface rounded-[1.5rem]',
+        'admin-card spatial-surface rounded-[1.5rem]',
         pad && 'p-5 sm:p-6',
         className,
       )}
@@ -143,29 +143,24 @@ export function StatCard({
 }) {
   const toneRing = {
     default: 'bg-zinc-100 text-zinc-700',
-    success: 'bg-zinc-100 text-zinc-700',
-    warning: 'bg-zinc-100 text-zinc-700',
-    danger: 'bg-zinc-100 text-zinc-700',
-    info: 'bg-zinc-100 text-zinc-700',
+    success: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
+    warning: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+    danger: 'bg-red-50 text-red-700 ring-1 ring-red-100',
+    info: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
   }[tone]
 
-  const valueColor =
-    tone === 'danger'
-      ? 'text-zinc-950'
-      : tone === 'success'
-        ? 'text-zinc-950'
-        : 'text-zinc-900'
+  const valueColor = tone === 'danger' ? 'text-red-700' : 'text-zinc-900'
 
   // Sparkline stroke color follows the card tone.
   const sparkColor =
     tone === 'danger'
-      ? '#18181b'
+      ? '#dc2626'
       : tone === 'success'
-        ? '#18181b'
+        ? '#16a34a'
         : tone === 'info'
-          ? '#3f3f46'
+          ? '#0a84ff'
           : tone === 'warning'
-            ? '#71717a'
+            ? '#d97706'
             : '#18181b'
 
   return (
@@ -214,10 +209,10 @@ type BadgeTone = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'muted'
 
 const BADGE_TONES: Record<BadgeTone, string> = {
   default: 'bg-zinc-900 text-white',
-  success: 'bg-zinc-100 text-zinc-800 ring-1 ring-zinc-200',
-  warning: 'bg-zinc-100 text-zinc-800 ring-1 ring-zinc-300',
-  danger: 'bg-zinc-900 text-white ring-1 ring-zinc-900',
-  info: 'bg-white text-zinc-800 ring-1 ring-zinc-300',
+  success: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
+  warning: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200/80',
+  danger: 'bg-red-50 text-red-700 ring-1 ring-red-200/80',
+  info: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/80',
   muted: 'bg-zinc-100 text-zinc-600',
 }
 
@@ -256,10 +251,10 @@ export function LevelBadge({ level }: { level: string }) {
 export function StatusDot({ tone = 'success', label }: { tone?: BadgeTone; label?: string }) {
   const dot = {
     default: 'bg-zinc-400',
-    success: 'bg-zinc-800',
-    warning: 'bg-zinc-500',
-    danger: 'bg-black',
-    info: 'bg-zinc-600',
+    success: 'bg-emerald-500',
+    warning: 'bg-amber-500',
+    danger: 'bg-red-500',
+    info: 'bg-blue-500',
     muted: 'bg-zinc-300',
   }[tone]
   return (
@@ -303,7 +298,7 @@ export function TableShell({
   minWidth?: number
 }) {
   return (
-    <div className="spatial-surface overflow-x-auto rounded-[1.5rem] [scrollbar-width:thin]">
+    <div className="admin-table-shell spatial-surface overflow-x-auto rounded-[1.5rem] [scrollbar-width:thin]">
       <table className="w-full" style={{ minWidth }}>
         {children}
       </table>
@@ -352,11 +347,8 @@ export function PageHeader({
    *  mirrors the user-dashboard PageHeader pattern. */
   icon?: React.ComponentType<{ className?: string }>
 }) {
-  // Kept in the public API so existing pages do not need a migration; admin
-  // breadcrumbs are intentionally hidden to preserve vertical space.
-  void breadcrumbs
   return (
-    <header className="dashboard-page-header mb-4 spatial-surface overflow-hidden rounded-[1.35rem] p-4 sm:px-5 sm:py-4">
+    <header className="dashboard-page-header mb-4 spatial-surface overflow-hidden rounded-[1.5rem] p-4 sm:px-5 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {Icon && (
@@ -364,9 +356,19 @@ export function PageHeader({
               <Icon className="h-5 w-5" />
             </span>
           )}
-          <div>
-            <h1 className="text-xl font-bold leading-tight text-black sm:text-[1.35rem]">{title}</h1>
-            {subtitle && <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--text-secondary)]">{subtitle}</p>}
+          <div className="min-w-0">
+            {breadcrumbs?.length ? (
+              <nav aria-label="مسیر صفحه" className="mb-1 flex flex-wrap items-center gap-1 text-[10px] text-black/38">
+                {breadcrumbs.map((item, index) => (
+                  <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
+                    {index > 0 && <ChevronLeft className="h-3 w-3 text-black/20" />}
+                    {item.href ? <Link href={item.href} className="hover:text-black/65">{item.label}</Link> : <span aria-current="page">{item.label}</span>}
+                  </span>
+                ))}
+              </nav>
+            ) : null}
+            <h1 className="text-xl font-bold leading-tight tracking-[-0.025em] text-black sm:text-2xl">{title}</h1>
+            {subtitle && <p className="mt-1 max-w-2xl text-xs leading-6 text-[var(--text-secondary)] sm:text-sm">{subtitle}</p>}
           </div>
         </div>
         {action && <div className="flex items-center gap-2">{action}</div>}
@@ -391,9 +393,9 @@ export function Progress({
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
   const bar = {
     default: 'bg-zinc-900',
-    success: 'bg-zinc-900',
-    warning: 'bg-zinc-700',
-    danger: 'bg-black',
+    success: 'bg-emerald-500',
+    warning: 'bg-amber-500',
+    danger: 'bg-red-500',
   }[tone]
   return (
     <div className={cn('h-1.5 w-full overflow-hidden rounded-full bg-zinc-100', className)}>

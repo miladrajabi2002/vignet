@@ -102,4 +102,20 @@ describe('platform settings migration coverage', () => {
     expect(schema).toContain('model AdminAuditLog')
     expect(migration).toContain('CREATE TABLE IF NOT EXISTS "AdminAuditLog"')
   })
+
+  it('persists admin Vigento history and keeps its model independently configurable', () => {
+    const schema = readFileSync(path.join(process.cwd(), 'prisma/schema.prisma'), 'utf8')
+    const migration = readFileSync(
+      path.join(process.cwd(), 'prisma/migrations/20260716143000_admin_vigento_chat_and_model/migration.sql'),
+      'utf8',
+    )
+    const route = readFileSync(path.join(process.cwd(), 'app/api/admin/vigento/route.ts'), 'utf8')
+
+    expect(schema).toContain('model AdminVigentoMessage')
+    expect(schema).toContain('vigentoModel')
+    expect(migration).toContain('CREATE TABLE "AdminVigentoMessage"')
+    expect(migration).toContain('ADD COLUMN "vigentoModel"')
+    expect(route).toContain('config.vigentoModel')
+    expect(route).toContain('always use find_user')
+  })
 })
