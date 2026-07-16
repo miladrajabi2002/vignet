@@ -15,7 +15,6 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 type ChatMessage = { role: 'assistant' | 'user'; content: string }
 
@@ -184,8 +183,12 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
             >
               {/* In RTL (fa) the Send icon points the wrong way by default;
                   rotate it 180° so it visually points toward the outgoing
-                  direction (left → right in RTL). */}
-              <Send className={cn('h-4 w-4', fa && 'rotate-180')} />
+                  direction. We use an inline style instead of Tailwind's
+                  `rotate-180` utility because the button's `spatial-press`
+                  class sets its own `transform` (scale) which can interfere
+                  with Tailwind's CSS-variable-based transform on the child.
+                  Inline `transform` on the icon itself is 100% reliable. */}
+              <Send className="h-4 w-4" style={fa ? { transform: 'rotate(180deg)' } : undefined} />
             </button>
           </form>
         </div>
