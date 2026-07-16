@@ -458,10 +458,35 @@
                         var(--bg-base);
         }
 
+        /* The header owns the widest dashboard frame. Every route is inset by
+           one additional spacing step so menu tabs keep the same calm measure. */
+        .dashboard-shell-header {
+                padding-inline: 0.75rem;
+        }
+
+        .dashboard-shell-content {
+                padding-inline: 1rem;
+        }
+
         .dashboard-main {
                 margin-inline: auto;
                 width: 100%;
-                max-width: 100rem;
+                max-width: 108rem;
+        }
+
+        @media (min-width: 640px) {
+                .dashboard-shell-header { padding-inline: 1.25rem; }
+                .dashboard-shell-content { padding-inline: 1.75rem; }
+        }
+
+        @media (min-width: 1024px) {
+                .dashboard-shell-header { padding-inline: 1.5rem; }
+                .dashboard-shell-content { padding-inline: 2.5rem; }
+        }
+
+        @media (min-width: 1280px) {
+                .dashboard-shell-header { padding-inline: 1.75rem; }
+                .dashboard-shell-content { padding-inline: 3rem; }
         }
 
         .dashboard-card {

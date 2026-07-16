@@ -97,21 +97,23 @@ export default async function DashboardLayout({
           daysLeft={daysLeft}
         />
         {accessExpired && (
-          <div className="mx-4 mt-3 flex flex-col gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-amber-950 shadow-[var(--shadow-xs)] sm:mx-6 sm:flex-row sm:items-center lg:mx-8 xl:mx-10">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold">اطلاعات شما محفوظ است؛ فضای کاری در حالت فقط‌خواندنی قرار دارد.</p>
-              <p className="mt-0.5 text-xs leading-6 text-amber-900/75">مشاهده گزارش‌ها و داده‌های قبلی ادامه دارد، اما پاسخ خودکار و تغییرات جدید تا فعال‌سازی پلن متوقف می‌ماند.</p>
+          <div className="dashboard-shell-content mt-3">
+            <div className="dashboard-main flex flex-col gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-amber-950 shadow-[var(--shadow-xs)] sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold">اطلاعات شما محفوظ است؛ فضای کاری در حالت فقط‌خواندنی قرار دارد.</p>
+                <p className="mt-0.5 text-xs leading-6 text-amber-900/75">مشاهده گزارش‌ها و داده‌های قبلی ادامه دارد، اما پاسخ خودکار و تغییرات جدید تا فعال‌سازی پلن متوقف می‌ماند.</p>
+              </div>
+              <Link href="/billing" className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-black px-4 text-xs font-bold text-white">
+                فعال‌سازی دوباره
+              </Link>
             </div>
-            <Link href="/billing" className="spatial-press inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-black px-4 text-xs font-bold text-white">
-              فعال‌سازی دوباره
-            </Link>
           </div>
         )}
         <VerticalChangeNotice
           businessType={workspace?.businessType}
           services={businessProfile?.services ?? []}
         />
-        <main className="flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10">
+        <main className="dashboard-shell-content flex-1 pb-24 pt-4 sm:pt-5 md:pb-10">
           <div className="dashboard-main">{children}</div>
         </main>
       </div>

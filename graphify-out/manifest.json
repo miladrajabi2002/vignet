@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/layout.tsx": {
-    "mtime": 1784067395.5297828,
-    "ast_hash": "7b8d91d70c05ec334ff35fd1eaeb8ce6",
+    "mtime": 1784244941.8480866,
+    "ast_hash": "c508b882834717ce6b9c19c03216820e",
     "semantic_hash": ""
   },
   "app/(dashboard)/menu/page.tsx": {
@@ -1235,8 +1235,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/header.tsx": {
-    "mtime": 1784067714.725745,
-    "ast_hash": "57b62c976ebbebdc9029937d6a41a4b3",
+    "mtime": 1784245350.7182405,
+    "ast_hash": "deafe114fbb1230ea9c9f7794479119c",
     "semantic_hash": ""
   },
   "components/dashboard/intelligence-core-lazy.tsx": {
@@ -1245,8 +1245,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/intelligence-core.tsx": {
-    "mtime": 1784068139.4030578,
-    "ast_hash": "fe0aed45b624c8a21236e480b1043e37",
+    "mtime": 1784232046.6810303,
+    "ast_hash": "7d2e6abaaa4c094ec2b70a8a83b65f3e",
     "semantic_hash": ""
   },
   "components/dashboard/metrics-explainer.tsx": {
@@ -1265,8 +1265,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/notification-bell.tsx": {
-    "mtime": 1784067714.7287703,
-    "ast_hash": "e4745525eeed1eafdceebaad135edb5c",
+    "mtime": 1784244998.0898697,
+    "ast_hash": "0fb3fe4f31ce2d68ac82a0cd4cf2f8b7",
     "semantic_hash": ""
   },
   "components/dashboard/onboarding-celebrate.tsx": {
@@ -2280,8 +2280,8 @@
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1784152031.0,
-    "ast_hash": "f57380b97faa0bf4995f5a25f5dbac00",
+    "mtime": 1784244941.8510904,
+    "ast_hash": "a2dadd5745ef13e4f9670bb2e8102621",
     "semantic_hash": ""
   },
   "middleware.ts": {

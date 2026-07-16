@@ -115,7 +115,7 @@
                 "onboarding": "شروع به کار",
                 "logout": "خروج",
                 "welcome": "خوش آمدید",
-                "greeting": "سلام، {name}",
+                "greeting": "سلام {name}",
                 "newLabel": "جدید"
         },
         "onboarding": {
