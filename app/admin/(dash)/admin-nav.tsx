@@ -29,7 +29,6 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
       { href: '/admin', label: 'داشبورد', icon: LayoutDashboard, exact: true },
-      { href: '/admin/vigento', label: 'ویجنتو', icon: Sparkles },
       { href: '/admin/system', label: 'سلامت و خطاها', icon: ServerCog },
       { href: '/admin/users', label: 'کاربران', icon: Users },
       { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
@@ -47,7 +46,18 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="ناوبری مدیریت">
+    <div className="flex h-full min-h-0 flex-col">
+      <Link
+        href="/admin/vigento"
+        onClick={onNavigate}
+        aria-current={pathname.startsWith('/admin/vigento') ? 'page' : undefined}
+        className="spatial-press mb-2 flex min-h-12 items-center gap-3 rounded-2xl bg-black px-3.5 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+      >
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/12"><Sparkles className="h-4 w-4" /></span>
+        <span className="flex-1">Vigento AI</span>
+        <span className="text-[11px] font-normal text-white/65">مدیریت هوشمند</span>
+      </Link>
+    <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-width:thin]" aria-label="ناوبری مدیریت">
       {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? pathname === href : pathname.startsWith(href)
               return (
@@ -57,10 +67,10 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={onNavigate}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'group flex min-h-9 items-center gap-2.5 rounded-xl px-3 py-1.5 text-[12px] font-medium transition-[background-color,color,transform,box-shadow] duration-200 active:scale-[.98]',
+                    'group flex min-h-[2.38rem] items-center gap-2.5 rounded-xl px-3 py-1.5 text-[12px] transition-[background-color,color,transform,box-shadow] duration-150 active:scale-[.98]',
                     active
-                      ? 'bg-black text-white shadow-[var(--shadow-control)]'
-                      : 'text-[var(--text-muted)] hover:bg-white/80 hover:text-[var(--text-primary)]',
+                      ? 'bg-black font-semibold text-white shadow-[var(--shadow-control)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]',
                   )}
                 >
                   <Icon className={cn('h-4 w-4 shrink-0 transition-colors', active ? 'text-white' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
@@ -70,21 +80,17 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
               )
       })}
     </nav>
+    </div>
   )
 }
 
 /** Sidebar brand header — used in both desktop rail and mobile drawer. */
 function BrandHeader() {
   return (
-    <div className="flex items-center gap-3 px-1">
-      <div className="flex h-10 w-10 items-center justify-center rounded-[.9rem] bg-black text-white shadow-[var(--shadow-control)]">
-        <Logo variant="dark" className="h-4 w-auto max-w-6 brightness-0 invert" />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[13px] font-bold text-black">کنترل ویجنت</p>
-        <p className="mt-0.5 truncate text-[10px] text-black/38">مدیریت یکپارچه پلتفرم</p>
-      </div>
-    </div>
+    <Link href="/admin" aria-label="داشبورد مدیریت" className="flex min-h-12 items-center justify-center px-2">
+      <Logo priority className="h-7 w-28" />
+      <span className="ms-2 rounded-full bg-black px-2 py-0.5 text-[9px] font-semibold text-white">ADMIN</span>
+    </Link>
   )
 }
 

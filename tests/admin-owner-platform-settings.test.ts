@@ -121,6 +121,19 @@ describe('platform settings migration coverage', () => {
 })
 
 describe('admin control-center regressions', () => {
+  it('matches the user dashboard shell while keeping tab content narrower than the global header', () => {
+    const layout = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/layout.tsx'), 'utf8')
+    const nav = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/admin-nav.tsx'), 'utf8')
+    const ui = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/ui.tsx'), 'utf8')
+
+    expect(layout).toContain('sticky top-3 m-3 me-0')
+    expect(layout).toContain('sticky top-0 z-30 px-3 pt-3 sm:px-6 lg:px-8 xl:px-10')
+    expect(layout).toContain('md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]')
+    expect(nav).toContain('Vigento AI')
+    expect(nav).toContain('min-h-[2.38rem]')
+    expect(ui).toContain('rounded-[1.5rem] p-5 sm:p-6')
+  })
+
   it('opens a read-only allow-listed Prisma explorer', () => {
     const explorer = readFileSync(path.join(process.cwd(), 'lib/admin/database-explorer.ts'), 'utf8')
     const page = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/database/page.tsx'), 'utf8')

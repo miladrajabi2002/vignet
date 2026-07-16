@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/admin-nav.tsx": {
-    "mtime": 1784212553.9273586,
-    "ast_hash": "c9b3c0e7ad0ca97445f04ce5649cec09",
+    "mtime": 1784215318.4740164,
+    "ast_hash": "553ef42755a40b41793a13b2babfdd2f",
     "semantic_hash": ""
   },
   "app/admin/(dash)/agents/[agentId]/page.tsx": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/ai/page.tsx": {
-    "mtime": 1784212494.0658913,
-    "ast_hash": "a9fb604b02ad43ea1d6630f8dd659d6e",
+    "mtime": 1784215438.4946797,
+    "ast_hash": "1326fb19d60217e9b5c6a7f7e6d670f5",
     "semantic_hash": ""
   },
   "app/admin/(dash)/blog/page.tsx": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/layout.tsx": {
-    "mtime": 1784212553.9273586,
-    "ast_hash": "3b1966a97d93a0a65e0feb457643c9e8",
+    "mtime": 1784215623.0036016,
+    "ast_hash": "109e2e358aa69f01fbc279a2a22579c1",
     "semantic_hash": ""
   },
   "app/admin/(dash)/mobile-nav.tsx": {
@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/page.tsx": {
-    "mtime": 1784112646.82887,
-    "ast_hash": "7896cae7956ec17e9ffd9a5de5626a96",
+    "mtime": 1784215415.7524352,
+    "ast_hash": "7103caf1f8e0bce01babbeed31134ea5",
     "semantic_hash": ""
   },
   "app/admin/(dash)/payments/[paymentId]/page.tsx": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/ui.tsx": {
-    "mtime": 1784212532.072435,
-    "ast_hash": "758d2994a4f2ee1623b3896482ff2c3d",
+    "mtime": 1784215678.6299589,
+    "ast_hash": "c868852a54bbc41d720c624fa2a57e8d",
     "semantic_hash": ""
   },
   "app/admin/(dash)/usage/page.tsx": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/vigento/page.tsx": {
-    "mtime": 1784212470.0600262,
-    "ast_hash": "f84fd0d58593086b592ad5628dbd282e",
+    "mtime": 1784215499.9947536,
+    "ast_hash": "783447109086c564be6d56004791cc05",
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/[workspaceId]/page.tsx": {
@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/health/route.ts": {
-    "mtime": 1784079461.4928877,
-    "ast_hash": "d0e8e3288137a04d0665c432d6baf2cf",
+    "mtime": 1784215318.477023,
+    "ast_hash": "e1dc40f00958f01b7e15288b8737aeef",
     "semantic_hash": ""
   },
   "app/api/admin/instagram-diag/route.ts": {
@@ -990,8 +990,8 @@
     "semantic_hash": ""
   },
   "components/admin/trend-chart.tsx": {
-    "mtime": 1784155707.0,
-    "ast_hash": "bce0fdd04609e1f3e2e97c09ef1a0176",
+    "mtime": 1784215670.0032778,
+    "ast_hash": "16284aeaaed3d3a7af94c581093ec926",
     "semantic_hash": ""
   },
   "components/admin/trends-strip.tsx": {
@@ -1000,8 +1000,8 @@
     "semantic_hash": ""
   },
   "components/admin/vigento-admin-console.tsx": {
-    "mtime": 1784212730.4418135,
-    "ast_hash": "f7eedb0ff9941488f78defb201b4cf08",
+    "mtime": 1784215623.0056062,
+    "ast_hash": "429845425dc45061571d3e82b66cb0f8",
     "semantic_hash": ""
   },
   "components/agent-builder/agent-builder-entry.tsx": {
@@ -1745,8 +1745,8 @@
     "semantic_hash": ""
   },
   "lib/ai/models.ts": {
-    "mtime": 1783934443.050013,
-    "ast_hash": "8e57a15706dbe5236a64e61605424852",
+    "mtime": 1784215438.4926772,
+    "ast_hash": "77bc77de3f8e663d73871ccef5a44662",
     "semantic_hash": ""
   },
   "lib/ai/openrouter.ts": {
@@ -1755,8 +1755,8 @@
     "semantic_hash": ""
   },
   "lib/ai/platform-config.ts": {
-    "mtime": 1784212360.4778342,
-    "ast_hash": "bb21314aadcfd90b0ff68099428c1a88",
+    "mtime": 1784215438.4936833,
+    "ast_hash": "77d5a8f5bd1f7e27188eba382313f4d1",
     "semantic_hash": ""
   },
   "lib/ai/prompt-builder.ts": {
@@ -2485,8 +2485,8 @@
     "semantic_hash": ""
   },
   "tests/admin-owner-platform-settings.test.ts": {
-    "mtime": 1784212697.4663818,
-    "ast_hash": "7a71dec64f4a0790c145e18f96e4d424",
+    "mtime": 1784215774.9545794,
+    "ast_hash": "0f3fea8416e7b45e9689054d0cccab9b",
     "semantic_hash": ""
   },
   "tests/billing-finance.test.ts": {
@@ -2767,6 +2767,16 @@
   "prisma/migrations/20260716143000_admin_vigento_chat_and_model/migration.sql": {
     "mtime": 1784212360.4768322,
     "ast_hash": "0088d1975b7bac430d0c8a19f5f4e2a6",
+    "semantic_hash": ""
+  },
+  "app/admin/(dash)/database/page.tsx": {
+    "mtime": 1784215623.0046065,
+    "ast_hash": "54a3378163afc6de86fc9a19a09ffa1f",
+    "semantic_hash": ""
+  },
+  "lib/admin/database-explorer.ts": {
+    "mtime": 1784215359.5792964,
+    "ast_hash": "9e33cac180e9e11e15d8c17266f4fe52",
     "semantic_hash": ""
   }
 }

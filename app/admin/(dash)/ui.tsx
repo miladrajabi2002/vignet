@@ -349,20 +349,20 @@ export function PageHeader({
 }) {
   void breadcrumbs
   return (
-    <header className="dashboard-page-header mb-4 spatial-surface overflow-hidden rounded-[1.5rem] p-4 sm:px-5 sm:py-5">
+    <header className="dashboard-page-header spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           {Icon && (
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
               <Icon className="h-5 w-5" />
             </span>
           )}
           <div className="min-w-0">
-            <h1 className="text-xl font-bold leading-tight tracking-[-0.025em] text-black sm:text-2xl">{title}</h1>
-            {subtitle && <p className="mt-1 max-w-2xl text-xs leading-6 text-[var(--text-secondary)] sm:text-sm">{subtitle}</p>}
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{title}</h1>
+            {subtitle && <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">{subtitle}</p>}
           </div>
         </div>
-        {action && <div className="flex items-center gap-2">{action}</div>}
+        {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
       </div>
     </header>
   )
