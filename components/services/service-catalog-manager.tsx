@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, Check, Clock3, Loader2, MapPin, Power, Sparkles, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { SectionHeader } from '@/components/dashboard/section-header'
@@ -23,7 +23,6 @@ type ServiceItem = {
 const durations = [30, 45, 60, 90, 120].map((value) => ({ value: String(value), label: `${value.toLocaleString('fa-IR')} دقیقه` }))
 
 export function ServiceCatalogManager({ initialServices }: { initialServices: ServiceItem[] }) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [items, setItems] = useState(initialServices)
   const [open, setOpen] = useState(initialServices.length === 0)
@@ -31,18 +30,22 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', description: '', durationMinutes: '60', location: '' })
+  // Track the last `new` value we already reacted to, so a re-render with the
+  // same value doesn't re-open the form (e.g. on unrelated state changes).
+  const lastNewRef = useRef<string | null>(null)
 
-  // Watch the `?new=1` URL search param. The "خدمت جدید" button in the
-  // PageHeader navigates to `/services?new=1`; when we see that param, we
-  // open the inline form and immediately clear the param so the form can be
-  // closed and re-opened with another click.
+  // Watch the `?new=<ts>` URL search param. The "خدمت جدید" button navigates
+  // to `/services?new=<timestamp>`; whenever we see a NEW value for `new`
+  // (different from what we last handled), we open the inline form.
+  // We do NOT clear the param — leaving it in the URL is harmless and avoids
+  // the re-render loop that clearing caused in the previous implementation.
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
+    const newParam = searchParams.get('new')
+    if (newParam && newParam !== lastNewRef.current) {
+      lastNewRef.current = newParam
       setOpen(true)
-      // Clear the param without scrolling or adding a history entry.
-      router.replace('/services', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams])
 
   async function createService() {
     if (form.name.trim().length < 2 || saving) return

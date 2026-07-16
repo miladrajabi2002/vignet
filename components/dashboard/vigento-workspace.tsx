@@ -161,7 +161,18 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
               </button>
             ))}
           </div>
-          <form onSubmit={submit} className="spatial-control flex items-end gap-2 rounded-[1.4rem] p-2 pe-2 ps-4">
+          <form onSubmit={submit} className="spatial-control flex flex-row-reverse items-end gap-2 rounded-[1.4rem] p-2 pe-2 ps-4">
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              aria-label={fa ? 'ارسال' : 'Send'}
+              className="spatial-press grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              {/* In RTL (fa) the Send icon points the wrong way by default;
+                  rotate it 180° so it visually points toward the outgoing
+                  direction (left → right in RTL). */}
+              <Send className={cn('h-4 w-4', fa && 'rotate-180')} />
+            </button>
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -170,14 +181,6 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
               placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'}
               className="min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
             />
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              aria-label={fa ? 'ارسال' : 'Send'}
-              className="spatial-press grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              <Send className={cn('h-4 w-4', fa && 'rtl:rotate-180')} />
-            </button>
           </form>
         </div>
       </section>

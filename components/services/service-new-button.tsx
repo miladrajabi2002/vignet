@@ -1,37 +1,25 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 /**
  * "خدمت جدید" trigger button.
  *
- * Lives in the server-rendered PageHeader (passed via `actions` prop) but must
- * be a client component to attach a real React `onClick` handler.
- *
- * Instead of relying on a CustomEvent (which can be fragile across
- * server/client component hydration boundaries in Next.js 15), this button
- * navigates to `?new=1` on the current path. The `ServiceCatalogManager`
- * (client component) watches `useSearchParams` and opens its inline form when
- * it sees `new=1`, then clears the param so the form can be closed and
- * re-opened cleanly.
+ * Navigates to `/services?new=<timestamp>` on click. The `ServiceCatalogManager`
+ * watches the `new` search param and opens its form whenever the value
+ * changes. Using a timestamp (instead of a fixed `1`) means every click
+ * produces a new, distinct value — so even repeated clicks reliably
+ * re-trigger the form without needing to clear the param first.
  */
 export function ServiceNewButton() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   function handleClick() {
-    // If the param is already `1` (e.g. user closed the form and clicked
-    // again), we need to force a re-trigger. Toggle to `0` first then back
-    // to `1` on the next tick.
-    if (searchParams.get('new') === '1') {
-      router.replace('/services', { scroll: false })
-      // Small delay so React registers the param change as a new event.
-      setTimeout(() => router.replace('/services?new=1', { scroll: false }), 0)
-    } else {
-      router.replace('/services?new=1', { scroll: false })
-    }
+    // A fresh timestamp on every click guarantees the search param value
+    // changes, which reliably triggers the `useEffect` in
+    // ServiceCatalogManager — even on rapid repeated clicks.
+    router.replace(`/services?new=${Date.now()}`, { scroll: false })
   }
 
   return (
