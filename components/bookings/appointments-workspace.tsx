@@ -411,15 +411,17 @@ export function AppointmentsWorkspace({
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
               <span className="truncate text-sm font-bold text-[var(--text-primary)]">{weekMonthLabel}</span>
               <button
                 type="button"
                 onClick={goToday}
-                disabled={selectedDate === todayKey}
-                className="mt-0.5 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+                disabled={weekStart === todayKey && selectedDate === todayKey}
+                className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-base)] disabled:hover:text-[var(--text-secondary)]"
+                aria-label={fa ? 'رفتن به امروز' : 'Jump to today'}
               >
-                {fa ? 'رفتن به امروز' : 'Jump to today'}
+                <CalendarCheck2 className="h-3 w-3" />
+                {fa ? 'رفتن به امروز' : 'Today'}
               </button>
             </div>
             <button

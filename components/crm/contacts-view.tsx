@@ -340,7 +340,7 @@ function ListView({
                                                 <Avatar url={c.avatarUrl} name={c.name} />
                                                 <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                                <span className="truncate text-sm font-medium text-[var(--text-primary)] group-hover:underline">
+                                                                <span className="truncate text-sm font-medium text-[var(--text-primary)]">
                                                                         {rowDisplayName(c, t('anonymous'))}
                                                                 </span>
                                                                 {c.channels.map((ch) => {
@@ -464,7 +464,7 @@ function PipelineView({
                                                                                         <GripVertical className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
                                                                                         <Link
                                                                                                 href={`/contacts/${c.id}`}
-                                                                                                className="truncate text-sm font-medium text-[var(--text-primary)] hover:underline"
+                                                                                                className="truncate text-sm font-medium text-[var(--text-primary)]"
                                                                                         >
                                                                                                 {rowDisplayName(c, t('anonymous'))}
                                                                                         </Link>
