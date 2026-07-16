@@ -48,10 +48,7 @@ export function ChannelDonut({ data }: { data: DonutSlice[] }) {
                 color: 'var(--text-primary)',
                 fontFamily: 'IRANSansWeb',
               }}
-              formatter={(value, name) => [
-                Number(value ?? 0).toLocaleString('fa-IR'),
-                String(name ?? ''),
-              ]}
+              formatter={(value: number, name: string) => [Number(value).toLocaleString('fa-IR'), String(name ?? '')]}
             />
           </PieChart>
         </ResponsiveContainer>

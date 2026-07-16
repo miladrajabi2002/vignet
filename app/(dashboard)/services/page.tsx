@@ -1,8 +1,7 @@
-import { BriefcaseBusiness, CalendarDays, Sparkles } from 'lucide-react'
+import { BriefcaseBusiness, CalendarDays, Plus, Sparkles } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ServiceCatalogManager } from '@/components/services/service-catalog-manager'
-import { ServiceNewButton } from '@/components/services/service-new-button'
 import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function ServicesPage() {
@@ -55,5 +54,26 @@ export default async function ServicesPage() {
 
       <ServiceCatalogManager initialServices={services.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString() }))} />
     </div>
+  )
+}
+
+/**
+ * The "خدمت جدید" trigger lives in the PageHeader actions (matching the
+ * agents page pattern). It dispatches a CustomEvent that the
+ * ServiceCatalogManager listens for to open its inline form — keeping the
+ * form state where it belongs (the client component) while the button
+ * renders in the server-rendered PageHeader.
+ */
+function ServiceNewButton() {
+  return (
+    <button
+      type="button"
+      // eslint-disable-next-line react/no-unknown-property
+      onclick="window.dispatchEvent(new CustomEvent('service:new'))"
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+    >
+      <Plus className="h-4 w-4" />
+      خدمت جدید
+    </button>
   )
 }

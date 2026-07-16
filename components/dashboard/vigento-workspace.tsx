@@ -83,9 +83,9 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: 'fa' | 'en'; o
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {prompts.map((prompt) => <button key={prompt} type="button" onClick={() => void ask(prompt)} className="spatial-press min-h-9 shrink-0 rounded-full border border-[var(--border-default)] bg-white px-3 text-[11px] font-medium text-[var(--text-secondary)] shadow-[var(--shadow-xs)]">{prompt}</button>)}
           </div>
-          <form onSubmit={submit} className="spatial-control flex items-end gap-2 rounded-[1.4rem] p-2 ps-4">
+          <form onSubmit={submit} className="spatial-control flex flex-row-reverse items-end gap-2 rounded-[1.4rem] p-2 pe-4">
+            <button type="submit" disabled={!input.trim() || loading} aria-label={fa ? 'ارسال' : 'Send'} className="spatial-press grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] disabled:opacity-35"><Send className="h-4 w-4 rtl:rotate-180" /></button>
             <textarea value={input} onChange={(event) => setInput(event.target.value)} rows={1} maxLength={1000} placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'} className="min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]" />
-            <button type="submit" disabled={!input.trim() || loading} aria-label={fa ? 'ارسال' : 'Send'} className="spatial-press grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] disabled:opacity-35"><Send className="h-4 w-4" /></button>
           </form>
         </div>
       </section>

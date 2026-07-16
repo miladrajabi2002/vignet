@@ -284,6 +284,57 @@ export default async function OverviewPage() {
         )}
       </section>
 
+      {/* ── Vigento AI — workspace copilot card ── */}
+      <Link
+        href="/vigento"
+        className="spatial-surface spatial-press group block overflow-hidden rounded-[1.5rem] p-5 transition-[transform,border-color] hover:-translate-y-0.5 hover:border-[var(--border-strong)] sm:p-6"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
+                  Vigento AI
+                  <span className="ms-2 text-xs font-normal text-[var(--text-muted)]">
+                    {fa ? 'هوش مصنوعی ویجنتو' : 'Vigento AI copilot'}
+                  </span>
+                </h2>
+                <span className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-700">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75 motion-reduce:animate-none" />
+                    <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  {fa ? 'آنلاین' : 'Online'}
+                </span>
+              </div>
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+                {fa
+                  ? 'دستیار مدیریت فضای کاری — آمار گفتگوها، مشتری‌ها، رزروها و هزینه پاسخ‌های AI را از داده زنده بررسی می‌کند و به زبان طبیعی پاسخ می‌دهد.'
+                  : 'Workspace management copilot — inspects live conversations, customers, bookings and AI reply costs, then answers in natural language.'}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity group-hover:opacity-90">
+            {fa ? 'گفتگو با ویجنتو' : 'Chat with Vigento'}
+            <Arrow className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+          </span>
+        </div>
+        {/* Quick prompts — preview of what you can ask */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(fa
+            ? ['امروز چه چیزی نیاز به توجه دارد؟', 'پرتعامل‌ترین مشتری‌های امروز کدام‌اند؟', 'هزینه پاسخ‌های AI امروز چقدر بود؟']
+            : ['What needs attention today?', 'Who were today\u2019s most active customers?', 'What did AI replies cost today?']
+          ).map((prompt) => (
+            <span key={prompt} className="inline-flex min-h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-base)] px-3 text-[11px] font-medium text-[var(--text-secondary)] transition-colors group-hover:border-[var(--border-hover)] group-hover:text-[var(--text-primary)]">
+              {prompt}
+            </span>
+          ))}
+        </div>
+      </Link>
+
       {(!operatorChannel?.active || !operatorChannel.operatorChatId) && (
         <Link
           href="/settings#telegram-operator"
