@@ -1,9 +1,12 @@
+import { Suspense } from 'react'
 import { BriefcaseBusiness, CalendarDays, Sparkles } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ServiceCatalogManager } from '@/components/services/service-catalog-manager'
 import { ServiceNewButton } from '@/components/services/service-new-button'
 import { PageHeader } from '@/components/dashboard/page-header'
+
+export const dynamic = 'force-dynamic'
 
 export default async function ServicesPage() {
   const user = await requireUser()
@@ -23,7 +26,11 @@ export default async function ServicesPage() {
         title="خدمات"
         subtitle="خدمت، مدت و محل ارائه را یک‌بار ثبت کنید؛ همین داده در ایجنت، رزرو و معرفی به مشتری استفاده می‌شود."
         actions={
-          <ServiceNewButton />
+          // ServiceNewButton uses useSearchParams, which requires a Suspense
+          // boundary when used inside a server component tree.
+          <Suspense fallback={null}>
+            <ServiceNewButton />
+          </Suspense>
         }
       />
 

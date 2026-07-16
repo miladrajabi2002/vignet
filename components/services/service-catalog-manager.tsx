@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CalendarDays, Check, Clock3, Loader2, MapPin, Power, Sparkles, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
@@ -22,6 +23,8 @@ type ServiceItem = {
 const durations = [30, 45, 60, 90, 120].map((value) => ({ value: String(value), label: `${value.toLocaleString('fa-IR')} دقیقه` }))
 
 export function ServiceCatalogManager({ initialServices }: { initialServices: ServiceItem[] }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [items, setItems] = useState(initialServices)
   const [open, setOpen] = useState(initialServices.length === 0)
   const [saving, setSaving] = useState(false)
@@ -29,14 +32,17 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', description: '', durationMinutes: '60', location: '' })
 
-  // Listen for the "service:new" CustomEvent dispatched by the PageHeader
-  // button (rendered in the server component). This keeps the form state
-  // in this client component while letting the trigger live in the header.
+  // Watch the `?new=1` URL search param. The "خدمت جدید" button in the
+  // PageHeader navigates to `/services?new=1`; when we see that param, we
+  // open the inline form and immediately clear the param so the form can be
+  // closed and re-opened with another click.
   useEffect(() => {
-    function onNew() { setOpen(true) }
-    window.addEventListener('service:new', onNew)
-    return () => window.removeEventListener('service:new', onNew)
-  }, [])
+    if (searchParams.get('new') === '1') {
+      setOpen(true)
+      // Clear the param without scrolling or adding a history entry.
+      router.replace('/services', { scroll: false })
+    }
+  }, [searchParams, router])
 
   async function createService() {
     if (form.name.trim().length < 2 || saving) return
