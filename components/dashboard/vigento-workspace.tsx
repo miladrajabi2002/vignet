@@ -161,7 +161,21 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
               </button>
             ))}
           </div>
-          <form onSubmit={submit} className="spatial-control flex flex-row-reverse items-end gap-2 rounded-[1.4rem] p-2 pe-2 ps-4">
+          {/* Input row: textarea first, send button second (last). In LTR,
+              `flex` (row) places the textarea on the left and the button on
+              the right. In RTL we add `rtl:flex-row-reverse` so the button
+              stays on the visual RIGHT as well — flex direction follows the
+              writing direction, so without the reverse the button would end
+              up on the left in Persian. */}
+          <form onSubmit={submit} className="spatial-control flex rtl:flex-row-reverse items-end gap-2 rounded-[1.4rem] p-2 pe-2 ps-4">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              rows={1}
+              maxLength={1000}
+              placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'}
+              className="min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+            />
             <button
               type="submit"
               disabled={!input.trim() || loading}
@@ -173,14 +187,6 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
                   direction (left → right in RTL). */}
               <Send className={cn('h-4 w-4', fa && 'rotate-180')} />
             </button>
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              rows={1}
-              maxLength={1000}
-              placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'}
-              className="min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
-            />
           </form>
         </div>
       </section>

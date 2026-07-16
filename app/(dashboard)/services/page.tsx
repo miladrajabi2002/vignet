@@ -26,8 +26,9 @@ export default async function ServicesPage() {
         title="خدمات"
         subtitle="خدمت، مدت و محل ارائه را یک‌بار ثبت کنید؛ همین داده در ایجنت، رزرو و معرفی به مشتری استفاده می‌شود."
         actions={
-          // ServiceNewButton uses useSearchParams, which requires a Suspense
-          // boundary when used inside a server component tree.
+          // ServiceNewButton is a client component (uses useRouter). Wrapping it
+          // in Suspense is harmless and keeps the header stable during any
+          // client-side search-param transitions.
           <Suspense fallback={null}>
             <ServiceNewButton />
           </Suspense>
@@ -60,7 +61,15 @@ export default async function ServicesPage() {
         </div>
       </div>
 
-      <ServiceCatalogManager initialServices={services.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString() }))} />
+      {/* ServiceCatalogManager uses useSearchParams() to watch the `?new=<ts>`
+          param set by the "خدمت جدید" button. In Next.js 15 any client
+          component that reads useSearchParams MUST sit inside a <Suspense>
+          boundary, otherwise the hook bails out to client-side rendering and
+          stops reacting to URL changes — which is exactly why clicking the
+          button did nothing. The boundary below fixes that. */}
+      <Suspense fallback={null}>
+        <ServiceCatalogManager initialServices={services.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString() }))} />
+      </Suspense>
     </div>
   )
 }
