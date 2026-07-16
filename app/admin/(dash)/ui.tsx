@@ -347,6 +347,7 @@ export function PageHeader({
    *  mirrors the user-dashboard PageHeader pattern. */
   icon?: React.ComponentType<{ className?: string }>
 }) {
+  void breadcrumbs
   return (
     <header className="dashboard-page-header mb-4 spatial-surface overflow-hidden rounded-[1.5rem] p-4 sm:px-5 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -357,16 +358,6 @@ export function PageHeader({
             </span>
           )}
           <div className="min-w-0">
-            {breadcrumbs?.length ? (
-              <nav aria-label="مسیر صفحه" className="mb-1 flex flex-wrap items-center gap-1 text-[10px] text-black/38">
-                {breadcrumbs.map((item, index) => (
-                  <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
-                    {index > 0 && <ChevronLeft className="h-3 w-3 text-black/20" />}
-                    {item.href ? <Link href={item.href} className="hover:text-black/65">{item.label}</Link> : <span aria-current="page">{item.label}</span>}
-                  </span>
-                ))}
-              </nav>
-            ) : null}
             <h1 className="text-xl font-bold leading-tight tracking-[-0.025em] text-black sm:text-2xl">{title}</h1>
             {subtitle && <p className="mt-1 max-w-2xl text-xs leading-6 text-[var(--text-secondary)] sm:text-sm">{subtitle}</p>}
           </div>

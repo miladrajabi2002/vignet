@@ -216,9 +216,10 @@ export async function POST(request: Request) {
 
   const connection = new IORedis(process.env.REDIS_URL, { lazyConnect: true, connectTimeout: 2_500, maxRetriesPerRequest: null, enableOfflineQueue: false, retryStrategy: () => null })
   connection.on('error', () => undefined)
-  const queue = new Queue(queueName, { connection: connection as unknown as ConnectionOptions })
+  let queue: Queue | null = null
   try {
     await timed(connection.connect(), 3_000)
+    queue = new Queue(queueName, { connection: connection as unknown as ConnectionOptions })
     let affected = 0
     if (action === 'retryFailed') {
       const jobs = await timed(queue.getJobs(['failed'], 0, 99, false), 4_000)
@@ -242,7 +243,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'QUEUE_ACTION_FAILED' }, { status: 500 })
   } finally {
-    await queue.close().catch(() => undefined)
-    connection.disconnect()
+    await queue?.close().catch(() => undefined)
+    if (connection.status !== 'end') connection.disconnect()
   }
 }

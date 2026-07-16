@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import {
   Check,
   Loader2,
+  Plus,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -43,6 +44,8 @@ export function VigentoAdminConsole({
   const [resetting, setResetting] = useState(false)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [actionState, setActionState] = useState<'idle' | 'running' | 'done'>('idle')
+  const [mode, setMode] = useState<'chat' | 'work'>('chat')
+  const [showPrompts, setShowPrompts] = useState(false)
   const messagesRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -159,75 +162,42 @@ export function VigentoAdminConsole({
   }
 
   const hasConversation = messages.some((message) => message.id !== 'welcome' || message.role === 'user')
+  const emptyConversation = !loadingHistory && !messages.some((message) => message.role === 'user')
 
   return (
     <section
-      aria-labelledby="vigento-admin-title"
+      aria-label="گفتگو با ویجنتو"
       className={cn(
-        'admin-vigento-shell spatial-surface relative flex min-h-[calc(100dvh-10.5rem)] flex-col overflow-hidden rounded-[1.75rem]',
+        'admin-vigento-shell spatial-surface relative flex h-full min-h-0 flex-col overflow-hidden rounded-[1.75rem]',
         className,
       )}
     >
-      <header className="admin-vigento-toolbar relative z-10 flex min-h-[4.5rem] items-center justify-between gap-3 border-b border-black/[0.06] px-4 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[.9rem] bg-black text-white shadow-[var(--shadow-control)]">
-            <Sparkles className="h-[1.1rem] w-[1.1rem]" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 id="vigento-admin-title" className="truncate text-sm font-bold text-black">ویجنتو</h2>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200/70">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                آنلاین
-              </span>
-            </div>
-            <p className="mt-0.5 truncate text-[10px] text-black/45" title={providerId}>
-              {modelLabel} · تاریخچه ماندگار و عملیات تأییدشونده
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void resetChat()}
-          disabled={resetting || loading || (!hasConversation && messages.length === 1)}
-          className="admin-toolbar-button min-h-10 shrink-0"
-          aria-label="شروع گفتگوی جدید و پاک‌کردن تاریخچه"
-          title="گفتگوی جدید"
-        >
-          {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-          <span className="hidden sm:inline">گفتگوی جدید</span>
-        </button>
-      </header>
-
       <div ref={messagesRef} className="admin-vigento-messages min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-5 sm:px-5 sm:py-7" aria-live="polite">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <div className="sticky top-0 z-10 mx-auto mb-5 flex w-fit rounded-full bg-zinc-100/90 p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,.035)] backdrop-blur-xl">
+          <button type="button" onClick={() => setMode('chat')} className={cn('min-h-9 min-w-24 rounded-full px-5 text-[11px] font-semibold transition-[background-color,color,box-shadow] duration-150', mode === 'chat' ? 'bg-white text-black shadow-[0_3px_12px_rgba(0,0,0,.09)]' : 'text-black/45')}>گفتگو</button>
+          <button type="button" onClick={() => { setMode('work'); setShowPrompts(true) }} className={cn('min-h-9 min-w-24 rounded-full px-5 text-[11px] font-semibold transition-[background-color,color,box-shadow] duration-150', mode === 'work' ? 'bg-white text-black shadow-[0_3px_12px_rgba(0,0,0,.09)]' : 'text-black/45')}>عملیات</button>
+        </div>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           {loadingHistory ? (
             <div className="flex items-center justify-center gap-2 py-16 text-xs text-black/40">
               <Loader2 className="h-4 w-4 animate-spin" />
               بازیابی تاریخچه گفتگو…
             </div>
+          ) : emptyConversation ? (
+            <div className="flex min-h-[17rem] flex-1 flex-col items-center justify-center px-4 text-center">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Sparkles className="h-[1.125rem] w-[1.125rem]" /></span>
+              <h2 id="vigento-admin-title" className="mt-5 text-xl font-medium tracking-[-0.025em] text-black sm:text-2xl">امروز چه کاری را با هم جلو ببریم؟</h2>
+              <p className="mt-2 max-w-md text-xs leading-6 text-black/40">از تحلیل وضعیت پلتفرم تا اجرای عملیات مدیریتی تأییدشونده، درخواستتان را طبیعی بنویسید.</p>
+            </div>
           ) : messages.map((message) => (
-            <article key={message.id} className={cn('flex items-start gap-3', message.role === 'user' && 'justify-end')}>
-              {message.role === 'assistant' && (
-                <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </span>
-              )}
-              <div
-                className={cn(
-                  'whitespace-pre-wrap text-[13px] leading-7',
-                  message.role === 'user'
-                    ? 'max-w-[86%] rounded-[1.35rem] rounded-se-md bg-zinc-100 px-4 py-2.5 text-zinc-900 ring-1 ring-black/[0.04]'
-                    : 'max-w-[calc(100%_-_2.75rem)] flex-1 pt-0.5 text-zinc-700',
-                )}
-              >
-                {message.text}
-              </div>
+            <article key={message.id} dir={message.role === 'assistant' ? 'ltr' : 'rtl'} className={cn('flex w-fit max-w-[88%] items-start gap-2.5', message.role === 'user' ? 'ml-auto' : 'mr-auto')}>
+              {message.role === 'assistant' && <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span>}
+              <div dir="rtl" className={cn('whitespace-pre-wrap rounded-[1.25rem] px-4 py-2.5 text-right text-[13px] leading-7', message.role === 'user' ? 'rounded-tr-md bg-black text-white shadow-[var(--shadow-control)]' : 'rounded-tl-md border border-black/[0.055] bg-zinc-100/80 text-zinc-700')}>{message.text}</div>
             </article>
           ))}
 
           {loading && (
-            <div className="flex items-start gap-3" role="status">
+            <div dir="ltr" className="mr-auto flex items-start gap-3" role="status">
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span>
               <div className="flex items-center gap-1.5 pt-2 text-black/35">
                 <span className="admin-typing-dot" />
@@ -261,9 +231,9 @@ export function VigentoAdminConsole({
         </div>
       </div>
 
-      <footer className="admin-vigento-composer relative z-10 border-t border-black/[0.055] px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
+      <footer className="admin-vigento-composer relative z-10 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
         <div className="mx-auto w-full max-w-3xl">
-          {!hasConversation && !loadingHistory && (
+          {(showPrompts || (!hasConversation && !loadingHistory)) && (
             <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1">
               {QUICK_PROMPTS.map((prompt) => (
                 <button key={prompt} type="button" onClick={() => void ask(prompt)} className="spatial-press min-h-10 shrink-0 rounded-full border border-black/[0.07] bg-white/80 px-3 text-[11px] font-medium text-black/55 hover:border-black/[0.13] hover:text-black">
@@ -272,7 +242,8 @@ export function VigentoAdminConsole({
               ))}
             </div>
           )}
-          <form dir="ltr" onSubmit={submit} className="flex items-end gap-2 rounded-[1.4rem] border border-black/[0.09] bg-white p-1.5 shadow-[0_14px_38px_-24px_rgba(0,0,0,.28)] transition-[border-color,box-shadow] focus-within:border-black/20 focus-within:shadow-[0_18px_44px_-24px_rgba(0,0,0,.34)]">
+          <form dir="ltr" onSubmit={submit} className="flex items-end gap-1.5 rounded-[1.65rem] border border-black/[0.09] bg-white p-1.5 shadow-[0_16px_42px_-24px_rgba(0,0,0,.3)] transition-[border-color,box-shadow] focus-within:border-black/20 focus-within:shadow-[0_18px_46px_-22px_rgba(0,0,0,.34)]">
+            <button type="button" onClick={() => setShowPrompts((value) => !value)} className="spatial-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black/65 hover:bg-zinc-100" aria-label="نمایش عملیات پیشنهادی" aria-expanded={showPrompts}><Plus className={cn('h-5 w-5 transition-transform duration-150', showPrompts && 'rotate-45')} /></button>
             <textarea
               ref={textareaRef}
               dir="rtl"
@@ -286,18 +257,17 @@ export function VigentoAdminConsole({
                   void ask(input)
                 }
               }}
-              placeholder="از ویجنتو درباره پلتفرم بپرسید…"
+              placeholder={mode === 'work' ? 'عملیات مدیریتی موردنظر را بنویسید…' : 'از ویجنتو بپرسید…'}
               className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-right text-[13px] leading-5 text-zinc-900 outline-none placeholder:text-black/30"
               aria-label="پیام به ویجنتو"
             />
+            <span dir="rtl" className="mb-1 hidden h-9 max-w-36 items-center truncate rounded-full bg-zinc-100 px-3 text-[9px] font-medium text-black/45 sm:inline-flex" title={providerId}>{modelLabel}</span>
+            <button type="button" onClick={() => void resetChat()} disabled={resetting || loading || (!hasConversation && messages.length === 1)} className="spatial-press mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/45 hover:bg-zinc-100 hover:text-black disabled:opacity-25" aria-label="گفتگوی جدید" title="گفتگوی جدید">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}</button>
             <button type="submit" disabled={!input.trim() || loading} aria-label="ارسال پیام" className="spatial-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black text-white disabled:cursor-not-allowed disabled:opacity-25">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 rtl:-scale-x-100" />}
             </button>
           </form>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-black/35">
-            <ShieldCheck className="h-3 w-3" />
-            تغییرات حساس فقط پس از تأیید شما اجرا می‌شوند
-          </p>
+          <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[9px] text-black/30"><ShieldCheck className="h-3 w-3" /> تغییرات حساس فقط پس از تأیید شما اجرا می‌شوند</p>
         </div>
       </footer>
     </section>

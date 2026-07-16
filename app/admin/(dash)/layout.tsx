@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="px-1 pb-2 pt-0.5">
             <BrandHeader />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pe-0.5 pt-2 [scrollbar-width:thin]">
+          <div className="min-h-0 flex-1 overflow-hidden pe-0.5 pt-2">
             <AdminNavContent />
           </div>
           <div className="mt-1 border-t border-black/[0.06] pt-2">
@@ -54,7 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </form>
             </div>
           </div>
-          <div className="mx-auto w-full max-w-[92rem]">{children}</div>
+          <div className="mx-auto w-[calc(100%_-_1rem)] max-w-[84rem]">{children}</div>
         </main>
       </div>
     </div>

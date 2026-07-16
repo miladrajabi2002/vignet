@@ -91,6 +91,15 @@ function formatProviderUSD(value: number | null | undefined): string {
   })}`
 }
 
+function formatRequestUSD(value: number | null | undefined): string {
+  if (value === null || value === undefined) return 'ثبت نشده'
+  if (value > 0 && value < 0.000001) return '<$0.000001'
+  return `$${value.toLocaleString('en-US', {
+    minimumFractionDigits: value > 0 && value < 0.001 ? 6 : 3,
+    maximumFractionDigits: 6,
+  })}`
+}
+
 function formatRial(value: number): string {
   return `${Math.round(value / 10).toLocaleString('fa-IR')} تومان`
 }
@@ -283,9 +292,9 @@ function ManagedModels({ config }: { config: OpenRouterConfigStatus }) {
                 </dd>
               </div>
               <div className="rounded-xl bg-white p-2.5 ring-1 ring-zinc-200">
-                <dt className="text-zinc-400">ورودی / خروجی</dt>
-                <dd dir="ltr" className="mt-1 text-left font-mono font-semibold text-zinc-900">
-                  ${model.inputUsdPerMillion} / ${model.outputUsdPerMillion}
+                <dt className="text-zinc-400">منبع تنظیم</dt>
+                <dd className="mt-1 font-semibold text-zinc-900">
+                  {model.configurationSource === 'panel' ? 'پنل مدیریت' : model.configurationSource === 'environment' ? 'محیط سرور' : 'پیش‌فرض سیستم'}
                 </dd>
               </div>
             </dl>
@@ -489,7 +498,7 @@ function RecentUsageList({ rows }: { rows: RecentAiUsage[] }) {
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-            <span>OpenRouter: <bdi dir="ltr" className="font-mono text-zinc-700">{formatProviderUSD(row.providerCostUSD)}</bdi></span>
+            <span>هزینه دقیق OpenRouter: <bdi dir="ltr" className="font-mono font-semibold text-zinc-800">{formatRequestUSD(row.providerCostUSD)}</bdi></span>
             <span>کسرشده: <strong className="font-semibold text-zinc-700">{formatRial(row.chargedIRR)}</strong></span>
             {row.reasoningTokens > 0 && <span>استدلال: {fa(row.reasoningTokens)}</span>}
           </div>

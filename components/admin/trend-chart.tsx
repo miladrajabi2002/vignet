@@ -15,6 +15,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  LabelList,
 } from 'recharts'
 
 export interface DailyPoint {
@@ -281,6 +282,46 @@ export function DonutChart({
           ))}
           {data.length === 0 && <li className="text-xs text-zinc-400">داده‌ای نیست</li>}
         </ul>
+      </div>
+    </div>
+  )
+}
+
+/** Ordered activation stages rendered as a compact horizontal funnel. */
+export function ActivationFunnel({
+  title,
+  subtitle,
+  data,
+  total,
+}: {
+  title: string
+  subtitle?: string
+  data: NamedPoint[]
+  total: number
+}) {
+  const rows = data.map((item) => ({
+    ...item,
+    percent: total > 0 ? Math.round((item.value / total) * 100) : 0,
+  }))
+
+  return (
+    <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div><h3 className="text-sm font-semibold text-zinc-900">{title}</h3>{subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}</div>
+        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold text-zinc-600">مبنا {total.toLocaleString('fa-IR')}</span>
+      </div>
+      <div className="h-[13rem]" dir="ltr">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart layout="vertical" data={rows} margin={{ top: 0, right: 42, bottom: 0, left: 8 }} barCategoryGap={11}>
+            <XAxis type="number" domain={[0, 100]} hide />
+            <YAxis type="category" dataKey="label" width={112} tick={{ ...AXIS, textAnchor: 'start' }} axisLine={false} tickLine={false} />
+            <Tooltip {...TOOLTIP} formatter={(_value, _name, item) => [`${item.payload.value.toLocaleString('fa-IR')} کسب‌وکار · ${item.payload.percent.toLocaleString('fa-IR')}٪`, 'فعال‌سازی']} />
+            <Bar dataKey="percent" radius={[0, 8, 8, 0]} isAnimationActive={false} barSize={18}>
+              {rows.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
+              <LabelList dataKey="percent" position="right" formatter={(value) => `${Number(value ?? 0).toLocaleString('fa-IR')}٪`} style={{ fill: '#52525b', fontSize: 10, fontFamily: 'IRANSansWeb' }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )

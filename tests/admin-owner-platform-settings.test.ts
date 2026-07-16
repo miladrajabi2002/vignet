@@ -119,3 +119,35 @@ describe('platform settings migration coverage', () => {
     expect(route).toContain('always use find_user')
   })
 })
+
+describe('admin control-center regressions', () => {
+  it('opens a read-only allow-listed Prisma explorer', () => {
+    const explorer = readFileSync(path.join(process.cwd(), 'lib/admin/database-explorer.ts'), 'utf8')
+    const page = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/database/page.tsx'), 'utf8')
+
+    expect(explorer).toContain('DATABASE_MODELS')
+    expect(explorer).toContain('SENSITIVE_FIELD')
+    expect(explorer).toContain('SELECT * FROM')
+    expect(explorer).not.toContain('$executeRaw')
+    expect(page).toContain('فقط‌خواندنی')
+    expect(page).not.toContain('<textarea')
+  })
+
+  it('connects Redis before BullMQ creates the queue', () => {
+    const health = readFileSync(path.join(process.cwd(), 'app/api/admin/health/route.ts'), 'utf8')
+    const post = health.slice(health.indexOf('export async function POST'))
+
+    expect(post.indexOf('connection.connect()')).toBeGreaterThan(-1)
+    expect(post.indexOf('new Queue(queueName')).toBeGreaterThan(post.indexOf('connection.connect()'))
+  })
+
+  it('keeps the Vigento conversation aligned and removes the report cards', () => {
+    const page = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/vigento/page.tsx'), 'utf8')
+    const consoleSource = readFileSync(path.join(process.cwd(), 'components/admin/vigento-admin-console.tsx'), 'utf8')
+
+    expect(page).not.toContain('<PageHeader')
+    expect(page).not.toContain('<StatCard')
+    expect(consoleSource).toContain("message.role === 'user' ? 'ml-auto' : 'mr-auto'")
+    expect(consoleSource).toContain("overflow-y-auto")
+  })
+})

@@ -51,9 +51,9 @@ export const AGENT_MODELS: AgentModel[] = [
   },
   {
     id: 'standard',
-    name: 'استاندارد و متعادل',
-    provider: 'OpenAI GPT-4o Mini',
-    providerId: 'openai/gpt-4o-mini',
+    name: 'توانمند و استدلالی',
+    provider: 'Qwen 3.7 Plus',
+    providerId: 'qwen/qwen3.7-plus',
     tier: 'balanced',
     quality: 4,
     cost: 2,
@@ -61,14 +61,14 @@ export const AGENT_MODELS: AgentModel[] = [
     replyPriceIRR: 4_500,
     inputUsdPerMillion: 0.15,
     outputUsdPerMillion: 0.60,
-    descFa: 'انتخاب متعادل برای پاسخ‌های دقیق، سریع و چندمنظوره.',
-    descEn: 'A balanced choice for accurate, fast and general-purpose replies.',
+    descFa: 'برای پاسخ‌های پیچیده‌تر، تحلیل چندمرحله‌ای و گفتگوهایی که دقت و درک بهتر متن مهم است؛ انتخابی مطمئن برای کارهای روزمره حرفه‌ای.',
+    descEn: 'For complex replies, multi-step analysis and professional conversations where stronger text understanding matters.',
   },
   {
     id: 'balanced',
-    name: 'چندزبانه و تصویری',
-    provider: 'Qwen3.5 35B',
-    providerId: 'qwen/qwen3.5-35b-a3b',
+    name: 'سریع و مقیاس‌پذیر',
+    provider: 'Qwen 3.6 35B',
+    providerId: 'qwen/qwen3.6-35b-a3b',
     tier: 'balanced',
     quality: 4,
     cost: 2,
@@ -76,8 +76,8 @@ export const AGENT_MODELS: AgentModel[] = [
     replyPriceIRR: 6_500,
     inputUsdPerMillion: 0.14,
     outputUsdPerMillion: 1,
-    descFa: 'بسیار سریع و مناسب گفتگوهای چندزبانه و پیام‌هایی که تصویر یا ساختار دقیق دارند.',
-    descEn: 'Very fast and well suited to multilingual, image-aware and structured conversations.',
+    descFa: 'مناسب حجم بالای گفتگو، پاسخ‌گویی سریع و سناریوهای پشتیبانی پرتکرار که ثبات، سرعت و هزینه کنترل‌شده اهمیت بیشتری دارد.',
+    descEn: 'For high-volume conversations and support workloads where consistency, speed and controlled cost matter.',
   },
   {
     id: 'premium',
@@ -108,8 +108,10 @@ const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
   'google/gemini-2.5-flash-lite': 'fast',
   'google/gemini-flash-1.5': 'fast',
   'qwen/qwen3.5-35b-a3b': 'balanced',
+  'qwen/qwen3.6-35b-a3b': 'balanced',
   'qwen/qwen-2.5-72b-instruct': 'balanced',
   'openai/gpt-4o-mini': 'standard',
+  'qwen/qwen3.7-plus': 'standard',
   'anthropic/claude-haiku-4.5': 'balanced',
   'deepseek/deepseek-v4-pro': 'premium',
   'anthropic/claude-sonnet-5': 'premium',
@@ -144,10 +146,10 @@ export function resolveModelId(
   const configured = providerModels?.[alias]?.trim()
   if (configured) return configured
   if (alias === 'balanced') {
-    return process.env.OPENROUTER_MODEL_BALANCED || 'qwen/qwen3.5-35b-a3b'
+    return process.env.OPENROUTER_MODEL_BALANCED || 'qwen/qwen3.6-35b-a3b'
   }
   if (alias === 'standard') {
-    return process.env.OPENROUTER_MODEL_STANDARD || 'openai/gpt-4o-mini'
+    return process.env.OPENROUTER_MODEL_STANDARD || 'qwen/qwen3.7-plus'
   }
   if (alias === 'premium') {
     return process.env.OPENROUTER_MODEL_PREMIUM || 'deepseek/deepseek-v4-pro'

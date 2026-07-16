@@ -18,12 +18,14 @@ import {
   PageHeader,
   StatCard,
   Panel,
+  Badge,
   fmtIRR,
   fa,
 } from './ui'
 import {
   TrendChart,
   DonutChart,
+  ActivationFunnel,
   MonthlyBarChart,
 } from '@/components/admin/trend-chart'
 import { DashboardPanel } from '@/components/dashboard/panel'
@@ -180,10 +182,7 @@ export default async function AdminOverviewPage(
 
       {/* ─── Executive pulse — every KPI carries its own mini trend ─── */}
       <section aria-labelledby="executive-pulse-title">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div><p className="text-[10px] font-bold text-black/35">نمای مدیریتی</p><h2 id="executive-pulse-title" className="mt-1 text-sm font-black text-black">نبض کسب‌وکار و عملیات</h2></div>
-          <span className="text-[10px] text-black/35">روند کوچک · ۷ روز اخیر</span>
-        </div>
+        <h2 id="executive-pulse-title" className="sr-only">شاخص‌های کلیدی</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="درآمد امروز"
@@ -251,28 +250,24 @@ export default async function AdminOverviewPage(
       </section>
 
       {/* ─── Executive attention briefing ─────────────────────── */}
-      <section className="admin-attention-stage overflow-hidden rounded-[1.65rem] border border-black/10 bg-[#111214] text-white shadow-[0_30px_80px_-44px_rgba(0,0,0,.9)]" aria-labelledby="attention-title">
-        <div className="grid lg:grid-cols-[.72fr_1.28fr]">
-          <div className="relative overflow-hidden border-b border-white/[0.08] p-5 lg:border-b-0 lg:border-l sm:p-6">
-            <div className="absolute -left-16 -top-20 h-52 w-52 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
-            <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold text-white/55"><Gauge className="h-3.5 w-3.5" /> گزارش مدیریتی</span>
-              <h2 id="attention-title" className="mt-5 max-w-sm text-xl font-black leading-8">امروز چه چیزی نیاز به توجه دارد؟</h2>
-              <p className="mt-2 max-w-sm text-xs leading-6 text-white/45">اولویت‌ها از سیگنال‌های زنده خطا، گفتگو، پرداخت، اعتبار، آنبوردینگ و کانال‌ها ساخته شده‌اند.</p>
-              <Link href="/admin/system" className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-[11px] font-bold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white">نقشه سلامت زیرساخت <ChevronLeft className="h-3.5 w-3.5" /></Link>
-            </div>
+      <section className="spatial-surface overflow-hidden rounded-[1.65rem]" aria-labelledby="attention-title">
+        <div className="flex flex-col gap-4 border-b border-black/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black text-white"><Gauge className="h-4 w-4" /></span>
+            <div><h2 id="attention-title" className="text-sm font-black text-black">گزارش مدیریتی امروز</h2><p className="mt-1 text-[11px] leading-5 text-black/45">اولویت‌بندی خودکار بر اساس خطا، گفتگو، پرداخت، اعتبار، راه‌اندازی و سلامت کانال‌ها</p></div>
           </div>
-          <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4">
+          <div className="flex items-center gap-2"><Badge tone={attentionItems.length ? 'warning' : 'success'}>{attentionItems.length ? `${fa(attentionItems.length)} مورد نیازمند پیگیری` : 'وضعیت پایدار'}</Badge><Link href="/admin/system" className="admin-toolbar-button">سلامت زیرساخت <ChevronLeft className="h-3.5 w-3.5" /></Link></div>
+        </div>
+          <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">
             {attentionItems.length === 0 ? (
-              <div className="col-span-full flex min-h-40 flex-col items-center justify-center rounded-[1.25rem] border border-emerald-300/15 bg-emerald-300/[0.055] text-center"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-300/10 text-emerald-300"><ShieldCheck className="h-5 w-5" /></span><p className="mt-3 text-sm font-bold">مورد بحرانی دیده نشد</p><p className="mt-1 text-[11px] text-white/40">سیگنال‌های کلیدی در محدوده پایدار هستند.</p></div>
+              <div className="col-span-full flex min-h-32 flex-col items-center justify-center rounded-[1.25rem] border border-emerald-200/70 bg-emerald-50/60 text-center"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-100 text-emerald-700"><ShieldCheck className="h-5 w-5" /></span><p className="mt-3 text-sm font-bold text-zinc-900">مورد بحرانی دیده نشد</p><p className="mt-1 text-[11px] text-zinc-500">سیگنال‌های کلیدی در محدوده پایدار هستند.</p></div>
             ) : attentionItems.map((item) => (
-              <Link key={item.label} href={item.href} className="group flex min-h-[7.5rem] flex-col rounded-[1.2rem] border border-white/[0.08] bg-white/[0.045] p-4 transition-[background-color,transform] hover:bg-white/[0.075] active:scale-[.99]">
-                <div className="flex items-start gap-2"><span className={item.tone === 'danger' ? 'mt-1 h-2 w-2 rounded-full bg-red-400' : item.tone === 'warning' ? 'mt-1 h-2 w-2 rounded-full bg-amber-300' : 'mt-1 h-2 w-2 rounded-full bg-blue-300'} /><p className="text-xs font-bold leading-5 text-white/85">{item.label}</p><ChevronLeft className="ms-auto mt-0.5 h-3.5 w-3.5 text-white/25 transition-transform group-hover:-translate-x-0.5" /></div>
-                <p className="mt-2 text-[10px] leading-5 text-white/38">{item.detail}</p>
+              <Link key={item.label} href={item.href} className="group flex min-h-[7rem] flex-col rounded-[1.2rem] border border-black/[0.065] bg-white/70 p-4 transition-[border-color,background-color,transform] hover:border-black/15 hover:bg-white active:scale-[.99]">
+                <div className="flex items-start gap-2"><span className={item.tone === 'danger' ? 'mt-1 h-2 w-2 rounded-full bg-red-500' : item.tone === 'warning' ? 'mt-1 h-2 w-2 rounded-full bg-amber-500' : 'mt-1 h-2 w-2 rounded-full bg-blue-500'} /><p className="text-xs font-bold leading-5 text-zinc-900">{item.label}</p><ChevronLeft className="ms-auto mt-0.5 h-3.5 w-3.5 text-black/25 transition-transform group-hover:-translate-x-0.5" /></div>
+                <p className="mt-2 text-[10px] leading-5 text-zinc-500">{item.detail}</p>
               </Link>
             ))}
           </div>
-        </div>
       </section>
 
       {/* ─── Platform AI spend ─────────────────────────────────── */}
@@ -324,36 +319,14 @@ export default async function AdminOverviewPage(
         </div>
       </section>
 
-      <Panel
-        title="قیف فعال‌سازی کسب‌وکارها"
-        subtitle="سیگنال‌های واقعی دیتابیس؛ از تکمیل راه‌اندازی تا دریافت اولین گفتگو"
-      >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { label: 'تکمیل راه‌اندازی', value: activation.onboarded },
-            { label: 'ساخت ایجنت', value: activation.agentBuilt },
-            { label: 'دانش آماده', value: activation.knowledgeReady },
-            { label: 'اتصال کانال', value: activation.channelConnected },
-            { label: 'اولین گفتگو', value: activation.firstConversation },
-          ].map((step, index) => {
-            const percent = workspaceCount > 0 ? Math.round((step.value / workspaceCount) * 100) : 0
-            return (
-              <div key={step.label} className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-[var(--text-primary)]">{index + 1}. {step.label}</span>
-                  <span className="text-xs tabular-nums text-[var(--text-muted)]">{fa(percent)}٪</span>
-                </div>
-                <p className="mt-3 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{fa(step.value)}</p>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                  <div className="h-full rounded-full bg-black" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Panel>
-
       <div className="grid gap-4 lg:grid-cols-2">
+        <ActivationFunnel title="قیف فعال‌سازی کسب‌وکارها" subtitle="از تکمیل راه‌اندازی تا اولین گفتگو" total={workspaceCount} data={[
+          { label: 'راه‌اندازی', value: activation.onboarded },
+          { label: 'ساخت ایجنت', value: activation.agentBuilt },
+          { label: 'دانش آماده', value: activation.knowledgeReady },
+          { label: 'اتصال کانال', value: activation.channelConnected },
+          { label: 'اولین گفتگو', value: activation.firstConversation },
+        ]} />
         <DonutChart
           title="توزیع پلن‌ها"
           subtitle="ترکیب فعلی کسب‌وکارها"
@@ -361,15 +334,9 @@ export default async function AdminOverviewPage(
           centerValue={workspaceCount}
           centerLabel="کسب‌وکار"
         />
-        <TrendChart
-          title="گفتگوهای ۷ روز اخیر"
-          subtitle="روند روزانه گفتگوهای جدید پلتفرم"
-          data={kpiTrends.conv}
-          color="#18181b"
-          variant="bar"
-          height={200}
-        />
       </div>
+
+      <TrendChart title="گفتگوهای ۷ روز اخیر" subtitle="روند روزانه گفتگوهای جدید پلتفرم" data={kpiTrends.conv} color="#18181b" variant="bar" height={180} />
 
       <Panel
         title="تصویر عملیاتی پلتفرم"
