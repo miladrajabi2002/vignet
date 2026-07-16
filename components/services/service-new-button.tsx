@@ -3,13 +3,18 @@
 import { Plus } from 'lucide-react'
 
 /**
- * "خدمت جدید" trigger button.
+ * "خدمت جدید" trigger button — lives in the PageHeader actions slot.
  *
- * Lives in the server-rendered PageHeader (passed via `actions` prop) but must
- * be a client component to attach a real React `onClick` handler. Dispatches a
- * `service:new` CustomEvent on `window` that the `ServiceCatalogManager`
- * (client component) listens for to open its inline form — keeping the form
- * state where it belongs while letting the button render in the server header.
+ * This is a client component (note the 'use client' directive) so it can
+ * attach an `onClick` handler. Server components can't have event handlers,
+ * which is why this is split out from the server-rendered services page.
+ *
+ * The button dispatches a `service:new` CustomEvent on `window`. The
+ * ServiceCatalogManager (also a client component) listens for this event
+ * via `useEffect` + `addEventListener` and opens its inline create form.
+ * This keeps the form state inside the manager while letting the trigger
+ * render in the server-rendered PageHeader — matching the agents page
+ * pattern where the "new" action lives in the header.
  */
 export function ServiceNewButton() {
   return (
