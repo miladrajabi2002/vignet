@@ -230,7 +230,7 @@ export default async function OverviewPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
+        <div className="dashboard-arrival dashboard-intro relative order-2 overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7 xl:order-none">
           <div className="relative">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
@@ -301,9 +301,9 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
+          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core order-1 xl:order-none" />
         ) : (
-          <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
+          <div className="order-1 flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center xl:order-none">
             <div>
               <Sparkles className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
               <p className="mt-3 text-sm text-[var(--text-muted)]">

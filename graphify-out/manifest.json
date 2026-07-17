@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/overview/page.tsx": {
-    "mtime": 1784299446.738528,
-    "ast_hash": "42fc72a997ff913e48de4a4410792b84",
+    "mtime": 1784307458.867229,
+    "ast_hash": "9a6efe29bb4e1c2a8d57a9bdfbfb12fe",
     "semantic_hash": ""
   },
   "app/(dashboard)/products/[productId]/edit/page.tsx": {
@@ -1205,13 +1205,13 @@
     "semantic_hash": ""
   },
   "components/dashboard/intelligence-core-lazy.tsx": {
-    "mtime": 1784068139.404056,
-    "ast_hash": "df24d0e318aed0a76e78286a6ac5ec3a",
+    "mtime": 1784307458.865238,
+    "ast_hash": "894d353ae431a08624707b009d27ee8b",
     "semantic_hash": ""
   },
   "components/dashboard/intelligence-core.tsx": {
-    "mtime": 1784248123.3764157,
-    "ast_hash": "5e052e84d88def21eb7cb25c2277cbce",
+    "mtime": 1784307564.3262668,
+    "ast_hash": "7aa2687f9025da9add6045f9b428d985",
     "semantic_hash": ""
   },
   "components/dashboard/metrics-explainer.tsx": {
@@ -1360,8 +1360,8 @@
     "semantic_hash": ""
   },
   "components/marketing/hero.tsx": {
-    "mtime": 1784029800.2365015,
-    "ast_hash": "e8fe125b380f60fc022d0c98988c92be",
+    "mtime": 1784308056.0,
+    "ast_hash": "5b4d5fb40290864a6bb9deb5e830f3bb",
     "semantic_hash": ""
   },
   "components/marketing/navbar.tsx": {
@@ -1370,8 +1370,8 @@
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
-    "mtime": 1784029931.7323847,
-    "ast_hash": "1ce5627c83f9e9aabb15ea92f615668e",
+    "mtime": 1784308056.0,
+    "ast_hash": "4491f0797961178d8bbbc00a9c872108",
     "semantic_hash": ""
   },
   "components/marketing/popular-posts.tsx": {

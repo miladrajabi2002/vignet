@@ -46,6 +46,15 @@ const POSITIONS = [
   { x: 80, y: 82 },
 ] as const
 
+const MOBILE_POSITIONS = [
+  { x: 18, y: 18 },
+  { x: 82, y: 18 },
+  { x: 14, y: 50 },
+  { x: 86, y: 50 },
+  { x: 18, y: 82 },
+  { x: 82, y: 82 },
+] as const
+
 type FlowParticleProps = {
   path: string
   delay: number
@@ -65,58 +74,124 @@ function FlowParticle({ path, delay, duration }: FlowParticleProps) {
         stroke="#34d399"
         strokeWidth="8"
         strokeLinecap="round"
-        strokeDasharray="0.24 99.76"
-        strokeDashoffset="0"
+        strokeDasharray="0.01 99.99"
         vectorEffect="non-scaling-stroke"
         opacity="0"
-        style={{ filter: 'blur(1.8px)' }}
+        style={{ filter: 'blur(1.6px)' }}
       >
-        <animate
-          attributeName="stroke-dashoffset"
-          values="0;-100"
-          dur={cycle}
-          begin={begin}
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="opacity"
-          values="0;.36;.16;.4;0"
-          keyTimes="0;.07;.5;.93;1"
-          dur={cycle}
-          begin={begin}
-          repeatCount="indefinite"
-        />
+        <animate attributeName="stroke-dashoffset" values="0;-100" dur={cycle} begin={begin} repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0;.28;.2;.3;0" keyTimes="0;.08;.56;.92;1" dur={cycle} begin={begin} repeatCount="indefinite" />
       </path>
       <path
         d={path}
         pathLength="100"
         fill="none"
-        stroke="#6ee7b7"
-        strokeWidth="3.4"
+        stroke="#a7f3d0"
+        strokeWidth="3.2"
         strokeLinecap="round"
-        strokeDasharray="0.24 99.76"
-        strokeDashoffset="0"
+        strokeDasharray="0.01 99.99"
         vectorEffect="non-scaling-stroke"
         opacity="0"
-        style={{ filter: 'drop-shadow(0 0 3px rgba(52, 211, 153, .8))' }}
+        style={{ filter: 'drop-shadow(0 0 2.5px rgba(52, 211, 153, .95))' }}
       >
-        <animate
-          attributeName="stroke-dashoffset"
-          values="0;-100"
-          dur={cycle}
-          begin={begin}
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="opacity"
-          values="0;1;.82;1;0"
-          keyTimes="0;.07;.5;.93;1"
-          dur={cycle}
-          begin={begin}
-          repeatCount="indefinite"
-        />
+        <animate attributeName="stroke-dashoffset" values="0;-100" dur={cycle} begin={begin} repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0;1;.92;1;0" keyTimes="0;.08;.56;.92;1" dur={cycle} begin={begin} repeatCount="indefinite" />
       </path>
     </>
+  )
+}
+
+function ArrivalPulse({ delay, duration }: Pick<FlowParticleProps, 'delay' | 'duration'>) {
+  const begin = `${delay + duration}s`
+  const cycle = `${duration}s`
+
+  return (
+    <path d="M 50 50 h 0.001" fill="none" stroke="#6ee7b7" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0">
+      <animate
+        attributeName="stroke-width"
+        values="2;10;14;14"
+        keyTimes="0;.12;.2;1"
+        dur={cycle}
+        begin={begin}
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="opacity"
+        values="0;.32;0;0"
+        keyTimes="0;.08;.2;1"
+        dur={cycle}
+        begin={begin}
+        repeatCount="indefinite"
+      />
+    </path>
+  )
+}
+
+function ConnectionNetwork({
+  nodeKeys,
+  positions,
+  reduce,
+  className,
+}: {
+  nodeKeys: DashboardModuleKey[]
+  positions: readonly { x: number; y: number }[]
+  reduce: boolean | null
+  className: string
+}) {
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`absolute inset-0 h-full w-full ${className}`} aria-hidden>
+      {nodeKeys.map((key, index) => {
+        const point = positions[index]
+        const controlX = (point.x + 50) / 2
+        const controlY = (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)
+        const inwardPath = `M ${point.x} ${point.y} Q ${controlX} ${controlY} 50 50`
+        const outwardPath = `M 50 50 Q ${controlX} ${controlY} ${point.x} ${point.y}`
+        const inwardDuration = 3.85 + (index % 3) * 0.32
+        const inwardDelay = 0.24 + index * 0.31
+
+        return (
+          <g key={key}>
+            <motion.path
+              d={inwardPath}
+              fill="none"
+              stroke="rgba(52,211,153,.16)"
+              strokeWidth="4"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              style={{ filter: 'blur(2px)' }}
+              initial={reduce ? false : { pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.38, delay: 0.03 + index * 0.035, ease: [0.23, 1, 0.32, 1] }}
+            />
+            <motion.path
+              d={inwardPath}
+              fill="none"
+              stroke="rgba(209,250,229,.42)"
+              strokeWidth="1.1"
+              strokeLinecap="round"
+              strokeDasharray="1.8 3.15"
+              vectorEffect="non-scaling-stroke"
+              initial={reduce ? false : { pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.05 + index * 0.04, ease: [0.23, 1, 0.32, 1] }}
+            />
+            {!reduce && (
+              <>
+                <FlowParticle path={inwardPath} delay={inwardDelay} duration={inwardDuration} />
+                <ArrivalPulse delay={inwardDelay} duration={inwardDuration} />
+                {index % 3 === 1 && (
+                  <FlowParticle
+                    path={outwardPath}
+                    delay={1.15 + index * 0.34}
+                    duration={4.45 + (index % 2) * 0.35}
+                  />
+                )}
+              </>
+            )}
+          </g>
+        )
+      })}
+    </svg>
   )
 }
 
@@ -172,96 +247,24 @@ export function IntelligenceCore({
         <div aria-hidden className="absolute inset-x-[18%] top-1/2 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         <div aria-hidden className="absolute inset-y-[18%] left-1/2 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
-          {nodeKeys.map((key, index) => {
-            const point = POSITIONS[index]
-            const controlX = (point.x + 50) / 2
-            const controlY = (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)
-            const inwardPath = `M ${point.x} ${point.y} Q ${controlX} ${controlY} 50 50`
-            const outwardPath = `M 50 50 Q ${controlX} ${controlY} ${point.x} ${point.y}`
-            const inwardDuration = 3.05 + (index % 3) * 0.28
-            const inwardDelay = 0.18 + index * 0.22
-            return (
-              <g key={key}>
-                <motion.path
-                  d={inwardPath}
-                  fill="none"
-                  stroke="rgba(52,211,153,.16)"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                  style={{ filter: 'blur(2px)' }}
-                  initial={reduce ? false : { pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.38, delay: 0.03 + index * 0.035, ease: [0.23, 1, 0.32, 1] }}
-                />
-                <motion.path
-                  d={inwardPath}
-                  fill="none"
-                  stroke="rgba(209,250,229,.42)"
-                  strokeWidth="1.1"
-                  strokeLinecap="round"
-                  strokeDasharray="1.8 3.15"
-                  vectorEffect="non-scaling-stroke"
-                  initial={reduce ? false : { pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 0.05 + index * 0.04, ease: [0.23, 1, 0.32, 1] }}
-                />
-                {!reduce && (
-                  <>
-                    <path
-                      d={inwardPath}
-                      pathLength="100"
-                      fill="none"
-                      stroke="rgba(110,231,183,.58)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeDasharray="5 95"
-                      strokeDashoffset="0"
-                      vectorEffect="non-scaling-stroke"
-                      opacity="0"
-                      style={{ filter: 'drop-shadow(0 0 3px rgba(52, 211, 153, .45))' }}
-                    >
-                      <animate
-                        attributeName="stroke-dashoffset"
-                        values="0;-100"
-                        dur={`${3.45 + (index % 3) * 0.24}s`}
-                        begin={`${0.08 + index * 0.17}s`}
-                        repeatCount="indefinite"
-                      />
-                      <animate
-                        attributeName="opacity"
-                        values="0;.34;.18;.38;0"
-                        keyTimes="0;.08;.5;.92;1"
-                        dur={`${3.45 + (index % 3) * 0.24}s`}
-                        begin={`${0.08 + index * 0.17}s`}
-                        repeatCount="indefinite"
-                      />
-                    </path>
-                    <FlowParticle path={inwardPath} delay={inwardDelay} duration={inwardDuration} />
-                    {index % 2 === 1 && (
-                      <FlowParticle
-                        path={outwardPath}
-                        delay={0.85 + index * 0.28}
-                        duration={3.45 + (index % 3) * 0.25}
-                      />
-                    )}
-                  </>
-                )}
-              </g>
-            )
-          })}
-        </svg>
+        <ConnectionNetwork nodeKeys={nodeKeys} positions={MOBILE_POSITIONS} reduce={reduce} className="sm:hidden" />
+        <ConnectionNetwork nodeKeys={nodeKeys} positions={POSITIONS} reduce={reduce} className="hidden sm:block" />
 
         {nodeKeys.map((key, index) => {
           const meta = NODE_META[key] ?? { fa: key, en: key, icon: Database }
           const Icon = meta.icon
           const point = POSITIONS[index]
+          const mobilePoint = MOBILE_POSITIONS[index]
           return (
             <div
               key={key}
-              style={{ left: `${point.x}%`, top: `${point.y}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{
+                '--node-x': `${mobilePoint.x}%`,
+                '--node-y': `${mobilePoint.y}%`,
+                '--node-x-sm': `${point.x}%`,
+                '--node-y-sm': `${point.y}%`,
+              } as React.CSSProperties}
+              className="absolute left-[var(--node-x)] top-[var(--node-y)] -translate-x-1/2 -translate-y-1/2 sm:left-[var(--node-x-sm)] sm:top-[var(--node-y-sm)]"
             >
               {!reduce && (
                 <motion.span
@@ -282,10 +285,10 @@ export function IntelligenceCore({
                 initial={reduce ? false : { opacity: 0, scale: 0.94 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.22, delay: 0.1 + index * 0.045, ease: [0.23, 1, 0.32, 1] }}
-                className="flex min-h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.075] p-1.5 text-[11px] font-semibold text-white shadow-[0_12px_32px_-20px_rgba(0,0,0,.9)] backdrop-blur-md sm:gap-2 sm:px-2.5"
+                className="flex min-h-9 items-center gap-1 rounded-xl border border-white/10 bg-white/[0.075] p-1 text-[9px] font-semibold text-white shadow-[0_12px_32px_-20px_rgba(0,0,0,.9)] backdrop-blur-md sm:min-h-10 sm:gap-2 sm:p-1.5 sm:px-2.5 sm:text-[11px]"
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-black sm:h-6 sm:w-6"><Icon className="h-3.5 w-3.5" /></span>
-                <span className="hidden whitespace-nowrap sm:inline">{fa ? meta.fa : meta.en}</span>
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-white text-black"><Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" /></span>
+                <span className="max-w-14 truncate whitespace-nowrap sm:max-w-none">{fa ? meta.fa : meta.en}</span>
                 <span className="hidden h-1.5 w-1.5 rounded-full bg-emerald-400 sm:block" />
               </motion.div>
             </div>
@@ -313,7 +316,7 @@ export function IntelligenceCore({
             initial={reduce ? false : { opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.42, delay: 0.1 }}
-            className="relative w-[min(11rem,50vw)] rounded-[1.35rem] border border-white bg-white p-3 text-center text-black shadow-[0_28px_70px_-28px_rgba(255,255,255,.52)] sm:w-[13.5rem] sm:rounded-[1.55rem] sm:p-4"
+            className="relative w-[9.5rem] rounded-[1.35rem] border border-white bg-white p-2.5 text-center text-black shadow-[0_28px_70px_-28px_rgba(255,255,255,.52)] sm:w-[13.5rem] sm:rounded-[1.55rem] sm:p-4"
           >
             <span className="mx-auto grid h-9 w-9 place-items-center rounded-xl bg-black text-white shadow-[var(--shadow-control)] sm:h-10 sm:w-10"><Sparkles className="h-4 w-4" /></span>
             <p dir="auto" title={coreName} className="mt-2 truncate text-[11px] font-black sm:text-[13px]">{coreName}</p>
