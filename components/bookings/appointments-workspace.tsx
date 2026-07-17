@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   Bot,
@@ -22,10 +22,10 @@ import {
   Sun,
   UserRound,
   Users,
-  X,
   XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DialogShell } from '@/components/ui/dialog-shell'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
 
@@ -284,7 +284,9 @@ export function AppointmentsWorkspace({
       const response = await fetch(`/api/appointments?${query.toString()}`)
       const data = await response.json() as { appointments?: Array<Record<string, unknown>> }
       if (!response.ok || !data.appointments) throw new Error('load failed')
-      setAppointments(data.appointments.map(appointmentFromApi))
+      const nextAppointments = data.appointments.map(appointmentFromApi)
+      setAppointments(nextAppointments)
+      setDayCounts((current) => ({ ...current, [date]: nextAppointments.length }))
       setSelectedDate(date)
     } catch {
       setError(fa ? 'بارگذاری تقویم انجام نشد.' : 'Could not load the calendar.')
@@ -348,6 +350,21 @@ export function AppointmentsWorkspace({
     return fmt.format(new Date(`${selectedDate}T12:00:00Z`))
   }, [selectedDate, fa])
 
+  const dayWindow = useMemo(() => {
+    const active = appointments
+      .filter((appointment) => !['CANCELLED', 'NO_SHOW'].includes(appointment.status))
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+    if (!active.length) return fa ? 'برنامه فعالی ندارد' : 'No active schedule'
+    const format = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+      timeZone: active[0].timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return `${format.format(new Date(active[0].startsAt))} ${fa ? 'تا' : 'to'} ${format.format(new Date(active[active.length - 1].endsAt))}`
+  }, [appointments, fa])
+
+  const selectedServiceName = services.find((service) => service.id === serviceFilter)?.name
+
   const groupedAppointments = useMemo(() => groupByTimeSlot(appointments), [appointments])
 
   return (
@@ -361,7 +378,7 @@ export function AppointmentsWorkspace({
             </span>
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {fa ? 'رزرو و نوبت‌دهی' : 'Appointments'}
+                {fa ? 'رزروها و خدمات' : 'Bookings & services'}
               </h1>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
                 {fa
@@ -370,9 +387,9 @@ export function AppointmentsWorkspace({
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <button type="button" onClick={() => setServicesOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-              <Settings2 className="h-4 w-4" />{fa ? 'مدیریت خدمات' : 'Manage services'}
+              <Settings2 className="h-4 w-4" />{fa ? 'تعریف و مدیریت خدمات' : 'Manage services'}
             </button>
             <button type="button" onClick={() => setBookingOpen(true)} disabled={activeServices.length === 0} className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
               <Plus className="h-4 w-4" />{fa ? 'ثبت نوبت' : 'New appointment'}
@@ -385,11 +402,11 @@ export function AppointmentsWorkspace({
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard icon={CalendarCheck2} label={fa ? 'هفت روز آینده' : 'Next 7 days'} value={initialStats.upcomingCount} locale={locale} />
         <StatCard icon={AlertCircle} label={fa ? 'نیازمند تأیید' : 'Pending'} value={initialStats.pendingCount} locale={locale} tone="amber" />
-        <StatCard icon={Clock3} label={fa ? 'امروز' : 'Today'} value={activeToday.length} locale={locale} />
-        <StatCard icon={Users} label={fa ? 'ظرفیت امروز' : 'Capacity today'} value={usedCapacity} locale={locale} />
+        <StatCard icon={Clock3} label={fa ? 'روز انتخاب‌شده' : 'Selected day'} value={activeToday.length} locale={locale} />
+        <StatCard icon={Users} label={fa ? 'نفر رزروشده' : 'Booked people'} value={usedCapacity} locale={locale} />
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="space-y-4">
         {/* ── Daily schedule — main panel (redesigned) ── */}
         <div className="spatial-surface min-w-0 rounded-[1.5rem] p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -484,20 +501,31 @@ export function AppointmentsWorkspace({
             })}
           </div>
 
-          {/* ── Selected day label + inline summary chips ── */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--bg-base)] px-3.5 py-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <CalendarCheck2 className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-              <span className="truncate text-sm font-bold text-[var(--text-primary)]">{selectedDateLabel}</span>
-            </div>
-            {daySummary.total > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <SummaryChip count={daySummary.total} label={fa ? 'کل' : 'Total'} tone="neutral" fa={fa} />
-                {daySummary.pending > 0 && <SummaryChip count={daySummary.pending} label={fa ? 'در انتظار' : 'Pending'} tone="amber" fa={fa} />}
-                {daySummary.confirmed > 0 && <SummaryChip count={daySummary.confirmed} label={fa ? 'تأییدشده' : 'Confirmed'} tone="emerald" fa={fa} />}
-                {daySummary.completed > 0 && <SummaryChip count={daySummary.completed} label={fa ? 'انجام‌شده' : 'Done'} tone="blue" fa={fa} />}
+          {/* ── Selected day operational summary ── */}
+          <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)]">
+                  <CalendarCheck2 className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-bold text-[var(--text-primary)]">{selectedDateLabel}</h3>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {selectedServiceName ? `${fa ? 'فقط' : 'Only'} ${selectedServiceName} · ` : ''}{dayWindow}
+                  </p>
+                </div>
               </div>
-            )}
+              <button type="button" onClick={() => setBookingOpen(true)} disabled={activeServices.length === 0} className="spatial-press inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] disabled:opacity-40">
+                <Plus className="h-3.5 w-3.5" />{fa ? 'نوبت در این روز' : 'Book this day'}
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <DayMetric count={daySummary.total} label={fa ? 'کل نوبت‌ها' : 'Total'} tone="neutral" fa={fa} />
+              <DayMetric count={daySummary.pending} label={fa ? 'نیازمند تأیید' : 'Pending'} tone="amber" fa={fa} />
+              <DayMetric count={daySummary.confirmed} label={fa ? 'تأییدشده' : 'Confirmed'} tone="emerald" fa={fa} />
+              <DayMetric count={daySummary.completed} label={fa ? 'انجام‌شده' : 'Completed'} tone="blue" fa={fa} />
+              <DayMetric count={daySummary.cancelled} label={fa ? 'لغو یا عدم حضور' : 'Cancelled'} tone="rose" fa={fa} />
+            </div>
           </div>
 
           {error && <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600">{error}</p>}
@@ -575,8 +603,8 @@ export function AppointmentsWorkspace({
           </div>
         </div>
 
-        {/* ── Sidebar — agent info + active services ── */}
-        <aside className="space-y-4">
+        {/* ── Supporting information — kept below the schedule so the day stays wide ── */}
+        <aside className="grid gap-4 lg:grid-cols-2">
           <div className="spatial-surface rounded-[1.5rem] p-5">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]"><Bot className="h-5 w-5" /></span>
             <h2 className="mt-4 text-sm font-bold text-[var(--text-primary)]">{fa ? 'ایجنت رزرو آماده است' : 'Booking agent is ready'}</h2>
@@ -590,7 +618,7 @@ export function AppointmentsWorkspace({
               <h2 className="text-sm font-bold text-[var(--text-primary)]">{fa ? 'خدمات فعال' : 'Active services'}</h2>
               <span className="rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs font-bold tabular-nums text-[var(--text-secondary)]">{activeServices.length.toLocaleString(fa ? 'fa-IR' : 'en-US')}</span>
             </div>
-            <div className="mt-3 space-y-2">{activeServices.slice(0, 4).map((service) => {
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">{activeServices.slice(0, 4).map((service) => {
               const accent = serviceAccent(service.id)
               return (
                 <div key={service.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--bg-base)] p-3">
@@ -602,6 +630,9 @@ export function AppointmentsWorkspace({
                 </div>
               )
             })}</div>
+            <button type="button" onClick={() => setServicesOpen(true)} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] text-xs font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]">
+              <Settings2 className="h-3.5 w-3.5" />{fa ? 'مدیریت خدمت، ظرفیت و ساعت کاری' : 'Manage services and availability'}
+            </button>
           </div>
         </aside>
       </section>
@@ -631,19 +662,19 @@ export function AppointmentsWorkspace({
   )
 }
 
-/** Compact summary chip shown next to the selected-day label. */
-function SummaryChip({ count, label, tone, fa }: { count: number; label: string; tone: 'neutral' | 'amber' | 'emerald' | 'blue'; fa: boolean }) {
+function DayMetric({ count, label, tone, fa }: { count: number; label: string; tone: 'neutral' | 'amber' | 'emerald' | 'blue' | 'rose'; fa: boolean }) {
   const tones: Record<typeof tone, string> = {
-    neutral: 'bg-[var(--bg-surface)] text-[var(--text-secondary)] ring-[var(--border-subtle)]',
-    amber: 'bg-amber-500/10 text-amber-700 ring-amber-500/20',
-    emerald: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20',
-    blue: 'bg-blue-500/10 text-blue-700 ring-blue-500/20',
+    neutral: 'border-[var(--border-subtle)] bg-white text-[var(--text-secondary)]',
+    amber: 'border-amber-500/20 bg-amber-500/[0.07] text-amber-700',
+    emerald: 'border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-700',
+    blue: 'border-blue-500/20 bg-blue-500/[0.07] text-blue-700',
+    rose: 'border-rose-500/20 bg-rose-500/[0.06] text-rose-700',
   }
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1', tones[tone])}>
-      {count.toLocaleString(fa ? 'fa-IR' : 'en-US')}
-      <span className="font-medium opacity-80">{label}</span>
-    </span>
+    <div className={cn('rounded-xl border px-3 py-2.5', tones[tone])}>
+      <p className="text-lg font-bold tabular-nums">{count.toLocaleString(fa ? 'fa-IR' : 'en-US')}</p>
+      <p className="mt-0.5 truncate text-[10px] font-medium opacity-80">{label}</p>
+    </div>
   )
 }
 
@@ -677,7 +708,7 @@ function AppointmentCard({ appointment, locale, busy, cancelling, cancellationRe
   const dimmed = terminal
   return (
     <article className={cn(
-      'relative flex gap-3 rounded-2xl border bg-[var(--bg-base)] p-3.5 transition-colors hover:border-[var(--border-strong)] sm:gap-4 sm:p-4',
+      'relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border bg-[var(--bg-base)] p-3.5 transition-colors hover:border-[var(--border-strong)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4 sm:p-4',
       'border-[var(--border-default)]',
       dimmed && 'opacity-65',
     )}>
@@ -746,31 +777,44 @@ function AppointmentCard({ appointment, locale, busy, cancelling, cancellationRe
 
       {/* Actions — only for non-terminal appointments */}
       {!terminal && !cancelling && (
-        <div className="flex shrink-0 flex-wrap gap-1.5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onStatus('COMPLETED')}
-            className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-emerald-500/20 px-2.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{fa ? 'انجام شد' : 'Done'}</span>
-          </button>
+        <div className="col-span-2 flex flex-wrap justify-end gap-1.5 sm:col-span-1">
+          {appointment.status === 'PENDING' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus('CONFIRMED')}
+              className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-500/20 px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {fa ? 'تأیید نوبت' : 'Confirm'}
+            </button>
+          )}
+          {appointment.status === 'CONFIRMED' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus('COMPLETED')}
+              className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-500/20 px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {fa ? 'انجام شد' : 'Done'}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
             onClick={() => onStatus('NO_SHOW')}
             aria-label={fa ? 'عدم حضور' : 'No show'}
-            className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[var(--border-default)] px-2.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
           >
             <XCircle className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{fa ? 'حاضر نشد' : 'No-show'}</span>
+            <span>{fa ? 'حاضر نشد' : 'No-show'}</span>
           </button>
           <button
             type="button"
             disabled={busy}
             onClick={onStartCancel}
-            className="grid min-h-9 min-w-9 place-items-center rounded-xl border border-red-500/20 text-red-500 transition-colors hover:bg-red-50"
+            className="grid min-h-10 min-w-10 place-items-center rounded-xl border border-red-500/20 text-red-500 transition-colors hover:bg-red-50"
             aria-label={fa ? 'لغو نوبت' : 'Cancel appointment'}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
@@ -778,7 +822,7 @@ function AppointmentCard({ appointment, locale, busy, cancelling, cancellationRe
         </div>
       )}
       {cancelling && (
-        <div className="absolute inset-x-3 bottom-3 flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-50/50 p-3 sm:flex-row sm:items-center sm:inset-x-4 sm:bottom-4">
+        <div className="col-span-full flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-50/50 p-3 sm:flex-row sm:items-center">
           <input
             autoFocus
             value={cancellationReason}
@@ -806,43 +850,6 @@ function AppointmentCard({ appointment, locale, busy, cancelling, cancellationRe
         </div>
       )}
     </article>
-  )
-}
-
-function DialogShell({ title, subtitle, onClose, children, wide = false }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const panel = panelRef.current
-    const focusables = () => Array.from(panel?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]') ?? [])
-    focusables()[0]?.focus()
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-      if (event.key !== 'Tab') return
-      const items = focusables()
-      if (!items.length) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="appointment-dialog-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <div ref={panelRef} className={cn('spatial-surface max-h-[92vh] w-full overflow-y-auto rounded-[1.5rem]', wide ? 'max-w-4xl' : 'max-w-2xl')}>
-        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] bg-white/95 p-5 backdrop-blur">
-          <div>
-            <h2 id="appointment-dialog-title" className="text-base font-bold tracking-tight text-[var(--text-primary)]">{title}</h2>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">{subtitle}</p>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]" aria-label="بستن">
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
   )
 }
 

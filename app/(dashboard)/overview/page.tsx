@@ -29,7 +29,7 @@ import { DashboardPanel } from '@/components/dashboard/panel'
 import { IntelligenceCoreLazy } from '@/components/dashboard/intelligence-core-lazy'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
-import { getDashboardModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
+import { getDashboardNavigationModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
@@ -52,7 +52,7 @@ const MODULE_META: Record<DashboardModuleKey, { href: string; fa: string; en: st
   products: { href: '/products', fa: 'محصولات و منو', en: 'Products & menu', icon: Package },
   services: { href: '/services', fa: 'خدمات', en: 'Services', icon: BriefcaseBusiness },
   menu: { href: '/menu', fa: 'منوی دیجیتال', en: 'Digital menu', icon: QrCode },
-  appointments: { href: '/appointments', fa: 'نوبت‌ها', en: 'Appointments', icon: CalendarCheck2 },
+  appointments: { href: '/appointments', fa: 'رزروها و خدمات', en: 'Bookings & services', icon: CalendarCheck2 },
   conversations: { href: '/conversations', fa: 'گفتگوها', en: 'Conversations', icon: MessagesSquare },
   contacts: { href: '/contacts', fa: 'مشتری‌ها', en: 'Customers', icon: Users },
   analytics: { href: '/analytics', fa: 'گزارش‌ها', en: 'Reports', icon: ChartNoAxesCombined },
@@ -179,7 +179,7 @@ export default async function OverviewPage() {
 
   const pack = getVerticalPack(workspace.businessType)
   const businessProfile = readBusinessProfile(workspace.businessProfile)
-  const modules = getDashboardModules(workspace.businessType, businessProfile?.services).filter(
+  const modules = getDashboardNavigationModules(workspace.businessType, businessProfile?.services).filter(
     (module) => !['overview', 'billing', 'settings'].includes(module),
   )
   const businessLabel = fa ? pack.titleFa : pack.titleEn

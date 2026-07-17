@@ -14,7 +14,8 @@ import {
 	Camera,
 } from 'lucide-react'
 import {
-	getDashboardModules,
+	collapseDashboardNavigationModules,
+	getDashboardNavigationModules,
 	type BusinessTypeValue,
 	type DashboardModuleKey,
 } from '@/lib/verticals/registry'
@@ -42,18 +43,18 @@ const NAV_ITEMS = {
 }>
 
 export function getDashboardNav(businessType?: BusinessTypeValue | null) {
-	return getDashboardModules(businessType).map((module) => NAV_ITEMS[module])
+	return getDashboardNavigationModules(businessType).map((module) => NAV_ITEMS[module])
 }
 
 export function getDashboardNavForProfile(
 	businessType?: BusinessTypeValue | null,
 	services: readonly string[] = [],
 ) {
-	return getDashboardModules(businessType, services).map((module) => NAV_ITEMS[module])
+	return getDashboardNavigationModules(businessType, services).map((module) => NAV_ITEMS[module])
 }
 
 export function getDashboardNavFromModules(modules: readonly DashboardModuleKey[]) {
-	return modules.map((module) => NAV_ITEMS[module]).filter(Boolean)
+	return collapseDashboardNavigationModules(modules).map((module) => NAV_ITEMS[module]).filter(Boolean)
 }
 
 // Backwards-compatible full navigation for consumers that have not received a

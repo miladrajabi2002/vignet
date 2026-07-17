@@ -61,12 +61,8 @@ export default async function ServicesPage() {
         </div>
       </div>
 
-      {/* ServiceCatalogManager uses useSearchParams() to watch the `?new=<ts>`
-          param set by the "خدمت جدید" button. In Next.js 15 any client
-          component that reads useSearchParams MUST sit inside a <Suspense>
-          boundary, otherwise the hook bails out to client-side rendering and
-          stops reacting to URL changes — which is exactly why clicking the
-          button did nothing. The boundary below fixes that. */}
+      {/* The manager watches `?new=<ts>` and opens the create dialog. Next.js
+          requires a Suspense boundary around client-side search-param reads. */}
       <Suspense fallback={null}>
         <ServiceCatalogManager initialServices={services.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString() }))} />
       </Suspense>

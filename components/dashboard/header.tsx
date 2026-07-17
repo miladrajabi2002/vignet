@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import type { Plan } from '@prisma/client'
-import { ChevronRight, Gem, LogOut } from 'lucide-react'
+import { ChevronRight, Gem, Hourglass, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
@@ -30,6 +30,8 @@ export async function Header({
   ])
 
   const fa = locale === 'fa'
+  const isTrial = plan === 'TRIAL'
+  const PlanIcon = isTrial ? Hourglass : Gem
   const planLabel = fa
     ? ({ TRIAL: 'آزمایشی', STARTER: 'استارتر', PRO: 'حرفه‌ای', BUSINESS: 'سازمانی' } as const)[plan]
     : plan.charAt(0) + plan.slice(1).toLowerCase()
@@ -64,11 +66,16 @@ export async function Header({
           <Link
             href="/billing"
             dir="ltr"
-            aria-label={fa ? 'مشاهده پلن و اعتبار' : 'View plan and credit'}
+            aria-label={fa
+              ? isTrial ? 'مشاهده دوره آزمایشی و اعتبار' : 'مشاهده پلن و اعتبار'
+              : isTrial ? 'View trial and credit' : 'View plan and credit'}
             className="spatial-press group flex h-14 min-w-0 w-full max-w-[13rem] items-center gap-2 rounded-[1.45rem] border border-black/[0.08] bg-white/90 px-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.15] hover:shadow-[0_12px_34px_rgba(0,0,0,0.09)] sm:w-[14rem] sm:max-w-none sm:gap-2.5 sm:px-3 lg:w-[15rem] xl:h-[4.25rem] xl:w-[18rem] xl:rounded-[1.7rem] xl:px-3.5"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-black/[0.06] bg-[radial-gradient(circle_at_35%_30%,white_0%,#f7f7f7_48%,#eeeeee_100%)] text-black shadow-[inset_0_1px_0_white,0_3px_10px_rgba(0,0,0,0.06)] sm:h-10 sm:w-10 xl:h-12 xl:w-12">
-              <Gem className="h-[1.05rem] w-[1.05rem] stroke-[1.8] sm:h-[1.15rem] sm:w-[1.15rem] xl:h-5 xl:w-5" />
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border shadow-[inset_0_1px_0_white,0_3px_10px_rgba(0,0,0,0.06)] sm:h-10 sm:w-10 xl:h-12 xl:w-12 ${isTrial
+              ? 'border-amber-200/70 bg-[radial-gradient(circle_at_35%_30%,white_0%,#fff9eb_50%,#fef3c7_100%)] text-amber-700'
+              : 'border-black/[0.06] bg-[radial-gradient(circle_at_35%_30%,white_0%,#f7f7f7_48%,#eeeeee_100%)] text-black'
+            }`}>
+              <PlanIcon aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-[1.8] sm:h-[1.15rem] sm:w-[1.15rem] xl:h-5 xl:w-5" />
             </span>
 
             <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>

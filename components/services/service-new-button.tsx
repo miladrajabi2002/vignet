@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react'
  * "خدمت جدید" trigger button.
  *
  * Navigates to `/services?new=<timestamp>` on click. The `ServiceCatalogManager`
- * watches the `new` search param and opens its form whenever the value
+ * watches the `new` search param and opens its dialog whenever the value
  * changes. Using a timestamp (instead of a fixed `1`) means every click
  * produces a new, distinct value — so even repeated clicks reliably
  * re-trigger the form without needing to clear the param first.

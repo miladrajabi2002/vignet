@@ -267,6 +267,26 @@ export function getDashboardModules(
   return MODULE_ORDER.filter((module) => enabled.has(module))
 }
 
+/**
+ * Keep capability semantics additive while removing duplicate destinations from
+ * the visible navigation. The appointments workspace owns both the calendar and
+ * service setup, so a separate services link would lead to the same data twice.
+ */
+export function collapseDashboardNavigationModules(
+  modules: readonly DashboardModuleKey[],
+): DashboardModuleKey[] {
+  return modules.includes('appointments')
+    ? modules.filter((module) => module !== 'services')
+    : [...modules]
+}
+
+export function getDashboardNavigationModules(
+  value: unknown,
+  services: readonly string[] = [],
+): DashboardModuleKey[] {
+  return collapseDashboardNavigationModules(getDashboardModules(value, services))
+}
+
 /** All useful cross-business capabilities, with the relevant ones shown first. */
 export function getBusinessServiceOptions(value: unknown): BusinessServiceOption[] {
   const type = getVerticalPack(value).key
@@ -302,8 +322,9 @@ export function getDashboardModuleLabel(
   if (module === 'menu') return fa ? 'منوی دیجیتال' : 'Digital menu'
   if (module === 'appointments') {
     if (businessType === 'FOOD') return fa ? 'رزرو میز' : 'Table bookings'
-    if (businessType === 'SERVICES') return fa ? 'درخواست‌ها و زمان‌بندی' : 'Requests & schedule'
-    if (businessType === 'EDUCATION') return fa ? 'جلسات و مشاوره' : 'Sessions & consulting'
+    if (businessType === 'SERVICES') return fa ? 'خدمات و زمان‌بندی' : 'Services & schedule'
+    if (businessType === 'EDUCATION') return fa ? 'جلسات و خدمات' : 'Sessions & services'
+    return fa ? 'رزروها و خدمات' : 'Bookings & services'
   }
   return fallback
 }

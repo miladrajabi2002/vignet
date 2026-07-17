@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CapabilityOptions } from '@/components/onboarding/capability-options'
 import {
   BUSINESS_TYPES,
   getBusinessServiceOptions,
@@ -85,8 +86,8 @@ export function BusinessProfileStep({
         step3Hint: mode === 'settings' ? 'منو و ابزارهای پنل با انتخاب جدید هماهنگ شدند' : 'اطلاعات ذخیره شد. حالا ایجنت خود را بسازید',
         name: 'نام کسب‌وکار',
         namePlaceholder: 'مثلاً فروشگاه رزین‌مهر',
-        services: 'خدمات یا کارهای اصلی',
-        servicesHint: 'حداقل یک مورد را انتخاب کنید. هر زمان بخواهید قابل تغییر است.',
+        services: 'خدمات و قابلیت‌های موردنیاز',
+        servicesHint: 'پیشنهادها بر اساس نوع کسب‌وکار شما مرتب شده‌اند و هر زمان قابل تغییرند.',
         save: 'ذخیره و ادامه',
         saving: 'در حال ذخیره…',
         saved: 'ذخیره شد',
@@ -111,8 +112,8 @@ export function BusinessProfileStep({
         step3Hint: mode === 'settings' ? 'Dashboard navigation and tools now match this business' : 'Profile saved. Now build your agent',
         name: 'Business name',
         namePlaceholder: 'e.g. ResinMehr Store',
-        services: 'Main services or jobs',
-        servicesHint: 'Select at least one. You can change these at any time.',
+        services: 'Services & capabilities',
+        servicesHint: 'Suggestions are ordered for your business and can be changed at any time.',
         save: 'Save and continue',
         saving: 'Saving…',
         saved: 'Saved',
@@ -360,35 +361,15 @@ export function BusinessProfileStep({
                 />
               </div>
 
-              <div>
-                <div className="mb-1.5 text-[13px] font-medium text-[var(--text-primary)]">{copy.services}</div>
-                <p className="mb-2.5 text-xs text-[var(--text-muted)]">{copy.servicesHint}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {suggestions.map((option) => {
-                    const service = fa ? option.fa : option.en
-                    const active = services.includes(service)
-                    const recommended = selectedType ? option.recommendedFor.includes(selectedType) : false
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() => toggleService(service)}
-                        className={cn(
-                          'relative min-h-[5.25rem] rounded-xl border p-3 text-start transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
-                          active
-                            ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
-                            : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
-                        )}
-                      >
-                        <span className="flex items-center justify-between gap-2"><span className="font-semibold">{service}</span><span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md', active ? 'bg-white text-black' : 'bg-black/[0.05] text-transparent')}><Check className="h-3 w-3" /></span></span>
-                        <span className={cn('mt-1.5 block text-[10px] leading-5', active ? 'text-white/65' : 'text-[var(--text-muted)]')}>{fa ? option.descriptionFa : option.descriptionEn}</span>
-                        {recommended && <span className={cn('mt-2 inline-block rounded-full px-2 py-0.5 text-[8px] font-bold', active ? 'bg-white/12 text-white' : 'bg-black/[0.05] text-black/55')}>{fa ? 'پیشنهادی' : 'Recommended'}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              <CapabilityOptions
+                options={suggestions}
+                selected={services}
+                businessType={selectedType!}
+                locale={fa ? 'fa' : 'en'}
+                title={copy.services}
+                hint={copy.servicesHint}
+                onToggle={toggleService}
+              />
 
               {error && (
                 <p className="text-[13px] text-[var(--red)]">{error}</p>

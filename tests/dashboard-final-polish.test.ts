@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { telegramMarkdownToHtml } from '@/lib/channels/telegram-like'
 import { isHumanOwnedConversation } from '@/lib/ai/conversation'
-import { getBusinessServiceOptions, getDashboardModules } from '@/lib/verticals/registry'
+import { getBusinessServiceOptions, getDashboardModules, getDashboardNavigationModules } from '@/lib/verticals/registry'
 
 describe('operator ownership gate', () => {
   it('keeps both handed-off representations under human control', () => {
@@ -29,6 +29,12 @@ describe('additive business capabilities', () => {
     expect(modules).toContain('products')
     expect(modules).toContain('appointments')
     expect(modules).toContain('services')
+  })
+
+  it('keeps services as a capability without showing a duplicate destination', () => {
+    expect(getDashboardModules('APPOINTMENTS')).toContain('services')
+    expect(getDashboardNavigationModules('APPOINTMENTS')).toContain('appointments')
+    expect(getDashboardNavigationModules('APPOINTMENTS')).not.toContain('services')
   })
 
   it('enables the real food menu and Instagram together', () => {

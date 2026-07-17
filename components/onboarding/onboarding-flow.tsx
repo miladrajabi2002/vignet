@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CapabilityOptions } from '@/components/onboarding/capability-options'
 import {
   BUSINESS_TYPES,
   getVerticalPack,
@@ -415,35 +416,18 @@ function DetailsStep({
         </div>
 
         {/* Services */}
-        <div>
-          <div className="mb-2 text-[13px] font-medium text-[var(--text-primary)]">خدمات اصلی</div>
-          <p className="mb-3 text-[12px] text-[var(--text-muted)]">حداقل یک مورد را انتخاب کنید</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {suggestions.map((option) => {
-              const service = option.fa
-              const active = services.includes(service)
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => {
-                    setServices((s) => s.includes(service) ? s.filter((x) => x !== service) : [...s, service])
-                    setError('')
-                  }}
-                  className={cn(
-                    'min-h-[5.5rem] rounded-xl border p-3 text-start text-[13px] transition-all duration-200',
-                    active
-                      ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white'
-                      : 'border-[var(--border-default)] bg-white text-[var(--text-secondary)] hover:border-[var(--border-hover)]',
-                  )}
-                >
-                  <span className="flex items-center justify-between gap-2"><span className="font-semibold">{service}</span>{active && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
-                  <span className={cn('mt-1.5 block text-[10px] leading-5', active ? 'text-white/65' : 'text-[var(--text-muted)]')}>{option.descriptionFa}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <CapabilityOptions
+          options={suggestions}
+          selected={services}
+          businessType={initialType}
+          locale="fa"
+          title="خدمات و قابلیت‌های موردنیاز"
+          hint="پیشنهادها بر اساس نوع کسب‌وکار شما مرتب شده‌اند و هر زمان قابل تغییرند."
+          onToggle={(service) => {
+            setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service])
+            setError('')
+          }}
+        />
 
         {/* Error */}
         {error && (

@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/overview/page.tsx": {
-    "mtime": 1784246415.411488,
-    "ast_hash": "af859b3c858ed8f022a19e3536344296",
+    "mtime": 1784161171.0,
+    "ast_hash": "fbe813b95b210bdaeb4832000d18a0c7",
     "semantic_hash": ""
   },
   "app/(dashboard)/products/[productId]/edit/page.tsx": {
@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/services/page.tsx": {
-    "mtime": 1784246737.2335389,
-    "ast_hash": "fee91be619bd313863367802c03e5d75",
+    "mtime": 1784197428.0,
+    "ast_hash": "1a6a8d54dd239e2109adc29e03cbbf0d",
     "semantic_hash": ""
   },
   "app/(dashboard)/settings/page.tsx": {
@@ -1085,8 +1085,8 @@
     "semantic_hash": ""
   },
   "components/bookings/appointments-workspace.tsx": {
-    "mtime": 1784246687.8552911,
-    "ast_hash": "78f9ca0a8e9317703ae3e96c17538335",
+    "mtime": 1784164157.0,
+    "ast_hash": "9bc5cf42106fc6c7a20cde95d98546f5",
     "semantic_hash": ""
   },
   "components/channels/chat-link-channel.tsx": {
@@ -1260,8 +1260,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/nav-items.ts": {
-    "mtime": 1784246415.4104855,
-    "ast_hash": "906c2dc03c56507434fafe71e38fba3f",
+    "mtime": 1783939758.9849133,
+    "ast_hash": "ab8b1ec898a8c99ede3922d05bb0487f",
     "semantic_hash": ""
   },
   "components/dashboard/notification-bell.tsx": {
@@ -1495,13 +1495,13 @@
     "semantic_hash": ""
   },
   "components/onboarding/business-profile-step.tsx": {
-    "mtime": 1784246314.272124,
-    "ast_hash": "0e3b4b02bfea9a4dd2d0f1201ebe837f",
+    "mtime": 1783939822.4135132,
+    "ast_hash": "3a372c01080c1a5bed07ee593978bb09",
     "semantic_hash": ""
   },
   "components/onboarding/onboarding-flow.tsx": {
-    "mtime": 1784246314.2741492,
-    "ast_hash": "f80c63c9e82fe70e61d07ef121a35aaa",
+    "mtime": 1783939822.4145098,
+    "ast_hash": "03c7dd892cca02ff75c1b988023ab322",
     "semantic_hash": ""
   },
   "components/onboarding/onboarding-shell.tsx": {
@@ -1535,8 +1535,8 @@
     "semantic_hash": ""
   },
   "components/services/service-catalog-manager.tsx": {
-    "mtime": 1784246687.8532908,
-    "ast_hash": "5591cee5631a4b39a7ffdaa4aa377a1c",
+    "mtime": 1784165047.0,
+    "ast_hash": "aab10d252845e5d15231982e64527570",
     "semantic_hash": ""
   },
   "components/settings/customer-account-card.tsx": {
@@ -2225,8 +2225,8 @@
     "semantic_hash": ""
   },
   "lib/verticals/registry.ts": {
-    "mtime": 1784246687.8568037,
-    "ast_hash": "4dea3471aea5590703ee443ee9bd3917",
+    "mtime": 1783940835.6097405,
+    "ast_hash": "6e50b20266d21c36f1a7ec19933ce3f4",
     "semantic_hash": ""
   },
   "lib/voice/stt.ts": {
@@ -2520,8 +2520,8 @@
     "semantic_hash": ""
   },
   "tests/dashboard-final-polish.test.ts": {
-    "mtime": 1784246427.8146102,
-    "ast_hash": "766c4738a81a49d2c76388c98cebb2d7",
+    "mtime": 1783940717.3140912,
+    "ast_hash": "fcc74558b22849eec0d42f27d03cdd52",
     "semantic_hash": ""
   },
   "tests/format.test.ts": {
@@ -2760,8 +2760,8 @@
     "semantic_hash": ""
   },
   "components/services/service-new-button.tsx": {
-    "mtime": 1784246737.2355378,
-    "ast_hash": "83179085dfecdff99fd726c971b2fd8c",
+    "mtime": 1784165024.0,
+    "ast_hash": "797c8a2bf690a65f98a1ab286bd8154f",
     "semantic_hash": ""
   },
   "prisma/migrations/20260716143000_admin_vigento_chat_and_model/migration.sql": {
@@ -2777,16 +2777,6 @@
   "lib/admin/database-explorer.ts": {
     "mtime": 1784215359.5792964,
     "ast_hash": "9e33cac180e9e11e15d8c17266f4fe52",
-    "semantic_hash": ""
-  },
-  "components/onboarding/capability-options.tsx": {
-    "mtime": 1784246147.114668,
-    "ast_hash": "41dc97651a169ce8e254527237f54a59",
-    "semantic_hash": ""
-  },
-  "components/ui/dialog-shell.tsx": {
-    "mtime": 1784246737.2380745,
-    "ast_hash": "f19bc3df5683d757fb0514508a5f890e",
     "semantic_hash": ""
   }
 }
