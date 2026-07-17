@@ -8,7 +8,7 @@ import { generateSlug } from '@/lib/utils'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signOut } = NextAuth({
   ...authConfig,
   logger: {
     error(error) {

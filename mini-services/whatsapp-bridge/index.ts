@@ -372,7 +372,6 @@ async function startSession(sessionId: string, opts?: { phone?: string }) {
     const cleaned = opts.phone.replace(/[^\d]/g, '')
     for (let i = 0; i < 20; i++) {
       try {
-        // @ts-expect-error — requestPairingCode exists on the socket instance
         const code: string = await sock.requestPairingCode(cleaned)
         if (code) {
           patch(sessionId, {

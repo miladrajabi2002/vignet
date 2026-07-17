@@ -20,7 +20,6 @@
  *      customerInfoState='skipped' unless the agent explicitly opts in.
  */
 
-import type { ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { recordConversationActivity } from '@/lib/conversations/activity'
 import { toEnglishDigits, normalizePhone } from '@/lib/phone'
@@ -172,30 +171,6 @@ function extractEnglishName(text: string): string | null {
 		}
 	}
 	return null
-}
-
-/** Channels where the platform already provides a trusted sender identity. */
-export function channelHasTrustedIdentity(channel: ChannelType): boolean {
-	return (
-		channel === 'TELEGRAM' ||
-		channel === 'WHATSAPP' ||
-		channel === 'INSTAGRAM' ||
-		channel === 'RUBIKA' ||
-		channel === 'BALE'
-	)
-}
-
-/**
- * Decide the initial customerInfoState for a brand-new conversation.
- *  - Messenger channels: 'skipped' (we already know who they are from the platform)
- *  - Web widget / API: 'pending' if the agent requires it, else 'skipped'
- */
-export function initialState(
-	channel: ChannelType,
-	requireCustomerInfo: boolean,
-): 'pending' | 'skipped' {
-	if (requireCustomerInfo && !channelHasTrustedIdentity(channel)) return 'pending'
-	return 'skipped'
 }
 
 /**

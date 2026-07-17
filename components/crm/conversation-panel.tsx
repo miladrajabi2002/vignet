@@ -61,9 +61,7 @@ const MESSENGER_META: Record<
         CHAT_LINK: { label: 'لینک چت', icon: Link2 },
 }
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 export function ConversationPanel({
-        conversationId,
         status,
         contactName,
         contactPhone,
@@ -72,10 +70,8 @@ export function ConversationPanel({
         summary,
         handoffAlert,
         connectedChannels,
-        canDeliver,
         locale,
 }: {
-        conversationId: string
         status: 'OPEN' | 'RESOLVED' | 'HANDED_OFF'
         contactName: string | null
         contactPhone: string | null
@@ -84,7 +80,6 @@ export function ConversationPanel({
         summary: string | null
         handoffAlert: HandoffAlertProp | null
         connectedChannels: ChannelType[]
-        canDeliver: boolean
         locale: 'fa' | 'en'
 }) {
         const t = useTranslations('conversations')

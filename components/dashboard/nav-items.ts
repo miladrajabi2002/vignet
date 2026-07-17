@@ -42,10 +42,6 @@ const NAV_ITEMS = {
 	icon: typeof LayoutDashboard
 }>
 
-export function getDashboardNav(businessType?: BusinessTypeValue | null) {
-	return getDashboardNavigationModules(businessType).map((module) => NAV_ITEMS[module])
-}
-
 export function getDashboardNavForProfile(
 	businessType?: BusinessTypeValue | null,
 	services: readonly string[] = [],
@@ -56,7 +52,3 @@ export function getDashboardNavForProfile(
 export function getDashboardNavFromModules(modules: readonly DashboardModuleKey[]) {
 	return collapseDashboardNavigationModules(modules).map((module) => NAV_ITEMS[module]).filter(Boolean)
 }
-
-// Backwards-compatible full navigation for consumers that have not received a
-// workspace vertical yet. CUSTOM intentionally exposes both optional modules.
-export const NAV = getDashboardNav('CUSTOM')

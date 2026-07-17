@@ -24,9 +24,6 @@ export const categoryCreateSchema = z.object({
 
 export const categoryUpdateSchema = categoryCreateSchema.partial()
 
-export type ProductCreateInput = z.infer<typeof productCreateSchema>
-export type ProductUpdateInput = z.infer<typeof productUpdateSchema>
-
 /** Generate a URL-safe slug from a category name (supports Persian). */
 export function slugify(name: string): string {
   return (

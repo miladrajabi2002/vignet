@@ -216,7 +216,6 @@ export default async function ConversationThreadPage(props: {
                           <aside className="space-y-3">
                         {showPanel && (
                                 <ConversationPanel
-                                        conversationId={conversation.id}
                                         status={conversation.status}
                                         contactName={conversation.contact?.name ?? null}
                                         contactPhone={conversation.contact?.phone ?? null}
@@ -225,7 +224,6 @@ export default async function ConversationThreadPage(props: {
                                         summary={conversation.summary}
                                         handoffAlert={handoffAlertProp}
                                         connectedChannels={connectedChannels}
-                                        canDeliver={canDeliver}
                                         locale={locale}
                                 />
                         )}

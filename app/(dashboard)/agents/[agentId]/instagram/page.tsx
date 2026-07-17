@@ -82,10 +82,8 @@ async function InstagramAutomationContent({ agentId }: { agentId: string }) {
 	// Pull the connected IG account's display info from the channel config.
 	const cfg = (igChannel.config ?? {}) as {
 		botUsername?: string
-		igProfilePictureUrl?: string
 	}
 	const accountUsername = cfg.botUsername ?? 'vigent.bot'
-	const accountAvatarUrl = cfg.igProfilePictureUrl || undefined
 
 	const [rows, settingsRow] = await Promise.all([
 		prisma.instagramAutomation.findMany({
@@ -127,12 +125,9 @@ async function InstagramAutomationContent({ agentId }: { agentId: string }) {
 		<div className="mx-auto max-w-6xl">
 			<InstagramAutomationManager
 				agentId={agent.id}
-				channelId={igChannel.id}
 				accountUsername={accountUsername}
-				accountAvatarUrl={accountAvatarUrl}
 				initialAutomations={automations}
 				initialSettings={settings}
-				connected
 			/>
 		</div>
 	)

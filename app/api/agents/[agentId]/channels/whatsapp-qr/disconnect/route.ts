@@ -26,7 +26,7 @@ type Params = { params: Promise<{ agentId: string }> }
  * that can't be logged out will eventually expire on its own (WhatsApp logs
  * out linked devices after ~14 days of inactivity).
  */
-export async function POST(req: Request, props: Params) {
+export async function POST(_req: Request, props: Params) {
   const params = await props.params
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })

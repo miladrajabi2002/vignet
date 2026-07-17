@@ -160,21 +160,6 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
         }
 }
 
-/**
- * Mark a handoff alert as resolved (operator answered or conversation closed).
- */
-export async function resolveHandoffAlert(
-        workspaceId: string,
-        conversationId: string,
-): Promise<void> {
-        await prisma.handoffAlert
-                .updateMany({
-                        where: { workspaceId, conversationId, state: { in: ['open', 'claimed'] } },
-                        data: { state: 'resolved', resolvedAt: new Date() },
-                })
-                .catch(() => {})
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // Operator Telegram bot push
 // ─────────────────────────────────────────────────────────────────────

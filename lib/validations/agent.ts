@@ -111,11 +111,3 @@ export const agentCreateSchema = z.object({
 export const agentUpdateSchema = agentCreateSchema.partial().extend({
   active: z.boolean().optional(),
 })
-
-export type PromptConfig = z.infer<typeof promptConfigSchema>
-export type PromptFormatConfig = z.infer<typeof promptFormatSchema>
-export type PromptQAPair = z.infer<typeof promptQAPairSchema>
-export type RoleTemplateKey = (typeof roleTemplateKeys)[number]
-
-export type AgentCreateInput = z.infer<typeof agentCreateSchema>
-export type AgentUpdateInput = z.infer<typeof agentUpdateSchema>

@@ -25,8 +25,6 @@ export const DATABASE_MODELS = [
   { key: 'BlogPost', label: 'مقالات', order: 'createdAt' },
 ] as const
 
-export type DatabaseModelKey = (typeof DATABASE_MODELS)[number]['key']
-
 const SENSITIVE_FIELD = /(password|secret|token|cookie|authorization|api.?key|otp|config|settings)/i
 
 function serializeValue(key: string, value: unknown): string {

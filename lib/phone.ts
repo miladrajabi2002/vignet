@@ -38,8 +38,3 @@ export const phoneSchema = z
   .min(1, 'INVALID_PHONE')
   .transform((v) => normalizePhone(v))
   .refine((v): v is string => v !== null, { message: 'INVALID_PHONE' })
-
-export const otpCodeSchema = z
-  .string()
-  .transform(toEnglishDigits)
-  .pipe(z.string().regex(/^\d{6}$/, 'INVALID_CODE'))

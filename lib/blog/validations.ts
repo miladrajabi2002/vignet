@@ -43,8 +43,6 @@ export const blogPostSchema = z.object({
 	publishedAt: z.string().datetime().nullish(),
 })
 
-export type BlogPostInput = z.infer<typeof blogPostSchema>
-
 export const blogCategorySchema = z.object({
 	name: z.string().min(2).max(80),
 	slug: z
@@ -54,5 +52,3 @@ export const blogCategorySchema = z.object({
 		.regex(/^[\u0600-\u06FFa-z0-9-]+$/, 'invalid slug'),
 	description: z.string().max(500).nullish(),
 })
-
-export type BlogCategoryInput = z.infer<typeof blogCategorySchema>
