@@ -213,8 +213,7 @@ const COPY: Record<Locale, HeroCopy> = {
 				person: 'Reza',
 				text: 'Does this course have prerequisites?',
 				time: '4 min ago',
-				reply:
-					'No. The course begins at the introductory level and needs no prerequisite.',
+				reply: 'No. The course begins at the introductory level and needs no prerequisite.',
 				source: 'Course knowledge + syllabus',
 				result: 'Answer sent and lead recorded',
 				confidence: '99%',
@@ -269,18 +268,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 			onBlurCapture={() => setPaused(false)}
 		>
 			<div className="relative overflow-hidden rounded-[2rem] border border-black bg-[#050505] text-white shadow-[0_34px_100px_rgba(0,0,0,0.27)]">
-				<div
-					aria-hidden
-					className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-55"
-				/>
-				<div
-					aria-hidden
-					className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl"
-				/>
-				<div
-					aria-hidden
-					className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl"
-				/>
+				<div aria-hidden className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-55" />
+				<div aria-hidden className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl" />
+				<div aria-hidden className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl" />
 
 				<header className="relative flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
 					<div className="flex min-w-0 items-center gap-2.5">
@@ -353,8 +343,14 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 									{active ? (
 										<motion.span
-											layoutId="vigent-active-business-line"
-											className="absolute -bottom-px left-1/2 h-[2px] w-8 -translate-x-1/2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)] sm:w-10"
+											initial={reduce ? false : { opacity: 0, scaleX: 0.45 }}
+											animate={{ opacity: 1, scaleX: 1 }}
+											transition={
+												reduce
+													? { duration: 0 }
+													: { duration: 0.28, ease: [0.23, 1, 0.32, 1] }
+											}
+											className="absolute -bottom-px inset-x-0 mx-auto h-[2px] w-8 origin-center rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)] sm:w-10"
 										/>
 									) : null}
 								</button>
@@ -381,7 +377,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							initial={reduce ? false : { opacity: 0.32 }}
 							animate={{ opacity: 1 }}
 							transition={
-								reduce ? { duration: 0 } : { duration: 0.34, delay: 0.35 + index * 0.28 }
+								reduce
+									? { duration: 0 }
+									: { duration: 0.34, delay: 0.35 + index * 0.28 }
 							}
 							className="flex min-w-0 items-center justify-center gap-1.5 border-b border-white/10 px-2 py-2.5 text-center last:border-b-0 sm:border-b-0 sm:border-e sm:px-1 sm:py-3 sm:last:border-e-0"
 						>
@@ -389,7 +387,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 								initial={reduce ? false : { scale: 0.7, opacity: 0.3 }}
 								animate={{ scale: 1, opacity: 1 }}
 								transition={
-									reduce ? { duration: 0 } : { delay: 0.35 + index * 0.28, duration: 0.3 }
+									reduce
+										? { duration: 0 }
+										: { delay: 0.35 + index * 0.28, duration: 0.3 }
 								}
 								className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-400/20 text-emerald-300"
 							>
@@ -506,11 +506,7 @@ export function Hero() {
 								key={promise}
 								className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[10px] font-medium text-black/[0.55] shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
 							>
-								{index === 0 ? (
-									<Gift className="h-3 w-3" />
-								) : (
-									<Check className="h-3 w-3" />
-								)}
+								{index === 0 ? <Gift className="h-3 w-3" /> : <Check className="h-3 w-3" />}
 								{promise}
 							</span>
 						))}
