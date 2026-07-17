@@ -2175,8 +2175,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1784293932.251147,
-    "ast_hash": "7c5a865f091dfb0dfb18bc57d499f3f2",
+    "mtime": 1784295112.0087829,
+    "ast_hash": "f4545e3dcab7b116546fa51896b1adf4",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {

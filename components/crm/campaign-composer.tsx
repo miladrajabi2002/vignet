@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,6 +42,7 @@ export function CampaignComposer({
   const isFa = locale === 'fa'
   const closeRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [previewing, setPreviewing] = useState(true)
   const [name, setName] = useState(isFa ? 'اطلاع‌رسانی مشتریان' : 'Customer update')
@@ -53,6 +55,12 @@ export function CampaignComposer({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    setPortalRoot(document.body)
+  }, [])
+
+  useEffect(() => {
+    if (!portalRoot) return
+
     closeRef.current?.focus()
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !queueing) onClose()
@@ -73,7 +81,7 @@ export function CampaignComposer({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose, queueing])
+  }, [onClose, portalRoot, queueing])
 
   useEffect(() => {
     let cancelled = false
@@ -139,8 +147,10 @@ export function CampaignComposer({
     ? 'برای لغو پیام‌های اطلاع‌رسانی، STOP را ارسال کنید.'
     : 'Recipients can reply STOP to opt out of future informational campaigns.'
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
+  if (!portalRoot) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation">
       <section
         ref={dialogRef}
         role="dialog"
@@ -199,7 +209,8 @@ export function CampaignComposer({
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    portalRoot,
   )
 }
 

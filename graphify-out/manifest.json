@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "components/crm/campaign-composer.tsx": {
-    "mtime": 1784067714.745268,
-    "ast_hash": "8f61f32415c8e87880ca5f809b7872a1",
+    "mtime": 1784296985.73553,
+    "ast_hash": "1ccda6d2858503a81a4e7bd172265339",
     "semantic_hash": ""
   },
   "components/crm/channel-badge.tsx": {
