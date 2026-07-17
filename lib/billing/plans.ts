@@ -1,5 +1,5 @@
 import type { Plan } from '@prisma/client'
-import { MODEL_ALIASES, getReplyPriceIRR, type ModelAlias } from '@/lib/ai/models'
+import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
 import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
@@ -89,17 +89,6 @@ export type PaidPlan = (typeof PAID_PLANS)[number]
 
 export function isPaidPlan(p: string): p is PaidPlan {
   return (PAID_PLANS as readonly string[]).includes(p)
-}
-
-/** Effective per-reply prices from the same catalog used by wallet capture. */
-export function getPlanReplyPricesIRR(plan: Plan): Record<ModelAlias, number> {
-  const discountBps = getPlanDefs()[plan].replyDiscountBps
-  return Object.fromEntries(
-    MODEL_ALIASES.map((alias) => [
-      alias,
-      discountedReplyPriceIRR(getReplyPriceIRR(alias), discountBps),
-    ]),
-  ) as Record<ModelAlias, number>
 }
 
 export async function getEffectivePlanReplyPricesIRR(plan: Plan): Promise<Record<ModelAlias, number>> {

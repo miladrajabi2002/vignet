@@ -72,7 +72,7 @@ const createSchema = z.object({
 })
 
 /** List all automation scenarios for an agent's Instagram channel. */
-export async function GET(req: Request, props: Params) {
+export async function GET(_req: Request, props: Params) {
   const params = await props.params
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })

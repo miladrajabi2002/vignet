@@ -84,38 +84,6 @@ export async function conversationsDailyByWorkspace(
 	return buildSeries(rows, days)
 }
 
-/** Daily new messages (all roles) for a workspace. */
-export async function messagesDailyByWorkspace(
-	workspaceId: string,
-	days = 7,
-): Promise<DailySeries> {
-	const since = new Date(Date.now() - days * 86_400_000)
-	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', m."createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
-    FROM "Message" m
-    JOIN "Conversation" conv ON conv."id" = m."conversationId"
-    WHERE conv."workspaceId" = ${workspaceId} AND m."createdAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-	return buildSeries(rows, days)
-}
-
-/** Daily token usage (prompt + completion) for a workspace. */
-export async function tokensDailyByWorkspace(
-	workspaceId: string,
-	days = 7,
-): Promise<DailySeries> {
-	const since = new Date(Date.now() - days * 86_400_000)
-	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
-           COALESCE(sum("promptTokens" + "completionTokens"), 0) AS c
-    FROM "UsageLog"
-    WHERE "workspaceId" = ${workspaceId} AND "date" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-	return buildSeries(rows, days)
-}
-
 /** Daily successful AI charges in Iranian rials for a workspace. */
 export async function chargesDailyByWorkspace(
 	workspaceId: string,
@@ -162,21 +130,6 @@ export async function productsDailyByWorkspace(
 	return buildSeries(rows, days)
 }
 
-/** Daily handoffs (conversations escalated to human operator). */
-export async function handoffsDailyByWorkspace(
-	workspaceId: string,
-	days = 7,
-): Promise<DailySeries> {
-	const since = new Date(Date.now() - days * 86_400_000)
-	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
-    FROM "Conversation"
-    WHERE "workspaceId" = ${workspaceId} AND "handedOff" = true AND "createdAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-	return buildSeries(rows, days)
-}
-
 /** Daily resolved conversations. */
 export async function resolvedDailyByWorkspace(
 	workspaceId: string,
@@ -187,21 +140,6 @@ export async function resolvedDailyByWorkspace(
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
     WHERE "workspaceId" = ${workspaceId} AND "status" = 'RESOLVED' AND "createdAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-	return buildSeries(rows, days)
-}
-
-/** Daily count of conversations that received a rating. */
-export async function ratingsDailyByWorkspace(
-	workspaceId: string,
-	days = 7,
-): Promise<DailySeries> {
-	const since = new Date(Date.now() - days * 86_400_000)
-	const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
-    FROM "Conversation"
-    WHERE "workspaceId" = ${workspaceId} AND "rating" IS NOT NULL AND "createdAt" >= ${since}
     GROUP BY 1 ORDER BY 1
   `
 	return buildSeries(rows, days)
@@ -250,83 +188,4 @@ export async function conversationsDailyByAgent(
 		}
 	}
 	return out
-}
-
-// ─── SAVINGS ESTIMATE ─────────────────────────────────────────────
-
-/**
- * Estimate time/cost saved by the AI agent handling conversations
- * without human intervention.
- *
- * Logic:
- *  - Resolved conversations (not handed off) = "automated"
- *  - Average human handling time per conversation: ~8 minutes (industry estimate)
- *  - Hourly cost of a human operator: ~75,000 IRR (configurable via env)
- *
- * Returns { conversations, minutesSaved, hoursSaved, costSavedIRR, series }.
- */
-export interface SavingsEstimate {
-	/** Conversations fully handled by AI (resolved, not handed off). */
-	conversations: number
-	/** Total minutes of human work saved. */
-	minutesSaved: number
-	/** Total hours of human work saved. */
-	hoursSaved: number
-	/** Estimated cost saved in IRR (Toman). */
-	costSavedIRR: number
-	/** 7-day series of daily automated-conversation counts. */
-	series: number[]
-}
-
-const MIN_PER_CONVERSATION = Number(process.env.SAVINGS_MIN_PER_CONV ?? 8)
-const IRR_PER_HOUR = Number(process.env.SAVINGS_IRR_PER_HOUR ?? 75_000)
-
-export async function getSavingsEstimate(
-	workspaceId: string,
-	days = 7,
-): Promise<SavingsEstimate> {
-	const since = new Date(Date.now() - days * 86_400_000)
-
-	const [totalAgg, dailyRows] = await Promise.all([
-		prisma.conversation.count({
-			where: {
-				workspaceId,
-				status: 'RESOLVED',
-				handedOff: false,
-			},
-		}),
-		prisma.$queryRaw<{ d: string; c: bigint }[]>`
-      SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
-      FROM "Conversation"
-      WHERE "workspaceId" = ${workspaceId}
-        AND "status" = 'RESOLVED'
-        AND "handedOff" = false
-        AND "createdAt" >= ${since}
-      GROUP BY 1 ORDER BY 1
-    `,
-	])
-
-	// Build the 7-day series (timezone-aware).
-	const byKey = new Map<string, number>()
-	for (const r of dailyRows) {
-		byKey.set(r.d, (byKey.get(r.d) ?? 0) + Number(r.c))
-	}
-	const series: number[] = []
-	const now = Date.now()
-	for (let i = days - 1; i >= 0; i--) {
-		const key = tzDayKey(new Date(now - i * 86_400_000))
-		series.push(byKey.get(key) ?? 0)
-	}
-
-	const minutesSaved = totalAgg * MIN_PER_CONVERSATION
-	const hoursSaved = Math.round((minutesSaved / 60) * 10) / 10
-	const costSavedIRR = Math.round((minutesSaved / 60) * IRR_PER_HOUR)
-
-	return {
-		conversations: totalAgg,
-		minutesSaved,
-		hoursSaved,
-		costSavedIRR,
-		series,
-	}
 }

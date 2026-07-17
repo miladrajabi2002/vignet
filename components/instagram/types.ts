@@ -185,90 +185,11 @@ export const DEFAULT_SETTINGS: InstagramAutomationSettings = {
         likeCommentAfterReply: false,
 }
 
-/** Shape sent to POST /api/agents/{agentId}/instagram/automations */
-export interface CreateAutomationPayload {
-        type: AutomationType
-        name: string
-        active: boolean
-        priority: number
-        trigger: AutomationTrigger
-        action: AutomationAction
-}
-
-/** Shape sent to PATCH /api/agents/{agentId}/instagram/automations/{id} (partial) */
-export interface UpdateAutomationPayload {
-        name?: string
-        active?: boolean
-        priority?: number
-        trigger?: AutomationTrigger
-        action?: AutomationAction
-}
-
-// ── UI label maps ────────────────────────────────────────────────────────
-//   Two flavors per map:
-//     1) `*_LABEL_KEY` — i18n message keys, RELATIVE to the `instagram`
-//        namespace in `messages/{en,fa}.json`. Use with
-//        `useTranslations('instagram')`:
-//             const t = useTranslations('instagram')
-//             t(MATCH_MODE_LABEL_KEY[mode])   // → 'instagram.matchMode.EXACT'
-//     2) `*_LABEL` (deprecated) — inline Persian fallbacks. Kept so existing
-//        imports in components that have NOT yet been migrated to next-intl
-//        (e.g. automation-form.tsx, iphone-preview.tsx, media-uploader.tsx,
-//        voice-recorder.tsx) still compile. New code MUST use the
-//        `*_LABEL_KEY` form + `t()` so the UI switches locale correctly.
-
-export const MATCH_MODE_LABEL_KEY: Record<MatchMode, string> = {
-        EXACT: 'matchMode.EXACT',
-        CONTAINS: 'matchMode.CONTAINS',
-        STARTS_WITH: 'matchMode.STARTS_WITH',
-}
-
-/** @deprecated Use MATCH_MODE_LABEL_KEY + `t()` from useTranslations('instagram'). */
-export const MATCH_MODE_LABEL: Record<MatchMode, string> = {
-        EXACT: 'دقیق',
-        CONTAINS: 'شامل',
-        STARTS_WITH: 'شروع با',
-}
-
-export const MATCH_MODE_DESC_KEY: Record<MatchMode, string> = {
-        EXACT: 'matchModeDesc.EXACT',
-        CONTAINS: 'matchModeDesc.CONTAINS',
-        STARTS_WITH: 'matchModeDesc.STARTS_WITH',
-}
-
 /** @deprecated Use MATCH_MODE_DESC_KEY + `t()`. */
 export const MATCH_MODE_DESC: Record<MatchMode, string> = {
         EXACT: 'دقیقاً برابر با کلمه‌کلیدی',
         CONTAINS: 'شامل کلمه‌کلیدی در هر جای متن',
         STARTS_WITH: 'شروع با کلمه‌کلیدی',
-}
-
-export const STORY_SCOPE_LABEL_KEY: Record<StoryScope, string> = {
-        ALL: 'storyScope.ALL',
-        KEYWORD: 'storyScope.KEYWORD',
-}
-
-/** @deprecated Use STORY_SCOPE_LABEL_KEY + `t()`. */
-export const STORY_SCOPE_LABEL: Record<StoryScope, string> = {
-        ALL: 'همه استوری‌ها',
-        KEYWORD: 'بر اساس کلمه‌کلیدی',
-}
-
-export const REPLY_MODE_LABEL_KEY: Record<ReplyMode, string> = {
-        STATIC: 'replyMode.STATIC',
-        AI: 'replyMode.AI',
-        SILENT: 'replyMode.SILENT',
-        STOP_AI: 'replyMode.STOP_AI',
-        MULTI_MESSAGE: 'replyMode.MULTI_MESSAGE',
-}
-
-/** @deprecated Use REPLY_MODE_LABEL_KEY + `t()`. */
-export const REPLY_MODE_LABEL: Record<ReplyMode, string> = {
-        STATIC: 'متن ثابت',
-        AI: 'پاسخ هوشمند',
-        SILENT: 'بدون پاسخ',
-        STOP_AI: 'توقف هوش مصنوعی',
-        MULTI_MESSAGE: 'چند پیام',
 }
 
 export const REPLY_MODE_SHORT_LABEL_KEY: Record<ReplyMode, string> = {
@@ -279,75 +200,16 @@ export const REPLY_MODE_SHORT_LABEL_KEY: Record<ReplyMode, string> = {
         MULTI_MESSAGE: 'replyModeShort.MULTI_MESSAGE',
 }
 
-/** @deprecated Use REPLY_MODE_SHORT_LABEL_KEY + `t()`. */
-export const REPLY_MODE_SHORT_LABEL: Record<ReplyMode, string> = {
-        STATIC: 'ثابت',
-        AI: 'هوشمند',
-        SILENT: 'بی‌صدا',
-        STOP_AI: 'توقف AI',
-        MULTI_MESSAGE: 'چندگزینه‌ای',
-}
-
-export const GATE_MODE_LABEL_KEY: Record<GateMode, string> = {
-        SOFT: 'gateMode.SOFT',
-        STORY_MENTION: 'gateMode.STORY_MENTION',
-}
-
-/** @deprecated Use GATE_MODE_LABEL_KEY + `t()`. */
-export const GATE_MODE_LABEL: Record<GateMode, string> = {
-        SOFT: 'نرم (اعتماد)',
-        STORY_MENTION: 'سخت (منشن استوری)',
-}
-
-export const TYPE_LABEL_KEY: Record<AutomationType, string> = {
-        DIRECT_MESSAGE: 'types.DIRECT_MESSAGE',
-        COMMENT: 'types.COMMENT',
-        STORY: 'types.STORY',
-}
-
-/** @deprecated Use TYPE_LABEL_KEY + `t()`. */
-export const TYPE_LABEL: Record<AutomationType, string> = {
-        DIRECT_MESSAGE: 'دایرکت',
-        COMMENT: 'کامنت',
-        STORY: 'استوری',
-}
-
 export const REPLY_POLICY_LABEL_KEY: Record<ReplyPolicy, string> = {
         ALL_AGENT: 'replyPolicy.ALL_AGENT',
         AGENT_EXCEPT_SCENARIOS: 'replyPolicy.AGENT_EXCEPT_SCENARIOS',
         AUTOMATION_ONLY: 'replyPolicy.AUTOMATION_ONLY',
 }
 
-/** @deprecated Use REPLY_POLICY_LABEL_KEY + `t()`. */
-export const REPLY_POLICY_LABEL: Record<ReplyPolicy, string> = {
-        ALL_AGENT: 'همه پیام‌ها توسط ایجنت',
-        AGENT_EXCEPT_SCENARIOS: 'ایجنت به جز سناریوها',
-        AUTOMATION_ONLY: 'فقط اتوماسیون',
-}
-
 export const REPLY_POLICY_DESC_KEY: Record<ReplyPolicy, string> = {
         ALL_AGENT: 'replyPolicyDesc.ALL_AGENT',
         AGENT_EXCEPT_SCENARIOS: 'replyPolicyDesc.AGENT_EXCEPT_SCENARIOS',
         AUTOMATION_ONLY: 'replyPolicyDesc.AUTOMATION_ONLY',
-}
-
-export const MESSAGE_TYPE_LABEL_KEY: Record<MessageType, string> = {
-        TEXT: 'messageType.TEXT',
-        IMAGE: 'messageType.IMAGE',
-        AUDIO: 'messageType.AUDIO',
-        VIDEO: 'messageType.VIDEO',
-        QUICK_REPLY: 'messageType.QUICK_REPLY',
-        PRODUCT: 'messageType.PRODUCT',
-}
-
-/** @deprecated Use MESSAGE_TYPE_LABEL_KEY + `t()`. */
-export const MESSAGE_TYPE_LABEL: Record<MessageType, string> = {
-        TEXT: 'متن',
-        IMAGE: 'عکس',
-        AUDIO: 'وویس',
-        VIDEO: 'ویدیو',
-        QUICK_REPLY: 'کلید',
-        PRODUCT: 'محصول',
 }
 
 /** Generate a short stable id for a new AutomationMessage (client-only). */

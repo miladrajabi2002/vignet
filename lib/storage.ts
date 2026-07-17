@@ -3,7 +3,6 @@ import {
   PutObjectCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // S3-compatible object storage (self-hosted MinIO, or any S3 provider).
 // Configure via env: S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION.
@@ -60,19 +59,6 @@ export async function downloadFile(
   if (!res.Body) throw new Error(`Storage download failed: empty body for ${path}`)
   const bytes = await res.Body.transformToByteArray()
   return Buffer.from(bytes)
-}
-
-/** Create a time-limited signed URL for private files (e.g. product images). */
-export async function signedUrl(
-  bucket: string,
-  path: string,
-  expiresIn = 3600,
-): Promise<string> {
-  return getSignedUrl(
-    getClient(),
-    new GetObjectCommand({ Bucket: bucket, Key: path }),
-    { expiresIn },
-  )
 }
 
 export function isStorageConfigured(): boolean {

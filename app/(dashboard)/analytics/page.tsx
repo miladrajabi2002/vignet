@@ -296,8 +296,8 @@ export default async function AnalyticsPage() {
               { label: fa ? 'توسط ایجنت پاسخ داده شد' : 'Answered by agent', value: totalConversations - handedOff, color: 'bg-emerald-500' },
               { label: fa ? 'حل شد' : 'Resolved', value: resolvedConversations, color: 'bg-emerald-600' },
               { label: fa ? 'تحویل اپراتور' : 'Handed to operator', value: handedOff, color: 'bg-amber-500' },
-            ].map((step, i, arr) => {
-              const max = arr[0].value || 1
+            ].map((step) => {
+              const max = totalConversations || 1
               const pct = Math.round((step.value / max) * 100)
               return (
                 <div key={step.label}>

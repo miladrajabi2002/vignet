@@ -16,19 +16,6 @@ export type ReserveCreditResult =
   | { ok: true; reservation: CreditReservation }
   | { ok: false; reason: 'NO_CREDIT' | 'WORKSPACE_NOT_FOUND' }
 
-export async function getReplyChargeIRR(
-  workspaceId: string,
-  model: string | null | undefined,
-): Promise<number | null> {
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { plan: true },
-  })
-  if (!workspace) return null
-  const def = (await getEffectivePlanDefs())[workspace.plan]
-  return discountedReplyPriceIRR(await getEffectiveReplyPriceIRR(model), def.replyDiscountBps)
-}
-
 /**
  * Atomically reserve the fixed price of one successful AI reply.
  * The available balance is reduced before the provider call, preventing

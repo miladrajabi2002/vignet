@@ -323,10 +323,3 @@ function PrereqItem({
     </li>
   )
 }
-
-/**
- * Backward-compat alias. The previous wizard was exported as
- * `InstagramConnectWizard`; messenger-channel.tsx imports that name. Keep the
- * alias so any stray import still resolves to the new flow.
- */
-export const InstagramConnectWizard = InstagramConnectFlow

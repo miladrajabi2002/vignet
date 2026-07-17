@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { processIngestion } from '@/lib/knowledge/ingest'
-import { parseUrl } from '@/lib/knowledge/parsers'
 
 /**
  * URL crawler (F2). Two responsibilities:
@@ -105,14 +104,4 @@ export async function refreshStaleUrlKnowledge(): Promise<{ refreshed: number }>
 		console.log(`[crawler] refreshed ${refreshed} stale URL knowledge base(s)`)
 	}
 	return { refreshed }
-}
-
-/**
- * Convenience helper for one-off crawls of an arbitrary URL (e.g. a CUSTOM_URL
- * store integration that we want to surface as a knowledge base). Fetches the
- * URL text via `parseUrl` and returns it; the caller decides what to do with
- * it (e.g. feed it into a knowledge base or product catalog).
- */
-export async function fetchUrlText(url: string): Promise<string> {
-	return parseUrl(url)
 }

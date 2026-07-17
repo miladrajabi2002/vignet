@@ -149,7 +149,7 @@ export default async function OverviewPage() {
     prisma.conversation.findMany({
       where: { workspaceId },
       orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
-      take: 6,
+      take: 4,
       select: {
         id: true,
         channel: true,

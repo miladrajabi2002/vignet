@@ -1035,7 +1035,6 @@ function isReplyPolicy(v: unknown): v is InstagramReplyPolicy {
  */
 export async function loadAutomationPolicy(
   agentId: string,
-  channelId: string,
   channelConfig?: Prisma.JsonValue,
 ): Promise<AutomationPolicy> {
   const row = await prisma.instagramAutomationSettings.findUnique({

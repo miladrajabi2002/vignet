@@ -43,20 +43,6 @@ export function fmtUSD(amount: number | null | undefined): string {
   return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 3 })}`
 }
 
-/** Relative "x ago" in Persian. */
-export function fmtAgo(d: Date): string {
-  const diff = Date.now() - d.getTime()
-  const sec = Math.floor(diff / 1000)
-  if (sec < 60) return 'لحظاتی پیش'
-  const min = Math.floor(sec / 60)
-  if (min < 60) return `${min.toLocaleString('fa-IR')} دقیقه پیش`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr.toLocaleString('fa-IR')} ساعت پیش`
-  const day = Math.floor(hr / 24)
-  if (day < 30) return `${day.toLocaleString('fa-IR')} روز پیش`
-  return fmtDay(d)
-}
-
 // ─── CARD ─────────────────────────────────────────────────────────
 
 /** The universal surface container — white card with subtle border + shadow. */
@@ -245,24 +231,6 @@ export function LevelBadge({ level }: { level: string }) {
     <Badge tone="danger">خطا</Badge>
   ) : (
     <Badge tone="warning">هشدار</Badge>
-  )
-}
-
-/** Status dot + label pill. */
-export function StatusDot({ tone = 'success', label }: { tone?: BadgeTone; label?: string }) {
-  const dot = {
-    default: 'bg-zinc-400',
-    success: 'bg-emerald-500',
-    warning: 'bg-amber-500',
-    danger: 'bg-red-500',
-    info: 'bg-blue-500',
-    muted: 'bg-zinc-300',
-  }[tone]
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-zinc-600">
-      <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
-      {label}
-    </span>
   )
 }
 
@@ -519,25 +487,5 @@ export function FilterPills({
         </Link>
       ))}
     </div>
-  )
-}
-
-// ─── AVATAR (initials) ────────────────────────────────────────────
-
-export function Avatar({ name, size = 40 }: { name?: string | null; size?: number }) {
-  const initials = (name ?? '?')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-  return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white"
-      style={{ width: size, height: size }}
-    >
-      {initials || '?'}
-    </span>
   )
 }

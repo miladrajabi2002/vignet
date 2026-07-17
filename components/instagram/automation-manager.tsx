@@ -65,31 +65,15 @@ const TABS: TabDef[] = [
 
 export function InstagramAutomationManager({
         agentId,
-        channelId: _channelId,
         accountUsername,
-        accountAvatarUrl: _accountAvatarUrl,
         initialAutomations,
         initialSettings,
-        connected: _connected,
 }: {
         agentId: string
-        channelId: string
         accountUsername: string
-        accountAvatarUrl?: string
         initialAutomations: Automation[]
         initialSettings?: InstagramAutomationSettings
-        connected: boolean
 }) {
-        // `_connected`, `_channelId` and `_accountAvatarUrl` are part of the public
-        // prop contract (the parent page mounts this manager with all of them and
-        // they may be re-introduced in a future revision), but they aren't read
-        // inside the component since v3 (the form is on separate routes now, which
-        // receive these via the new/edit server pages). Void them to satisfy the
-        // unused-vars rule.
-        void _connected
-        void _channelId
-        void _accountAvatarUrl
-
         const t = useTranslations('instagram')
         const locale = useLocale()
         const numLocale = locale === 'fa' ? 'fa-IR' : 'en-US'

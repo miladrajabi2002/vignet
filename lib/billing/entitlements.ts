@@ -95,21 +95,6 @@ export async function checkAgentCreateAllowed(workspaceId: string): Promise<bool
   return count < limit
 }
 
-/**
- * Activate (or extend) a subscription after a verified payment.
- * Extends from the current period end when still active, so early renewals
- * never lose paid days. Also flips `Workspace.plan`.
- */
-export async function activateSubscription(params: {
-  workspaceId: string
-  plan: PaidPlan
-  monthlyPrice: number
-  currency: 'IRR' | 'USD'
-}): Promise<void> {
-  const currentPeriodEnd = await prisma.$transaction((tx) => persistSubscription(tx, params))
-  await sendPurchaseConfirmation(params.workspaceId, params.plan, currentPeriodEnd)
-}
-
 type SubscriptionActivation = {
   workspaceId: string
   plan: PaidPlan

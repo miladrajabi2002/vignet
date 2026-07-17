@@ -128,12 +128,6 @@ export function readUserToken(config: Prisma.JsonValue): string | null {
   }
 }
 
-/** Read the webhook token (used by the legacy [token] webhook route). */
-export function readWebhookToken(config: Prisma.JsonValue): string | null {
-  const c = config as Partial<InstagramOAuthConfig> | null
-  return c?.webhookToken ?? null
-}
-
 /** Read the IG user id — the routing key for the global webhook (Instagram Login). */
 export function readIgUserId(
   config: Prisma.JsonValue,
@@ -141,34 +135,6 @@ export function readIgUserId(
   const c = config as Partial<InstagramOAuthConfig> | null
   // Instagram Login stores igUserId; legacy FB Login stores igBusinessAccountId.
   return c?.igUserId ?? c?.igBusinessAccountId ?? null
-}
-
-/** Read the IG Business Account id (legacy FB Login only). */
-export function readIgBusinessAccountId(
-  config: Prisma.JsonValue,
-): string | null {
-  const c = config as Partial<InstagramOAuthConfig> | null
-  return c?.igBusinessAccountId ?? null
-}
-
-/** Read the Facebook Page id (legacy FB Login only). */
-export function readPageId(config: Prisma.JsonValue): string | null {
-  const c = config as Partial<InstagramOAuthConfig> | null
-  return c?.pageId ?? null
-}
-
-/** Is this channel connected via the new OAuth flow? */
-export function isOAuthChannel(config: Prisma.JsonValue): boolean {
-  const c = config as Partial<InstagramOAuthConfig> | null
-  return c?.mode === 'OAUTH'
-}
-
-/** When does the long-lived user token expire? Null for legacy channels. */
-export function userTokenExpiry(config: Prisma.JsonValue): Date | null {
-  const c = config as Partial<InstagramOAuthConfig> | null
-  if (!c?.userTokenExpiresAt) return null
-  const d = new Date(c.userTokenExpiresAt)
-  return Number.isNaN(d.getTime()) ? null : d
 }
 
 /** Normalize the `settings` blob into a safe quick-replies array. */

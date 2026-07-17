@@ -134,14 +134,6 @@ export function weekdayForDateKey(dateKey: string): number {
   return new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay()
 }
 
-export function minuteOfDayInTimeZone(
-  date: Date,
-  timeZone = DEFAULT_BOOKING_TIMEZONE,
-): number {
-  const parts = zonedParts(date, timeZone)
-  return parts.hour * 60 + parts.minute
-}
-
 export function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000)
 }

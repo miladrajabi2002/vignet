@@ -429,8 +429,8 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         })
                 },
 
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 async sendVoice(_chatId: string, _voice: OutboundVoice): Promise<void> {
+                        void _voice
                         // Instagram DMs don't have a native "voice note" type distinct from
                         // audio — both are sent as an `audio` attachment. We reuse the
                         // sendAudio envelope (upload the raw bytes to S3 via the caller, then
@@ -586,21 +586,6 @@ export async function getInstagramInfo(
 ): Promise<{ username: string } | null> {
         const resolved = await resolveInstagramHost(token)
         return resolved ? { username: resolved.username } : null
-}
-
-/**
- * Return which Meta host a token resolved to (for diagnostics: the dashboard
- * uses this to show the operator whether DMs will work or only comments will).
- */
-export async function getInstagramTokenDiagnostics(
-        token: string,
-): Promise<{ host: IgHost | null; username: string | null; canSendDms: boolean }> {
-        const r = await resolveInstagramHost(token)
-        return {
-                host: r?.host ?? null,
-                username: r?.username ?? null,
-                canSendDms: r?.host === 'facebook',
-        }
 }
 
 // ─── INSTAGRAM CONNECTION WIZARD ────────────────────────────────────
@@ -847,20 +832,6 @@ export async function listFacebookPagesWithInstagram(
                 resolvedHost: resolved?.host,
                 resolvedUsername: resolved?.username,
         }
-}
-
-/**
- * Sanity-check a chosen Page Access Token + IG account by reading the IG
- * profile with it. Used as the final verification step before we persist the
- * token to the DB — returns the IG username so the dashboard can show
- * "Connected to @vigent.ir" instead of an opaque id.
- */
-export async function verifyInstagramPageToken(
-        pageAccessToken: string,
-): Promise<{ username: string; igBusinessAccountId?: string } | null> {
-        const resolved = await resolveInstagramHost(pageAccessToken)
-        if (!resolved || resolved.host !== 'facebook') return null
-        return { username: resolved.username }
 }
 
 /**

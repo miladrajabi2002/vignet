@@ -556,7 +556,7 @@ async function processChannelInbound(
                         let scenarioHandled = false
                         let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         if (type === 'INSTAGRAM') {
-                                instagramPolicy = await loadAutomationPolicy(agent.id, channelId, resolved.config)
+                                instagramPolicy = await loadAutomationPolicy(agent.id, resolved.config)
 								const reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
 
                                 // A configured fixed reply has precedence over scenarios. When
@@ -652,7 +652,7 @@ async function processChannelInbound(
                         // from InstagramAutomationSettings (with a fallback to the inline
                         // snapshot in AgentChannel.config.automationSettings).
                         if (type === 'INSTAGRAM') {
-                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, channelId, resolved.config)
+                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, resolved.config)
                                 // Look up the conversation's pause flag (best-effort; the
                                 // conversation may not exist yet — that's fine, the
                                 // metadata just isn't set).
@@ -721,7 +721,7 @@ async function processChannelInbound(
                                 quickReplies: settings.quickReplies,
                         })
                         if (type === 'INSTAGRAM') {
-                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, channelId, resolved.config)
+                                const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, resolved.config)
                                 const likeEnabled = msg.kind === 'COMMENT'
                                         ? policy.likeCommentAfterReply
                                         : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_MENTION'

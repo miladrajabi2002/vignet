@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { encrypt, decrypt } from '@/lib/crypto'
+import { encrypt } from '@/lib/crypto'
 import { newWebhookToken } from '@/lib/channels/config'
 
 /**
@@ -14,8 +14,8 @@ import { newWebhookToken } from '@/lib/channels/config'
  * sends outbound replies back to the bridge via `POST /send-text`.
  *
  * The `mode: 'QR'` flag distinguishes this from the existing OAuth (`'OAUTH'`)
- * and legacy-token (`'LEGACY'`) modes. The shared `readWhatsappToken` /
- * `readBotToken` pipeline returns the synthetic packed string `qr:<sessionId>`,
+ * and legacy-token (`'LEGACY'`) modes. The shared `readBotToken` pipeline
+ * returns the synthetic packed string `qr:<sessionId>`,
  * which `whatsappAdapter.sendText` recognises and routes to the bridge instead
  * of the Meta Graph API.
  *
@@ -86,27 +86,6 @@ export function isWhatsappQrChannel(config: Prisma.JsonValue): boolean {
 export function readBridgeSessionId(config: Prisma.JsonValue): string | null {
   const c = config as Partial<WhatsappQrConfig> | null
   return c?.bridgeSessionId ?? null
-}
-
-/**
- * Decrypt the synthetic `qr:<sessionId>` packed token. Returns null for
- * non-QR configs or malformed values. Used by `readWhatsappToken` /
- * `readBotToken` so the shared pipeline never has to know about QR mode
- * specifically.
- */
-export function readQrToken(config: Prisma.JsonValue): string | null {
-  const c = config as Partial<WhatsappQrConfig> | null
-  if (c?.mode !== 'QR') return null
-  // Prefer the stored packed string; reconstruct from sessionId as a fallback.
-  if (c.botTokenEnc) {
-    try {
-      return decrypt(c.botTokenEnc)
-    } catch {
-      /* fall through */
-    }
-  }
-  if (c.bridgeSessionId) return packQrToken(c.bridgeSessionId)
-  return null
 }
 
 /** Bridge base URL (with trailing slash stripped). Defaults to localhost:3040. */

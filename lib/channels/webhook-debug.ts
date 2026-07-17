@@ -39,7 +39,7 @@ function key(type: string): string {
  * parseUpdate() already decides what to extract; this just labels the payload
  * so "parsedCount: 0" isn't ambiguous.
  */
-function categorizePayload(type: string, body: unknown): string {
+function categorizePayload(body: unknown): string {
         if (!body || typeof body !== 'object') return 'unknown'
         const b = body as Record<string, unknown>
         const entries = (b.entry as Array<Record<string, unknown>>) ?? []
@@ -104,7 +104,7 @@ export function logWebhookPayload(
                 size: JSON.stringify(body ?? '').length,
                 body,
                 parsedCount,
-                eventType: categorizePayload(type, body),
+                eventType: categorizePayload(body),
         })
         if (arr.length > MAX_PER_TYPE) arr.length = MAX_PER_TYPE
         buffer.set(key(type), arr)

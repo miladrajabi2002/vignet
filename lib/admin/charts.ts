@@ -122,21 +122,6 @@ export async function errorsDailyByLevel(
         return fillSeries(rows.map((row) => ({ d: row.d, v: Number(row.c) })), days)
 }
 
-export async function usageTokensDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
-        const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
-           sum("promptTokens" + "completionTokens") AS c
-    FROM "UsageLog"
-    WHERE "date" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-        return fillSeries(
-                rows.map((r) => ({ d: r.d, v: Number(r.c ?? 0) })),
-                days,
-        )
-}
-
 export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
         const since = new Date(Date.now() - days * 86400000)
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
@@ -155,21 +140,6 @@ export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
         const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "User"
-    WHERE "createdAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-        return fillSeries(
-                rows.map((r) => ({ d: r.d, v: Number(r.c) })),
-                days,
-        )
-}
-
-/** New workspace registrations per day. */
-export async function newWorkspacesDaily(days = 14): Promise<DailyPoint[]> {
-        const since = new Date(Date.now() - days * 86400000)
-        const rows = await prisma.$queryRaw<{ d: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
-    FROM "Workspace"
     WHERE "createdAt" >= ${since}
     GROUP BY 1 ORDER BY 1
   `
@@ -234,61 +204,6 @@ export async function revenueIRRMonthly(months = 12): Promise<MonthPoint[]> {
         )
 }
 
-/** Monthly revenue in USD over the last N months. */
-export async function revenueUSDMonthly(months = 12): Promise<MonthPoint[]> {
-        const since = new Date()
-        since.setMonth(since.getMonth() - (months - 1))
-        since.setDate(1)
-        since.setHours(0, 0, 0, 0)
-        const rows = await prisma.$queryRaw<{ m: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('month', "paidAt"), 'YYYY-MM') AS m,
-           COALESCE(sum("amount"), 0) AS c
-    FROM "Payment"
-    WHERE "status" = 'PAID' AND "currency" = 'USD' AND "paidAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-        return fillMonthly(
-                rows.map((r) => ({ m: r.m, v: Number(r.c ?? 0) })),
-                months,
-        )
-}
-
-/** Count of successful payments per month over the last N months. */
-export async function paymentsMonthly(months = 12): Promise<MonthPoint[]> {
-        const since = new Date()
-        since.setMonth(since.getMonth() - (months - 1))
-        since.setDate(1)
-        since.setHours(0, 0, 0, 0)
-        const rows = await prisma.$queryRaw<{ m: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('month', "paidAt"), 'YYYY-MM') AS m, count(*) AS c
-    FROM "Payment"
-    WHERE "status" = 'PAID' AND "paidAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-        return fillMonthly(
-                rows.map((r) => ({ m: r.m, v: Number(r.c ?? 0) })),
-                months,
-        )
-}
-
-/** New user sign-ups per month. */
-export async function newUsersMonthly(months = 12): Promise<MonthPoint[]> {
-        const since = new Date()
-        since.setMonth(since.getMonth() - (months - 1))
-        since.setDate(1)
-        since.setHours(0, 0, 0, 0)
-        const rows = await prisma.$queryRaw<{ m: string; c: bigint }[]>`
-    SELECT to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS m, count(*) AS c
-    FROM "User"
-    WHERE "createdAt" >= ${since}
-    GROUP BY 1 ORDER BY 1
-  `
-        return fillMonthly(
-                rows.map((r) => ({ m: r.m, v: Number(r.c ?? 0) })),
-                months,
-        )
-}
-
 // ─── DISTRIBUTIONS ────────────────────────────────────────────────
 
 export interface Slice {
@@ -312,47 +227,6 @@ export async function planDistribution(): Promise<Slice[]> {
         return rows.map((r) => ({
                 key: r.plan,
                 label: labels[r.plan] ?? r.plan,
-                value: r._count._all,
-        }))
-}
-
-/** Successful payments grouped by gateway. */
-export async function gatewayBreakdown(): Promise<Slice[]> {
-        const rows = await prisma.payment.groupBy({
-                by: ['gateway'],
-                where: { status: 'PAID' },
-                _count: { _all: true },
-        })
-        const labels: Record<string, string> = {
-                ZARINPAY: 'زرین‌پال',
-                NOWPAYMENTS: 'کریپتو (NowPayments)',
-        }
-        return rows.map((r) => ({
-                key: r.gateway,
-                label: labels[r.gateway] ?? r.gateway,
-                value: r._count._all,
-        }))
-}
-
-/** Conversations grouped by channel. */
-export async function channelBreakdown(): Promise<Slice[]> {
-        const rows = await prisma.conversation.groupBy({
-                by: ['channel'],
-                _count: { _all: true },
-        })
-        const labels: Record<string, string> = {
-                TELEGRAM: 'تلگرام',
-                WHATSAPP: 'واتساپ',
-                INSTAGRAM: 'اینستاگرام',
-                RUBIKA: 'روبیکا',
-                BALE: 'بله',
-                WEB_WIDGET: 'ویجت وب',
-                API: 'API',
-                CHAT_LINK: 'لینک چت',
-        }
-        return rows.map((r) => ({
-                key: r.channel,
-                label: labels[r.channel] ?? r.channel,
                 value: r._count._all,
         }))
 }
@@ -487,54 +361,6 @@ export async function errorsDailyBySource(days = 7): Promise<Map<string, ErrorSp
                 if (!entry) {
                         entry = { source: key, series: new Array(days).fill(0), total: 0 }
                         out.set(key, entry)
-                }
-                const idx = dayKeys.indexOf(r.d)
-                if (idx >= 0 && idx < days) {
-                        const n = Number(r.c)
-                        entry.series[idx] = n
-                        entry.total += n
-                }
-        }
-        return out
-}
-
-// ─── CONVERSATION SPARKLINE (by channel) ───────────────────────────
-
-export interface ChannelSpark {
-        channel: string
-        series: number[]
-        total: number
-}
-
-/**
- * Daily conversation counts for the last N days, grouped by channel.
- * Used for inline sparklines on the conversations page.
- */
-export async function conversationsDailyByChannel(
-        days = 7,
-): Promise<Map<string, ChannelSpark>> {
-        const since = new Date(Date.now() - days * 86_400_000)
-        const rows = await prisma.$queryRaw<{ channel: string; d: string; c: bigint }[]>`
-    SELECT "channel",
-           to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d,
-           count(*) AS c
-    FROM "Conversation"
-    WHERE "createdAt" >= ${since}
-    GROUP BY 1, 2
-    ORDER BY 1, 2
-  `
-
-        const out = new Map<string, ChannelSpark>()
-        const now = Date.now()
-        const dayKeys: string[] = []
-        for (let i = days - 1; i >= 0; i--) {
-                dayKeys.push(tzDayKey(new Date(now - i * 86_400_000)))
-        }
-        for (const r of rows) {
-                let entry = out.get(r.channel)
-                if (!entry) {
-                        entry = { channel: r.channel, series: new Array(days).fill(0), total: 0 }
-                        out.set(r.channel, entry)
                 }
                 const idx = dayKeys.indexOf(r.d)
                 if (idx >= 0 && idx < days) {
