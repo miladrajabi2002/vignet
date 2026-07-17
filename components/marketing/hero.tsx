@@ -213,7 +213,8 @@ const COPY: Record<Locale, HeroCopy> = {
 				person: 'Reza',
 				text: 'Does this course have prerequisites?',
 				time: '4 min ago',
-				reply: 'No. The course begins at the introductory level and needs no prerequisite.',
+				reply:
+					'No. The course begins at the introductory level and needs no prerequisite.',
 				source: 'Course knowledge + syllabus',
 				result: 'Answer sent and lead recorded',
 				confidence: '99%',
@@ -258,7 +259,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					? { duration: 0 }
 					: { duration: 0.58, delay: 0.08, ease: [0.16, 1, 0.3, 1] }
 			}
-			className="relative mx-auto w-full max-w-[780px]"
+			className="relative mx-auto w-full max-w-[760px]"
 			role="region"
 			aria-label={copy.stageAria}
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
@@ -268,9 +269,18 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 			onBlurCapture={() => setPaused(false)}
 		>
 			<div className="relative overflow-hidden rounded-[2rem] border border-black bg-[#050505] text-white shadow-[0_34px_100px_rgba(0,0,0,0.27)]">
-				<div aria-hidden className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-55" />
-				<div aria-hidden className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl" />
-				<div aria-hidden className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl" />
+				<div
+					aria-hidden
+					className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-55"
+				/>
+				<div
+					aria-hidden
+					className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl"
+				/>
+				<div
+					aria-hidden
+					className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl"
+				/>
 
 				<header className="relative flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
 					<div className="flex min-w-0 items-center gap-2.5">
@@ -296,12 +306,12 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					</span>
 				</header>
 
-				<div className="relative px-3.5 pt-3.5 sm:px-5">
+				<div className="relative px-3.5 pt-4 sm:px-5">
 					<p className="mb-2 whitespace-nowrap text-[8px] font-medium text-white/[0.38] sm:text-[9px]">
 						{copy.verticalLabel}
 					</p>
 
-					<div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
+					<div className="grid grid-cols-5 gap-1.5 sm:gap-2">
 						{copy.scenes.map((business, index) => {
 							const Icon = BUSINESS_ICONS[index]
 							const active = index === activeIndex
@@ -313,7 +323,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									aria-label={business.name}
 									aria-pressed={active}
 									onClick={() => setActiveIndex(index)}
-									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2 ${
+									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2.5 ${
 										active
 											? 'border-white/35 text-black'
 											: 'border-white/10 bg-white/[0.045] text-white/[0.48] hover:bg-white/[0.07] hover:text-white/70'
@@ -328,7 +338,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									) : null}
 
 									<span
-										className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors sm:h-[30px] sm:w-[30px] ${
+										className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors sm:h-8 sm:w-8 ${
 											active
 												? 'bg-black text-white'
 												: 'bg-white/[0.06] text-white/[0.55] group-hover:text-white/75'
@@ -371,9 +381,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							initial={reduce ? false : { opacity: 0.32 }}
 							animate={{ opacity: 1 }}
 							transition={
-								reduce
-									? { duration: 0 }
-									: { duration: 0.34, delay: 0.35 + index * 0.28 }
+								reduce ? { duration: 0 } : { duration: 0.34, delay: 0.35 + index * 0.28 }
 							}
 							className="flex min-w-0 items-center justify-center gap-1.5 border-b border-white/10 px-2 py-2.5 text-center last:border-b-0 sm:border-b-0 sm:border-e sm:px-1 sm:py-3 sm:last:border-e-0"
 						>
@@ -381,9 +389,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 								initial={reduce ? false : { scale: 0.7, opacity: 0.3 }}
 								animate={{ scale: 1, opacity: 1 }}
 								transition={
-									reduce
-										? { duration: 0 }
-										: { delay: 0.35 + index * 0.28, duration: 0.3 }
+									reduce ? { duration: 0 } : { delay: 0.35 + index * 0.28, duration: 0.3 }
 								}
 								className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-400/20 text-emerald-300"
 							>
@@ -500,7 +506,11 @@ export function Hero() {
 								key={promise}
 								className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[10px] font-medium text-black/[0.55] shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
 							>
-								{index === 0 ? <Gift className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+								{index === 0 ? (
+									<Gift className="h-3 w-3" />
+								) : (
+									<Check className="h-3 w-3" />
+								)}
 								{promise}
 							</span>
 						))}
