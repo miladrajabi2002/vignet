@@ -104,12 +104,7 @@ function SignalParticle({
 }) {
 	return (
 		<g>
-			<circle
-				r="6"
-				fill="#34d399"
-				filter={`url(#${filterId})`}
-				opacity="0"
-			>
+			<circle r="6" fill="#34d399" filter={`url(#${filterId})`} opacity="0">
 				<animateMotion
 					path={path}
 					begin={`${delay}s`}
@@ -125,12 +120,7 @@ function SignalParticle({
 				/>
 			</circle>
 
-			<circle
-				r="2.5"
-				fill="#a7f3d0"
-				filter={`url(#${filterId})`}
-				opacity="0"
-			>
+			<circle r="2.5" fill="#a7f3d0" filter={`url(#${filterId})`} opacity="0">
 				<animateMotion
 					path={path}
 					begin={`${delay}s`}
@@ -167,13 +157,7 @@ function NetworkDefs({ id }: { id: string }) {
 				</feMerge>
 			</filter>
 
-			<filter
-				id={`${id}-soft`}
-				x="-80%"
-				y="-80%"
-				width="260%"
-				height="260%"
-			>
+			<filter id={`${id}-soft`} x="-80%" y="-80%" width="260%" height="260%">
 				<feGaussianBlur stdDeviation="4.5" />
 			</filter>
 
@@ -192,13 +176,26 @@ function NetworkDefs({ id }: { id: string }) {
 				markerHeight="7"
 				orient="auto"
 			>
-				<path
-					d="M 0 0 L 8 3 L 0 6 Z"
-					fill="#6ee7b7"
-					fillOpacity="0.88"
-				/>
+				<path d="M 0 0 L 8 3 L 0 6 Z" fill="#6ee7b7" fillOpacity="0.88" />
 			</marker>
 		</defs>
+	)
+}
+
+function TelegramIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className}
+			aria-hidden
+		>
+			<path
+				d="M20.665 3.717 2.934 10.554c-1.21.486-1.203 1.161-.222 1.462l4.55 1.42 1.737 5.33c.211.584.107.816.72.816.474 0 .683-.216.948-.474l2.185-2.124 4.546 3.358c.838.462 1.442.224 1.65-.778l2.986-14.075c.306-1.225-.467-1.78-1.369-1.372ZM8.153 13.11l10.37-6.543c.518-.314.994-.145.604.202l-8.563 7.727-.334 3.56-2.077-4.946Z"
+				fill="currentColor"
+			/>
+		</svg>
 	)
 }
 
@@ -215,6 +212,17 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 		return (
 			<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-500/90 text-white shadow-[0_0_18px_rgba(14,165,233,0.22)]">
 				<Globe2 className="h-4 w-4" />
+			</span>
+		)
+	}
+
+	if (activeIndex === 3) {
+		return (
+			<span
+				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#229ED9] text-white shadow-[0_0_18px_rgba(34,158,217,0.34)]"
+				title="Telegram"
+			>
+				<TelegramIcon className="h-[19px] w-[19px]" />
 			</span>
 		)
 	}
@@ -384,7 +392,9 @@ function ResultCard({
 						{scenario.reply}
 					</p>
 
-					<div className={`mt-2.5 grid h-[34px] gap-1.5 ${scenario.quickActions.length > 2 ? 'grid-cols-4' : 'grid-cols-2'}`}>
+					<div
+						className={`mt-2.5 grid h-[34px] gap-1.5 ${scenario.quickActions.length > 2 ? 'grid-cols-4' : 'grid-cols-2'}`}
+					>
 						{scenario.quickActions.slice(0, 4).map((action) => (
 							<span
 								key={action}
@@ -450,8 +460,14 @@ function Core({
 			transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
 			className="relative grid h-[112px] w-[112px] place-items-center rounded-[1.8rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
 		>
-			<span aria-hidden className="absolute inset-2 rounded-[1.35rem] border border-white/10" />
-			<span aria-hidden className="absolute -inset-2 -z-10 rounded-[2.05rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]" />
+			<span
+				aria-hidden
+				className="absolute inset-2 rounded-[1.35rem] border border-white/10"
+			/>
+			<span
+				aria-hidden
+				className="absolute -inset-2 -z-10 rounded-[2.05rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]"
+			/>
 
 			<div className="relative">
 				<span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]">
@@ -553,9 +569,7 @@ function NetworkLabel({
 			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] backdrop-blur ${className}`}
 		>
 			{connector ? (
-				<span
-					className={`absolute border-dashed border-emerald-300/35 ${connector}`}
-				/>
+				<span className={`absolute border-dashed border-emerald-300/35 ${connector}`} />
 			) : null}
 			{icon}
 			{children}
@@ -566,8 +580,14 @@ function NetworkLabel({
 function CrmChip({ locale }: { locale: 'fa' | 'en' }) {
 	return (
 		<div className="relative mt-4 inline-flex self-start">
-			<span aria-hidden className="absolute -top-4 left-1/2 h-4 -translate-x-1/2 border-l border-dashed border-emerald-300/35" />
-			<span aria-hidden className="absolute -top-[3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+			<span
+				aria-hidden
+				className="absolute -top-4 left-1/2 h-4 -translate-x-1/2 border-l border-dashed border-emerald-300/35"
+			/>
+			<span
+				aria-hidden
+				className="absolute -top-[3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]"
+			/>
 			<div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-black/80 px-2.5 py-1.5 text-[8px] text-white/[0.62] backdrop-blur">
 				<UsersRound className="h-3.5 w-3.5" />
 				{LABELS[locale].crm}
@@ -593,10 +613,8 @@ function DesktopOperationFlow({
 	const inLower = 'M 218 184 C 240 184 244 229 276 229 C 302 229 309 205 324 195'
 	const outUpper = 'M 436 137 C 451 127 458 103 484 103 C 516 103 520 156 542 156'
 	const outLower = 'M 436 195 C 451 205 458 229 484 229 C 516 229 520 184 542 184'
-	const knowledgePath =
-		'M 308 58 C 308 88 318 118 338 145'
-	const rulesPath =
-		'M 308 254 C 308 226 318 204 338 187'
+	const knowledgePath = 'M 308 58 C 308 88 318 118 338 145'
+	const rulesPath = 'M 308 254 C 308 226 318 204 338 187'
 	const networkPaths = [inUpper, inLower, outUpper, outLower]
 	const auxiliaryPaths = [knowledgePath, rulesPath]
 
@@ -673,11 +691,31 @@ function DesktopOperationFlow({
 				{!reduce ? (
 					<>
 						<SignalParticle path={inUpper} delay={0} filterId="vigent-desktop-flow" />
-						<SignalParticle path={knowledgePath} delay={0.35} filterId="vigent-desktop-flow" duration={3.05} />
-						<SignalParticle path={knowledgePath} delay={1.85} filterId="vigent-desktop-flow" duration={3.05} />
+						<SignalParticle
+							path={knowledgePath}
+							delay={0.35}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
+						/>
+						<SignalParticle
+							path={knowledgePath}
+							delay={1.85}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
+						/>
 						<SignalParticle path={inLower} delay={0.88} filterId="vigent-desktop-flow" />
-						<SignalParticle path={rulesPath} delay={1.05} filterId="vigent-desktop-flow" duration={3.05} />
-						<SignalParticle path={rulesPath} delay={2.55} filterId="vigent-desktop-flow" duration={3.05} />
+						<SignalParticle
+							path={rulesPath}
+							delay={1.05}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
+						/>
+						<SignalParticle
+							path={rulesPath}
+							delay={2.55}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
+						/>
 						<SignalParticle path={outUpper} delay={1.62} filterId="vigent-desktop-flow" />
 						<SignalParticle path={outLower} delay={2.32} filterId="vigent-desktop-flow" />
 					</>
@@ -741,10 +779,8 @@ function MobileOperationFlow({
 	const labels = LABELS[locale]
 	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
 	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
-	const knowledgePath =
-		'M 120 52 C 120 78 116 98 112 116'
-	const rulesPath =
-		'M 200 180 C 200 154 204 132 208 116'
+	const knowledgePath = 'M 120 52 C 120 78 116 98 112 116'
+	const rulesPath = 'M 200 180 C 200 154 204 132 208 116'
 	const mobileNetworkPaths = [incomingPath, outgoingPath]
 	const mobileAuxiliaryPaths = [knowledgePath, rulesPath]
 
@@ -827,12 +863,42 @@ function MobileOperationFlow({
 
 					{!reduce ? (
 						<>
-							<SignalParticle path={incomingPath} delay={0} filterId="vigent-mobile-flow" duration={2.5} />
-							<SignalParticle path={knowledgePath} delay={0.42} filterId="vigent-mobile-flow" duration={2.9} />
-							<SignalParticle path={knowledgePath} delay={1.82} filterId="vigent-mobile-flow" duration={2.9} />
-							<SignalParticle path={rulesPath} delay={1.02} filterId="vigent-mobile-flow" duration={2.9} />
-							<SignalParticle path={rulesPath} delay={2.42} filterId="vigent-mobile-flow" duration={2.9} />
-							<SignalParticle path={outgoingPath} delay={2.02} filterId="vigent-mobile-flow" duration={2.5} />
+							<SignalParticle
+								path={incomingPath}
+								delay={0}
+								filterId="vigent-mobile-flow"
+								duration={2.5}
+							/>
+							<SignalParticle
+								path={knowledgePath}
+								delay={0.42}
+								filterId="vigent-mobile-flow"
+								duration={2.9}
+							/>
+							<SignalParticle
+								path={knowledgePath}
+								delay={1.82}
+								filterId="vigent-mobile-flow"
+								duration={2.9}
+							/>
+							<SignalParticle
+								path={rulesPath}
+								delay={1.02}
+								filterId="vigent-mobile-flow"
+								duration={2.9}
+							/>
+							<SignalParticle
+								path={rulesPath}
+								delay={2.42}
+								filterId="vigent-mobile-flow"
+								duration={2.9}
+							/>
+							<SignalParticle
+								path={outgoingPath}
+								delay={2.02}
+								filterId="vigent-mobile-flow"
+								duration={2.5}
+							/>
 						</>
 					) : null}
 				</svg>
