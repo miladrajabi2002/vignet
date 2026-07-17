@@ -34,6 +34,7 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
+import { dateLocaleTag } from '@/lib/localized-date'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 import { cn } from '@/lib/utils'
 import { Sparkline } from '@/components/admin/sparkline'
@@ -634,7 +635,7 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function buildTrend(rows: Date[], locale: 'fa' | 'en'): TrendPoint[] {
-  const formatter = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+  const formatter = new Intl.DateTimeFormat(dateLocaleTag(locale), {
     month: 'short',
     day: 'numeric',
   })

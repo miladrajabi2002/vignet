@@ -17,6 +17,7 @@ import {
   CartesianGrid,
   LabelList,
 } from 'recharts'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
 export interface DailyPoint {
   day: string
@@ -33,8 +34,8 @@ const AXIS = { fill: '#71717a', fontSize: 11, fontFamily: 'IRANSansWeb' }
 // ── Date formatters for X-axis ticks + tooltip labels ──────────────────────
 // Converts ISO date strings ("2026-07-13") to Persian ("۲۱ تیر") so all
 // charts show readable fa-IR dates, matching the /overview ConversationChart.
-const dayFmt = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' })
-const monthFmt = new Intl.DateTimeFormat('fa-IR', { month: 'long' })
+const dayFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, { month: 'short', day: 'numeric' })
+const monthFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, { year: 'numeric', month: 'long' })
 
 /** Format a tick/label value: ISO date → Persian, otherwise pass through. */
 function formatDayTick(value: unknown): string {

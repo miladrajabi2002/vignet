@@ -6,6 +6,7 @@ import {
   Bot,
   CalendarCheck2,
   CalendarClock,
+  CalendarOff,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -20,14 +21,17 @@ import {
   Settings2,
   Sparkles,
   Sun,
+  Trash2,
   UserRound,
   Users,
   XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
+import { dateLocaleTag, formatDateKey } from '@/lib/localized-date'
 
 type Locale = 'fa' | 'en'
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'
@@ -51,6 +55,15 @@ interface ServiceRow {
     endMinute: number
     capacity: number | null
     active: boolean
+  }>
+  exceptions: Array<{
+    id: string
+    date: string
+    closed: boolean
+    startMinute: number | null
+    endMinute: number | null
+    capacity: number | null
+    note: string | null
   }>
 }
 
@@ -153,6 +166,7 @@ function appointmentFromApi(value: Record<string, unknown>): AppointmentRow {
 
 function serviceFromApi(raw: Record<string, unknown>): ServiceRow {
   const count = (raw._count ?? {}) as Record<string, unknown>
+  const exceptions = Array.isArray(raw.exceptions) ? raw.exceptions : []
   return {
     id: String(raw.id),
     name: String(raw.name),
@@ -167,6 +181,18 @@ function serviceFromApi(raw: Record<string, unknown>): ServiceRow {
     active: Boolean(raw.active),
     appointmentCount: Number(count.appointments) || 0,
     weeklyRules: (raw.weeklyRules as ServiceRow['weeklyRules']) ?? [],
+    exceptions: exceptions.map((value) => {
+      const exception = value as Record<string, unknown>
+      return {
+        id: String(exception.id),
+        date: String(exception.date).slice(0, 10),
+        closed: Boolean(exception.closed),
+        startMinute: typeof exception.startMinute === 'number' ? exception.startMinute : null,
+        endMinute: typeof exception.endMinute === 'number' ? exception.endMinute : null,
+        capacity: typeof exception.capacity === 'number' ? exception.capacity : null,
+        note: typeof exception.note === 'string' ? exception.note : null,
+      }
+    }),
   }
 }
 
@@ -329,26 +355,26 @@ export function AppointmentsWorkspace({
   // Human-friendly month label for the current week window, e.g. "تیر ۱۴۰۴"
   // or spans two months when the week straddles a boundary.
   const weekMonthLabel = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { month: 'long', timeZone: 'UTC' })
+    const fmt = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'long', timeZone: 'UTC' })
     const first = new Date(`${weekDays[0]}T12:00:00Z`)
     const last = new Date(`${weekDays[6]}T12:00:00Z`)
     const m1 = fmt.format(first)
     const m2 = fmt.format(last)
-    const yearFmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { year: 'numeric', timeZone: 'UTC' })
+    const yearFmt = new Intl.DateTimeFormat(dateLocaleTag(locale), { year: 'numeric', timeZone: 'UTC' })
     const year = yearFmt.format(last)
     if (m1 === m2) return `${m1} ${year}`
     return `${m1} – ${m2} ${year}`
-  }, [weekDays, fa])
+  }, [weekDays, locale])
 
   const selectedDateLabel = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', {
+    const fmt = new Intl.DateTimeFormat(dateLocaleTag(locale), {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       timeZone: 'UTC',
     })
     return fmt.format(new Date(`${selectedDate}T12:00:00Z`))
-  }, [selectedDate, fa])
+  }, [selectedDate, locale])
 
   const dayWindow = useMemo(() => {
     const active = appointments
@@ -459,8 +485,8 @@ export function AppointmentsWorkspace({
               const isToday = date === todayKey
               const count = dayCounts[date] ?? 0
               const dateObj = new Date(`${date}T12:00:00Z`)
-              const weekdayShort = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
-              const dayNum = new Intl.DateTimeFormat(fa ? 'fa-IR-u-ca-persian' : 'en-US', { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
+              const weekdayShort = new Intl.DateTimeFormat(dateLocaleTag(locale), { weekday: 'short', timeZone: 'UTC' }).format(dateObj)
+              const dayNum = new Intl.DateTimeFormat(dateLocaleTag(locale), { day: 'numeric', timeZone: 'UTC' }).format(dateObj)
               return (
                 <button
                   key={date}
@@ -902,7 +928,14 @@ function BookingDialog({ locale, services, initialDate, onClose, onCreated }: { 
             <MaterialSelect value={serviceId} onValueChange={setServiceId} ariaLabel={fa ? 'انتخاب خدمت' : 'Select service'} options={services.map((service) => ({ value: service.id, label: service.name }))} />
           </Field>
           <Field label={fa ? 'تاریخ' : 'Date'}>
-            <input type="date" min={minimumDate} value={date} onChange={(event) => setDate(event.target.value)} className="input min-h-11 w-full" />
+            <LocalizedDatePicker
+              value={date}
+              onValueChange={setDate}
+              locale={locale}
+              min={minimumDate}
+              timeZone={selectedService?.timezone ?? 'Asia/Tehran'}
+              ariaLabel={fa ? 'انتخاب تاریخ نوبت' : 'Choose appointment date'}
+            />
           </Field>
           <Field label={fa ? 'تعداد نفرات' : 'Party size'}>
             <input type="number" min={1} max={100} value={partySize} onChange={(event) => setPartySize(Math.max(1, Number(event.target.value) || 1))} className="input min-h-11 w-full" />
@@ -983,6 +1016,10 @@ function ServicesDialog({ locale, services, onClose, onChange }: { locale: Local
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [exceptionDate, setExceptionDate] = useState('')
+  const [exceptionBusy, setExceptionBusy] = useState(false)
+  const editingService = services.find((service) => service.id === editingId) ?? null
+  const exceptionMinDate = dateKeyInTimeZone(new Date(), editingService?.timezone ?? 'Asia/Tehran')
 
   function resetForm() {
     setEditingId(null)
@@ -995,6 +1032,7 @@ function ServicesDialog({ locale, services, onClose, onChange }: { locale: Local
     setDays(new Set([6, 0, 1, 2, 3, 4]))
     setStartTime('09:00')
     setEndTime('17:00')
+    setExceptionDate('')
     setError('')
   }
 
@@ -1010,7 +1048,30 @@ function ServicesDialog({ locale, services, onClose, onChange }: { locale: Local
     setDays(new Set(rules.map((rule) => rule.weekday)))
     setStartTime(minuteLabel(rules[0]?.startMinute ?? 9 * 60))
     setEndTime(minuteLabel(rules[0]?.endMinute ?? 17 * 60))
+    setExceptionDate('')
     setError('')
+  }
+
+  async function updateException(payload: { exception?: { date: string; closed: true }; removeExceptionDate?: string }) {
+    if (!editingId) return
+    setExceptionBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/appointments/services/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json() as { service?: Record<string, unknown> }
+      if (!response.ok || !data.service) throw new Error()
+      const next = serviceFromApi(data.service)
+      onChange(services.map((service) => service.id === editingId ? next : service))
+      setExceptionDate('')
+    } catch {
+      setError(fa ? 'تغییرات تاریخ‌های خاص ذخیره نشد. دوباره تلاش کنید.' : 'Date exception changes could not be saved. Try again.')
+    } finally {
+      setExceptionBusy(false)
+    }
   }
 
   async function saveService() {
@@ -1072,18 +1133,81 @@ function ServicesDialog({ locale, services, onClose, onChange }: { locale: Local
             <Field label={fa ? 'ظرفیت هم‌زمان' : 'Concurrent capacity'}><input type="number" min={1} max={100} value={capacity} onChange={(event) => setCapacity(Number(event.target.value))} className="input min-h-11 w-full" /></Field>
             <Field label={fa ? 'توضیح کوتاه' : 'Short description'}><input value={description} onChange={(event) => setDescription(event.target.value)} className="input min-h-11 w-full" /></Field>
           </div>
-          <div className="mt-4">
-            <p className="text-xs font-medium text-[var(--text-primary)]">{fa ? 'روزهای کاری' : 'Working days'}</p>
+          <section className="mt-4 rounded-2xl border border-[var(--border-default)] bg-white p-4">
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)]"><CalendarClock className="h-4 w-4" /></span>
+              <div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">{fa ? 'برنامه هفتگی' : 'Weekly schedule'}</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? 'روزها و ساعت‌های قابل رزرو را مشخص کنید.' : 'Choose the days and hours customers can book.'}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-medium text-[var(--text-primary)]">{fa ? 'روزهای کاری' : 'Working days'}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => (
                 <button key={day.value} type="button" aria-pressed={days.has(day.value)} onClick={() => setDays((current) => { const next = new Set(current); if (next.has(day.value)) next.delete(day.value); else next.add(day.value); return next })} className={cn('min-h-10 min-w-10 rounded-xl border px-2 text-xs transition-colors', days.has(day.value) ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-[var(--bg-base)]' : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]')}>{fa ? day.fa : day.en}</button>
               ))}
             </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field label={fa ? 'شروع' : 'Starts'}><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="input min-h-11 w-full" /></Field>
-            <Field label={fa ? 'پایان' : 'Ends'}><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="input min-h-11 w-full" /></Field>
-          </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Field label={fa ? 'شروع' : 'Starts'}><input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="input min-h-11 w-full" /></Field>
+              <Field label={fa ? 'پایان' : 'Ends'}><input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="input min-h-11 w-full" /></Field>
+            </div>
+          </section>
+          <section className="mt-3 rounded-2xl border border-[var(--border-default)] bg-white p-4">
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/10 text-red-600"><CalendarOff className="h-4 w-4" /></span>
+              <div>
+                <p className="text-xs font-bold text-[var(--text-primary)]">{fa ? 'تعطیلی‌ها و تاریخ‌های خاص' : 'Closures and date exceptions'}</p>
+                <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? 'روزهایی را که این خدمت نباید رزرو شود ببندید.' : 'Close dates when this service should not be bookable.'}</p>
+              </div>
+            </div>
+            {editingService ? (
+              <>
+                <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <LocalizedDatePicker
+                    value={exceptionDate}
+                    onValueChange={setExceptionDate}
+                    locale={locale}
+                    min={exceptionMinDate}
+                    timeZone={editingService.timezone}
+                    ariaLabel={fa ? 'انتخاب تاریخ تعطیلی خدمت' : 'Choose a service closure date'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void updateException({ exception: { date: exceptionDate, closed: true } })}
+                    disabled={!exceptionDate || exceptionBusy}
+                    className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/20 px-4 text-xs font-bold text-red-600 transition-colors hover:bg-red-500/5 disabled:opacity-50"
+                  >
+                    {exceptionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarOff className="h-4 w-4" />}
+                    {fa ? 'ثبت تعطیلی' : 'Close date'}
+                  </button>
+                </div>
+                {editingService.exceptions.filter((exception) => exception.closed).length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {editingService.exceptions.filter((exception) => exception.closed).map((exception) => (
+                      <div key={exception.id} className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-[var(--bg-subtle)] px-3">
+                        <span className="text-xs font-medium text-[var(--text-secondary)]">
+                          {formatDateKey(exception.date, locale, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void updateException({ removeExceptionDate: exception.date })}
+                          disabled={exceptionBusy}
+                          className="grid min-h-10 min-w-10 place-items-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50"
+                          aria-label={fa ? 'حذف تاریخ تعطیلی' : 'Remove closure date'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="mt-4 rounded-xl bg-[var(--bg-subtle)] px-3 py-2.5 text-[11px] leading-5 text-[var(--text-muted)]">
+                {fa ? 'ابتدا خدمت را بسازید؛ سپس از همین بخش تاریخ‌های تعطیل را با تقویم شمسی ثبت کنید.' : 'Create the service first, then add closure dates here with the Gregorian calendar.'}
+              </p>
+            )}
+          </section>
           {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
           <button type="button" onClick={saveService} disabled={saving || name.trim().length < 2 || days.size === 0 || timeToMinute(endTime) <= timeToMinute(startTime)} className="spatial-press mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}

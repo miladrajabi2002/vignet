@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
 export interface DailyPoint {
         day: string // Persian label, e.g. "۲۱ تیر"
@@ -30,7 +31,7 @@ function tzDayKey(d: Date): string {
 }
 
 function label(d: Date): string {
-        return new Intl.DateTimeFormat('fa-IR', {
+        return new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
                 timeZone: DASHBOARD_TZ,
                 month: 'short',
                 day: 'numeric',
@@ -38,7 +39,7 @@ function label(d: Date): string {
 }
 
 function monthLabel(d: Date): string {
-        return new Intl.DateTimeFormat('fa-IR', {
+        return new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
                 timeZone: DASHBOARD_TZ,
                 year: 'numeric',
                 month: 'long',

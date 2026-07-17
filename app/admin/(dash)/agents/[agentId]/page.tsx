@@ -4,6 +4,7 @@ import { ArrowRight, Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from
 import { prisma } from '@/lib/prisma'
 import { TrendChart } from '@/components/admin/trend-chart'
 import { PageHeader, StatCard, Card, Badge, fa, fmtDate } from '../../ui'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
   const trend = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(Date.now() - (6 - index) * 86_400_000)
     const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
-    return { day: new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', weekday: 'short' }).format(date), value: byDay.get(key) ?? 0 }
+    return { day: new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, { timeZone: 'Asia/Tehran', weekday: 'short' }).format(date), value: byDay.get(key) ?? 0 }
   })
   const readyKnowledge = agent.knowledgeBases.filter((item) => item.status === 'READY').length
 

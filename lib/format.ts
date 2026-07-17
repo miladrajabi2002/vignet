@@ -1,5 +1,7 @@
 /** Locale-aware date/time helpers for the dashboard. */
 
+import { formatLocalizedDate, formatLocalizedDateTime } from '@/lib/localized-date'
+
 const DIVISIONS: { amount: number; unit: Intl.RelativeTimeFormatUnit }[] = [
   { amount: 60, unit: 'second' },
   { amount: 60, unit: 'minute' },
@@ -27,8 +29,10 @@ export function relativeTime(date: Date, locale: 'fa' | 'en' = 'fa'): string {
 
 /** Short localized date+time. */
 export function formatDateTime(date: Date, locale: 'fa' | 'en' = 'fa'): string {
-  return date.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
+  return formatLocalizedDateTime(date, locale)
+}
+
+/** Date only: Persian calendar for fa, Gregorian calendar for en. */
+export function formatDate(date: Date, locale: 'fa' | 'en' = 'fa'): string {
+  return formatLocalizedDate(date, locale)
 }

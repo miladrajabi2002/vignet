@@ -2,12 +2,13 @@ import Link from 'next/link'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { Sparkline } from '@/components/admin/sparkline'
 import { cn } from '@/lib/utils'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 
 // ─── FORMATTERS ───────────────────────────────────────────────────
 
 /** Compact Persian date+time for admin tables. */
 export function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('fa-IR', {
+  return new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -17,7 +18,7 @@ export function fmtDate(d: Date): string {
 
 /** Persian date only (no time). */
 export function fmtDay(d: Date): string {
-  return new Intl.DateTimeFormat('fa-IR', {
+  return new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

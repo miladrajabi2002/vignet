@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { prisma } from '@/lib/prisma'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import {
   AGENT_MODELS,
   getReplyPriceIRR,
@@ -183,7 +184,7 @@ function dayKey(date: Date): string {
 }
 
 function dayLabel(date: Date): string {
-  return new Intl.DateTimeFormat('fa-IR', {
+  return new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, {
     timeZone: DASHBOARD_TZ,
     month: 'short',
     day: 'numeric',

@@ -63,13 +63,13 @@ function FlowParticle({ path, delay, duration }: FlowParticleProps) {
         pathLength="100"
         fill="none"
         stroke="#34d399"
-        strokeWidth="6"
+        strokeWidth="8"
         strokeLinecap="round"
-        strokeDasharray="0.18 99.82"
+        strokeDasharray="0.24 99.76"
         strokeDashoffset="0"
         vectorEffect="non-scaling-stroke"
         opacity="0"
-        style={{ filter: 'blur(1.4px)' }}
+        style={{ filter: 'blur(1.8px)' }}
       >
         <animate
           attributeName="stroke-dashoffset"
@@ -80,8 +80,8 @@ function FlowParticle({ path, delay, duration }: FlowParticleProps) {
         />
         <animate
           attributeName="opacity"
-          values="0;.28;.14;.3;0"
-          keyTimes="0;.09;.5;.91;1"
+          values="0;.36;.16;.4;0"
+          keyTimes="0;.07;.5;.93;1"
           dur={cycle}
           begin={begin}
           repeatCount="indefinite"
@@ -92,13 +92,13 @@ function FlowParticle({ path, delay, duration }: FlowParticleProps) {
         pathLength="100"
         fill="none"
         stroke="#6ee7b7"
-        strokeWidth="2.6"
+        strokeWidth="3.4"
         strokeLinecap="round"
-        strokeDasharray="0.18 99.82"
+        strokeDasharray="0.24 99.76"
         strokeDashoffset="0"
         vectorEffect="non-scaling-stroke"
         opacity="0"
-        style={{ filter: 'drop-shadow(0 0 2px rgba(52, 211, 153, .72))' }}
+        style={{ filter: 'drop-shadow(0 0 3px rgba(52, 211, 153, .8))' }}
       >
         <animate
           attributeName="stroke-dashoffset"
@@ -109,8 +109,8 @@ function FlowParticle({ path, delay, duration }: FlowParticleProps) {
         />
         <animate
           attributeName="opacity"
-          values="0;.95;.76;1;0"
-          keyTimes="0;.09;.5;.91;1"
+          values="0;1;.82;1;0"
+          keyTimes="0;.07;.5;.93;1"
           dur={cycle}
           begin={begin}
           repeatCount="indefinite"
@@ -179,29 +179,71 @@ export function IntelligenceCore({
             const controlY = (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)
             const inwardPath = `M ${point.x} ${point.y} Q ${controlX} ${controlY} 50 50`
             const outwardPath = `M 50 50 Q ${controlX} ${controlY} ${point.x} ${point.y}`
-            const inwardDuration = 4.1 + (index % 3) * 0.45
-            const inwardDelay = 0.35 + index * 0.31
+            const inwardDuration = 3.05 + (index % 3) * 0.28
+            const inwardDelay = 0.18 + index * 0.22
             return (
               <g key={key}>
                 <motion.path
                   d={inwardPath}
                   fill="none"
-                  stroke="rgba(255,255,255,.22)"
-                  strokeWidth="0.55"
-                  strokeDasharray="2.4 2.8"
+                  stroke="rgba(52,211,153,.16)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ filter: 'blur(2px)' }}
+                  initial={reduce ? false : { pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 0.38, delay: 0.03 + index * 0.035, ease: [0.23, 1, 0.32, 1] }}
+                />
+                <motion.path
+                  d={inwardPath}
+                  fill="none"
+                  stroke="rgba(209,250,229,.42)"
+                  strokeWidth="1.1"
+                  strokeLinecap="round"
+                  strokeDasharray="1.8 3.15"
                   vectorEffect="non-scaling-stroke"
                   initial={reduce ? false : { pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.45, delay: 0.05 + index * 0.045, ease: [0.23, 1, 0.32, 1] }}
+                  transition={{ duration: 0.4, delay: 0.05 + index * 0.04, ease: [0.23, 1, 0.32, 1] }}
                 />
                 {!reduce && (
                   <>
+                    <path
+                      d={inwardPath}
+                      pathLength="100"
+                      fill="none"
+                      stroke="rgba(110,231,183,.58)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeDasharray="5 95"
+                      strokeDashoffset="0"
+                      vectorEffect="non-scaling-stroke"
+                      opacity="0"
+                      style={{ filter: 'drop-shadow(0 0 3px rgba(52, 211, 153, .45))' }}
+                    >
+                      <animate
+                        attributeName="stroke-dashoffset"
+                        values="0;-100"
+                        dur={`${3.45 + (index % 3) * 0.24}s`}
+                        begin={`${0.08 + index * 0.17}s`}
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0;.34;.18;.38;0"
+                        keyTimes="0;.08;.5;.92;1"
+                        dur={`${3.45 + (index % 3) * 0.24}s`}
+                        begin={`${0.08 + index * 0.17}s`}
+                        repeatCount="indefinite"
+                      />
+                    </path>
                     <FlowParticle path={inwardPath} delay={inwardDelay} duration={inwardDuration} />
                     {index % 2 === 1 && (
                       <FlowParticle
                         path={outwardPath}
-                        delay={1.25 + index * 0.37}
-                        duration={4.8 + (index % 3) * 0.38}
+                        delay={0.85 + index * 0.28}
+                        duration={3.45 + (index % 3) * 0.25}
                       />
                     )}
                   </>
@@ -224,14 +266,14 @@ export function IntelligenceCore({
               {!reduce && (
                 <motion.span
                   aria-hidden
-                  className="absolute -inset-1 rounded-2xl bg-emerald-400/20 blur-md"
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: [0, 0.16, 0], scale: [0.96, 1.04, 1.08] }}
+                  className="absolute -inset-1.5 rounded-2xl bg-emerald-400/25 blur-md"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: [0, 0.2, 0], scale: [0.97, 1.035, 1.07] }}
                   transition={{
-                    duration: 0.8,
-                    delay: 0.35 + index * 0.31,
+                    duration: 0.65,
+                    delay: 0.18 + index * 0.22,
                     repeat: Infinity,
-                    repeatDelay: 3.3 + (index % 3) * 0.45,
+                    repeatDelay: 2.4 + (index % 3) * 0.28,
                     ease: [0.23, 1, 0.32, 1],
                   }}
                 />
@@ -256,14 +298,14 @@ export function IntelligenceCore({
               <motion.span
                 aria-hidden
                 className="absolute h-36 w-36 rounded-full border border-emerald-300/15 shadow-[0_0_28px_rgba(52,211,153,.08)] sm:h-44 sm:w-44"
-                animate={{ scale: [0.9, 1.13], opacity: [0, 0.2, 0] }}
-                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeOut' }}
+                animate={{ scale: [0.92, 1.11], opacity: [0, 0.24, 0] }}
+                transition={{ duration: 2.3, repeat: Infinity, ease: 'easeOut' }}
               />
               <motion.span
                 aria-hidden
                 className="absolute h-36 w-36 rounded-full border border-emerald-300/10 shadow-[0_0_24px_rgba(52,211,153,.06)] sm:h-44 sm:w-44"
-                animate={{ scale: [0.9, 1.13], opacity: [0, 0.14, 0] }}
-                transition={{ duration: 2.8, delay: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                animate={{ scale: [0.92, 1.11], opacity: [0, 0.17, 0] }}
+                transition={{ duration: 2.3, delay: 1.15, repeat: Infinity, ease: 'easeOut' }}
               />
             </>
           )}

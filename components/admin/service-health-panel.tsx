@@ -12,6 +12,7 @@ import {
   ServerCog,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 type HealthState = 'healthy' | 'warning' | 'down' | 'unconfigured'
 type Service = { state: HealthState; latencyMs: number | null; detail: string; creditsRemainingUSD?: number | null; usageMonthlyUSD?: number | null }
@@ -159,7 +160,7 @@ export function ServiceHealthPanel() {
                 <div className="space-y-2 border-t border-black/[0.06] p-3">
                   {queue.failedJobs.map((job) => (
                     <details key={job.id} className="rounded-xl border border-black/[0.07] bg-white p-3">
-                      <summary className="cursor-pointer list-none text-xs"><span className="font-bold text-black">{job.name}</span><span className="mx-2 text-black/25">·</span><span className="text-black/55">{job.failedReason}</span><span className="ms-2 text-[10px] text-black/35">{new Date(job.finishedOn ?? job.timestamp).toLocaleString('fa-IR')}</span></summary>
+                      <summary className="cursor-pointer list-none text-xs"><span className="font-bold text-black">{job.name}</span><span className="mx-2 text-black/25">·</span><span className="text-black/55">{job.failedReason}</span><span className="ms-2 text-[10px] text-black/35">{formatLocalizedDateTime(job.finishedOn ?? job.timestamp, 'fa')}</span></summary>
                       <div className="mt-3 grid gap-2 lg:grid-cols-2"><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black p-3 text-left text-[10px] leading-5 text-white/70">{job.stacktrace.join('\n') || job.failedReason}</pre><pre dir="ltr" className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-black/[0.08] bg-zinc-50 p-3 text-left text-[10px] leading-5 text-black/60">{JSON.stringify(job.data, null, 2)}</pre></div>
                     </details>
                   ))}

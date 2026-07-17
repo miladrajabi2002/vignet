@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { Bell, CalendarCheck2, CheckCheck, MessageCircleWarning, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
 
 interface NotificationItem {
 	id: string
@@ -92,7 +93,7 @@ export function NotificationBell() {
 							<ul className="space-y-1">
 								{items.map((item) => {
 									const Icon = /appointment|booking/i.test(item.type) ? CalendarCheck2 : /handoff|operator/i.test(item.type) ? MessageCircleWarning : Sparkles
-									const content = <div className={cn('flex min-h-16 gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-black/[0.045]', !item.read && 'bg-amber-400/[0.08]')}><span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', !item.read ? 'bg-black text-white' : 'bg-black/[0.045] text-black/40')}><Icon className="h-3.5 w-3.5" /></span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-xs font-bold text-black/75">{item.title}</p>{!item.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />}</div>{item.body && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-black/45">{item.body}</p>}<time className="mt-1 block text-[11px] text-black/30">{new Date(item.createdAt).toLocaleString(fa ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}</time></div></div>
+									const content = <div className={cn('flex min-h-16 gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-black/[0.045]', !item.read && 'bg-amber-400/[0.08]')}><span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', !item.read ? 'bg-black text-white' : 'bg-black/[0.045] text-black/40')}><Icon className="h-3.5 w-3.5" /></span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-xs font-bold text-black/75">{item.title}</p>{!item.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />}</div>{item.body && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-black/45">{item.body}</p>}<time className="mt-1 block text-[11px] text-black/30">{formatDateTime(new Date(item.createdAt), fa ? 'fa' : 'en')}</time></div></div>
 									return <li key={item.id}>{item.link ? <Link href={item.link} onClick={() => { void markRead(item.id); setOpen(false) }}>{content}</Link> : <button type="button" onClick={() => void markRead(item.id)} className="w-full text-start">{content}</button>}</li>
 								})}
 							</ul>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   FileText,
   Link2,
@@ -15,6 +15,7 @@ import {
   Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
 
 type KbStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'ERROR'
 
@@ -41,6 +42,7 @@ export function KbManager({
   items: KbItem[]
 }) {
   const t = useTranslations('knowledge')
+  const locale = useLocale() === 'en' ? 'en' : 'fa'
   const router = useRouter()
 
   const [mode, setMode] = useState<Mode>('text')
@@ -394,7 +396,7 @@ export function KbManager({
                   <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
                     <Clock className="h-3 w-3" />
                     {t('lastRefreshed', {
-                      when: new Date(item.lastIngestedAt).toLocaleString('fa-IR'),
+                      when: formatDateTime(new Date(item.lastIngestedAt), locale),
                     })}
                     {item.refreshIntervalHours && item.refreshIntervalHours > 0
                       ? ` · ${t('refreshEvery', { h: item.refreshIntervalHours })}`

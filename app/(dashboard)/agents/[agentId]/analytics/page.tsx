@@ -25,6 +25,7 @@ import {
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const DAYS = 14
 
@@ -96,7 +97,7 @@ export default async function AgentAnalyticsPage(
       prisma.conversation.count({ where: { ...where, status: 'HANDED_OFF' } }),
     ])
 
-  const dayFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+  const dayFmt = new Intl.DateTimeFormat(dateLocaleTag(locale), {
     month: 'short',
     day: 'numeric',
   })

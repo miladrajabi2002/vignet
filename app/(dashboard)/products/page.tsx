@@ -11,6 +11,7 @@ import { DashboardBarList } from '@/components/dashboard/bar-list'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const PAGE_SIZE = 24
 
@@ -128,7 +129,7 @@ export default async function ProductsPage(
               data={productTrend7.series.map((value, i) => {
                 const d = new Date()
                 d.setDate(d.getDate() - (productTrend7.series.length - 1 - i))
-                const label = new Intl.DateTimeFormat(fa ? 'fa-IR' : 'en-US', {
+                const label = new Intl.DateTimeFormat(dateLocaleTag(fa ? 'fa' : 'en'), {
                   month: 'short',
                   day: 'numeric',
                 }).format(d)

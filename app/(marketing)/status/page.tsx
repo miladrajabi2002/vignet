@@ -1,6 +1,7 @@
 import { getTranslations, getLocale } from 'next-intl/server'
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Server, XCircle } from 'lucide-react'
 import { runHealthChecks, type HealthReport } from '@/lib/health'
+import { formatDateTime } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ export default async function StatusPage() {
 	const { color, Icon, tone } = META[report.status]
 	const healthy = report.checks.filter((check) => check.ok).length
 	const averageLatency = Math.round(report.checks.reduce((sum, check) => sum + check.latencyMs, 0) / Math.max(report.checks.length, 1))
-	const checkedAt = new Date(report.checkedAt).toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+	const checkedAt = formatDateTime(new Date(report.checkedAt), locale)
 
 	return (
 		<div className="marketing-page-shell min-h-screen px-3 pb-20 pt-24 sm:px-5 sm:pt-28">

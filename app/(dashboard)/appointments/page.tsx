@@ -59,6 +59,15 @@ export default async function AppointmentsPage() {
           capacity: rule.capacity,
           active: rule.active,
         })),
+        exceptions: service.exceptions.map((exception) => ({
+          id: exception.id,
+          date: exception.date.toISOString().slice(0, 10),
+          closed: exception.closed,
+          startMinute: exception.startMinute,
+          endMinute: exception.endMinute,
+          capacity: exception.capacity,
+          note: exception.note,
+        })),
       }))}
       initialAppointments={appointments.map((appointment) => ({
         id: appointment.id,

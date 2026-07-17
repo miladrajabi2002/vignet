@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardDonut } from '@/components/dashboard/donut'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const PAGE_SIZE = 50
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -178,7 +179,7 @@ export default async function ConversationsPage(props: {
         const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
 
         // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
-        const trendFormatter = new Intl.DateTimeFormat(isFa ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' })
+        const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
         const convTrendPoints: TrendPoint[] = convTrend.series.map((value, i) => {
                 const d = new Date(Date.now() - (convTrend.series.length - 1 - i) * 86_400_000)
                 return { label: trendFormatter.format(d), value }

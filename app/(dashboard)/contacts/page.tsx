@@ -12,6 +12,7 @@ import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { dateLocaleTag } from '@/lib/localized-date'
 
 const PAGE_SIZE = 100
 
@@ -90,7 +91,7 @@ export default async function ContactsPage(
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
 
   // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
-  const trendFormatter = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' })
+  const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
   const contactTrendPoints: TrendPoint[] = contactTrend.series.map((value, i) => {
     const d = new Date(Date.now() - (contactTrend.series.length - 1 - i) * 86_400_000)
     return { label: trendFormatter.format(d), value }

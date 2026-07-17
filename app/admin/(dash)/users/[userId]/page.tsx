@@ -20,6 +20,7 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
+import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
 import {
   PageHeader,
   Panel,
@@ -199,7 +200,7 @@ export default async function AdminUserDetailPage(
   const paySeries = user.workspaceId ? paySpark.get(user.workspaceId)?.series ?? [] : []
 
   // Build DailyPoint[] for TrendChart (7 days, oldest → newest).
-  const dayFmt = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' })
+  const dayFmt = new Intl.DateTimeFormat(PERSIAN_DATE_LOCALE, { month: 'short', day: 'numeric' })
   const convTrendData: DailyPoint[] = convSeries.map((value, i) => {
     const d = new Date(Date.now() - (convSeries.length - 1 - i) * 86_400_000)
     return { day: dayFmt.format(d), value }

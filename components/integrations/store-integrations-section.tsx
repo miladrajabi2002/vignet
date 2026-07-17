@@ -18,6 +18,7 @@ import {
         X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 /**
  * "Online store" section of the integrations page (F2). Lists the workspace's
@@ -598,14 +599,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 function formatDate(iso: string): string {
         try {
-                const d = new Date(iso)
-                return new Intl.DateTimeFormat('fa-IR', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                }).format(d)
+                return formatLocalizedDateTime(iso, 'fa')
         } catch {
                 return iso
         }
