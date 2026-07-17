@@ -457,18 +457,25 @@ function NetworkLabel({
 	icon: ReactNode
 	children: ReactNode
 	className: string
-	direction?: 'left' | 'right'
+	direction?: 'left' | 'right' | 'up' | 'down'
 }) {
+	const connector =
+		direction === 'right'
+			? 'left-full top-1/2 h-px w-3 -translate-y-1/2 border-t'
+			: direction === 'left'
+				? 'right-full top-1/2 h-px w-3 -translate-y-1/2 border-t'
+				: direction === 'down'
+					? 'left-1/2 top-full h-8 w-px -translate-x-1/2 border-l'
+					: 'bottom-full left-1/2 h-8 w-px -translate-x-1/2 border-l'
+
 	return (
 		<div
 			aria-hidden
 			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] backdrop-blur ${className}`}
 		>
-			{direction === 'right' ? (
-				<span className="absolute left-full top-1/2 h-px w-3 -translate-y-1/2 border-t border-dashed border-emerald-300/35" />
-			) : (
-				<span className="absolute right-full top-1/2 h-px w-3 -translate-y-1/2 border-t border-dashed border-emerald-300/35" />
-			)}
+			<span
+				className={`absolute border-dashed border-emerald-300/35 ${connector}`}
+			/>
 			{icon}
 			{children}
 		</div>
@@ -570,14 +577,16 @@ function DesktopOperationFlow({
 
 			<NetworkLabel
 				icon={<Database className="h-2.5 w-2.5" />}
-				className="left-[33.1%] top-[30%] -translate-x-full"
+				className="left-[35.4%] top-[4%] -translate-x-1/2"
+				direction="down"
 			>
 				{labels.knowledge}
 			</NetworkLabel>
 
 			<NetworkLabel
 				icon={<ShieldCheck className="h-2.5 w-2.5" />}
-				className="left-[33.1%] bottom-[22%] -translate-x-full"
+				className="bottom-[2%] left-[35.4%] -translate-x-1/2"
+				direction="up"
 			>
 				{labels.rules}
 			</NetworkLabel>
@@ -653,15 +662,16 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<Database className="h-2.5 w-2.5" />}
-					className="left-[17%] top-[37%]"
+					className="left-[15%] top-[5%]"
+					direction="down"
 				>
 					{labels.knowledge}
 				</NetworkLabel>
 
 				<NetworkLabel
 					icon={<ShieldCheck className="h-2.5 w-2.5" />}
-					className="right-[17%] top-[37%]"
-					direction="left"
+					className="bottom-[5%] right-[15%]"
+					direction="up"
 				>
 					{labels.rules}
 				</NetworkLabel>
