@@ -166,6 +166,18 @@ function NetworkDefs({ id }: { id: string }) {
 				<stop offset="0.48" stopColor="#a7f3d0" stopOpacity="0.72" />
 				<stop offset="1" stopColor="#34d399" stopOpacity="0.08" />
 			</linearGradient>
+
+			<marker
+				id={`${id}-arrow`}
+				viewBox="0 0 8 6"
+				refX="7"
+				refY="3"
+				markerWidth="7"
+				markerHeight="7"
+				orient="auto"
+			>
+				<path d="M 0 0 L 8 3 L 0 6 Z" fill="#6ee7b7" fillOpacity="0.88" />
+			</marker>
 		</defs>
 	)
 }
@@ -573,9 +585,10 @@ function DesktopOperationFlow({
 	const inLower = 'M 218 184 C 240 184 244 229 276 229 C 302 229 309 205 324 195'
 	const outUpper = 'M 436 137 C 451 127 458 103 484 103 C 516 103 520 156 542 156'
 	const outLower = 'M 436 195 C 451 205 458 229 484 229 C 516 229 520 184 542 184'
-	const knowledgePath = 'M 308 58 C 308 76 298 92 276 103 C 300 106 319 126 338 145'
-	const rulesPath = 'M 308 254 C 308 238 298 230 276 229 C 300 224 319 204 338 187'
-	const networkPaths = [inUpper, inLower, outUpper, outLower, knowledgePath, rulesPath]
+	const knowledgePath = 'M 308 58 C 308 88 318 118 338 145'
+	const rulesPath = 'M 308 254 C 308 226 318 204 338 187'
+	const networkPaths = [inUpper, inLower, outUpper, outLower]
+	const auxiliaryPaths = [knowledgePath, rulesPath]
 
 	return (
 		<div dir="ltr" className="relative hidden h-[312px] overflow-hidden sm:block">
@@ -609,14 +622,43 @@ function DesktopOperationFlow({
 					</g>
 				))}
 
+				{auxiliaryPaths.map((path) => (
+					<g key={path}>
+						<path
+							d={path}
+							fill="none"
+							stroke="#34d399"
+							strokeWidth="6"
+							strokeOpacity="0.12"
+							strokeLinecap="round"
+							filter="url(#vigent-desktop-flow-soft)"
+						/>
+						<path
+							d={path}
+							fill="none"
+							stroke="#6ee7b7"
+							strokeWidth="1.4"
+							strokeOpacity="0.72"
+							strokeDasharray="4 7"
+							strokeLinecap="round"
+							markerEnd="url(#vigent-desktop-flow-arrow)"
+						>
+							{!reduce ? (
+								<animate
+									attributeName="stroke-dashoffset"
+									values="0;-22"
+									dur="1.7s"
+									repeatCount="indefinite"
+								/>
+							) : null}
+						</path>
+					</g>
+				))}
+
 				<NetworkNode cx={276} cy={103} pulse={!reduce} />
 				<NetworkNode cx={276} cy={229} pulse={!reduce} />
 				<NetworkNode cx={484} cy={103} pulse={!reduce} />
 				<NetworkNode cx={484} cy={229} pulse={!reduce} />
-				<NetworkNode cx={308} cy={72} pulse={!reduce} />
-				<NetworkNode cx={308} cy={242} pulse={!reduce} />
-				<NetworkNode cx={338} cy={145} pulse={!reduce} />
-				<NetworkNode cx={338} cy={187} pulse={!reduce} />
 
 				{!reduce ? (
 					<>
@@ -709,9 +751,10 @@ function MobileOperationFlow({
 	const labels = LABELS[locale]
 	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
 	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
-	const knowledgePath = 'M 120 52 C 120 70 108 88 94 96 C 104 98 108 106 112 116'
-	const rulesPath = 'M 200 180 C 200 154 212 110 226 96 C 216 98 212 106 208 116'
-	const mobileNetworkPaths = [incomingPath, outgoingPath, knowledgePath, rulesPath]
+	const knowledgePath = 'M 120 52 C 120 78 116 98 112 116'
+	const rulesPath = 'M 200 180 C 200 154 204 132 208 116'
+	const mobileNetworkPaths = [incomingPath, outgoingPath]
+	const mobileAuxiliaryPaths = [knowledgePath, rulesPath]
 
 	return (
 		<div className="relative px-3 pb-5 pt-5 sm:hidden">
@@ -754,14 +797,41 @@ function MobileOperationFlow({
 						</g>
 					))}
 
+					{mobileAuxiliaryPaths.map((path) => (
+						<g key={path}>
+							<path
+								d={path}
+								fill="none"
+								stroke="#34d399"
+								strokeWidth="5"
+								strokeOpacity="0.11"
+								strokeLinecap="round"
+								filter="url(#vigent-mobile-flow-soft)"
+							/>
+							<path
+								d={path}
+								fill="none"
+								stroke="#6ee7b7"
+								strokeWidth="1.35"
+								strokeOpacity="0.75"
+								strokeDasharray="4 7"
+								strokeLinecap="round"
+								markerEnd="url(#vigent-mobile-flow-arrow)"
+							>
+								{!reduce ? (
+									<animate
+										attributeName="stroke-dashoffset"
+										values="0;-22"
+										dur="1.7s"
+										repeatCount="indefinite"
+									/>
+								) : null}
+							</path>
+						</g>
+					))}
+
 					<NetworkNode cx={160} cy={32} pulse={!reduce} />
 					<NetworkNode cx={160} cy={204} pulse={!reduce} />
-					<NetworkNode cx={94} cy={96} pulse={!reduce} />
-					<NetworkNode cx={226} cy={96} pulse={!reduce} />
-					<NetworkNode cx={120} cy={66} pulse={!reduce} />
-					<NetworkNode cx={200} cy={166} pulse={!reduce} />
-					<NetworkNode cx={112} cy={116} pulse={!reduce} />
-					<NetworkNode cx={208} cy={116} pulse={!reduce} />
 
 					{!reduce ? (
 						<>
