@@ -254,7 +254,7 @@ export default async function OverviewPage() {
               {businessDescription}
             </p>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+            <div className="mt-5 divide-y divide-[var(--border-default)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-sm)]">
               <AttentionItem
                 href="/conversations?status=HANDED_OFF"
                 icon={AlertCircle}
@@ -557,25 +557,26 @@ function AttentionItem({
   urgent: boolean
   locale: 'fa' | 'en'
 }) {
+  const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
   return (
     <Link href={href} className={cn(
-      'group grid min-h-[4.5rem] grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5 rounded-xl border px-3 transition-[border-color,background-color,transform] hover:-translate-y-0.5',
-      urgent ? 'border-amber-200 bg-amber-50/75' : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
+      'group grid min-h-14 grid-cols-[2.25rem_minmax(0,1fr)_auto_0.875rem] items-center gap-3 px-3.5 transition-colors hover:bg-white focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/20',
+      urgent ? 'bg-amber-50/75' : 'bg-transparent',
     )}>
-      <span className={cn('grid h-8 w-8 place-items-center rounded-[0.65rem]', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)]')}>
+      <span className={cn('grid h-9 w-9 place-items-center rounded-xl transition-transform group-hover:scale-[1.04]', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)] shadow-[var(--shadow-xs)]')}>
         <Icon className="h-4 w-4" />
       </span>
       <span className="block min-w-0">
-        <span className="line-clamp-2 text-[11px] font-semibold leading-4 text-[var(--text-primary)]">
-          {label}
-        </span>
-        <span className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
-          <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--text-primary)]">
-            {value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
-          </span>
-          <span className="min-w-0 truncate text-[10px] text-[var(--text-muted)]" title={hint}>{hint}</span>
-        </span>
+        <span className="block text-[13px] font-semibold leading-5 text-[var(--text-primary)]">{label}</span>
+        <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)]" title={hint}>{hint}</span>
       </span>
+      <span className={cn(
+        'inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-bold tabular-nums',
+        urgent ? 'bg-amber-100 text-amber-800' : 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-xs)]',
+      )}>
+        {value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
+      </span>
+      <Arrow className="h-3.5 w-3.5 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
     </Link>
   )
 }
