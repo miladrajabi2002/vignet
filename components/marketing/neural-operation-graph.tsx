@@ -573,8 +573,8 @@ function DesktopOperationFlow({
 	const inLower = 'M 218 184 C 240 184 244 229 276 229 C 302 229 309 205 324 195'
 	const outUpper = 'M 436 137 C 451 127 458 103 484 103 C 516 103 520 156 542 156'
 	const outLower = 'M 436 195 C 451 205 458 229 484 229 C 516 229 520 184 542 184'
-	const knowledgePath = 'M 308 44 C 308 66 302 88 276 103 C 299 104 311 124 324 137'
-	const rulesPath = 'M 308 268 C 308 248 302 234 276 229 C 299 226 311 208 324 195'
+	const knowledgePath = 'M 308 58 C 308 76 298 92 276 103 C 300 106 319 126 338 145'
+	const rulesPath = 'M 308 254 C 308 238 298 230 276 229 C 300 224 319 204 338 187'
 	const networkPaths = [inUpper, inLower, outUpper, outLower, knowledgePath, rulesPath]
 
 	return (
@@ -613,8 +613,10 @@ function DesktopOperationFlow({
 				<NetworkNode cx={276} cy={229} pulse={!reduce} />
 				<NetworkNode cx={484} cy={103} pulse={!reduce} />
 				<NetworkNode cx={484} cy={229} pulse={!reduce} />
-				<NetworkNode cx={308} cy={62} pulse={!reduce} />
-				<NetworkNode cx={308} cy={252} pulse={!reduce} />
+				<NetworkNode cx={308} cy={72} pulse={!reduce} />
+				<NetworkNode cx={308} cy={242} pulse={!reduce} />
+				<NetworkNode cx={338} cy={145} pulse={!reduce} />
+				<NetworkNode cx={338} cy={187} pulse={!reduce} />
 
 				{!reduce ? (
 					<>
@@ -677,7 +679,7 @@ function DesktopOperationFlow({
 
 			<NetworkLabel
 				icon={<Database className="h-2.5 w-2.5" />}
-				className="left-[39.5%] top-[7%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.12)]"
+				className="left-[39.5%] top-[11%] -translate-x-1/2 shadow-[0_0_18px_rgba(52,211,153,0.14)]"
 				direction="none"
 			>
 				{labels.knowledge}
@@ -685,7 +687,7 @@ function DesktopOperationFlow({
 
 			<NetworkLabel
 				icon={<ShieldCheck className="h-2.5 w-2.5" />}
-				className="bottom-[7%] left-[39.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.12)]"
+				className="bottom-[11%] left-[39.5%] -translate-x-1/2 shadow-[0_0_18px_rgba(52,211,153,0.14)]"
 				direction="none"
 			>
 				{labels.rules}
@@ -707,8 +709,8 @@ function MobileOperationFlow({
 	const labels = LABELS[locale]
 	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
 	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
-	const knowledgePath = 'M 120 38 C 120 60 108 82 94 96 C 108 96 118 106 138 116'
-	const rulesPath = 'M 200 194 C 200 164 212 116 226 96 C 212 96 202 106 182 116'
+	const knowledgePath = 'M 120 52 C 120 70 108 88 94 96 C 104 98 108 106 112 116'
+	const rulesPath = 'M 200 180 C 200 154 212 110 226 96 C 216 98 212 106 208 116'
 	const mobileNetworkPaths = [incomingPath, outgoingPath, knowledgePath, rulesPath]
 
 	return (
@@ -756,8 +758,10 @@ function MobileOperationFlow({
 					<NetworkNode cx={160} cy={204} pulse={!reduce} />
 					<NetworkNode cx={94} cy={96} pulse={!reduce} />
 					<NetworkNode cx={226} cy={96} pulse={!reduce} />
-					<NetworkNode cx={120} cy={54} pulse={!reduce} />
-					<NetworkNode cx={200} cy={178} pulse={!reduce} />
+					<NetworkNode cx={120} cy={66} pulse={!reduce} />
+					<NetworkNode cx={200} cy={166} pulse={!reduce} />
+					<NetworkNode cx={112} cy={116} pulse={!reduce} />
+					<NetworkNode cx={208} cy={116} pulse={!reduce} />
 
 					{!reduce ? (
 						<>
@@ -807,7 +811,7 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<Database className="h-2.5 w-2.5" />}
-					className="left-[37.5%] top-[6%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.12)]"
+					className="left-[37.5%] top-[11%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
 					direction="none"
 				>
 					{labels.knowledge}
@@ -815,7 +819,7 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<ShieldCheck className="h-2.5 w-2.5" />}
-					className="bottom-[6%] left-[62.5%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.12)]"
+					className="bottom-[11%] left-[62.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
 					direction="none"
 				>
 					{labels.rules}
