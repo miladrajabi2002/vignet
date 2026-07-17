@@ -5,8 +5,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
 	BookOpen,
 	Check,
-	ChevronLeft,
-	ChevronRight,
 	Database,
 	Globe2,
 	MessageCircleMore,
@@ -50,7 +48,6 @@ const LABELS = {
 		outgoing: 'پاسخ',
 		source: 'منبع',
 		confidence: 'اطمینان',
-		viewAll: 'مشاهده همه پیام‌ها',
 	},
 	en: {
 		knowledge: 'Knowledge',
@@ -60,7 +57,6 @@ const LABELS = {
 		outgoing: 'Reply',
 		source: 'Source',
 		confidence: 'Confidence',
-		viewAll: 'View all messages',
 	},
 } as const
 
@@ -235,14 +231,12 @@ function MessageCard({
 	activeIndex: number
 	reduce: boolean | null
 }) {
-	const labels = LABELS[locale]
 	const secondaryMessages = SECONDARY_MESSAGES[locale]
-	const Arrow = locale === 'fa' ? ChevronLeft : ChevronRight
 
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[248px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
+			className="flex h-[218px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
 		>
 			<div className="flex items-center justify-between gap-2 px-0.5">
 				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-medium text-white/[0.55]">
@@ -305,11 +299,6 @@ function MessageCard({
 						</div>
 					</div>
 				))}
-			</div>
-
-			<div className="mt-2 flex h-[28px] items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-[8px] text-white/[0.55]">
-				<span>{labels.viewAll}</span>
-				<Arrow className="h-3.5 w-3.5" />
 			</div>
 		</div>
 	)
@@ -584,8 +573,8 @@ function DesktopOperationFlow({
 	const inLower = 'M 218 184 C 240 184 244 229 276 229 C 302 229 309 205 324 195'
 	const outUpper = 'M 436 137 C 451 127 458 103 484 103 C 516 103 520 156 542 156'
 	const outLower = 'M 436 195 C 451 205 458 229 484 229 C 516 229 520 184 542 184'
-	const knowledgePath = 'M 308 30 C 308 56 302 76 276 103'
-	const rulesPath = 'M 308 282 C 308 256 302 242 276 229'
+	const knowledgePath = 'M 308 44 C 308 66 302 88 276 103 C 299 104 311 124 324 137'
+	const rulesPath = 'M 308 268 C 308 248 302 234 276 229 C 299 226 311 208 324 195'
 	const networkPaths = [inUpper, inLower, outUpper, outLower, knowledgePath, rulesPath]
 
 	return (
@@ -632,16 +621,28 @@ function DesktopOperationFlow({
 						<SignalParticle path={inUpper} delay={0} filterId="vigent-desktop-flow" />
 						<SignalParticle
 							path={knowledgePath}
-							delay={0.42}
+							delay={0.35}
 							filterId="vigent-desktop-flow"
-							duration={2.65}
+							duration={3.05}
+						/>
+						<SignalParticle
+							path={knowledgePath}
+							delay={1.85}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
 						/>
 						<SignalParticle path={inLower} delay={0.88} filterId="vigent-desktop-flow" />
 						<SignalParticle
 							path={rulesPath}
-							delay={1.22}
+							delay={1.05}
 							filterId="vigent-desktop-flow"
-							duration={2.65}
+							duration={3.05}
+						/>
+						<SignalParticle
+							path={rulesPath}
+							delay={2.55}
+							filterId="vigent-desktop-flow"
+							duration={3.05}
 						/>
 						<SignalParticle path={outUpper} delay={1.62} filterId="vigent-desktop-flow" />
 						<SignalParticle path={outLower} delay={2.32} filterId="vigent-desktop-flow" />
@@ -676,7 +677,7 @@ function DesktopOperationFlow({
 
 			<NetworkLabel
 				icon={<Database className="h-2.5 w-2.5" />}
-				className="left-[39.5%] top-[1.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+				className="left-[39.5%] top-[7%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.12)]"
 				direction="none"
 			>
 				{labels.knowledge}
@@ -684,7 +685,7 @@ function DesktopOperationFlow({
 
 			<NetworkLabel
 				icon={<ShieldCheck className="h-2.5 w-2.5" />}
-				className="bottom-[1.5%] left-[39.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.08)]"
+				className="bottom-[7%] left-[39.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.12)]"
 				direction="none"
 			>
 				{labels.rules}
@@ -706,18 +707,9 @@ function MobileOperationFlow({
 	const labels = LABELS[locale]
 	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
 	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
-	const knowledgeConnector = 'M 120 22 C 120 52 108 80 94 96'
-	const knowledgePath = 'M 94 96 C 108 96 118 106 138 116'
-	const rulesPath = 'M 226 96 C 212 96 202 106 182 116'
-	const rulesConnector = 'M 200 210 C 200 176 212 116 226 96'
-	const mobileNetworkPaths = [
-		incomingPath,
-		outgoingPath,
-		knowledgeConnector,
-		knowledgePath,
-		rulesPath,
-		rulesConnector,
-	]
+	const knowledgePath = 'M 120 38 C 120 60 108 82 94 96 C 108 96 118 106 138 116'
+	const rulesPath = 'M 200 194 C 200 164 212 116 226 96 C 212 96 202 106 182 116'
+	const mobileNetworkPaths = [incomingPath, outgoingPath, knowledgePath, rulesPath]
 
 	return (
 		<div className="relative px-3 pb-5 pt-5 sm:hidden">
@@ -776,28 +768,28 @@ function MobileOperationFlow({
 								duration={2.5}
 							/>
 							<SignalParticle
-								path={knowledgeConnector}
+								path={knowledgePath}
 								delay={0.42}
 								filterId="vigent-mobile-flow"
-								duration={2.5}
+								duration={2.9}
 							/>
 							<SignalParticle
 								path={knowledgePath}
-								delay={0.82}
+								delay={1.82}
 								filterId="vigent-mobile-flow"
-								duration={2.5}
-							/>
-							<SignalParticle
-								path={rulesConnector}
-								delay={1.18}
-								filterId="vigent-mobile-flow"
-								duration={2.5}
+								duration={2.9}
 							/>
 							<SignalParticle
 								path={rulesPath}
-								delay={1.54}
+								delay={1.02}
 								filterId="vigent-mobile-flow"
-								duration={2.5}
+								duration={2.9}
+							/>
+							<SignalParticle
+								path={rulesPath}
+								delay={2.42}
+								filterId="vigent-mobile-flow"
+								duration={2.9}
 							/>
 							<SignalParticle
 								path={outgoingPath}
@@ -815,7 +807,7 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<Database className="h-2.5 w-2.5" />}
-					className="left-[37.5%] top-[0%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.08)]"
+					className="left-[37.5%] top-[6%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.12)]"
 					direction="none"
 				>
 					{labels.knowledge}
@@ -823,7 +815,7 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<ShieldCheck className="h-2.5 w-2.5" />}
-					className="bottom-[0%] left-[62.5%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.08)]"
+					className="bottom-[6%] left-[62.5%] -translate-x-1/2 shadow-[0_0_14px_rgba(52,211,153,0.12)]"
 					direction="none"
 				>
 					{labels.rules}
