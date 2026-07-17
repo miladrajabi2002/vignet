@@ -12,6 +12,7 @@ import {
         type MessengerType,
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
+import { inboundMessageMetadata } from '@/lib/conversations/source'
 import { captureError } from '@/lib/errors/capture'
 import {
         isMarketingOptOutMessage,
@@ -338,6 +339,7 @@ async function persistInboundOnly(args: {
         externalId: string
         text: string
         channel: MessengerType
+        metadata?: Prisma.InputJsonValue
 }): Promise<string> {
         return prisma.$transaction(async (tx) => {
                 const conversation = await tx.conversation.upsert({
@@ -360,7 +362,12 @@ async function persistInboundOnly(args: {
                         select: { id: true },
                 })
                 await tx.message.create({
-                        data: { conversationId: conversation.id, role: 'USER', content: args.text },
+                        data: {
+                                conversationId: conversation.id,
+                                role: 'USER',
+                                content: args.text,
+                                metadata: args.metadata,
+                        },
                 })
                 await tx.conversation.update({
                         where: { id: conversation.id },
@@ -445,6 +452,8 @@ async function processChannelInbound(
                         const text = await resolveText(agent.workspaceId, adapter, msg)
                         if (!text) continue
 
+                        const inboundMetadata = inboundMessageMetadata(type, msg)
+
                         const contactId = await upsertContact(agent.workspaceId, type, msg)
                         const contactName = await getContactName(contactId)
 
@@ -459,6 +468,7 @@ async function processChannelInbound(
                                         externalId: msg.chatId,
                                         text,
                                         channel: type,
+                                        metadata: inboundMetadata,
                                 })
                                 const confirmation = optOutConfirmation(text)
                                 await adapter.sendText(msg.chatId, confirmation)
@@ -547,7 +557,7 @@ async function processChannelInbound(
                         let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         if (type === 'INSTAGRAM') {
                                 instagramPolicy = await loadAutomationPolicy(agent.id, channelId, resolved.config)
-								const reactionClassInput = msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
+								const reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
 
                                 // A configured fixed reply has precedence over scenarios. When
 								// disabled we still let scenarios match, but never fall through to AI.
@@ -565,7 +575,8 @@ async function processChannelInbound(
 												externalId: msg.chatId,
 								text,
 								channel: type,
-											})
+								metadata: inboundMetadata,
+							})
                                                 await adapter.sendText(msg.chatId, fixedReply, {
                                                         quickReplies: msg.kind === 'COMMENT' ? undefined : settings.quickReplies,
                                                 })
@@ -606,7 +617,18 @@ async function processChannelInbound(
 											: msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
 												? instagramPolicy.storyReplyPolicy
 												: instagramPolicy.dmReplyPolicy
-										if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') continue
+										if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') {
+											await persistInboundOnly({
+												workspaceId: agent.workspaceId,
+												agentId: agent.id,
+												contactId,
+												externalId: msg.chatId,
+												text,
+												channel: type,
+												metadata: inboundMetadata,
+											})
+											continue
+										}
                                 }
 								if (reactionClassInput) {
 										await persistInboundOnly({
@@ -616,6 +638,7 @@ async function processChannelInbound(
 											externalId: msg.chatId,
 										text,
 										channel: type,
+										metadata: inboundMetadata,
 										})
 										continue
 								}
@@ -663,6 +686,7 @@ async function processChannelInbound(
                                                         externalId: msg.chatId,
                                                         text,
                                                         channel: type,
+                                                        metadata: inboundMetadata,
                                                 })
                                         } catch (e) {
                                                 console.error('[handler] instagram inbound-only persist failed:', e)
@@ -685,6 +709,7 @@ async function processChannelInbound(
                                 contactId,
                                 contactName,
                                 externalId: msg.chatId,
+                                inboundMetadata,
                         })
                         if ('error' in result) continue
 

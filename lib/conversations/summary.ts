@@ -7,6 +7,7 @@ import {
   hasPlatformAiBudget,
 } from '@/lib/ai/platform-config'
 import { stripProductTokens } from '@/lib/widget/config'
+import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 
 export interface SummaryJobData {
   conversationId: string
@@ -20,7 +21,31 @@ export interface ConversationSummaryResult {
 const MAX_MESSAGES = 40
 const MAX_FALLBACK_PART = 180
 
-type SummaryMessage = { role: 'USER' | 'ASSISTANT' | 'SYSTEM'; content: string }
+type SummaryMessage = {
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM'
+  content: string
+  metadata?: unknown
+}
+
+function isEmojiOnly(value: string): boolean {
+  const clean = stripProductTokens(value).trim()
+  if (!clean || !/\p{Extended_Pictographic}/u.test(clean)) return false
+  return clean.replace(/[\p{Extended_Pictographic}\p{Emoji_Component}\u200d\ufe0f\s]/gu, '') === ''
+}
+
+function isGreetingOnly(value: string): boolean {
+  const clean = stripProductTokens(value)
+    .trim()
+    .toLocaleLowerCase('fa')
+    .replace(/[!,.،؛؟?\s]+/g, ' ')
+    .trim()
+  return /^(سلام|درود|سلام علیکم|صبح بخیر|ظهر بخیر|عصر بخیر|شب بخیر|hi|hello|hey|good (morning|afternoon|evening))$/.test(clean)
+}
+
+function isTrivialConversation(messages: SummaryMessage[]): boolean {
+  const userTurns = messages.filter((message) => message.role === 'USER' && message.content.trim())
+  return userTurns.length > 0 && userTurns.every((message) => isEmojiOnly(message.content) || isGreetingOnly(message.content))
+}
 
 function compact(value: string, max = MAX_FALLBACK_PART): string {
   const clean = stripProductTokens(value).replace(/\s+/g, ' ').trim()
@@ -51,15 +76,32 @@ export function buildFallbackSummary(
 
   const intent = compact(latestUser.content)
   const outcome = latestOutcome ? compact(latestOutcome.content) : null
+  const source = readInboundSource(latestUser.metadata)
+  const sourceLabel = inboundSourceLabel(source, language === 'en' ? 'en' : 'fa')
+
+  if (isEmojiOnly(intent)) {
+    if (language === 'en') {
+      return `The customer sent only ${intent}${sourceLabel ? ` via ${sourceLabel}` : ''}. No request or positive/negative sentiment can be inferred, and no specific action is required.`
+    }
+    return `مشتری${sourceLabel ? ` از طریق ${sourceLabel}` : ''} فقط ${intent} فرستاده است. درخواست مشخص یا نشانه قابل اتکایی از رضایت یا نارضایتی وجود ندارد و اقدام خاصی لازم نیست.`
+  }
+
+  if (isGreetingOnly(intent)) {
+    if (language === 'en') {
+      return `The customer said hello${sourceLabel ? ` via ${sourceLabel}` : ''}. They have not stated a request or problem yet; wait for their next message.`
+    }
+    return `مشتری${sourceLabel ? ` از طریق ${sourceLabel}` : ''} سلام کرده است. هنوز درخواست یا مشکلی مطرح نشده؛ منتظر پیام بعدی مشتری بمانید.`
+  }
+
   if (language === 'en') {
     return outcome
-      ? `Customer request: ${intent}. Latest outcome: ${outcome}.`
-      : `Customer request: ${intent}. No final outcome was recorded before handoff.`
+      ? `Customer message${sourceLabel ? ` via ${sourceLabel}` : ''}: ${intent}. Latest outcome: ${outcome}.`
+      : `Customer message${sourceLabel ? ` via ${sourceLabel}` : ''}: ${intent}. No final outcome was recorded before handoff.`
   }
 
   return outcome
-    ? `\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0645\u0634\u062a\u0631\u06cc: ${intent}. \u0622\u062e\u0631\u06cc\u0646 \u0646\u062a\u06cc\u062c\u0647: ${outcome}.`
-    : `\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0645\u0634\u062a\u0631\u06cc: ${intent}. \u067e\u06cc\u0634 \u0627\u0632 \u0627\u0646\u062a\u0642\u0627\u0644\u060c \u0646\u062a\u06cc\u062c\u0647 \u0646\u0647\u0627\u06cc\u06cc \u062b\u0628\u062a \u0646\u0634\u062f.`
+    ? `پیام مشتری${sourceLabel ? ` از طریق ${sourceLabel}` : ''}: ${intent}. آخرین نتیجه: ${outcome}.`
+    : `پیام مشتری${sourceLabel ? ` از طریق ${sourceLabel}` : ''}: ${intent}. پیش از انتقال، نتیجه نهایی ثبت نشد.`
 }
 
 async function persistSummary(conversationId: string, summary: string): Promise<void> {
@@ -90,7 +132,7 @@ export async function ensureConversationSummary(
       messages: {
         orderBy: { createdAt: 'desc' },
         take: MAX_MESSAGES,
-        select: { role: true, content: true },
+        select: { role: true, content: true, metadata: true },
       },
     },
   })
@@ -101,8 +143,15 @@ export async function ensureConversationSummary(
   }
 
   const messages = [...conversation.messages].reverse()
-  const fallback = existingSummary ?? buildFallbackSummary(messages, conversation.agent.language)
+  const fallback = buildFallbackSummary(messages, conversation.agent.language) ?? existingSummary
   if (!fallback) return { summary: null, source: 'empty' }
+
+  // Greetings and emoji-only reactions are factual classification tasks. Keep
+  // them deterministic so a language model cannot invent intent or sentiment.
+  if (isTrivialConversation(messages)) {
+    await persistSummary(conversation.id, fallback)
+    return { summary: fallback, source: 'fallback' }
+  }
 
   if (options.preferAi === false) {
     if (!existingSummary) await persistSummary(conversation.id, fallback)
@@ -128,13 +177,18 @@ export async function ensureConversationSummary(
     const model = resolveModelId(alias, platformConfig.providerModels)
     const transcript = messages
       .filter((message) => message.role !== 'SYSTEM')
-      .map((message) => `${message.role === 'USER' ? 'Customer' : 'Agent'}: ${stripProductTokens(message.content)}`)
+      .map((message) => {
+        const source = message.role === 'USER'
+          ? inboundSourceLabel(readInboundSource(message.metadata), conversation.agent.language === 'en' ? 'en' : 'fa')
+          : null
+        return `${message.role === 'USER' ? 'Customer' : 'Agent'}${source ? ` [${source}]` : ''}: ${stripProductTokens(message.content)}`
+      })
       .join('\n')
 
     const instruction =
       conversation.agent.language === 'en'
-        ? 'Summarize this support conversation in 1-2 short sentences for the next human operator. Capture customer intent, verified facts, actions already taken, and the unresolved next step. Do not invent facts. Return only the summary.'
-        : '\u0627\u06cc\u0646 \u06af\u0641\u062a\u06af\u0648\u06cc \u067e\u0634\u062a\u06cc\u0628\u0627\u0646\u06cc \u0631\u0627 \u0628\u0631\u0627\u06cc \u0627\u067e\u0631\u0627\u062a\u0648\u0631 \u0628\u0639\u062f\u06cc \u062f\u0631 \u06cc\u06a9 \u062a\u0627 \u062f\u0648 \u062c\u0645\u0644\u0647 \u06a9\u0648\u062a\u0627\u0647 \u062e\u0644\u0627\u0635\u0647 \u06a9\u0646. \u0646\u06cc\u062a \u0645\u0634\u062a\u0631\u06cc\u060c \u0641\u06a9\u062a\u200c\u0647\u0627\u06cc \u062a\u0623\u06cc\u06cc\u062f\u0634\u062f\u0647\u060c \u0627\u0642\u062f\u0627\u0645\u200c\u0647\u0627\u06cc \u0627\u0646\u062c\u0627\u0645\u200c\u0634\u062f\u0647 \u0648 \u0642\u062f\u0645 \u0628\u0639\u062f\u06cc \u0628\u0627\u0642\u06cc\u200c\u0645\u0627\u0646\u062f\u0647 \u0631\u0627 \u0628\u06cc\u0627\u0646 \u06a9\u0646. \u0647\u06cc\u0686 \u0641\u06a9\u062a\u06cc \u0631\u0627 \u0646\u0633\u0627\u0632. \u0641\u0642\u0637 \u062e\u0644\u0627\u0635\u0647 \u0631\u0627 \u0628\u0646\u0648\u06cc\u0633.'
+        ? 'Summarize this support conversation in 1-2 short sentences for the next human operator. State the source shown in brackets (DM, comment, story reply, or reaction). Capture only explicit intent, verified facts, actions already taken, and the unresolved next step. A greeting is not a request for help. An emoji or reaction alone does not prove positive or negative sentiment. Do not invent facts. Return only the summary.'
+        : 'این گفتگو را برای اپراتور بعدی در یک تا دو جمله کوتاه خلاصه کن و منبع داخل کروشه (دایرکت، کامنت، پاسخ یا ری‌اکشن استوری) را ذکر کن. فقط نیت صریح مشتری، فکت‌های تأییدشده، اقدام‌های انجام‌شده و قدم بعدی باقی‌مانده را بنویس. سلام‌کردن به معنی درخواست کمک نیست و یک ایموجی یا ری‌اکشن به‌تنهایی نشانه رضایت یا نارضایتی نیست. هیچ فکتی نساز و فقط خلاصه را بنویس.'
 
     const result = await chatCompletion({
       model,

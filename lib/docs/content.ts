@@ -1612,12 +1612,6 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                 fa: 'با اولین ورود، یک ماه استفادهٔ رایگان با همان اعتبار اولیهٔ پاسخ فعال می‌شود. اتوماسیون‌های ثابت اینستاگرام رایگان‌اند و فقط پاسخ موفق هوش مصنوعی از اعتبار کم می‌کند. پس از آن یکی از اشتراک‌های استارتر، حرفه‌ای یا تجاری را از بخش «صورتحساب» انتخاب کنید.',
                                 en: 'Your first login starts one free month with the same starter reply credit. Static Instagram automations are free; only a successful AI reply consumes credit. Afterwards, choose Starter, Pro or Business from Billing.',
                         },
-                        { type: 'h2', fa: 'سقف استفادهٔ منصفانه', en: 'Fair-use ceiling' },
-                        {
-                                type: 'p',
-                                fa: 'هر اشتراک برای پایداری سرویس یک سقف استفادهٔ منصفانه دارد. این عدد بستهٔ پاسخ خریداری‌شده نیست و جای اعتبار پاسخ را نمی‌گیرد. مصرف را در نمای کلی و صورتحساب می‌بینید؛ در صورت رسیدن به سقف، باید پلن را ارتقا دهید یا تا دورهٔ بعد صبر کنید.',
-                                en: 'Each subscription has a fair-use ceiling to protect service quality. It is not a purchased reply bundle and does not replace reply credit. Usage appears on Overview and Billing; at the ceiling, upgrade or wait for the next period.',
-                        },
                         { type: 'h2', fa: 'اعتبار پاسخ', en: 'Reply credit' },
                         {
                                 type: 'p',
@@ -1712,8 +1706,8 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         },
                         {
                                 type: 'p',
-                                fa: 'فعال بودن ایجنت، موجودی اعتبار پاسخ، سقف استفادهٔ منصفانهٔ پلن و وضعیت کانال را بررسی کنید. اگر همه درست است، ممکن است سرویس هوش مصنوعی موقتاً در دسترس نباشد؛ کمی بعد دوباره تلاش کنید.',
-                                en: 'Check that the agent is active, reply credit is available, the plan is within its fair-use ceiling, and the channel is connected. If all are fine, the AI service may be temporarily unavailable; try again shortly.',
+                                fa: 'فعال بودن ایجنت، موجودی اعتبار پاسخ، اعتبار اشتراک و وضعیت اتصال کانال را بررسی کنید. اگر همه درست است، ممکن است سرویس هوش مصنوعی موقتاً در دسترس نباشد؛ کمی بعد دوباره تلاش کنید.',
+                                en: 'Check that the agent is active, reply credit and the subscription are valid, and the channel is connected. If all are fine, the AI service may be temporarily unavailable; try again shortly.',
                         },
                         {
                                 type: 'h2',

@@ -26,6 +26,8 @@ import { DashboardPanel } from '@/components/dashboard/panel'
 import { DashboardDonut } from '@/components/dashboard/donut'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
+import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
+import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 
 const PAGE_SIZE = 50
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -104,6 +106,7 @@ export default async function ConversationsPage(props: {
                 convTrend,
                 channelGroups,
                 agents,
+                audienceContacts,
         ] = await Promise.all([
                 prisma.conversation.findMany({
                         where,
@@ -126,6 +129,7 @@ export default async function ConversationsPage(props: {
                                 agent: { select: { name: true } },
                                 contact: {
                                         select: {
+                                                id: true,
                                                 name: true,
                                                 phone: true,
                                                 telegramUsername: true,
@@ -142,8 +146,8 @@ export default async function ConversationsPage(props: {
                                 },
                                 messages: {
                                         orderBy: { createdAt: 'desc' },
-                                        take: 1,
-                                        select: { content: true, role: true },
+                                        take: 3,
+                                        select: { content: true, role: true, metadata: true },
                                 },
                         },
                 }),
@@ -172,6 +176,13 @@ export default async function ConversationsPage(props: {
                                 name: true,
                                 _count: { select: { conversations: true } },
                         },
+                }),
+                prisma.conversation.findMany({
+                        where: { ...where, contactId: { not: null } },
+                        distinct: ['contactId'],
+                        orderBy: { lastMessageAt: 'desc' },
+                        take: 500,
+                        select: { contactId: true },
                 }),
         ])
 
@@ -202,6 +213,13 @@ export default async function ConversationsPage(props: {
                                 icon={MessagesSquare}
                                 title={t('title')}
                                 subtitle={t('subtitle')}
+                                actions={
+                                        <CampaignLaunchButton
+                                                audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
+                                                locale={locale}
+                                                disabled={audienceContacts.length === 0}
+                                        />
+                                }
                         />
 
                         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
@@ -290,6 +308,10 @@ export default async function ConversationsPage(props: {
                                 </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
+                                                const lastInbound = c.messages.find((message) => message.role === 'USER')
+                                                const sourceLabel = lastInbound
+                                                        ? inboundSourceLabel(readInboundSource(lastInbound.metadata), locale)
+                                                        : null
                                                 const when = c.lastMessageAt ?? c.createdAt
                                                 // Resolve the contact's display name + per-channel handle/avatar.
                                                 // For Instagram DMs the webhook only carries the sender id (no
@@ -363,6 +385,11 @@ export default async function ConversationsPage(props: {
                                                                                         </span>
                                                                                 )}
                                                                                 <ChannelBadge type={c.channel} />
+                                                                                {sourceLabel && (
+                                                                                        <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+                                                                                                {sourceLabel}
+                                                                                        </span>
+                                                                                )}
                                                                                 {c.handedOff && c.status !== 'RESOLVED' && (
                                                                                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-500">
                                                                                                 <span className="relative flex h-1.5 w-1.5">

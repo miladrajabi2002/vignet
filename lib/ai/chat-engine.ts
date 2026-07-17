@@ -153,7 +153,12 @@ async function prepareTurn(params: StartChatParams): Promise<
         if (isHumanOwnedConversation(conversation)) {
                 await prisma.$transaction([
                         prisma.message.create({
-                                data: { conversationId, role: 'USER', content: message },
+                                data: {
+                                        conversationId,
+                                        role: 'USER',
+                                        content: message,
+                                        metadata: params.inboundMetadata,
+                                },
                         }),
                         prisma.conversation.update({
                                 where: { id: conversationId },
@@ -282,6 +287,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 conversationId,
                                 role: 'USER',
                                 content: message,
+                                metadata: params.inboundMetadata,
                         },
                 })
         // Every inbound turn (widget, chat-link, and messengers) keeps the

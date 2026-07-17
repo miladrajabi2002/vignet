@@ -491,7 +491,6 @@ export default async function AdminUserDetailPage(
               <KV label="قیمت ماهانه (دلار)">
                 {planDef.priceUSD > 0 ? fmtUSD(planDef.priceUSD) : 'رایگان'}
               </KV>
-              <KV label="پیام‌های ماهانه">{fa(planDef.monthlyMessages)}</KV>
               <KV label="حداکثر ایجنت">{fa(planDef.maxAgents)}</KV>
             </div>
           </Panel>

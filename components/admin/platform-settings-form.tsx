@@ -138,7 +138,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       </section>
 
       <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <div><h2 className="text-lg font-bold">پلن‌ها و سقف‌های ایمنی</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه، تخفیف پاسخ، سقف خصوصی پیام و تعداد ایجنت از همین تنظیمات در checkout و entitlement خوانده می‌شود.</p></div>
+        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه، تخفیف پاسخ و تعداد ایجنت از همین تنظیمات خوانده می‌شود. پاسخ‌های AI سقف ماهانه ندارند و بر اساس اعتبار کیف پول محاسبه می‌شوند.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {
             const meta = PLAN_META[plan]
@@ -151,7 +151,6 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
                   <PlanNumber label="قیمت دلاری" value={item.priceUSD} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
                   <PlanNumber label="اعتبار هدیه ریال" value={item.includedCreditIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw)} />
                   <PlanNumber label="تخفیف پاسخ (BPS)" value={item.replyDiscountBps} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'replyDiscountBps'], raw)} />
-                  <PlanNumber label="سقف پیام ماهانه" value={item.monthlyMessages} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'monthlyMessages'], raw)} />
                   <PlanNumber label="حداکثر ایجنت" value={item.maxAgents} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxAgents'], raw)} />
                 </div>
               </article>

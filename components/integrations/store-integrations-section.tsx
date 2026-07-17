@@ -132,7 +132,7 @@ export function StoreIntegrationsSection({
         }
 
         return (
-                <div className="space-y-5">
+                <div id="online-store" className="scroll-mt-24 space-y-5">
                         <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                         <ShoppingBag className="h-4 w-4 text-[var(--text-secondary)]" />

@@ -50,20 +50,12 @@ export async function getMonthlyMessageCount(workspaceId: string): Promise<numbe
 }
 
 /**
- * Gate an inbound chat message. Blocks when:
- *  - TRIAL workspace past `trialEndsAt`
- *  - paid plan without an ACTIVE, unexpired subscription
- *  - the plan's private monthly abuse/safety ceiling is exhausted
+ * Gate an inbound chat message by workspace access only. Successful AI replies
+ * are already protected by the atomic reply-credit reservation flow; there is
+ * intentionally no separate monthly message quota.
  */
 export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
-  const access = await checkWorkspaceActive(workspaceId)
-  if (!access.allowed) return access
-
-  const limit = (await getEffectivePlanDefs())[access.plan].monthlyMessages
-  const used = await getMonthlyMessageCount(workspaceId)
-  if (used >= limit) return { allowed: false, reason: 'PLAN_LIMIT' }
-
-  return access
+  return checkWorkspaceActive(workspaceId)
 }
 
 /** Shared trial/subscription gate for every state-changing paid feature. */

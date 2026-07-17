@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { Plus, Package, FolderTree } from 'lucide-react'
+import { Plus, Package, FolderTree, ShoppingBag, RefreshCw, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -40,7 +40,7 @@ export default async function ProductsPage(
           ? { queryCount: 'desc' }
           : { createdAt: 'desc' }
 
-  const [products, categories, totalProducts, topProductsByQuery, productTrend7] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegration] = await Promise.all([
     prisma.product.findMany({
       where: {
         workspaceId: user.workspaceId,
@@ -72,6 +72,11 @@ export default async function ProductsPage(
       select: { name: true, queryCount: true },
     }),
     productsDailyByWorkspace(user.workspaceId, 7),
+    prisma.storeIntegration.findFirst({
+      where: { workspaceId: user.workspaceId, type: 'WOOCOMMERCE' },
+      orderBy: { createdAt: 'desc' },
+      select: { active: true, lastSyncAt: true, lastSyncStatus: true, lastSyncError: true },
+    }),
   ])
 
   const hasNext = products.length > PAGE_SIZE
@@ -86,6 +91,7 @@ export default async function ProductsPage(
     const qs = sp.toString()
     return qs ? `/products?${qs}` : '/products'
   }
+  const Arrow = fa ? ArrowLeft : ArrowRight
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -112,6 +118,58 @@ export default async function ProductsPage(
           </>
         }
       />
+
+      <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
+              {wooIntegration?.active ? <CheckCircle2 className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-[var(--text-primary)]">
+                {wooIntegration?.active
+                  ? fa ? 'فروشگاه ووکامرس به کاتالوگ متصل است' : 'WooCommerce is connected to your catalog'
+                  : fa ? 'سایت ووکامرسی دارید و می‌خواهید محصولات خودکار به‌روز شوند؟' : 'Have a WooCommerce store and want automatic product updates?'}
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs leading-6 text-[var(--text-secondary)]">
+                {wooIntegration?.active
+                  ? wooIntegration.lastSyncAt
+                    ? fa
+                      ? `قیمت، موجودی و مشخصات محصولات از فروشگاه همگام می‌شوند. آخرین همگام‌سازی: ${new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(wooIntegration.lastSyncAt)}`
+                      : `Prices, stock and product details stay synced. Last sync: ${new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(wooIntegration.lastSyncAt)}`
+                    : fa ? 'قیمت، موجودی و مشخصات محصولات از فروشگاه همگام می‌شوند؛ برای شروع یک همگام‌سازی کامل اجرا کنید.' : 'Prices, stock and product details stay synced; run a full sync to get started.'
+                  : fa
+                    ? 'افزونه ویجنت را روی وردپرس نصب کنید؛ محصول جدید، تغییر قیمت، موجودی و سفارش‌ها بدون ورود دستی به ویجنت می‌رسند و ایجنت همیشه با اطلاعات واقعی پاسخ می‌دهد.'
+                    : 'Install the Vigent WordPress plugin. New products, price and stock changes, and orders flow into Vigent automatically so your agent answers with live data.'}
+              </p>
+              {!wooIntegration?.active && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--text-muted)]">
+                  <span>۱. {fa ? 'اتصال فروشگاه' : 'Connect store'}</span>
+                  <span>۲. {fa ? 'نصب افزونه' : 'Install plugin'}</span>
+                  <span>۳. {fa ? 'همگام‌سازی کامل' : 'Run full sync'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {!wooIntegration?.active && (
+              <a href="/downloads/vigent-wordpress.zip" download className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-hover)]">
+                <RefreshCw className="h-3.5 w-3.5" />
+                {fa ? 'دانلود افزونه' : 'Download plugin'}
+              </a>
+            )}
+            <Link href="/integrations#online-store" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] hover:opacity-90">
+              {wooIntegration?.active ? (fa ? 'مدیریت همگام‌سازی' : 'Manage sync') : (fa ? 'اتصال ووکامرس' : 'Connect WooCommerce')}
+              <Arrow className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+        {wooIntegration?.lastSyncStatus === 'error' && wooIntegration.lastSyncError && (
+          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
+            {fa ? 'آخرین همگام‌سازی ناموفق بود: ' : 'The latest sync failed: '}{wooIntegration.lastSyncError}
+          </p>
+        )}
+      </section>
 
       {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
       {!q && !categoryId && (

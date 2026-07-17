@@ -18,6 +18,7 @@ import {
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
 import { contactDisplayName } from '@/lib/crm/display'
+import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -154,9 +155,16 @@ export default async function ConversationThreadPage(props: {
                 (conversation.status === 'HANDED_OFF' ||
                         (handoffAlertProp != null && handoffAlertProp.state !== 'resolved'))
 
+        const latestInboundSource = [...conversation.messages]
+                .reverse()
+                .find((message) => message.role === 'USER')
+        const latestInboundSourceLabel = latestInboundSource
+                ? inboundSourceLabel(readInboundSource(latestInboundSource.metadata), locale)
+                : null
+
         return (
                 <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
-                        <BackButton href="/conversations" label={t('title')} className="shrink-0" />
+                        <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
                         <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-[1.5rem] p-4 sm:p-5">
                                 {contactAvatarUrl ? (
@@ -233,6 +241,11 @@ export default async function ConversationThreadPage(props: {
                                         <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
                                                 <Sparkles className="h-3.5 w-3.5" />
                                                 {t('summary')}
+                                                {latestInboundSourceLabel && (
+                                                        <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[10px] text-[var(--text-secondary)]">
+                                                                {latestInboundSourceLabel}
+                                                        </span>
+                                                )}
                                         </div>
                                         <p className="text-sm leading-relaxed text-[var(--text-primary)]">
                                                 {conversation.summary}

@@ -32,7 +32,6 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import { getDashboardNavigationModules, getVerticalPack, type DashboardModuleKey } from '@/lib/verticals/registry'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
-import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { formatDateTime } from '@/lib/format'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
@@ -221,12 +220,10 @@ export default async function OverviewPage() {
           href: '/agents',
         }
 
-  const planDef = (await getEffectivePlanDefs())[workspace.plan]
   const planEnd = workspace.plan === 'TRIAL' ? workspace.trialEndsAt : subscription?.currentPeriodEnd
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - now.getTime()) / 86_400_000))
     : null
-  const usagePercent = Math.min(100, Math.round((messagesUsed / planDef.monthlyMessages) * 100))
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const Arrow = fa ? ArrowLeft : ArrowRight
 
@@ -246,7 +243,9 @@ export default async function OverviewPage() {
             </div>
 
             <p className="mt-5 text-xs font-medium text-[var(--text-muted)]">
-              {fa ? `سلام ${user.name || ''}`.trim() : `Hello ${user.name || ''}`.trim()}
+              {attentionCount === 0
+                ? fa ? 'امروز همه‌چیز در مسیر عادی است.' : 'Everything is running normally today.'
+                : fa ? `امروز ${nf.format(attentionCount)} مورد نیاز به توجه دارد.` : `${nf.format(attentionCount)} items need attention today.`}
             </p>
             <h1 className="mt-1.5 max-w-xl text-[clamp(1.5rem,3.5vw,2.2rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-[var(--text-primary)] rtl:tracking-normal">
               {fa ? `مرکز عملیات ${displayName}` : `${displayName} operations center`}
@@ -255,7 +254,37 @@ export default async function OverviewPage() {
               {businessDescription}
             </p>
 
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-5 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+              <AttentionItem
+                href="/conversations?status=HANDED_OFF"
+                icon={AlertCircle}
+                value={handedOff}
+                label={fa ? 'تحویل اپراتور' : 'Handoffs'}
+                hint={fa ? 'با خلاصه آماده' : 'summary ready'}
+                urgent={handedOff > 0}
+                locale={lang}
+              />
+              <AttentionItem
+                href="/agents"
+                icon={GraduationCap}
+                value={pendingLearnings}
+                label={fa ? 'سؤال بی‌پاسخ' : 'Unanswered'}
+                hint={fa ? 'برای مرکز یادگیری' : 'learning review'}
+                urgent={pendingLearnings > 0}
+                locale={lang}
+              />
+              <AttentionItem
+                href={hasBookingModule ? '/appointments' : '/conversations?status=OPEN'}
+                icon={hasBookingModule ? CalendarCheck2 : MessagesSquare}
+                value={hasBookingModule ? upcomingAppointments : openConversations}
+                label={hasBookingModule ? (fa ? 'نوبت پیش رو' : 'Upcoming') : (fa ? 'گفتگوی باز' : 'Open')}
+                hint={fa ? 'در حال پیگیری' : 'in progress'}
+                urgent={false}
+                locale={lang}
+              />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <Link href="/conversations" className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black">
                 <MessagesSquare className="h-4 w-4" />
                 {fa ? 'رسیدگی به گفتگوها' : 'Open conversations'}
@@ -360,56 +389,6 @@ export default async function OverviewPage() {
           </span>
         </Link>
       )}
-
-      <section aria-labelledby="today-heading" className="dashboard-card rounded-[1.4rem] border border-[var(--border-default)] bg-white/[0.94] p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 id="today-heading" className="text-sm font-bold text-[var(--text-primary)]">
-              {fa ? 'امروز چه چیزی نیاز به توجه دارد؟' : 'What needs attention today?'}
-            </h2>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">
-              {attentionCount === 0
-                ? fa ? 'همه‌چیز در مسیر عادی است.' : 'Everything is running normally.'
-                : fa ? `${nf.format(attentionCount)} مورد آماده رسیدگی است.` : `${nf.format(attentionCount)} items are ready for review.`}
-            </p>
-          </div>
-          {attentionCount === 0 && (
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-              <CheckCircle2 className="h-4 w-4" />
-            </span>
-          )}
-        </div>
-
-        <div className="grid gap-2 md:grid-cols-3">
-          <AttentionItem
-            href="/conversations?status=HANDED_OFF"
-            icon={AlertCircle}
-            value={handedOff}
-            label={fa ? 'تحویل به اپراتور' : 'Operator handoffs'}
-            hint={fa ? 'با خلاصه آماده ادامه' : 'with a ready handoff summary'}
-            urgent={handedOff > 0}
-            locale={lang}
-          />
-          <AttentionItem
-            href="/agents"
-            icon={GraduationCap}
-            value={pendingLearnings}
-            label={fa ? 'سؤال بی‌پاسخ' : 'Unanswered questions'}
-            hint={fa ? 'برای تأیید در مرکز یادگیری' : 'ready for learning review'}
-            urgent={pendingLearnings > 0}
-            locale={lang}
-          />
-          <AttentionItem
-            href={hasBookingModule ? '/appointments' : '/conversations?status=OPEN'}
-            icon={hasBookingModule ? CalendarCheck2 : MessagesSquare}
-            value={hasBookingModule ? upcomingAppointments : openConversations}
-            label={hasBookingModule ? (fa ? 'نوبت پیش رو' : 'Upcoming bookings') : (fa ? 'گفتگوی باز' : 'Open conversations')}
-            hint={hasBookingModule ? (fa ? 'نیازمند هماهنگی و اجرا' : 'to coordinate and deliver') : (fa ? 'در حال پیگیری' : 'currently in progress')}
-            urgent={false}
-            locale={lang}
-          />
-        </div>
-      </section>
 
       <section aria-label={fa ? 'شاخص‌های اصلی' : 'Key outcomes'} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <OutcomeCard
@@ -539,14 +518,12 @@ export default async function OverviewPage() {
               {daysLeft !== null && <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{fa ? `${nf.format(daysLeft)} روز باقی` : `${nf.format(daysLeft)} days left`}</p>}
             </div>
           </div>
-          <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-              <span>{fa ? 'مصرف این دوره' : 'Period usage'}</span>
-              <span>{nf.format(messagesUsed)} / {nf.format(planDef.monthlyMessages)}</span>
+          <div className="spatial-inset mt-4 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
+            <div>
+              <p className="text-[11px] text-[var(--text-muted)]">{fa ? 'پاسخ موفق این ماه' : 'Successful replies this month'}</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-[var(--text-primary)]">{nf.format(messagesUsed)}</p>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-              <div className={cn('h-full rounded-full', usagePercent >= 90 ? 'bg-red-500' : usagePercent >= 70 ? 'bg-amber-500' : 'bg-[var(--accent)]')} style={{ width: `${usagePercent}%` }} />
-            </div>
+            <p className="max-w-40 text-end text-[10px] leading-5 text-[var(--text-muted)]">{fa ? 'بدون سقف پیام؛ مصرف از اعتبار پاسخ کم می‌شود.' : 'No message cap; usage is deducted from reply credit.'}</p>
           </div>
           <div className="spatial-inset mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5">
             <div className="min-w-0 flex-1">

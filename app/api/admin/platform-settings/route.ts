@@ -13,7 +13,6 @@ const nonNegativeInt = z.number().int().nonnegative().max(2_000_000_000)
 const planSchema = z.object({
   priceIRR: nonNegativeInt,
   priceUSD: nonNegativeInt.max(100_000),
-  monthlyMessages: positiveInt,
   maxAgents: positiveInt.max(10_000),
   replyDiscountBps: nonNegativeInt.max(9_000),
   includedCreditIRR: nonNegativeInt,

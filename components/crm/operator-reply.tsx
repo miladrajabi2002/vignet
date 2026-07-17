@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Send, Loader2 } from 'lucide-react'
 import type { ThreadMessage } from './conversation-thread'
 
@@ -33,6 +33,7 @@ export function OperatorReply({
   onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
+  const locale = useLocale()
   const router = useRouter()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -115,13 +116,13 @@ export function OperatorReply({
             }
           }}
           rows={1}
-          dir="auto"
+          dir={locale === 'fa' ? 'rtl' : 'ltr'}
           placeholder={t('replyPlaceholder')}
           // No internal scrollbar: `scrollbar-width: none` (Firefox) +
           // `::-webkit-scrollbar { display: none }` (Chrome/Safari). The
           // textarea grows with content up to max-h, so a scrollbar never
           // appears — matching the chat input UX of Telegram/WhatsApp web.
-          className="max-h-[160px] min-h-[40px] flex-1 resize-none overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-[160px] min-h-[40px] flex-1 resize-none overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-start text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-start placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         <button
           onClick={send}

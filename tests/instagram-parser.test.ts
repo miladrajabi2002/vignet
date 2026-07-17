@@ -47,7 +47,7 @@ describe('instagram inbound normalization', () => {
 			{ sender: { id: 'customer' }, reaction: { mid: 'mid.original', action: 'unreact', reaction: 'love' } },
 		] }] })
 		expect(messages).toEqual([expect.objectContaining({
-			kind: 'STORY_REACTION', text: '❤️', platformMessageId: 'mid.original',
+   kind: 'REACTION', text: '❤️', platformMessageId: 'mid.original',
 		})])
 	})
 })

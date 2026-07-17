@@ -44,7 +44,7 @@ export interface InboundMessage {
    * comments, STORY_REPLY for a DM that quotes a story, and STORY_MENTION when
    * the account is mentioned in a user's story.
    */
-  kind?: 'DM' | 'COMMENT' | 'STORY_REPLY' | 'STORY_REACTION' | 'STORY_MENTION'
+  kind?: 'DM' | 'COMMENT' | 'REACTION' | 'STORY_REPLY' | 'STORY_REACTION' | 'STORY_MENTION'
   /** Instagram only: the post/reel media id a comment was left on. */
   postId?: string
   /** Instagram only: the comment id (for public replies). */

@@ -126,7 +126,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
 								senderName: m.sender?.username,
 								senderUsername: m.sender?.username,
 								text: m.reaction.emoji || m.reaction.reaction || '[reaction]',
-								kind: 'STORY_REACTION',
+								kind: 'REACTION',
 								platformMessageId: m.reaction.mid,
 							})
 							continue

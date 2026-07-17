@@ -1,4 +1,4 @@
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import { Users, UserPlus, GitMerge, Tag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
@@ -11,7 +11,6 @@ import { DashboardDonut } from '@/components/dashboard/donut'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
-import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 
 const PAGE_SIZE = 100
@@ -38,8 +37,6 @@ export default async function ContactsPage(
   const user = await requireUser()
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const isFa = locale === 'fa'
-  const tc = await getTranslations('contacts')
-
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   const [contacts, totalCount, stageGroups, contactTrend] = await Promise.all([
@@ -149,35 +146,29 @@ export default async function ContactsPage(
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <PageHeader
-        icon={Users}
-        title={tc('title')}
-        subtitle={tc('subtitle')}
-      />
-
-      {/* ─── Pipeline + new-customer trend ─── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <DashboardPanel
-          title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
-          subtitle={isFa ? 'توزیع مشتریان بر اساس مرحله' : 'Customers by pipeline stage'}
-        >
-          <DashboardDonut
-            data={stageDonut}
-            centerValue={totalCount}
-            centerLabel={isFa ? 'مشتری' : 'customers'}
-          />
-        </DashboardPanel>
-        <DashboardPanel
-          title={isFa ? 'مشتریان جدید ۱۴ روز اخیر' : 'New customers, last 14 days'}
-          subtitle={isFa ? `${contactTrend.total.toLocaleString('fa-IR')} مشتری جدید در این دوره` : `${contactTrend.total} new customers in this period`}
-        >
-          <ConversationChart data={contactTrendPoints} />
-        </DashboardPanel>
-      </div>
-
       <ContactsView
         initial={rows}
         locale={locale}
+        insights={
+          <div className="grid gap-4 lg:grid-cols-2">
+            <DashboardPanel
+              title={isFa ? 'قیف فروش' : 'Sales Pipeline'}
+              subtitle={isFa ? 'توزیع مشتریان بر اساس مرحله' : 'Customers by pipeline stage'}
+            >
+              <DashboardDonut
+                data={stageDonut}
+                centerValue={totalCount}
+                centerLabel={isFa ? 'مشتری' : 'customers'}
+              />
+            </DashboardPanel>
+            <DashboardPanel
+              title={isFa ? 'مشتریان جدید ۱۴ روز اخیر' : 'New customers, last 14 days'}
+              subtitle={isFa ? `${contactTrend.total.toLocaleString('fa-IR')} مشتری جدید در این دوره` : `${contactTrend.total} new customers in this period`}
+            >
+              <ConversationChart data={contactTrendPoints} />
+            </DashboardPanel>
+          </div>
+        }
         footer={
           <Pagination
             page={page}

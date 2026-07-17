@@ -4,14 +4,15 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, Megaphone, X } from 'lucide-react'
+import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, X } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
-import { CampaignComposer } from '@/components/crm/campaign-composer'
 import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { PageHeader } from '@/components/dashboard/page-header'
+import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 
 export interface ContactRow {
         id: string
@@ -63,10 +64,12 @@ function rowDisplayName(c: ContactRow, anonymousLabel: string): string {
 export function ContactsView({
         initial,
         locale,
+        insights,
         footer,
 }: {
         initial: ContactRow[]
         locale: 'fa' | 'en'
+        insights?: React.ReactNode
         footer?: React.ReactNode
 }) {
         const t = useTranslations('contacts')
@@ -77,7 +80,6 @@ export function ContactsView({
         const [channelFilter, setChannelFilter] = useState<ChannelType | ''>('')
         const [tagFilter, setTagFilter] = useState('')
         const [selected, setSelected] = useState<Set<string>>(() => new Set())
-        const [campaignOpen, setCampaignOpen] = useState(false)
 
         const availableTags = useMemo(
                 () => [...new Set(rows.flatMap((row) => row.tags))].sort((a, b) => a.localeCompare(b)),
@@ -144,20 +146,27 @@ export function ContactsView({
 
         return (
                 <div className="space-y-6">
-                        {/* Action bar — campaign + view toggle (title is rendered by the
-                            parent page's PageHeader, so we only keep the actions here). */}
+                        <PageHeader
+                                icon={Users}
+                                title={t('title')}
+                                subtitle={t('subtitle')}
+                                actions={
+                                        <CampaignLaunchButton
+                                                audience={campaignAudience}
+                                                locale={locale}
+                                                disabled={filtered.length === 0}
+                                                label={selected.size > 0
+                                                        ? locale === 'fa'
+                                                                ? `ارسال پیام به ${selected.size.toLocaleString('fa-IR')} مشتری`
+                                                                : `Message ${selected.size} customers`
+                                                        : undefined}
+                                        />
+                                }
+                        />
+
+                        {insights}
+
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                                <button
-                                        type="button"
-                                        onClick={() => setCampaignOpen(true)}
-                                        disabled={filtered.length === 0}
-                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50"
-                                >
-                                        <Megaphone className="h-4 w-4" />
-                                        {locale === 'fa'
-                                                ? selected.size > 0 ? `پیام به ${selected.size.toLocaleString('fa-IR')} انتخاب` : 'پیام به فیلتر فعلی'
-                                                : selected.size > 0 ? `Message ${selected.size} selected` : 'Message filtered audience'}
-                                </button>
                                 <div className="flex items-center gap-1 rounded-xl border border-[var(--border-default)] p-1">
                                         <ToggleBtn
                                                 active={view === 'list'}
@@ -212,9 +221,6 @@ export function ContactsView({
           across stages within the loaded page and a search hides the controls. */}
                         {footer && view === 'list' && !query ? footer : null}
 
-                        {campaignOpen && (
-                                <CampaignComposer audience={campaignAudience} locale={locale} onClose={() => setCampaignOpen(false)} />
-                        )}
                 </div>
         )
 }

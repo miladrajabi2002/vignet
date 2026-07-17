@@ -1,4 +1,4 @@
-import type { ChannelType } from '@prisma/client'
+import type { ChannelType, Prisma } from '@prisma/client'
 import type { PromptConfig } from '@/lib/ai/prompt-builder'
 
 /**
@@ -38,4 +38,6 @@ export interface StartChatParams {
         contactName?: string | null
         /** Customer phone, e.g. from the widget's pre-chat lead form. */
         contactPhone?: string | null
+        /** Channel-native origin (DM/comment/story/reaction) persisted on the USER message. */
+        inboundMetadata?: Prisma.InputJsonValue
 }
