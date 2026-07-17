@@ -258,7 +258,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					? { duration: 0 }
 					: { duration: 0.58, delay: 0.08, ease: [0.16, 1, 0.3, 1] }
 			}
-			className="relative mx-auto w-full max-w-[760px]"
+			className="relative mx-auto w-full max-w-[780px]"
 			role="region"
 			aria-label={copy.stageAria}
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
@@ -296,12 +296,12 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					</span>
 				</header>
 
-				<div className="relative px-3.5 pt-4 sm:px-5">
+				<div className="relative px-3.5 pt-3.5 sm:px-5">
 					<p className="mb-2 whitespace-nowrap text-[8px] font-medium text-white/[0.38] sm:text-[9px]">
 						{copy.verticalLabel}
 					</p>
 
-					<div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+					<div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
 						{copy.scenes.map((business, index) => {
 							const Icon = BUSINESS_ICONS[index]
 							const active = index === activeIndex
@@ -313,7 +313,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									aria-label={business.name}
 									aria-pressed={active}
 									onClick={() => setActiveIndex(index)}
-									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2.5 ${
+									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2 ${
 										active
 											? 'border-white/35 text-black'
 											: 'border-white/10 bg-white/[0.045] text-white/[0.48] hover:bg-white/[0.07] hover:text-white/70'
@@ -328,7 +328,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									) : null}
 
 									<span
-										className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors sm:h-8 sm:w-8 ${
+										className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg transition-colors sm:h-[30px] sm:w-[30px] ${
 											active
 												? 'bg-black text-white'
 												: 'bg-white/[0.06] text-white/[0.55] group-hover:text-white/75'

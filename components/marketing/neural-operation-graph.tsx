@@ -11,7 +11,6 @@ import {
 	Globe2,
 	MessageCircleMore,
 	PackageSearch,
-	Send,
 	ShieldCheck,
 	Sparkles,
 	UsersRound,
@@ -214,7 +213,7 @@ function MessageCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="rounded-[1.45rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-3 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
+			className="flex h-[248px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
 		>
 			<div className="flex items-center justify-between gap-2 px-0.5">
 				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-medium text-white/[0.55]">
@@ -224,7 +223,7 @@ function MessageCard({
 				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]" />
 			</div>
 
-			<div className="mt-3 space-y-2">
+			<div className="mt-2.5 flex-1 space-y-1.5">
 				<AnimatePresence mode="wait" initial={false}>
 					<motion.div
 						key={`${activeIndex}-${scenario.person}`}
@@ -235,7 +234,7 @@ function MessageCard({
 							duration: reduce ? 0 : 0.3,
 							ease: [0.23, 1, 0.32, 1],
 						}}
-						className="rounded-[1.1rem] border border-white/[0.14] bg-white/[0.065] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+						className="h-[88px] rounded-[1.05rem] border border-white/[0.14] bg-white/[0.065] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
 					>
 						<div className="flex items-center gap-2.5">
 							<MainChannelBadge activeIndex={activeIndex} />
@@ -250,7 +249,7 @@ function MessageCard({
 							</div>
 						</div>
 
-						<p className="mt-3 text-[10px] font-medium leading-[1.75] text-white/[0.82]">
+						<p className="mt-2.5 line-clamp-2 text-[9.5px] font-medium leading-[1.7] text-white/[0.82]">
 							{scenario.text}
 						</p>
 					</motion.div>
@@ -259,7 +258,7 @@ function MessageCard({
 				{secondaryMessages.map((message) => (
 					<div
 						key={message.channel}
-						className="flex items-center gap-2.5 rounded-xl border border-white/[0.085] bg-white/[0.028] px-2.5 py-2"
+						className="flex h-[36px] items-center gap-2 rounded-xl border border-white/[0.085] bg-white/[0.028] px-2.5 py-1.5"
 					>
 						<SecondaryChannelBadge kind={message.kind} />
 						<div className="min-w-0 flex-1">
@@ -279,7 +278,7 @@ function MessageCard({
 				))}
 			</div>
 
-			<div className="mt-2.5 flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-[8px] text-white/[0.55]">
+			<div className="mt-2 flex h-[28px] items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-[8px] text-white/[0.55]">
 				<span>{labels.viewAll}</span>
 				<Arrow className="h-3.5 w-3.5" />
 			</div>
@@ -305,7 +304,7 @@ function ResultCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="rounded-[1.55rem] bg-white p-4 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
+			className="flex h-[246px] flex-col rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
 		>
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-2.5">
@@ -331,22 +330,22 @@ function ResultCard({
 						ease: [0.23, 1, 0.32, 1],
 					}}
 				>
-					<p className="mt-3 min-h-[52px] text-[10px] leading-[1.95] text-black/[0.68] sm:text-[11px]">
+					<p className="mt-2.5 h-[50px] overflow-hidden text-[9.5px] leading-[1.85] text-black/[0.68] sm:text-[10px]">
 						{scenario.reply}
 					</p>
 
-					<div className="mt-3 grid grid-cols-2 gap-2">
+					<div className={`mt-2.5 grid h-[34px] gap-1.5 ${scenario.quickActions.length > 2 ? 'grid-cols-4' : 'grid-cols-2'}`}>
 						{scenario.quickActions.slice(0, 4).map((action) => (
 							<span
 								key={action}
-								className="truncate rounded-xl border border-black/[0.08] bg-black/[0.025] px-2 py-2 text-center text-[7.5px] font-medium text-black/[0.54]"
+								className="flex h-[34px] items-center justify-center truncate rounded-lg border border-black/[0.08] bg-black/[0.025] px-1.5 text-center text-[7px] font-medium text-black/[0.54]"
 							>
 								{action}
 							</span>
 						))}
 					</div>
 
-					<div className="mt-3 rounded-xl border border-black/[0.07] bg-black/[0.025] px-3 py-2.5">
+					<div className="mt-2.5 rounded-xl border border-black/[0.07] bg-black/[0.025] px-2.5 py-2">
 						<div className="flex items-center justify-between gap-2 text-[7px] text-black/[0.42]">
 							<span className="flex min-w-0 items-center gap-1.5">
 								<PackageSearch className="h-3.5 w-3.5 shrink-0" />
@@ -399,19 +398,19 @@ function Core({
 						}
 			}
 			transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
-			className="relative grid h-[126px] w-[126px] place-items-center rounded-[2rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
+			className="relative grid h-[112px] w-[112px] place-items-center rounded-[1.8rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
 		>
-			<span aria-hidden className="absolute inset-2 rounded-[1.5rem] border border-white/10" />
-			<span aria-hidden className="absolute -inset-2 -z-10 rounded-[2.3rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]" />
+			<span aria-hidden className="absolute inset-2 rounded-[1.35rem] border border-white/10" />
+			<span aria-hidden className="absolute -inset-2 -z-10 rounded-[2.05rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]" />
 
 			<div className="relative">
-				<span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]">
+				<span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]">
 					<Sparkles className="h-[18px] w-[18px]" />
 				</span>
-				<p className="mt-2.5 whitespace-nowrap text-[12px] font-semibold text-white">
+				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">
 					{core}
 				</p>
-				<p className="mt-0.5 max-w-[96px] truncate text-[7.5px] text-white/[0.36]">
+				<p className="mt-0.5 max-w-[84px] truncate text-[7.5px] text-white/[0.36]">
 					{coreHint}
 				</p>
 			</div>
@@ -449,20 +448,27 @@ function NetworkNode({
 	)
 }
 
-function FlowTag({
+function NetworkLabel({
 	icon,
 	children,
 	className,
+	direction = 'right',
 }: {
 	icon: ReactNode
 	children: ReactNode
 	className: string
+	direction?: 'left' | 'right'
 }) {
 	return (
 		<div
 			aria-hidden
-			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.82] px-2 py-1 text-[7px] text-white/[0.46] backdrop-blur ${className}`}
+			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] backdrop-blur ${className}`}
 		>
+			{direction === 'right' ? (
+				<span className="absolute left-full top-1/2 h-px w-3 -translate-y-1/2 border-t border-dashed border-emerald-300/35" />
+			) : (
+				<span className="absolute right-full top-1/2 h-px w-3 -translate-y-1/2 border-t border-dashed border-emerald-300/35" />
+			)}
 			{icon}
 			{children}
 		</div>
@@ -471,10 +477,14 @@ function FlowTag({
 
 function CrmChip({ locale }: { locale: 'fa' | 'en' }) {
 	return (
-		<div className="mt-2.5 inline-flex items-center gap-1.5 self-start rounded-full border border-white/[0.14] bg-black/75 px-2.5 py-1.5 text-[8px] text-white/[0.58] backdrop-blur">
-			<UsersRound className="h-3.5 w-3.5" />
-			{LABELS[locale].crm}
-			<span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+		<div className="relative mt-4 inline-flex self-start">
+			<span aria-hidden className="absolute -top-4 left-1/2 h-4 -translate-x-1/2 border-l border-dashed border-emerald-300/35" />
+			<span aria-hidden className="absolute -top-[3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+			<div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-black/80 px-2.5 py-1.5 text-[8px] text-white/[0.62] backdrop-blur">
+				<UsersRound className="h-3.5 w-3.5" />
+				{LABELS[locale].crm}
+				<span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+			</div>
 		</div>
 	)
 }
@@ -491,16 +501,16 @@ function DesktopOperationFlow({
 }: NeuralOperationGraphProps) {
 	const labels = LABELS[locale]
 
-	const inUpper = 'M 248 140 C 270 140 272 95 300 95 C 320 95 324 120 331 132'
-	const inLower = 'M 248 190 C 270 190 272 220 300 220 C 320 220 324 195 331 182'
-	const outUpper = 'M 429 132 C 436 120 440 95 460 95 C 488 95 490 140 512 140'
-	const outLower = 'M 429 182 C 436 195 440 220 460 220 C 488 220 490 190 512 190'
+	const inUpper = 'M 218 156 C 240 156 244 103 276 103 C 302 103 309 127 324 137'
+	const inLower = 'M 218 184 C 240 184 244 229 276 229 C 302 229 309 205 324 195'
+	const outUpper = 'M 436 137 C 451 127 458 103 484 103 C 516 103 520 156 542 156'
+	const outLower = 'M 436 195 C 451 205 458 229 484 229 C 516 229 520 184 542 184'
 
 	return (
-		<div dir="ltr" className="relative hidden h-[330px] overflow-hidden sm:block">
+		<div dir="ltr" className="relative hidden h-[312px] overflow-hidden sm:block">
 			<svg
 				aria-hidden
-				viewBox="0 0 760 330"
+				viewBox="0 0 780 312"
 				preserveAspectRatio="xMidYMid meet"
 				className="absolute inset-0 h-full w-full"
 			>
@@ -512,28 +522,28 @@ function DesktopOperationFlow({
 						d={path}
 						fill="none"
 						stroke="url(#vigent-desktop-flow-line)"
-						strokeWidth="1.2"
-						strokeDasharray="4 7"
+						strokeWidth="1.15"
+						strokeDasharray="4 8"
 						strokeLinecap="round"
 					/>
 				))}
 
-				<NetworkNode cx={300} cy={95} />
-				<NetworkNode cx={300} cy={220} />
-				<NetworkNode cx={460} cy={95} />
-				<NetworkNode cx={460} cy={220} />
+				<NetworkNode cx={276} cy={103} />
+				<NetworkNode cx={276} cy={229} />
+				<NetworkNode cx={484} cy={103} />
+				<NetworkNode cx={484} cy={229} />
 
 				{!reduce ? (
 					<>
 						<SignalParticle path={inUpper} delay={0} filterId="vigent-desktop-flow" />
-						<SignalParticle path={inLower} delay={0.9} filterId="vigent-desktop-flow" />
-						<SignalParticle path={outUpper} delay={1.45} filterId="vigent-desktop-flow" />
-						<SignalParticle path={outLower} delay={2.3} filterId="vigent-desktop-flow" />
+						<SignalParticle path={inLower} delay={0.82} filterId="vigent-desktop-flow" />
+						<SignalParticle path={outUpper} delay={1.5} filterId="vigent-desktop-flow" />
+						<SignalParticle path={outLower} delay={2.28} filterId="vigent-desktop-flow" />
 					</>
 				) : null}
 			</svg>
 
-			<div className="absolute start-5 top-1/2 z-10 w-[228px] -translate-y-1/2">
+			<div className="absolute start-4 top-1/2 z-10 w-[202px] -translate-y-1/2">
 				<MessageCard
 					locale={locale}
 					scenario={scenario}
@@ -547,7 +557,7 @@ function DesktopOperationFlow({
 				<Core core={core} coreHint={coreHint} reduce={reduce} />
 			</div>
 
-			<div className="absolute end-5 top-1/2 z-10 flex w-[228px] -translate-y-1/2 flex-col">
+			<div className="absolute end-4 top-1/2 z-10 flex w-[218px] -translate-y-1/2 flex-col">
 				<ResultCard
 					locale={locale}
 					scenario={scenario}
@@ -558,33 +568,19 @@ function DesktopOperationFlow({
 				<CrmChip locale={locale} />
 			</div>
 
-			<FlowTag
+			<NetworkLabel
 				icon={<Database className="h-2.5 w-2.5" />}
-				className="left-[34.2%] top-[14%] -translate-x-1/2"
+				className="left-[33.1%] top-[30%] -translate-x-full"
 			>
 				{labels.knowledge}
-			</FlowTag>
+			</NetworkLabel>
 
-			<FlowTag
+			<NetworkLabel
 				icon={<ShieldCheck className="h-2.5 w-2.5" />}
-				className="left-[34.2%] bottom-[14%] -translate-x-1/2"
+				className="left-[33.1%] bottom-[22%] -translate-x-full"
 			>
 				{labels.rules}
-			</FlowTag>
-
-			<FlowTag
-				icon={<Send className="h-2.5 w-2.5" />}
-				className="right-[31.5%] top-[43%] translate-x-1/2"
-			>
-				{labels.outgoing}
-			</FlowTag>
-
-			<FlowTag
-				icon={<MessageCircleMore className="h-2.5 w-2.5" />}
-				className="left-[31.5%] top-[43%] -translate-x-1/2"
-			>
-				{labels.incoming}
-			</FlowTag>
+			</NetworkLabel>
 		</div>
 	)
 }
@@ -600,10 +596,10 @@ function MobileOperationFlow({
 	sharedBrain,
 }: NeuralOperationGraphProps) {
 	const labels = LABELS[locale]
-	const incomingPath = 'M 160 0 C 160 24 160 38 160 54'
-	const outgoingPath = 'M 160 186 C 160 206 160 224 160 248'
-	const knowledgePath = 'M 76 104 C 105 104 116 113 136 124'
-	const rulesPath = 'M 244 104 C 215 104 204 113 184 124'
+	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
+	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
+	const knowledgePath = 'M 80 96 C 108 96 118 106 138 116'
+	const rulesPath = 'M 240 96 C 212 96 202 106 182 116'
 
 	return (
 		<div className="relative px-3 pb-5 pt-5 sm:hidden">
@@ -615,10 +611,10 @@ function MobileOperationFlow({
 				reduce={reduce}
 			/>
 
-			<div dir="ltr" className="relative mx-auto h-[250px] w-full max-w-[360px]">
+			<div dir="ltr" className="relative mx-auto h-[232px] w-full max-w-[340px]">
 				<svg
 					aria-hidden
-					viewBox="0 0 320 250"
+					viewBox="0 0 320 232"
 					preserveAspectRatio="xMidYMid meet"
 					className="absolute inset-0 h-full w-full"
 				>
@@ -636,10 +632,10 @@ function MobileOperationFlow({
 						/>
 					))}
 
-					<NetworkNode cx={160} cy={38} />
-					<NetworkNode cx={160} cy={214} />
-					<NetworkNode cx={92} cy={104} />
-					<NetworkNode cx={228} cy={104} />
+					<NetworkNode cx={160} cy={32} />
+					<NetworkNode cx={160} cy={204} />
+					<NetworkNode cx={94} cy={96} />
+					<NetworkNode cx={226} cy={96} />
 
 					{!reduce ? (
 						<>
@@ -655,33 +651,20 @@ function MobileOperationFlow({
 					<Core core={core} coreHint={coreHint} reduce={reduce} />
 				</div>
 
-				<FlowTag
+				<NetworkLabel
 					icon={<Database className="h-2.5 w-2.5" />}
-					className="left-[6%] top-[29%]"
+					className="left-[17%] top-[37%]"
 				>
 					{labels.knowledge}
-				</FlowTag>
+				</NetworkLabel>
 
-				<FlowTag
+				<NetworkLabel
 					icon={<ShieldCheck className="h-2.5 w-2.5" />}
-					className="right-[6%] top-[29%]"
+					className="right-[17%] top-[37%]"
+					direction="left"
 				>
 					{labels.rules}
-				</FlowTag>
-
-				<FlowTag
-					icon={<MessageCircleMore className="h-2.5 w-2.5" />}
-					className="left-1/2 top-[4%] -translate-x-1/2"
-				>
-					{labels.incoming}
-				</FlowTag>
-
-				<FlowTag
-					icon={<Send className="h-2.5 w-2.5" />}
-					className="bottom-[4%] left-1/2 -translate-x-1/2"
-				>
-					{labels.outgoing}
-				</FlowTag>
+				</NetworkLabel>
 			</div>
 
 			<div className="flex flex-col">
