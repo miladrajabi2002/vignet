@@ -1,16 +1,16 @@
 # Graph Report - vignet  (2026-07-17)
 
 ## Corpus Check
-- 529 files · ~399,863 words
+- 529 files · ~399,891 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3140 nodes · 7317 edges · 194 communities (175 shown, 19 thin omitted)
+- 3140 nodes · 7317 edges · 195 communities (176 shown, 19 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.67)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `947ae642`
+- Built from commit: `6b0e6341`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -134,6 +134,7 @@
 - recharts
 - Design Engineering
 - UI/UX Pro Max - Design Intelligence
+- route.ts
 - test-playground.tsx
 - page.tsx
 - system-monitor.tsx
@@ -222,7 +223,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (194 total, 19 thin omitted)
+## Communities (195 total, 19 thin omitted)
 
 ### Community 0 - "automation.ts"
 Cohesion: 0.11
@@ -489,8 +490,8 @@ Cohesion: 0.21
 Nodes (15): bodySchema, Params, POST(), campaignDeliveryText(), CampaignJobData, processCampaign(), processRecipient(), SEND_INTERVAL_MS (+7 more)
 
 ### Community 66 - "contacts-view.tsx"
-Cohesion: 0.11
-Nodes (28): DELETE(), Params, PATCH(), settingsSchema, bodySchema, GET(), ownAgent(), Params (+20 more)
+Cohesion: 0.13
+Nodes (23): DELETE(), Params, PATCH(), settingsSchema, DELETE(), Params, GET(), POST() (+15 more)
 
 ### Community 67 - "chat-orchestrator.ts"
 Cohesion: 0.07
@@ -675,6 +676,10 @@ Nodes (8): Accessibility, Design Engineering, Initial Response, prefers-reduced-
 ### Community 118 - "UI/UX Pro Max - Design Intelligence"
 Cohesion: 0.22
 Nodes (8): Available Domains, Available Stacks, How to Use, Output Formats, Prerequisites, Rule Categories by Priority, Search Reference, UI/UX Pro Max - Design Intelligence
+
+### Community 119 - "route.ts"
+Cohesion: 0.47
+Nodes (5): bodySchema, GET(), ownAgent(), Params, POST()
 
 ### Community 121 - "test-playground.tsx"
 Cohesion: 0.47
@@ -874,7 +879,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `cn` to `ui.tsx`, `layout.tsx`, `rateLimit`, `page.tsx`, `captureError`, `webhook.ts`, `page.tsx`, `page.tsx`, `commercial-config.ts`, `rateLimit`, `popular-posts.tsx`, `trend-chart.tsx`, `material-select.tsx`, `social-links.tsx`, `agent.ts`, `low-credit-alert.ts`, `validation.ts`, `appointments-workspace.tsx`, `types.ts`, `helpers.ts`, `instagram.ts`, `page.tsx`, `scheduler.ts`, `lucide-react`, `checkWorkspaceActive`, `page.tsx`, `isAdminAuthed`, `product.ts`, `entitlements.ts`, `navbar.tsx`, `automation-card.tsx`, `openrouter.ts`, `page.tsx`?**
   _High betweenness centrality (0.086) - this node is a cross-community bridge._
-- **Why does `getCurrentUser()` connect `prisma.ts` to `loader.js`, `qr-config.ts`, `page.tsx`, `models.ts`, `route.ts`, `registry.ts`, `route.ts`, `ippanel.ts`, `woocommerce.ts`, `route.ts`, `oauth.ts`, `route.ts`, `route.ts`, `jobs.ts`, `config.ts`, `route.ts`, `iphone-preview.tsx`, `route.ts`, `contacts-view.tsx`, `chat-orchestrator.ts`, `conversation-thread.tsx`, `getEffectivePlanDefs`, `getEffectivePlanDefs`, `isAdminAuthed`, `route.ts`, `route.ts`, `entitlements.ts`, `route.ts`, `page-header.tsx`, `route.ts`, `test-playground.tsx`, `page.tsx`, `system-monitor.tsx`?**
+- **Why does `getCurrentUser()` connect `prisma.ts` to `loader.js`, `qr-config.ts`, `page.tsx`, `models.ts`, `route.ts`, `registry.ts`, `route.ts`, `ippanel.ts`, `woocommerce.ts`, `route.ts`, `oauth.ts`, `route.ts`, `route.ts`, `jobs.ts`, `config.ts`, `route.ts`, `iphone-preview.tsx`, `route.ts`, `contacts-view.tsx`, `chat-orchestrator.ts`, `conversation-thread.tsx`, `getEffectivePlanDefs`, `getEffectivePlanDefs`, `isAdminAuthed`, `route.ts`, `route.ts`, `entitlements.ts`, `route.ts`, `page-header.tsx`, `route.ts`, `route.ts`, `test-playground.tsx`, `page.tsx`, `system-monitor.tsx`?**
   _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Why does `t()` connect `loader.js` to `appointments-workspace.tsx`?**
   _High betweenness centrality (0.036) - this node is a cross-community bridge._

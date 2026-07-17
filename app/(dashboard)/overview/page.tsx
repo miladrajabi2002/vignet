@@ -557,23 +557,25 @@ function AttentionItem({
   urgent: boolean
   locale: 'fa' | 'en'
 }) {
-  const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
   return (
     <Link href={href} className={cn(
-      'group flex min-h-[4.5rem] items-center gap-3 rounded-xl border px-3.5 transition-[border-color,background-color,transform] hover:-translate-y-0.5',
+      'group grid min-h-[4.5rem] grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5 rounded-xl border px-3 transition-[border-color,background-color,transform] hover:-translate-y-0.5',
       urgent ? 'border-amber-200 bg-amber-50/75' : 'border-[var(--border-default)] bg-[var(--bg-surface)]',
     )}>
-      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)]')}>
+      <span className={cn('grid h-8 w-8 place-items-center rounded-[0.65rem]', urgent ? 'bg-amber-100 text-amber-700' : 'bg-white text-[var(--text-secondary)]')}>
         <Icon className="h-4 w-4" />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
-          <span className="tabular-nums">{value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}</span>
+      <span className="block min-w-0">
+        <span className="line-clamp-2 text-[11px] font-semibold leading-4 text-[var(--text-primary)]">
           {label}
         </span>
-        <span className="mt-1 block truncate text-[11px] text-[var(--text-muted)]">{hint}</span>
+        <span className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
+          <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--text-primary)]">
+            {value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')}
+          </span>
+          <span className="min-w-0 truncate text-[10px] text-[var(--text-muted)]" title={hint}>{hint}</span>
+        </span>
       </span>
-      <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
     </Link>
   )
 }

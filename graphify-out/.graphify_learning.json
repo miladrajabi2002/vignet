@@ -1,5 +1,54 @@
 {
-  "generated_at": "2026-07-17T14:00:58.383239+00:00",
-  "nodes": {},
+  "generated_at": "2026-07-17T14:29:18.763076+00:00",
+  "nodes": {
+    "app_dashboard_conversations_page_conversationspage": {
+      "code_fingerprint": "f8dbc787dcd53226f021b31eca390f4a9aa7a0e48a65b11a8f48419bed5c2ab3",
+      "label": "ConversationsPage()",
+      "last": "2026-07-17T14:05:20.455421+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-17T14:05:20.455421+00:00",
+          "outcome": "useful",
+          "q": "Fix the send-message modal layering in customers and conversations"
+        }
+      ],
+      "score": 0.999615445,
+      "source_file": "app/(dashboard)/conversations/page.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_crm_campaign_composer": {
+      "code_fingerprint": "d933d732199a94415ea26f415a44a4629959653ef3bc3fc4052abaac75c320af",
+      "label": "campaign-composer.tsx",
+      "last": "2026-07-17T14:05:20.455421+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-17T14:05:20.455421+00:00",
+          "outcome": "useful",
+          "q": "Fix the send-message modal layering in customers and conversations"
+        }
+      ],
+      "score": 0.999615445,
+      "source_file": "components/crm/campaign-composer.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_crm_contacts_view": {
+      "code_fingerprint": "87472f4cbf2c2c178c2f47352b83f725929be595eca9e6f2c62d7cacd69e3c20",
+      "label": "contacts-view.tsx",
+      "last": "2026-07-17T14:05:20.455421+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-17T14:05:20.455421+00:00",
+          "outcome": "useful",
+          "q": "Fix the send-message modal layering in customers and conversations"
+        }
+      ],
+      "score": 0.999615445,
+      "source_file": "components/crm/contacts-view.tsx",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
   "version": 1
 }

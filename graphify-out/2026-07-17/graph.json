@@ -4520,8 +4520,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "route.ts"
     },
     {
@@ -4531,8 +4531,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route_params",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "params"
     },
     {
@@ -4542,8 +4542,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route_bodyschema",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "bodyschema"
     },
     {
@@ -4553,8 +4553,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route_ownagent",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "ownagent()"
     },
     {
@@ -4564,8 +4564,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route_get",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "get()"
     },
     {
@@ -4575,8 +4575,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_route_post",
-      "community": 66,
-      "community_name": "contacts-view.tsx",
+      "community": 119,
+      "community_name": "route.ts",
       "norm_label": "post()"
     },
     {
@@ -11139,7 +11139,7 @@
       "label": "Preview",
       "file_type": "code",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "_origin": "ast",
       "id": "components_crm_campaign_composer_preview",
       "community": 56,
@@ -11150,7 +11150,7 @@
       "label": "DraftCampaign",
       "file_type": "code",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L25",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "components_crm_campaign_composer_draftcampaign",
       "community": 56,
@@ -11161,7 +11161,7 @@
       "label": "CampaignComposer()",
       "file_type": "code",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L32",
+      "source_location": "L33",
       "_origin": "ast",
       "id": "components_crm_campaign_composer_campaigncomposer",
       "community": 56,
@@ -11172,7 +11172,7 @@
       "label": "AudienceStat()",
       "file_type": "code",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L206",
+      "source_location": "L217",
       "_origin": "ast",
       "id": "components_crm_campaign_composer_audiencestat",
       "community": 56,
@@ -75266,7 +75266,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L206",
+      "source_location": "L217",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -75277,7 +75277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L32",
+      "source_location": "L33",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -75288,7 +75288,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -75299,7 +75299,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -75311,7 +75311,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -75323,7 +75323,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "components/crm/campaign-composer.tsx",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "_origin": "ast",
       "source": "components_crm_campaign_composer",
@@ -119869,5 +119869,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "947ae64222ecc398e587657f63367004505518f9"
+  "built_at_commit": "6b0e6341d1650856ca4295187fd4ae90e3f2fe2d"
 }
