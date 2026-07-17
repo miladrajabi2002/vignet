@@ -46,6 +46,80 @@ const POSITIONS = [
   { x: 80, y: 82 },
 ] as const
 
+type FlowParticleProps = {
+  path: string
+  delay: number
+  duration: number
+}
+
+function FlowParticle({ path, delay, duration }: FlowParticleProps) {
+  const begin = `${delay}s`
+  const cycle = `${duration}s`
+
+  return (
+    <>
+      <path
+        d={path}
+        pathLength="100"
+        fill="none"
+        stroke="#34d399"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray="0.18 99.82"
+        strokeDashoffset="0"
+        vectorEffect="non-scaling-stroke"
+        opacity="0"
+        style={{ filter: 'blur(1.4px)' }}
+      >
+        <animate
+          attributeName="stroke-dashoffset"
+          values="0;-100"
+          dur={cycle}
+          begin={begin}
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          values="0;.28;.14;.3;0"
+          keyTimes="0;.09;.5;.91;1"
+          dur={cycle}
+          begin={begin}
+          repeatCount="indefinite"
+        />
+      </path>
+      <path
+        d={path}
+        pathLength="100"
+        fill="none"
+        stroke="#6ee7b7"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeDasharray="0.18 99.82"
+        strokeDashoffset="0"
+        vectorEffect="non-scaling-stroke"
+        opacity="0"
+        style={{ filter: 'drop-shadow(0 0 2px rgba(52, 211, 153, .72))' }}
+      >
+        <animate
+          attributeName="stroke-dashoffset"
+          values="0;-100"
+          dur={cycle}
+          begin={begin}
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          values="0;.95;.76;1;0"
+          keyTimes="0;.09;.5;.91;1"
+          dur={cycle}
+          begin={begin}
+          repeatCount="indefinite"
+        />
+      </path>
+    </>
+  )
+}
+
 export function IntelligenceCore({
   locale,
   businessName,
@@ -101,10 +175,16 @@ export function IntelligenceCore({
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
           {nodeKeys.map((key, index) => {
             const point = POSITIONS[index]
+            const controlX = (point.x + 50) / 2
+            const controlY = (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)
+            const inwardPath = `M ${point.x} ${point.y} Q ${controlX} ${controlY} 50 50`
+            const outwardPath = `M 50 50 Q ${controlX} ${controlY} ${point.x} ${point.y}`
+            const inwardDuration = 4.1 + (index % 3) * 0.45
+            const inwardDelay = 0.35 + index * 0.31
             return (
               <g key={key}>
                 <motion.path
-                  d={`M ${point.x} ${point.y} Q ${(point.x + 50) / 2} ${(point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4)} 50 50`}
+                  d={inwardPath}
                   fill="none"
                   stroke="rgba(255,255,255,.22)"
                   strokeWidth="0.55"
@@ -115,17 +195,16 @@ export function IntelligenceCore({
                   transition={{ duration: 0.45, delay: 0.05 + index * 0.045, ease: [0.23, 1, 0.32, 1] }}
                 />
                 {!reduce && (
-                  <motion.circle
-                    r="0.9"
-                    fill="white"
-                    initial={{ cx: point.x, cy: point.y, opacity: 0 }}
-                    animate={{
-                      cx: [point.x, (point.x + 50) / 2, 50],
-                      cy: [point.y, (point.y + 50) / 2 + (index % 2 === 0 ? -4 : 4), 50],
-                      opacity: [0, 0.95, 0],
-                    }}
-                    transition={{ duration: 2, delay: 0.2 + index * 0.24, repeat: Infinity, repeatDelay: 0.45, ease: 'easeInOut' }}
-                  />
+                  <>
+                    <FlowParticle path={inwardPath} delay={inwardDelay} duration={inwardDuration} />
+                    {index % 2 === 1 && (
+                      <FlowParticle
+                        path={outwardPath}
+                        delay={1.25 + index * 0.37}
+                        duration={4.8 + (index % 3) * 0.38}
+                      />
+                    )}
+                  </>
                 )}
               </g>
             )
@@ -142,6 +221,21 @@ export function IntelligenceCore({
               style={{ left: `${point.x}%`, top: `${point.y}%` }}
               className="absolute -translate-x-1/2 -translate-y-1/2"
             >
+              {!reduce && (
+                <motion.span
+                  aria-hidden
+                  className="absolute -inset-1 rounded-2xl bg-emerald-400/20 blur-md"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: [0, 0.16, 0], scale: [0.96, 1.04, 1.08] }}
+                  transition={{
+                    duration: 0.8,
+                    delay: 0.35 + index * 0.31,
+                    repeat: Infinity,
+                    repeatDelay: 3.3 + (index % 3) * 0.45,
+                    ease: [0.23, 1, 0.32, 1],
+                  }}
+                />
+              )}
               <motion.div
                 initial={reduce ? false : { opacity: 0, scale: 0.94 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -161,15 +255,15 @@ export function IntelligenceCore({
             <>
               <motion.span
                 aria-hidden
-                className="absolute h-36 w-36 rounded-full border border-white/10 sm:h-44 sm:w-44"
-                animate={{ scale: [0.88, 1.15], opacity: [0, 0.28, 0] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
+                className="absolute h-36 w-36 rounded-full border border-emerald-300/15 shadow-[0_0_28px_rgba(52,211,153,.08)] sm:h-44 sm:w-44"
+                animate={{ scale: [0.9, 1.13], opacity: [0, 0.2, 0] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeOut' }}
               />
               <motion.span
                 aria-hidden
-                className="absolute h-36 w-36 rounded-full border border-white/10 sm:h-44 sm:w-44"
-                animate={{ scale: [0.88, 1.15], opacity: [0, 0.2, 0] }}
-                transition={{ duration: 2.4, delay: 1.2, repeat: Infinity, ease: 'easeOut' }}
+                className="absolute h-36 w-36 rounded-full border border-emerald-300/10 shadow-[0_0_24px_rgba(52,211,153,.06)] sm:h-44 sm:w-44"
+                animate={{ scale: [0.9, 1.13], opacity: [0, 0.14, 0] }}
+                transition={{ duration: 2.8, delay: 1.4, repeat: Infinity, ease: 'easeOut' }}
               />
             </>
           )}
