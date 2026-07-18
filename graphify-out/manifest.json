@@ -105,18 +105,18 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/contacts/page.tsx": {
-    "mtime": 1784291430.428957,
-    "ast_hash": "7364a5d25c1a513d042f9b6a1123a72f",
+    "mtime": 1784371487.3512404,
+    "ast_hash": "5de1618bfb49c655b2811d2e330eec25",
     "semantic_hash": ""
   },
   "app/(dashboard)/conversations/[conversationId]/page.tsx": {
-    "mtime": 1784298072.513523,
-    "ast_hash": "6eec58f879610bd946ef96ff63360370",
+    "mtime": 1784371947.7466905,
+    "ast_hash": "34e207b41422e4149e740206aca07349",
     "semantic_hash": ""
   },
   "app/(dashboard)/conversations/page.tsx": {
-    "mtime": 1784291079.4985926,
-    "ast_hash": "d0ceb8b16f888d07a3a098d26b557203",
+    "mtime": 1784371357.8880796,
+    "ast_hash": "5efa68cc31c3dce1a794e4d1d41f6860",
     "semantic_hash": ""
   },
   "app/(dashboard)/error.tsx": {
@@ -680,8 +680,8 @@
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/messages/route.ts": {
-    "mtime": 1784064630.3178792,
-    "ast_hash": "368ff3d9b300d8b6539f7a4dc998d202",
+    "mtime": 1784371651.7033448,
+    "ast_hash": "c398c53d6aea5db97d642e3dd6fa8a9c",
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/reply/route.ts": {
@@ -1115,8 +1115,8 @@
     "semantic_hash": ""
   },
   "components/crm/contacts-view.tsx": {
-    "mtime": 1784291430.4279532,
-    "ast_hash": "89794f26fb58a790a89939e2c95f5bf9",
+    "mtime": 1784371478.6529264,
+    "ast_hash": "229ad4e85d94b07145d152fe6d8e9a3f",
     "semantic_hash": ""
   },
   "components/crm/conversation-actions.tsx": {
@@ -1135,8 +1135,8 @@
     "semantic_hash": ""
   },
   "components/crm/conversation-thread.tsx": {
-    "mtime": 1784291050.5568318,
-    "ast_hash": "e1ce26e7aa8df0b7111c8cc32c3e5c75",
+    "mtime": 1784371960.3972776,
+    "ast_hash": "8196b018ec596762cae5c4f4086b2fd9",
     "semantic_hash": ""
   },
   "components/crm/operator-channel-setup.tsx": {
@@ -1210,8 +1210,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/intelligence-core.tsx": {
-    "mtime": 1784370305.7502985,
-    "ast_hash": "9890da9637cb9076fa270d66eee36e27",
+    "mtime": 1784372541.7191985,
+    "ast_hash": "d58e569e27c3a982117347c3b8c48a4e",
     "semantic_hash": ""
   },
   "components/dashboard/metrics-explainer.tsx": {
@@ -1370,8 +1370,8 @@
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
-    "mtime": 1784367009.3247788,
-    "ast_hash": "76bdc42cfe4b3395de98563c252b29ec",
+    "mtime": 1784372466.7776804,
+    "ast_hash": "bbd1a36327c44d09a8ab75c3f6f10637",
     "semantic_hash": ""
   },
   "components/marketing/popular-posts.tsx": {
@@ -2697,6 +2697,31 @@
   "graphify-out/memory/query_20260717_144553_\u0627\u0644\u0627\u0646_\u0627\u06cc\u0646_3_\u062a\u0627_\u06a9\u0646\u0627\u0631_\u0647\u0645_\u0647\u0633\u062a\u0646_\u062e\u0628_\u0686\u0631\u0627_\u0632\u06cc\u0631_\u0647\u0645_\u0646\u0645\u06cc\u0632\u0627\u0631\u06cc_\u06cc.md": {
     "mtime": 1784299553.471053,
     "ast_hash": "8335321e0639fb54c64343e3efdccd39",
+    "semantic_hash": ""
+  },
+  "app/api/crm/live/route.ts": {
+    "mtime": 1784372102.7896855,
+    "ast_hash": "442c487bda25c0e87661f04e76f3eda9",
+    "semantic_hash": ""
+  },
+  "components/crm/live-arrivals.tsx": {
+    "mtime": 1784372102.733981,
+    "ast_hash": "ea68bd5b6a7e14fb96a46f43db62c555",
+    "semantic_hash": ""
+  },
+  "components/marketing/neural-network-primitives.tsx": {
+    "mtime": 1784372466.8107412,
+    "ast_hash": "9a9ae9f235d2b7ff361383af8b0786d4",
+    "semantic_hash": ""
+  },
+  "tests/crm-live-updates.test.ts": {
+    "mtime": 1784372102.8549335,
+    "ast_hash": "e0f882c6307aeaa27ce2ec83881e44e8",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260718_102702_\u0645\u06cc\u062e\u0648\u0627\u0645_\u0642\u0633\u0645\u062a_\u0627\u0646\u06cc\u0645\u0634\u0646_vigento_ai___\u0647\u0648\u0634_\u0645\u0635\u0646\u0648\u0639\u06cc_\u0648\u06cc\u062c\u0646\u062a\u0648.md": {
+    "mtime": 1784370422.877899,
+    "ast_hash": "562084f86ff0ee5d34654b6d1c085ed9",
     "semantic_hash": ""
   }
 }

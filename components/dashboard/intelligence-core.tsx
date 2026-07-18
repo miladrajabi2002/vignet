@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
@@ -13,10 +13,18 @@ import {
 	MessagesSquare,
 	Package,
 	Plug,
+	ShieldCheck,
 	Sparkles,
 	Users,
 	type LucideIcon,
 } from 'lucide-react'
+import {
+	NeuralConnectionNode,
+	NeuralConnectionPath,
+	NeuralNetworkDefs,
+	NeuralSignalParticle,
+	NeuralSignalTrace,
+} from '@/components/marketing/neural-network-primitives'
 import type { BusinessTypeValue, DashboardModuleKey } from '@/lib/verticals/registry'
 
 export type IntelligenceCoreProps = {
@@ -39,10 +47,20 @@ type NetworkSize = {
 }
 
 type ConnectionGeometry = {
-	path: string
+	inboundPath: string
+	outboundPath: string
 	start: NetworkPoint
 	end: NetworkPoint
+	junction: NetworkPoint
 	sourceCenter: NetworkPoint
+}
+
+type AuxiliaryKind = 'knowledge' | 'rules'
+
+type AuxiliaryGeometry = {
+	id: AuxiliaryKind
+	labelCenter: NetworkPoint
+	path: string
 }
 
 type ConnectionTiming = {
@@ -51,21 +69,20 @@ type ConnectionTiming = {
 	returnFlow: boolean
 }
 
-const NODE_META: Partial<
-	Record<DashboardModuleKey, { fa: string; en: string; icon: LucideIcon }>
-> = {
-	agents: { fa: 'ایجنت‌ها', en: 'Agents', icon: Bot },
-	products: { fa: 'کاتالوگ', en: 'Catalog', icon: Package },
-	appointments: { fa: 'رزروها', en: 'Bookings', icon: CalendarDays },
-	conversations: {
-		fa: 'گفتگوها',
-		en: 'Conversations',
-		icon: MessagesSquare,
-	},
-	contacts: { fa: 'مشتری‌ها', en: 'Customers', icon: Users },
-	integrations: { fa: 'کانال‌ها', en: 'Channels', icon: Plug },
-	instagram: { fa: 'اینستاگرام', en: 'Instagram', icon: Camera },
-}
+const NODE_META: Partial<Record<DashboardModuleKey, { fa: string; en: string; icon: LucideIcon }>> =
+	{
+		agents: { fa: 'ایجنت‌ها', en: 'Agents', icon: Bot },
+		products: { fa: 'کاتالوگ', en: 'Catalog', icon: Package },
+		appointments: { fa: 'رزروها', en: 'Bookings', icon: CalendarDays },
+		conversations: {
+			fa: 'گفتگوها',
+			en: 'Conversations',
+			icon: MessagesSquare,
+		},
+		contacts: { fa: 'مشتری‌ها', en: 'Customers', icon: Users },
+		integrations: { fa: 'کانال‌ها', en: 'Channels', icon: Plug },
+		instagram: { fa: 'اینستاگرام', en: 'Instagram', icon: Camera },
+	}
 
 const DEFAULT_MODULES: DashboardModuleKey[] = [
 	'agents',
@@ -78,49 +95,49 @@ const DEFAULT_MODULES: DashboardModuleKey[] = [
 
 const DESKTOP_LAYOUTS: Record<number, readonly NetworkPoint[]> = {
 	4: [
-		{ x: 18, y: 25 },
-		{ x: 82, y: 25 },
-		{ x: 18, y: 75 },
-		{ x: 82, y: 75 },
+		{ x: 17, y: 18 },
+		{ x: 83, y: 18 },
+		{ x: 17, y: 82 },
+		{ x: 83, y: 82 },
 	],
 	5: [
-		{ x: 18, y: 19 },
-		{ x: 82, y: 25 },
-		{ x: 14, y: 50 },
-		{ x: 86, y: 63 },
-		{ x: 18, y: 81 },
+		{ x: 17, y: 16 },
+		{ x: 83, y: 22 },
+		{ x: 12, y: 50 },
+		{ x: 88, y: 64 },
+		{ x: 17, y: 84 },
 	],
 	6: [
-		{ x: 18, y: 18 },
-		{ x: 82, y: 18 },
-		{ x: 14, y: 50 },
-		{ x: 86, y: 50 },
-		{ x: 18, y: 82 },
-		{ x: 82, y: 82 },
+		{ x: 17, y: 16 },
+		{ x: 83, y: 16 },
+		{ x: 12, y: 50 },
+		{ x: 88, y: 50 },
+		{ x: 17, y: 84 },
+		{ x: 83, y: 84 },
 	],
 }
 
 const MOBILE_LAYOUTS: Record<number, readonly NetworkPoint[]> = {
 	4: [
-		{ x: 20, y: 23 },
-		{ x: 80, y: 23 },
-		{ x: 20, y: 77 },
-		{ x: 80, y: 77 },
+		{ x: 20, y: 15 },
+		{ x: 80, y: 15 },
+		{ x: 20, y: 85 },
+		{ x: 80, y: 85 },
 	],
 	5: [
-		{ x: 20, y: 17 },
-		{ x: 80, y: 24 },
-		{ x: 15, y: 50 },
-		{ x: 85, y: 63 },
-		{ x: 20, y: 83 },
+		{ x: 20, y: 13 },
+		{ x: 80, y: 20 },
+		{ x: 14, y: 50 },
+		{ x: 86, y: 64 },
+		{ x: 20, y: 87 },
 	],
 	6: [
-		{ x: 20, y: 17 },
-		{ x: 80, y: 17 },
+		{ x: 20, y: 13 },
+		{ x: 80, y: 13 },
 		{ x: 14, y: 50 },
 		{ x: 86, y: 50 },
-		{ x: 20, y: 83 },
-		{ x: 80, y: 83 },
+		{ x: 20, y: 87 },
+		{ x: 80, y: 87 },
 	],
 }
 
@@ -148,6 +165,20 @@ function getCanvasPoint(point: NetworkPoint, size: NetworkSize): NetworkPoint {
 	}
 }
 
+function normalizeVector(vector: NetworkPoint): NetworkPoint {
+	const length = Math.hypot(vector.x, vector.y)
+	if (length === 0) return { x: 0, y: 0 }
+	return { x: vector.x / length, y: vector.y / length }
+}
+
+function distanceBetween(a: NetworkPoint, b: NetworkPoint): number {
+	return Math.hypot(b.x - a.x, b.y - a.y)
+}
+
+function formatPoint(point: NetworkPoint): string {
+	return `${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+}
+
 function getRectangleAttachment(
 	center: NetworkPoint,
 	halfWidth: number,
@@ -167,225 +198,162 @@ function getRectangleAttachment(
 	}
 }
 
-function getConnectionTiming(index: number): ConnectionTiming {
+function getConnectionTiming(index: number, compact: boolean): ConnectionTiming {
 	return {
-		duration: 3.25 + (index % 3) * 0.34,
-		firstDelay: 0.2 + index * 0.3,
+		duration: (compact ? 3.35 : 3.05) + (index % 3) * 0.22,
+		firstDelay: 0.18 + index * 0.42,
 		returnFlow: index % 3 === 1,
+	}
+}
+
+function getCoreRectangle(compact: boolean, canvas: NetworkSize, coreSize: NetworkSize) {
+	return {
+		center: { x: canvas.width / 2, y: canvas.height / 2 },
+		halfWidth: coreSize.width > 0 ? coreSize.width / 2 : compact ? 66 : 82,
+		halfHeight: coreSize.height > 0 ? coreSize.height / 2 : compact ? 75 : 84,
 	}
 }
 
 function getConnectionGeometry(
 	point: NetworkPoint,
+	index: number,
 	compact: boolean,
 	size: NetworkSize,
+	coreSize: NetworkSize,
 ): ConnectionGeometry {
 	const canvas = getCanvasSize(compact, size)
 	const sourceCenter = getCanvasPoint(point, canvas)
-	const coreCenter = { x: canvas.width / 2, y: canvas.height / 2 }
+	const core = getCoreRectangle(compact, canvas, coreSize)
 	const start = getRectangleAttachment(
 		sourceCenter,
-		compact ? 46 : 56,
-		compact ? 20 : 24,
-		coreCenter,
+		compact ? 46 : 66,
+		compact ? 25 : 29,
+		core.center,
 	)
-	const end = getRectangleAttachment(
-		coreCenter,
-		compact ? 66 : 82,
-		compact ? 75 : 84,
-		sourceCenter,
-	)
+	const end = getRectangleAttachment(core.center, core.halfWidth, core.halfHeight, sourceCenter)
 
-	const sourceLength = Math.hypot(
-		start.x - sourceCenter.x,
-		start.y - sourceCenter.y,
-	)
-	const coreLength = Math.hypot(end.x - coreCenter.x, end.y - coreCenter.y)
-	const routeLength = Math.hypot(end.x - start.x, end.y - start.y)
-	const handleLength = Math.min(compact ? 44 : 64, routeLength * 0.42)
-	const sourceNormal = {
-		x: (start.x - sourceCenter.x) / sourceLength,
-		y: (start.y - sourceCenter.y) / sourceLength,
+	const routeBias = point.y < 36 ? -(compact ? 7 : 12) : point.y > 64 ? (compact ? 7 : 12) : 0
+	const sideBias = routeBias === 0 ? (point.x < 50 ? -(compact ? 3 : 7) : compact ? 3 : 7) : 0
+	const sequenceBias = routeBias === 0 ? 0 : (index % 2 === 0 ? -1 : 1) * (compact ? 2 : 4)
+	const junction = {
+		x: start.x + (end.x - start.x) * (compact ? 0.5 : 0.52) + sideBias + sequenceBias,
+		y: start.y + (end.y - start.y) * (compact ? 0.5 : 0.52) + routeBias,
 	}
-	const coreNormal = {
-		x: (end.x - coreCenter.x) / coreLength,
-		y: (end.y - coreCenter.y) / coreLength,
-	}
+	const sourceNormal = normalizeVector({
+		x: start.x - sourceCenter.x,
+		y: start.y - sourceCenter.y,
+	})
+	const coreNormal = normalizeVector({
+		x: end.x - core.center.x,
+		y: end.y - core.center.y,
+	})
+	const firstLeg = normalizeVector({
+		x: junction.x - start.x,
+		y: junction.y - start.y,
+	})
+	const secondLeg = normalizeVector({
+		x: end.x - junction.x,
+		y: end.y - junction.y,
+	})
+	const firstDistance = distanceBetween(start, junction)
+	const secondDistance = distanceBetween(junction, end)
+	const sourceHandle = Math.min(compact ? 34 : 48, firstDistance * 0.52)
+	const junctionInHandle = Math.min(compact ? 26 : 38, firstDistance * 0.42)
+	const junctionOutHandle = Math.min(compact ? 26 : 38, secondDistance * 0.42)
+	const coreHandle = Math.min(compact ? 34 : 48, secondDistance * 0.52)
 	const firstControl = {
-		x: start.x + sourceNormal.x * handleLength,
-		y: start.y + sourceNormal.y * handleLength,
+		x: start.x + sourceNormal.x * sourceHandle,
+		y: start.y + sourceNormal.y * sourceHandle,
 	}
-	const secondControl = {
-		x: end.x + coreNormal.x * handleLength,
-		y: end.y + coreNormal.y * handleLength,
+	const junctionInControl = {
+		x: junction.x - firstLeg.x * junctionInHandle,
+		y: junction.y - firstLeg.y * junctionInHandle,
 	}
-	const format = (value: number) => value.toFixed(2)
+	const junctionOutControl = {
+		x: junction.x + secondLeg.x * junctionOutHandle,
+		y: junction.y + secondLeg.y * junctionOutHandle,
+	}
+	const coreControl = {
+		x: end.x + coreNormal.x * coreHandle,
+		y: end.y + coreNormal.y * coreHandle,
+	}
+	const inboundPath = [
+		`M ${formatPoint(start)}`,
+		`C ${formatPoint(firstControl)} ${formatPoint(junctionInControl)} ${formatPoint(junction)}`,
+		`C ${formatPoint(junctionOutControl)} ${formatPoint(coreControl)} ${formatPoint(end)}`,
+	].join(' ')
+	const outboundPath = [
+		`M ${formatPoint(end)}`,
+		`C ${formatPoint(coreControl)} ${formatPoint(junctionOutControl)} ${formatPoint(junction)}`,
+		`C ${formatPoint(junctionInControl)} ${formatPoint(firstControl)} ${formatPoint(start)}`,
+	].join(' ')
 
 	return {
 		start,
 		end,
+		junction,
 		sourceCenter,
-		path: [
-			`M ${format(start.x)} ${format(start.y)}`,
-			`C ${format(firstControl.x)} ${format(firstControl.y)}`,
-			`${format(secondControl.x)} ${format(secondControl.y)}`,
-			`${format(end.x)} ${format(end.y)}`,
-		].join(' '),
+		inboundPath,
+		outboundPath,
 	}
 }
 
-function NetworkDefs({ id }: { id: string }) {
-	return (
-		<defs>
-			<filter id={`${id}-particle`} x="-350%" y="-350%" width="800%" height="800%">
-				<feGaussianBlur stdDeviation="2.8" result="particleGlow" />
-				<feMerge>
-					<feMergeNode in="particleGlow" />
-					<feMergeNode in="SourceGraphic" />
-				</feMerge>
-			</filter>
+function getAuxiliaryGeometries(
+	compact: boolean,
+	size: NetworkSize,
+	coreSize: NetworkSize,
+): AuxiliaryGeometry[] {
+	const canvas = getCanvasSize(compact, size)
+	const core = getCoreRectangle(compact, canvas, coreSize)
+	const horizontalOffset = compact ? 0 : 70
+	const edgeOffset = compact ? 25 : 30
+	const labelHalfHeight = 11
+	const knowledgeCenter = {
+		x: core.center.x - horizontalOffset,
+		y: edgeOffset,
+	}
+	const rulesCenter = {
+		x: core.center.x + horizontalOffset,
+		y: canvas.height - edgeOffset,
+	}
+	const knowledgeStart = {
+		x: knowledgeCenter.x,
+		y: knowledgeCenter.y + labelHalfHeight,
+	}
+	const knowledgeEnd = {
+		x: core.center.x - core.halfWidth * 0.24,
+		y: core.center.y - core.halfHeight,
+	}
+	const rulesStart = { x: rulesCenter.x, y: rulesCenter.y - labelHalfHeight }
+	const rulesEnd = {
+		x: core.center.x + core.halfWidth * 0.24,
+		y: core.center.y + core.halfHeight,
+	}
+	const knowledgeDistance = Math.max(12, (knowledgeEnd.y - knowledgeStart.y) * 0.42)
+	const rulesDistance = Math.max(12, (rulesStart.y - rulesEnd.y) * 0.42)
 
-			<filter id={`${id}-soft`} x="-90%" y="-90%" width="280%" height="280%">
-				<feGaussianBlur stdDeviation="4.3" />
-			</filter>
-
-			<linearGradient id={`${id}-line`} x1="0" y1="0" x2="1" y2="0">
-				<stop offset="0" stopColor="#34d399" stopOpacity=".08" />
-				<stop offset=".5" stopColor="#a7f3d0" stopOpacity=".72" />
-				<stop offset="1" stopColor="#34d399" stopOpacity=".08" />
-			</linearGradient>
-
-			<marker
-				id={`${id}-arrow`}
-				viewBox="0 0 8 6"
-				refX="7"
-				refY="3"
-				markerWidth="7"
-				markerHeight="7"
-				markerUnits="userSpaceOnUse"
-				orient="auto-start-reverse"
-			>
-				<path d="M 0 0 L 8 3 L 0 6 Z" fill="#6ee7b7" fillOpacity=".88" />
-			</marker>
-		</defs>
-	)
-}
-
-function SignalParticle({
-	path,
-	delay,
-	duration,
-	filterId,
-	reverse = false,
-}: {
-	path: string
-	delay: number
-	duration: number
-	filterId: string
-	reverse?: boolean
-}) {
-	return (
-		<g>
-			<circle r="6" fill="#34d399" filter={`url(#${filterId}-particle)`} opacity="0">
-				<animateMotion
-					path={path}
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-					keyPoints={reverse ? '1;0' : undefined}
-					keyTimes={reverse ? '0;1' : undefined}
-					calcMode={reverse ? 'linear' : undefined}
-				/>
-				<animate
-					attributeName="opacity"
-					values="0;.16;.12;0"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-			</circle>
-
-			<circle r="2.5" fill="#a7f3d0" filter={`url(#${filterId}-particle)`} opacity="0">
-				<animateMotion
-					path={path}
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-					keyPoints={reverse ? '1;0' : undefined}
-					keyTimes={reverse ? '0;1' : undefined}
-					calcMode={reverse ? 'linear' : undefined}
-				/>
-				<animate
-					attributeName="opacity"
-					values="0;1;1;0"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-				<animate
-					attributeName="r"
-					values="1.8;2.8;2.2"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-			</circle>
-		</g>
-	)
-}
-
-function NetworkTerminal({
-	point,
-	pulseDelay,
-	pulsePeriod,
-	reduce,
-}: {
-	point: NetworkPoint
-	pulseDelay: number
-	pulsePeriod: number
-	reduce: boolean | null
-}) {
-	return (
-		<g>
-			{!reduce ? (
-				<circle
-					cx={point.x}
-					cy={point.y}
-					r="6"
-					fill="none"
-					stroke="#6ee7b7"
-					strokeWidth=".8"
-					opacity="0"
-				>
-					<animate
-						attributeName="r"
-						values="6;13;6"
-						dur={`${pulsePeriod}s`}
-						begin={`${pulseDelay}s`}
-						repeatCount="indefinite"
-					/>
-					<animate
-						attributeName="opacity"
-						values="0;.3;0"
-						dur={`${pulsePeriod}s`}
-						begin={`${pulseDelay}s`}
-						repeatCount="indefinite"
-					/>
-				</circle>
-			) : null}
-
-			<circle
-				cx={point.x}
-				cy={point.y}
-				r="6"
-				fill="#090909"
-				stroke="#6ee7b7"
-				strokeWidth=".8"
-				strokeOpacity=".82"
-			/>
-			<circle cx={point.x} cy={point.y} r="2" fill="#d1fae5" />
-		</g>
-	)
+	return [
+		{
+			id: 'knowledge',
+			labelCenter: knowledgeCenter,
+			path: [
+				`M ${formatPoint(knowledgeStart)}`,
+				`C ${formatPoint({ x: knowledgeStart.x, y: knowledgeStart.y + knowledgeDistance })}`,
+				`${formatPoint({ x: knowledgeEnd.x, y: knowledgeEnd.y - knowledgeDistance })}`,
+				`${formatPoint(knowledgeEnd)}`,
+			].join(' '),
+		},
+		{
+			id: 'rules',
+			labelCenter: rulesCenter,
+			path: [
+				`M ${formatPoint(rulesStart)}`,
+				`C ${formatPoint({ x: rulesStart.x, y: rulesStart.y - rulesDistance })}`,
+				`${formatPoint({ x: rulesEnd.x, y: rulesEnd.y + rulesDistance })}`,
+				`${formatPoint(rulesEnd)}`,
+			].join(' '),
+		},
+	]
 }
 
 function ConnectionNetwork({
@@ -394,6 +362,7 @@ function ConnectionNetwork({
 	reduce,
 	compact,
 	size,
+	coreSize,
 	className,
 }: {
 	nodeKeys: DashboardModuleKey[]
@@ -401,10 +370,12 @@ function ConnectionNetwork({
 	reduce: boolean | null
 	compact: boolean
 	size: NetworkSize
+	coreSize: NetworkSize
 	className: string
 }) {
 	const id = compact ? 'vigent-intelligence-mobile' : 'vigent-intelligence-desktop'
 	const canvas = getCanvasSize(compact, size)
+	const auxiliaryGeometries = getAuxiliaryGeometries(compact, size, coreSize)
 
 	return (
 		<svg
@@ -413,102 +384,148 @@ function ConnectionNetwork({
 			className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
 			aria-hidden
 		>
-			<NetworkDefs id={id} />
+			<NeuralNetworkDefs id={id} />
 
 			{nodeKeys.map((key, index) => {
 				const point = positions[index]
 				if (!point) return null
 
-				const geometry = getConnectionGeometry(point, compact, size)
-				const { duration, firstDelay, returnFlow } = getConnectionTiming(index)
-				const pulsePeriod = duration * 0.5
+				const geometry = getConnectionGeometry(point, index, compact, size, coreSize)
+				const { duration, firstDelay, returnFlow } = getConnectionTiming(index, compact)
+				const flowPath = returnFlow ? geometry.outboundPath : geometry.inboundPath
+				const pulsePeriod = compact ? duration : duration * 0.52
+				const corePulseBegin = returnFlow ? firstDelay : firstDelay + duration
 
 				return (
 					<g key={key}>
-						<motion.path
-							d={geometry.path}
-							fill="none"
-							stroke="#34d399"
-							strokeWidth="6"
-							strokeOpacity=".09"
-							strokeLinecap="round"
-							vectorEffect="non-scaling-stroke"
-							filter={`url(#${id}-soft)`}
-							initial={reduce ? false : { pathLength: 0, opacity: 0 }}
-							animate={{ pathLength: 1, opacity: 1 }}
-							transition={{
-								duration: 0.46,
-								delay: 0.04 + index * 0.045,
-								ease: [0.23, 1, 0.32, 1],
-							}}
+						<NeuralConnectionPath path={flowPath} filterId={id} compact={compact} />
+
+						<NeuralConnectionNode
+							cx={geometry.junction.x}
+							cy={geometry.junction.y}
+							pulse={!reduce}
 						/>
-
-						<motion.path
-							d={geometry.path}
-							fill="none"
-							stroke={`url(#${id}-line)`}
-							strokeWidth="1.15"
-							strokeDasharray="4 8"
-							strokeLinecap="round"
-							vectorEffect="non-scaling-stroke"
-							markerStart={returnFlow ? `url(#${id}-arrow)` : undefined}
-							markerEnd={returnFlow ? undefined : `url(#${id}-arrow)`}
-							initial={reduce ? false : { pathLength: 0, opacity: 0 }}
-							animate={{ pathLength: 1, opacity: 1 }}
-							transition={{
-								duration: 0.52,
-								delay: 0.06 + index * 0.05,
-								ease: [0.23, 1, 0.32, 1],
-							}}
-						>
-							{!reduce ? (
-								<animate
-									attributeName="stroke-dashoffset"
-									values={returnFlow ? '0;24' : '0;-24'}
-									dur={`${2.7 + (index % 2) * 0.3}s`}
-									repeatCount="indefinite"
-								/>
-							) : null}
-						</motion.path>
-
-						<NetworkTerminal
-							point={geometry.end}
-							pulseDelay={returnFlow ? firstDelay : firstDelay + duration}
-							pulsePeriod={pulsePeriod}
-							reduce={reduce}
+						<NeuralConnectionNode
+							cx={geometry.end.x}
+							cy={geometry.end.y}
+							pulse={!reduce}
+							pulseBegin={corePulseBegin}
+							pulseDuration={pulsePeriod}
 						/>
 
 						{!reduce ? (
 							<>
-								<SignalParticle
-									path={geometry.path}
+								<NeuralSignalTrace
+									path={flowPath}
 									delay={firstDelay}
 									duration={duration}
 									filterId={id}
-									reverse={returnFlow}
+									compact={compact}
 								/>
-								<SignalParticle
-									path={geometry.path}
-									delay={firstDelay + duration * 0.5}
+								<NeuralSignalParticle
+									path={flowPath}
+									delay={firstDelay}
 									duration={duration}
 									filterId={id}
-									reverse={returnFlow}
 								/>
-								{returnFlow ? (
-									<SignalParticle
-										path={geometry.path}
-										delay={1.15 + index * 0.28}
-										duration={4.15}
-										filterId={id}
-										reverse={!returnFlow}
-									/>
+								{!compact ? (
+									<>
+										<NeuralSignalTrace
+											path={flowPath}
+											delay={firstDelay + duration * 0.52}
+											duration={duration}
+											filterId={id}
+										/>
+										<NeuralSignalParticle
+											path={flowPath}
+											delay={firstDelay + duration * 0.52}
+											duration={duration}
+											filterId={id}
+										/>
+									</>
 								) : null}
 							</>
 						) : null}
 					</g>
 				)
 			})}
+
+			{auxiliaryGeometries.map((geometry, index) => {
+				const duration = compact ? 3.3 : 3.05
+				const delay = 0.35 + index * 0.7
+
+				return (
+					<g key={geometry.id}>
+						<NeuralConnectionPath
+							path={geometry.path}
+							filterId={id}
+							variant="auxiliary"
+							compact={compact}
+							reduce={reduce}
+						/>
+						{!reduce ? (
+							<>
+								<NeuralSignalTrace
+									path={geometry.path}
+									delay={delay}
+									duration={duration}
+									filterId={id}
+									compact={compact}
+								/>
+								<NeuralSignalParticle
+									path={geometry.path}
+									delay={delay}
+									duration={duration}
+									filterId={id}
+								/>
+							</>
+						) : null}
+					</g>
+				)
+			})}
 		</svg>
+	)
+}
+
+function AuxiliaryLabels({
+	locale,
+	compact,
+	size,
+	coreSize,
+	className,
+}: {
+	locale: 'fa' | 'en'
+	compact: boolean
+	size: NetworkSize
+	coreSize: NetworkSize
+	className: string
+}) {
+	const labels = {
+		knowledge: locale === 'fa' ? 'دانش' : 'Knowledge',
+		rules: locale === 'fa' ? 'قواعد' : 'Rules',
+	}
+	const geometries = getAuxiliaryGeometries(compact, size, coreSize)
+
+	return (
+		<div className={`pointer-events-none absolute inset-0 z-20 ${className}`} aria-hidden>
+			{geometries.map((geometry) => {
+				const Icon = geometry.id === 'knowledge' ? Database : ShieldCheck
+
+				return (
+					<div
+						key={geometry.id}
+						style={{
+							left: geometry.labelCenter.x,
+							top: geometry.labelCenter.y,
+						}}
+						className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] shadow-[0_0_18px_rgba(52,211,153,0.12)] backdrop-blur"
+					>
+						<Icon className="h-2.5 w-2.5" />
+						{labels[geometry.id]}
+					</div>
+				)
+			})}
+		</div>
 	)
 }
 
@@ -520,6 +537,7 @@ function ModuleNode({
 	reduce,
 	compact,
 	size,
+	coreSize,
 }: {
 	moduleKey: DashboardModuleKey
 	locale: 'fa' | 'en'
@@ -528,6 +546,7 @@ function ModuleNode({
 	reduce: boolean | null
 	compact: boolean
 	size: NetworkSize
+	coreSize: NetworkSize
 }) {
 	const meta = NODE_META[moduleKey] ?? {
 		fa: moduleKey,
@@ -535,13 +554,16 @@ function ModuleNode({
 		icon: Database,
 	}
 	const Icon = meta.icon
-	const geometry = getConnectionGeometry(point, compact, size)
-	const { duration, firstDelay, returnFlow } = getConnectionTiming(index)
+	const geometry = getConnectionGeometry(point, index, compact, size, coreSize)
+	const { duration, firstDelay, returnFlow } = getConnectionTiming(index, compact)
 	const portOffset = {
 		x: geometry.start.x - geometry.sourceCenter.x,
 		y: geometry.start.y - geometry.sourceCenter.y,
 	}
 	const pulseDelay = returnFlow ? firstDelay + duration : firstDelay
+	const pulseDuration = compact ? duration : duration * 0.52
+	const secondaryLabel =
+		moduleKey === 'contacts' ? 'CRM' : locale === 'fa' ? 'متصل به هسته' : 'Core linked'
 
 	return (
 		<div
@@ -551,27 +573,38 @@ function ModuleNode({
 					'--node-y': `${point.y}%`,
 				} as CSSProperties
 			}
-			className={`absolute left-[var(--node-x)] top-[var(--node-y)] z-20 -translate-x-1/2 -translate-y-1/2 ${compact ? 'w-[92px]' : 'w-[112px]'}`}
+			className={`absolute left-[var(--node-x)] top-[var(--node-y)] z-20 -translate-x-1/2 -translate-y-1/2 ${compact ? 'w-[92px]' : 'w-[132px]'}`}
 		>
 			<motion.div
-				initial={reduce ? false : { opacity: 0, scale: 0.92, y: 5 }}
+				initial={reduce ? false : { opacity: 0, y: 7, scale: 0.985 }}
 				animate={{ opacity: 1, scale: 1, y: 0 }}
 				transition={{
 					duration: reduce ? 0 : 0.3,
-					delay: 0.1 + index * 0.055,
+					delay: 0.08 + index * 0.06,
 					ease: [0.23, 1, 0.32, 1],
 				}}
-				className="relative flex min-h-10 w-full items-center gap-1.5 rounded-xl border border-white/[0.12] bg-[#111]/95 p-1.5 pe-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,.34)] backdrop-blur-xl sm:gap-2 sm:rounded-2xl sm:p-2 sm:pe-3"
+				className={`relative flex w-full items-center border border-white/[0.16] bg-[rgba(8,8,8,0.96)] text-white shadow-[0_20px_48px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-xl ${compact ? 'h-[50px] gap-1.5 rounded-[1.05rem] p-1.5' : 'h-[58px] gap-2.5 rounded-[1.25rem] p-2.5'}`}
 			>
-				<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-black shadow-[0_6px_18px_rgba(255,255,255,.08)] sm:h-8 sm:w-8">
-					<Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+				<span
+					className={`grid shrink-0 place-items-center border border-white/[0.1] bg-white/[0.065] text-white/[0.82] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${compact ? 'h-8 w-8 rounded-[0.7rem]' : 'h-9 w-9 rounded-xl'}`}
+				>
+					<Icon className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
 				</span>
 
-				<span className="min-w-0 flex-1 truncate whitespace-nowrap text-[9px] font-semibold sm:text-[11px]">
-					{locale === 'fa' ? meta.fa : meta.en}
+				<span className="min-w-0 flex-1">
+					<span
+						className={`block truncate whitespace-nowrap font-semibold text-white ${compact ? 'text-[8.5px]' : 'text-[10px]'}`}
+					>
+						{locale === 'fa' ? meta.fa : meta.en}
+					</span>
+					<span
+						className={`mt-0.5 block truncate whitespace-nowrap text-white/[0.34] ${compact ? 'text-[6.5px]' : 'text-[7px]'}`}
+					>
+						{secondaryLabel}
+					</span>
 				</span>
 
-				<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.75)]" />
+				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.72)]" />
 			</motion.div>
 
 			<span
@@ -580,23 +613,22 @@ function ModuleNode({
 					left: `calc(50% + ${portOffset.x}px)`,
 					top: `calc(50% + ${portOffset.y}px)`,
 				}}
-				className="pointer-events-none absolute z-30 grid h-4 w-4 -translate-x-1/2 -translate-y-1/2 place-items-center"
+				className="pointer-events-none absolute z-30 grid h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 place-items-center"
 			>
 				{!reduce ? (
 					<motion.span
-						className="absolute inset-1 rounded-full border border-emerald-300/70"
-						animate={{ scale: [0.75, 2.15, 2.15], opacity: [0, 0.48, 0] }}
+						className="absolute inset-0 rounded-full border border-emerald-300"
+						animate={{ scale: [1, 1.78, 1], opacity: [0, 0.24, 0] }}
 						transition={{
-							duration: duration * 0.5,
+							duration: pulseDuration,
 							delay: pulseDelay,
 							repeat: Infinity,
-							times: [0, 0.22, 1],
-							ease: 'easeOut',
+							ease: 'easeInOut',
 						}}
 					/>
 				) : null}
-				<span className="relative grid h-2.5 w-2.5 place-items-center rounded-full border border-emerald-200/80 bg-[#090909] shadow-[0_0_12px_rgba(52,211,153,.5)]">
-					<span className="h-1 w-1 rounded-full bg-emerald-200" />
+				<span className="relative grid h-[18px] w-[18px] place-items-center rounded-full border border-emerald-300/90 bg-[#090909]">
+					<span className="h-1.5 w-1.5 rounded-full bg-emerald-200" />
 				</span>
 			</span>
 		</div>
@@ -607,10 +639,12 @@ function IntelligenceCoreCard({
 	locale,
 	coreName,
 	reduce,
+	coreRef,
 }: {
 	locale: 'fa' | 'en'
 	coreName: string
 	reduce: boolean | null
+	coreRef: RefObject<HTMLDivElement | null>
 }) {
 	const fa = locale === 'fa'
 
@@ -643,6 +677,7 @@ function IntelligenceCoreCard({
 			) : null}
 
 			<motion.div
+				ref={coreRef}
 				initial={reduce ? false : { opacity: 0, scale: 0.94 }}
 				animate={
 					reduce
@@ -730,12 +765,21 @@ export function IntelligenceCore({
 }: IntelligenceCoreProps) {
 	const reduce = useReducedMotion()
 	const stageRef = useRef<HTMLDivElement>(null)
-	const [stageSize, setStageSize] = useState<NetworkSize>({ width: 0, height: 0 })
+	const coreRef = useRef<HTMLDivElement>(null)
+	const [stageSize, setStageSize] = useState<NetworkSize>({
+		width: 0,
+		height: 0,
+	})
+	const [coreSize, setCoreSize] = useState<NetworkSize>({
+		width: 0,
+		height: 0,
+	})
 	const fa = locale === 'fa'
 	const Arrow = fa ? ArrowLeft : ArrowRight
 
 	useEffect(() => {
 		const stage = stageRef.current
+		const core = coreRef.current
 		if (!stage) return
 
 		const measure = () => {
@@ -744,10 +788,19 @@ export function IntelligenceCore({
 			const height = Math.round(bounds.height)
 
 			setStageSize((current) =>
-				current.width === width && current.height === height
-					? current
-					: { width, height },
+				current.width === width && current.height === height ? current : { width, height },
 			)
+
+			if (core) {
+				const coreWidth = Math.round(core.offsetWidth)
+				const coreHeight = Math.round(core.offsetHeight)
+
+				setCoreSize((current) =>
+					current.width === coreWidth && current.height === coreHeight
+						? current
+						: { width: coreWidth, height: coreHeight },
+				)
+			}
 		}
 
 		measure()
@@ -755,6 +808,7 @@ export function IntelligenceCore({
 
 		const observer = new ResizeObserver(measure)
 		observer.observe(stage)
+		if (core) observer.observe(core)
 
 		return () => observer.disconnect()
 	}, [])
@@ -768,8 +822,7 @@ export function IntelligenceCore({
 	const desktopPositions = getLayout(nodeKeys.length, false)
 	const mobilePositions = getLayout(nodeKeys.length, true)
 
-	const coreName =
-		businessName?.trim() || businessLabel || (fa ? 'کسب‌وکار شما' : 'Your business')
+	const coreName = businessName?.trim() || businessLabel || (fa ? 'کسب‌وکار شما' : 'Your business')
 
 	return (
 		<section
@@ -790,9 +843,7 @@ export function IntelligenceCore({
 						</h2>
 						<p className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
 							{businessLabel ||
-								(fa
-									? 'مرکز هماهنگی هوشمند کسب‌وکار'
-									: 'Intelligent business orchestration')}
+								(fa ? 'مرکز هماهنگی هوشمند کسب‌وکار' : 'Intelligent business orchestration')}
 						</p>
 					</div>
 				</div>
@@ -808,9 +859,7 @@ export function IntelligenceCore({
 						<span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
 					</span>
 					<span className="sm:hidden">{fa ? 'متصل' : 'Online'}</span>
-					<span className="hidden sm:inline">
-						{fa ? 'همه‌چیز متصل' : 'All connected'}
-					</span>
+					<span className="hidden sm:inline">{fa ? 'همه‌چیز متصل' : 'All connected'}</span>
 				</span>
 			</header>
 
@@ -837,6 +886,7 @@ export function IntelligenceCore({
 					reduce={reduce}
 					compact
 					size={stageSize}
+					coreSize={coreSize}
 					className="sm:hidden"
 				/>
 				<ConnectionNetwork
@@ -845,6 +895,22 @@ export function IntelligenceCore({
 					reduce={reduce}
 					compact={false}
 					size={stageSize}
+					coreSize={coreSize}
+					className="hidden sm:block"
+				/>
+
+				<AuxiliaryLabels
+					locale={locale}
+					compact
+					size={stageSize}
+					coreSize={coreSize}
+					className="sm:hidden"
+				/>
+				<AuxiliaryLabels
+					locale={locale}
+					compact={false}
+					size={stageSize}
+					coreSize={coreSize}
 					className="hidden sm:block"
 				/>
 
@@ -859,6 +925,7 @@ export function IntelligenceCore({
 							reduce={reduce}
 							compact
 							size={stageSize}
+							coreSize={coreSize}
 						/>
 					))}
 				</div>
@@ -874,17 +941,21 @@ export function IntelligenceCore({
 							reduce={reduce}
 							compact={false}
 							size={stageSize}
+							coreSize={coreSize}
 						/>
 					))}
 				</div>
 
-				<IntelligenceCoreCard locale={locale} coreName={coreName} reduce={reduce} />
+				<IntelligenceCoreCard
+					locale={locale}
+					coreName={coreName}
+					reduce={reduce}
+					coreRef={coreRef}
+				/>
 
 				<p className="sr-only">
 					{fa
-						? `ویجنتو به ${nodeKeys
-								.map((key) => NODE_META[key]?.fa ?? key)
-								.join('، ')} متصل است.`
+						? `ویجنتو به ${nodeKeys.map((key) => NODE_META[key]?.fa ?? key).join('، ')} متصل است.`
 						: `Vigento is connected to ${nodeKeys
 								.map((key) => NODE_META[key]?.en ?? key)
 								.join(', ')}.`}

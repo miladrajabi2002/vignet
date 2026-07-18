@@ -208,6 +208,7 @@ export default async function ConversationThreadPage(props: {
 
                         <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
                           <ConversationThread
+                                key={conversation.id}
                                 initialMessages={conversation.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString(), contentType: m.contentType, metadata: m.metadata as Record<string, unknown> | null })) as ThreadMessage[]}
                                 conversationId={conversation.id}
                                 canDeliver={canDeliver}

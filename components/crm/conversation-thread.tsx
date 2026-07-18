@@ -27,6 +27,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 import { stripProductTokens } from '@/lib/widget/config'
@@ -59,6 +60,7 @@ export function ConversationThread({
         locale: 'fa' | 'en'
 }) {
         const t = useTranslations('conversations')
+        const reduceMotion = useReducedMotion()
         const [pendingMessages, setPendingMessages] = useState<ThreadMessage[]>([])
         const [polledMessages, setPolledMessages] = useState<ThreadMessage[]>([])
         const [hasNewMessages, setHasNewMessages] = useState(false)
@@ -66,6 +68,7 @@ export function ConversationThread({
         const lastMessageIdRef = useRef<string | null>(
                 initialMessages.length > 0 ? initialMessages[initialMessages.length - 1].id : null,
         )
+        const initialMessageIdsRef = useRef(new Set(initialMessages.map((message) => message.id)))
         const isAtBottomRef = useRef(true)
 
         // Track whether the operator is scrolled to the bottom of the thread.
@@ -85,9 +88,9 @@ export function ConversationThread({
                 if (!el) return
                 el.scrollTo({
                         top: el.scrollHeight,
-                        behavior: smooth ? 'smooth' : 'auto',
+                        behavior: smooth && !reduceMotion ? 'smooth' : 'auto',
                 })
-        }, [])
+        }, [reduceMotion])
 
         // ── Polling for new messages ───────────────────────────────────────────
         // Polls GET /api/conversations/[id]/messages?since=<lastId> every 5s.
@@ -96,12 +99,32 @@ export function ConversationThread({
         // tabs. Deduped by id against the merged list so nothing double-renders.
         useEffect(() => {
                 let cancelled = false
+                let timer: ReturnType<typeof setTimeout> | undefined
+                let controller: AbortController | undefined
+
+                const schedule = () => {
+                        if (!cancelled) timer = setTimeout(poll, 5000)
+                }
+
                 const poll = async () => {
+                        if (cancelled) return
+                        if (document.hidden) {
+                                schedule()
+                                return
+                        }
+
                         const sinceId = lastMessageIdRef.current
-                        if (!sinceId) return
+                        const url = sinceId
+                                ? `/api/conversations/${conversationId}/messages?since=${encodeURIComponent(sinceId)}`
+                                : `/api/conversations/${conversationId}/messages`
+                        controller = new AbortController()
+
                         try {
-                                const url = `/api/conversations/${conversationId}/messages?since=${encodeURIComponent(sinceId)}`
-                                const res = await fetch(url, { headers: { Accept: 'application/json' } })
+                                const res = await fetch(url, {
+                                        cache: 'no-store',
+                                        headers: { Accept: 'application/json' },
+                                        signal: controller.signal,
+                                })
                                 if (!res.ok || cancelled) return
                                 const data = await res.json()
                                 if (cancelled || !Array.isArray(data.messages) || data.messages.length === 0) return
@@ -112,19 +135,23 @@ export function ConversationThread({
                                         const fresh = data.messages.filter((m: ThreadMessage) => !existing.has(m.id))
                                         return fresh.length ? [...prev, ...fresh] : prev
                                 })
-                                if (isAtBottomRef.current) {
-                                        scrollToBottom()
-                                } else {
+                                if (!isAtBottomRef.current) {
                                         setHasNewMessages(true)
                                 }
-                        } catch {
-                                /* network error — skip this cycle */
+                        } catch (error) {
+                                if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                                        /* network error — skip this cycle */
+                                }
+                        } finally {
+                                schedule()
                         }
                 }
-                const interval = setInterval(poll, 5000)
+
+                schedule()
                 return () => {
                         cancelled = true
-                        clearInterval(interval)
+                        if (timer) clearTimeout(timer)
+                        controller?.abort()
                 }
         }, [conversationId, scrollToBottom])
 
@@ -159,25 +186,50 @@ export function ConversationThread({
         useEffect(() => {
                 if (pendingMessages.length > 0) scrollToBottom()
         }, [pendingMessages.length, scrollToBottom])
+        // Polled messages scroll only after React has committed the new bubble,
+        // so the final scroll target includes its full animated height.
+        useEffect(() => {
+                if (polledMessages.length > 0 && isAtBottomRef.current) scrollToBottom()
+        }, [polledMessages.length, scrollToBottom])
 
         function handleSent(message: ThreadMessage) {
                 setPendingMessages((prev) => [...prev, message])
         }
 
+        const arrivalInitial = reduceMotion
+                ? { opacity: 0.55 }
+                : { opacity: 0, transform: 'translate3d(0,9px,0) scale(0.985)' }
+        const arrivalTransition = reduceMotion
+                ? { opacity: { duration: 0.16 } }
+                : {
+                        transform: { type: 'spring' as const, duration: 0.4, bounce: 0 },
+                        opacity: { duration: 0.2, ease: [0.23, 1, 0.32, 1] as const },
+                        layout: { type: 'spring' as const, duration: 0.36, bounce: 0 },
+                }
+
         return (
                 <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
                         <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[11px] text-black/35">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
                         <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                                <AnimatePresence initial={false}>
                                 {messages.map((m) => {
                                         const isUser = m.role === 'USER'
+                                        const isLiveMessage = !initialMessageIdsRef.current.has(m.id)
                                         if (m.role === 'SYSTEM') {
                                                 return (
-                                                        <ConversationTimelineActivity
+                                                        <motion.div
                                                                 key={m.id}
+                                                                layout={reduceMotion ? false : 'position'}
+                                                                initial={isLiveMessage ? arrivalInitial : false}
+                                                                animate={{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }}
+                                                                transition={arrivalTransition}
+                                                        >
+                                                        <ConversationTimelineActivity
                                                                 metadata={m.metadata}
                                                                 locale={locale}
                                                                 dateLabel={formatDateTime(new Date(m.createdAt), locale)}
                                                         />
+                                                        </motion.div>
                                                 )
                                         }
                                         const isOperator =
@@ -188,8 +240,12 @@ export function ConversationThread({
                                                 ? inboundSourceLabel(readInboundSource(m.metadata), locale)
                                                 : null
                                         return (
-                                                <div
+                                                <motion.div
                                                         key={m.id}
+                                                        layout={reduceMotion ? false : 'position'}
+                                                        initial={isLiveMessage ? arrivalInitial : false}
+                                                        animate={{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }}
+                                                        transition={arrivalTransition}
                                                         className={cn('flex', isUser ? 'justify-end' : 'justify-start')}
                                                 >
                                                         <div
@@ -198,10 +254,20 @@ export function ConversationThread({
                                                                         isUser ? 'items-end' : 'items-start',
                                                                 )}
                                                         >
+                                                                <div className="relative max-w-full">
+                                                                {isLiveMessage && (
+                                                                        <motion.span
+                                                                                aria-hidden="true"
+                                                                                className="pointer-events-none absolute -inset-1 z-0 rounded-[1.35rem] bg-gradient-to-br from-violet-500/24 via-fuchsia-400/12 to-emerald-400/18 blur-[2px]"
+                                                                                initial={{ opacity: 0.78, transform: 'scale(0.96)' }}
+                                                                                animate={{ opacity: 0, transform: 'scale(1.06)' }}
+                                                                                transition={{ duration: reduceMotion ? 0.45 : 1.15, ease: [0.23, 1, 0.32, 1] }}
+                                                                        />
+                                                                )}
                                                                 <ConversationBubble
                                                                         side={isUser ? 'end' : 'start'}
                                                                         tone={isUser ? 'muted' : 'inverse'}
-                                                                        className="max-w-full py-2"
+                                                                        className="relative z-[1] max-w-full py-2"
                                                                 >
                                                                         {isOperator && (
                                                                                 <span className="mb-0.5 block text-[11px] font-medium opacity-60">
@@ -228,6 +294,7 @@ export function ConversationThread({
                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
                                                                         </span>
                                                                 </ConversationBubble>
+                                                                </div>
                                                                 {!isUser && (
                                                                         <MessageActivityReceipts
                                                                                 metadata={m.metadata}
@@ -235,9 +302,10 @@ export function ConversationThread({
                                                                         />
                                                                 )}
                                                         </div>
-                                                </div>
+                                                </motion.div>
                                         )
                                 })}
+                                </AnimatePresence>
                                 {messages.length === 0 && (
                                         <p className="py-8 text-center text-sm text-[var(--text-muted)]">
                                                 {t('noMessages')}

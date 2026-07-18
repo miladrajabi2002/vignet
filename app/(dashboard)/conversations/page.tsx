@@ -28,6 +28,12 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import {
+        LiveArrivalItem,
+        LiveArrivalProvider,
+        LiveArrivalStatus,
+        LiveRefreshProbe,
+} from '@/components/crm/live-arrivals'
 
 const PAGE_SIZE = 50
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -107,6 +113,7 @@ export default async function ConversationsPage(props: {
                 channelGroups,
                 agents,
                 audienceContacts,
+                latestConversation,
         ] = await Promise.all([
                 prisma.conversation.findMany({
                         where,
@@ -184,10 +191,25 @@ export default async function ConversationsPage(props: {
                         take: 500,
                         select: { contactId: true },
                 }),
+                prisma.conversation.findFirst({
+                        where: { workspaceId: user.workspaceId },
+                        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                        select: { id: true, createdAt: true },
+                }),
         ])
 
         const hasNext = conversations.length > PAGE_SIZE
         const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
+        const liveVersion = latestConversation
+                ? `${latestConversation.createdAt.toISOString()}:${latestConversation.id}`
+                : 'empty'
+        const liveScope = [
+                page,
+                channelFilter ?? '',
+                statusFilter ?? '',
+                agentFilter ?? '',
+                query ?? '',
+        ].join(':')
 
         // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
         const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
@@ -278,6 +300,12 @@ export default async function ConversationsPage(props: {
                         </div>
                         </Suspense>
 
+                        <LiveArrivalProvider key={liveScope} ids={pageItems.map((item) => item.id)}>
+                        <LiveRefreshProbe
+                                resource="conversations"
+                                initialVersion={liveVersion}
+                                enabled={page === 1}
+                        />
                         {pageItems.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
                                         <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
@@ -304,7 +332,7 @@ export default async function ConversationsPage(props: {
                                                 <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
                                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
                                         </div>
-                                        <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">{isFa ? 'جدیدترین فعالیت' : 'Latest activity'}</span>
+                                        <LiveArrivalStatus resource="conversations" locale={locale} />
                                 </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
@@ -349,8 +377,8 @@ export default async function ConversationsPage(props: {
                                                         anonymousLabel: t('anonymous'),
                                                 })
                                                 return (
+                                                        <LiveArrivalItem key={c.id} itemId={c.id}>
                                                         <Link
-                                                                key={c.id}
                                                                 href={`/conversations/${c.id}`}
                                                                 className={cn(
                                                                         'grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5',
@@ -409,12 +437,15 @@ export default async function ConversationsPage(props: {
                                                                 <span className="shrink-0 text-end text-[11px] leading-5 text-[var(--text-muted)]">
                                                                         <span className="block">{relativeTime(when, locale)}</span>
                                                                         <span className="block tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
-                                                                </span>
+                                                                        </span>
                                                         </Link>
+                                                        </LiveArrivalItem>
                                                 )
                                         })}
                                 </div>
                         )}
+
+                        </LiveArrivalProvider>
 
                         <Pagination
                                 page={page}
@@ -457,8 +488,8 @@ export default async function ConversationsPage(props: {
                                                 term: locale === 'fa' ? 'به‌روزرسانی: ' : 'Live updates: ',
                                                 body:
                                                         locale === 'fa'
-                                                                ? 'این صفحه به‌صورت لحظه‌ای به‌روز نمی‌شود. برای دیدن مکالمات جدید، صفحه را refresh کنید. وضعیت مکالمه در صفحه جزئیات قابل تغییر است.'
-                                                                : 'This page does not update in real time. Refresh to see new conversations. Conversation status can be changed on the detail page.',
+                                                                ? 'گفتگوهای تازه به‌صورت خودکار وارد صندوق می‌شوند و برای چند لحظه با افکت ورود مشخص خواهند شد؛ نیازی به refresh دستی نیست.'
+                                                                : 'New conversations enter the inbox automatically and receive a brief arrival highlight; no manual refresh is needed.',
                                         },
                                 ]}
                         />

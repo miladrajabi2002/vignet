@@ -56,7 +56,6 @@ appointments
 apt
 architecture
 are
-arrival
 assert
 assign
 assignable
@@ -148,6 +147,7 @@ campaign
 can
 cancel
 cancellation
+canvas
 capabilities
 capability
 capacity
@@ -478,6 +478,7 @@ gauge
 geist
 generate
 generation
+geometry
 gesture
 gestures
 get
@@ -631,6 +632,7 @@ layer
 layered
 layering
 layout
+layouts
 lazy
 lead
 leading
@@ -894,7 +896,6 @@ popovers
 popular
 port
 position
-positions
 positive
 post
 postcss
@@ -943,7 +944,6 @@ protection
 provider
 providers
 public
-pulse
 purchase
 purchased
 pure
@@ -982,6 +982,7 @@ recon
 record
 recorder
 records
+rectangle
 redirect
 redis
 reduced
@@ -1240,6 +1241,7 @@ template
 templates
 ten
 tenant
+terminal
 test
 testing
 text

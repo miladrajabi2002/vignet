@@ -12,6 +12,12 @@ import {
 	Sparkles,
 	UsersRound,
 } from 'lucide-react'
+import {
+	NeuralConnectionNode as NetworkNode,
+	NeuralConnectionPath,
+	NeuralNetworkDefs as NetworkDefs,
+	NeuralSignalParticle as SignalParticle,
+} from './neural-network-primitives'
 import { InstagramIcon } from './social-links'
 
 type Scenario = {
@@ -89,97 +95,6 @@ const SECONDARY_MESSAGES = {
 		},
 	],
 } as const
-
-function SignalParticle({
-	path,
-	delay,
-	filterId,
-	duration = 2.85,
-}: {
-	path: string
-	delay: number
-	filterId: string
-	duration?: number
-}) {
-	return (
-		<g>
-			<circle r="6" fill="#34d399" filter={`url(#${filterId})`} opacity="0">
-				<animateMotion
-					path={path}
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-				<animate
-					attributeName="opacity"
-					values="0;0.16;0.12;0"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-			</circle>
-
-			<circle r="2.5" fill="#a7f3d0" filter={`url(#${filterId})`} opacity="0">
-				<animateMotion
-					path={path}
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-				<animate
-					attributeName="opacity"
-					values="0;1;1;0"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-				<animate
-					attributeName="r"
-					values="1.8;2.8;2.2"
-					begin={`${delay}s`}
-					dur={`${duration}s`}
-					repeatCount="indefinite"
-				/>
-			</circle>
-		</g>
-	)
-}
-
-function NetworkDefs({ id }: { id: string }) {
-	return (
-		<defs>
-			<filter id={id} x="-350%" y="-350%" width="800%" height="800%">
-				<feGaussianBlur stdDeviation="2.8" result="glow" />
-				<feMerge>
-					<feMergeNode in="glow" />
-					<feMergeNode in="SourceGraphic" />
-				</feMerge>
-			</filter>
-
-			<filter id={`${id}-soft`} x="-80%" y="-80%" width="260%" height="260%">
-				<feGaussianBlur stdDeviation="4.5" />
-			</filter>
-
-			<linearGradient id={`${id}-line`} x1="0" x2="1">
-				<stop offset="0" stopColor="#34d399" stopOpacity="0.08" />
-				<stop offset="0.48" stopColor="#a7f3d0" stopOpacity="0.72" />
-				<stop offset="1" stopColor="#34d399" stopOpacity="0.08" />
-			</linearGradient>
-
-			<marker
-				id={`${id}-arrow`}
-				viewBox="0 0 8 6"
-				refX="7"
-				refY="3"
-				markerWidth="7"
-				markerHeight="7"
-				orient="auto"
-			>
-				<path d="M 0 0 L 8 3 L 0 6 Z" fill="#6ee7b7" fillOpacity="0.88" />
-			</marker>
-		</defs>
-	)
-}
 
 function TelegramIcon({ className }: { className?: string }) {
 	return (
@@ -367,9 +282,7 @@ function MessageCard({
 									{message.time}
 								</p>
 							</div>
-							<p className="mt-0.5 truncate text-[7.5px] text-white/[0.42]">
-								{message.text}
-							</p>
+							<p className="mt-0.5 truncate text-[7.5px] text-white/[0.42]">{message.text}</p>
 						</div>
 					</div>
 				))}
@@ -403,9 +316,7 @@ function ResultCard({
 					<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
 						<Sparkles className="h-4 w-4" />
 					</span>
-					<p className="whitespace-nowrap text-[10px] font-semibold sm:text-[11px]">
-						{label}
-					</p>
+					<p className="whitespace-nowrap text-[10px] font-semibold sm:text-[11px]">{label}</p>
 				</div>
 
 				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
@@ -494,10 +405,7 @@ function Core({
 			transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
 			className="relative grid h-[112px] w-[112px] place-items-center rounded-[1.8rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
 		>
-			<span
-				aria-hidden
-				className="absolute inset-2 rounded-[1.35rem] border border-white/10"
-			/>
+			<span aria-hidden className="absolute inset-2 rounded-[1.35rem] border border-white/10" />
 			<span
 				aria-hidden
 				className="absolute -inset-2 -z-10 rounded-[2.05rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]"
@@ -507,71 +415,10 @@ function Core({
 				<span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]">
 					<Sparkles className="h-[18px] w-[18px]" />
 				</span>
-				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">
-					{core}
-				</p>
-				<p className="mt-0.5 max-w-[84px] truncate text-[7.5px] text-white/[0.36]">
-					{coreHint}
-				</p>
+				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">{core}</p>
+				<p className="mt-0.5 max-w-[84px] truncate text-[7.5px] text-white/[0.36]">{coreHint}</p>
 			</div>
 		</motion.div>
-	)
-}
-
-function NetworkNode({
-	cx,
-	cy,
-	active = true,
-	pulse = false,
-}: {
-	cx: number
-	cy: number
-	active?: boolean
-	pulse?: boolean
-}) {
-	return (
-		<g>
-			{pulse ? (
-				<circle
-					cx={cx}
-					cy={cy}
-					r="9"
-					fill="none"
-					stroke="#6ee7b7"
-					strokeWidth="1"
-					opacity="0"
-				>
-					<animate
-						attributeName="r"
-						values="9;16;9"
-						dur="2.8s"
-						repeatCount="indefinite"
-					/>
-					<animate
-						attributeName="opacity"
-						values="0;0.24;0"
-						dur="2.8s"
-						repeatCount="indefinite"
-					/>
-				</circle>
-			) : null}
-
-			<circle
-				cx={cx}
-				cy={cy}
-				r="9"
-				fill="#090909"
-				stroke={active ? '#6ee7b7' : 'white'}
-				strokeOpacity={active ? 0.88 : 0.2}
-			/>
-			<circle
-				cx={cx}
-				cy={cy}
-				r="3"
-				fill={active ? '#a7f3d0' : 'white'}
-				fillOpacity={active ? 1 : 0.32}
-			/>
-		</g>
 	)
 }
 
@@ -663,58 +510,17 @@ function DesktopOperationFlow({
 				<NetworkDefs id="vigent-desktop-flow" />
 
 				{networkPaths.map((path) => (
-					<g key={path}>
-						<path
-							d={path}
-							fill="none"
-							stroke="#34d399"
-							strokeWidth="5"
-							strokeOpacity="0.1"
-							strokeLinecap="round"
-							filter="url(#vigent-desktop-flow-soft)"
-						/>
-						<path
-							d={path}
-							fill="none"
-							stroke="url(#vigent-desktop-flow-line)"
-							strokeWidth="1.25"
-							strokeDasharray="4 8"
-							strokeLinecap="round"
-						/>
-					</g>
+					<NeuralConnectionPath key={path} path={path} filterId="vigent-desktop-flow" />
 				))}
 
 				{auxiliaryPaths.map((path) => (
-					<g key={path}>
-						<path
-							d={path}
-							fill="none"
-							stroke="#34d399"
-							strokeWidth="6"
-							strokeOpacity="0.12"
-							strokeLinecap="round"
-							filter="url(#vigent-desktop-flow-soft)"
-						/>
-						<path
-							d={path}
-							fill="none"
-							stroke="#6ee7b7"
-							strokeWidth="1.4"
-							strokeOpacity="0.72"
-							strokeDasharray="4 7"
-							strokeLinecap="round"
-							markerEnd="url(#vigent-desktop-flow-arrow)"
-						>
-							{!reduce ? (
-								<animate
-									attributeName="stroke-dashoffset"
-									values="0;-22"
-									dur="1.7s"
-									repeatCount="indefinite"
-								/>
-							) : null}
-						</path>
-					</g>
+					<NeuralConnectionPath
+						key={path}
+						path={path}
+						filterId="vigent-desktop-flow"
+						variant="auxiliary"
+						reduce={reduce}
+					/>
 				))}
 
 				<NetworkNode cx={276} cy={103} pulse={!reduce} />
@@ -838,58 +644,18 @@ function MobileOperationFlow({
 					<NetworkDefs id="vigent-mobile-flow" />
 
 					{mobileNetworkPaths.map((path) => (
-						<g key={path}>
-							<path
-								d={path}
-								fill="none"
-								stroke="#34d399"
-								strokeWidth="4"
-								strokeOpacity="0.09"
-								strokeLinecap="round"
-								filter="url(#vigent-mobile-flow-soft)"
-							/>
-							<path
-								d={path}
-								fill="none"
-								stroke="url(#vigent-mobile-flow-line)"
-								strokeWidth="1.2"
-								strokeDasharray="4 7"
-								strokeLinecap="round"
-							/>
-						</g>
+						<NeuralConnectionPath key={path} path={path} filterId="vigent-mobile-flow" compact />
 					))}
 
 					{mobileAuxiliaryPaths.map((path) => (
-						<g key={path}>
-							<path
-								d={path}
-								fill="none"
-								stroke="#34d399"
-								strokeWidth="5"
-								strokeOpacity="0.11"
-								strokeLinecap="round"
-								filter="url(#vigent-mobile-flow-soft)"
-							/>
-							<path
-								d={path}
-								fill="none"
-								stroke="#6ee7b7"
-								strokeWidth="1.35"
-								strokeOpacity="0.75"
-								strokeDasharray="4 7"
-								strokeLinecap="round"
-								markerEnd="url(#vigent-mobile-flow-arrow)"
-							>
-								{!reduce ? (
-									<animate
-										attributeName="stroke-dashoffset"
-										values="0;-22"
-										dur="1.7s"
-										repeatCount="indefinite"
-									/>
-								) : null}
-							</path>
-						</g>
+						<NeuralConnectionPath
+							key={path}
+							path={path}
+							filterId="vigent-mobile-flow"
+							variant="auxiliary"
+							compact
+							reduce={reduce}
+						/>
 					))}
 
 					<NetworkNode cx={160} cy={32} pulse={!reduce} />

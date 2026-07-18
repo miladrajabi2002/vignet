@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
@@ -13,6 +13,12 @@ import type { CampaignAudienceInput } from '@/lib/campaigns/audience'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
+import {
+        LiveArrivalItem,
+        LiveArrivalProvider,
+        LiveArrivalStatus,
+        LiveRefreshProbe,
+} from '@/components/crm/live-arrivals'
 
 export interface ContactRow {
         id: string
@@ -64,11 +70,17 @@ function rowDisplayName(c: ContactRow, anonymousLabel: string): string {
 export function ContactsView({
         initial,
         locale,
+        liveVersion,
+        liveEnabled,
+        liveScope,
         insights,
         footer,
 }: {
         initial: ContactRow[]
         locale: 'fa' | 'en'
+        liveVersion: string
+        liveEnabled?: boolean
+        liveScope: string
         insights?: React.ReactNode
         footer?: React.ReactNode
 }) {
@@ -80,6 +92,10 @@ export function ContactsView({
         const [channelFilter, setChannelFilter] = useState<ChannelType | ''>('')
         const [tagFilter, setTagFilter] = useState('')
         const [selected, setSelected] = useState<Set<string>>(() => new Set())
+
+        useEffect(() => {
+                setRows(initial)
+        }, [initial])
 
         const availableTags = useMemo(
                 () => [...new Set(rows.flatMap((row) => row.tags))].sort((a, b) => a.localeCompare(b)),
@@ -145,6 +161,12 @@ export function ContactsView({
         }
 
         return (
+                <LiveArrivalProvider key={liveScope} ids={rows.map((row) => row.id)}>
+                <LiveRefreshProbe
+                        resource="contacts"
+                        initialVersion={liveVersion}
+                        enabled={liveEnabled}
+                />
                 <div className="space-y-6">
                         <PageHeader
                                 icon={Users}
@@ -203,7 +225,10 @@ export function ContactsView({
 
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
                                 <span className="inline-flex items-center gap-1.5"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${filtered.length.toLocaleString('fa-IR')} نتیجه در این صفحه` : `${filtered.length} results on this page`}</span>
-                                {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-11 rounded-xl px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
+                                <div className="flex flex-wrap items-center gap-2">
+                                        <LiveArrivalStatus resource="contacts" locale={locale} />
+                                        {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-11 rounded-xl px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
+                                </div>
                         </div>
 
                         {filtered.length === 0 ? (
@@ -222,6 +247,7 @@ export function ContactsView({
                         {footer && view === 'list' && !query ? footer : null}
 
                 </div>
+                </LiveArrivalProvider>
         )
 }
 
@@ -325,8 +351,9 @@ function ListView({
                                 //    click anywhere on the row (except the stage dropdown) opens the
                                 //    customer detail page. The <StageSelect> stays outside the Link and
                                 //    stops click propagation so changing stage doesn't navigate. ──
-                                <div
+                                <LiveArrivalItem
                                         key={c.id}
+                                        itemId={c.id}
                                         className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
                                 >
                                         <label className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-colors hover:bg-[var(--bg-hover)]">
@@ -379,7 +406,7 @@ function ListView({
                                         <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                                                 <StageSelect value={c.stage} onChange={(s) => onMove(c.id, s)} />
                                         </div>
-                                </div>
+                                </LiveArrivalItem>
                         ))}
                 </div>
         )
@@ -450,8 +477,8 @@ function PipelineView({
                                                                 </p>
                                                         ) : (
                                                                 items.map((c) => (
+                                                                        <LiveArrivalItem key={c.id} itemId={c.id}>
                                                                         <div
-                                                                                key={c.id}
                                                                                 draggable
                                                                                 onDragStart={(e) => {
                                                                                         setDragId(c.id)
@@ -496,6 +523,7 @@ function PipelineView({
                                                                                         </div>
                                                                                 </div>
                                                                         </div>
+                                                                        </LiveArrivalItem>
                                                                 ))
                                                         )}
                                                 </div>

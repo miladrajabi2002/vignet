@@ -39,7 +39,7 @@ export default async function ContactsPage(
   const isFa = locale === 'fa'
   const page = Math.max(1, Number(searchParams.page) || 1)
 
-  const [contacts, totalCount, stageGroups, contactTrend] = await Promise.all([
+  const [contacts, totalCount, stageGroups, contactTrend, latestContact] = await Promise.all([
     prisma.contact.findMany({
       where: { workspaceId: user.workspaceId },
       // Order by denormalized "last activity" first (bumped on every inbound/
@@ -82,10 +82,18 @@ export default async function ContactsPage(
       _count: { _all: true },
     }),
     contactsDailyByWorkspace(user.workspaceId, 14),
+    prisma.contact.findFirst({
+      where: { workspaceId: user.workspaceId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, createdAt: true },
+    }),
   ])
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
+  const liveVersion = latestContact
+    ? `${latestContact.createdAt.toISOString()}:${latestContact.id}`
+    : 'empty'
 
   // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
   const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
@@ -147,8 +155,12 @@ export default async function ContactsPage(
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <ContactsView
+        key={`contacts:${page}`}
         initial={rows}
         locale={locale}
+        liveVersion={liveVersion}
+        liveEnabled={page === 1}
+        liveScope={`contacts:${page}`}
         insights={
           <div className="grid gap-4 lg:grid-cols-2">
             <DashboardPanel

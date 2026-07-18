@@ -13,9 +13,9 @@ type Params = { params: Promise<{ conversationId: string }> }
  * page refresh. Authenticated via session cookie; workspace-scoped so a user
  * can only poll their own workspace's conversations.
  *
- * Query: ?since=<messageId> — when provided, only messages with a createdAt
- * strictly greater than the given message's createdAt are returned. This
- * keeps the payload tiny on repeated polls. When omitted, the last 100
+ * Query: ?since=<messageId> — when provided, messages after the stable
+ * (createdAt, id) cursor are returned. The id tie-breaker prevents messages
+ * sharing one timestamp from being skipped. When omitted, the last 100
  * messages are returned.
  *
  * Returns: { messages: [{ id, role, content, createdAt, contentType, metadata }] }
@@ -29,14 +29,17 @@ export async function GET(_req: Request, props: Params) {
   const url = new URL(_req.url)
   const sinceId = url.searchParams.get('since')
 
-  // Resolve the `since` cursor to a createdAt timestamp (if provided).
-  let sinceDate: Date | null = null
+  // Resolve the workspace-owned cursor to a stable timestamp/id pair.
+  let sinceCursor: { createdAt: Date; id: string } | null = null
   if (sinceId) {
-    const cursor = await prisma.message.findUnique({
-      where: { id: sinceId },
-      select: { createdAt: true },
+    sinceCursor = await prisma.message.findFirst({
+      where: {
+        id: sinceId,
+        conversationId: params.conversationId,
+        conversation: { workspaceId: user.workspaceId },
+      },
+      select: { id: true, createdAt: true },
     })
-    sinceDate = cursor?.createdAt ?? null
   }
 
   const conversation = await prisma.conversation.findFirst({
@@ -44,11 +47,18 @@ export async function GET(_req: Request, props: Params) {
     select: {
       id: true,
       messages: {
-        orderBy: sinceDate
+        orderBy: sinceCursor
           ? [{ createdAt: 'asc' as const }, { id: 'asc' as const }]
           : [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
         take: 100,
-        where: sinceDate ? { createdAt: { gt: sinceDate } } : undefined,
+        where: sinceCursor
+          ? {
+              OR: [
+                { createdAt: { gt: sinceCursor.createdAt } },
+                { createdAt: sinceCursor.createdAt, id: { gt: sinceCursor.id } },
+              ],
+            }
+          : undefined,
         select: {
           id: true,
           role: true,
@@ -62,7 +72,7 @@ export async function GET(_req: Request, props: Params) {
   })
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  const orderedMessages = sinceDate ? conversation.messages : conversation.messages.reverse()
+  const orderedMessages = sinceCursor ? conversation.messages : conversation.messages.reverse()
   const messages = orderedMessages
     .filter((m) => {
       if (m.role !== 'SYSTEM') return true
