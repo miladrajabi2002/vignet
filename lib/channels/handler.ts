@@ -542,13 +542,6 @@ async function processChannelInbound(
                                         .catch((e) => console.error(`[handler] ${type} profile fetch failed:`, e))
                         }
 
-                        // Best-effort "typing…" indicator while the model generates the reply.
-                        if (adapter.sendTyping) {
-                                adapter
-                                        .sendTyping(msg.chatId)
-                                        .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
-                        }
-
                         // ─── Instagram automation layer ─────────────────────────────
                         // Keyword scenarios, comment→DM funnels, follow-gates, and smart story
                         // replies run here. When a scenario handles the message, we skip the
@@ -701,16 +694,27 @@ async function processChannelInbound(
                         // DMs, or the message came from the request folder and hasn't been
                         // accepted yet). A failed send is captured below; the stored inbound
                         // remains visible to the operator in the conversations inbox.
-                        const result = await generateReply({
-                                workspaceId: agent.workspaceId,
-                                agent: chatAgent,
-                                message: text,
-                                channel: type,
-                                contactId,
-                                contactName,
-                                externalId: msg.chatId,
-                                inboundMetadata,
-                        })
+                        const result = await generateReply(
+                                {
+                                        workspaceId: agent.workspaceId,
+                                        agent: chatAgent,
+                                        message: text,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        externalId: msg.chatId,
+                                        inboundMetadata,
+                                },
+                                {
+                                        // The engine invokes this only after operator ownership,
+                                        // policy and smart-handoff gates allow an AI generation.
+                                        onGenerationStart: adapter.sendTyping
+                                                ? () => adapter
+                                                        .sendTyping!(msg.chatId)
+                                                        .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
+                                                : undefined,
+                                },
+                        )
                         if ('error' in result) continue
 
                         // Attempt the outbound reply. For Instagram DMs with an IG-user token

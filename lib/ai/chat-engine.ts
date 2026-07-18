@@ -594,6 +594,11 @@ export type GenerateReplyResult =
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
         | { conversationId: string; reply: string }
 
+export interface GenerateReplyOptions {
+        /** Runs only after ownership and handoff gates confirm that AI will generate. */
+        onGenerationStart?: () => void | Promise<void>
+}
+
 /**
  * Non-streaming counterpart to {@link startChat}, used by messenger channels
  * (Telegram/Bale/Rubika) where we need the full reply text to send back in one
@@ -601,6 +606,7 @@ export type GenerateReplyResult =
  */
 export async function generateReply(
         params: StartChatParams,
+        options: GenerateReplyOptions = {},
 ): Promise<GenerateReplyResult> {
         const { workspaceId, agent, message } = params
 
@@ -641,6 +647,11 @@ export async function generateReply(
                 })
                 return { conversationId, reply }
         }
+
+        // Channel typing indicators must not run before this point: prepareTurn
+        // detects operator-owned conversations and shouldHandoff can transfer
+        // this turn without calling a model.
+        await options.onGenerationStart?.()
 
         let reply = ''
         let usage: ChatUsage | null = null
