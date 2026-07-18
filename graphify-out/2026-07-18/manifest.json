@@ -1360,8 +1360,8 @@
     "semantic_hash": ""
   },
   "components/marketing/hero.tsx": {
-    "mtime": 1784319112.0,
-    "ast_hash": "0de2adf71fefca11efebc85771ab0bc7",
+    "mtime": 1784308056.0,
+    "ast_hash": "5b4d5fb40290864a6bb9deb5e830f3bb",
     "semantic_hash": ""
   },
   "components/marketing/navbar.tsx": {
@@ -1370,8 +1370,8 @@
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
-    "mtime": 1784332110.323495,
-    "ast_hash": "6f96697c9edc212f27f108c4f71ee14e",
+    "mtime": 1784308056.0,
+    "ast_hash": "4491f0797961178d8bbbc00a9c872108",
     "semantic_hash": ""
   },
   "components/marketing/popular-posts.tsx": {

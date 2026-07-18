@@ -1,0 +1,4 @@
+# Blog images are written here at runtime by /api/admin/blog/upload.
+# Keep the directory in Git without committing user-uploaded media.
+*
+!.gitignore
