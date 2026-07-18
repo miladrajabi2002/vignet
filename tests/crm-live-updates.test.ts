@@ -41,9 +41,11 @@ describe('GET /api/crm/live', () => {
 
   it('returns a stable latest-conversation version without list data', async () => {
     const createdAt = new Date('2026-07-18T10:00:00.000Z')
+    const profileUpdatedAt = new Date('2026-07-18T10:00:02.000Z')
     mocks.conversationFindFirst.mockResolvedValue({
       id: 'conversation-2',
       createdAt,
+      contact: { id: 'contact-2', updatedAt: profileUpdatedAt },
     })
 
     const response = await getLiveVersion(
@@ -52,14 +54,46 @@ describe('GET /api/crm/live', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
-      version: '2026-07-18T10:00:00.000Z:conversation-2',
+      version:
+        '2026-07-18T10:00:00.000Z|conversation-2|contact-2|2026-07-18T10:00:02.000Z',
     })
     expect(response.headers.get('Cache-Control')).toContain('no-store')
     expect(mocks.conversationFindFirst).toHaveBeenCalledWith({
       where: { workspaceId: 'workspace-1' },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { id: true, createdAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        contact: { select: { id: true, updatedAt: true } },
+      },
     })
+  })
+
+  it('changes the conversation version when async profile enrichment completes', async () => {
+    const createdAt = new Date('2026-07-18T10:00:00.000Z')
+    mocks.conversationFindFirst
+      .mockResolvedValueOnce({
+        id: 'conversation-2',
+        createdAt,
+        contact: { id: 'contact-2', updatedAt: createdAt },
+      })
+      .mockResolvedValueOnce({
+        id: 'conversation-2',
+        createdAt,
+        contact: {
+          id: 'contact-2',
+          updatedAt: new Date('2026-07-18T10:00:03.000Z'),
+        },
+      })
+
+    const first = await getLiveVersion(
+      new Request('http://localhost/api/crm/live?resource=conversations'),
+    )
+    const second = await getLiveVersion(
+      new Request('http://localhost/api/crm/live?resource=conversations'),
+    )
+
+    expect((await first.json()).version).not.toBe((await second.json()).version)
   })
 
   it('uses the same workspace boundary for customer arrivals', async () => {
@@ -73,7 +107,7 @@ describe('GET /api/crm/live', () => {
     expect(mocks.contactFindFirst).toHaveBeenCalledWith({
       where: { workspaceId: 'workspace-1' },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { id: true, createdAt: true },
+      select: { id: true, createdAt: true, updatedAt: true },
     })
   })
 })

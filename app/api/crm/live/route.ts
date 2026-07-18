@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { contactLiveVersion, conversationLiveVersion } from '@/lib/crm/live-version'
 
 type LiveResource = 'conversations' | 'contacts'
-
-function versionOf(row: { id: string; createdAt: Date } | null): string {
-  return row ? `${row.createdAt.toISOString()}:${row.id}` : 'empty'
-}
 
 /**
  * A deliberately tiny change detector for the CRM list pages. It returns only
@@ -25,21 +22,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'INVALID_RESOURCE' }, { status: 400 })
   }
 
-  const latest =
+  const version =
     resource === 'conversations'
-      ? await prisma.conversation.findFirst({
-          where: { workspaceId: user.workspaceId },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          select: { id: true, createdAt: true },
-        })
-      : await prisma.contact.findFirst({
-          where: { workspaceId: user.workspaceId },
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          select: { id: true, createdAt: true },
-        })
+      ? conversationLiveVersion(
+          await prisma.conversation.findFirst({
+            where: { workspaceId: user.workspaceId },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: {
+              id: true,
+              createdAt: true,
+              contact: { select: { id: true, updatedAt: true } },
+            },
+          }),
+        )
+      : contactLiveVersion(
+          await prisma.contact.findFirst({
+            where: { workspaceId: user.workspaceId },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            select: { id: true, createdAt: true, updatedAt: true },
+          }),
+        )
 
   return NextResponse.json(
-    { version: versionOf(latest) },
+    { version },
     { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
   )
 }

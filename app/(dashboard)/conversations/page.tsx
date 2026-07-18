@@ -28,6 +28,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { conversationLiveVersion } from '@/lib/crm/live-version'
 import {
         LiveArrivalItem,
         LiveArrivalProvider,
@@ -194,15 +195,17 @@ export default async function ConversationsPage(props: {
                 prisma.conversation.findFirst({
                         where: { workspaceId: user.workspaceId },
                         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-                        select: { id: true, createdAt: true },
+                        select: {
+                                id: true,
+                                createdAt: true,
+                                contact: { select: { id: true, updatedAt: true } },
+                        },
                 }),
         ])
 
         const hasNext = conversations.length > PAGE_SIZE
         const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
-        const liveVersion = latestConversation
-                ? `${latestConversation.createdAt.toISOString()}:${latestConversation.id}`
-                : 'empty'
+        const liveVersion = conversationLiveVersion(latestConversation)
         const liveScope = [
                 page,
                 channelFilter ?? '',

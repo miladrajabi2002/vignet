@@ -13,7 +13,6 @@ import {
 	MessagesSquare,
 	Package,
 	Plug,
-	ShieldCheck,
 	Sparkles,
 	Users,
 	type LucideIcon,
@@ -51,16 +50,7 @@ type ConnectionGeometry = {
 	outboundPath: string
 	start: NetworkPoint
 	end: NetworkPoint
-	junction: NetworkPoint
 	sourceCenter: NetworkPoint
-}
-
-type AuxiliaryKind = 'knowledge' | 'rules'
-
-type AuxiliaryGeometry = {
-	id: AuxiliaryKind
-	labelCenter: NetworkPoint
-	path: string
 }
 
 type ConnectionTiming = {
@@ -125,19 +115,19 @@ const MOBILE_LAYOUTS: Record<number, readonly NetworkPoint[]> = {
 		{ x: 80, y: 85 },
 	],
 	5: [
-		{ x: 20, y: 13 },
-		{ x: 80, y: 20 },
-		{ x: 14, y: 50 },
-		{ x: 86, y: 64 },
-		{ x: 20, y: 87 },
+		{ x: 17, y: 13 },
+		{ x: 50, y: 10 },
+		{ x: 83, y: 13 },
+		{ x: 30, y: 87 },
+		{ x: 70, y: 87 },
 	],
 	6: [
-		{ x: 20, y: 13 },
-		{ x: 80, y: 13 },
-		{ x: 14, y: 50 },
-		{ x: 86, y: 50 },
-		{ x: 20, y: 87 },
-		{ x: 80, y: 87 },
+		{ x: 17, y: 13 },
+		{ x: 50, y: 10 },
+		{ x: 83, y: 13 },
+		{ x: 17, y: 87 },
+		{ x: 50, y: 90 },
+		{ x: 83, y: 87 },
 	],
 }
 
@@ -227,7 +217,7 @@ function getConnectionGeometry(
 	const start = getRectangleAttachment(
 		sourceCenter,
 		compact ? 46 : 66,
-		compact ? 25 : 29,
+		compact ? 23 : 27,
 		core.center,
 	)
 	const end = getRectangleAttachment(core.center, core.halfWidth, core.halfHeight, sourceCenter)
@@ -291,69 +281,10 @@ function getConnectionGeometry(
 	return {
 		start,
 		end,
-		junction,
 		sourceCenter,
 		inboundPath,
 		outboundPath,
 	}
-}
-
-function getAuxiliaryGeometries(
-	compact: boolean,
-	size: NetworkSize,
-	coreSize: NetworkSize,
-): AuxiliaryGeometry[] {
-	const canvas = getCanvasSize(compact, size)
-	const core = getCoreRectangle(compact, canvas, coreSize)
-	const horizontalOffset = compact ? 0 : 70
-	const edgeOffset = compact ? 25 : 30
-	const labelHalfHeight = 11
-	const knowledgeCenter = {
-		x: core.center.x - horizontalOffset,
-		y: edgeOffset,
-	}
-	const rulesCenter = {
-		x: core.center.x + horizontalOffset,
-		y: canvas.height - edgeOffset,
-	}
-	const knowledgeStart = {
-		x: knowledgeCenter.x,
-		y: knowledgeCenter.y + labelHalfHeight,
-	}
-	const knowledgeEnd = {
-		x: core.center.x - core.halfWidth * 0.24,
-		y: core.center.y - core.halfHeight,
-	}
-	const rulesStart = { x: rulesCenter.x, y: rulesCenter.y - labelHalfHeight }
-	const rulesEnd = {
-		x: core.center.x + core.halfWidth * 0.24,
-		y: core.center.y + core.halfHeight,
-	}
-	const knowledgeDistance = Math.max(12, (knowledgeEnd.y - knowledgeStart.y) * 0.42)
-	const rulesDistance = Math.max(12, (rulesStart.y - rulesEnd.y) * 0.42)
-
-	return [
-		{
-			id: 'knowledge',
-			labelCenter: knowledgeCenter,
-			path: [
-				`M ${formatPoint(knowledgeStart)}`,
-				`C ${formatPoint({ x: knowledgeStart.x, y: knowledgeStart.y + knowledgeDistance })}`,
-				`${formatPoint({ x: knowledgeEnd.x, y: knowledgeEnd.y - knowledgeDistance })}`,
-				`${formatPoint(knowledgeEnd)}`,
-			].join(' '),
-		},
-		{
-			id: 'rules',
-			labelCenter: rulesCenter,
-			path: [
-				`M ${formatPoint(rulesStart)}`,
-				`C ${formatPoint({ x: rulesStart.x, y: rulesStart.y - rulesDistance })}`,
-				`${formatPoint({ x: rulesEnd.x, y: rulesEnd.y + rulesDistance })}`,
-				`${formatPoint(rulesEnd)}`,
-			].join(' '),
-		},
-	]
 }
 
 function ConnectionNetwork({
@@ -375,7 +306,6 @@ function ConnectionNetwork({
 }) {
 	const id = compact ? 'vigent-intelligence-mobile' : 'vigent-intelligence-desktop'
 	const canvas = getCanvasSize(compact, size)
-	const auxiliaryGeometries = getAuxiliaryGeometries(compact, size, coreSize)
 
 	return (
 		<svg
@@ -400,11 +330,6 @@ function ConnectionNetwork({
 					<g key={key}>
 						<NeuralConnectionPath path={flowPath} filterId={id} compact={compact} />
 
-						<NeuralConnectionNode
-							cx={geometry.junction.x}
-							cy={geometry.junction.y}
-							pulse={!reduce}
-						/>
 						<NeuralConnectionNode
 							cx={geometry.end.x}
 							cy={geometry.end.y}
@@ -449,83 +374,7 @@ function ConnectionNetwork({
 					</g>
 				)
 			})}
-
-			{auxiliaryGeometries.map((geometry, index) => {
-				const duration = compact ? 3.3 : 3.05
-				const delay = 0.35 + index * 0.7
-
-				return (
-					<g key={geometry.id}>
-						<NeuralConnectionPath
-							path={geometry.path}
-							filterId={id}
-							variant="auxiliary"
-							compact={compact}
-							reduce={reduce}
-						/>
-						{!reduce ? (
-							<>
-								<NeuralSignalTrace
-									path={geometry.path}
-									delay={delay}
-									duration={duration}
-									filterId={id}
-									compact={compact}
-								/>
-								<NeuralSignalParticle
-									path={geometry.path}
-									delay={delay}
-									duration={duration}
-									filterId={id}
-								/>
-							</>
-						) : null}
-					</g>
-				)
-			})}
 		</svg>
-	)
-}
-
-function AuxiliaryLabels({
-	locale,
-	compact,
-	size,
-	coreSize,
-	className,
-}: {
-	locale: 'fa' | 'en'
-	compact: boolean
-	size: NetworkSize
-	coreSize: NetworkSize
-	className: string
-}) {
-	const labels = {
-		knowledge: locale === 'fa' ? 'دانش' : 'Knowledge',
-		rules: locale === 'fa' ? 'قواعد' : 'Rules',
-	}
-	const geometries = getAuxiliaryGeometries(compact, size, coreSize)
-
-	return (
-		<div className={`pointer-events-none absolute inset-0 z-20 ${className}`} aria-hidden>
-			{geometries.map((geometry) => {
-				const Icon = geometry.id === 'knowledge' ? Database : ShieldCheck
-
-				return (
-					<div
-						key={geometry.id}
-						style={{
-							left: geometry.labelCenter.x,
-							top: geometry.labelCenter.y,
-						}}
-						className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] shadow-[0_0_18px_rgba(52,211,153,0.12)] backdrop-blur"
-					>
-						<Icon className="h-2.5 w-2.5" />
-						{labels[geometry.id]}
-					</div>
-				)
-			})}
-		</div>
 	)
 }
 
@@ -562,8 +411,6 @@ function ModuleNode({
 	}
 	const pulseDelay = returnFlow ? firstDelay + duration : firstDelay
 	const pulseDuration = compact ? duration : duration * 0.52
-	const secondaryLabel =
-		moduleKey === 'contacts' ? 'CRM' : locale === 'fa' ? 'متصل به هسته' : 'Core linked'
 
 	return (
 		<div
@@ -583,25 +430,18 @@ function ModuleNode({
 					delay: 0.08 + index * 0.06,
 					ease: [0.23, 1, 0.32, 1],
 				}}
-				className={`relative flex w-full items-center border border-white/[0.16] bg-[rgba(8,8,8,0.96)] text-white shadow-[0_20px_48px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-xl ${compact ? 'h-[50px] gap-1.5 rounded-[1.05rem] p-1.5' : 'h-[58px] gap-2.5 rounded-[1.25rem] p-2.5'}`}
+				className={`relative flex w-full items-center border border-white/[0.82] bg-white text-black shadow-[0_18px_42px_rgba(0,0,0,0.32),inset_0_0_0_1px_rgba(0,0,0,0.035)] ${compact ? 'h-[46px] gap-1.5 rounded-[1.05rem] p-1.5' : 'h-[54px] gap-2.5 rounded-[1.25rem] p-2.5'}`}
 			>
 				<span
-					className={`grid shrink-0 place-items-center border border-white/[0.1] bg-white/[0.065] text-white/[0.82] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${compact ? 'h-8 w-8 rounded-[0.7rem]' : 'h-9 w-9 rounded-xl'}`}
+					className={`grid shrink-0 place-items-center border border-black/[0.08] bg-black/[0.045] text-black/[0.74] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${compact ? 'h-8 w-8 rounded-[0.7rem]' : 'h-9 w-9 rounded-xl'}`}
 				>
 					<Icon className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
 				</span>
 
-				<span className="min-w-0 flex-1">
-					<span
-						className={`block truncate whitespace-nowrap font-semibold text-white ${compact ? 'text-[8.5px]' : 'text-[10px]'}`}
-					>
-						{locale === 'fa' ? meta.fa : meta.en}
-					</span>
-					<span
-						className={`mt-0.5 block truncate whitespace-nowrap text-white/[0.34] ${compact ? 'text-[6.5px]' : 'text-[7px]'}`}
-					>
-						{secondaryLabel}
-					</span>
+				<span
+					className={`min-w-0 flex-1 truncate whitespace-nowrap font-bold text-black/[0.84] ${compact ? 'text-[9px]' : 'text-[11px]'}`}
+				>
+					{locale === 'fa' ? meta.fa : meta.en}
 				</span>
 
 				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.72)]" />
@@ -893,21 +733,6 @@ export function IntelligenceCore({
 					nodeKeys={nodeKeys}
 					positions={desktopPositions}
 					reduce={reduce}
-					compact={false}
-					size={stageSize}
-					coreSize={coreSize}
-					className="hidden sm:block"
-				/>
-
-				<AuxiliaryLabels
-					locale={locale}
-					compact
-					size={stageSize}
-					coreSize={coreSize}
-					className="sm:hidden"
-				/>
-				<AuxiliaryLabels
-					locale={locale}
 					compact={false}
 					size={stageSize}
 					coreSize={coreSize}

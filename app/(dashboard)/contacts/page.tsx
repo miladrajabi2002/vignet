@@ -12,6 +12,7 @@ import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { dateLocaleTag } from '@/lib/localized-date'
+import { contactLiveVersion } from '@/lib/crm/live-version'
 
 const PAGE_SIZE = 100
 
@@ -85,15 +86,13 @@ export default async function ContactsPage(
     prisma.contact.findFirst({
       where: { workspaceId: user.workspaceId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { id: true, createdAt: true },
+      select: { id: true, createdAt: true, updatedAt: true },
     }),
   ])
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
-  const liveVersion = latestContact
-    ? `${latestContact.createdAt.toISOString()}:${latestContact.id}`
-    : 'empty'
+  const liveVersion = contactLiveVersion(latestContact)
 
   // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
   const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
