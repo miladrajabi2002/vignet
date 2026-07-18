@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { MessageCircleWarning, Search, X } from 'lucide-react'
+import { Loader2, MessageCircleWarning, Search, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { cn } from '@/lib/utils'
 
@@ -42,7 +43,10 @@ export function ConversationFilters({
 }) {
         const router = useRouter()
         const params = useSearchParams()
-        const hasActiveFilter = !!activeStatus || !!activeChannel || !!activeAgent || !!query
+        const paramsString = params.toString()
+        const [searchValue, setSearchValue] = useState(query ?? '')
+        const [isSearching, startSearchTransition] = useTransition()
+        const hasActiveFilter = !!activeStatus || !!activeChannel || !!activeAgent || !!searchValue
         const showAgent = agentOptions.length > 1
 
         function navigate(next: { status?: string; channel?: string; agent?: string; q?: string }) {
@@ -51,7 +55,7 @@ export function ConversationFilters({
                         status: next.status !== undefined ? next.status : activeStatus,
                         channel: next.channel !== undefined ? next.channel : activeChannel,
                         agent: next.agent !== undefined ? next.agent : activeAgent,
-                        q: next.q !== undefined ? next.q : query,
+                        q: next.q !== undefined ? next.q : searchValue.trim(),
                 }
                 for (const [key, value] of Object.entries(values)) {
                         sp.delete(key)
@@ -62,22 +66,57 @@ export function ConversationFilters({
                 router.push(qs ? `${basePath}?${qs}` : basePath)
         }
 
+        useEffect(() => {
+                setSearchValue(query ?? '')
+        }, [query])
+
+        useEffect(() => {
+                const nextQuery = searchValue.trim()
+                if (nextQuery === (query ?? '')) return
+
+                const timer = window.setTimeout(() => {
+                        const sp = new URLSearchParams(paramsString)
+                        sp.delete('q')
+                        if (nextQuery) sp.set('q', nextQuery)
+                        sp.delete('page')
+                        const qs = sp.toString()
+                        startSearchTransition(() => {
+                                router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false })
+                        })
+                }, 280)
+
+                return () => window.clearTimeout(timer)
+        }, [basePath, paramsString, query, router, searchValue])
+
         const totalResults = statusOptions.find((option) => option.key === 'ALL')?.count ?? 0
         const operatorCount = statusOptions.find((option) => option.key === 'HANDED_OFF')?.count ?? 0
         const nf = new Intl.NumberFormat(isFa ? 'fa-IR' : 'en-US')
 
         return (
-                <form action={basePath} method="get" className="flex flex-wrap items-center gap-2">
+                <form
+                        action={basePath}
+                        method="get"
+                        className="flex flex-wrap items-center gap-2"
+                        onSubmit={(event) => {
+                                event.preventDefault()
+                                navigate({ q: searchValue.trim() || undefined })
+                        }}
+                >
                         {activeStatus && <input type="hidden" name="status" value={activeStatus} />}
                         {activeChannel && <input type="hidden" name="channel" value={activeChannel} />}
                         {activeAgent && <input type="hidden" name="agent" value={activeAgent} />}
 
                         <div className="relative min-w-[12rem] flex-1">
                                 <span className="sr-only">{isFa ? 'جست‌وجوی گفتگو' : 'Search conversations'}</span>
-                                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                                {isSearching ? (
+                                        <Loader2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
+                                ) : (
+                                        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                                )}
                                 <input
                                         name="q"
-                                        defaultValue={query}
+                                        value={searchValue}
+                                        onChange={(event) => setSearchValue(event.target.value)}
                                         maxLength={120}
                                         placeholder={isFa ? 'نام، شماره یا متن پیام…' : 'Name, phone, or message text…'}
                                         className="input ps-9"
@@ -129,14 +168,10 @@ export function ConversationFilters({
                         </button>
 
                         {hasActiveFilter && (
-                                <button type="button" onClick={() => router.push(basePath)} aria-label={isFa ? 'پاک‌کردن فیلترها' : 'Clear filters'} className="spatial-press inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-black/[0.08] bg-white text-black/45 hover:text-black">
+                                <button type="button" onClick={() => { setSearchValue(''); router.push(basePath) }} aria-label={isFa ? 'پاک‌کردن فیلترها' : 'Clear filters'} className="spatial-press inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-black/[0.08] bg-white text-black/45 hover:text-black">
                                         <X className="h-4 w-4" />
                                 </button>
                         )}
-
-                        {/* Hidden submit so Enter in the search box submits the form
-                            (browsers require a submit button for form submission). */}
-                        <button type="submit" className="sr-only" aria-hidden tabIndex={-1} />
                 </form>
         )
 }

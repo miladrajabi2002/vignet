@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
-import { Send, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Bot, Send, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { SpeakButton } from '@/components/voice/audio-player'
@@ -25,9 +25,11 @@ interface Msg {
 export function TestPlayground({
         agentId,
         welcomeMessage,
+        suggestedPrompts = [],
 }: {
         agentId: string
         welcomeMessage?: string | null
+        suggestedPrompts?: string[]
 }) {
         const t = useTranslations('agents.playground')
 
@@ -39,6 +41,7 @@ export function TestPlayground({
         const [error, setError] = useState<string | null>(null)
         const conversationId = useRef<string | undefined>(undefined)
         const scrollRef = useRef<HTMLDivElement>(null)
+        const inputRef = useRef<HTMLTextAreaElement>(null)
 
         useEffect(() => {
                 scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
@@ -71,6 +74,7 @@ export function TestPlayground({
                                 const data = await res.json().catch(() => ({}))
                                 setError(data.error === 'NO_CREDIT' ? t('noKey') : t('error'))
                                 setMessages((m) => m.slice(0, -1))
+                                setInput(text)
                                 setStreaming(false)
                                 return
                         }
@@ -78,8 +82,9 @@ export function TestPlayground({
                         const reader = res.body.getReader()
                         const decoder = new TextDecoder()
                         let buffer = ''
+                        let streamFailed = false
 
-                        while (true) {
+                        while (!streamFailed) {
                                 const { done, value } = await reader.read()
                                 if (done) break
                                 buffer += decoder.decode(value, { stream: true })
@@ -113,17 +118,39 @@ export function TestPlayground({
                                                         })
                                                 } else if (evt.type === 'error') {
                                                         setError(t('error'))
+                                                        streamFailed = true
+                                                        break
                                                 }
                                         } catch {
                                                 /* ignore */
                                         }
                                 }
                         }
+                        if (streamFailed) {
+                                setMessages((m) => m.slice(0, -1))
+                                setInput((current) => current || text)
+                        }
                 } catch {
                         setError(t('error'))
+                        setMessages((m) => m.slice(0, -1))
+                        setInput((current) => current || text)
                 } finally {
                         setStreaming(false)
                 }
+        }
+
+        function resetSession() {
+                if (streaming) return
+                conversationId.current = undefined
+                setMessages(welcomeMessage ? [{ role: 'assistant', content: welcomeMessage }] : [])
+                setInput('')
+                setError(null)
+                requestAnimationFrame(() => inputRef.current?.focus())
+        }
+
+        function selectSuggestedPrompt(prompt: string) {
+                setInput(prompt)
+                requestAnimationFrame(() => inputRef.current?.focus())
         }
 
         async function rate(msgId: string, value: 1 | -1, idx: number) {
@@ -140,14 +167,43 @@ export function TestPlayground({
         }
 
         return (
-                <div className="flex h-[480px] flex-col overflow-hidden rounded-2xl bg-[var(--bg-muted)]">
+                <div className="flex h-[540px] flex-col overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)]">
+                        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-base)] px-4 py-2.5">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                        <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
+                                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+                                        </span>
+                                        <div className="min-w-0">
+                                                <p className="truncate text-xs font-bold text-[var(--text-primary)]">
+                                                        {t('sessionLabel')}
+                                                </p>
+                                                <p className="truncate text-[10px] text-[var(--text-muted)]">
+                                                        {t('sessionHint')}
+                                                </p>
+                                        </div>
+                                </div>
+                                <button
+                                        type="button"
+                                        onClick={resetSession}
+                                        disabled={streaming}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        {t('newSession')}
+                                </button>
+                        </div>
+
                         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
                                 {messages.length === 0 ? (
                                         <div className="flex h-full flex-col items-center justify-center text-center">
-                                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--bg-base)] text-[var(--text-muted)] shadow-sm">
-                                                        <Send className="h-5 w-5" />
+                                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)] shadow-sm">
+                                                        <Bot className="h-6 w-6" />
                                                 </div>
-                                                <p className="mt-3 text-sm text-[var(--text-muted)]">{t('empty')}</p>
+                                                <p className="mt-3 text-sm font-semibold text-[var(--text-secondary)]">{t('empty')}</p>
+                                                <p className="mt-1 max-w-xs text-xs leading-5 text-[var(--text-muted)]">
+                                                        {t('emptyHint')}
+                                                </p>
                                         </div>
                                 ) : (
                                         messages.map((m, i) => (
@@ -176,9 +232,10 @@ export function TestPlayground({
                                                                 {m.role === 'assistant' && m.id && m.content && (
                                                                         <div className="flex items-center gap-1 ps-1">
                                                                                 <button
+                                                                                        type="button"
                                                                                         onClick={() => rate(m.id!, 1, i)}
                                                                                         className={cn(
-                                                                                                'rounded p-1 transition-colors',
+                                                                                                'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
                                                                                                 m.rating === 1
                                                                                                         ? 'text-success'
                                                                                                         : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -188,9 +245,10 @@ export function TestPlayground({
                                                                                         <ThumbsUp className="h-3.5 w-3.5" />
                                                                                 </button>
                                                                                 <button
+                                                                                        type="button"
                                                                                         onClick={() => rate(m.id!, -1, i)}
                                                                                         className={cn(
-                                                                                                'rounded p-1 transition-colors',
+                                                                                                'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
                                                                                                 m.rating === -1
                                                                                                         ? 'text-danger'
                                                                                                         : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -211,41 +269,79 @@ export function TestPlayground({
                         </div>
 
                         {error && (
-                                <div className="border-t border-danger/20 bg-danger/5 px-5 py-2 text-xs text-danger">
+                                <div role="alert" className="border-t border-danger/20 bg-danger/5 px-5 py-2 text-xs text-danger">
                                         {error}
                                 </div>
                         )}
 
-                        <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
-                                <VoiceRecorder
-                                        vad
-                                        disabled={streaming}
-                                        label={t('record')}
-                                        onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
-                                        onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
-                                />
-                                <div className="relative flex min-w-0 flex-1 items-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] pe-1 ps-3.5 focus-within:border-[var(--border-strong)]">
-                                        <input
+                        {suggestedPrompts.length > 0 && (
+                                <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 pt-3">
+                                        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+                                                <Sparkles className="h-3.5 w-3.5" />
+                                                {t('suggestions')}
+                                        </div>
+                                        <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
+                                                {suggestedPrompts.map((prompt) => (
+                                                        <button
+                                                                key={prompt}
+                                                                type="button"
+                                                                onClick={() => selectSuggestedPrompt(prompt)}
+                                                                disabled={streaming}
+                                                                className="min-h-11 shrink-0 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-[11px] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                                                        >
+                                                                {prompt}
+                                                        </button>
+                                                ))}
+                                        </div>
+                                </div>
+                        )}
+
+                        <form
+                                onSubmit={(event) => {
+                                        event.preventDefault()
+                                        void send()
+                                }}
+                                className="flex items-end gap-2 bg-[var(--bg-base)] p-3"
+                        >
+                                <button
+                                        type="submit"
+                                        disabled={streaming || !input.trim()}
+                                        className="order-last inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 active:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 rtl:order-first"
+                                >
+                                        {streaming ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                                <Send className="h-4 w-4" />
+                                        )}
+                                        <span>{streaming ? t('sending') : t('send')}</span>
+                                </button>
+                                <div className="min-w-0 flex-1 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3.5 py-2 focus-within:border-[var(--border-strong)] focus-within:ring-2 focus-within:ring-black/5">
+                                        <textarea
+                                                ref={inputRef}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && send()}
+                                                onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                                e.preventDefault()
+                                                                void send()
+                                                        }
+                                                }}
+                                                rows={1}
                                                 placeholder={t('placeholder')}
-                                                className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]"
+                                                aria-label={t('placeholder')}
+                                                className="block min-h-7 max-h-24 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-[var(--text-muted)]"
                                         />
-                                        <button
-                                                onClick={send}
-                                                disabled={streaming || !input.trim()}
-                                                className="flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-lg bg-[var(--text-primary)] text-[var(--bg-base)] transition-opacity hover:opacity-90 active:opacity-100 disabled:opacity-40"
-                                                aria-label={t('send')}
-                                        >
-                                                {streaming ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                        <Send className="h-4 w-4" />
-                                                )}
-                                        </button>
                                 </div>
-                        </div>
+                                <div className="order-first shrink-0 rtl:order-last">
+                                        <VoiceRecorder
+                                                vad
+                                                disabled={streaming}
+                                                label={t('record')}
+                                                onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
+                                                onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
+                                        />
+                                </div>
+                        </form>
                 </div>
         )
 }

@@ -75,7 +75,6 @@ author
 authorized
 auto
 automation
-auxiliary
 availability
 available
 avatar
@@ -482,7 +481,6 @@ gauge
 geist
 generate
 generation
-geometries
 geometry
 gesture
 gestures
@@ -1429,11 +1427,13 @@ zip
 zod
 zone
 zoned
+اتصا
 اتصال
 اجرایی
 اختیاری
 استقرار
 اسکریپت
+اصلاح
 اصلی
 اعتبارسنجی
 اعداد
@@ -1473,6 +1473,7 @@ zoned
 توسعه
 توی
 جدید
+حذف
 داشبورد
 داشبوردی
 دانش
@@ -1491,6 +1492,7 @@ zoned
 سازی
 سایت
 سرور
+سفیدکردن
 سود
 شده
 شناسایی
@@ -1504,6 +1506,7 @@ zoned
 فرمول
 قبل
 قسمت
+قواعد
 قیمت
 لایه
 لوکال
@@ -1522,6 +1525,7 @@ zoned
 مفید
 موتور
 مورد
+میانی
 میخوام
 ناوبری
 نتیجه
@@ -1570,5 +1574,6 @@ zoned
 گذاری
 گذشته
 گفتگو
+گفتگوها
 یافته
 یکپارچه

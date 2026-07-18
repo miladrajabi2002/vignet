@@ -62,22 +62,11 @@ export default async function AgentLearningPage(
         subtitle={t('subtitle')}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="spatial-surface rounded-[1.5rem] p-4">
-          <span className="text-xs text-[var(--text-secondary)]">{t('pending')}</span>
-          <p className="mt-1 text-2xl font-light text-[var(--text-primary)]">
-            {items.length.toLocaleString('fa-IR')}
-          </p>
-        </div>
-        <div className="spatial-surface rounded-[1.5rem] p-4">
-          <span className="text-xs text-[var(--text-secondary)]">{t('learned')}</span>
-          <p className="mt-1 text-2xl font-light text-success">
-            {learnedCount.toLocaleString('fa-IR')}
-          </p>
-        </div>
-      </div>
-
-      <LearningCenter agentId={agent.id} initial={items} />
+      <LearningCenter
+        agentId={agent.id}
+        initial={items}
+        initialLearnedCount={learnedCount}
+      />
     </div>
   )
 }
