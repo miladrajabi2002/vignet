@@ -1,6 +1,22 @@
 {
-  "generated_at": "2026-07-18T18:20:09.862730+00:00",
+  "generated_at": "2026-07-18T18:41:46.438143+00:00",
   "nodes": {
+    "app_dashboard_agents_agentid_page_agentdetailpage": {
+      "code_fingerprint": "74783b9ca60858737849425134bccb46aafe0d4f9b33340428c04a1d47730b7b",
+      "label": "AgentDetailPage()",
+      "last": "2026-07-18T18:35:12.498984+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T18:35:12.498984+00:00",
+          "outcome": "useful",
+          "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
+        }
+      ],
+      "score": 0.999894659,
+      "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "app_dashboard_conversations_page_conversationspage": {
       "code_fingerprint": "a2d6d415d27d0d0b52f99be8a962d0dd1644bd7079e3ebcfb0d2e8a83f9f86e9",
       "label": "ConversationsPage()",
@@ -12,7 +28,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.973172849,
+      "score": 0.972835482,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -34,7 +50,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.0001751,
+      "score": -0.000175039,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -57,11 +73,27 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.0001751,
+      "score": -0.000175039,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
       "verdict": "dead end"
+    },
+    "components_agents_agent_settings_form_agentsettingsform": {
+      "code_fingerprint": "13459fa61ab8b0dab2d3b59b857858286f7921b47348662afde4aede4670921e",
+      "label": "AgentSettingsForm()",
+      "last": "2026-07-18T18:35:12.498984+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T18:35:12.498984+00:00",
+          "outcome": "useful",
+          "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
+        }
+      ],
+      "score": 0.999894659,
+      "source_file": "components/agents/agent-settings-form.tsx",
+      "status": "tentative",
+      "uses": 1
     },
     "components_crm_campaign_composer": {
       "code_fingerprint": "d933d732199a94415ea26f415a44a4629959653ef3bc3fc4052abaac75c320af",
@@ -74,7 +106,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.973172849,
+      "score": 0.972835482,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
@@ -90,7 +122,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.973172849,
+      "score": 0.972835482,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
@@ -116,7 +148,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 2.978993284,
+      "score": 2.977960564,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 3
@@ -137,7 +169,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 1.98655573,
+      "score": 1.985867056,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 2
@@ -153,7 +185,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.992437554,
+      "score": 0.992093508,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -169,7 +201,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.993526591,
+      "score": 0.993182167,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -185,7 +217,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 0.993029139,
+      "score": 0.992684888,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -201,7 +233,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.993526591,
+      "score": 0.993182167,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -222,7 +254,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 1.985466693,
+      "score": 1.984778397,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "preferred",
       "uses": 2
@@ -238,7 +270,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.992437554,
+      "score": 0.992093508,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "tentative",
       "uses": 1
