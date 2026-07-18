@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-	BookOpen,
 	Check,
 	Database,
 	Globe2,
@@ -199,6 +198,38 @@ function TelegramIcon({ className }: { className?: string }) {
 	)
 }
 
+function RubikaIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className}
+			aria-hidden
+		>
+			<path
+				d="M7.2 3.8h9.6c1.9 0 3.4 1.5 3.4 3.4v9.6c0 1.9-1.5 3.4-3.4 3.4H7.2c-1.9 0-3.4-1.5-3.4-3.4V7.2c0-1.9 1.5-3.4 3.4-3.4Z"
+				stroke="currentColor"
+				strokeWidth="1.7"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M8.5 8.2h7a1.4 1.4 0 0 1 1.4 1.4v4.8a1.4 1.4 0 0 1-1.4 1.4h-4.2l-2.3 1.8v-1.8h-.5a1.4 1.4 0 0 1-1.4-1.4V9.6a1.4 1.4 0 0 1 1.4-1.4Z"
+				stroke="currentColor"
+				strokeWidth="1.7"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M10 11.1h4M10 13.4h2.8"
+				stroke="currentColor"
+				strokeWidth="1.7"
+				strokeLinecap="round"
+			/>
+		</svg>
+	)
+}
+
 function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 	if (activeIndex === 0) {
 		return (
@@ -229,8 +260,11 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 
 	if (activeIndex === 4) {
 		return (
-			<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-500/90 text-white shadow-[0_0_18px_rgba(139,92,246,0.22)]">
-				<BookOpen className="h-4 w-4" />
+			<span
+				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1B4BFF] text-white shadow-[0_0_18px_rgba(27,75,255,0.28)]"
+				title="Rubika"
+			>
+				<RubikaIcon className="h-[18px] w-[18px]" />
 			</span>
 		)
 	}
