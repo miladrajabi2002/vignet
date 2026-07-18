@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/page.tsx": {
-    "mtime": 1784400635.0397992,
-    "ast_hash": "c1134c9b1b7aabfc7615d9222e749d37",
+    "mtime": 1784403975.0325134,
+    "ast_hash": "cfcefed99d93b42c6f1ca35df711707d",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/settings/page.tsx": {
