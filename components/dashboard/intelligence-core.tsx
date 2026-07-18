@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
@@ -33,10 +33,22 @@ type NetworkPoint = {
 	y: number
 }
 
+type NetworkSize = {
+	width: number
+	height: number
+}
+
 type ConnectionGeometry = {
 	path: string
 	start: NetworkPoint
 	end: NetworkPoint
+	sourceCenter: NetworkPoint
+}
+
+type ConnectionTiming = {
+	duration: number
+	firstDelay: number
+	returnFlow: boolean
 }
 
 const NODE_META: Partial<
@@ -119,46 +131,105 @@ function getLayout(count: number, compact: boolean): readonly NetworkPoint[] {
 	return layouts[normalizedCount] ?? layouts[6]
 }
 
+const FALLBACK_NETWORK_SIZE = {
+	mobile: { width: 320, height: 352 },
+	desktop: { width: 657, height: 368 },
+} as const
+
+function getCanvasSize(compact: boolean, size: NetworkSize): NetworkSize {
+	if (size.width > 0 && size.height > 0) return size
+	return compact ? FALLBACK_NETWORK_SIZE.mobile : FALLBACK_NETWORK_SIZE.desktop
+}
+
+function getCanvasPoint(point: NetworkPoint, size: NetworkSize): NetworkPoint {
+	return {
+		x: (point.x / 100) * size.width,
+		y: (point.y / 100) * size.height,
+	}
+}
+
+function getRectangleAttachment(
+	center: NetworkPoint,
+	halfWidth: number,
+	halfHeight: number,
+	toward: NetworkPoint,
+): NetworkPoint {
+	const dx = toward.x - center.x
+	const dy = toward.y - center.y
+	const denominator = Math.max(Math.abs(dx) / halfWidth, Math.abs(dy) / halfHeight)
+
+	if (!Number.isFinite(denominator) || denominator === 0) return center
+
+	const scale = 1 / denominator
+	return {
+		x: center.x + dx * scale,
+		y: center.y + dy * scale,
+	}
+}
+
+function getConnectionTiming(index: number): ConnectionTiming {
+	return {
+		duration: 3.25 + (index % 3) * 0.34,
+		firstDelay: 0.2 + index * 0.3,
+		returnFlow: index % 3 === 1,
+	}
+}
+
 function getConnectionGeometry(
 	point: NetworkPoint,
 	compact: boolean,
+	size: NetworkSize,
 ): ConnectionGeometry {
-	const isLeft = point.x < 50
-	const isTop = point.y < 36
-	const isBottom = point.y > 64
+	const canvas = getCanvasSize(compact, size)
+	const sourceCenter = getCanvasPoint(point, canvas)
+	const coreCenter = { x: canvas.width / 2, y: canvas.height / 2 }
+	const start = getRectangleAttachment(
+		sourceCenter,
+		compact ? 46 : 56,
+		compact ? 20 : 24,
+		coreCenter,
+	)
+	const end = getRectangleAttachment(
+		coreCenter,
+		compact ? 66 : 82,
+		compact ? 75 : 84,
+		sourceCenter,
+	)
 
-	const cardGap = compact ? 11 : 9
-	const coreEdgeX = compact ? 37.5 : 39
-	const coreTargetY = isTop ? 43 : isBottom ? 57 : 50
-
-	const start: NetworkPoint = {
-		x: point.x + (isLeft ? cardGap : -cardGap),
-		y: point.y,
+	const sourceLength = Math.hypot(
+		start.x - sourceCenter.x,
+		start.y - sourceCenter.y,
+	)
+	const coreLength = Math.hypot(end.x - coreCenter.x, end.y - coreCenter.y)
+	const routeLength = Math.hypot(end.x - start.x, end.y - start.y)
+	const handleLength = Math.min(compact ? 44 : 64, routeLength * 0.42)
+	const sourceNormal = {
+		x: (start.x - sourceCenter.x) / sourceLength,
+		y: (start.y - sourceCenter.y) / sourceLength,
 	}
-
-	const end: NetworkPoint = {
-		x: isLeft ? coreEdgeX : 100 - coreEdgeX,
-		y: coreTargetY,
+	const coreNormal = {
+		x: (end.x - coreCenter.x) / coreLength,
+		y: (end.y - coreCenter.y) / coreLength,
 	}
-
-	const firstControl: NetworkPoint = {
-		x: start.x + (isLeft ? 8 : -8),
-		y: start.y,
+	const firstControl = {
+		x: start.x + sourceNormal.x * handleLength,
+		y: start.y + sourceNormal.y * handleLength,
 	}
-
-	const secondControl: NetworkPoint = {
-		x: end.x + (isLeft ? -6 : 6),
-		y: end.y,
+	const secondControl = {
+		x: end.x + coreNormal.x * handleLength,
+		y: end.y + coreNormal.y * handleLength,
 	}
+	const format = (value: number) => value.toFixed(2)
 
 	return {
 		start,
 		end,
+		sourceCenter,
 		path: [
-			`M ${start.x} ${start.y}`,
-			`C ${firstControl.x} ${firstControl.y}`,
-			`${secondControl.x} ${secondControl.y}`,
-			`${end.x} ${end.y}`,
+			`M ${format(start.x)} ${format(start.y)}`,
+			`C ${format(firstControl.x)} ${format(firstControl.y)}`,
+			`${format(secondControl.x)} ${format(secondControl.y)}`,
+			`${format(end.x)} ${format(end.y)}`,
 		].join(' '),
 	}
 }
@@ -167,7 +238,7 @@ function NetworkDefs({ id }: { id: string }) {
 	return (
 		<defs>
 			<filter id={`${id}-particle`} x="-350%" y="-350%" width="800%" height="800%">
-				<feGaussianBlur stdDeviation="2.5" result="particleGlow" />
+				<feGaussianBlur stdDeviation="2.8" result="particleGlow" />
 				<feMerge>
 					<feMergeNode in="particleGlow" />
 					<feMergeNode in="SourceGraphic" />
@@ -179,10 +250,23 @@ function NetworkDefs({ id }: { id: string }) {
 			</filter>
 
 			<linearGradient id={`${id}-line`} x1="0" y1="0" x2="1" y2="0">
-				<stop offset="0" stopColor="#34d399" stopOpacity=".12" />
+				<stop offset="0" stopColor="#34d399" stopOpacity=".08" />
 				<stop offset=".5" stopColor="#a7f3d0" stopOpacity=".72" />
-				<stop offset="1" stopColor="#34d399" stopOpacity=".14" />
+				<stop offset="1" stopColor="#34d399" stopOpacity=".08" />
 			</linearGradient>
+
+			<marker
+				id={`${id}-arrow`}
+				viewBox="0 0 8 6"
+				refX="7"
+				refY="3"
+				markerWidth="7"
+				markerHeight="7"
+				markerUnits="userSpaceOnUse"
+				orient="auto-start-reverse"
+			>
+				<path d="M 0 0 L 8 3 L 0 6 Z" fill="#6ee7b7" fillOpacity=".88" />
+			</marker>
 		</defs>
 	)
 }
@@ -202,47 +286,45 @@ function SignalParticle({
 }) {
 	return (
 		<g>
-			<circle r="5.5" fill="#34d399" filter={`url(#${filterId}-particle)`} opacity="0">
+			<circle r="6" fill="#34d399" filter={`url(#${filterId}-particle)`} opacity="0">
 				<animateMotion
 					path={path}
 					begin={`${delay}s`}
 					dur={`${duration}s`}
 					repeatCount="indefinite"
-					keyPoints={reverse ? '1;0' : '0;1'}
-					keyTimes="0;1"
-					calcMode="linear"
+					keyPoints={reverse ? '1;0' : undefined}
+					keyTimes={reverse ? '0;1' : undefined}
+					calcMode={reverse ? 'linear' : undefined}
 				/>
 				<animate
 					attributeName="opacity"
-					values="0;.15;.11;0"
-					keyTimes="0;.15;.78;1"
+					values="0;.16;.12;0"
 					begin={`${delay}s`}
 					dur={`${duration}s`}
 					repeatCount="indefinite"
 				/>
 			</circle>
 
-			<circle r="2.15" fill="#d1fae5" filter={`url(#${filterId}-particle)`} opacity="0">
+			<circle r="2.5" fill="#a7f3d0" filter={`url(#${filterId}-particle)`} opacity="0">
 				<animateMotion
 					path={path}
 					begin={`${delay}s`}
 					dur={`${duration}s`}
 					repeatCount="indefinite"
-					keyPoints={reverse ? '1;0' : '0;1'}
-					keyTimes="0;1"
-					calcMode="linear"
+					keyPoints={reverse ? '1;0' : undefined}
+					keyTimes={reverse ? '0;1' : undefined}
+					calcMode={reverse ? 'linear' : undefined}
 				/>
 				<animate
 					attributeName="opacity"
 					values="0;1;1;0"
-					keyTimes="0;.12;.84;1"
 					begin={`${delay}s`}
 					dur={`${duration}s`}
 					repeatCount="indefinite"
 				/>
 				<animate
 					attributeName="r"
-					values="1.6;2.55;1.9"
+					values="1.8;2.8;2.2"
 					begin={`${delay}s`}
 					dur={`${duration}s`}
 					repeatCount="indefinite"
@@ -254,11 +336,13 @@ function SignalParticle({
 
 function NetworkTerminal({
 	point,
-	delay,
+	pulseDelay,
+	pulsePeriod,
 	reduce,
 }: {
 	point: NetworkPoint
-	delay: number
+	pulseDelay: number
+	pulsePeriod: number
 	reduce: boolean | null
 }) {
 	return (
@@ -267,25 +351,24 @@ function NetworkTerminal({
 				<circle
 					cx={point.x}
 					cy={point.y}
-					r="1.45"
+					r="6"
 					fill="none"
 					stroke="#6ee7b7"
-					strokeWidth=".45"
+					strokeWidth=".8"
 					opacity="0"
-					vectorEffect="non-scaling-stroke"
 				>
 					<animate
 						attributeName="r"
-						values="1.45;3.6;1.45"
-						dur="3s"
-						begin={`${delay}s`}
+						values="6;13;6"
+						dur={`${pulsePeriod}s`}
+						begin={`${pulseDelay}s`}
 						repeatCount="indefinite"
 					/>
 					<animate
 						attributeName="opacity"
-						values="0;.34;0"
-						dur="3s"
-						begin={`${delay}s`}
+						values="0;.3;0"
+						dur={`${pulsePeriod}s`}
+						begin={`${pulseDelay}s`}
 						repeatCount="indefinite"
 					/>
 				</circle>
@@ -294,14 +377,13 @@ function NetworkTerminal({
 			<circle
 				cx={point.x}
 				cy={point.y}
-				r="1.45"
-				fill="#080808"
+				r="6"
+				fill="#090909"
 				stroke="#6ee7b7"
-				strokeWidth=".5"
+				strokeWidth=".8"
 				strokeOpacity=".82"
-				vectorEffect="non-scaling-stroke"
 			/>
-			<circle cx={point.x} cy={point.y} r=".45" fill="#d1fae5" />
+			<circle cx={point.x} cy={point.y} r="2" fill="#d1fae5" />
 		</g>
 	)
 }
@@ -311,19 +393,22 @@ function ConnectionNetwork({
 	positions,
 	reduce,
 	compact,
+	size,
 	className,
 }: {
 	nodeKeys: DashboardModuleKey[]
 	positions: readonly NetworkPoint[]
 	reduce: boolean | null
 	compact: boolean
+	size: NetworkSize
 	className: string
 }) {
 	const id = compact ? 'vigent-intelligence-mobile' : 'vigent-intelligence-desktop'
+	const canvas = getCanvasSize(compact, size)
 
 	return (
 		<svg
-			viewBox="0 0 100 100"
+			viewBox={`0 0 ${canvas.width} ${canvas.height}`}
 			preserveAspectRatio="none"
 			className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
 			aria-hidden
@@ -334,10 +419,9 @@ function ConnectionNetwork({
 				const point = positions[index]
 				if (!point) return null
 
-				const geometry = getConnectionGeometry(point, compact)
-				const duration = 3.25 + (index % 3) * 0.34
-				const firstDelay = 0.2 + index * 0.3
-				const returnFlow = index % 3 === 1
+				const geometry = getConnectionGeometry(point, compact, size)
+				const { duration, firstDelay, returnFlow } = getConnectionTiming(index)
+				const pulsePeriod = duration * 0.5
 
 				return (
 					<g key={key}>
@@ -364,9 +448,11 @@ function ConnectionNetwork({
 							fill="none"
 							stroke={`url(#${id}-line)`}
 							strokeWidth="1.15"
-							strokeDasharray="3.5 7"
+							strokeDasharray="4 8"
 							strokeLinecap="round"
 							vectorEffect="non-scaling-stroke"
+							markerStart={returnFlow ? `url(#${id}-arrow)` : undefined}
+							markerEnd={returnFlow ? undefined : `url(#${id}-arrow)`}
 							initial={reduce ? false : { pathLength: 0, opacity: 0 }}
 							animate={{ pathLength: 1, opacity: 1 }}
 							transition={{
@@ -378,17 +464,17 @@ function ConnectionNetwork({
 							{!reduce ? (
 								<animate
 									attributeName="stroke-dashoffset"
-									values="0;-21"
+									values={returnFlow ? '0;24' : '0;-24'}
 									dur={`${2.7 + (index % 2) * 0.3}s`}
 									repeatCount="indefinite"
 								/>
 							) : null}
 						</motion.path>
 
-						<NetworkTerminal point={geometry.start} delay={firstDelay} reduce={reduce} />
 						<NetworkTerminal
 							point={geometry.end}
-							delay={firstDelay + duration * 0.78}
+							pulseDelay={returnFlow ? firstDelay : firstDelay + duration}
+							pulsePeriod={pulsePeriod}
 							reduce={reduce}
 						/>
 
@@ -399,12 +485,14 @@ function ConnectionNetwork({
 									delay={firstDelay}
 									duration={duration}
 									filterId={id}
+									reverse={returnFlow}
 								/>
 								<SignalParticle
 									path={geometry.path}
 									delay={firstDelay + duration * 0.5}
 									duration={duration}
 									filterId={id}
+									reverse={returnFlow}
 								/>
 								{returnFlow ? (
 									<SignalParticle
@@ -412,7 +500,7 @@ function ConnectionNetwork({
 										delay={1.15 + index * 0.28}
 										duration={4.15}
 										filterId={id}
-										reverse
+										reverse={!returnFlow}
 									/>
 								) : null}
 							</>
@@ -430,12 +518,16 @@ function ModuleNode({
 	index,
 	point,
 	reduce,
+	compact,
+	size,
 }: {
 	moduleKey: DashboardModuleKey
 	locale: 'fa' | 'en'
 	index: number
 	point: NetworkPoint
 	reduce: boolean | null
+	compact: boolean
+	size: NetworkSize
 }) {
 	const meta = NODE_META[moduleKey] ?? {
 		fa: moduleKey,
@@ -443,6 +535,13 @@ function ModuleNode({
 		icon: Database,
 	}
 	const Icon = meta.icon
+	const geometry = getConnectionGeometry(point, compact, size)
+	const { duration, firstDelay, returnFlow } = getConnectionTiming(index)
+	const portOffset = {
+		x: geometry.start.x - geometry.sourceCenter.x,
+		y: geometry.start.y - geometry.sourceCenter.y,
+	}
+	const pulseDelay = returnFlow ? firstDelay + duration : firstDelay
 
 	return (
 		<div
@@ -452,7 +551,7 @@ function ModuleNode({
 					'--node-y': `${point.y}%`,
 				} as CSSProperties
 			}
-			className="absolute left-[var(--node-x)] top-[var(--node-y)] z-20 -translate-x-1/2 -translate-y-1/2"
+			className={`absolute left-[var(--node-x)] top-[var(--node-y)] z-20 -translate-x-1/2 -translate-y-1/2 ${compact ? 'w-[92px]' : 'w-[112px]'}`}
 		>
 			<motion.div
 				initial={reduce ? false : { opacity: 0, scale: 0.92, y: 5 }}
@@ -462,7 +561,7 @@ function ModuleNode({
 					delay: 0.1 + index * 0.055,
 					ease: [0.23, 1, 0.32, 1],
 				}}
-				className="relative flex min-h-10 min-w-[92px] items-center gap-1.5 rounded-xl border border-white/[0.12] bg-[#111]/95 p-1.5 pe-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,.34)] backdrop-blur-xl sm:min-w-[112px] sm:gap-2 sm:rounded-2xl sm:p-2 sm:pe-3"
+				className="relative flex min-h-10 w-full items-center gap-1.5 rounded-xl border border-white/[0.12] bg-[#111]/95 p-1.5 pe-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,.34)] backdrop-blur-xl sm:gap-2 sm:rounded-2xl sm:p-2 sm:pe-3"
 			>
 				<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-black shadow-[0_6px_18px_rgba(255,255,255,.08)] sm:h-8 sm:w-8">
 					<Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -474,6 +573,32 @@ function ModuleNode({
 
 				<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.75)]" />
 			</motion.div>
+
+			<span
+				aria-hidden
+				style={{
+					left: `calc(50% + ${portOffset.x}px)`,
+					top: `calc(50% + ${portOffset.y}px)`,
+				}}
+				className="pointer-events-none absolute z-30 grid h-4 w-4 -translate-x-1/2 -translate-y-1/2 place-items-center"
+			>
+				{!reduce ? (
+					<motion.span
+						className="absolute inset-1 rounded-full border border-emerald-300/70"
+						animate={{ scale: [0.75, 2.15, 2.15], opacity: [0, 0.48, 0] }}
+						transition={{
+							duration: duration * 0.5,
+							delay: pulseDelay,
+							repeat: Infinity,
+							times: [0, 0.22, 1],
+							ease: 'easeOut',
+						}}
+					/>
+				) : null}
+				<span className="relative grid h-2.5 w-2.5 place-items-center rounded-full border border-emerald-200/80 bg-[#090909] shadow-[0_0_12px_rgba(52,211,153,.5)]">
+					<span className="h-1 w-1 rounded-full bg-emerald-200" />
+				</span>
+			</span>
 		</div>
 	)
 }
@@ -604,8 +729,35 @@ export function IntelligenceCore({
 	className = '',
 }: IntelligenceCoreProps) {
 	const reduce = useReducedMotion()
+	const stageRef = useRef<HTMLDivElement>(null)
+	const [stageSize, setStageSize] = useState<NetworkSize>({ width: 0, height: 0 })
 	const fa = locale === 'fa'
 	const Arrow = fa ? ArrowLeft : ArrowRight
+
+	useEffect(() => {
+		const stage = stageRef.current
+		if (!stage) return
+
+		const measure = () => {
+			const bounds = stage.getBoundingClientRect()
+			const width = Math.round(bounds.width)
+			const height = Math.round(bounds.height)
+
+			setStageSize((current) =>
+				current.width === width && current.height === height
+					? current
+					: { width, height },
+			)
+		}
+
+		measure()
+		if (typeof ResizeObserver === 'undefined') return
+
+		const observer = new ResizeObserver(measure)
+		observer.observe(stage)
+
+		return () => observer.disconnect()
+	}, [])
 
 	const requested = modules
 		.filter((module): module is DashboardModuleKey => module in NODE_META)
@@ -662,7 +814,10 @@ export function IntelligenceCore({
 				</span>
 			</header>
 
-			<div className="relative mx-3 h-[22rem] overflow-hidden rounded-[1.5rem] bg-[#050505] sm:mx-4 sm:h-[23rem] sm:rounded-[1.75rem]">
+			<div
+				ref={stageRef}
+				className="relative mx-3 h-[22rem] overflow-hidden rounded-[1.5rem] bg-[#050505] sm:mx-4 sm:h-[23rem] sm:rounded-[1.75rem]"
+			>
 				<div
 					aria-hidden
 					className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(52,211,153,.075),transparent_31%),linear-gradient(rgba(255,255,255,.028)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.028)_1px,transparent_1px)] bg-[size:auto,25px_25px,25px_25px] sm:bg-[size:auto,29px_29px,29px_29px]"
@@ -681,6 +836,7 @@ export function IntelligenceCore({
 					positions={mobilePositions}
 					reduce={reduce}
 					compact
+					size={stageSize}
 					className="sm:hidden"
 				/>
 				<ConnectionNetwork
@@ -688,6 +844,7 @@ export function IntelligenceCore({
 					positions={desktopPositions}
 					reduce={reduce}
 					compact={false}
+					size={stageSize}
 					className="hidden sm:block"
 				/>
 
@@ -700,6 +857,8 @@ export function IntelligenceCore({
 							index={index}
 							point={mobilePositions[index]}
 							reduce={reduce}
+							compact
+							size={stageSize}
 						/>
 					))}
 				</div>
@@ -713,6 +872,8 @@ export function IntelligenceCore({
 							index={index}
 							point={desktopPositions[index]}
 							reduce={reduce}
+							compact={false}
+							size={stageSize}
 						/>
 					))}
 				</div>

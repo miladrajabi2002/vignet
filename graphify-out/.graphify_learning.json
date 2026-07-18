@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-17T14:42:14.998458+00:00",
+  "generated_at": "2026-07-18T10:07:03.240224+00:00",
   "nodes": {
     "app_dashboard_conversations_page_conversationspage": {
       "code_fingerprint": "f8dbc787dcd53226f021b31eca390f4a9aa7a0e48a65b11a8f48419bed5c2ab3",
@@ -12,42 +12,56 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.999407967,
+      "score": 0.980903126,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
     },
     "app_dashboard_overview_page_attentionitem": {
-      "code_fingerprint": "7da452cca01b336089ac280cc0f311e8cf4a98015db6e3f871d5b1424554a6f2",
+      "code_fingerprint": "51a568d8ae40fc8d7c091146bc61f7eb4f32bac963b0af750f46d3e05ac9ed06",
       "label": "AttentionItem()",
-      "last": "2026-07-17T14:34:41.017167+00:00",
+      "last": "2026-07-17T14:45:53.470511+00:00",
+      "neg": 1,
       "provenance": [
+        {
+          "date": "2026-07-17T14:45:53.470511+00:00",
+          "outcome": "corrected",
+          "q": "الان این 3 تا کنار هم هستن خب چرا زیر هم نمیزاری یا دیزیانشون رو عوض نمیکنی توی اون یه قسمت جا بهترین نحو نشون بدن"
+        },
         {
           "date": "2026-07-17T14:34:41.017167+00:00",
           "outcome": "useful",
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": 0.999878605,
+      "score": -0.000176491,
       "source_file": "app/(dashboard)/overview/page.tsx",
-      "status": "tentative",
-      "uses": 1
+      "status": "contested",
+      "uses": 1,
+      "verdict": "dead end"
     },
     "app_dashboard_overview_page_overviewpage": {
-      "code_fingerprint": "7da452cca01b336089ac280cc0f311e8cf4a98015db6e3f871d5b1424554a6f2",
+      "code_fingerprint": "51a568d8ae40fc8d7c091146bc61f7eb4f32bac963b0af750f46d3e05ac9ed06",
       "label": "OverviewPage()",
-      "last": "2026-07-17T14:34:41.017167+00:00",
+      "last": "2026-07-17T14:45:53.470511+00:00",
+      "neg": 1,
       "provenance": [
+        {
+          "date": "2026-07-17T14:45:53.470511+00:00",
+          "outcome": "corrected",
+          "q": "الان این 3 تا کنار هم هستن خب چرا زیر هم نمیزاری یا دیزیانشون رو عوض نمیکنی توی اون یه قسمت جا بهترین نحو نشون بدن"
+        },
         {
           "date": "2026-07-17T14:34:41.017167+00:00",
           "outcome": "useful",
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": 0.999878605,
+      "score": -0.000176491,
       "source_file": "app/(dashboard)/overview/page.tsx",
-      "status": "tentative",
-      "uses": 1
+      "status": "contested",
+      "uses": 1,
+      "verdict": "dead end"
     },
     "components_crm_campaign_composer": {
       "code_fingerprint": "d933d732199a94415ea26f415a44a4629959653ef3bc3fc4052abaac75c320af",
@@ -60,7 +74,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.999407967,
+      "score": 0.980903126,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
@@ -76,7 +90,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.999407967,
+      "score": 0.980903126,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
