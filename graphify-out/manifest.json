@@ -760,8 +760,8 @@
     "semantic_hash": ""
   },
   "app/api/operator-channel/test/route.ts": {
-    "mtime": 1782948155.0,
-    "ast_hash": "e51cedc8ab8fc7d1cb23fb527b01587d",
+    "mtime": 1784426686.2135062,
+    "ast_hash": "bc5ea65cd407df6581a7619f0d32b937",
     "semantic_hash": ""
   },
   "app/api/products/[productId]/route.ts": {
@@ -790,8 +790,8 @@
     "semantic_hash": ""
   },
   "app/api/telegram-operator/webhook/route.ts": {
-    "mtime": 1784425814.9520586,
-    "ast_hash": "f13ecfe82cc473d03b893c769955c238",
+    "mtime": 1784426686.20496,
+    "ast_hash": "c5e9e7c43e9b6997167a267950ac46e6",
     "semantic_hash": ""
   },
   "app/api/uploads/blog/[file]/route.ts": {
@@ -1140,8 +1140,8 @@
     "semantic_hash": ""
   },
   "components/crm/operator-channel-setup.tsx": {
-    "mtime": 1784426147.479492,
-    "ast_hash": "beb38bd26ff808fb852801d227f7a3bd",
+    "mtime": 1784426686.212512,
+    "ast_hash": "287628dfe0ec77857affedfdc002e81a",
     "semantic_hash": ""
   },
   "components/crm/operator-reply.tsx": {
@@ -1790,8 +1790,8 @@
     "semantic_hash": ""
   },
   "lib/channels/telegram.ts": {
-    "mtime": 1784425699.1501813,
-    "ast_hash": "52ba0a1f001439b04b4c13250ae4e740",
+    "mtime": 1784426708.3404863,
+    "ast_hash": "4d759bb049e7df7e51a622d87e6f3b34",
     "semantic_hash": ""
   },
   "lib/channels/types.ts": {
@@ -2765,8 +2765,8 @@
     "semantic_hash": ""
   },
   "app/api/operator-channel/diagnostics/route.ts": {
-    "mtime": 1784425839.4161255,
-    "ast_hash": "ee32e2a3fa65a07acabe7492034347da",
+    "mtime": 1784426686.203945,
+    "ast_hash": "207cbe014e8e5ede5ecab0df8c6544b4",
     "semantic_hash": ""
   },
   "lib/channels/operator-bot.ts": {

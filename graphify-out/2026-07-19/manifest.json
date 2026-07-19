@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/channels/page.tsx": {
-    "mtime": 1784424985.7613413,
-    "ast_hash": "089bdfac7389254fcffeabefd58f2b48",
+    "mtime": 1784426028.6184247,
+    "ast_hash": "aa53e9eb9d48f6c3a24c6c1d3624be4b",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/instagram/[automationId]/edit/page.tsx": {
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/settings/page.tsx": {
-    "mtime": 1784154023.0,
-    "ast_hash": "f5b82c7127084d79c04286f8a9ec3638",
+    "mtime": 1784425868.2375536,
+    "ast_hash": "1eff808b8c26687873eac9e49deff970",
     "semantic_hash": ""
   },
   "app/(dashboard)/settings/team/page.tsx": {
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "app/api/operator-channel/route.ts": {
-    "mtime": 1782948155.0,
-    "ast_hash": "c68a789485bdd49a9aa5ec7757f16b8c",
+    "mtime": 1784426369.877544,
+    "ast_hash": "b32ed6cf276eec0802148801d16e2071",
     "semantic_hash": ""
   },
   "app/api/operator-channel/test/route.ts": {
@@ -790,8 +790,8 @@
     "semantic_hash": ""
   },
   "app/api/telegram-operator/webhook/route.ts": {
-    "mtime": 1782948155.0,
-    "ast_hash": "78122e1fa2162febd1446d1ef337241a",
+    "mtime": 1784425814.9520586,
+    "ast_hash": "f13ecfe82cc473d03b893c769955c238",
     "semantic_hash": ""
   },
   "app/api/uploads/blog/[file]/route.ts": {
@@ -1065,23 +1065,23 @@
     "semantic_hash": ""
   },
   "components/channels/chat-link-channel.tsx": {
-    "mtime": 1784067811.348944,
-    "ast_hash": "69f4ca0e5f07ea872dfe149a6392c1ac",
+    "mtime": 1784426360.112478,
+    "ast_hash": "8d5df19f09ee3fdaaf26f7d0d948ce2b",
     "semantic_hash": ""
   },
   "components/channels/instagram-connect-wizard.tsx": {
-    "mtime": 1784298072.5175273,
-    "ast_hash": "f5a7dda759a8b197b2b239de14daea5d",
+    "mtime": 1784426368.2422636,
+    "ast_hash": "310037ff65efd678e4038a7756939e2a",
     "semantic_hash": ""
   },
   "components/channels/messenger-channel.tsx": {
-    "mtime": 1784115608.4417126,
-    "ast_hash": "3e87b76a59978770f4830cb3901dc8dc",
+    "mtime": 1784426360.1155114,
+    "ast_hash": "32e5b1049e08e0a19af59d31491dbcbd",
     "semantic_hash": ""
   },
   "components/channels/web-widget-channel.tsx": {
-    "mtime": 1784067714.7552664,
-    "ast_hash": "e1539ad3ab48461e9f509a5dec294cab",
+    "mtime": 1784426276.8850589,
+    "ast_hash": "ea447bba2d827082eb336ebaf33713aa",
     "semantic_hash": ""
   },
   "components/channels/whatsapp-connect-wizard.tsx": {
@@ -1140,8 +1140,8 @@
     "semantic_hash": ""
   },
   "components/crm/operator-channel-setup.tsx": {
-    "mtime": 1784067714.7502697,
-    "ast_hash": "d9249322b938f1ee0f40a7b4f3eeb3df",
+    "mtime": 1784426147.479492,
+    "ast_hash": "beb38bd26ff808fb852801d227f7a3bd",
     "semantic_hash": ""
   },
   "components/crm/operator-reply.tsx": {
@@ -1765,8 +1765,8 @@
     "semantic_hash": ""
   },
   "lib/channels/operator-handoff.ts": {
-    "mtime": 1784298072.5987065,
-    "ast_hash": "f27d8e3e9d05955efc1c0f1ae2aa0e68",
+    "mtime": 1784425639.8450403,
+    "ast_hash": "4212e43d9b9eb9e6c8dbb2e8520fe1f3",
     "semantic_hash": ""
   },
   "lib/channels/outbound.ts": {
@@ -1790,8 +1790,8 @@
     "semantic_hash": ""
   },
   "lib/channels/telegram.ts": {
-    "mtime": 1782508935.085357,
-    "ast_hash": "4385136ee94b42470179d521ba65e995",
+    "mtime": 1784425699.1501813,
+    "ast_hash": "52ba0a1f001439b04b4c13250ae4e740",
     "semantic_hash": ""
   },
   "lib/channels/types.ts": {
@@ -2145,13 +2145,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1784399482.48711,
-    "ast_hash": "a49006eb76e1b81eb2b55079225bb04a",
+    "mtime": 1784426034.7652507,
+    "ast_hash": "679523f5aec8136262d16e128ac08f22",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1784399482.483542,
-    "ast_hash": "fb603c2bdfd071321eeb8b7e11749877",
+    "mtime": 1784426034.7652507,
+    "ast_hash": "c12bc671c3401170ed5e5ba41b0cedce",
     "semantic_hash": ""
   },
   "middleware.ts": {
@@ -2594,11 +2594,6 @@
     "ast_hash": "4e9a03d7197d668b98faafbae5bb8167",
     "semantic_hash": ""
   },
-  "components/channels/instagram-service-setup.tsx": {
-    "mtime": 1784115530.8792646,
-    "ast_hash": "f18586826fa3a30f9811baadec344108",
-    "semantic_hash": ""
-  },
   "tests/contact-identity-lock.test.ts": {
     "mtime": 1784116316.2636182,
     "ast_hash": "fce4c5d3d68bffc6b4910c40ab78d751",
@@ -2767,6 +2762,31 @@
   "graphify-out/memory/query_20260719_012951_\u062d\u0630\u0641_\u0686\u0647\u0627\u0631_\u06a9\u0627\u0631\u062a_\u0622\u0645\u0627\u0631\u06cc_\u0648_\u0627\u0646\u062a\u0642\u0627\u0644_\u0641\u0631\u0635\u062a_\u0647\u0627\u06cc_\u0631\u0634\u062f_\u0628\u0627\u0644\u0627\u062a\u0631_\u0627.md": {
     "mtime": 1784424591.6491559,
     "ast_hash": "d6656f3ad6b8f7b3017ddebb1f18370a",
+    "semantic_hash": ""
+  },
+  "app/api/operator-channel/diagnostics/route.ts": {
+    "mtime": 1784425839.4161255,
+    "ast_hash": "ee32e2a3fa65a07acabe7492034347da",
+    "semantic_hash": ""
+  },
+  "lib/channels/operator-bot.ts": {
+    "mtime": 1784426382.1816397,
+    "ast_hash": "e3353a756f09a17bd1af0233e2d74f14",
+    "semantic_hash": ""
+  },
+  "tests/agent-channel-ui.test.ts": {
+    "mtime": 1784426437.4579048,
+    "ast_hash": "e6de4a7b36fecbc66fd3bc1404f93611",
+    "semantic_hash": ""
+  },
+  "tests/operator-bot-controls.test.ts": {
+    "mtime": 1784426212.9627898,
+    "ast_hash": "4f9952d4cf7798dfbaa11c7bdaf35d3b",
+    "semantic_hash": ""
+  },
+  "tests/operator-bot-webhook.test.ts": {
+    "mtime": 1784426302.9908106,
+    "ast_hash": "83825b92f6d468883ab8d220a5e7f51d",
     "semantic_hash": ""
   }
 }

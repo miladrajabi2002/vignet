@@ -39,6 +39,7 @@ export async function GET() {
         chatConfigured: Boolean(op.operatorChatId),
         webhookConfigured: false,
         webhookMatches: false,
+        callbackControlsEnabled: false,
         pendingUpdateCount: 0,
         maxConnections: null,
         lastErrorAt: null,
@@ -55,10 +56,11 @@ export async function GET() {
   const expectedWebhookUrl = `${appBaseUrl()}/api/telegram-operator/webhook?token=${encodeURIComponent(token)}`
   const webhookConfigured = Boolean(webhook?.url)
   const webhookMatches = webhook?.url === expectedWebhookUrl
+  const callbackControlsEnabled = webhook?.allowedUpdates.includes('callback_query') ?? false
   const lastErrorMessage = webhook?.lastErrorMessage ?? op.lastError
   const status = !bot || !webhook || !webhookConfigured
     ? 'error'
-    : !op.active || !op.operatorChatId || !webhookMatches || Boolean(lastErrorMessage)
+    : !op.active || !op.operatorChatId || !webhookMatches || !callbackControlsEnabled || Boolean(lastErrorMessage)
       ? 'warning'
       : 'healthy'
 
@@ -72,6 +74,7 @@ export async function GET() {
       chatConfigured: Boolean(op.operatorChatId),
       webhookConfigured,
       webhookMatches,
+      callbackControlsEnabled,
       pendingUpdateCount: webhook?.pendingUpdateCount ?? 0,
       maxConnections: webhook?.maxConnections ?? null,
       lastErrorAt: webhook?.lastErrorDate

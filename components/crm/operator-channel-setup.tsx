@@ -72,6 +72,7 @@ interface OperatorChannelHealth {
   chatConfigured: boolean
   webhookConfigured: boolean
   webhookMatches: boolean
+  callbackControlsEnabled: boolean
   pendingUpdateCount: number
   maxConnections: number | null
   lastErrorAt: string | null
@@ -533,6 +534,12 @@ export function OperatorChannelSetup({
                   ok={Boolean(info.operatorChatId)}
                 />
                 <HealthRow
+                  icon={<Command className="h-4 w-4" />}
+                  label={copy('دکمه‌های مدیریتی تلگرام', 'Telegram management controls')}
+                  value={health?.callbackControlsEnabled ? copy('Callbackها فعال و همگام هستند', 'Callbacks are enabled and in sync') : healthLoading ? copy('در حال بررسی تنظیمات…', 'Checking configuration…') : copy('یک‌بار «تست و همگام‌سازی» را اجرا کنید', 'Run Test & sync once')}
+                  ok={health?.callbackControlsEnabled ?? false}
+                />
+                <HealthRow
                   icon={active ? <PlayCircle className="h-4 w-4" /> : <PauseCircle className="h-4 w-4" />}
                   label={copy('ارسال خودکار هشدار', 'Automatic alert delivery')}
                   value={active ? copy('فعال و آماده ارسال', 'Active and ready') : copy('موقتاً متوقف', 'Temporarily paused')}
@@ -604,7 +611,7 @@ export function OperatorChannelSetup({
                     className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/[0.08] bg-white px-3 text-xs font-bold text-[var(--text-secondary)] shadow-sm hover:text-[var(--text-primary)] disabled:opacity-45"
                   >
                     {busy === 'test' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4" />}
-                    {t('test')}
+                    {copy('تست و همگام‌سازی', 'Test & sync')}
                   </button>
                   <button
                     type="button"

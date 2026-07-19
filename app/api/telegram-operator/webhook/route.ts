@@ -226,6 +226,7 @@ async function statsText(workspaceId: string): Promise<string> {
 async function healthText(op: OperatorChannelRow, botToken: string): Promise<string> {
   const webhook = await getTelegramWebhookInfo(botToken)
   const webhookReady = Boolean(webhook?.url)
+  const callbacksReady = webhook?.allowedUpdates.includes('callback_query') ?? false
   const telegramError = webhook?.lastErrorMessage ?? op.lastError
 
   return [
@@ -234,6 +235,7 @@ async function healthText(op: OperatorChannelRow, botToken: string): Promise<str
     `${op.active ? '✅' : '⏸'} ارسال هشدار: <b>${op.active ? 'فعال' : 'متوقف'}</b>`,
     `${op.operatorChatId ? '✅' : '⚠️'} شناسه اپراتور: <b>${op.operatorChatId ? 'ثبت شده' : 'ناقص'}</b>`,
     `${webhookReady ? '✅' : '❌'} webhook تلگرام: <b>${webhookReady ? 'متصل' : 'در دسترس نیست'}</b>`,
+    `${callbacksReady ? '✅' : '⚠️'} دکمه‌های مدیریتی: <b>${callbacksReady ? 'فعال' : 'نیازمند همگام‌سازی'}</b>`,
     `📥 به‌روزرسانی در صف: <b>${(webhook?.pendingUpdateCount ?? 0).toLocaleString('fa-IR')}</b>`,
     telegramError ? `\n⚠️ <b>آخرین خطا:</b>\n${escapeHtml(telegramError.slice(0, 280))}` : '\n✨ خطای فعالی گزارش نشده است.',
   ].join('\n')

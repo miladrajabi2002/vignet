@@ -3,6 +3,11 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { captureError } from '@/lib/errors/capture'
 import { readOperatorBotToken } from '@/lib/channels/operator-handoff'
+import { setTelegramBotCommands, setTelegramWebhook } from '@/lib/channels/telegram'
+
+function appBaseUrl(): string {
+	return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
+}
 
 /**
  * POST /api/operator-channel/test — sends a test message "✅ اتصال بات اپراتور
@@ -26,6 +31,25 @@ export async function POST() {
 	const token = readOperatorBotToken(op.botToken)
 	if (!token) {
 		return NextResponse.json({ error: 'INVALID_TOKEN' }, { status: 400 })
+	}
+
+	const webhookUrl = `${appBaseUrl()}/api/telegram-operator/webhook?token=${encodeURIComponent(token)}`
+	const [webhookSet, commandsSet] = await Promise.all([
+		setTelegramWebhook(token, webhookUrl),
+		setTelegramBotCommands(token),
+	])
+	if (!webhookSet || !commandsSet) {
+		const message = !webhookSet
+			? 'Telegram webhook synchronization failed'
+			: 'Telegram command menu synchronization failed'
+		await prisma.operatorChannel.update({
+			where: { id: op.id },
+			data: { lastError: message },
+		})
+		return NextResponse.json(
+			{ ok: false, error: 'SYNC_FAILED', message },
+			{ status: 502 },
+		)
 	}
 
 	const text = '✅ اتصال بات اپراتور ویجنت تأیید شد'

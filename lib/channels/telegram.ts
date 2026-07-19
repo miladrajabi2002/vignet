@@ -9,6 +9,7 @@ export interface TelegramWebhookInfo {
   maxConnections: number | null
   lastErrorDate: number | null
   lastErrorMessage: string | null
+  allowedUpdates: string[]
 }
 
 export function telegramAdapter(token: string): MessengerAdapter {
@@ -41,23 +42,28 @@ export async function setTelegramWebhook(
 /** Register the management commands shown in Telegram's bot command menu. */
 export async function setTelegramBotCommands(token: string): Promise<boolean> {
   try {
-    const res = await fetch(`${TELEGRAM_BASE}/bot${token}/setMyCommands`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language_code: 'fa',
-        commands: [
-          { command: 'menu', description: 'مرکز مدیریت' },
-          { command: 'chats', description: 'گفتگوهای منتظر اپراتور' },
-          { command: 'stats', description: 'گزارش ۲۴ ساعت اخیر' },
-          { command: 'health', description: 'بررسی سلامت اتصال' },
-          { command: 'help', description: 'راهنمای بات اپراتور' },
-        ],
-      }),
-      signal: AbortSignal.timeout(8_000),
-    })
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean }
-    return res.ok && json.ok !== false
+    const commands = [
+      { command: 'menu', description: 'مرکز مدیریت' },
+      { command: 'chats', description: 'گفتگوهای منتظر اپراتور' },
+      { command: 'stats', description: 'گزارش ۲۴ ساعت اخیر' },
+      { command: 'health', description: 'بررسی سلامت اتصال' },
+      { command: 'help', description: 'راهنمای بات اپراتور' },
+    ]
+    const register = async (languageCode?: string) => {
+      const res = await fetch(`${TELEGRAM_BASE}/bot${token}/setMyCommands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commands,
+          ...(languageCode ? { language_code: languageCode } : {}),
+        }),
+        signal: AbortSignal.timeout(8_000),
+      })
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean }
+      return res.ok && json.ok !== false
+    }
+    const [defaultSet, persianSet] = await Promise.all([register(), register('fa')])
+    return defaultSet && persianSet
   } catch {
     return false
   }
@@ -93,6 +99,7 @@ export async function getTelegramWebhookInfo(
         max_connections?: number
         last_error_date?: number
         last_error_message?: string
+        allowed_updates?: string[]
       }
     } | null
     if (!res.ok || !json?.ok || !json.result) return null
@@ -103,6 +110,7 @@ export async function getTelegramWebhookInfo(
       maxConnections: json.result.max_connections ?? null,
       lastErrorDate: json.result.last_error_date ?? null,
       lastErrorMessage: json.result.last_error_message ?? null,
+      allowedUpdates: json.result.allowed_updates ?? [],
     }
   } catch {
     return null
