@@ -38,6 +38,33 @@ export interface PromptQAPair {
   answer: string
 }
 
+export interface PromptConversationConfig {
+  /** Overall social register. */
+  formality: 'formal' | 'balanced' | 'casual'
+  /** How readily the agent proposes a useful next step. */
+  initiative: 'answer_only' | 'guided' | 'proactive'
+  /** How much emotional acknowledgement the agent should show. */
+  empathy: 'neutral' | 'balanced' | 'warm'
+  /** How often the agent should ask a follow-up question. */
+  followUp: 'rare' | 'when_needed' | 'often'
+  /** Adapt vocabulary and sentence rhythm to the customer without copying them. */
+  mirrorCustomerTone: boolean
+  /** Use a known customer name naturally, never guess or over-repeat it. */
+  useCustomerName: boolean
+  /** Greet once at the beginning instead of restarting every turn. */
+  avoidRepeatedGreetings: boolean
+}
+
+export const DEFAULT_CONVERSATION_CONFIG: Readonly<PromptConversationConfig> = {
+  formality: 'balanced',
+  initiative: 'guided',
+  empathy: 'balanced',
+  followUp: 'when_needed',
+  mirrorCustomerTone: true,
+  useCustomerName: true,
+  avoidRepeatedGreetings: true,
+}
+
 export interface PromptConfig {
   /** Layer 1 — Personality: role + character traits. Free-form text. */
   personality: string
@@ -52,6 +79,78 @@ export interface PromptConfig {
   format: PromptFormatConfig
   /** Layer 6 — Curated Q&A pairs (few-shot examples). */
   qaPairs: PromptQAPair[]
+  /** Natural conversation controls. Optional for configs saved before this field existed. */
+  conversation?: PromptConversationConfig
+}
+
+export type NormalizedPromptConfig = Omit<PromptConfig, 'conversation'> & {
+  conversation: PromptConversationConfig
+}
+
+function enumOrDefault<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? value as T
+    : fallback
+}
+
+function booleanOrDefault(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+/**
+ * Fill fields introduced after launch without mutating the stored JSON object.
+ * Existing agents therefore gain safe natural-conversation defaults without a
+ * Prisma migration, while newly saved configs persist the explicit choices.
+ */
+export function normalizePromptConfig(config: PromptConfig): NormalizedPromptConfig {
+  const conversation = config.conversation
+  return {
+    ...config,
+    format: {
+      bold: config.format?.bold ?? true,
+      emoji: config.format?.emoji ?? false,
+      links: config.format?.links ?? true,
+      bullets: config.format?.bullets ?? true,
+      length: config.format?.length ?? 'medium',
+    },
+    qaPairs: config.qaPairs ?? [],
+    doSay: config.doSay ?? [],
+    dontSay: config.dontSay ?? [],
+    conversation: {
+      formality: enumOrDefault(conversation?.formality, ['formal', 'balanced', 'casual'], DEFAULT_CONVERSATION_CONFIG.formality),
+      initiative: enumOrDefault(conversation?.initiative, ['answer_only', 'guided', 'proactive'], DEFAULT_CONVERSATION_CONFIG.initiative),
+      empathy: enumOrDefault(conversation?.empathy, ['neutral', 'balanced', 'warm'], DEFAULT_CONVERSATION_CONFIG.empathy),
+      followUp: enumOrDefault(conversation?.followUp, ['rare', 'when_needed', 'often'], DEFAULT_CONVERSATION_CONFIG.followUp),
+      mirrorCustomerTone: booleanOrDefault(conversation?.mirrorCustomerTone, DEFAULT_CONVERSATION_CONFIG.mirrorCustomerTone),
+      useCustomerName: booleanOrDefault(conversation?.useCustomerName, DEFAULT_CONVERSATION_CONFIG.useCustomerName),
+      avoidRepeatedGreetings: booleanOrDefault(conversation?.avoidRepeatedGreetings, DEFAULT_CONVERSATION_CONFIG.avoidRepeatedGreetings),
+    },
+  }
+}
+
+function isDefaultConversation(config: PromptConversationConfig): boolean {
+  return (Object.keys(DEFAULT_CONVERSATION_CONFIG) as Array<keyof PromptConversationConfig>)
+    .every((key) => config[key] === DEFAULT_CONVERSATION_CONFIG[key])
+}
+
+export function hasMeaningfulPromptConfig(config: PromptConfig | null | undefined): boolean {
+  if (!config) return false
+  const normalized = normalizePromptConfig(config)
+  const defaultFormat = normalized.format.bold
+    && !normalized.format.emoji
+    && normalized.format.links
+    && normalized.format.bullets
+    && normalized.format.length === 'medium'
+  return Boolean(
+    normalized.personality?.trim()
+    || normalized.tone?.trim()
+    || normalized.doSay.some((item) => item.trim())
+    || normalized.dontSay.some((item) => item.trim())
+    || normalized.fallbackBehavior?.trim()
+    || normalized.qaPairs.length
+    || !defaultFormat
+    || !isDefaultConversation(normalized.conversation)
+  )
 }
 
 /** Role template keys — the "core" business archetypes the user can start from. */
@@ -941,6 +1040,84 @@ function formatQAPairs(pairs: PromptQAPair[], isFa: boolean): string {
   return `### ${header}\n${blocks.join('\n\n')}`
 }
 
+function formatConversationLayer(config: PromptConversationConfig, isFa: boolean): string {
+  const formality = isFa
+    ? {
+        formal: 'محترمانه و رسمی بنویس، اما خشک و اداری نباش.',
+        balanced: 'محترمانه، روان و متناسب با فضای گفتگو بنویس.',
+        casual: 'صمیمی و محاوره‌ای بنویس، اما حرفه‌ای و محترمانه بمان.',
+      }[config.formality]
+    : {
+        formal: 'Use a respectful formal register without sounding stiff or bureaucratic.',
+        balanced: 'Use a respectful, clear register that fits the conversation.',
+        casual: 'Sound friendly and conversational while staying professional and respectful.',
+      }[config.formality]
+
+  const initiative = isFa
+    ? {
+        answer_only: 'مستقیم به همان سؤال پاسخ بده و فقط وقتی لازم است اقدام بعدی پیشنهاد کن.',
+        guided: 'بعد از پاسخ، در صورت مفید بودن یک قدم بعدی روشن پیشنهاد کن.',
+        proactive: 'نیاز بعدی محتمل را تشخیص بده و فعالانه یک پیشنهاد مرتبط و غیرتحمیلی ارائه کن.',
+      }[config.initiative]
+    : {
+        answer_only: 'Answer the question directly and suggest a next step only when necessary.',
+        guided: 'After answering, offer one clear next step when it would help.',
+        proactive: 'Anticipate the likely next need and proactively offer one relevant, non-pushy next step.',
+      }[config.initiative]
+
+  const empathy = isFa
+    ? {
+        neutral: 'روی حل مسئله تمرکز کن و فقط در موقعیت‌های واقعاً احساسی همدلی کوتاه نشان بده.',
+        balanced: 'احساس یا نگرانی مشتری را وقتی مرتبط است کوتاه و واقعی تأیید کن.',
+        warm: 'گرم و حمایتگر باش؛ احساس مشتری را طبیعی تأیید کن، بدون اغراق یا جمله‌های کلیشه‌ای.',
+      }[config.empathy]
+    : {
+        neutral: 'Stay solution-focused and acknowledge emotion briefly only when it is clearly relevant.',
+        balanced: 'Briefly and sincerely acknowledge the customer’s concern when relevant.',
+        warm: 'Be warm and supportive; acknowledge emotion naturally without exaggeration or canned sympathy.',
+      }[config.empathy]
+
+  const followUp = isFa
+    ? {
+        rare: 'تا وقتی بدون سؤال اضافه می‌توانی کمک کنی، سؤال پیگیری نپرس.',
+        when_needed: 'فقط وقتی اطلاعات ضروری کم است، یک سؤال پیگیری مشخص بپرس.',
+        often: 'برای کشف بهتر نیاز، در هر نوبت حداکثر یک سؤال پیگیری مرتبط بپرس.',
+      }[config.followUp]
+    : {
+        rare: 'Avoid follow-up questions when you can help without them.',
+        when_needed: 'Ask one precise follow-up question only when required information is missing.',
+        often: 'Ask at most one relevant follow-up question per turn to understand the need better.',
+      }[config.followUp]
+
+  const lines = [formality, initiative, empathy, followUp]
+  lines.push(config.mirrorCustomerTone
+    ? (isFa
+        ? 'واژگان و ریتم پاسخ را به‌صورت ملایم با لحن مشتری هماهنگ کن؛ سبک او را تقلید نکن و بی‌احترامی را بازتاب نده.'
+        : 'Gently adapt vocabulary and rhythm to the customer’s tone; do not mimic them or mirror disrespect.')
+    : (isFa
+        ? 'لحن تعریف‌شده برند را ثابت نگه دار و سبک نوشتن مشتری را تقلید نکن.'
+        : 'Keep the defined brand voice consistent instead of mirroring the customer’s writing style.'))
+  lines.push(config.useCustomerName
+    ? (isFa
+        ? 'اگر مشتری نامش را گفته است، گاهی و فقط در جای طبیعی از آن استفاده کن؛ نام را حدس نزن و تکرار نکن.'
+        : 'If the customer has shared their name, use it occasionally and naturally; never guess or overuse it.')
+    : (isFa
+        ? 'در پاسخ‌ها مشتری را با نام خطاب نکن.'
+        : 'Do not address the customer by name in replies.'))
+  lines.push(config.avoidRepeatedGreetings
+    ? (isFa
+        ? 'فقط در شروع گفتگو سلام کن؛ در ادامه دوباره خوش‌آمدگویی نکن و هر پاسخ را از نو آغاز نکن.'
+        : 'Greet only at the start of the conversation; do not re-greet or restart the interaction on every turn.')
+    : (isFa
+        ? 'سلام را فقط وقتی با جریان واقعی گفتگو سازگار است استفاده کن.'
+        : 'Use greetings only when they fit the actual flow of the conversation.'))
+  lines.push(isFa
+    ? 'پیام مشتری را بی‌دلیل تکرار نکن، از عبارت‌های رباتیک و جمله‌های آغازین ثابت دوری کن و هرگز وانمود نکن انسان هستی.'
+    : 'Do not needlessly restate the customer’s message, avoid robotic stock openings, and never pretend to be human.')
+
+  return `### ${isFa ? 'سبک گفت‌وگوی طبیعی' : 'Natural conversation style'}\n${lines.map((line) => `• ${line}`).join('\n')}`
+}
+
 /**
  * Assemble the 6-layer prompt config into a single system-prompt string.
  *
@@ -954,50 +1131,54 @@ export function buildLayeredPrompt(
   isFa: boolean,
 ): string {
   // Backward compatibility: no structured config → use legacy verbatim.
-  if (!cfg || (!cfg.personality && !cfg.tone && !cfg.doSay.length && !cfg.dontSay.length)) {
+  if (!hasMeaningfulPromptConfig(cfg)) {
     return legacySystemPrompt || ''
   }
+
+  const normalized = normalizePromptConfig(cfg!)
 
   const sections: string[] = []
 
   // Layer 1 — Personality
-  if (cfg.personality?.trim()) {
-    sections.push(`### ${isFa ? 'شخصیت' : 'Personality'}\n${cfg.personality.trim()}`)
+  if (normalized.personality?.trim()) {
+    sections.push(`### ${isFa ? 'شخصیت' : 'Personality'}\n${normalized.personality.trim()}`)
   }
 
   // Layer 2 — Tone & voice
-  if (cfg.tone?.trim()) {
-    sections.push(`### ${isFa ? 'لحن و صدای برند' : 'Tone & brand voice'}\n${cfg.tone.trim()}`)
+  if (normalized.tone?.trim()) {
+    sections.push(`### ${isFa ? 'لحن و صدای برند' : 'Tone & brand voice'}\n${normalized.tone.trim()}`)
   }
+
+  sections.push(formatConversationLayer(normalized.conversation, isFa))
 
   // Layer 3 — Scope (doSay / dontSay)
   const scopeLines: string[] = []
-  if (cfg.doSay.length) {
+  if (normalized.doSay.length) {
     if (isFa) scopeLines.push(`بایدها (حتماً رعایت کن):`)
     else scopeLines.push(`Must do:`)
-    cfg.doSay.forEach((s) => s.trim() && scopeLines.push(`  • ${s.trim()}`))
+    normalized.doSay.forEach((s) => s.trim() && scopeLines.push(`  • ${s.trim()}`))
   }
-  if (cfg.dontSay.length) {
+  if (normalized.dontSay.length) {
     if (isFa) scopeLines.push(`نبایدها (هرگز نکن):`)
     else scopeLines.push(`Must NOT do:`)
-    cfg.dontSay.forEach((s) => s.trim() && scopeLines.push(`  • ${s.trim()}`))
+    normalized.dontSay.forEach((s) => s.trim() && scopeLines.push(`  • ${s.trim()}`))
   }
   if (scopeLines.length) {
     sections.push(`### ${isFa ? 'محدوده و قوانین' : 'Scope & rules'}\n${scopeLines.join('\n')}`)
   }
 
   // Layer 4 — Fallback behavior
-  if (cfg.fallbackBehavior?.trim()) {
-    sections.push(`### ${isFa ? 'رفتار هنگام عدم آگاهی' : 'Fallback when unknown'}\n${cfg.fallbackBehavior.trim()}`)
+  if (normalized.fallbackBehavior?.trim()) {
+    sections.push(`### ${isFa ? 'رفتار هنگام عدم آگاهی' : 'Fallback when unknown'}\n${normalized.fallbackBehavior.trim()}`)
   }
 
   // Layer 5 — Response format
-  if (cfg.format) {
-    sections.push(formatFormatLayer(cfg.format, isFa))
+  if (normalized.format) {
+    sections.push(formatFormatLayer(normalized.format, isFa))
   }
 
   // Layer 6 — Q&A pairs
-  const qaBlock = formatQAPairs(cfg.qaPairs || [], isFa)
+  const qaBlock = formatQAPairs(normalized.qaPairs, isFa)
   if (qaBlock) sections.push(qaBlock)
 
   return sections.join('\n\n')
@@ -1016,7 +1197,7 @@ export function resolveSystemPrompt(params: {
   const isFa = params.language !== 'en'
 
   // 1. Use explicit structured config if present.
-  if (params.promptConfig && (params.promptConfig.personality || params.promptConfig.tone)) {
+  if (hasMeaningfulPromptConfig(params.promptConfig)) {
     return buildLayeredPrompt(params.promptConfig, params.legacySystemPrompt, isFa)
   }
 

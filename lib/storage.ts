@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3'
 
 // S3-compatible object storage (self-hosted MinIO, or any S3 provider).
@@ -59,6 +60,11 @@ export async function downloadFile(
   if (!res.Body) throw new Error(`Storage download failed: empty body for ${path}`)
   const bytes = await res.Body.transformToByteArray()
   return Buffer.from(bytes)
+}
+
+/** Delete an object. S3 delete is idempotent when the key is already absent. */
+export async function deleteFile(bucket: string, path: string): Promise<void> {
+  await getClient().send(new DeleteObjectCommand({ Bucket: bucket, Key: path }))
 }
 
 export function isStorageConfigured(): boolean {

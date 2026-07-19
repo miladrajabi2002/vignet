@@ -4,6 +4,8 @@ import { ADMIN_OWNER_NAME, requireAdmin } from '@/lib/admin/auth'
 import { adminLogout } from '../login/actions'
 import { AdminNavContent, BrandHeader } from './admin-nav'
 import { MobileNavTrigger } from './mobile-nav'
+import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
+import { ADMIN_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 
 export const metadata = {
   title: 'پنل مالک | Vigent',
@@ -16,6 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireAdmin()
 
   return (
+    <ScopedIntlProvider messagePaths={ADMIN_CLIENT_MESSAGE_PATHS}>
     <div dir="rtl" className="admin-root dashboard-canvas flex min-h-dvh bg-[var(--bg-base)] font-fa text-[var(--text-primary)]">
         <aside className="spatial-surface sticky top-3 m-3 me-0 hidden h-[calc(100dvh-1.5rem)] w-[17rem] shrink-0 flex-col overflow-hidden rounded-[1.75rem] p-3 md:flex">
           <div className="pb-3">
@@ -61,5 +64,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </main>
         </div>
     </div>
+    </ScopedIntlProvider>
   )
 }

@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
+import { safeHttpGet } from '@/lib/security/safe-http'
 
 /**
  * Rich-media send helpers for the Instagram Messaging API.
@@ -128,10 +129,15 @@ async function throwIfError(
  *
  * Throws a clear, actionable error when the URL is not fetchable.
  */
+interface PreparedMedia {
+        body: Buffer
+        contentType: string
+}
+
 async function preflightMedia(
         url: string,
         kind: 'IMAGE' | 'AUDIO' | 'VIDEO',
-): Promise<void> {
+): Promise<PreparedMedia> {
         const kindLabel = kind.toLowerCase()
         const maxBytes =
                 kind === 'IMAGE' ? 8 * 1024 * 1024 : kind === 'AUDIO' ? 8 * 1024 * 1024 : 25 * 1024 * 1024
@@ -142,32 +148,33 @@ async function preflightMedia(
                                 ? ['audio/']
                                 : ['video/']
 
-        console.log(`[ig-preflight] ${kind} → HEAD ${url}`)
+        const parsedUrl = new URL(url)
+        if (parsedUrl.protocol !== 'https:') {
+                throw new Error(`${kindLabel} URL must use HTTPS`)
+        }
+
+        console.log(`[ig-preflight] ${kind} → GET ${url}`)
         try {
-                // HEAD first (cheap) — some servers don't support HEAD, so fall back to GET.
-                let res = await fetch(url, { method: 'HEAD', redirect: 'follow' })
-                if (res.status === 405 || res.status === 501) {
-                        console.log(`[ig-preflight] HEAD not supported (${res.status}), trying GET`)
-                        res = await fetch(url, { redirect: 'follow' })
-                }
-                if (!res.ok) {
+                // Resolve and pin a public address for every redirect. This blocks
+                // tenant-controlled media URLs from reaching metadata/private hosts.
+                const res = await safeHttpGet(url, {
+                        timeoutMs: 15_000,
+                        maxBytes,
+                        maxRedirects: 3,
+                        allowedContentTypes: allowedPrefixes,
+                })
+                if (res.status < 200 || res.status >= 300) {
                         throw new Error(
-                                `URL returned HTTP ${res.status} ${res.statusText}. ` +
+                                `URL returned HTTP ${res.status}. ` +
                                         `Meta's crawler will not be able to fetch this ${kindLabel}. ` +
                                         `Make sure the URL is publicly accessible over HTTPS without auth.`,
                         )
                 }
-                const ct = res.headers.get('content-type') || ''
-                const cl = Number(res.headers.get('content-length') || 0)
+                const ct = String(res.headers['content-type'] ?? '')
+                const cl = res.body.byteLength
                 console.log(
                         `[ig-preflight] ${kind} → ${res.status} content-type="${ct}" content-length=${cl}`,
                 )
-                if (ct && !allowedPrefixes.some((p) => ct.startsWith(p))) {
-                        throw new Error(
-                                `URL returned content-type "${ct}" but expected ${allowedPrefixes.join('/')}. ` +
-                                        `Meta will reject this ${kindLabel}. Check the file extension / upload route.`,
-                        )
-                }
                 // Audio-specific format check: Instagram only accepts AAC (m4a),
                 // MP3, OGG, and WAV for audio attachments. WebM/Opus (the default
                 // output of MediaRecorder in Chrome) is NOT accepted — Meta will
@@ -179,12 +186,7 @@ async function preflightMedia(
                                         `doesn't support it, server-side transcoding (webm → m4a via ffmpeg) is required.`,
                         )
                 }
-                if (cl > 0 && cl > maxBytes) {
-                        throw new Error(
-                                `File is ${(cl / 1024 / 1024).toFixed(2)} MB — max for ${kindLabel} is ${maxBytes / 1024 / 1024} MB. ` +
-                                        `Meta will reject it.`,
-                        )
-                }
+                return { body: res.body, contentType: ct }
         } catch (e) {
                 // Network error (DNS, timeout, SSL) — Meta will definitely fail too.
                 throw new Error(
@@ -209,32 +211,24 @@ async function uploadMediaAttachment(
         token: string,
         mediaUrl: string,
         type: 'image' | 'video' | 'audio',
+        prepared: PreparedMedia,
 ): Promise<string | null> {
-        // Download the file.
-        let mediaBuf: Buffer
-        try {
-                const fileRes = await fetch(mediaUrl, { redirect: 'follow' })
-                if (!fileRes.ok) {
-                        console.warn(`[ig-media] download failed: ${fileRes.status} ${fileRes.statusText}`)
-                        return null
-                }
-                mediaBuf = Buffer.from(await fileRes.arrayBuffer())
-                if (mediaBuf.byteLength === 0) return null
-                console.log(`[ig-media] downloaded ${mediaBuf.byteLength} bytes from ${mediaUrl}`)
-        } catch (e) {
-                console.warn(`[ig-media] download error: ${(e as Error).message}`)
-                return null
-        }
+        const mediaBuf = prepared.body
+        if (mediaBuf.byteLength === 0) return null
+        console.log(`[ig-media] downloaded ${mediaBuf.byteLength} bytes from ${mediaUrl}`)
 
-        // Determine filename + MIME from URL extension.
-        const ext = mediaUrl.split('.').pop()?.toLowerCase() ?? 'bin'
-        const mimeMap: Record<string, string> = {
-                jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-                webp: 'image/webp', gif: 'image/gif',
-                m4a: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
-                mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+        // Derive the multipart filename from the trusted response MIME, never
+        // from attacker-controlled URL text (which could inject headers).
+        const normalizedMime = prepared.contentType.split(';', 1)[0].trim().toLowerCase()
+        const mimeToExt: Record<string, string> = {
+                'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+                'image/gif': 'gif', 'image/avif': 'avif',
+                'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/wav': 'wav',
+                'audio/ogg': 'ogg', 'audio/aac': 'aac',
+                'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
         }
-        const mime = mimeMap[ext] ?? 'application/octet-stream'
+        const ext = mimeToExt[normalizedMime] ?? (type === 'image' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4')
+        const mime = normalizedMime || (type === 'image' ? 'image/jpeg' : type === 'audio' ? 'audio/mp4' : 'video/mp4')
         const filename = `media.${ext}`
 
         // Build multipart/form-data: message field + filedata field.
@@ -294,10 +288,11 @@ async function sendMediaTwoStep(
         chatId: string,
         mediaUrl: string,
         type: 'image' | 'video' | 'audio',
+        prepared: PreparedMedia,
         caption?: string,
 ): Promise<void> {
         // Strategy 1: Two-step (upload → attachment_id → send)
-        const attachmentId = await uploadMediaAttachment(token, mediaUrl, type)
+        const attachmentId = await uploadMediaAttachment(token, mediaUrl, type, prepared)
         if (attachmentId) {
                 const message: Record<string, unknown> = {
                         attachment: {
@@ -367,8 +362,8 @@ export async function sendImage(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendImage: missing access token')
 
-        await preflightMedia(imageUrl, 'IMAGE')
-        await sendMediaTwoStep(token, chatId, imageUrl, 'image', caption)
+        const prepared = await preflightMedia(imageUrl, 'IMAGE')
+        await sendMediaTwoStep(token, chatId, imageUrl, 'image', prepared, caption)
 }
 
 /**
@@ -383,8 +378,8 @@ export async function sendAudio(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendAudio: missing access token')
 
-        await preflightMedia(audioUrl, 'AUDIO')
-        await sendMediaTwoStep(token, chatId, audioUrl, 'audio')
+        const prepared = await preflightMedia(audioUrl, 'AUDIO')
+        await sendMediaTwoStep(token, chatId, audioUrl, 'audio', prepared)
 }
 
 /**
@@ -399,8 +394,8 @@ export async function sendVideo(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendVideo: missing access token')
 
-        await preflightMedia(videoUrl, 'VIDEO')
-        await sendMediaTwoStep(token, chatId, videoUrl, 'video')
+        const prepared = await preflightMedia(videoUrl, 'VIDEO')
+        await sendMediaTwoStep(token, chatId, videoUrl, 'video', prepared)
 }
 
 /**

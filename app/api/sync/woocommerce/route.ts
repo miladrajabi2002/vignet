@@ -11,6 +11,7 @@ import {
 } from '@/lib/integrations/woocommerce'
 import { handleWpContentWebhook } from '@/lib/integrations/wp-content'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,8 @@ async function loadIntegration(
 export async function POST(req: Request) {
 	const { searchParams } = new URL(req.url)
 	const token = searchParams.get('token')
+	const integrationId = searchParams.get('integrationId')
+	if (!token && integrationId) return handleManualSync(req)
 	if (!token) {
 		return NextResponse.json({ error: 'MISSING_TOKEN' }, { status: 400 })
 	}
@@ -151,9 +154,12 @@ export async function POST(req: Request) {
 
 // ─── GET: manual "sync now" trigger ─────────────────────────────────────────
 
-export async function GET(req: Request) {
+async function handleManualSync(req: Request) {
 	const user = await getCurrentUser()
 	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+	if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
+		return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+	}
 	if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
 		return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
 	}

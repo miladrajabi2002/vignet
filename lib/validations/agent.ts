@@ -15,6 +15,16 @@ export const promptQAPairSchema = z.object({
   answer: z.string().max(2000),
 })
 
+export const promptConversationSchema = z.object({
+  formality: z.enum(['formal', 'balanced', 'casual']).default('balanced'),
+  initiative: z.enum(['answer_only', 'guided', 'proactive']).default('guided'),
+  empathy: z.enum(['neutral', 'balanced', 'warm']).default('balanced'),
+  followUp: z.enum(['rare', 'when_needed', 'often']).default('when_needed'),
+  mirrorCustomerTone: z.boolean().default(true),
+  useCustomerName: z.boolean().default(true),
+  avoidRepeatedGreetings: z.boolean().default(true),
+})
+
 export const promptConfigSchema = z.object({
   personality: z.string().max(2000).default(''),
   tone: z.string().max(2000).default(''),
@@ -29,6 +39,15 @@ export const promptConfigSchema = z.object({
     length: 'medium',
   }),
   qaPairs: z.array(promptQAPairSchema).max(20).default([]),
+  conversation: promptConversationSchema.default({
+    formality: 'balanced',
+    initiative: 'guided',
+    empathy: 'balanced',
+    followUp: 'when_needed',
+    mirrorCustomerTone: true,
+    useCustomerName: true,
+    avoidRepeatedGreetings: true,
+  }),
 })
 
 export const roleTemplateKeys = [

@@ -1,13 +1,11 @@
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 import { getLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { toPersianDigits, deriveExcerpt } from '@/lib/blog/helpers'
 import { Eye, ArrowLeft, Flame, TrendingUp } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { TrendSpark } from '@/components/blog/trend-spark'
-
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 /**
  * PopularPosts — server component that pulls the most-viewed published blog
@@ -17,42 +15,45 @@ export const revalidate = 0
  *
  * Returns null silently when there are fewer than 1 published posts.
  */
-async function getWorkspaceId(): Promise<string | null> {
-        const ws = await prisma.workspace.findFirst({
-                orderBy: { createdAt: 'asc' },
-                select: { id: true },
-        })
-        return ws?.id ?? null
-}
-
 /**
  * Fetch the popular posts, swallowing any DB error. This section is decorative
  * social-proof on the public homepage — a database hiccup must never take the
  * whole landing page down, so on failure we return an empty list (→ renders
  * nothing) instead of throwing.
  */
+const loadPopularPosts = unstable_cache(async () => {
+	const workspace = await prisma.workspace.findFirst({
+		orderBy: { createdAt: 'asc' },
+		select: { id: true },
+	})
+	if (!workspace) return []
+
+	return prisma.blogPost.findMany({
+		where: { workspaceId: workspace.id, status: 'PUBLISHED' },
+		orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
+		take: 3,
+		select: {
+			id: true,
+			title: true,
+			slug: true,
+			excerpt: true,
+			content: true,
+			coverImage: true,
+			views: true,
+			publishedAt: true,
+			createdAt: true,
+			readingMinutes: true,
+			category: { select: { name: true, slug: true } },
+		},
+	})
+}, ['marketing-popular-posts-v1'], {
+	revalidate: 300,
+	tags: ['marketing-popular-posts'],
+})
+
 async function getPopularPosts() {
         try {
-                const wsId = await getWorkspaceId()
-                if (!wsId) return []
-                return await prisma.blogPost.findMany({
-                        where: { workspaceId: wsId, status: 'PUBLISHED' },
-                        orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
-                        take: 3,
-                        select: {
-                                id: true,
-                                title: true,
-                                slug: true,
-                                excerpt: true,
-                                content: true,
-                                coverImage: true,
-                                views: true,
-                                publishedAt: true,
-                                createdAt: true,
-                                readingMinutes: true,
-                                category: { select: { name: true, slug: true } },
-                        },
-                })
+		return await loadPopularPosts()
         } catch (err) {
                 console.error('[PopularPosts] failed to load posts:', err)
                 return []
@@ -180,17 +181,20 @@ function PopularCard({
 }) {
         const excerpt = post.excerpt || deriveExcerpt(post.content)
         const time = relativeTime(post.publishedAt ?? post.createdAt, locale)
+	const coverImage = post.coverImage?.trim()
 
         return (
                 <Link
                         href={`/blog/${post.slug}`}
 						className={`group flex min-h-44 flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:min-h-0 sm:flex-col ${className}`}
                 >
-                        {post.coverImage && (
+                        {coverImage && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                        src={post.coverImage}
+					src={coverImage}
                                         alt={post.title}
+					width={560}
+					height={373}
                                         loading="lazy"
                                         decoding="async"
 										className="w-28 shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] sm:aspect-[3/2] sm:w-full"

@@ -4,6 +4,9 @@ import { verifyZarinPayPayment } from '@/lib/billing/zarinpay'
 import { activateSubscriptionPayment } from '@/lib/billing/entitlements'
 import { isPaidPlan } from '@/lib/billing/plans'
 import type { Prisma } from '@prisma/client'
+import { readBoundedRequestBody } from '@/lib/security/request-body'
+
+const MAX_CALLBACK_BYTES = 64 * 1024
 
 function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3003').replace(/\/$/, '')
@@ -34,15 +37,15 @@ async function readPid(req: Request): Promise<string | null> {
   // Fallback: ZarinPay's POST body carries order_id, which is our payment id.
   const ct = req.headers.get('content-type') ?? ''
   try {
+    const raw = (await readBoundedRequestBody(req, MAX_CALLBACK_BYTES)).toString('utf8')
     if (ct.includes('application/json')) {
-      const body = (await req.json().catch(() => null)) as { order_id?: unknown } | null
+      const body = JSON.parse(raw) as { order_id?: unknown } | null
       const oid = body?.order_id
       return typeof oid === 'string' && oid ? oid : null
     }
-    if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
-      const form = await req.formData().catch(() => null)
-      const oid = form?.get('order_id')
-      return typeof oid === 'string' && oid ? oid : null
+    if (ct.includes('application/x-www-form-urlencoded')) {
+      const oid = new URLSearchParams(raw).get('order_id')
+      return oid || null
     }
   } catch {
     return null
@@ -90,7 +93,12 @@ async function handleCallback(req: Request, isPost: boolean) {
   }
 
   // Defense in depth: the verified amount must match what we charged.
-  if (verify.amount != null && Math.round(verify.amount) !== Math.round(payment.amount)) {
+  if (
+    verify.amount == null ||
+    !Number.isFinite(verify.amount) ||
+    Math.round(verify.amount) !== Math.round(payment.amount) ||
+    (verify.orderId != null && verify.orderId !== payment.id)
+  ) {
     await prisma.payment.update({
       where: { id: payment.id },
       data: { status: 'FAILED', callbackPayload: verify.raw as Prisma.InputJsonValue },

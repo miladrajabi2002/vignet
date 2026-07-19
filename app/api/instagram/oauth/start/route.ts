@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { buildInstagramAuthUrl, signState, type OAuthState } from '@/lib/instagram/oauth'
+import { createOAuthState } from '@/lib/security/oauth-state'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +19,9 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
 
   const json = (await req.json().catch(() => null)) as {
     agentId?: string
@@ -33,11 +38,33 @@ export async function POST(req: Request) {
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
+  const nonce = crypto.randomUUID()
   const state: OAuthState = {
+    userId: user.id,
     agentId: agent.id,
     workspaceId: user.workspaceId,
-    nonce: crypto.randomUUID(),
-    returnTo: json.returnTo,
+    nonce,
+    returnTo:
+      typeof json.returnTo === 'string' &&
+      json.returnTo.startsWith('/') &&
+      !json.returnTo.startsWith('//') &&
+      json.returnTo.length <= 512
+        ? json.returnTo
+        : undefined,
+  }
+
+  try {
+    await createOAuthState('instagram', nonce, {
+      userId: user.id,
+      workspaceId: user.workspaceId,
+      agentId: agent.id,
+    })
+  } catch (error) {
+    console.error('[instagram:oauth:start] state store failed:', error)
+    return NextResponse.json(
+      { error: 'OAUTH_TEMPORARILY_UNAVAILABLE' },
+      { status: 503 },
+    )
   }
 
   const url = buildInstagramAuthUrl(signState(state))

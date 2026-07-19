@@ -11,6 +11,9 @@ import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { tmpdir } from 'os'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
+import { rateLimit, rateLimitCost } from '@/lib/ratelimit'
 
 const execFileAsync = promisify(execFile)
 
@@ -50,7 +53,9 @@ async function transcodeToInstagramAudio(
         webmBuffer: Buffer,
 ): Promise<{ buf: Buffer; ext: string; mime: string } | null> {
         if (!(await hasFfmpeg())) return null
-        const tmpIn = join(process.cwd(), 'public', 'uploads', 'instagram', `_tmp-${Date.now()}.webm`)
+        // Keep in-progress voice uploads outside public/. A predictable public
+        // temp filename could expose private audio while ffmpeg is processing it.
+        const tmpIn = join(tmpdir(), `vigent-instagram-${randomUUID()}.webm`)
         const tmpM4a = tmpIn.replace(/\.webm$/, '.m4a')
         const tmpWav = tmpIn.replace(/\.webm$/, '.wav')
         try {
@@ -150,9 +155,11 @@ async function transcodeToInstagramAudio(
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const ALLOWED_PREFIXES = ['image/', 'audio/', 'video/'] as const
 const MAX_BYTES = 25 * 1024 * 1024 // 25 MB
 const MAX_FILES_PER_REQUEST = 10
+const MAX_REQUEST_BYTES = 50 * 1024 * 1024
+const DEFAULT_DAILY_BYTES = 512 * 1024 * 1024
+const DEFAULT_GLOBAL_DAILY_BYTES = 5 * 1024 * 1024 * 1024
 
 /** MIME → file extension map for generating safe filenames. */
 const MIME_TO_EXT: Record<string, string> = {
@@ -207,6 +214,12 @@ export async function POST(req: Request) {
         if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
                 return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
         }
+        if (!hasWorkspacePermission(user.role, 'catalog:manage')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
+        if (!(await rateLimit(`instagram-upload:${user.workspaceId}`, 12, 3600, { failClosed: true }))) {
+                return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
+        }
 
         let form: FormData
         try {
@@ -235,11 +248,13 @@ export async function POST(req: Request) {
 
         // Validate every file BEFORE writing any — a bad file should 400, not leave
         // half an upload behind on disk.
+        let requestBytes = 0
         for (const f of files) {
-                if (!ALLOWED_PREFIXES.some((p) => f.type.startsWith(p))) {
+                const normalizedMime = (f.type || '').split(';')[0].trim().toLowerCase()
+                if (!MIME_TO_EXT[normalizedMime]) {
                         return NextResponse.json(
                                 {
-                                        error: `INVALID_TYPE: "${f.name}" has type "${f.type}" — only image/*, audio/*, video/* are allowed`,
+                                        error: `INVALID_TYPE: "${f.name}" has unsupported type "${f.type}"`,
                                 },
                                 { status: 400 },
                         )
@@ -255,6 +270,38 @@ export async function POST(req: Request) {
                                 { status: 400 },
                         )
                 }
+                requestBytes += f.size
+                if (requestBytes > MAX_REQUEST_BYTES) {
+                        return NextResponse.json({ error: 'REQUEST_TOO_LARGE' }, { status: 413 })
+                }
+        }
+
+        const configuredDailyBytes = Number(process.env.INSTAGRAM_UPLOAD_DAILY_BYTES)
+        const dailyBytes = Number.isFinite(configuredDailyBytes) && configuredDailyBytes >= MAX_REQUEST_BYTES
+                ? Math.floor(configuredDailyBytes)
+                : DEFAULT_DAILY_BYTES
+        if (!(await rateLimitCost(
+                `instagram-upload-bytes:${user.workspaceId}`,
+                dailyBytes,
+                86_400,
+                requestBytes,
+                { failClosed: true },
+        ))) {
+                return NextResponse.json({ error: 'UPLOAD_QUOTA_EXCEEDED' }, { status: 429 })
+        }
+        const configuredGlobalBytes = Number(process.env.INSTAGRAM_UPLOAD_GLOBAL_DAILY_BYTES)
+        const globalDailyBytes =
+                Number.isFinite(configuredGlobalBytes) && configuredGlobalBytes >= MAX_REQUEST_BYTES
+                        ? Math.floor(configuredGlobalBytes)
+                        : DEFAULT_GLOBAL_DAILY_BYTES
+        if (!(await rateLimitCost(
+                'instagram-upload-bytes:global',
+                globalDailyBytes,
+                86_400,
+                requestBytes,
+                { failClosed: true },
+        ))) {
+                return NextResponse.json({ error: 'UPLOAD_CAPACITY_EXCEEDED' }, { status: 503 })
         }
 
         const base = publicBaseUrl()
@@ -266,7 +313,7 @@ export async function POST(req: Request) {
                         const yyyy = now.getUTCFullYear().toString()
                         const mm = (now.getUTCMonth() + 1).toString().padStart(2, '0')
                         const ts = now.getTime()
-                        const rand = randomUUID().slice(0, 8)
+                        const rand = randomUUID()
                         const nameExt = (f.name.split('.').pop() || '').toLowerCase()
                         // Normalize the MIME type: strip the codec specifier (e.g.
                         // "audio/webm;codecs=opus" → "audio/webm") so MIME_TO_EXT lookup
@@ -319,6 +366,15 @@ export async function POST(req: Request) {
                                         (normalizedMime.startsWith('audio/') && mimeExt) || mimeExt || nameExt || 'bin'
                                 actualMime = normalizedMime || f.type || 'application/octet-stream'
                         }
+                        const outputLimit = actualMime.startsWith('video/')
+                                ? MAX_BYTES
+                                : 8 * 1024 * 1024
+                        if (actualBuf.byteLength > outputLimit) {
+                                return NextResponse.json(
+                                        { error: `TRANSCODED_FILE_TOO_LARGE: "${f.name}"` },
+                                        { status: 413 },
+                                )
+                        }
                         const filename = `${ts}-${rand}.${actualExt}`
                         // key = relative path on disk (also the URL path after /api/uploads/instagram/)
                         const key = `instagram/${user.workspaceId}/${yyyy}/${mm}/${filename}`
@@ -350,9 +406,10 @@ export async function POST(req: Request) {
                                 originalName: f.name,
                         })
                 } catch (e) {
+                        console.error(`[uploads/instagram] upload failed for "${f.name}":`, e)
                         return NextResponse.json(
                                 {
-                                        error: `UPLOAD_FAILED for "${f.name}": ${(e as Error).message}`,
+                                        error: 'UPLOAD_FAILED',
                                         uploaded,
                                 },
                                 { status: 500 },

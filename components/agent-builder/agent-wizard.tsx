@@ -27,6 +27,7 @@ import type { ModelAlias } from '@/lib/ai/models'
 import {
         getRoleTemplatesForBusiness,
         getSuggestedRoleTemplate,
+        normalizePromptConfig,
         type PromptConfig,
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
@@ -34,6 +35,7 @@ import { fromLegacyBusinessKey, getVerticalPack, type BusinessTypeValue } from '
 import type { VigentoDraft } from '@/lib/ai/vigento-draft'
 import { VigentoComposer } from './vigento-composer'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { NaturalConversationControls } from './natural-conversation-controls'
 
 const TOTAL = 5
 
@@ -56,6 +58,13 @@ interface FormState {
 interface ConfigDraft {
         personality: string
         tone: string
+        conversationFormality: 'formal' | 'balanced' | 'casual'
+        conversationInitiative: 'answer_only' | 'guided' | 'proactive'
+        conversationEmpathy: 'neutral' | 'balanced' | 'warm'
+        conversationFollowUp: 'rare' | 'when_needed' | 'often'
+        mirrorCustomerTone: boolean
+        useCustomerName: boolean
+        avoidRepeatedGreetings: boolean
         doSay: string
         dontSay: string
         fallbackBehavior: string
@@ -70,18 +79,26 @@ interface ConfigDraft {
 }
 
 function draftFromRole(role: RoleTemplate): ConfigDraft {
+        const config = normalizePromptConfig(role.config)
         return {
-                personality: role.config.personality,
-                tone: role.config.tone,
-                doSay: role.config.doSay.join('\n'),
-                dontSay: role.config.dontSay.join('\n'),
-                fallbackBehavior: role.config.fallbackBehavior,
-                fmtBold: role.config.format.bold,
-                fmtEmoji: role.config.format.emoji,
-                fmtLinks: role.config.format.links,
-                fmtBullets: role.config.format.bullets,
-                fmtLength: role.config.format.length,
-                qaPairsText: role.config.qaPairs.map((qa) => `${qa.question}|${qa.answer}`).join('\n'),
+                personality: config.personality,
+                tone: config.tone,
+                conversationFormality: config.conversation.formality,
+                conversationInitiative: config.conversation.initiative,
+                conversationEmpathy: config.conversation.empathy,
+                conversationFollowUp: config.conversation.followUp,
+                mirrorCustomerTone: config.conversation.mirrorCustomerTone,
+                useCustomerName: config.conversation.useCustomerName,
+                avoidRepeatedGreetings: config.conversation.avoidRepeatedGreetings,
+                doSay: config.doSay.join('\n'),
+                dontSay: config.dontSay.join('\n'),
+                fallbackBehavior: config.fallbackBehavior,
+                fmtBold: config.format.bold,
+                fmtEmoji: config.format.emoji,
+                fmtLinks: config.format.links,
+                fmtBullets: config.format.bullets,
+                fmtLength: config.format.length,
+                qaPairsText: config.qaPairs.map((qa) => `${qa.question}|${qa.answer}`).join('\n'),
         }
 }
 
@@ -106,6 +123,15 @@ function configFromDraft(role: RoleTemplate, draft: ConfigDraft): PromptConfig {
                 ...role.config,
                 personality: draft.personality.trim(),
                 tone: draft.tone.trim(),
+                conversation: {
+                        formality: draft.conversationFormality,
+                        initiative: draft.conversationInitiative,
+                        empathy: draft.conversationEmpathy,
+                        followUp: draft.conversationFollowUp,
+                        mirrorCustomerTone: draft.mirrorCustomerTone,
+                        useCustomerName: draft.useCustomerName,
+                        avoidRepeatedGreetings: draft.avoidRepeatedGreetings,
+                },
                 doSay: lines(draft.doSay),
                 dontSay: lines(draft.dontSay),
                 fallbackBehavior: draft.fallbackBehavior.trim(),
@@ -255,19 +281,27 @@ export function AgentWizard({
 
         function applyVigentoDraft(next: VigentoDraft) {
                 const role = getSuggestedRoleTemplate(resolvedBusinessType, next.roleTemplate)
+                const config = normalizePromptConfig(next.promptConfig)
                 setSelectedRole(role)
                 setDraft({
-                        personality: next.promptConfig.personality,
-                        tone: next.promptConfig.tone,
-                        doSay: next.promptConfig.doSay.join('\n'),
-                        dontSay: next.promptConfig.dontSay.join('\n'),
-                        fallbackBehavior: next.promptConfig.fallbackBehavior,
-                        fmtBold: role.config.format.bold,
-                        fmtEmoji: role.config.format.emoji,
-                        fmtLinks: role.config.format.links,
-                        fmtBullets: role.config.format.bullets,
-                        fmtLength: role.config.format.length,
-                        qaPairsText: role.config.qaPairs.map((qa) => `${qa.question}|${qa.answer}`).join('\n'),
+                        personality: config.personality,
+                        tone: config.tone,
+                        conversationFormality: config.conversation.formality,
+                        conversationInitiative: config.conversation.initiative,
+                        conversationEmpathy: config.conversation.empathy,
+                        conversationFollowUp: config.conversation.followUp,
+                        mirrorCustomerTone: config.conversation.mirrorCustomerTone,
+                        useCustomerName: config.conversation.useCustomerName,
+                        avoidRepeatedGreetings: config.conversation.avoidRepeatedGreetings,
+                        doSay: config.doSay.join('\n'),
+                        dontSay: config.dontSay.join('\n'),
+                        fallbackBehavior: config.fallbackBehavior,
+                        fmtBold: config.format.bold,
+                        fmtEmoji: config.format.emoji,
+                        fmtLinks: config.format.links,
+                        fmtBullets: config.format.bullets,
+                        fmtLength: config.format.length,
+                        qaPairsText: config.qaPairs.map((qa) => `${qa.question}|${qa.answer}`).join('\n'),
                 })
                 setForm((current) => ({
                         ...current,
@@ -277,7 +311,7 @@ export function AgentWizard({
                         fallbackMessage: next.fallbackMessage,
                         handoffEnabled: next.handoffEnabled,
                         handoffMessage: next.handoffMessage,
-                        handoffKeywords: next.handoffKeywords.join('، '),
+                        handoffKeywords: next.handoffKeywords.join(locale === 'fa' ? '، ' : ', '),
                         requireCustomerInfo: next.requireCustomerInfo,
                         customerInfoPrompt: next.customerInfoPrompt,
                 }))
@@ -522,13 +556,36 @@ export function AgentWizard({
                                                                                                         />
                                                                                                 </LayerField>
                                                                                                 <LayerField n={2} label={t('layerTone')}>
-                                                                                                        <textarea
-                                                                                                                value={draft.tone}
-                                                                                                                onChange={(e) => setD('tone', e.target.value)}
-                                                                                                                rows={2}
-                                                                                                                placeholder={t('layerTonePh')}
-                                                                                                                className="input resize-none text-sm"
-                                                                                                        />
+                                                                                                        <div className="space-y-3">
+                                                                                                                <textarea
+                                                                                                                        value={draft.tone}
+                                                                                                                        onChange={(e) => setD('tone', e.target.value)}
+                                                                                                                        rows={2}
+                                                                                                                        placeholder={t('layerTonePh')}
+                                                                                                                        className="input resize-none text-sm"
+                                                                                                                />
+                                                                                                                <NaturalConversationControls
+                                                                                                                        value={{
+                                                                                                                                formality: draft.conversationFormality,
+                                                                                                                                initiative: draft.conversationInitiative,
+                                                                                                                                empathy: draft.conversationEmpathy,
+                                                                                                                                followUp: draft.conversationFollowUp,
+                                                                                                                                mirrorCustomerTone: draft.mirrorCustomerTone,
+                                                                                                                                useCustomerName: draft.useCustomerName,
+                                                                                                                                avoidRepeatedGreetings: draft.avoidRepeatedGreetings,
+                                                                                                                        }}
+                                                                                                                        onChange={(conversation) => setDraft((current) => ({
+                                                                                                                                ...current,
+                                                                                                                                conversationFormality: conversation.formality,
+                                                                                                                                conversationInitiative: conversation.initiative,
+                                                                                                                                conversationEmpathy: conversation.empathy,
+                                                                                                                                conversationFollowUp: conversation.followUp,
+                                                                                                                                mirrorCustomerTone: conversation.mirrorCustomerTone,
+                                                                                                                                useCustomerName: conversation.useCustomerName,
+                                                                                                                                avoidRepeatedGreetings: conversation.avoidRepeatedGreetings,
+                                                                                                                        }))}
+                                                                                                                />
+                                                                                                        </div>
                                                                                                 </LayerField>
                                                                                                 <LayerField n={3} label={locale === 'fa' ? 'قلمرو پاسخ و خط قرمزها' : 'Response scope & guardrails'}>
                                                                                                         <div className="grid gap-3 sm:grid-cols-2">

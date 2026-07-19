@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion, useInView, useReducedMotion } from 'framer-motion'
+import { m, useInView, useReducedMotion } from 'framer-motion'
 import type { PublicPlatformStats } from '@/lib/marketing/platform-stats'
 
 /**
@@ -65,7 +65,7 @@ export function SocialProof({ stats }: { stats: PublicPlatformStats }) {
 				className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-0 gap-y-6 px-6 py-10"
 			>
 				{visible.map(({ key, value }, i) => (
-					<motion.div
+					<m.div
 						key={key}
 						initial={reduce ? false : { opacity: 0, y: 14 }}
 						whileInView={{ opacity: 1, y: 0 }}
@@ -81,7 +81,7 @@ export function SocialProof({ stats }: { stats: PublicPlatformStats }) {
 							<CountUp to={value} play={inView} />
 						</span>
 						<span className="mt-1.5 text-xs text-[var(--text-muted)]">{t(key)}</span>
-					</motion.div>
+					</m.div>
 				))}
 			</div>
 		</section>

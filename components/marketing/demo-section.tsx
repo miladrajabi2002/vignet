@@ -3,7 +3,7 @@
 import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
 import {
 	ArrowLeft,
@@ -90,18 +90,18 @@ function PhoneConversation({ scenario, copy }: { scenario: Scenario; copy: typeo
 					<span className="ms-auto max-w-[42%] truncate text-[10px] text-[var(--text-muted)]">{scenario.channel}</span>
 				</div>
 				<div className="flex-1 space-y-3 overflow-hidden bg-[var(--bg-surface)] px-3.5 py-5">
-					<motion.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</motion.div>
-					<motion.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2.5 text-[11px] leading-5 text-[var(--text-secondary)]">
+					<m.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</m.div>
+					<m.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2.5 text-[11px] leading-5 text-[var(--text-secondary)]">
 						{scenario.answer}
 						<span className="mt-2 flex w-fit max-w-full items-center gap-1 rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[10px] text-[var(--text-muted)]"><Database className="h-2.5 w-2.5 shrink-0" />{scenario.source}</span>
-					</motion.div>
-					<motion.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-[var(--success)]/20 bg-green-50 p-2.5">
+					</m.div>
+					<m.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-[var(--success)]/20 bg-green-50 p-2.5">
 						<div className="flex items-start gap-2"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white"><Check className="h-3 w-3" /></span><p className="text-[10px] leading-4 text-[var(--success)]">{scenario.action}</p></div>
-					</motion.div>
-					<motion.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white lg:hidden">
+					</m.div>
+					<m.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white lg:hidden">
 						<p className="text-[10px] text-white/60">{copy.result}</p>
 						<p className="mt-1 flex items-start gap-1.5 text-[10px] leading-4 text-white/80"><Check className="mt-0.5 h-3 w-3 shrink-0 text-[var(--success)]" />{scenario.result}</p>
-					</motion.div>
+					</m.div>
 				</div>
 				<div className="border-t border-[var(--border-default)] bg-white p-3"><div className="h-9 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)]" /></div>
 			</div>
@@ -148,7 +148,7 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 		<div className="relative mt-5 grid grid-cols-2 gap-2 rounded-[1.25rem] border border-[var(--border-default)] bg-white p-2 sm:grid-cols-4 sm:gap-0 sm:p-3" aria-label={`${copy.incoming}، ${copy.knowledge}، ${copy.action}، ${copy.result}`}>
 			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[34px] hidden h-px bg-[var(--border-default)] sm:block" />
 			{steps.map(({ label, value, Icon }, index) => (
-				<motion.div
+				<m.div
 					key={label}
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -160,7 +160,7 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 					</span>
 					<p className="mt-2 text-[11px] font-semibold text-[var(--text-secondary)]">{label}</p>
 					<p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[var(--text-muted)]">{value}</p>
-				</motion.div>
+				</m.div>
 			))}
 		</div>
 	)
@@ -207,10 +207,10 @@ export function DemoSection() {
 
 				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white p-3 sm:p-6 lg:p-8" style={{ boxShadow: 'var(--shadow-card)' }}>
 					<AnimatePresence mode="wait" initial={false}>
-						<motion.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
+						<m.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
 							<PhoneConversation scenario={scenario} copy={copy} />
 							<div className="hidden h-full lg:block"><TracePanel scenario={scenario} copy={copy} /></div>
-						</motion.div>
+						</m.div>
 					</AnimatePresence>
 
 					<div className="mt-7 flex flex-col gap-4 border-t border-[var(--border-default)] pt-5 sm:flex-row sm:items-center sm:justify-between">

@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
 import {
 	BarChart3,
@@ -89,10 +89,10 @@ function AgentControl({ locale }: { locale: 'fa' | 'en' }) {
 			<p className="relative mt-5 max-w-xl text-xs leading-6 text-white/55">{copy.controlDesc}</p>
 			<div className="relative mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
 				{copy.layers.map((layer, index) => (
-					<motion.div key={layer} initial={reduce ? false : { opacity: 0, y: 7 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={reduce ? { duration: 0 } : { duration: 0.34, delay: index * 0.045 }} className="rounded-xl border border-white/10 bg-white/[0.055] p-3">
+					<m.div key={layer} initial={reduce ? false : { opacity: 0, y: 7 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={reduce ? { duration: 0 } : { duration: 0.34, delay: index * 0.045 }} className="rounded-xl border border-white/10 bg-white/[0.055] p-3">
 						<div className="flex items-center justify-between gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-white text-black"><Check className="h-3 w-3" /></span><span className="font-mono text-[9px] text-white/30">0{index + 1}</span></div>
 						<p className="mt-3 text-[10px] leading-4 text-white/65">{layer}</p>
-					</motion.div>
+					</m.div>
 				))}
 			</div>
 			<p className="relative mt-4 flex items-center gap-2 text-[9px] text-white/35"><Sparkles className="h-3 w-3" />{copy.guardrail}</p>
@@ -119,10 +119,10 @@ export function FeaturesSection() {
 
 				<div className="mt-5 grid gap-3 sm:grid-cols-2">
 					{copy.pillars.map(({ title, desc, icon: Icon, items }, index) => (
-						<motion.article key={title} initial={reduce ? false : { opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: (index % 2) * 0.06 }} className="spatial-surface rounded-[1.45rem] p-5 sm:p-6">
+						<m.article key={title} initial={reduce ? false : { opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: (index % 2) * 0.06 }} className="spatial-surface rounded-[1.45rem] p-5 sm:p-6">
 							<div className="flex items-start gap-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-black text-white"><Icon className="h-4 w-4" /></span><div><h3 className="text-base font-semibold text-black">{title}</h3><p className="mt-2 text-xs leading-6 text-black/50">{desc}</p></div></div>
 							<div className="mt-5 flex flex-wrap gap-2">{items.map(({ label, icon: ItemIcon }) => <span key={label} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.07] bg-white px-3 text-[10px] text-black/55"><ItemIcon className="h-3 w-3" />{label}</span>)}</div>
-						</motion.article>
+						</m.article>
 					))}
 				</div>
 			</div>

@@ -4,6 +4,8 @@ import { getLocale } from 'next-intl/server'
 import type { Metadata } from 'next'
 import { Check, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
+import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
+import { AUTH_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -17,6 +19,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
 		: ['One month free', 'Free deterministic Instagram automation', 'Credit only for successful AI replies']
 
 	return (
+		<ScopedIntlProvider messagePaths={AUTH_CLIENT_MESSAGE_PATHS}>
 		<div className="marketing-page-shell h-dvh overflow-hidden p-2.5 sm:p-4">
 			<div className="mx-auto grid h-full min-h-0 max-w-[1440px] overflow-hidden rounded-[2rem] border border-black/[0.07] bg-white shadow-[0_30px_100px_rgba(0,0,0,0.12)] lg:grid-cols-[1.05fr_0.95fr]">
 				<aside className="marketing-grid-dark relative hidden overflow-hidden bg-black p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
@@ -37,5 +40,6 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
 				</section>
 			</div>
 		</div>
+		</ScopedIntlProvider>
 	)
 }

@@ -35,6 +35,7 @@ export async function GET(_req: Request, props: { params: Promise<{ file: string
 		headers: {
 			'Content-Type': contentType,
 			'Cache-Control': 'public, max-age=31536000, immutable',
+			'X-Content-Type-Options': 'nosniff',
 		},
 	})
 }

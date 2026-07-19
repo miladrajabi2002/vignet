@@ -21,12 +21,27 @@ export default auth((req) => {
 
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-pathname', req.nextUrl.pathname)
+	requestHeaders.set('x-vigent-method', req.method)
   return NextResponse.next({ request: { headers: requestHeaders } })
 })
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|widget|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ico)$).*)',
+	'/login',
+	'/overview/:path*',
+	'/agents/:path*',
+	'/products/:path*',
+	'/services/:path*',
+	'/conversations/:path*',
+	'/contacts/:path*',
+	'/analytics/:path*',
+	'/integrations/:path*',
+	'/billing/:path*',
+	'/settings/:path*',
+	'/onboarding/:path*',
+	'/appointments/:path*',
+	'/instagram/:path*',
+	'/vigento/:path*',
     '/api/agents/:path*',
     '/api/products/:path*',
     '/api/campaigns/:path*',

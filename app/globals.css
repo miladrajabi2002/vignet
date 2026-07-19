@@ -14,35 +14,40 @@
    ─────────────────────────────────────────────────────────────── */
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb.ttf') format('truetype');
         font-weight: 400;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Light.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Light.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Light.ttf') format('truetype');
         font-weight: 300;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Medium.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Medium.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Medium.ttf') format('truetype');
         font-weight: 500;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Bold.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Bold.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_Bold.ttf') format('truetype');
         font-weight: 700;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_UltraLight.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_UltraLight.woff2') format('woff2'),
+             url('/fonts/IRANSansWeb_UltraLight.ttf') format('truetype');
         font-weight: 200;
         font-style: normal;
         font-display: swap;
@@ -57,7 +62,7 @@
 
 :root {
         /* ─── Persian font: IRANSansWeb ─── */
-        --font-fa: 'IRANSansWeb', var(--font-fa-fallback, system-ui), sans-serif;
+        --font-fa: 'IRANSansWeb', system-ui, sans-serif;
 
         /* ─── Vigent product typography ───
            Persian UI needs a little more leading than Latin at the same size.
@@ -886,6 +891,13 @@
                 border-radius: 9999px;
                 background: #10b981;
                 box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.1);
+        }
+        /* Skip layout and paint work for distant homepage sections. The
+           intrinsic fallback keeps the scroll geometry stable until Chrome
+           approaches each section; unsupported browsers simply ignore it. */
+        .marketing-story-section {
+                content-visibility: auto;
+                contain-intrinsic-size: auto 48rem;
         }
         /* One quiet scroll rhythm across the homepage. The controller adds the
            readiness class only when IntersectionObserver is available, so SSR and

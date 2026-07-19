@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { useLocale } from 'next-intl'
 import { ArrowUp } from 'lucide-react'
 
 /**
@@ -12,7 +12,7 @@ import { ArrowUp } from 'lucide-react'
  */
 export function BackToTop() {
         const [visible, setVisible] = useState(false)
-        const reduce = useReducedMotion()
+		const locale = useLocale() === 'en' ? 'en' : 'fa'
 
         useEffect(() => {
                 const onScroll = () => {
@@ -25,7 +25,7 @@ export function BackToTop() {
         }, [])
 
         const scrollToTop = () => {
-                if (reduce) {
+			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                         window.scrollTo(0, 0)
                 } else {
                         window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -33,24 +33,20 @@ export function BackToTop() {
         }
 
         return (
-                <AnimatePresence initial={!reduce}>
-                        {visible && (
-                                <motion.button
+			<button
                                         type="button"
                                         onClick={scrollToTop}
-                                        aria-label="بازگشت به بالا"
-                                        initial={reduce ? false : { opacity: 0, scale: 0.95, y: 8 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                                        transition={reduce ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                                        whileHover={reduce ? undefined : { y: -2 }}
-                                        whileTap={reduce ? undefined : { scale: 0.94 }}
-                                        className="fixed bottom-6 end-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
+				aria-label={locale === 'fa' ? 'بازگشت به بالا' : 'Back to top'}
+				aria-hidden={!visible}
+				tabIndex={visible ? 0 : -1}
+				className={`fixed bottom-6 end-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)] text-[var(--text-primary)] transition-[opacity,transform,background-color,border-color] duration-200 ease-[var(--ease-spatial)] motion-reduce:transform-none motion-reduce:transition-none ${
+					visible
+						? 'pointer-events-auto translate-y-0 scale-100 opacity-100 hover:-translate-y-0.5 active:scale-95'
+						: 'pointer-events-none translate-y-2 scale-95 opacity-0'
+				}`}
                                         style={{ boxShadow: 'var(--shadow-card)' }}
                                 >
                                         <ArrowUp className="h-5 w-5" aria-hidden="true" />
-                                </motion.button>
-                        )}
-                </AnimatePresence>
+			</button>
         )
 }

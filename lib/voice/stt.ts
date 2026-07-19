@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { OPENROUTER_BASE, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { safeHttpGet } from '@/lib/security/safe-http'
 
 /**
  * Speech-to-text via Vigent's platform-managed OpenRouter account.
@@ -95,11 +96,15 @@ export async function downloadAudio(
   url: string,
 ): Promise<{ audio: Buffer; mime: string } | null> {
   try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const mime = res.headers.get('content-type') ?? 'audio/ogg'
-    const buf = Buffer.from(await res.arrayBuffer())
-    return { audio: buf, mime }
+    const res = await safeHttpGet(url, {
+      timeoutMs: 20_000,
+      maxBytes: 25 * 1024 * 1024,
+      maxRedirects: 2,
+      allowedContentTypes: ['audio/', 'application/octet-stream'],
+    })
+    if (res.status < 200 || res.status >= 300) return null
+    const mime = String(res.headers['content-type'] ?? 'audio/ogg')
+    return { audio: res.body, mime }
   } catch (e) {
     console.error('[stt] downloadAudio failed:', e)
     return null

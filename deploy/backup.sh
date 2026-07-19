@@ -15,7 +15,7 @@ ENV_FILE="${PROJECT_DIR}/.env"
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/vignet}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
-S3_BACKUP_BUCKET="${S3_BACKUP_BUCKET:-backups}"
+S3_BACKUP_BUCKET="${BACKUP_S3_BUCKET:-${S3_BACKUP_BUCKET:-backups}}"
 
 # ─── خواندن DATABASE_URL از .env ────────────────────────────────────────────
 get_env() {
@@ -45,14 +45,27 @@ if ! pg_dump "${DB_URL}" --no-owner --no-privileges | gzip > "${OUT}"; then
   rm -f "${OUT}"
   exit 1
 fi
+if ! gzip -t "${OUT}"; then
+  echo "✗ فایل بک‌آپ ساخته شد اما آزمون سلامت gzip ناموفق بود" >&2
+  rm -f "${OUT}"
+  exit 1
+fi
 
 SIZE="$(du -h "${OUT}" | cut -f1)"
 echo "==> بک‌آپ ساخته شد (${SIZE})"
 
 # ─── آپلود به MinIO/S3 (اختیاری) ────────────────────────────────────────────
-S3_ACCESS_KEY="$(get_env S3_ACCESS_KEY)"
-S3_SECRET_KEY="$(get_env S3_SECRET_KEY)"
-S3_ENDPOINT="$(get_env S3_ENDPOINT)"
+S3_ACCESS_KEY="$(get_env BACKUP_S3_ACCESS_KEY)"
+S3_SECRET_KEY="$(get_env BACKUP_S3_SECRET_KEY)"
+S3_ENDPOINT="$(get_env BACKUP_S3_ENDPOINT)"
+if [ -z "${S3_ENDPOINT}" ]; then
+  # Backward-compatible fallback. This is useful for quick restores, but when
+  # MinIO lives on this server it is not a disaster-recovery copy.
+  S3_ACCESS_KEY="$(get_env S3_ACCESS_KEY)"
+  S3_SECRET_KEY="$(get_env S3_SECRET_KEY)"
+  S3_ENDPOINT="$(get_env S3_ENDPOINT)"
+  echo "WARNING: BACKUP_S3_ENDPOINT is not configured; object backup may be on the same server" >&2
+fi
 if command -v mc >/dev/null 2>&1 && [ -n "${S3_ENDPOINT}" ] && [ -n "${S3_ACCESS_KEY}" ]; then
   echo "==> آپلود به ذخیره‌سازی شیء (bucket: ${S3_BACKUP_BUCKET})"
   mc alias set vignet-backup "${S3_ENDPOINT}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" >/dev/null 2>&1 || true

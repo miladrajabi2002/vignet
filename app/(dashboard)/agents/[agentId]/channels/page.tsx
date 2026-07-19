@@ -26,6 +26,7 @@ import {
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
+import { openPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -112,22 +113,20 @@ export default async function AgentChannelsPage(
     typeof searchParams.wa_error === 'string' ? searchParams.wa_error : null
   const waPick = !!searchParams.wa_pick
 
-  // Read the pending-numbers cookie server-side (it's httpOnly, so the client
-  // can't see document.cookie). base64url-decode + JSON-parse the payload.
+  // Read and authenticate the encrypted pending-numbers cookie server-side.
   let waPendingNumbers: PendingWhatsappNumber[] = []
   if (waPick) {
     try {
       const jar = await cookies()
       const raw = jar.get('wa_oauth_pending')?.value
       if (raw) {
-        const decoded = Buffer.from(raw, 'base64url').toString('utf8')
-        const parsed = JSON.parse(decoded) as {
-          numbers?: PendingWhatsappNumber[]
-        }
-        if (Array.isArray(parsed.numbers)) {
-          waPendingNumbers = parsed.numbers.filter(
-            (n) => n && typeof n.phoneNumberId === 'string',
-          )
+        const pending = openPendingWhatsappOAuth(raw)
+        if (
+          pending?.userId === user.id &&
+          pending.workspaceId === user.workspaceId &&
+          pending.agentId === agent.id
+        ) {
+          waPendingNumbers = pending.numbers
         }
       }
     } catch {

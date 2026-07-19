@@ -26,12 +26,16 @@ import {
         getRoleTemplate,
         getRoleTemplatesForBusiness,
         getSuggestedRoleTemplate,
+        hasMeaningfulPromptConfig,
+        normalizePromptConfig,
+        type NormalizedPromptConfig,
         type PromptConfig,
         type PromptFormatConfig,
         type PromptQAPair,
         type RoleTemplate,
 } from '@/lib/ai/prompt-builder'
 import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
+import { NaturalConversationControls } from '@/components/agent-builder/natural-conversation-controls'
 
 const EMPTY_CONFIG: PromptConfig = {
         personality: '',
@@ -110,8 +114,8 @@ export function AgentSettingsForm({
                 active: agent.active,
         })
 
-        const [promptConfig, setPromptConfig] = useState<PromptConfig>(
-                agent.promptConfig ?? EMPTY_CONFIG,
+        const [promptConfig, setPromptConfig] = useState<NormalizedPromptConfig>(
+                normalizePromptConfig(agent.promptConfig ?? EMPTY_CONFIG),
         )
 
         // Server-configured long-chat threshold (from LONG_CHAT_THRESHOLD env).
@@ -157,7 +161,7 @@ export function AgentSettingsForm({
 
         function applyRoleTemplate(role: RoleTemplate) {
                 setActiveRole(role)
-                setPromptConfig({ ...role.config })
+                setPromptConfig(normalizePromptConfig(role.config))
         }
 
         const previewPrompt = useMemo(() => {
@@ -168,11 +172,10 @@ export function AgentSettingsForm({
         async function save() {
                 setStatus('saving')
                 const keywords = form.handoffKeywords
-                        .split(',')
+                        .split(/[,\u060c]/)
                         .map((s) => s.trim())
                         .filter(Boolean)
-                const hasStructured =
-                        promptConfig.personality || promptConfig.tone || promptConfig.doSay.length
+                const hasStructured = hasMeaningfulPromptConfig(promptConfig)
                 const res = await fetch(`/api/agents/${agent.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -298,8 +301,8 @@ export function AgentSettingsForm({
                                                                 />
                                                         </div>
                                                         <div className="mt-1.5 flex justify-between text-[10px] text-[var(--text-muted)]">
-                                                                <span>دقیق</span>
-                                                                <span>خلاقانه</span>
+                                                                <span>{locale === 'fa' ? 'دقیق' : 'Precise'}</span>
+                                                                <span>{locale === 'fa' ? 'خلاقانه' : 'Creative'}</span>
                                                         </div>
                                                 </div>
                                         </Field>
@@ -578,7 +581,7 @@ export function AgentSettingsForm({
                                                                 type="button"
                                                                 onClick={() => !deleting && setDeleteOpen(false)}
                                                                 className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                                                                aria-label="بستن"
+                                                                aria-label={tf('close')}
                                                                         >
                                                                                 <X className="h-4 w-4" />
                                                                         </button>
@@ -589,7 +592,7 @@ export function AgentSettingsForm({
                                                                 {tf('deleteConfirm')}
                                                         </p>
                                                         <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
-                                {tf('deletePermanentHint') || 'این عمل قابل بازگشت نیست.'}
+                                                                {tf('deletePermanentHint')}
                                                         </p>
                                                         {deleteError && (
                                                                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
@@ -606,7 +609,7 @@ export function AgentSettingsForm({
                                                                 disabled={deleting}
                                                                 className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
                                                         >
-                                                                {tf('cancel') || 'انصراف'}
+                                                                {tf('cancel')}
                                                         </button>
                                                         <button
                                                                 type="button"
@@ -641,8 +644,8 @@ function LayerEditor({
         t,
 }: {
         tab: LayerTab
-        config: PromptConfig
-        onChange: (c: PromptConfig) => void
+        config: NormalizedPromptConfig
+        onChange: (c: NormalizedPromptConfig) => void
         isFa: boolean
         t: (k: string) => string
 }) {
@@ -667,20 +670,26 @@ function LayerEditor({
 
         if (tab === 'tone') {
                 return (
-                        <Field label={t('toneLabel')}>
-                                <textarea
-                                        value={config.tone}
-                                        onChange={(e) => onChange({ ...config, tone: e.target.value })}
-                                        rows={5}
-                                        placeholder={
-                                                isFa
-                                                        ? 'مثلاً: لحن گرم و صمیمی، از کلمات محترمانه «شما»...'
-                                                        : 'e.g. Warm and friendly tone, use polite "you"...'
-                                        }
-                                        className="input resize-none text-sm"
+                        <div className="space-y-4">
+                                <Field label={t('toneLabel')}>
+                                        <textarea
+                                                value={config.tone}
+                                                onChange={(e) => onChange({ ...config, tone: e.target.value })}
+                                                rows={5}
+                                                placeholder={
+                                                        isFa
+                                                                ? 'مثلاً: لحن گرم و صمیمی، از کلمات محترمانه «شما»...'
+                                                                : 'e.g. Warm and friendly tone, use polite "you"...'
+                                                }
+                                                className="input resize-none text-sm"
+                                        />
+                                        <p className="mt-1 text-xs text-[var(--text-muted)]">{t('toneHint')}</p>
+                                </Field>
+                                <NaturalConversationControls
+                                        value={config.conversation}
+                                        onChange={(conversation) => onChange({ ...config, conversation })}
                                 />
-                                <p className="mt-1 text-xs text-[var(--text-muted)]">{t('toneHint')}</p>
-                        </Field>
+                        </div>
                 )
         }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 import { handleInbound } from '@/lib/channels/handler'
 import { captureError } from '@/lib/errors/capture'
 import { prisma } from '@/lib/prisma'
@@ -9,6 +10,15 @@ import {
 } from '@/lib/whatsapp/qr-config'
 
 export const dynamic = 'force-dynamic'
+
+function secretsMatch(expected: string, received: string): boolean {
+  const expectedBytes = Buffer.from(expected)
+  const receivedBytes = Buffer.from(received)
+  return (
+    expectedBytes.length === receivedBytes.length &&
+    timingSafeEqual(expectedBytes, receivedBytes)
+  )
+}
 
 /**
  * Bridge → Next.js inbound webhook for QR-connected WhatsApp channels.
@@ -47,9 +57,15 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
   // ── Shared-secret auth ───────────────────────────────────────────────────
   const secret = bridgeSecret()
+  if (process.env.NODE_ENV === 'production' && secret.length < 32) {
+    console.error(
+      '[webhook:WHATSAPP-QR] WHATSAPP_BRIDGE_SECRET must be at least 32 characters in production',
+    )
+    return NextResponse.json({ error: 'SERVICE_UNAVAILABLE' }, { status: 503 })
+  }
   if (secret) {
     const got = req.headers.get('x-bridge-secret') ?? ''
-    if (got !== secret) {
+    if (!secretsMatch(secret, got)) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
     }
   }

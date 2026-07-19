@@ -19,6 +19,8 @@ import {
         type StoreIntegrationItem,
 } from '@/components/integrations/store-integrations-section'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
+import { redirect } from 'next/navigation'
 
 const CHANNELS: {
         type: ChannelType
@@ -36,6 +38,7 @@ const CHANNELS: {
 
 export default async function IntegrationsPage() {
         const user = await requireUser()
+        if (!hasWorkspacePermission(user.role, 'integrations:manage')) redirect('/overview')
         const t = await getTranslations('integrations')
 
         const [groups, primaryAgent] = await Promise.all([

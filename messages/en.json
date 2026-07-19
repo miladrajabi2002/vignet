@@ -305,6 +305,10 @@
                         "delete": "Delete agent",
                         "deleteConfirm": "Delete this agent? This cannot be undone.",
                         "deleteHint": "The agent, channel connections, knowledge base, and all related conversations and messages will be permanently deleted.",
+                        "deletePermanentHint": "This action is permanent and cannot be undone.",
+                        "deleteError": "The agent could not be deleted. Please try again.",
+                        "cancel": "Cancel",
+                        "close": "Close",
                         "handoffEnabled": "Hand off to a human operator",
                         "handoffMessage": "Handoff message",
                         "handoffMessagePlaceholder": "e.g. Connecting you to a human agent, please wait...",
@@ -354,6 +358,45 @@
                         "customerInfoPrompt": "Custom identification instruction (optional)",
                         "customerInfoPromptPlaceholder": "e.g. First ask the customer's name and phone, then go into details...",
                         "customerInfoPromptHint": "If left empty, the default instruction is used."
+                },
+                "naturalConversation": {
+                        "title": "Natural conversation style",
+                        "description": "Fine-tune how the agent adapts, follows up and keeps multi-turn conversations human-friendly.",
+                        "formality": {
+                                "label": "Formality",
+                                "options": {
+                                        "formal": "Formal",
+                                        "balanced": "Balanced",
+                                        "casual": "Casual"
+                                }
+                        },
+                        "initiative": {
+                                "label": "Initiative",
+                                "options": {
+                                        "answer_only": "Answer only",
+                                        "guided": "Guide when useful",
+                                        "proactive": "Proactive"
+                                }
+                        },
+                        "empathy": {
+                                "label": "Empathy",
+                                "options": {
+                                        "neutral": "Solution-focused",
+                                        "balanced": "Balanced",
+                                        "warm": "Warm"
+                                }
+                        },
+                        "followUp": {
+                                "label": "Follow-up questions",
+                                "options": {
+                                        "rare": "Rarely",
+                                        "when_needed": "When needed",
+                                        "often": "Often"
+                                }
+                        },
+                        "mirrorCustomerTone": "Adapt to customer tone",
+                        "useCustomerName": "Use known name naturally",
+                        "avoidRepeatedGreetings": "Avoid repeated greetings"
                 },
                 "playground": {
                         "placeholder": "Type a message…",

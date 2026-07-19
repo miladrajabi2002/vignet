@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { readFile, unlink } from 'fs/promises'
-import { join } from 'path'
+import { resolve, sep } from 'path'
 import { existsSync } from 'fs'
 import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
@@ -72,7 +72,9 @@ function resolveFilePath(keySegments: string[] | undefined): string | null {
         if (keySegments.some((seg) => seg.startsWith('/') || seg.startsWith('~'))) return null
         // Build the absolute path on disk. The `instagram/` folder is always
         // prepended because the route is already scoped to /api/uploads/instagram/.
-        return join(process.cwd(), 'public', 'uploads', 'instagram', ...keySegments)
+        const root = resolve(process.cwd(), 'public', 'uploads', 'instagram')
+        const candidate = resolve(root, ...keySegments)
+        return candidate.startsWith(`${root}${sep}`) ? candidate : null
 }
 
 /** Handle CORS preflight requests from Meta's crawler. */
@@ -120,6 +122,7 @@ export async function GET(_req: Request, props: Params) {
                                 // Allow Meta's crawler to fetch with cross-origin requests.
                                 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
                                 'Access-Control-Allow-Headers': '*',
+                                'X-Content-Type-Options': 'nosniff',
                         },
                 })
         } catch {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
 import './globals.css'
@@ -10,47 +10,53 @@ const geistSans = localFont({
         src: './fonts/GeistVF.woff',
         variable: '--font-display',
         weight: '100 900',
+		preload: false,
 })
 
 const geistMono = localFont({
         src: './fonts/GeistMonoVF.woff',
         variable: '--font-mono',
         weight: '100 900',
-})
-
-// IRANSansWeb — the standard Persian web font, loaded via @font-face in
-// globals.css from /public/fonts/. The user places the .ttf files there.
-// The --font-fa variable is set in globals.css :root.
-const estedad = localFont({
-        src: './fonts/EstedadVF.woff2',
-        variable: '--font-fa-fallback',
-        weight: '100 900',
-        display: 'swap',
+		preload: false,
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
 
-export const metadata: Metadata = {
+const ROOT_METADATA_COPY = {
+	fa: {
+		title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
+		description: 'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
+		openGraphDescription: 'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
+	},
+	en: {
+		title: 'Vigent — AI Sales and Customer Support Agent',
+		description: 'Manage sales and customer support across Instagram, Telegram, WhatsApp, Bale, Rubika and your website from one intelligent dashboard.',
+		openGraphDescription: 'Bring customer sales and support across every channel into one intelligent business dashboard.',
+	},
+} as const
+
+export async function generateMetadata(): Promise<Metadata> {
+	const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
+	const copy = ROOT_METADATA_COPY[locale]
+
+	return {
         metadataBase: new URL(siteUrl),
         title: {
-                default: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
+			default: copy.title,
                 template: '%s — Vigent',
         },
-        description:
-                'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
+		description: copy.description,
         applicationName: 'Vigent',
         openGraph: {
                 type: 'website',
                 siteName: 'Vigent',
-                title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
-                description:
-                        'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
+			title: copy.title,
+			description: copy.openGraphDescription,
         },
         twitter: {
                 card: 'summary_large_image',
-                title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
-                description:
-                        'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
+			title: copy.title,
+			description: copy.openGraphDescription,
         },
         robots: { index: true, follow: true },
         manifest: '/site.webmanifest',
@@ -62,13 +68,13 @@ export const metadata: Metadata = {
                 ],
                 apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
         },
+	}
 }
 
 export default async function RootLayout({
         children,
 }: Readonly<{ children: React.ReactNode }>) {
         const locale = (await getLocale()) as Locale
-        const messages = await getMessages()
         const dir = dirForLocale(locale)
 
         return (
@@ -76,11 +82,12 @@ export default async function RootLayout({
                         lang={locale}
                         dir={dir}
                         suppressHydrationWarning
-                        className={`${geistSans.variable} ${geistMono.variable} ${estedad.variable}`}
+						className={`${geistSans.variable} ${geistMono.variable}`}
                 >
                         <body className="antialiased">
                                 <Providers>
-                                        <NextIntlClientProvider locale={locale} messages={messages}>
+                                        {/* Route layouts provide only the messages their Client Components use. */}
+                                        <NextIntlClientProvider locale={locale} messages={{}}>
                                                 {children}
                                         </NextIntlClientProvider>
                                 </Providers>

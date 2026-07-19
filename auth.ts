@@ -7,6 +7,7 @@ import { normalizePhone } from '@/lib/phone'
 import { generateSlug } from '@/lib/utils'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { isPlatformOwnerPhone } from '@/lib/admin/owner'
+import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
 
 export const { handlers, auth, signOut } = NextAuth({
   ...authConfig,
@@ -24,11 +25,15 @@ export const { handlers, auth, signOut } = NextAuth({
         code: { label: 'Code', type: 'text' },
         name: { label: 'Name', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const phone = normalizePhone(String(credentials?.phone ?? ''))
         const code = String(credentials?.code ?? '')
         const name = credentials?.name ? String(credentials.name).trim() : null
         if (!phone || !/^\d{6}$/.test(code)) return null
+
+        // Sending a code is rate-limited separately. The verification endpoint
+        // also needs its own cap or an attacker can brute-force the 6-digit code.
+        if (!(await allowOtpVerificationAttempt(phone, request.headers))) return null
 
         // Verify (and consume) the OTP from Redis.
         const valid = await verifyOTP(phone, code)

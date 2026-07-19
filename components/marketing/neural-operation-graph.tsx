@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import {
 	Check,
 	Database,
@@ -237,7 +237,7 @@ function MessageCard({
 
 			<div className="mt-2.5 flex-1 space-y-1.5">
 				<AnimatePresence mode="wait" initial={false}>
-					<motion.div
+					<m.div
 						key={`${activeIndex}-${scenario.person}`}
 						initial={reduce ? false : { opacity: 0, y: 7, scale: 0.985 }}
 						animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -264,7 +264,7 @@ function MessageCard({
 						<p className="mt-2.5 line-clamp-2 text-[9.5px] font-medium leading-[1.7] text-white/[0.82]">
 							{scenario.text}
 						</p>
-					</motion.div>
+					</m.div>
 				</AnimatePresence>
 
 				{secondaryMessages.map((message) => (
@@ -323,7 +323,7 @@ function ResultCard({
 			</div>
 
 			<AnimatePresence mode="wait" initial={false}>
-				<motion.div
+				<m.div
 					key={`${activeIndex}-${scenario.reply}`}
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -373,7 +373,7 @@ function ResultCard({
 							</span>
 						</p>
 					</div>
-				</motion.div>
+				</m.div>
 			</AnimatePresence>
 		</div>
 	)
@@ -389,7 +389,7 @@ function Core({
 	reduce: boolean | null
 }) {
 	return (
-		<motion.div
+		<m.div
 			animate={
 				reduce
 					? undefined
@@ -418,7 +418,7 @@ function Core({
 				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">{core}</p>
 				<p className="mt-0.5 max-w-[84px] truncate text-[7.5px] text-white/[0.36]">{coreHint}</p>
 			</div>
-		</motion.div>
+		</m.div>
 	)
 }
 

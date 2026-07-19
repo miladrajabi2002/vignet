@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Settings, Wand2 } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { AgentWizard } from '@/components/agent-builder/agent-wizard'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
 
@@ -24,6 +25,8 @@ interface Props {
 
 export function AgentBuilderEntry({ initialBusiness, businessType, workspaceProductCount, onboardingMode = false, modelPolicy }: Props) {
   const [mode, setMode] = useState<BuildMode>('choice')
+  const locale = useLocale() === 'en' ? 'en' : 'fa'
+  const BackArrow = locale === 'fa' ? ArrowRight : ArrowLeft
 
   // The choice screen lets the user pick AI-guided or manual
   if (mode === 'choice') {
@@ -37,8 +40,8 @@ export function AgentBuilderEntry({ initialBusiness, businessType, workspaceProd
         onClick={() => setMode('choice')}
         className="spatial-press inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
       >
-        <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-        تغییر روش ساخت
+        <BackArrow className="h-4 w-4" />
+        {locale === 'fa' ? 'تغییر روش ساخت' : 'Change build method'}
       </button>
       <AgentWizard
         initialBusiness={initialBusiness}
@@ -53,7 +56,7 @@ export function AgentBuilderEntry({ initialBusiness, businessType, workspaceProd
 }
 
 function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
-  const fa = true // RTL Persian
+  const fa = useLocale() !== 'en'
   const Arrow = fa ? ArrowLeft : ArrowRight
 
   return (
@@ -86,7 +89,7 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-primary)]">
             {fa ? 'شروع' : 'Start'}
-            <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+            <Arrow className="h-3.5 w-3.5" />
           </div>
         </motion.button>
 
@@ -108,7 +111,7 @@ function ChoiceScreen({ onPick }: { onPick: (mode: 'ai' | 'manual') => void }) {
           </p>
           <div className="mt-4 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-primary)]">
             {fa ? 'شروع' : 'Start'}
-            <Arrow className="h-3.5 w-3.5 rtl:rotate-180" />
+            <Arrow className="h-3.5 w-3.5" />
           </div>
         </motion.button>
       </div>

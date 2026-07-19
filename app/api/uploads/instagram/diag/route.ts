@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { isAdminAuthed } from '@/lib/admin/auth'
 
 const execFileAsync = promisify(execFile)
 
@@ -15,6 +16,9 @@ const execFileAsync = promisify(execFile)
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+        if (!(await isAdminAuthed())) {
+                return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        }
         const info: Record<string, unknown> = {
                 routeVersion: 'v5-aac-m4a',
                 message: 'Audio transcoded to AAC/m4a (Instagram official format). WAV fallback.',

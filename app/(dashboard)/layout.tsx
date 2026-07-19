@@ -10,6 +10,8 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
+import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -51,6 +53,7 @@ export default async function DashboardLayout({
   if (!onboardingDone) {
     const state = await computeOnboarding(user.workspaceId)
     return (
+      <ScopedIntlProvider messagePaths={DASHBOARD_CLIENT_MESSAGE_PATHS}>
       <OnboardingShell
         profileComplete={!!businessProfile}
         hasAgent={state.checks.hasAgent}
@@ -59,6 +62,7 @@ export default async function DashboardLayout({
       >
         {children}
       </OnboardingShell>
+      </ScopedIntlProvider>
     )
   }
 
@@ -84,6 +88,7 @@ export default async function DashboardLayout({
 
   // Normal dashboard with sidebar + header
   return (
+    <ScopedIntlProvider messagePaths={DASHBOARD_CLIENT_MESSAGE_PATHS}>
     <div className="dashboard-canvas flex min-h-dvh bg-[var(--bg-base)]">
       <Sidebar businessType={workspace?.businessType} services={businessProfile?.services} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -118,5 +123,6 @@ export default async function DashboardLayout({
         </main>
       </div>
     </div>
+    </ScopedIntlProvider>
   )
 }

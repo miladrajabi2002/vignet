@@ -80,6 +80,7 @@ export const INSTAGRAM_WEBHOOK_FIELDS = [
 
 /** A pending OAuth handshake, signed with HMAC so it can't be tampered with. */
 export interface OAuthState {
+  userId: string
   agentId: string
   workspaceId: string
   nonce: string
@@ -112,19 +113,42 @@ export function signState(state: OAuthState): string {
 
 /** Verify + decode a signed state string. Returns null on any tampering. */
 export function verifyState(raw: string): OAuthState | null {
-  const [payload, sig] = raw.split('.')
+  if (raw.length > 4096) return null
+  const parts = raw.split('.')
+  if (parts.length !== 2) return null
+  const [payload, sig] = parts
   if (!payload || !sig) return null
   const expected = crypto
     .createHmac('sha256', stateSecret())
     .update(payload)
     .digest('base64url')
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+  const suppliedBytes = Buffer.from(sig)
+  const expectedBytes = Buffer.from(expected)
+  if (
+    suppliedBytes.length !== expectedBytes.length ||
+    !crypto.timingSafeEqual(suppliedBytes, expectedBytes)
+  ) {
     return null
   }
   try {
-    return JSON.parse(
+    const state = JSON.parse(
       Buffer.from(payload, 'base64url').toString('utf8'),
     ) as OAuthState
+    if (
+      !state ||
+      typeof state.userId !== 'string' ||
+      typeof state.agentId !== 'string' ||
+      typeof state.workspaceId !== 'string' ||
+      typeof state.nonce !== 'string' ||
+      !state.userId ||
+      !state.agentId ||
+      !state.workspaceId ||
+      !/^[A-Za-z0-9_-]{16,128}$/.test(state.nonce) ||
+      (state.returnTo !== undefined && typeof state.returnTo !== 'string')
+    ) {
+      return null
+    }
+    return state
   } catch {
     return null
   }

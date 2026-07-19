@@ -5,6 +5,18 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+	poweredByHeader: false,
+	async headers() {
+		return [
+			{
+				source: '/:path*',
+				headers: [
+					{ key: 'X-Content-Type-Options', value: 'nosniff' },
+					{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+				],
+			},
+		]
+	},
   // Keep production builds reliable on the small-memory hosts used for
   // deployment. This only limits build-time workers; runtime concurrency is
   // unaffected.

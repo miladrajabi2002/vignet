@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -17,6 +18,7 @@ async function ownAgent(workspaceId: string, agentId: string) {
       model: true,
       temperature: true,
       maxTokens: true,
+      language: true,
     },
   })
 }
@@ -26,6 +28,9 @@ export async function GET(_req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
   if (!(await ownAgent(user.workspaceId, params.agentId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -52,6 +57,9 @@ export async function POST(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
   const agent = await ownAgent(user.workspaceId, params.agentId)
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -63,7 +71,7 @@ export async function POST(req: Request, props: Params) {
   const version = await prisma.agentVersion.create({
     data: {
       agentId: agent.id,
-      label: `نسخه ${count + 1}`,
+      label: `${agent.language === 'en' ? 'Version' : 'نسخه'} ${count + 1}`,
       systemPrompt: agent.systemPrompt,
       promptConfig: agent.promptConfig === null ? Prisma.JsonNull : agent.promptConfig,
       roleTemplate: agent.roleTemplate,

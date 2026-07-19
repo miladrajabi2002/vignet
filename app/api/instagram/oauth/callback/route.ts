@@ -10,6 +10,9 @@ import {
   subscribeIgUserToWebhook,
 } from '@/lib/instagram/oauth'
 import { buildInstagramOAuthConfig } from '@/lib/instagram/config'
+import { getCurrentUser } from '@/lib/session'
+import { consumeOAuthState } from '@/lib/security/oauth-state'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,16 +47,10 @@ export async function GET(req: Request) {
   const error = url.searchParams.get('error')
 
   const base = appUrl()
-  const channelsPath = (agentId: string) => `/agents/${agentId}/channels`
+  const channelsPath = (agentId: string) =>
+    `/agents/${encodeURIComponent(agentId)}/channels`
 
-  // User declined the consent screen.
-  if (error) {
-    return NextResponse.redirect(
-      new URL(`${channelsPath('')}?ig_error=denied`, base),
-      { status: 303 },
-    )
-  }
-  if (!code || !stateRaw) {
+  if (!stateRaw) {
     return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
       status: 303,
     })
@@ -64,6 +61,58 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
       status: 303,
     })
+  }
+
+  const user = await getCurrentUser()
+  const bindingMatches =
+    !!user &&
+    user.id === state.userId &&
+    user.workspaceId === state.workspaceId &&
+    hasWorkspacePermission(user.role, 'agents:manage')
+  if (!bindingMatches) {
+    return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  const agent = await prisma.agent.findFirst({
+    where: { id: state.agentId, workspaceId: state.workspaceId },
+    select: { id: true },
+  })
+  if (!agent) {
+    return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  let stateConsumed = false
+  try {
+    stateConsumed = await consumeOAuthState('instagram', state.nonce, {
+      userId: state.userId,
+      workspaceId: state.workspaceId,
+      agentId: state.agentId,
+    })
+  } catch (consumeError) {
+    console.error('[instagram:oauth:callback] state store failed:', consumeError)
+  }
+  if (!stateConsumed) {
+    return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  // A denied flow still consumes the nonce so it cannot be replayed later.
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?ig_error=denied`, base),
+      { status: 303 },
+    )
+  }
+  if (!code) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?ig_error=state`, base),
+      { status: 303 },
+    )
   }
 
   try {

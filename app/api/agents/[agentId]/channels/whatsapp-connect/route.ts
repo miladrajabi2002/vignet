@@ -5,17 +5,15 @@ import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { subscribeWabaToWebhook } from '@/lib/whatsapp/oauth'
 import { buildWhatsappOAuthConfig } from '@/lib/whatsapp/config'
+import {
+  openPendingWhatsappOAuth,
+  type PendingWhatsappNumber,
+} from '@/lib/whatsapp/pending-oauth'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ agentId: string }> }
-
-interface PendingNumber {
-  wabaId: string
-  phoneNumberId: string
-  displayPhoneNumber?: string
-  verifiedName?: string
-}
 
 /**
  * Finalize a multi-number OAuth connection. The callback stashed the resolved
@@ -28,6 +26,9 @@ export async function POST(req: Request, props: Params) {
   const params = await props.params
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
@@ -43,22 +44,27 @@ export async function POST(req: Request, props: Params) {
   if (!cookie) {
     return NextResponse.json({ error: 'NO_PENDING_OAUTH' }, { status: 400 })
   }
-  const raw = decodeURIComponent(cookie.slice('wa_oauth_pending='.length))
-  let pending: {
-    userToken: string
-    userTokenExpiresAt: string
-    numbers: PendingNumber[]
-  }
+  let pending: ReturnType<typeof openPendingWhatsappOAuth>
   try {
-    pending = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'))
+    const raw = decodeURIComponent(cookie.slice('wa_oauth_pending='.length))
+    pending = openPendingWhatsappOAuth(raw)
   } catch {
+    pending = null
+  }
+  if (
+    !pending ||
+    pending.userId !== user.id ||
+    pending.workspaceId !== user.workspaceId ||
+    pending.agentId !== agent.id ||
+    Date.parse(pending.userTokenExpiresAt) <= Date.now()
+  ) {
     return NextResponse.json({ error: 'BAD_PENDING' }, { status: 400 })
   }
 
   const body = (await req.json().catch(() => null)) as {
     phoneNumberId?: string
   }
-  const num = pending.numbers.find(
+  const num: PendingWhatsappNumber | undefined = pending.numbers.find(
     (n) => n.phoneNumberId === body?.phoneNumberId,
   )
   if (!num) {
@@ -103,6 +109,12 @@ export async function POST(req: Request, props: Params) {
     ok: true,
     username: num.verifiedName ?? num.displayPhoneNumber ?? num.phoneNumberId,
   })
-  res.cookies.delete('wa_oauth_pending')
+  res.cookies.set('wa_oauth_pending', '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+    secure: process.env.NODE_ENV === 'production',
+  })
   return res
 }

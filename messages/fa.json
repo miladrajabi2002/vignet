@@ -305,6 +305,10 @@
                         "delete": "حذف ایجنت",
                         "deleteConfirm": "آیا از حذف این ایجنت مطمئن هستید؟ این عمل قابل بازگشت نیست.",
                         "deleteHint": "ایجنت، اتصال کانال‌ها، پایگاه دانش و تمام گفتگوها و پیام‌های وابسته برای همیشه حذف می‌شوند.",
+                        "deletePermanentHint": "این عمل دائمی است و قابل بازگشت نیست.",
+                        "deleteError": "حذف ایجنت انجام نشد؛ دوباره تلاش کنید.",
+                        "cancel": "انصراف",
+                        "close": "بستن",
                         "handoffEnabled": "انتقال به اپراتور انسانی",
                         "handoffMessage": "پیام انتقال به اپراتور",
                         "handoffMessagePlaceholder": "مثال: در حال اتصال به پشتیبانی انسانی، لطفاً چند لحظه صبر کنید...",
@@ -354,6 +358,45 @@
                         "customerInfoPrompt": "دستور سفارشی شناسایی (اختیاری)",
                         "customerInfoPromptPlaceholder": "مثلاً: ابتدا نام و شماره مشتری را بپرس، بعد وارد جزئیات شو...",
                         "customerInfoPromptHint": "اگر خالی بگذارید، از دستور پیش‌فرض استفاده می‌شود."
+                },
+                "naturalConversation": {
+                        "title": "سبک گفت‌وگوی طبیعی",
+                        "description": "نحوه هماهنگی لحن، همدلی و ادامه‌دادن گفت‌وگوهای چندمرحله‌ای را دقیق تنظیم کنید.",
+                        "formality": {
+                                "label": "رسمیت",
+                                "options": {
+                                        "formal": "رسمی",
+                                        "balanced": "متعادل",
+                                        "casual": "صمیمی"
+                                }
+                        },
+                        "initiative": {
+                                "label": "پیش‌قدمی",
+                                "options": {
+                                        "answer_only": "فقط پاسخ",
+                                        "guided": "راهنمایی در صورت نیاز",
+                                        "proactive": "فعال و پیشنهاددهنده"
+                                }
+                        },
+                        "empathy": {
+                                "label": "همدلی",
+                                "options": {
+                                        "neutral": "متمرکز بر راه‌حل",
+                                        "balanced": "متعادل",
+                                        "warm": "گرم و همراه"
+                                }
+                        },
+                        "followUp": {
+                                "label": "سؤال پیگیری",
+                                "options": {
+                                        "rare": "به‌ندرت",
+                                        "when_needed": "فقط در صورت نیاز",
+                                        "often": "اغلب"
+                                }
+                        },
+                        "mirrorCustomerTone": "هماهنگی با لحن مشتری",
+                        "useCustomerName": "استفاده طبیعی از نام ثبت‌شده",
+                        "avoidRepeatedGreetings": "پرهیز از سلام و خوش‌آمد تکراری"
                 },
                 "playground": {
                         "placeholder": "پیامی بنویسید…",

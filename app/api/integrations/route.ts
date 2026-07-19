@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/crypto'
 import { assertSafeHttpUrl, UnsafeHttpTargetError } from '@/lib/security/safe-http'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Store integration list + create (F2).
@@ -26,7 +27,7 @@ const createSchema = z.object({
         type: z.enum(['WOOCOMMERCE', 'CUSTOM_URL', 'SHOPIFY']),
         storeUrl: z.string().url().max(500),
         credentials: z.record(z.string(), z.unknown()).default({}),
-        webhookSecret: z.string().min(8).max(128).optional(),
+        webhookSecret: z.string().min(32).max(128).optional(),
         pollIntervalMinutes: z.number().int().min(0).max(1440).optional(),
 })
 
@@ -65,6 +66,9 @@ function appBaseUrl(): string {
 export async function GET() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
 
         const integrations = await prisma.storeIntegration.findMany({
                 where: { workspaceId: user.workspaceId },
@@ -106,6 +110,9 @@ export async function GET() {
 export async function POST(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
         if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
                 return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
         }
@@ -126,7 +133,7 @@ export async function POST(req: Request) {
                 if (!(error instanceof UnsafeHttpTargetError)) console.error('[integrations] URL validation failed:', error)
                 return NextResponse.json({ error: 'UNSAFE_STORE_URL' }, { status: 400 })
         }
-        const webhookSecret = parsed.data.webhookSecret ?? crypto.randomUUID()
+        const webhookSecret = parsed.data.webhookSecret ?? crypto.randomBytes(32).toString('base64url')
 
         // Encrypt sensitive credential fields before persisting.
         const safeCredentials = encryptSensitiveFields(type, credentials) as Prisma.InputJsonValue

@@ -432,3 +432,14 @@ export const SOLUTIONS: Solution[] = [
 export function getSolution(slug: string): Solution | undefined {
   return SOLUTIONS.find((s) => s.slug === slug)
 }
+
+export async function getLocalizedSolutions(locale: string): Promise<Solution[]> {
+  if (locale !== 'en') return SOLUTIONS
+  const { SOLUTIONS_EN } = await import('@/lib/marketing/solutions-en')
+  return SOLUTIONS_EN
+}
+
+export async function getLocalizedSolution(slug: string, locale: string): Promise<Solution | undefined> {
+  const solutions = await getLocalizedSolutions(locale)
+  return solutions.find((solution) => solution.slug === slug)
+}

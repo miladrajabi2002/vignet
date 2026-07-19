@@ -6,6 +6,8 @@ import {
   signState,
   type WhatsappOAuthState,
 } from '@/lib/whatsapp/oauth'
+import { createOAuthState } from '@/lib/security/oauth-state'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +25,9 @@ export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  }
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
   }
 
   let agentId: string | undefined
@@ -49,11 +54,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
   }
 
+  const nonce = crypto.randomUUID()
   const state: WhatsappOAuthState = {
+    userId: user.id,
     agentId: agent.id,
     workspaceId: user.workspaceId,
-    nonce: crypto.randomUUID(),
-    returnTo,
+    nonce,
+    returnTo:
+      typeof returnTo === 'string' &&
+      returnTo.startsWith('/') &&
+      !returnTo.startsWith('//') &&
+      returnTo.length <= 512
+        ? returnTo
+        : undefined,
+  }
+
+  try {
+    await createOAuthState('whatsapp', nonce, {
+      userId: user.id,
+      workspaceId: user.workspaceId,
+      agentId: agent.id,
+    })
+  } catch (error) {
+    console.error('[whatsapp:oauth:start] state store failed:', error)
+    return NextResponse.json(
+      { error: 'OAUTH_TEMPORARILY_UNAVAILABLE' },
+      { status: 503 },
+    )
   }
 
   const url = buildWhatsappAuthUrl(signState(state))

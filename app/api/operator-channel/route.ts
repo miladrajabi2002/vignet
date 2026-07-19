@@ -10,6 +10,8 @@ import {
         setTelegramWebhook,
 } from '@/lib/channels/telegram'
 import { readOperatorBotToken } from '@/lib/channels/operator-handoff'
+import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Workspace-scoped management of the operator Telegram bot (F3).
@@ -58,6 +60,9 @@ const patchSchema = z.object({
 export async function GET() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
 
         const op = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },
@@ -90,6 +95,9 @@ export async function GET() {
 export async function POST(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
 
         const json = await req.json().catch(() => null)
         const parsed = createSchema.safeParse(json)
@@ -109,13 +117,14 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: 'INVALID_TOKEN' }, { status: 400 })
         }
 
-        const webhookUrl = `${appBaseUrl()}/api/telegram-operator/webhook?token=${encodeURIComponent(token)}`
+        const webhookSecret = operatorWebhookSecret(user.workspaceId, token)
+        const webhookUrl = `${appBaseUrl()}/api/telegram-operator/webhook?workspaceId=${encodeURIComponent(user.workspaceId)}`
         let webhookSet = false
         let commandsSet = false
         let lastError: string | null = null
         try {
                 ;[webhookSet, commandsSet] = await Promise.all([
-                        setTelegramWebhook(token, webhookUrl),
+                        setTelegramWebhook(token, webhookUrl, webhookSecret),
                         setTelegramBotCommands(token),
                 ])
                 if (!webhookSet) lastError = 'Telegram setWebhook returned a non-OK response'
@@ -172,6 +181,9 @@ export async function POST(req: Request) {
 export async function DELETE() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
 
         const op = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },
@@ -204,6 +216,9 @@ export async function DELETE() {
 export async function PATCH(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
+                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+        }
 
         const existing = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },

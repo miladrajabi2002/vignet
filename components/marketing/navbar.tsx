@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { SessionProvider, useSession } from 'next-auth/react'
 import { ArrowLeft, ArrowRight, Check, LogIn } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { Logo } from '@/components/ui/logo'
@@ -37,20 +36,11 @@ const COPY = {
 	},
 } as const
 
-export function Navbar() {
-	return (
-		<SessionProvider>
-			<NavbarContent />
-		</SessionProvider>
-	)
-}
-
-function NavbarContent() {
+export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const t = useTranslations('nav')
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
 	const pathname = usePathname()
-	const { status } = useSession()
 	const [scrolled, setScrolled] = useState(false)
 	const [activeSection, setActiveSection] = useState('')
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
@@ -143,16 +133,7 @@ function NavbarContent() {
 
 				<div className="col-start-3 flex items-center justify-end gap-2 lg:ms-auto">
 					<LanguageSwitcher className="hidden lg:inline-flex" />
-					{status === 'loading' ? (
-						<span
-							aria-label={t('login')}
-							aria-busy="true"
-							className="inline-flex min-h-10 min-w-12 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/55 sm:min-w-20"
-						>
-							<LogIn className="hidden h-3.5 w-3.5 sm:block" />
-							{t('login')}
-						</span>
-					) : status === 'authenticated' ? (
+					{authenticated ? (
 						<Link
 							href="/overview"
 							aria-label={copy.dashboardAria}

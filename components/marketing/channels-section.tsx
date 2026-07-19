@@ -2,7 +2,7 @@
 
 import { useState, type ComponentType } from 'react'
 import Link from 'next/link'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
 import {
 	ArrowLeft,
@@ -110,7 +110,7 @@ function ConnectionBoard() {
 					})}
 				</div>
 
-				<motion.div
+				<m.div
 					initial={reduce ? false : { opacity: 0, scale: 0.97 }}
 					whileInView={{ opacity: 1, scale: 1 }}
 					viewport={{ once: true, margin: '-80px' }}
@@ -137,7 +137,7 @@ function ConnectionBoard() {
 						<Sparkles className="h-3 w-3" aria-hidden />
 						{copy.inbox}
 					</p>
-				</motion.div>
+				</m.div>
 
 				<div aria-hidden className="relative order-2 mx-auto h-12 w-4/5 lg:hidden">
 					<span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 bg-[var(--border-hover)]" />
@@ -159,7 +159,7 @@ function ConnectionBoard() {
 function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentType<{ className?: string }>; delay: number }) {
 	const reduce = useReducedMotion()
 	return (
-		<motion.div
+		<m.div
 			initial={reduce ? false : { opacity: 0, y: 10 }}
 			whileInView={{ opacity: 1, y: 0 }}
 			viewport={{ once: true, margin: '-40px' }}
@@ -172,7 +172,7 @@ function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentTyp
 			</span>
 			<span className="min-w-0 text-[10px] font-medium leading-4 text-[var(--text-secondary)] sm:text-[11px]">{label}</span>
 			<span className="ms-auto hidden h-1.5 w-1.5 rounded-full bg-[var(--accent)] sm:block" />
-		</motion.div>
+		</m.div>
 	)
 }
 
@@ -277,7 +277,7 @@ function MobileChannelExplorer() {
 				))}
 			</div>
 
-			<motion.div
+			<m.div
 				key={active}
 				id={`mobile-channel-${active}`}
 				role="tabpanel"
@@ -318,7 +318,7 @@ function MobileChannelExplorer() {
 						<Link href="/solutions/ecommerce-ai" className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">{copy.storeCta}<Arrow className="h-4 w-4" /></Link>
 					</div>
 				)}
-			</motion.div>
+			</m.div>
 		</div>
 	)
 }

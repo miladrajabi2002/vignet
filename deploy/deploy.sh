@@ -40,6 +40,9 @@ git pull --ff-only
 echo "==> Installing locked application dependencies"
 npm ci
 
+echo "==> Validating launch-critical production configuration"
+npm run check:production-env
+
 if [ -f mini-services/whatsapp-bridge/package-lock.json ]; then
   echo "==> Installing locked WhatsApp bridge dependencies"
   (cd mini-services/whatsapp-bridge && npm ci --legacy-peer-deps)
@@ -55,6 +58,12 @@ npx prisma generate
 # currently-running application and schema untouched.
 echo "==> Building production artifact"
 npm run build
+
+# A migration must never be the first operation that touches production data.
+# Keep this fail-closed: if pg_dump cannot produce a restorable snapshot, the
+# deployment stops before Prisma changes the schema.
+echo "==> Creating pre-migration database backup"
+bash deploy/backup.sh
 
 echo "==> Applying checked-in database migrations"
 npx prisma migrate deploy

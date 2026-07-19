@@ -43,9 +43,25 @@ export function NotificationBell() {
 	}, [])
 
 	useEffect(() => {
-		load()
-		const id = setInterval(load, POLL_MS)
-		return () => clearInterval(id)
+		const refreshWhenVisible = () => {
+			if (document.visibilityState === 'visible') void load()
+		}
+		let cancelInitial: () => void
+		if ('requestIdleCallback' in window) {
+			const idleId = window.requestIdleCallback(refreshWhenVisible, { timeout: 2_000 })
+			cancelInitial = () => window.cancelIdleCallback(idleId)
+		} else {
+			const timeoutId = setTimeout(refreshWhenVisible, 500)
+			cancelInitial = () => clearTimeout(timeoutId)
+		}
+
+		const id = window.setInterval(refreshWhenVisible, POLL_MS)
+		document.addEventListener('visibilitychange', refreshWhenVisible)
+		return () => {
+			cancelInitial()
+			window.clearInterval(id)
+			document.removeEventListener('visibilitychange', refreshWhenVisible)
+		}
 	}, [load])
 
 	useEffect(() => {

@@ -7,6 +7,12 @@ import {
 import { activateSubscriptionPayment } from '@/lib/billing/entitlements'
 import { isPaidPlan } from '@/lib/billing/plans'
 import type { Prisma } from '@prisma/client'
+import {
+  readBoundedRequestBody,
+  RequestBodyTooLargeError,
+} from '@/lib/security/request-body'
+
+const MAX_IPN_BYTES = 64 * 1024
 
 /**
  * NowPayments IPN webhook. Signature = HMAC-SHA512 (sorted-key JSON body,
@@ -14,7 +20,15 @@ import type { Prisma } from '@prisma/client'
  * Payment id (set at checkout).
  */
 export async function POST(req: Request) {
-  const rawBody = await req.text()
+  let rawBody: string
+  try {
+    rawBody = (await readBoundedRequestBody(req, MAX_IPN_BYTES)).toString('utf8')
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
+    }
+    throw error
+  }
   const sig = req.headers.get('x-nowpayments-sig')
 
   if (!verifyNowPaymentsIpn(rawBody, sig)) {
@@ -26,6 +40,7 @@ export async function POST(req: Request) {
     payment_status?: string
     order_id?: string
     price_amount?: number
+    price_currency?: string
   }
   try {
     body = JSON.parse(rawBody)
@@ -61,7 +76,10 @@ export async function POST(req: Request) {
       payment.kind !== 'SUBSCRIPTION' ||
       !payment.plan ||
       !isPaidPlan(payment.plan) ||
-      (body.price_amount != null && Math.abs(body.price_amount - payment.amount) > 0.01)
+      typeof body.price_amount !== 'number' ||
+      !Number.isFinite(body.price_amount) ||
+      Math.abs(body.price_amount - payment.amount) > 0.01 ||
+      body.price_currency?.toLowerCase() !== 'usd'
     ) {
       await prisma.payment.updateMany({
         where: { id: payment.id, status: 'PENDING' },

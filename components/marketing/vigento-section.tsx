@@ -2,7 +2,7 @@
 
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
 import {
 	ArrowLeft,
@@ -109,7 +109,7 @@ function VigentoDemo() {
 	const reduce = useReducedMotion()
 
 	return (
-		<motion.div
+		<m.div
 			initial={reduce ? false : { opacity: 0, y: 20, scale: 0.985 }}
 			whileInView={{ opacity: 1, y: 0, scale: 1 }}
 			viewport={{ once: true, margin: '-70px' }}
@@ -142,7 +142,7 @@ function VigentoDemo() {
 					{/* Left: prompt + building animation */}
 					<div className="flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 sm:p-4">
 						<p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">{copy.promptLabel}</p>
-						<motion.div
+						<m.div
 							initial={reduce ? false : { opacity: 0, y: 8 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
@@ -150,13 +150,13 @@ function VigentoDemo() {
 							className="mt-3 rounded-2xl rounded-ee-md border border-[var(--border-default)] bg-white px-3.5 py-3 text-[10px] leading-5 text-[var(--text-secondary)] sm:text-[11px]"
 						>
 							{copy.prompt}
-						</motion.div>
+						</m.div>
 
 						{/* Neural processing line */}
 						<div className="relative my-3 h-9">
 							<span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[var(--border-hover)]" />
 							{!reduce && (
-								<motion.span
+								<m.span
 									className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--accent)]"
 									animate={{ y: [0, 28], opacity: [0, 1, 1, 0] }}
 									transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.9, ease: [0.4, 0, 0.2, 1] }}
@@ -164,7 +164,7 @@ function VigentoDemo() {
 							)}
 						</div>
 
-						<motion.div
+						<m.div
 							initial={reduce ? false : { opacity: 0, y: 7 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
@@ -187,7 +187,7 @@ function VigentoDemo() {
 									</span>
 								))}
 							</div>
-						</motion.div>
+						</m.div>
 					</div>
 
 					{/* Right: blueprint with 6-layer engine */}
@@ -204,7 +204,7 @@ function VigentoDemo() {
 						</div>
 
 						{/* 6-layer prompt engine — the star of the show */}
-						<motion.div
+						<m.div
 							initial={reduce ? false : { opacity: 0, y: 6 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
@@ -217,7 +217,7 @@ function VigentoDemo() {
 							</p>
 							<div className="mt-2 grid grid-cols-2 gap-1">
 								{copy.layers.map((layer, index) => (
-									<motion.div
+									<m.div
 										key={layer.n}
 										initial={reduce ? false : { opacity: 0, scale: 0.95 }}
 										whileInView={{ opacity: 1, scale: 1 }}
@@ -230,17 +230,17 @@ function VigentoDemo() {
 											<p className="text-[8px] font-medium text-[var(--text-secondary)]">{layer.label}</p>
 											<p className="truncate text-[7px] text-[var(--text-muted)] sm:text-[8px]">{layer.value}</p>
 										</div>
-									</motion.div>
+									</m.div>
 								))}
 							</div>
-						</motion.div>
+						</m.div>
 
 						{/* Build steps */}
 						<div className="mt-2.5 space-y-1">
 							{copy.steps.map((step, index) => {
 								const Icon = STEP_ICONS[index]
 								return (
-									<motion.div
+									<m.div
 										key={step.label}
 										initial={reduce ? false : { opacity: 0, x: locale === 'fa' ? 8 : -8 }}
 										whileInView={{ opacity: 1, x: 0 }}
@@ -258,12 +258,12 @@ function VigentoDemo() {
 										<span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white">
 											<Check className="h-2.5 w-2.5" />
 										</span>
-									</motion.div>
+									</m.div>
 								)
 							})}
 						</div>
 
-						<motion.div
+						<m.div
 							initial={reduce ? false : { opacity: 0, scale: 0.98 }}
 							whileInView={{ opacity: 1, scale: 1 }}
 							viewport={{ once: true }}
@@ -275,11 +275,11 @@ function VigentoDemo() {
 								{copy.ready}
 							</span>
 							<span className="text-[9px] font-medium text-white/65">{copy.review}</span>
-						</motion.div>
+						</m.div>
 					</div>
 				</div>
 			</div>
-		</motion.div>
+		</m.div>
 	)
 }
 
@@ -294,7 +294,7 @@ export function VigentoSection() {
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="marketing-grid-dark relative overflow-hidden rounded-[2rem] bg-black px-4 py-6 text-white shadow-[0_32px_100px_rgba(0,0,0,0.2)] sm:px-7 sm:py-8 lg:px-10 lg:py-10">
 					<div className="relative grid items-center gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:gap-10 xl:gap-14">
-						<motion.div
+						<m.div
 							initial={reduce ? false : { opacity: 0, y: 18 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true, margin: '-70px' }}
@@ -324,7 +324,7 @@ export function VigentoSection() {
 								<ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
 								{copy.trust}
 							</p>
-						</motion.div>
+						</m.div>
 
 						<VigentoDemo />
 					</div>

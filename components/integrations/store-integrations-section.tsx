@@ -93,7 +93,7 @@ export function StoreIntegrationsSection({
                 try {
                         const res = await fetch(
                                 `/api/sync/woocommerce?integrationId=${integration.id}`,
-                                { method: 'GET' },
+                                { method: 'POST' },
                         )
                         const data = await res.json().catch(() => ({}))
                         if (!res.ok) {

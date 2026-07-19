@@ -10,6 +10,7 @@ set -euo pipefail
 
 PG_VERSION="16"
 NODE_MAJOR="20"
+NODE_MIN_VERSION="20.19.0"
 
 # apt update روی بعضی سرورها به‌خاطر مخزن‌های جانبی خراب (PPAها) خطا می‌دهد.
 # این تابع خطای آن مخزن‌ها را نادیده می‌گیرد تا نصب پکیج‌های ما متوقف نشود.
@@ -151,7 +152,11 @@ else
 fi
 
 # ─── Node.js 20 ─────────────────────────────────────────────────────────────
-if command -v node >/dev/null 2>&1 && [ "$(node -v | cut -d. -f1 | tr -d v)" -ge "${NODE_MAJOR}" ]; then
+node_is_supported() {
+  local current="$1"
+  [ "$(printf '%s\n' "${NODE_MIN_VERSION}" "${current}" | sort -V | head -n1)" = "${NODE_MIN_VERSION}" ]
+}
+if command -v node >/dev/null 2>&1 && node_is_supported "$(node -p 'process.versions.node')"; then
   echo "==> Node.js $(node -v) از قبل نصب است — رد شد"
 else
   echo "==> نصب Node.js ${NODE_MAJOR}"
@@ -241,6 +246,7 @@ set_env "DIRECT_URL"   "${DB_URL}"
 set_env "REDIS_URL"    "redis://localhost:6379"
 set_env "NEXTAUTH_URL"          "${APP_URL}"
 set_env "NEXT_PUBLIC_APP_URL"   "${APP_URL}"
+set_env "NEXT_PUBLIC_SITE_URL"  "${APP_URL}"
 set_env "NEXT_PUBLIC_WIDGET_URL" "${APP_URL}"
 set_env "S3_ENDPOINT"  "http://127.0.0.1:9000"
 set_env "S3_ACCESS_KEY" "${MINIO_USER}"
@@ -278,7 +284,7 @@ cat <<DONE
    • DATABASE_URL / DIRECT_URL  → Postgres محلی
    • REDIS_URL                  → Redis محلی
    • S3_ENDPOINT / S3_ACCESS_KEY / S3_SECRET_KEY → MinIO محلی (bucketها ساخته شد)
-   • NEXTAUTH_URL / APP_URL / WIDGET_URL → ${APP_URL}
+   • NEXTAUTH_URL / APP_URL / SITE_URL / WIDGET_URL → ${APP_URL}
    • NEXTAUTH_SECRET / AUTH_SECRET / ENCRYPTION_KEY → ساخته شد
    • ADMIN_OWNER_PHONE / ADMIN_PASS → اعتبارنامه‌ی اختصاصی مالک برای /admin ساخته شد
    • بک‌آپ شبانه‌ی دیتابیس روی cron نصب شد (هر شب ۳ بامداد)
@@ -287,6 +293,8 @@ cat <<DONE
      grep -E '^ADMIN_(OWNER_PHONE|PASS)=' ${ENV_FILE}
 
  ⚠ این کلیدها هنوز دستی باید پر شوند (سرویس بیرونی‌اند):
+   • OPENROUTER_API_KEY                     (مدل‌های هوش مصنوعی)
+   • ZARINPAY_ACCESS_TOKEN / ZARINPAY_STORE_ID (پرداخت و تمدید اشتراک)
    • IPPANEL_PROXY_URL / IPPANEL_PROXY_SECRET / IPPANEL_PATTERN_CODE / IPPANEL_FROM_NUMBER
      (پیامک OTP — کلید واقعی IPPANEL_API_KEY فقط روی پروکسی PHP ایرانی ست می‌شود،
       نه اینجا؛ راهنما: deploy/ippanel-proxy/index.php)

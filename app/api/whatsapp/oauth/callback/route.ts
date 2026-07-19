@@ -11,6 +11,10 @@ import {
   type WhatsappPhoneNumber,
 } from '@/lib/whatsapp/oauth'
 import { buildWhatsappOAuthConfig } from '@/lib/whatsapp/config'
+import { getCurrentUser } from '@/lib/session'
+import { consumeOAuthState } from '@/lib/security/oauth-state'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
+import { sealPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,16 +44,10 @@ export async function GET(req: Request) {
   const error = url.searchParams.get('error')
 
   const base = appUrl()
-  const channelsPath = (agentId: string) => `/agents/${agentId}/channels`
+  const channelsPath = (agentId: string) =>
+    `/agents/${encodeURIComponent(agentId)}/channels`
 
-  // User declined the consent screen.
-  if (error) {
-    return NextResponse.redirect(
-      new URL(`${channelsPath('')}?wa_error=denied`, base),
-      { status: 303 },
-    )
-  }
-  if (!code || !stateRaw) {
+  if (!stateRaw) {
     return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
       status: 303,
     })
@@ -60,6 +58,58 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
       status: 303,
     })
+  }
+
+  const user = await getCurrentUser()
+  const bindingMatches =
+    !!user &&
+    user.id === state.userId &&
+    user.workspaceId === state.workspaceId &&
+    hasWorkspacePermission(user.role, 'agents:manage')
+  if (!bindingMatches) {
+    return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  const agent = await prisma.agent.findFirst({
+    where: { id: state.agentId, workspaceId: state.workspaceId },
+    select: { id: true },
+  })
+  if (!agent) {
+    return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  let stateConsumed = false
+  try {
+    stateConsumed = await consumeOAuthState('whatsapp', state.nonce, {
+      userId: state.userId,
+      workspaceId: state.workspaceId,
+      agentId: state.agentId,
+    })
+  } catch (consumeError) {
+    console.error('[whatsapp:oauth:callback] state store failed:', consumeError)
+  }
+  if (!stateConsumed) {
+    return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
+      status: 303,
+    })
+  }
+
+  // A denied flow still consumes the nonce so it cannot be replayed later.
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?wa_error=denied`, base),
+      { status: 303 },
+    )
+  }
+  if (!code) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?wa_error=state`, base),
+      { status: 303 },
+    )
   }
 
   try {
@@ -89,6 +139,8 @@ export async function GET(req: Request) {
 
     // 3b) multiple numbers → stash + redirect to picker
     const payload = {
+      userId: state.userId,
+      workspaceId: state.workspaceId,
       agentId: state.agentId,
       userToken: longTok.token,
       userTokenExpiresAt: longTok.expiresAt.toISOString(),
@@ -99,7 +151,7 @@ export async function GET(req: Request) {
         verifiedName: n.verifiedName,
       })),
     }
-    const cookieVal = Buffer.from(JSON.stringify(payload)).toString('base64url')
+    const cookieVal = sealPendingWhatsappOAuth(payload)
     const res = NextResponse.redirect(
       new URL(`${channelsPath(state.agentId)}?wa_pick=1`, base),
       { status: 303 },

@@ -171,10 +171,18 @@ export function vigentoSystemPrompt(language: 'fa' | 'en'): string {
       personality: 'string', tone: 'string', doSay: ['string'], dontSay: ['string'],
       fallbackBehavior: 'string', format: { bold: true, emoji: false, links: true, bullets: true, length: 'medium' },
       qaPairs: [{ question: 'string', answer: 'string' }],
+      conversation: {
+        formality: 'formal|balanced|casual',
+        initiative: 'answer_only|guided|proactive',
+        empathy: 'neutral|balanced|warm',
+        followUp: 'rare|when_needed|often',
+        mirrorCustomerTone: true,
+        useCustomerName: true,
+        avoidRepeatedGreetings: true,
+      },
     },
     knowledgePlan: [{ type: 'faq|catalog|document|url|policy', label: 'string', required: true, reason: 'string' }],
     channelPolicy: { recommended: recommendedChannels, guidance: ['string'] },
     evalCases: [{ input: 'string', expectedBehavior: 'string', risk: 'normal|boundary|handoff' }],
-  })}. Keep the simplest sufficient workflow. Guardrails must forbid invented prices/policies and unsafe irreversible actions. Recommend vector/context retrieval and evaluation using only capabilities described by the draft; do not claim that sources are already connected. Include 3-6 practical eval cases. Never include secrets or copy sensitive personal data from the description.`
+  })}. Choose conversation values that fit the described audience and brand instead of always using the same defaults. Make the agent sound natural while keeping follow-up questions purposeful and never pretending to be human. Keep the simplest sufficient workflow. Guardrails must forbid invented prices/policies and unsafe irreversible actions. Recommend vector/context retrieval and evaluation using only capabilities described by the draft; do not claim that sources are already connected. Include 3-6 practical eval cases. Never include secrets or copy sensitive personal data from the description.`
 }
-

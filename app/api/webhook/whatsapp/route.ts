@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server'
 import { handleWhatsappGlobalInbound } from '@/lib/whatsapp/webhook'
 import { metaVerifyToken } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
+import { verifyMetaWebhookSignature } from '@/lib/security/meta-webhook'
+import {
+  readBoundedRequestBody,
+  RequestBodyTooLargeError,
+} from '@/lib/security/request-body'
 
 export const dynamic = 'force-dynamic'
+
+const MAX_WEBHOOK_BYTES = 1024 * 1024
 
 /**
  * GLOBAL WhatsApp webhook — the single endpoint registered once on the
@@ -48,8 +55,30 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  // Always 200 so Meta doesn't retry-storm.
-  const body = await req.json().catch(() => null)
+  let rawBody: Buffer
+  try {
+    rawBody = await readBoundedRequestBody(req, MAX_WEBHOOK_BYTES)
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
+    }
+    throw error
+  }
+
+  if (!verifyMetaWebhookSignature(
+    rawBody,
+    req.headers.get('x-hub-signature-256'),
+    process.env.META_APP_SECRET,
+  )) {
+    return NextResponse.json({ error: 'BAD_SIGNATURE' }, { status: 401 })
+  }
+
+  let body: unknown
+  try {
+    body = JSON.parse(rawBody.toString('utf8'))
+  } catch {
+    return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 })
+  }
   if (!body) return NextResponse.json({ ok: true })
 
   // Process without blocking the response — Meta retries aggressively on slow

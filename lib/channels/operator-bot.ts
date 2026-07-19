@@ -17,6 +17,19 @@ function normalizeAppUrl(appUrl: string): string {
   return appUrl.replace(/\/$/, '')
 }
 
+/** Derive Telegram's webhook header secret without exposing the bot token. */
+export function operatorWebhookSecret(
+  workspaceId: string,
+  botToken: string,
+): string {
+  const key = process.env.ENCRYPTION_KEY
+  if (!key) throw new Error('ENCRYPTION_KEY is not set')
+  return crypto
+    .createHmac('sha256', key)
+    .update(`operator-webhook:${workspaceId}:${botToken}`)
+    .digest('base64url')
+}
+
 /**
  * Telegram calls inline keyboards "inline keyboard markup". In Persian bot
  * terminology these are commonly known as glass buttons (دکمه شیشه‌ای).
@@ -108,3 +121,4 @@ export function parseOperatorBotCallback(value: string): OperatorBotCallback | n
 
   return null
 }
+import crypto from 'node:crypto'

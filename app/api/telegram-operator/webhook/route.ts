@@ -12,8 +12,26 @@ import {
 } from '@/lib/channels/operator-bot'
 import { getTelegramWebhookInfo, TELEGRAM_BASE } from '@/lib/channels/telegram'
 import { captureError } from '@/lib/errors/capture'
+import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
+import { rateLimit } from '@/lib/ratelimit'
+import {
+  readBoundedRequestBody,
+  RequestBodyTooLargeError,
+} from '@/lib/security/request-body'
+import { timingSafeEqual } from 'node:crypto'
 
 export const dynamic = 'force-dynamic'
+
+const MAX_UPDATE_BYTES = 256 * 1024
+
+function secretMatches(expected: string, received: string): boolean {
+  const expectedBytes = Buffer.from(expected)
+  const receivedBytes = Buffer.from(received)
+  return (
+    expectedBytes.length === receivedBytes.length &&
+    timingSafeEqual(expectedBytes, receivedBytes)
+  )
+}
 
 interface TgMessage {
   message_id: number
@@ -350,13 +368,16 @@ async function handleCallback(params: {
 
 export async function POST(req: Request) {
   const url = new URL(req.url)
-  const tokenParam = url.searchParams.get('token')
-  if (!tokenParam) return NextResponse.json({ ok: true })
+  const workspaceId = url.searchParams.get('workspaceId')
+  if (!workspaceId || !/^[A-Za-z0-9_-]{8,64}$/.test(workspaceId)) {
+    return NextResponse.json({ ok: true })
+  }
+  if (!(await rateLimit('operator-webhook:global', 1200, 60, { failClosed: true }))) {
+    return NextResponse.json({ error: 'TEMPORARILY_UNAVAILABLE' }, { status: 503 })
+  }
 
-  const update = (await req.json().catch(() => null)) as TgUpdate | null
-  if (!update) return NextResponse.json({ ok: true })
-
-  const candidates = await prisma.operatorChannel.findMany({
+  const op = await prisma.operatorChannel.findUnique({
+    where: { workspaceId },
     select: {
       id: true,
       workspaceId: true,
@@ -367,10 +388,39 @@ export async function POST(req: Request) {
       lastError: true,
     },
   })
-  const op = candidates.find((candidate) => readOperatorBotToken(candidate.botToken) === tokenParam)
   if (!op) return NextResponse.json({ ok: true })
 
   const botToken = readOperatorBotToken(op.botToken)
+  let expectedSecret = ''
+  try {
+    if (botToken) expectedSecret = operatorWebhookSecret(op.workspaceId, botToken)
+  } catch {
+    return NextResponse.json({ error: 'TEMPORARILY_UNAVAILABLE' }, { status: 503 })
+  }
+  const receivedSecret = req.headers.get('x-telegram-bot-api-secret-token') ?? ''
+  if (!botToken || !secretMatches(expectedSecret, receivedSecret)) {
+    return NextResponse.json({ ok: true })
+  }
+  if (!(await rateLimit(`operator-webhook:${op.workspaceId}`, 240, 60, { failClosed: true }))) {
+    return NextResponse.json({ error: 'TEMPORARILY_UNAVAILABLE' }, { status: 503 })
+  }
+
+  let rawBody: Buffer
+  try {
+    rawBody = await readBoundedRequestBody(req, MAX_UPDATE_BYTES)
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
+    }
+    throw error
+  }
+  let update: TgUpdate | null = null
+  try {
+    update = JSON.parse(rawBody.toString('utf8')) as TgUpdate
+  } catch {
+    return NextResponse.json({ ok: true })
+  }
+
   const incomingMessage = update.message ?? update.callback_query?.message
   const chatId = incomingMessage ? String(incomingMessage.chat.id) : null
   if (!botToken || !chatId || !op.operatorChatId || chatId !== op.operatorChatId) {

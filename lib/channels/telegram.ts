@@ -24,12 +24,17 @@ export function telegramAdapter(token: string): MessengerAdapter {
 export async function setTelegramWebhook(
   token: string,
   url: string,
+  secretToken?: string,
 ): Promise<boolean> {
   try {
     const res = await fetch(`${TELEGRAM_BASE}/bot${token}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, allowed_updates: ['message', 'callback_query'] }),
+      body: JSON.stringify({
+        url,
+        allowed_updates: ['message', 'callback_query'],
+        ...(secretToken ? { secret_token: secretToken } : {}),
+      }),
     })
     const json = await res.json().catch(() => ({}))
     return res.ok && (json as { ok?: boolean }).ok !== false

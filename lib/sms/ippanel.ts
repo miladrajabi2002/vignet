@@ -1,5 +1,6 @@
 import { getRedis } from '@/lib/redis'
 import { normalizePhone } from '@/lib/phone'
+import { randomInt } from 'node:crypto'
 
 /**
  * IPPanel Edge API (https://docs.ippanel.com/docs/).
@@ -32,7 +33,7 @@ export class OtpRateLimitError extends Error {
 
 /** Generate a 6-digit OTP code. */
 function generateCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  return randomInt(100000, 1_000_000).toString()
 }
 
 interface IppanelMeta {
@@ -345,9 +346,16 @@ export async function verifyOTP(mobile: string, code: string): Promise<boolean> 
   if (!normalized) return false
 
   const redis = getRedis()
-  const stored = await redis.get(`otp:${normalized}`)
-  if (!stored || stored !== code) return false
-
-  await redis.del(`otp:${normalized}`)
-  return true
+  // Compare-and-delete in one Redis operation. A GET followed by DEL permits
+  // two concurrent sign-in requests to reuse the same OTP before either deletes it.
+  const consumed = await redis.eval(
+    `local stored = redis.call('GET', KEYS[1])
+     if not stored or stored ~= ARGV[1] then return 0 end
+     redis.call('DEL', KEYS[1])
+     return 1`,
+    1,
+    `otp:${normalized}`,
+    code,
+  )
+  return consumed === 1
 }

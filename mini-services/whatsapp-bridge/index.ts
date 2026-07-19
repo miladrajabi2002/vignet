@@ -52,12 +52,14 @@ import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { timingSafeEqual } from 'node:crypto'
 import P from 'pino'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const PORT = Number(process.env.WHATSAPP_BRIDGE_PORT ?? 3040)
+const HOST = process.env.WHATSAPP_BRIDGE_HOST ?? '127.0.0.1'
 /**
  * Base URL of the Next.js app the bridge should forward inbound messages to.
  * In production set this to https://your-vigent-domain.tld. Locally it defaults
@@ -74,6 +76,12 @@ const NEXT_JS_BASE_URL = (
  * random internet traffic from triggering inbound message processing.
  */
 const BRIDGE_SECRET = process.env.WHATSAPP_BRIDGE_SECRET ?? ''
+
+if (process.env.NODE_ENV === 'production' && BRIDGE_SECRET.length < 32) {
+  throw new Error(
+    'WHATSAPP_BRIDGE_SECRET must be at least 32 characters in production',
+  )
+}
 
 const AUTH_ROOT = resolve(__dirname, 'auth')
 await mkdir(AUTH_ROOT, { recursive: true })
@@ -402,7 +410,12 @@ app.use(express.json({ limit: '1mb' }))
 function authed(req: express.Request, res: express.Response): boolean {
   if (!BRIDGE_SECRET) return true // dev convenience when no secret set
   const got = req.header('x-bridge-secret') ?? ''
-  if (got !== BRIDGE_SECRET) {
+  const expectedBytes = Buffer.from(BRIDGE_SECRET)
+  const receivedBytes = Buffer.from(got)
+  if (
+    expectedBytes.length !== receivedBytes.length ||
+    !timingSafeEqual(expectedBytes, receivedBytes)
+  ) {
     res.status(401).json({ error: 'UNAUTHORIZED' })
     return false
   }
@@ -410,14 +423,7 @@ function authed(req: express.Request, res: express.Response): boolean {
 }
 
 app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    sessions: Array.from(sessions.entries()).map(([id, s]) => ({
-      sessionId: id,
-      state: s.state,
-      phone: s.phone,
-    })),
-  })
+  res.json({ ok: true })
 })
 
 /** Start (or restart) a session. Optionally request a phone-number pairing
@@ -548,9 +554,14 @@ app.post('/disconnect', async (req, res) => {
   res.json({ ok: true })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   log.info(
-    { port: PORT, nextJsBaseUrl: NEXT_JS_BASE_URL, auth: !!BRIDGE_SECRET },
+    {
+      host: HOST,
+      port: PORT,
+      nextJsBaseUrl: NEXT_JS_BASE_URL,
+      auth: !!BRIDGE_SECRET,
+    },
     'vigent-whatsapp-bridge listening',
   )
 })

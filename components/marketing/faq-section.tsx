@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Plus, MessagesSquare, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +23,7 @@ function FaqCard({
   reduce: boolean | null
 }) {
   return (
-    <motion.div
+    <m.div
       initial={reduce ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
@@ -62,7 +62,7 @@ function FaqCard({
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
-          <motion.div
+          <m.div
             id={`marketing-faq-${index}`}
             initial={reduce ? false : { height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -73,10 +73,10 @@ function FaqCard({
             <p className="mx-5 mb-5 border-s-2 border-[var(--border-hover)] ps-4 text-sm leading-relaxed text-[var(--text-secondary)]">
               {item.a}
             </p>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </m.div>
   )
 }
 
@@ -94,7 +94,7 @@ export function FaqSection() {
   return (
     <section className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <motion.div
+        <m.div
           initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
@@ -108,7 +108,7 @@ export function FaqSection() {
             {t('title')}
           </h2>
           <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
-        </motion.div>
+        </m.div>
 
         <div className="mt-10 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
           {columns.map((col, c) => (
@@ -131,7 +131,7 @@ export function FaqSection() {
         </div>
 
         {/* Still-have-questions hint */}
-        <motion.div
+        <m.div
           initial={reduce ? false : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
@@ -149,7 +149,7 @@ export function FaqSection() {
             {t('contact')}
             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
           </Link>
-        </motion.div>
+        </m.div>
       </div>
     </section>
   )

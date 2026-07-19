@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { useLocale, useTranslations } from 'next-intl'
 import {
 	ArrowLeft,
@@ -250,8 +250,8 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 	const scene = copy.scenes[activeIndex]
 
 	return (
-		<motion.div
-			initial={reduce ? false : { opacity: 0.45, y: 16, scale: 0.988 }}
+		<m.div
+			initial={false}
 			animate={{ opacity: 1, y: 0, scale: 1 }}
 			transition={
 				reduce
@@ -320,8 +320,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									}`}
 								>
 									{active ? (
-										<motion.span
-											layoutId="vigent-active-business"
+										<m.span
 											className="absolute inset-0 rounded-[inherit] bg-white"
 											transition={{ type: 'spring', stiffness: 420, damping: 34 }}
 										/>
@@ -342,7 +341,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									</span>
 
 									{active ? (
-										<motion.span
+										<m.span
 											initial={reduce ? false : { opacity: 0, scaleX: 0.45 }}
 											animate={{ opacity: 1, scaleX: 1 }}
 											transition={
@@ -372,7 +371,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 
 				<div className="relative grid grid-cols-1 overflow-hidden border-t border-white/10 bg-black/20 sm:grid-cols-3">
 					{copy.flow.map((step, index) => (
-						<motion.div
+						<m.div
 							key={`${activeIndex}-${step}`}
 							initial={reduce ? false : { opacity: 0.32 }}
 							animate={{ opacity: 1 }}
@@ -383,7 +382,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							}
 							className="flex min-w-0 items-center justify-center gap-1.5 border-b border-white/10 px-2 py-2.5 text-center last:border-b-0 sm:border-b-0 sm:border-e sm:px-1 sm:py-3 sm:last:border-e-0"
 						>
-							<motion.span
+							<m.span
 								initial={reduce ? false : { scale: 0.7, opacity: 0.3 }}
 								animate={{ scale: 1, opacity: 1 }}
 								transition={
@@ -394,15 +393,15 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 								className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-400/20 text-emerald-300"
 							>
 								<Check className="h-2.5 w-2.5" />
-							</motion.span>
+							</m.span>
 							<span className="whitespace-nowrap text-[9px] text-white/[0.48]">
 								{step}
 							</span>
-						</motion.div>
+						</m.div>
 					))}
 				</div>
 			</div>
-		</motion.div>
+		</m.div>
 	)
 }
 
@@ -419,10 +418,7 @@ export function Hero() {
 
 			<div className="marketing-hero-content relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-8 xl:gap-12">
 				<div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-start">
-					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={reduce ? { duration: 0 } : { duration: 0.5 }}
+					<div
 						className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[var(--accent-border)] bg-white px-3.5 text-[11px] font-medium text-[var(--text-secondary)]"
 						style={{ boxShadow: 'var(--shadow-xs)' }}
 					>
@@ -431,16 +427,9 @@ export function Hero() {
 							<span className="relative h-2 w-2 rounded-full bg-[var(--accent)]" />
 						</span>
 						{copy.kicker}
-					</motion.div>
+					</div>
 
-					<motion.h1
-						initial={reduce ? false : { opacity: 0, y: 12 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={
-							reduce
-								? { duration: 0 }
-								: { duration: 0.48, delay: 0.03, ease: [0.16, 1, 0.3, 1] }
-						}
+					<h1
 						className="mt-5 text-[clamp(1.5rem,6vw,2.15rem)] font-semibold leading-[1.18] tracking-[-0.03em] text-[var(--text-primary)] rtl:tracking-normal sm:text-[clamp(1.7rem,4.6vw,2.6rem)] md:text-[clamp(1.85rem,3.4vw,2.85rem)] lg:text-[clamp(2rem,2.9vw,3.1rem)] xl:text-[clamp(2.1rem,2.6vw,3.4rem)]"
 					>
 						<span className="marketing-hero-line block md:whitespace-nowrap">
@@ -449,29 +438,15 @@ export function Hero() {
 						<span className="marketing-hero-line block text-[var(--text-muted)] md:whitespace-nowrap">
 							{copy.headlineBottom}
 						</span>
-					</motion.h1>
+					</h1>
 
-					<motion.p
-						initial={reduce ? false : { opacity: 0, y: 9 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={
-							reduce
-								? { duration: 0 }
-								: { duration: 0.42, delay: 0.08, ease: [0.23, 1, 0.32, 1] }
-						}
+					<p
 						className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-[var(--text-secondary)] sm:text-base sm:leading-8 lg:mx-0"
 					>
 						{t('subtitle')}
-					</motion.p>
+					</p>
 
-					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 8 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={
-							reduce
-								? { duration: 0 }
-								: { duration: 0.4, delay: 0.14, ease: [0.23, 1, 0.32, 1] }
-						}
+					<div
 						className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start"
 					>
 						<Link
@@ -493,12 +468,9 @@ export function Hero() {
 							<Play className="h-3.5 w-3.5 fill-[var(--text-primary)]" aria-hidden />
 							{t('ctaSecondary')}
 						</Link>
-					</motion.div>
+					</div>
 
-					<motion.div
-						initial={reduce ? false : { opacity: 0, y: 6 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={reduce ? { duration: 0 } : { delay: 0.27, duration: 0.45 }}
+					<div
 						className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
 					>
 						{copy.promises.map((promise, index) => (
@@ -510,7 +482,7 @@ export function Hero() {
 								{promise}
 							</span>
 						))}
-					</motion.div>
+					</div>
 				</div>
 
 				<ProductStage reduce={reduce} />

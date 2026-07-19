@@ -6,5 +6,14 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const report = await runHealthChecks()
   const httpStatus = report.status === 'down' ? 503 : 200
-  return NextResponse.json(report, { status: httpStatus })
+  // Keep provider/driver exception text out of the unauthenticated health API;
+  // connection errors can contain internal hosts, ports and deployment paths.
+  const publicReport = {
+    ...report,
+    checks: report.checks.map(({ detail: _detail, ...check }) => check),
+  }
+  return NextResponse.json(publicReport, {
+    status: httpStatus,
+    headers: { 'Cache-Control': 'no-store' },
+  })
 }

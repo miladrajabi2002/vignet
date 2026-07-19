@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -16,11 +17,22 @@ export async function GET(_req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
     include: {
-      channels: true,
+      channels: {
+        select: {
+          id: true,
+          type: true,
+          active: true,
+          lastInboundAt: true,
+          createdAt: true,
+        },
+      },
       _count: { select: { conversations: true, knowledgeBases: true, catalogItems: true } },
     },
   })
