@@ -1,21 +1,26 @@
 {
-  "generated_at": "2026-07-18T18:41:46.438143+00:00",
+  "generated_at": "2026-07-19T01:25:54.871989+00:00",
   "nodes": {
     "app_dashboard_agents_agentid_page_agentdetailpage": {
-      "code_fingerprint": "74783b9ca60858737849425134bccb46aafe0d4f9b33340428c04a1d47730b7b",
+      "code_fingerprint": "af2ce5a22cfad341fb929410da407181ea706ac5863b52149120857cf6513172",
       "label": "AgentDetailPage()",
-      "last": "2026-07-18T18:35:12.498984+00:00",
+      "last": "2026-07-18T18:53:57.257225+00:00",
       "provenance": [
+        {
+          "date": "2026-07-18T18:53:57.257225+00:00",
+          "outcome": "useful",
+          "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
+        },
         {
           "date": "2026-07-18T18:35:12.498984+00:00",
           "outcome": "useful",
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 0.999894659,
+      "score": 1.987162557,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
-      "status": "tentative",
-      "uses": 1
+      "status": "preferred",
+      "uses": 2
     },
     "app_dashboard_conversations_page_conversationspage": {
       "code_fingerprint": "a2d6d415d27d0d0b52f99be8a962d0dd1644bd7079e3ebcfb0d2e8a83f9f86e9",
@@ -28,7 +33,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.972835482,
+      "score": 0.966547573,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -50,7 +55,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000175039,
+      "score": -0.000173908,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -73,11 +78,27 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000175039,
+      "score": -0.000173908,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
       "verdict": "dead end"
+    },
+    "components_agent_builder_agent_wizard_readinessrow": {
+      "code_fingerprint": "9d39c5a1c0cdadd7fe43d955e57052d6f8fbf22a61e48e21400c2db84116ddfa",
+      "label": "ReadinessRow()",
+      "last": "2026-07-18T18:53:57.257225+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T18:53:57.257225+00:00",
+          "outcome": "useful",
+          "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
+        }
+      ],
+      "score": 0.993730704,
+      "source_file": "components/agent-builder/agent-wizard.tsx",
+      "status": "tentative",
+      "uses": 1
     },
     "components_agents_agent_settings_form_agentsettingsform": {
       "code_fingerprint": "13459fa61ab8b0dab2d3b59b857858286f7921b47348662afde4aede4670921e",
@@ -90,8 +111,24 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 0.999894659,
+      "score": 0.993431854,
       "source_file": "components/agents/agent-settings-form.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_channels_messenger_channel_channelsettings": {
+      "code_fingerprint": "38ed036ea26394338c65d09d61ad425c428bade81fc61c1455aa3574732767ad",
+      "label": "ChannelSettings()",
+      "last": "2026-07-18T18:53:57.257225+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-18T18:53:57.257225+00:00",
+          "outcome": "useful",
+          "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
+        }
+      ],
+      "score": 0.993730704,
+      "source_file": "components/channels/messenger-channel.tsx",
       "status": "tentative",
       "uses": 1
     },
@@ -106,7 +143,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.972835482,
+      "score": 0.966547573,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
@@ -122,7 +159,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.972835482,
+      "score": 0.966547573,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
@@ -148,7 +185,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 2.977960564,
+      "score": 2.958712557,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 3
@@ -169,7 +206,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 1.985867056,
+      "score": 1.973031431,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 2
@@ -185,7 +222,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.992093508,
+      "score": 0.985681125,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -201,7 +238,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.993182167,
+      "score": 0.986762748,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -217,7 +254,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 0.992684888,
+      "score": 0.986268683,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -233,7 +270,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.993182167,
+      "score": 0.986762748,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -254,7 +291,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 1.984778397,
+      "score": 1.971949809,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "preferred",
       "uses": 2
@@ -270,7 +307,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.992093508,
+      "score": 0.985681125,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "tentative",
       "uses": 1

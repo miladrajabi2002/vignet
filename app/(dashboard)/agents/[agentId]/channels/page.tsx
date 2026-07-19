@@ -7,7 +7,6 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
-  Share2,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -28,7 +27,6 @@ import {
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
-import { PageHeader } from '@/components/dashboard/page-header'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getDashboardModules, type BusinessTypeValue } from '@/lib/verticals/registry'
 
@@ -159,13 +157,7 @@ export default async function AgentChannelsPage(
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader
-        icon={Share2}
-        title={t('title')}
-        subtitle={t('subtitle')}
-      />
-
+    <div className="space-y-6">
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}
       {igConnected && (
         <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/5 p-4">

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import {
-  Activity,
   ArrowRight,
   BarChart3,
   BookOpenCheck,
@@ -171,10 +170,6 @@ export default async function AgentDetailPage(
   const hasServices = modules.includes('services')
   const activeChannels = channels.filter((channel) => channel.active)
   const activeStores = storeIntegrations.filter((integration) => integration.active)
-  const businessItemCount =
-    (hasProducts ? productCount : 0) +
-    (hasServices || hasAppointments ? serviceCount : 0)
-
   const hasConfiguredBehavior =
     agent.systemPrompt.trim().length > 0 || agent.promptConfig !== null
 
@@ -436,31 +431,6 @@ export default async function AgentDetailPage(
       {readiness.complete ? (
         <AgentGrowthPanel
           fa={fa}
-          activeChannelCount={activeChannels.length}
-          totalChannelCount={channels.length}
-          knowledgeCount={kbCount}
-          businessItemCount={
-            hasProducts || hasServices || hasAppointments
-              ? businessItemCount
-              : growthActions.length
-          }
-          businessItemLabel={
-            hasProducts && (hasServices || hasAppointments)
-              ? (fa ? 'محصول و خدمت' : 'Products & services')
-              : hasProducts
-                ? (fa ? 'محصول فعال' : 'Active products')
-                : hasServices || hasAppointments
-                  ? (fa ? 'خدمت فعال' : 'Active services')
-                  : (fa ? 'فرصت رشد' : 'Growth opportunities')
-          }
-          businessItemIcon={
-            hasProducts
-              ? Package
-              : hasServices || hasAppointments
-                ? CalendarDays
-                : TrendingUp
-          }
-          conversationCount={conversationCount}
           connections={connectionSummaries}
           actions={growthActions}
           channelsHref={`/agents/${agent.id}/channels`}
@@ -577,63 +547,15 @@ function AgentSetupPanel({
 
 function AgentGrowthPanel({
   fa,
-  activeChannelCount,
-  totalChannelCount,
-  knowledgeCount,
-  businessItemCount,
-  businessItemLabel,
-  businessItemIcon,
-  conversationCount,
   connections,
   actions,
   channelsHref,
 }: {
   fa: boolean
-  activeChannelCount: number
-  totalChannelCount: number
-  knowledgeCount: number
-  businessItemCount: number
-  businessItemLabel: string
-  businessItemIcon: LucideIcon
-  conversationCount: number
   connections: ConnectionSummary[]
   actions: GrowthAction[]
   channelsHref: string
 }) {
-  const locale = fa ? 'fa-IR' : 'en-US'
-  const metrics = [
-    {
-      key: 'channels',
-      icon: Cable,
-      value: activeChannelCount,
-      label: fa ? 'کانال فعال' : 'Active channels',
-      hint: fa
-        ? `از ${totalChannelCount.toLocaleString(locale)} اتصال ثبت‌شده`
-        : `of ${totalChannelCount.toLocaleString(locale)} configured`,
-    },
-    {
-      key: 'knowledge',
-      icon: Database,
-      value: knowledgeCount,
-      label: fa ? 'منبع دانش آماده' : 'Ready knowledge sources',
-      hint: fa ? 'قابل استفاده در پاسخ‌ها' : 'Available to responses',
-    },
-    {
-      key: 'catalog',
-      icon: businessItemIcon,
-      value: businessItemCount,
-      label: businessItemLabel,
-      hint: fa ? 'اطلاعات فعال کسب‌وکار' : 'Active business information',
-    },
-    {
-      key: 'conversations',
-      icon: Activity,
-      value: conversationCount,
-      label: fa ? 'گفتگوی ثبت‌شده' : 'Recorded conversations',
-      hint: fa ? 'برای تحلیل عملکرد' : 'Available for analysis',
-    },
-  ]
-
   return (
     <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
       <div className="relative isolate overflow-hidden bg-black p-5 text-white sm:p-6">
@@ -661,78 +583,6 @@ function AgentGrowthPanel({
       </div>
 
       <div className="space-y-6 p-4 sm:p-5">
-        <div className="grid grid-cols-2 gap-2.5">
-          {metrics.map((metric) => {
-            const Icon = metric.icon
-            return (
-              <div key={metric.key} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3.5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xl font-bold tabular-nums text-[var(--text-primary)]">
-                      {metric.value.toLocaleString(locale)}
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
-                      {metric.label}
-                    </p>
-                  </div>
-                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)]">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                </div>
-                <p className="mt-2 text-[10px] text-[var(--text-muted)]">{metric.hint}</p>
-              </div>
-            )
-          })}
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {fa ? 'اتصال‌های فعلی' : 'Current connections'}
-              </h3>
-              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                {fa ? 'وضعیت و آخرین فعالیت هر اتصال' : 'Status and latest activity for every connection'}
-              </p>
-            </div>
-            <Link
-              href={channelsHref}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              {fa ? 'مدیریت' : 'Manage'}
-              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {connections.map((connection) => {
-              const Icon = connection.icon
-              return (
-                <Link
-                  key={connection.key}
-                  href={connection.href}
-                  className="group flex min-h-16 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2.5 transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]"
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)]">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-bold text-[var(--text-primary)]">
-                      {connection.label}
-                    </span>
-                    <span className="mt-1 block truncate text-[10px] text-[var(--text-muted)]">
-                      {connection.detail}
-                    </span>
-                  </span>
-                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold', connection.active ? 'text-success' : 'text-danger')}>
-                    <span className={cn('h-1.5 w-1.5 rounded-full', connection.active ? 'bg-success' : 'bg-danger')} />
-                    {connection.active ? (fa ? 'فعال' : 'Active') : (fa ? 'نیاز به بررسی' : 'Review')}
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-
         <div>
           <div className="mb-3 flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-black text-white">
@@ -786,6 +636,54 @@ function AgentGrowthPanel({
                     </div>
                   </div>
                 </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                {fa ? 'اتصال‌های فعلی' : 'Current connections'}
+              </h3>
+              <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                {fa ? 'وضعیت و آخرین فعالیت هر اتصال' : 'Status and latest activity for every connection'}
+              </p>
+            </div>
+            <Link
+              href={channelsHref}
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            >
+              {fa ? 'مدیریت' : 'Manage'}
+              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {connections.map((connection) => {
+              const Icon = connection.icon
+              return (
+                <Link
+                  key={connection.key}
+                  href={connection.href}
+                  className="group flex min-h-16 items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2.5 transition-colors hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)]">
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold text-[var(--text-primary)]">
+                      {connection.label}
+                    </span>
+                    <span className="mt-1 block truncate text-[10px] text-[var(--text-muted)]">
+                      {connection.detail}
+                    </span>
+                  </span>
+                  <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold', connection.active ? 'text-success' : 'text-danger')}>
+                    <span className={cn('h-1.5 w-1.5 rounded-full', connection.active ? 'bg-success' : 'bg-danger')} />
+                    {connection.active ? (fa ? 'فعال' : 'Active') : (fa ? 'نیاز به بررسی' : 'Review')}
+                  </span>
+                </Link>
               )
             })}
           </div>

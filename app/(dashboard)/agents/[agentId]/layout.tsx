@@ -52,9 +52,9 @@ export default async function AgentLayout(
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="space-y-4">
-        <BackButton href="/agents" label={t('title')} />
-        <div className="spatial-surface flex items-center gap-4 rounded-[1.5rem] p-4 sm:p-5">
+      <BackButton href="/agents" label={t('title')} />
+      <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+        <div className="flex items-center gap-4 p-4 sm:p-5">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
             <Bot className="h-5 w-5" />
           </div>
@@ -86,7 +86,7 @@ export default async function AgentLayout(
           </span>
         </div>
         <AgentTabs agentId={agent.id} tabs={tabs} />
-      </div>
+      </section>
 
       {children}
     </div>

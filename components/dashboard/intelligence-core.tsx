@@ -47,7 +47,6 @@ type NetworkSize = {
 
 type ConnectionGeometry = {
 	inboundPath: string
-	outboundPath: string
 	start: NetworkPoint
 	end: NetworkPoint
 	sourceCenter: NetworkPoint
@@ -56,7 +55,6 @@ type ConnectionGeometry = {
 type ConnectionTiming = {
 	duration: number
 	firstDelay: number
-	returnFlow: boolean
 }
 
 const NODE_META: Partial<Record<DashboardModuleKey, { fa: string; en: string; icon: LucideIcon }>> =
@@ -192,7 +190,6 @@ function getConnectionTiming(index: number, compact: boolean): ConnectionTiming 
 	return {
 		duration: (compact ? 3.35 : 3.05) + (index % 3) * 0.22,
 		firstDelay: 0.18 + index * 0.42,
-		returnFlow: index % 3 === 1,
 	}
 }
 
@@ -272,18 +269,11 @@ function getConnectionGeometry(
 		`C ${formatPoint(firstControl)} ${formatPoint(junctionInControl)} ${formatPoint(junction)}`,
 		`C ${formatPoint(junctionOutControl)} ${formatPoint(coreControl)} ${formatPoint(end)}`,
 	].join(' ')
-	const outboundPath = [
-		`M ${formatPoint(end)}`,
-		`C ${formatPoint(coreControl)} ${formatPoint(junctionOutControl)} ${formatPoint(junction)}`,
-		`C ${formatPoint(junctionInControl)} ${formatPoint(firstControl)} ${formatPoint(start)}`,
-	].join(' ')
-
 	return {
 		start,
 		end,
 		sourceCenter,
 		inboundPath,
-		outboundPath,
 	}
 }
 
@@ -321,10 +311,10 @@ function ConnectionNetwork({
 				if (!point) return null
 
 				const geometry = getConnectionGeometry(point, index, compact, size, coreSize)
-				const { duration, firstDelay, returnFlow } = getConnectionTiming(index, compact)
-				const flowPath = returnFlow ? geometry.outboundPath : geometry.inboundPath
+				const { duration, firstDelay } = getConnectionTiming(index, compact)
+				const flowPath = geometry.inboundPath
 				const pulsePeriod = compact ? duration : duration * 0.52
-				const corePulseBegin = returnFlow ? firstDelay : firstDelay + duration
+				const corePulseBegin = firstDelay + duration
 
 				return (
 					<g key={key}>
@@ -404,12 +394,12 @@ function ModuleNode({
 	}
 	const Icon = meta.icon
 	const geometry = getConnectionGeometry(point, index, compact, size, coreSize)
-	const { duration, firstDelay, returnFlow } = getConnectionTiming(index, compact)
+	const { duration, firstDelay } = getConnectionTiming(index, compact)
 	const portOffset = {
 		x: geometry.start.x - geometry.sourceCenter.x,
 		y: geometry.start.y - geometry.sourceCenter.y,
 	}
-	const pulseDelay = returnFlow ? firstDelay + duration : firstDelay
+	const pulseDelay = firstDelay
 	const pulseDuration = compact ? duration : duration * 0.52
 
 	return (
@@ -444,7 +434,6 @@ function ModuleNode({
 					{locale === 'fa' ? meta.fa : meta.en}
 				</span>
 
-				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.72)]" />
 			</motion.div>
 
 			<span

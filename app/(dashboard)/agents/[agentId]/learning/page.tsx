@@ -1,11 +1,8 @@
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
-import { GraduationCap } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { LEARNED_PREFIX } from '@/lib/ai/learning'
 import { LearningCenter, type LearningItem } from '@/components/agent-builder/learning-center'
-import { PageHeader } from '@/components/dashboard/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +13,6 @@ export default async function AgentLearningPage(
 ) {
   const params = await props.params;
   const user = await requireUser()
-  const t = await getTranslations('learning')
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
@@ -55,13 +51,7 @@ export default async function AgentLearningPage(
     .filter((m) => m.question.length > 0)
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader
-        icon={GraduationCap}
-        title={t('title')}
-        subtitle={t('subtitle')}
-      />
-
+    <div className="space-y-6">
       <LearningCenter
         agentId={agent.id}
         initial={items}

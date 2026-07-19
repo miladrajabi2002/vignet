@@ -37,7 +37,7 @@ export function AgentTabs({ agentId, tabs }: { agentId: string; tabs: AgentTabIt
 
   return (
     <nav
-      className="scrollbar-none sticky top-[4.65rem] z-20 -mx-1 flex gap-1.5 overflow-x-auto rounded-[1.4rem] border border-black/[0.06] bg-white/80 p-1.5 shadow-[0_16px_38px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/72"
+      className="scrollbar-none flex gap-1.5 overflow-x-auto border-t border-black/[0.055] bg-black/[0.018] p-1.5 sm:p-2"
       aria-label="Agent sections"
     >
       {tabs.map(({ key, href, label, badge }) => {

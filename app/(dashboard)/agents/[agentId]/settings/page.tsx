@@ -1,6 +1,4 @@
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
-import { SlidersHorizontal } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -9,7 +7,6 @@ import {
 } from '@/components/agents/agent-settings-form'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 import { getEffectivePlanReplyPricesIRR } from '@/lib/billing/plans'
-import { PageHeader } from '@/components/dashboard/page-header'
 
 export default async function AgentSettingsPage(
   props: {
@@ -18,7 +15,6 @@ export default async function AgentSettingsPage(
 ) {
   const params = await props.params;
   const user = await requireUser()
-  const t = await getTranslations('agents.settingsForm')
 
   const [agent, workspace, platformPolicy] = await Promise.all([
     prisma.agent.findFirst({
@@ -33,11 +29,7 @@ export default async function AgentSettingsPage(
   if (!agent) notFound()
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader
-        icon={SlidersHorizontal}
-        title={t('title')}
-      />
+    <div className="space-y-6">
       <AgentSettingsForm
         businessType={workspace?.businessType}
         modelPolicy={{

@@ -24,7 +24,6 @@ import {
 } from '@/components/dashboard/charts/lazy'
 import { BarList } from '@/components/dashboard/charts/bar-list'
 import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
-import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 
 const DAYS = 14
@@ -37,7 +36,6 @@ export default async function AgentAnalyticsPage(
   const params = await props.params;
   const user = await requireUser()
   const t = await getTranslations('analytics')
-  const ta = await getTranslations('agents')
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const ws = user.workspaceId
 
@@ -126,13 +124,7 @@ export default async function AgentAnalyticsPage(
   const nf = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US')
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-
-      <PageHeader
-        icon={BarChart3}
-        title={ta('analytics')}
-      />
-
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatsCard
           label={t('totalConversations')}
