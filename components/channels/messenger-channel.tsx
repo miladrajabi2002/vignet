@@ -161,20 +161,24 @@ function ChannelSettings({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
+        aria-expanded={open}
+        aria-controls={`channel-quick-replies-${type.toLowerCase()}`}
+        className="flex min-h-11 w-full items-center justify-between px-3 py-2 text-xs font-medium text-[var(--text-secondary)]"
       >
         <span className="inline-flex items-center gap-1.5">
           <Settings2 className="h-3.5 w-3.5" />
-          {t('channelSettings')}
+          {type === 'WHATSAPP' ? t('msgrQuickRepliesLabel') : t('channelSettings')}
         </span>
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="space-y-3 px-3 pb-3">
+        <div id={`channel-quick-replies-${type.toLowerCase()}`} className="space-y-3 px-3 pb-3">
           <div>
-            <p className="text-xs font-medium text-[var(--text-primary)]">
-              {t('msgrQuickRepliesLabel')}
-            </p>
+            {type !== 'WHATSAPP' && (
+              <p className="text-xs font-medium text-[var(--text-primary)]">
+                {t('msgrQuickRepliesLabel')}
+              </p>
+            )}
             <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
               {type === 'WHATSAPP' ? t('msgrQuickRepliesHintWa') : t('msgrQuickRepliesHint')}
             </p>
@@ -348,7 +352,7 @@ export function MessengerChannel({
 
   return (
     <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {enabled && isInstagram && botAvatar ? (
           // Connected Instagram OAuth channel — show the IG profile avatar
           // instead of the generic camera icon. Makes it obvious at a glance
@@ -374,11 +378,15 @@ export function MessengerChannel({
             {enabled && <Check className="h-4 w-4 text-success" />}
           </div>
           <div className="truncate text-sm text-[var(--text-secondary)]">
-            {enabled && botUsername ? `@${botUsername}` : hint}
+            {enabled && botUsername
+              ? type === 'WHATSAPP'
+                ? botUsername.replace(/^@+/, '')
+                : `@${botUsername}`
+              : hint}
           </div>
         </div>
         {enabled ? (
-          <div className="flex items-center gap-2">
+          <div className="ms-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             {/* Connected Instagram: link into the automation management page.
                 This is the entry point to DM/comment triggers, follow-gate, etc. */}
             {isInstagram && (
@@ -391,26 +399,47 @@ export function MessengerChannel({
               </Link>
             )}
             <button
+              type="button"
               onClick={disable}
               disabled={busy}
-              className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {t('disable')}
             </button>
+            <button
+              type="button"
+              onClick={() => setOpen((value) => !value)}
+              aria-expanded={open}
+              aria-controls={`channel-details-${type.toLowerCase()}`}
+              aria-label={t(open ? 'collapseConnection' : 'expandConnection')}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+              />
+            </button>
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => setOpen((v) => !v)}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+            aria-expanded={open}
+            aria-controls={`channel-details-${type.toLowerCase()}`}
+            className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {t('connect')}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+            />
           </button>
         )}
       </div>
 
-      {enabled && <WebhookHealth lastInboundAt={lastInboundAt} />}
+      {enabled && open && (
+        <div id={`channel-details-${type.toLowerCase()}`}>
+          <WebhookHealth lastInboundAt={lastInboundAt} />
 
       {/* Instagram no longer needs the Development Mode / App Review reminder:
           the platform app is Live + reviewed, and new connections are OAuth
@@ -431,32 +460,34 @@ export function MessengerChannel({
           token to finish Meta dashboard setup. Instagram OAuth channels no
           longer need this — the platform app manages the webhook globally
           (callback /api/webhook/instagram, demuxed by pageId). */}
-      {enabled && type === 'WHATSAPP' && callbackUrl && verifyToken && (
-        <div className="mt-4 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-          <p className="text-xs text-[var(--text-secondary)]">{t('webhookSetupNote')}</p>
-          <div className="space-y-1">
-            <label className="text-xs text-[var(--text-secondary)]">{t('callbackUrl')}</label>
-            <div className="flex items-center gap-2">
-              <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
-                {callbackUrl}
-              </code>
-              <CopyButton value={callbackUrl} label={t('copied')} />
+          {enabled && type === 'WHATSAPP' && callbackUrl && verifyToken && (
+            <div className="mt-4 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+              <p className="text-xs text-[var(--text-secondary)]">{t('webhookSetupNote')}</p>
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--text-secondary)]">{t('callbackUrl')}</label>
+                <div className="flex items-center gap-2">
+                  <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
+                    {callbackUrl}
+                  </code>
+                  <CopyButton value={callbackUrl} label={t('copied')} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--text-secondary)]">{t('verifyToken')}</label>
+                <div className="flex items-center gap-2">
+                  <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
+                    {verifyToken}
+                  </code>
+                  <CopyButton value={verifyToken} label={t('copied')} />
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-[var(--text-secondary)]">{t('verifyToken')}</label>
-            <div className="flex items-center gap-2">
-              <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
-                {verifyToken}
-              </code>
-              <CopyButton value={verifyToken} label={t('copied')} />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       {!enabled && open && (
-        <div className="mt-4 space-y-3">
+        <div id={`channel-details-${type.toLowerCase()}`} className="mt-4 space-y-3">
           {type === 'INSTAGRAM' ? (
             // Instagram uses the platform-managed OAuth flow (one click →
             // Facebook Login dialog → callback → channel persisted). No token

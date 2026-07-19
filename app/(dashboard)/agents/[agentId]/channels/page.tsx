@@ -20,15 +20,12 @@ import {
   WhatsAppNumberPicker,
   type PendingWhatsappNumber,
 } from '@/components/channels/whatsapp-connect-wizard'
-import { InstagramServiceSetup } from '@/components/channels/instagram-service-setup'
 import { normalizeMessengerSettings } from '@/lib/channels/config'
 import {
   normalizeChatLinkSettings,
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
-import { readBusinessProfile } from '@/lib/verticals/profile'
-import { getDashboardModules, type BusinessTypeValue } from '@/lib/verticals/registry'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -66,18 +63,10 @@ export default async function AgentChannelsPage(
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { slug: true, businessType: true, businessProfile: true },
+      select: { slug: true },
     }),
   ])
   if (!agent) notFound()
-
-  const businessProfile = readBusinessProfile(workspace?.businessProfile)
-  const businessType = (workspace?.businessType ?? 'CUSTOM') as BusinessTypeValue
-  const instagramServiceActive = getDashboardModules(
-    businessType,
-    businessProfile?.services,
-  ).includes('instagram')
-  const instagramConnected = agent.channels.some((channel) => channel.type === 'INSTAGRAM')
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
 
@@ -270,17 +259,8 @@ export default async function AgentChannelsPage(
         suggestedSlug={suggestedSlug}
       />
 
-      <InstagramServiceSetup
-        businessType={businessType}
-        businessName={businessProfile?.businessName ?? ''}
-        services={businessProfile?.services ?? []}
-        initialActive={instagramServiceActive}
-        connected={instagramConnected}
-      />
-
       {messengers.map((m) => {
         const ch = agent.channels.find((c) => c.type === m.type)
-        if (m.type === 'INSTAGRAM' && !instagramServiceActive && !ch) return null
         const config =
           ch && ch.config && typeof ch.config === 'object'
             ? (ch.config as Record<string, unknown>)

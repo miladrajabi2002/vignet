@@ -27,6 +27,7 @@ import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { ensureConversationSummary } from '@/lib/conversations/summary'
 import { recordConversationActivity } from '@/lib/conversations/activity'
+import { buildOperatorAlertKeyboard } from '@/lib/channels/operator-bot'
 
 /**
  * Decrypt the stored OperatorChannel.botToken. The column is TEXT and stores the
@@ -186,16 +187,12 @@ async function pushAlertToOperatorBot(
                         chat_id: op.operatorChatId,
                         text,
                         parse_mode: 'HTML',
-                        reply_markup: {
-                                inline_keyboard: [
-                                        [
-                                                        {
-                                                                text: 'پاسخ در پنل ویجنت',
-                                                                url: `${appUrl}/conversations/${encodeURIComponent(ctx.conversationId)}`,
-                                                        },
-                                        ],
-                                ],
-                        },
+                        reply_markup: buildOperatorAlertKeyboard({
+                                appUrl,
+                                conversationId: ctx.conversationId,
+                                alertId,
+                                state: 'open',
+                        }),
                 }),
                 signal: AbortSignal.timeout(8_000),
         })

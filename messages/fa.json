@@ -394,6 +394,8 @@
                 "copy": "کپی",
                 "copied": "کپی شد",
                 "channelSettings": "تنظیمات کانال",
+                "expandConnection": "باز کردن جزئیات اتصال",
+                "collapseConnection": "بستن جزئیات اتصال",
                 "msgrQuickRepliesLabel": "سؤالات پیشنهادی (دکمه‌ها)",
                 "msgrQuickRepliesHint": "تا ۴ سؤال پرتکرار تعریف کنید؛ زیر هر پاسخ ایجنت به‌صورت دکمه نمایش داده می‌شود و مشتری با یک لمس می‌پرسد.",
                 "msgrQuickRepliesHintWa": "واتساپ حداکثر ۳ دکمه با متن حداکثر ۲۰ کاراکتر نمایش می‌دهد.",

@@ -63,6 +63,7 @@ export function WebWidgetChannel({
 
         const [busy, setBusy] = useState(false)
         const [copied, setCopied] = useState(false)
+        const [detailsOpen, setDetailsOpen] = useState(false)
         const [showSettings, setShowSettings] = useState(false)
         const [saving, setSaving] = useState(false)
         const [saved, setSaved] = useState(false)
@@ -136,7 +137,7 @@ export function WebWidgetChannel({
 
         return (
                 <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
                                         <Globe className="h-5 w-5" />
                                 </div>
@@ -145,19 +146,33 @@ export function WebWidgetChannel({
                                         <div className="text-sm text-[var(--text-secondary)]">{t('widgetDesc')}</div>
                                 </div>
                                 {enabled ? (
-                                        <button
-                                                onClick={disable}
-                                                disabled={busy}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
-                                        >
-                                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                                {t('disable')}
-                                        </button>
+                                        <div className="ms-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+                                                <button
+                                                        type="button"
+                                                        onClick={disable}
+                                                        disabled={busy}
+                                                        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+                                                >
+                                                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                                        {t('disable')}
+                                                </button>
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setDetailsOpen((value) => !value)}
+                                                        aria-expanded={detailsOpen}
+                                                        aria-controls="web-widget-details"
+                                                        aria-label={t(detailsOpen ? 'collapseConnection' : 'expandConnection')}
+                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                                                >
+                                                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${detailsOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+                                        </div>
                                 ) : (
                                         <button
+                                                type="button"
                                                 onClick={enable}
                                                 disabled={busy}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+                                                className="ms-auto inline-flex min-h-11 items-center gap-1 rounded-xl bg-black px-4 text-sm font-semibold text-white disabled:opacity-50"
                                         >
                                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                                 {t('enable')}
@@ -165,8 +180,8 @@ export function WebWidgetChannel({
                                 )}
                         </div>
 
-                        {enabled && (
-                                <div className="mt-4 space-y-4">
+                        {enabled && detailsOpen && (
+                                <div id="web-widget-details" className="mt-4 space-y-4">
                                         {/* Embed code */}
                                         <div>
                                                 <div className="mb-2 flex items-center justify-between">

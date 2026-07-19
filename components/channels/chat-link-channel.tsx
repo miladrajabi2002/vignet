@@ -19,6 +19,7 @@ import {
         Send,
         User,
         Phone,
+        ChevronDown,
 } from 'lucide-react'
 import {
         normalizeChatLinkSettings,
@@ -55,6 +56,7 @@ export function ChatLinkChannel({
         suggestedSlug: string
 }) {
         const t = useTranslations('chatLink')
+        const tc = useTranslations('channels')
         const router = useRouter()
 
         const [link, setLink] = useState<LinkState | null>(initialLink)
@@ -62,7 +64,7 @@ export function ChatLinkChannel({
         const [settings, setSettings] = useState<ChatLinkSettings>(
                 initialLink?.settings ?? normalizeChatLinkSettings(null),
         )
-        const [showSettings, setShowSettings] = useState(!!initialLink)
+        const [showSettings, setShowSettings] = useState(false)
         const [saving, setSaving] = useState(false)
         const [saved, setSaved] = useState(false)
         const [copied, setCopied] = useState(false)
@@ -168,7 +170,7 @@ export function ChatLinkChannel({
 
         return (
                 <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)]">
                                         <Link2 className="h-5 w-5" />
                                 </div>
@@ -184,25 +186,42 @@ export function ChatLinkChannel({
                                         <div className="text-sm text-[var(--text-secondary)]">{t('desc')}</div>
                                 </div>
                                 {link ? (
-                                        <button
-                                                onClick={remove}
-                                                disabled={saving}
-                                                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
-                                        >
-                                                {t('remove')}
-                                        </button>
+                                        <div className="ms-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+                                                <button
+                                                        type="button"
+                                                        onClick={remove}
+                                                        disabled={saving}
+                                                        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+                                                >
+                                                        {t('remove')}
+                                                </button>
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setShowSettings((value) => !value)}
+                                                        aria-expanded={showSettings}
+                                                        aria-controls="chat-link-details"
+                                                        aria-label={tc(showSettings ? 'collapseConnection' : 'expandConnection')}
+                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                                                >
+                                                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${showSettings ? 'rotate-180' : ''}`} />
+                                                </button>
+                                        </div>
                                 ) : (
                                         <button
-                                                onClick={() => setShowSettings(true)}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-[var(--white)] px-4 py-1.5 text-sm font-medium text-[var(--bg-base)]"
+                                                type="button"
+                                                onClick={() => setShowSettings((value) => !value)}
+                                                aria-expanded={showSettings}
+                                                aria-controls="chat-link-details"
+                                                className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 text-sm font-semibold text-white"
                                         >
                                                 {t('create')}
+                                                <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${showSettings ? 'rotate-180' : ''}`} />
                                         </button>
                                 )}
                         </div>
 
                         {showSettings && (
-                                <div className="mt-5 grid gap-6 lg:grid-cols-2">
+                                <div id="chat-link-details" className="mt-5 grid gap-6 lg:grid-cols-2">
                                         {/* ── Form ── */}
                                         <div className="space-y-5">
                                                 {/* Slug + link */}

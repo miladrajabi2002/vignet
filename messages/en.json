@@ -394,6 +394,8 @@
                 "copy": "Copy",
                 "copied": "Copied",
                 "channelSettings": "Channel settings",
+                "expandConnection": "Expand connection details",
+                "collapseConnection": "Collapse connection details",
                 "msgrQuickRepliesLabel": "Suggested questions (buttons)",
                 "msgrQuickRepliesHint": "Define up to 4 common questions; they appear as tappable buttons under every agent reply.",
                 "msgrQuickRepliesHintWa": "WhatsApp shows at most 3 buttons with titles up to 20 characters.",

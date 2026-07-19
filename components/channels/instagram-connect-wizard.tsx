@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   Camera,
@@ -46,6 +47,7 @@ export function InstagramConnectFlow({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [vpnModalOpen, setVpnModalOpen] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   // VPN warning modal: BEFORE the OAuth flow starts, the operator must
   // confirm their VPN is on. Instagram's OAuth + Graph servers are blocked
@@ -54,11 +56,50 @@ export function InstagramConnectFlow({
   // "اتصال اینستاگرام" click and only proceeds once the user confirms.
   useEffect(() => {
     if (!vpnModalOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    document.body.style.overflow = 'hidden'
+
+    const focusTimer = window.setTimeout(() => {
+      dialogRef.current
+        ?.querySelector<HTMLElement>('[data-autofocus]')
+        ?.focus()
+    }, 0)
+
     function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === 'Escape') setVpnModalOpen(false)
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setVpnModalOpen(false)
+        return
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.clearTimeout(focusTimer)
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
   }, [vpnModalOpen])
 
   // Intercept the connect button: open the VPN modal first instead of
@@ -223,33 +264,36 @@ export function InstagramConnectFlow({
 
       {/* VPN warning modal — shown when the user clicks "اتصال اینستاگرام".
           Must be confirmed before the OAuth flow starts. */}
-      {vpnModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="هشدار VPN"
-        >
+      {vpnModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="presentation">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setVpnModalOpen(false)}
             aria-hidden
           />
-          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="instagram-vpn-title"
+            aria-describedby="instagram-vpn-description"
+            className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-2xl"
+          >
             {/* Header strip */}
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--amber)]/10 px-5 py-3">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--amber)]/20 text-[var(--amber)]">
                   <ShieldAlert className="h-4 w-4" />
                 </div>
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                <h3 id="instagram-vpn-title" className="text-sm font-medium text-[var(--text-primary)]">
                   قبل از اتصال، VPN خود را روشن کنید
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setVpnModalOpen(false)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
                 aria-label="بستن"
               >
                 <X className="h-4 w-4" />
@@ -257,7 +301,7 @@ export function InstagramConnectFlow({
             </div>
             {/* Body */}
             <div className="px-5 py-5">
-              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              <p id="instagram-vpn-description" className="text-sm leading-relaxed text-[var(--text-secondary)]">
                 اتصال به اینستاگرام از سرورهای متا رد می‌شود که در ایران بدون VPN باز
                 نمی‌شوند. اگه VPN روشن نباشه، صفحه اینستاگرام بالا نمیاد. روشنش کن،
                 بعد ادامه بده.
@@ -273,24 +317,27 @@ export function InstagramConnectFlow({
             {/* Footer */}
             <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-4">
               <button
+                data-autofocus
                 type="button"
                 onClick={() => setVpnModalOpen(false)}
-                className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
               >
                 انصراف
               </button>
               <button
                 type="button"
                 onClick={confirmVpn}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 روشنه
               </button>
             </div>
           </div>
-        </div>
-      )}
+            </div>,
+            document.body,
+          )
+        : null}
 
       {/* Trust note */}
       <p className="text-center text-[11px] leading-relaxed text-[var(--text-tertiary)]">

@@ -6,6 +6,7 @@ import { encrypt } from '@/lib/crypto'
 import { captureError } from '@/lib/errors/capture'
 import {
         getTelegramBotInfo,
+        setTelegramBotCommands,
         setTelegramWebhook,
 } from '@/lib/channels/telegram'
 import { readOperatorBotToken } from '@/lib/channels/operator-handoff'
@@ -110,10 +111,15 @@ export async function POST(req: Request) {
 
         const webhookUrl = `${appBaseUrl()}/api/telegram-operator/webhook?token=${encodeURIComponent(token)}`
         let webhookSet = false
+        let commandsSet = false
         let lastError: string | null = null
         try {
-                webhookSet = await setTelegramWebhook(token, webhookUrl)
+                ;[webhookSet, commandsSet] = await Promise.all([
+                        setTelegramWebhook(token, webhookUrl),
+                        setTelegramBotCommands(token),
+                ])
                 if (!webhookSet) lastError = 'Telegram setWebhook returned a non-OK response'
+                else if (!commandsSet) lastError = 'Telegram setMyCommands returned a non-OK response'
         } catch (e) {
                 lastError = e instanceof Error ? e.message : 'Telegram setWebhook failed'
         }
@@ -157,7 +163,7 @@ export async function POST(req: Request) {
                         },
                         botUsername: info.username,
                         webhookSet,
-                        webhookUrl,
+                        commandsSet,
                 },
                 { status: 201 },
         )
@@ -229,6 +235,8 @@ export async function PATCH(req: Request) {
                         operatorChatId: true,
                         active: true,
                         lastError: true,
+                        createdAt: true,
+                        updatedAt: true,
                 },
         })
 
