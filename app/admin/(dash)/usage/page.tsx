@@ -1,7 +1,9 @@
 import { Gauge, Wallet, DollarSign } from 'lucide-react'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { TrendChart, BarList } from '@/components/admin/trend-chart'
 import { usageChargesDaily } from '@/lib/admin/charts'
+import { ADMIN_VISIBLE_RELATED_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import {
   PageHeader,
@@ -37,7 +39,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
   const days = range === '7d' ? 7 : range === '30d' ? 30 : 365
   const rangeLabel = range === '7d' ? '۷ روز' : range === '30d' ? '۳۰ روز' : '۱۲ ماه'
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-  const where = { date: { gte: since } }
+  const where = { ...ADMIN_VISIBLE_RELATED_WHERE, date: { gte: since } }
 
   const [totals, byType, byModel, callCount, chargeTrend, byWorkspace] = await Promise.all([
     prisma.usageLog.aggregate({
@@ -65,6 +67,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       FROM "UsageLog" u
       JOIN "Workspace" w ON w."id" = u."workspaceId"
       WHERE u."date" >= ${since}
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`u."workspaceId"`)}
       GROUP BY w."id", w."name"
       ORDER BY value DESC
       LIMIT 10

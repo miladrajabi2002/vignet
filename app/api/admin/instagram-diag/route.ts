@@ -3,6 +3,7 @@ import { isAdminAuthedRequest } from '@/lib/admin/auth'
 import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { resolveInstagramHost } from '@/lib/channels/instagram'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export async function GET(req: Request) {
 
 	const channels = await prisma.agentChannel.findMany({
 		where: {
+			agent: ADMIN_VISIBLE_RELATED_WHERE,
 			type: 'INSTAGRAM',
 			...(channelId ? { id: channelId } : {}),
 		},

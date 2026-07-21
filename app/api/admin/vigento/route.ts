@@ -10,6 +10,7 @@ import { getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-conf
 import { resolveModelId } from '@/lib/ai/models'
 import { createAdminActionToken } from '@/lib/admin/vigento-actions'
 import { normalizePhone } from '@/lib/phone'
+import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 const inputSchema = z.object({ message: z.string().trim().min(2).max(1800) })
 const querySchema = z.object({ query: z.string().trim().min(1).max(140) })
@@ -53,20 +54,24 @@ const TOOLS: ChatTool[] = [
 
 async function platformSummary(days: number) {
   const since = new Date(Date.now() - days * 86_400_000)
+  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
+  const visibleErrorWhere = hiddenWorkspaceIds.length
+    ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
+    : {}
   const [revenue, payments, users, workspaces, conversations, messages, resolved, handoffs, errors, usage, top] = await Promise.all([
-    prisma.payment.aggregate({ where: { status: 'PAID', paidAt: { gte: since }, currency: 'IRR' }, _sum: { amount: true } }),
-    prisma.payment.count({ where: { status: 'PAID', paidAt: { gte: since } } }),
-    prisma.user.count({ where: { createdAt: { gte: since } } }),
-    prisma.workspace.count({ where: { createdAt: { gte: since } } }),
-    prisma.conversation.count({ where: { createdAt: { gte: since } } }),
-    prisma.message.count({ where: { createdAt: { gte: since } } }),
-    prisma.conversation.count({ where: { status: 'RESOLVED', createdAt: { gte: since } } }),
-    prisma.conversation.count({ where: { status: 'HANDED_OFF' } }),
-    prisma.errorLog.count({ where: { createdAt: { gte: since } } }),
-    prisma.usageLog.aggregate({ where: { status: 'CAPTURED', date: { gte: since } }, _sum: { chargedIRR: true, cost: true }, _count: { _all: true } }),
-    prisma.conversation.groupBy({ by: ['workspaceId'], where: { createdAt: { gte: since } }, _sum: { messageCount: true }, _count: { _all: true }, orderBy: { _sum: { messageCount: 'desc' } }, take: 5 }),
+    prisma.payment.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', paidAt: { gte: since }, currency: 'IRR' }, _sum: { amount: true } }),
+    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', paidAt: { gte: since } } }),
+    prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: since } } }),
+    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, createdAt: { gte: since } } }),
+    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
+    prisma.message.count({ where: { conversation: ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
+    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'RESOLVED', createdAt: { gte: since } } }),
+    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'HANDED_OFF' } }),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since } }] } }),
+    prisma.usageLog.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'CAPTURED', date: { gte: since } }, _sum: { chargedIRR: true, cost: true }, _count: { _all: true } }),
+    prisma.conversation.groupBy({ by: ['workspaceId'], where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } }, _sum: { messageCount: true }, _count: { _all: true }, orderBy: { _sum: { messageCount: 'desc' } }, take: 5 }),
   ])
-  const names = await prisma.workspace.findMany({ where: { id: { in: top.map((row) => row.workspaceId) } }, select: { id: true, name: true } })
+  const names = await prisma.workspace.findMany({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, id: { in: top.map((row) => row.workspaceId) } }, select: { id: true, name: true } })
   const nameMap = new Map(names.map((row) => [row.id, row.name]))
   return {
     days,
@@ -89,6 +94,7 @@ async function findWorkspaces(query: string) {
   const phone = normalizePhone(normalized)
   const rows = await prisma.workspace.findMany({
     where: {
+      AND: [ADMIN_VISIBLE_WORKSPACE_WHERE],
       OR: [
         { id: normalized },
         { name: { contains: normalized, mode: 'insensitive' } },
@@ -103,8 +109,8 @@ async function findWorkspaces(query: string) {
 }
 
 async function inspectConversation(id: string) {
-  return prisma.conversation.findUnique({
-    where: { id },
+  return prisma.conversation.findFirst({
+    where: { ...ADMIN_VISIBLE_RELATED_WHERE, id },
     select: { id: true, status: true, channel: true, summary: true, messageCount: true, handedOff: true, createdAt: true, lastMessageAt: true, workspace: { select: { id: true, name: true } }, contact: { select: { name: true, phone: true, instagramUsername: true } }, agent: { select: { name: true, active: true } } },
   })
 }
@@ -114,6 +120,7 @@ async function findUsers(query: string) {
   const phone = normalizePhone(normalized)
   const rows = await prisma.user.findMany({
     where: {
+      AND: [ADMIN_VISIBLE_USER_WHERE],
       OR: [
         { id: normalized },
         { name: { contains: normalized, mode: 'insensitive' } },
@@ -205,7 +212,7 @@ export async function DELETE() {
 async function findAgents(query: string) {
   const normalized = query.replace(/\s+/g, ' ').trim()
   return prisma.agent.findMany({
-    where: { OR: [{ id: normalized }, { name: { contains: normalized, mode: 'insensitive' } }, { workspace: { name: { contains: normalized, mode: 'insensitive' } } }] },
+    where: { AND: [ADMIN_VISIBLE_RELATED_WHERE], OR: [{ id: normalized }, { name: { contains: normalized, mode: 'insensitive' } }, { workspace: { name: { contains: normalized, mode: 'insensitive' } } }] },
     take: 8,
     orderBy: { updatedAt: 'desc' },
     select: { id: true, name: true, active: true, model: true, updatedAt: true, workspace: { select: { id: true, name: true } }, _count: { select: { channels: true, conversations: true } } },
@@ -273,7 +280,7 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
     if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_WORKSPACE', matches } }
     const phone = normalizePhone(input.phone)
     if (!phone) return { result: { error: 'INVALID_PHONE' } }
-    const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true, name: true, workspace: { select: { name: true } } } })
+    const existing = await prisma.user.findFirst({ where: { ...ADMIN_VISIBLE_USER_WHERE, phone }, select: { id: true, name: true, workspace: { select: { name: true } } } })
     if (existing) return { result: { error: 'PHONE_ALREADY_EXISTS', existing } }
     const workspace = matches[0]
     const token = createAdminActionToken({ kind: 'CREATE_WORKSPACE_MEMBER', workspaceId: workspace.id, workspaceName: workspace.name, phone, name: input.name, role: input.role, reason: input.reason })

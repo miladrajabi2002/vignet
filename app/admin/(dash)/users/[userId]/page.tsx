@@ -14,6 +14,7 @@ import {
   UserRoundCheck,
 } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { readBusinessProfile } from '@/lib/verticals/profile'
@@ -89,8 +90,8 @@ export default async function AdminUserDetailPage(
 ) {
   const params = await props.params
 
-  const user = await prisma.user.findUnique({
-    where: { id: params.userId },
+  const user = await prisma.user.findFirst({
+    where: { ...ADMIN_VISIBLE_USER_WHERE, id: params.userId },
     include: {
       workspace: {
         select: {

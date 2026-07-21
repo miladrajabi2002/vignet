@@ -11,6 +11,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { ConversationText } from '@/components/chat/conversation-bubble'
 import { cn } from '@/lib/utils'
 
 type Message = { id: string; role: 'assistant' | 'user'; text: string }
@@ -192,7 +193,12 @@ export function VigentoAdminConsole({
           ) : messages.map((message) => (
             <article key={message.id} dir={message.role === 'assistant' ? 'ltr' : 'rtl'} className={cn('flex w-fit max-w-[88%] items-start gap-2.5', message.role === 'user' ? 'ml-auto' : 'mr-auto')}>
               {message.role === 'assistant' && <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles className="h-3.5 w-3.5" /></span>}
-              <div dir="rtl" className={cn('whitespace-pre-wrap rounded-[1.25rem] px-4 py-2.5 text-right text-[13px] leading-7', message.role === 'user' ? 'rounded-tr-md bg-black text-white shadow-[var(--shadow-control)]' : 'rounded-tl-md border border-black/[0.055] bg-zinc-100/80 text-zinc-700')}>{message.text}</div>
+              <div dir="rtl" className={cn('rounded-[1.25rem] px-4 py-2.5 text-right text-[13px] leading-7', message.role === 'user' ? 'rounded-tr-md bg-black text-white shadow-[var(--shadow-control)]' : 'rounded-tl-md border border-black/[0.055] bg-zinc-100/80 text-zinc-700')}>
+                <ConversationText
+                  text={message.text}
+                  markdown={message.role === 'assistant'}
+                />
+              </div>
             </article>
           ))}
 

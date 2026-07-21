@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,11 +9,11 @@ export default async function AdminWorkspaceDetailPage(props: {
 }) {
   const { workspaceId } = await props.params
   const user = await prisma.user.findFirst({
-    where: { workspaceId, role: 'OWNER' },
+    where: { ...ADMIN_VISIBLE_USER_WHERE, workspaceId, role: 'OWNER' },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   }) ?? await prisma.user.findFirst({
-    where: { workspaceId },
+    where: { ...ADMIN_VISIBLE_USER_WHERE, workspaceId },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   })

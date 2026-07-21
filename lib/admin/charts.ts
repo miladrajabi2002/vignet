@@ -1,5 +1,7 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { ADMIN_VISIBLE_WORKSPACE_WHERE, adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 
 export interface DailyPoint {
         day: string // Persian label, e.g. "۲۱ تیر"
@@ -85,6 +87,7 @@ export async function conversationsDaily(days = 14): Promise<DailyPoint[]> {
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(
@@ -99,6 +102,7 @@ export async function errorsDaily(days = 14): Promise<DailyPoint[]> {
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(
@@ -117,6 +121,7 @@ export async function errorsDailyByLevel(
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since} AND "level" = ${level}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(rows.map((row) => ({ d: row.d, v: Number(row.c) })), days)
@@ -129,6 +134,7 @@ export async function usageChargesDaily(days = 14): Promise<DailyPoint[]> {
            COALESCE(sum("chargedIRR"), 0) AS c
     FROM "UsageLog"
     WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(rows.map((r) => ({ d: r.d, v: Number(r.c ?? 0) })), days)
@@ -141,6 +147,7 @@ export async function newUsersDaily(days = 14): Promise<DailyPoint[]> {
     SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "User"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(
@@ -156,6 +163,7 @@ export async function paymentsDaily(days = 14): Promise<DailyPoint[]> {
     SELECT to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, count(*) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "paidAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(
@@ -177,6 +185,7 @@ export async function revenueIRRDaily(days = 14): Promise<DailyPoint[]> {
     SELECT to_char(date_trunc('day', "paidAt" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS d, COALESCE(sum("amount"), 0) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "currency" = 'IRR' AND "paidAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillSeries(
@@ -196,6 +205,7 @@ export async function revenueIRRMonthly(months = 12): Promise<MonthPoint[]> {
            COALESCE(sum("amount"), 0) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "currency" = 'IRR' AND "paidAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1 ORDER BY 1
   `
         return fillMonthly(
@@ -216,6 +226,7 @@ export interface Slice {
 export async function planDistribution(): Promise<Slice[]> {
         const rows = await prisma.workspace.groupBy({
                 by: ['plan'],
+                where: ADMIN_VISIBLE_WORKSPACE_WHERE,
                 _count: { _all: true },
         })
         const labels: Record<string, string> = {
@@ -257,6 +268,7 @@ export async function conversationsDailyByAgent(
            count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2
   `
@@ -299,6 +311,7 @@ export async function conversationsDailyByWorkspace(
            count(*) AS c
     FROM "Conversation"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2
   `
@@ -345,6 +358,7 @@ export async function errorsDailyBySource(days = 7): Promise<Map<string, ErrorSp
            count(*) AS c
     FROM "ErrorLog"
     WHERE "createdAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2
   `
@@ -394,6 +408,7 @@ export async function paymentsDailyByWorkspace(
            count(*) AS c
     FROM "Payment"
     WHERE "status" = 'PAID' AND "paidAt" >= ${since}
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     GROUP BY 1, 2
     ORDER BY 1, 2
   `

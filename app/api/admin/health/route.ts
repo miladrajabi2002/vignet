@@ -6,6 +6,7 @@ import { isAdminAuthed } from '@/lib/admin/auth'
 import { ADMIN_OWNER_PHONE } from '@/lib/admin/auth'
 import { getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_RELATED_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
 import { getBucket, getS3Client, isS3Configured } from '@/lib/storage/s3'
 
@@ -163,6 +164,10 @@ export async function GET() {
   if (!(await isAdminAuthed())) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
+  const visibleErrorWhere = hiddenWorkspaceIds.length
+    ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
+    : {}
   const [database, redisQueues, storage, openRouter, channels, errorCount, failedPayments] = await Promise.all([
     databaseHealth(),
     redisAndQueuesHealth(),
@@ -170,11 +175,12 @@ export async function GET() {
     openRouterHealth(),
     prisma.agentChannel.groupBy({
       by: ['type', 'active'],
+      where: { agent: ADMIN_VISIBLE_RELATED_WHERE },
       _count: { _all: true },
       _max: { lastInboundAt: true },
     }).catch(() => []),
-    prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }).catch(() => -1),
-    prisma.payment.count({ where: { status: 'FAILED', createdAt: { gte: since24h } } }).catch(() => -1),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h } }] } }).catch(() => -1),
+    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'FAILED', createdAt: { gte: since24h } } }).catch(() => -1),
   ])
 
   const queueFailed = redisQueues.queues.reduce((sum, queue) => sum + queue.failed, 0)

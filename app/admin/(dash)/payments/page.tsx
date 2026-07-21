@@ -17,6 +17,7 @@ import {
   FilterPills,
 } from '../ui'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,7 +94,7 @@ export default async function AdminPaymentsPage(
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   // Build the where clause
-  const where: Prisma.PaymentWhereInput = {}
+  const where: Prisma.PaymentWhereInput = { ...ADMIN_VISIBLE_RELATED_WHERE }
   if (status) where.status = status
   if (gateway) where.gateway = gateway
 

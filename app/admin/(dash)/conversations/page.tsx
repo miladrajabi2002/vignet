@@ -13,6 +13,7 @@ import {
   fa,
   fmtDate,
 } from '../ui'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,7 @@ export default async function AdminConversationsPage(
   const [rows, totalCount, openCount, handedOffCount] =
     await Promise.all([
       prisma.conversation.findMany({
+        where: ADMIN_VISIBLE_RELATED_WHERE,
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE + 1,
@@ -72,9 +74,9 @@ export default async function AdminConversationsPage(
           contact: { select: { name: true, phone: true } },
         },
       }),
-      prisma.conversation.count(),
-      prisma.conversation.count({ where: { status: 'OPEN' } }),
-      prisma.conversation.count({ where: { status: 'HANDED_OFF', handedOff: true } }),
+      prisma.conversation.count({ where: ADMIN_VISIBLE_RELATED_WHERE }),
+      prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'OPEN' } }),
+      prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'HANDED_OFF', handedOff: true } }),
     ])
 
   const hasNext = rows.length > PAGE_SIZE

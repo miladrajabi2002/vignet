@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_OWNER_PHONE, isAdminAuthed } from '@/lib/admin/auth'
 import { dispatchNotification } from '@/lib/queue/jobs'
+import { ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 
 const BodySchema = z.object({
   mode: z.enum(['single', 'bulk']),
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'اطلاعات نامعتبر است.' }, { status: 400 })
   const input = parsed.data
 
-  const where: Prisma.WorkspaceWhereInput = input.mode === 'single'
+  const audienceWhere: Prisma.WorkspaceWhereInput = input.mode === 'single'
     ? { users: { some: { id: input.userId } } }
     : input.plan
       ? { plan: input.plan }
@@ -35,6 +36,9 @@ export async function POST(request: Request) {
           : input.audience === 'onboarding'
             ? { onboardingCompleted: false }
             : {}
+  const where: Prisma.WorkspaceWhereInput = {
+    AND: [ADMIN_VISIBLE_WORKSPACE_WHERE, audienceWhere],
+  }
 
   const workspaces = await prisma.workspace.findMany({
     where,

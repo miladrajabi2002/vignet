@@ -1,7 +1,9 @@
 import 'server-only'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { adminVisibleWorkspaceSql } from '@/lib/admin/reporting-scope'
 import {
   AGENT_MODELS,
   getReplyPriceIRR,
@@ -363,6 +365,7 @@ export async function getAiOverview(days = 30): Promise<AiUsageTotals> {
            count("cost") AS "pricedRequests"
     FROM "UsageLog"
     WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
   `
   const row = rows[0]
 
@@ -387,6 +390,7 @@ export async function getCurrentMonthAiSpendUSD(): Promise<number> {
     SELECT COALESCE(sum("cost"), 0) AS "providerCostUSD"
     FROM "UsageLog"
     WHERE "date" >= ${monthStart} AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
   `
   return Number(rows[0]?.providerCostUSD ?? 0)
 }
@@ -407,6 +411,7 @@ export async function getAiUsageReport(days = 30) {
              count("cost") AS "pricedRequests"
       FROM "UsageLog"
       WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
     `,
     prisma.$queryRaw<DailyRow[]>`
       SELECT to_char(date_trunc('day', "date" AT TIME ZONE ${DASHBOARD_TZ}), 'YYYY-MM-DD') AS "dayKey",
@@ -416,6 +421,7 @@ export async function getAiUsageReport(days = 30) {
              COALESCE(sum("chargedIRR"), 0) AS "chargedIRR"
       FROM "UsageLog"
       WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
       GROUP BY 1
       ORDER BY 1
     `,
@@ -430,6 +436,7 @@ export async function getAiUsageReport(days = 30) {
              COALESCE(sum("chargedIRR"), 0) AS "chargedIRR"
       FROM "UsageLog"
       WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
       GROUP BY "model"
       ORDER BY "providerCostUSD" DESC, "requests" DESC
     `,
@@ -446,6 +453,7 @@ export async function getAiUsageReport(days = 30) {
                max("date") AS "lastUsedAt"
         FROM "UsageLog"
         WHERE "date" >= ${since} AND "status" = 'CAPTURED'
+          AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
         GROUP BY "workspaceId"
       )
       SELECT usage."workspaceId" AS "workspaceId",
@@ -488,6 +496,7 @@ export async function getAiUsageReport(days = 30) {
       FROM "UsageLog" usage
       JOIN "Workspace" workspace ON workspace."id" = usage."workspaceId"
       WHERE usage."status" = 'CAPTURED'
+        AND ${adminVisibleWorkspaceSql(Prisma.sql`usage."workspaceId"`)}
       ORDER BY usage."date" DESC
       LIMIT 12
     `,

@@ -14,13 +14,20 @@ import {
 import { Sparkline } from '@/components/admin/sparkline'
 import { BarList, TrendChart } from '@/components/admin/trend-chart'
 import { errorsDaily, errorsDailyByLevel, errorsDailyBySource } from '@/lib/admin/charts'
+import { getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 const PAGE_SIZE = 50
 
 export async function SystemErrorsPanel({ level, page }: { level?: string; page?: string }) {
   const activeLevel = level === 'warn' || level === 'error' ? level : undefined
   const activePage = Math.max(1, Number(page) || 1)
-  const where: Prisma.ErrorLogWhereInput = activeLevel ? { level: activeLevel } : {}
+  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
+  const reportingScope: Prisma.ErrorLogWhereInput = hiddenWorkspaceIds.length
+    ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
+    : {}
+  const where: Prisma.ErrorLogWhereInput = activeLevel
+    ? { AND: [reportingScope, { level: activeLevel }] }
+    : reportingScope
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
   const [errors, totalCount, errors24h, errTrend7, errTrend30, errorTrend7, sourceSparks] = await Promise.all([
@@ -32,7 +39,7 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
       select: { id: true, level: true, source: true, message: true, stack: true, workspaceId: true, createdAt: true },
     }),
     prisma.errorLog.count({ where }),
-    prisma.errorLog.count({ where: { createdAt: { gte: since24h }, level: 'error' } }),
+    prisma.errorLog.count({ where: { AND: [reportingScope, { createdAt: { gte: since24h }, level: 'error' }] } }),
     errorsDaily(7),
     errorsDaily(30),
     errorsDailyByLevel('error', 7),

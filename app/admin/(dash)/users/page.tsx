@@ -19,6 +19,7 @@ import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
 import { toEnglishDigits } from '@/lib/phone'
 import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
+import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +75,7 @@ export default async function AdminUsersPage(
       ? (planParam as PlanFilter)
       : null
 
-  const where: Prisma.UserWhereInput = {}
+  const where: Prisma.UserWhereInput = { AND: [ADMIN_VISIBLE_USER_WHERE] }
   if (q) {
     where.OR = [
       { phone: { contains: q } },
@@ -89,11 +90,11 @@ export default async function AdminUsersPage(
   const stalledSince = new Date(Date.now() - 48 * 60 * 60 * 1000)
   const [totalCount, todayCount, workspaceCount, paidWorkspaces, stalledWorkspaces, rows, messageUsers] =
     await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { createdAt: { gte: startOfToday() } } }),
-      prisma.workspace.count(),
-      prisma.workspace.count({ where: { plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
-      prisma.workspace.count({ where: { onboardingCompleted: false, createdAt: { lt: stalledSince } } }),
+      prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
+      prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
+      prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, createdAt: { lt: stalledSince } } }),
       prisma.user.findMany({
         where,
         include: {
@@ -113,6 +114,7 @@ export default async function AdminUsersPage(
         take: PAGE_SIZE + 1,
       }),
       prisma.user.findMany({
+        where: ADMIN_VISIBLE_USER_WHERE,
         orderBy: { createdAt: 'desc' },
         take: 500,
         select: {

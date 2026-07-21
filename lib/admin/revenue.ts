@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 import {
   calculateFinanceSummary,
   parseUsdToIrrRate,
@@ -12,15 +13,15 @@ export async function getFinanceSummary(): Promise<FinanceSummary> {
   const [paymentRows, providerCost, giftedCredit, commercialConfig] = await Promise.all([
     prisma.payment.groupBy({
       by: ['kind', 'currency'],
-      where: { status: 'PAID' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID' },
       _sum: { amount: true },
     }),
     prisma.usageLog.aggregate({
-      where: { status: 'CAPTURED' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'CAPTURED' },
       _sum: { cost: true },
     }),
     prisma.walletLedger.aggregate({
-      where: { type: 'PLAN_CREDIT_GRANT' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, type: 'PLAN_CREDIT_GRANT' },
       _sum: { amountIRR: true },
     }),
     getPlatformCommercialConfig(),
@@ -94,23 +95,24 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
     paidLastWeek,
   ] = await Promise.all([
     prisma.payment.aggregate({
-      where: { status: 'PAID', currency: 'IRR' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR' },
       _sum: { amount: true },
     }),
     prisma.payment.aggregate({
-      where: { status: 'PAID', currency: 'USD' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'USD' },
       _sum: { amount: true },
     }),
-    prisma.payment.count({ where: { status: 'PAID' } }),
-    prisma.payment.count({ where: { status: { in: ['FAILED', 'EXPIRED'] } } }),
+    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID' } }),
+    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: { in: ['FAILED', 'EXPIRED'] } } }),
     prisma.subscription.aggregate({
-      where: { status: 'ACTIVE', currency: 'IRR' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'ACTIVE', currency: 'IRR' },
       _sum: { monthlyPrice: true },
     }),
-    prisma.workspace.count(),
-    prisma.workspace.count({ where: { plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
+    prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
+    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
     prisma.payment.aggregate({
       where: {
+        ...ADMIN_VISIBLE_RELATED_WHERE,
         status: 'PAID',
         currency: 'IRR',
         paidAt: { gte: startOfMonth },
@@ -119,18 +121,19 @@ export async function getRevenueKPIs(): Promise<RevenueKPIs> {
     }),
     prisma.payment.aggregate({
       where: {
+        ...ADMIN_VISIBLE_RELATED_WHERE,
         status: 'PAID',
         currency: 'IRR',
         paidAt: { gte: startOfLastMonth, lt: startOfMonth },
       },
       _sum: { amount: true },
     }),
-    prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+    prisma.subscription.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'ACTIVE' } }),
     prisma.payment.count({
-      where: { status: 'PAID', paidAt: { gte: weekAgo } },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', paidAt: { gte: weekAgo } },
     }),
     prisma.payment.count({
-      where: { status: 'PAID', paidAt: { gte: twoWeeksAgo, lt: weekAgo } },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', paidAt: { gte: twoWeeksAgo, lt: weekAgo } },
     }),
   ])
 
@@ -174,7 +177,7 @@ export interface TopWorkspace {
 export async function getTopWorkspacesByRevenue(limit = 5): Promise<TopWorkspace[]> {
   const rows = await prisma.payment.groupBy({
     by: ['workspaceId'],
-    where: { status: 'PAID', currency: 'IRR' },
+    where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR' },
     _sum: { amount: true },
     _count: { _all: true },
     orderBy: { _sum: { amount: 'desc' } },
@@ -185,7 +188,7 @@ export async function getTopWorkspacesByRevenue(limit = 5): Promise<TopWorkspace
 
   const wsIds = rows.map((r) => r.workspaceId)
   const workspaces = await prisma.workspace.findMany({
-    where: { id: { in: wsIds } },
+    where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, id: { in: wsIds } },
     select: { id: true, name: true, plan: true },
   })
   const wsMap = new Map(workspaces.map((w) => [w.id, w]))
@@ -224,12 +227,13 @@ export async function getPlanRevenue(): Promise<PlanRevenueRow[]> {
   const [revByPlan, wsByPlan] = await Promise.all([
     prisma.payment.groupBy({
       by: ['plan'],
-      where: { status: 'PAID', currency: 'IRR' },
+      where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR' },
       _sum: { amount: true },
       _count: { _all: true },
     }),
     prisma.workspace.groupBy({
       by: ['plan'],
+      where: ADMIN_VISIBLE_WORKSPACE_WHERE,
       _count: { _all: true },
     }),
   ])

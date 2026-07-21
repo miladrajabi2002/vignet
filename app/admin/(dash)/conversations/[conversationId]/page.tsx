@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Bot, MessageSquare, UserRound } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function AdminConversationDetailPage({ params }: { params: Promise<{ conversationId: string }> }) {
   const { conversationId } = await params
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
+  const conversation = await prisma.conversation.findFirst({
+    where: { ...ADMIN_VISIBLE_RELATED_WHERE, id: conversationId },
     select: {
       id: true, channel: true, status: true, handedOff: true, summary: true,
       rating: true, messageCount: true, createdAt: true, lastMessageAt: true,

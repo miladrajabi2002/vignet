@@ -15,6 +15,7 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
+import { ConversationText } from '@/components/chat/conversation-bubble'
 
 type ChatMessage = { role: 'assistant' | 'user'; content: string }
 
@@ -131,8 +132,11 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
             <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'flex justify-start' : 'flex justify-end'}>
               <div className={message.role === 'user'
                 ? 'max-w-[86%] rounded-[1.25rem] rounded-es-md bg-black px-4 py-3 text-[13px] leading-7 text-white shadow-[var(--shadow-control)]'
-                : 'spatial-inset max-w-[92%] whitespace-pre-wrap rounded-[1.25rem] rounded-ee-md px-4 py-3 text-[13px] leading-7 text-[var(--text-secondary)]'}>
-                {message.content}
+                : 'spatial-inset max-w-[92%] rounded-[1.25rem] rounded-ee-md px-4 py-3 text-[13px] leading-7 text-[var(--text-secondary)]'}>
+                <ConversationText
+                  text={message.content}
+                  markdown={message.role === 'assistant'}
+                />
               </div>
             </div>
           ))}

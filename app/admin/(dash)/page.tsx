@@ -44,6 +44,7 @@ import {
 } from '@/lib/admin/charts'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { getAiOverview } from '@/lib/admin/ai-usage'
+import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +73,10 @@ export default async function AdminOverviewPage(
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const staleOnboarding = new Date(Date.now() - 48 * 60 * 60 * 1000)
+  const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
+  const visibleErrorWhere = hiddenWorkspaceIds.length
+    ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
+    : {}
 
   // Range-dependent series — only fetch what the selected range needs.
   const rangeSeriesPromise =
@@ -108,10 +113,10 @@ export default async function AdminOverviewPage(
     responseHealth,
   ] = await Promise.all([
     getRevenueKPIs(),
-    prisma.workspace.count(),
-    prisma.user.count(),
-    prisma.conversation.count({ where: { createdAt: { gte: startToday } } }),
-    prisma.errorLog.count({ where: { createdAt: { gte: since24h } } }),
+    prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
+    prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
+    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h } }] } }),
     planDistribution(),
     rangeSeriesPromise,
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
@@ -128,11 +133,11 @@ export default async function AdminOverviewPage(
     })),
     getAiOverview(30),
     Promise.all([
-      prisma.workspace.count({ where: { onboardingCompleted: true } }),
-      prisma.workspace.count({ where: { agents: { some: {} } } }),
-      prisma.workspace.count({ where: { agents: { some: { knowledgeBases: { some: { status: 'READY' } } } } } }),
-      prisma.workspace.count({ where: { agents: { some: { channels: { some: { active: true } } } } } }),
-      prisma.workspace.count({ where: { conversations: { some: {} } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: true } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: {} } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: { knowledgeBases: { some: { status: 'READY' } } } } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, agents: { some: { channels: { some: { active: true } } } } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, conversations: { some: {} } } }),
     ]).then(([onboarded, agentBuilt, knowledgeReady, channelConnected, firstConversation]) => ({
       onboarded,
       agentBuilt,
@@ -140,25 +145,25 @@ export default async function AdminOverviewPage(
       channelConnected,
       firstConversation,
     })),
-    prisma.user.count({ where: { workspace: { conversations: { some: { createdAt: { gte: since30d } } } } } }),
-    prisma.user.count({ where: { createdAt: { gte: startToday } } }),
-    prisma.payment.aggregate({ where: { status: 'PAID', currency: 'IRR', paidAt: { gte: startToday } }, _sum: { amount: true } }),
+    prisma.user.count({ where: { AND: [ADMIN_VISIBLE_USER_WHERE, { workspace: { conversations: { some: { createdAt: { gte: since30d } } } } }] } }),
+    prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startToday } } }),
+    prisma.payment.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'PAID', currency: 'IRR', paidAt: { gte: startToday } }, _sum: { amount: true } }),
     Promise.all([
-      prisma.agent.count(),
-      prisma.agent.count({ where: { active: true } }),
+      prisma.agent.count({ where: ADMIN_VISIBLE_RELATED_WHERE }),
+      prisma.agent.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
     ]).then(([total, active]) => ({ total, active })),
     Promise.all([
-      prisma.agentChannel.count(),
-      prisma.agentChannel.count({ where: { active: true } }),
-      prisma.agentChannel.count({ where: { active: true, OR: [{ lastInboundAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }, { lastInboundAt: null, createdAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }] } }),
+      prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE } }),
+      prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
+      prisma.agentChannel.count({ where: { agent: ADMIN_VISIBLE_RELATED_WHERE, active: true, OR: [{ lastInboundAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }, { lastInboundAt: null, createdAt: { lt: new Date(Date.now() - 72 * 60 * 60 * 1000) } }] } }),
     ]).then(([total, active, silent]) => ({ total, active, silent })),
-    prisma.conversation.count({ where: { OR: [{ status: 'HANDED_OFF' }, { handedOff: true }] } }),
-    prisma.workspace.count({ where: { aiCreditBalanceIRR: { lte: 20_000 } } }),
-    prisma.workspace.count({ where: { onboardingCompleted: false, createdAt: { lt: staleOnboarding } } }),
-    prisma.payment.count({ where: { status: 'FAILED', createdAt: { gte: since24h } } }),
+    prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, OR: [{ status: 'HANDED_OFF' }, { handedOff: true }] } }),
+    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, aiCreditBalanceIRR: { lte: 20_000 } } }),
+    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, createdAt: { lt: staleOnboarding } } }),
+    prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'FAILED', createdAt: { gte: since24h } } }),
     Promise.all([
-      prisma.conversation.count({ where: { createdAt: { gte: since30d } } }),
-      prisma.conversation.count({ where: { createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
+      prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d } } }),
+      prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d }, messages: { some: { role: 'ASSISTANT' } } } }),
     ]).then(([total, answered]) => ({ total, answered, rate: total > 0 ? Math.round((answered / total) * 100) : 100 })),
   ])
 

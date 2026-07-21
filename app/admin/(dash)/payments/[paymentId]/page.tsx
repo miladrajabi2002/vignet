@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import {
   CheckCircle,
   Clock,
@@ -133,8 +134,8 @@ export default async function AdminPaymentDetailPage(
 ) {
   const { paymentId } = await props.params
 
-  const payment = await prisma.payment.findUnique({
-    where: { id: paymentId },
+  const payment = await prisma.payment.findFirst({
+    where: { ...ADMIN_VISIBLE_RELATED_WHERE, id: paymentId },
     include: {
       workspace: {
         select: {

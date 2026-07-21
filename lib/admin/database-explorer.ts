@@ -27,6 +27,42 @@ export const DATABASE_MODELS = [
 
 const SENSITIVE_FIELD = /(password|secret|token|cookie|authorization|api.?key|otp|config|settings)/i
 
+const DIRECT_WORKSPACE_MODELS = new Set([
+  'User',
+  'Agent',
+  'Contact',
+  'Conversation',
+  'UsageLog',
+  'Subscription',
+  'Payment',
+  'WalletLedger',
+  'Notification',
+  'Campaign',
+  'Product',
+  'KnowledgeBase',
+  'Appointment',
+  'Service',
+  'BlogPost',
+  'ErrorLog',
+])
+
+/** SQL is assembled only from the fixed DATABASE_MODELS allow-list above. */
+function adminVisibleDatabaseClause(modelKey: string): string {
+  if (modelKey === 'Workspace') {
+    return 'WHERE NOT EXISTS (SELECT 1 FROM "User" admin_scope_user WHERE admin_scope_user."workspaceId" = "Workspace"."id" AND admin_scope_user."platformRole" = \'ADMIN\')'
+  }
+  if (DIRECT_WORKSPACE_MODELS.has(modelKey)) {
+    return `WHERE NOT EXISTS (SELECT 1 FROM "User" admin_scope_user WHERE admin_scope_user."workspaceId" = "${modelKey}"."workspaceId" AND admin_scope_user."platformRole" = 'ADMIN')`
+  }
+  if (modelKey === 'AgentChannel') {
+    return 'WHERE NOT EXISTS (SELECT 1 FROM "Agent" admin_scope_agent JOIN "User" admin_scope_user ON admin_scope_user."workspaceId" = admin_scope_agent."workspaceId" WHERE admin_scope_agent."id" = "AgentChannel"."agentId" AND admin_scope_user."platformRole" = \'ADMIN\')'
+  }
+  if (modelKey === 'Message') {
+    return 'WHERE NOT EXISTS (SELECT 1 FROM "Conversation" admin_scope_conversation JOIN "User" admin_scope_user ON admin_scope_user."workspaceId" = admin_scope_conversation."workspaceId" WHERE admin_scope_conversation."id" = "Message"."conversationId" AND admin_scope_user."platformRole" = \'ADMIN\')'
+  }
+  return ''
+}
+
 function serializeValue(key: string, value: unknown): string {
   if (SENSITIVE_FIELD.test(key)) return '•••••••• (مخفی)'
   if (value === null || value === undefined) return '—'
@@ -45,11 +81,12 @@ export async function readDatabaseModel(modelKey: string, page: number, pageSize
   const safePage = Math.max(1, Math.floor(page) || 1)
   const safeSize = Math.min(50, Math.max(10, Math.floor(pageSize) || 25))
   const offset = (safePage - 1) * safeSize
+  const scopeClause = adminVisibleDatabaseClause(model.key)
 
   const [countRows, rawRows, connectionRows] = await Promise.all([
-    prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`SELECT count(*) AS "count" FROM "${model.key}"`),
+    prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`SELECT count(*) AS "count" FROM "${model.key}" ${scopeClause}`),
     prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
-      `SELECT * FROM "${model.key}" ORDER BY "${model.order}" DESC NULLS LAST LIMIT ${safeSize} OFFSET ${offset}`,
+      `SELECT * FROM "${model.key}" ${scopeClause} ORDER BY "${model.order}" DESC NULLS LAST LIMIT ${safeSize} OFFSET ${offset}`,
     ),
     prisma.$queryRaw<Array<{ database: string; version: string }>>`
       SELECT current_database() AS "database", version() AS "version"

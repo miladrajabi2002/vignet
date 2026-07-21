@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Bot, BrainCircuit, Cable, MessageSquare, WalletCards } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { TrendChart } from '@/components/admin/trend-chart'
 import { PageHeader, StatCard, Card, Badge, fa, fmtDate } from '../../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
@@ -16,8 +17,8 @@ const CHANNEL_LABEL: Record<string, string> = {
 export default async function AdminAgentDetailPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params
   const since = new Date(Date.now() - 30 * 86_400_000)
-  const agent = await prisma.agent.findUnique({
-    where: { id: agentId },
+  const agent = await prisma.agent.findFirst({
+    where: { ...ADMIN_VISIBLE_RELATED_WHERE, id: agentId },
     select: {
       id: true, name: true, description: true, active: true, model: true, language: true,
       temperature: true, maxTokens: true, handoffEnabled: true, updatedAt: true,
