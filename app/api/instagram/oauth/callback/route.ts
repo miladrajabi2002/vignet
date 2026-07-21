@@ -8,8 +8,13 @@ import {
   exchangeForLongLivedToken,
   getInstagramProfile,
   subscribeIgUserToWebhook,
+  unsubscribeIgUserFromWebhook,
 } from '@/lib/instagram/oauth'
-import { buildInstagramOAuthConfig } from '@/lib/instagram/config'
+import {
+  buildInstagramOAuthConfig,
+  readIgUserId,
+  readUserToken,
+} from '@/lib/instagram/config'
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
 import { hasWorkspacePermission } from '@/lib/workspace-permissions'
@@ -126,6 +131,17 @@ export async function GET(req: Request) {
     const profile = await getInstagramProfile(longTok.token)
 
     // 4) persist the channel — single IG account, no page picker
+    const previousChannel = await prisma.agentChannel.findUnique({
+      where: { agentId_type: { agentId: state.agentId, type: 'INSTAGRAM' } },
+      select: { config: true },
+    })
+    const previousIgUserId = previousChannel
+      ? readIgUserId(previousChannel.config)
+      : null
+    const previousToken = previousChannel
+      ? readUserToken(previousChannel.config)
+      : null
+
     const config = buildInstagramOAuthConfig({
       userToken: longTok.token,
       userTokenExpiresAt: longTok.expiresAt,
@@ -135,6 +151,15 @@ export async function GET(req: Request) {
       followersCount: profile.followersCount,
       biography: profile.biography,
     })
+    if (previousIgUserId && previousIgUserId !== profile.igUserId) {
+      const previousConfig = previousChannel?.config as Record<string, unknown> | null
+      const previousIgnoredIds = Array.isArray(previousConfig?.ignoredWebhookIds)
+        ? previousConfig.ignoredWebhookIds.map(String)
+        : []
+      config.ignoredWebhookIds = Array.from(
+        new Set([...previousIgnoredIds, previousIgUserId]),
+      ).slice(-10)
+    }
     const configJson = config as unknown as Prisma.InputJsonValue
 
     const webhookUrl = `${base.replace(/\/$/, '')}/api/webhook/instagram`
@@ -159,6 +184,14 @@ export async function GET(req: Request) {
       (e) =>
         console.error('[instagram:oauth] webhook subscription failed:', e),
     )
+
+    if (
+      previousIgUserId &&
+      previousIgUserId !== profile.igUserId &&
+      previousToken
+    ) {
+      await unsubscribeIgUserFromWebhook(previousIgUserId, previousToken)
+    }
 
     await syncOnboarding(state.workspaceId)
 

@@ -408,6 +408,37 @@ export async function subscribeIgUserToWebhook(
 }
 
 /**
+ * Remove this app's webhook subscription from an Instagram professional
+ * account. Used before a local channel is deleted or replaced so Meta does not
+ * keep delivering orphaned events to the global callback.
+ */
+export async function unsubscribeIgUserFromWebhook(
+  igUserId: string,
+  igToken: string,
+): Promise<boolean> {
+  try {
+    const url = new URL(`${GRAPH_BASE}/${igUserId}/subscribed_apps`)
+    url.searchParams.set('access_token', igToken)
+    const res = await fetch(url, { method: 'DELETE' })
+    const data = (await res.json()) as {
+      success?: boolean
+      error?: { message?: string; code?: number }
+    }
+    if (!res.ok || !data.success) {
+      console.error(
+        `[instagram] unsubscribeIgUserFromWebhook(${igUserId}) failed:`,
+        data,
+      )
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error('[instagram] unsubscribeIgUserFromWebhook error:', e)
+    return false
+  }
+}
+
+/**
  * Verify that the webhook subscription is active for an IG user. Returns the
  * list of subscribed fields, or null if the user is not subscribed (which
  * means webhooks will NOT be delivered for this account).

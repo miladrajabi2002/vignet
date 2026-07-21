@@ -131,6 +131,7 @@ async function resolveInstagramChannelById(
                 where: {
                         type: 'INSTAGRAM',
                         active: true,
+                        agent: { active: true },
                         OR: [
                                 { config: { path: ['igUserId'], equals: entityId } },
                                 { config: { path: ['pageId'], equals: entityId } },
@@ -152,7 +153,7 @@ async function resolveInstagramChannelById(
         // (or vice versa).
         if (!channel) {
                 const all = await prisma.agentChannel.findMany({
-                        where: { type: 'INSTAGRAM', active: true },
+                        where: { type: 'INSTAGRAM', active: true, agent: { active: true } },
                         select: {
                                 id: true,
                                 config: true,
@@ -870,17 +871,31 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                 // recipient.id into the channel config so future lookups match
                 // directly via the indexed query.
                 const allIgChannels = await prisma.agentChannel.findMany({
-                        where: { type: 'INSTAGRAM', active: true },
+                        where: { type: 'INSTAGRAM', active: true, agent: { active: true } },
                         select: {
                                 id: true,
                                 config: true,
                                 agent: { select: { ...AGENT_SELECT, workspaceId: true } },
                         },
                 })
+
+                // Meta may keep delivering events for an account after its local
+                // channel was disconnected. With no routable Instagram channel,
+                // there is no application failure to persist: the signed payload
+                // is retained in the webhook debug buffer and safely ignored.
+                if (allIgChannels.length === 0) return
+
                 if (allIgChannels.length === 1) {
                         const only = allIgChannels[0]
+                        const onlyConfig = (only.config as Record<string, unknown> | null) ?? {}
+                        const ignoredWebhookIds = Array.isArray(onlyConfig.ignoredWebhookIds)
+                                ? onlyConfig.ignoredWebhookIds.map(String)
+                                : []
+                        if (Array.from(allIds).some((id) => ignoredWebhookIds.includes(id))) {
+                                return
+                        }
                         const token = readPageToken(only.config)
-                        if (token && only.agent?.active) {
+                        if (token) {
                                 resolved = {
                                         channelId: only.id,
                                         config: only.config,
@@ -896,7 +911,7 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                                 const entryId = entries[0]?.id
                                 const alias = recipientId ? String(recipientId) : entryId ? String(entryId) : null
                                 if (alias) {
-                                        const cfg = (only.config as Record<string, unknown> | null) ?? {}
+                                        const cfg = onlyConfig
                                         if (cfg.webhookIgId !== alias) {
                                                 await prisma.agentChannel
                                                         .update({
@@ -922,7 +937,7 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
                                         )}. ` +
                                                 'Tried single-channel fallback but found ' +
                                                 allIgChannels.length +
-                                                ' active IG channels. ' +
+                                                ' routable IG channels. ' +
                                                 'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
                                 ),
                                 { metadata: { triedIds: Array.from(allIds) } },

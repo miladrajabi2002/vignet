@@ -15,6 +15,7 @@ import { Sparkline } from '@/components/admin/sparkline'
 import { BarList, TrendChart } from '@/components/admin/trend-chart'
 import { errorsDaily, errorsDailyByLevel, errorsDailyBySource } from '@/lib/admin/charts'
 import { getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
+import { ClearErrorLogsButton } from '@/components/admin/clear-error-logs-button'
 
 const PAGE_SIZE = 50
 
@@ -30,7 +31,7 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
     : reportingScope
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  const [errors, totalCount, errors24h, errTrend7, errTrend30, errorTrend7, sourceSparks] = await Promise.all([
+  const [errors, totalCount, allLogCount, errors24h, errTrend7, errTrend30, errorTrend7, sourceSparks] = await Promise.all([
     prisma.errorLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -39,6 +40,7 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
       select: { id: true, level: true, source: true, message: true, stack: true, workspaceId: true, createdAt: true },
     }),
     prisma.errorLog.count({ where }),
+    prisma.errorLog.count({ where: reportingScope }),
     prisma.errorLog.count({ where: { AND: [reportingScope, { createdAt: { gte: since24h }, level: 'error' }] } }),
     errorsDaily(7),
     errorsDaily(30),
@@ -66,12 +68,15 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
           <h2 className="text-base font-bold text-zinc-950">لاگ‌ها و خطاهای سیستم</h2>
           <p className="mt-1 text-xs leading-5 text-zinc-500">بررسی رخدادها، منبع خطا و stack برای دیباگ مستقیم</p>
         </div>
-        <div className="overflow-x-auto">
-          <FilterPills options={[
-            { label: 'همه', href: '/admin/system#errors', active: !activeLevel },
-            { label: 'خطا', href: '/admin/system?errorLevel=error#errors', active: activeLevel === 'error' },
-            { label: 'هشدار', href: '/admin/system?errorLevel=warn#errors', active: activeLevel === 'warn' },
-          ]} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="overflow-x-auto">
+            <FilterPills options={[
+              { label: 'همه', href: '/admin/system#errors', active: !activeLevel },
+              { label: 'خطا', href: '/admin/system?errorLevel=error#errors', active: activeLevel === 'error' },
+              { label: 'هشدار', href: '/admin/system?errorLevel=warn#errors', active: activeLevel === 'warn' },
+            ]} />
+          </div>
+          <ClearErrorLogsButton disabled={allLogCount === 0} />
         </div>
       </Card>
 

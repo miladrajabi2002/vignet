@@ -7,6 +7,9 @@ import { syncOnboarding } from '@/lib/onboarding'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
 import { normalizeMessengerSettings } from '@/lib/channels/config'
 import { isMessengerType } from '@/lib/channels/registry'
+import { readIgUserId, readUserToken } from '@/lib/instagram/config'
+import { unsubscribeIgUserFromWebhook } from '@/lib/instagram/oauth'
+import { captureError } from '@/lib/errors/capture'
 
 type Params = { params: Promise<{ agentId: string; channelId: string }> }
 
@@ -67,9 +70,34 @@ export async function DELETE(_req: Request, props: Params) {
 			agentId: params.agentId,
 			agent: { workspaceId: user.workspaceId },
 		},
-		select: { id: true, type: true },
+		select: {
+			id: true,
+			type: true,
+			config: true,
+			agent: { select: { workspaceId: true } },
+		},
 	})
     if (!channel) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+    if (channel.type === 'INSTAGRAM') {
+		const config = channel.config as Record<string, unknown> | null
+		// Direct Instagram Login stores igUserId + userTokenEnc. Legacy Facebook
+		// Login connections use a different subscription edge and are left alone.
+		if (config?.igUserId && config.userTokenEnc) {
+			const igUserId = readIgUserId(channel.config)
+			const token = readUserToken(channel.config)
+			if (igUserId && token) {
+				const removed = await unsubscribeIgUserFromWebhook(igUserId, token)
+				if (!removed) {
+					captureError(
+						'instagram:webhook-unsubscribe',
+						new Error(`Failed to unsubscribe Instagram webhook for ${igUserId}`),
+						{ level: 'warn', workspaceId: channel.agent.workspaceId, metadata: { channelId: channel.id } },
+					)
+				}
+			}
+		}
+	}
 
     await prisma.agentChannel.delete({ where: { id: channel.id } })
     await syncOnboarding(user.workspaceId)

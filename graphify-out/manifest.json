@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/channels/[channelId]/route.ts": {
-    "mtime": 1783153601.0473995,
-    "ast_hash": "c838ed8d8dae716cf80b965dcfaa2262",
+    "mtime": 1784676192.5900626,
+    "ast_hash": "3cc8d01eb0e4c092b2b07b06cd2f3bb7",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/channels/instagram-diagnostics/route.ts": {
@@ -715,8 +715,8 @@
     "semantic_hash": ""
   },
   "app/api/instagram/oauth/callback/route.ts": {
-    "mtime": 1784464506.2004914,
-    "ast_hash": "22abfe8077096649d3ec9fb3810337fa",
+    "mtime": 1784676192.591591,
+    "ast_hash": "ff20a6255e5ba5cca8c52e6d77059b7e",
     "semantic_hash": ""
   },
   "app/api/instagram/oauth/start/route.ts": {
@@ -1755,8 +1755,8 @@
     "semantic_hash": ""
   },
   "lib/channels/handler.ts": {
-    "mtime": 1784398133.37179,
-    "ast_hash": "7e67f7e8bf2204bf042df9624361a601",
+    "mtime": 1784676192.5890975,
+    "ast_hash": "75bf58c4eab57f1cda98ce17eea0daa1",
     "semantic_hash": ""
   },
   "lib/channels/instagram.ts": {
@@ -1900,8 +1900,8 @@
     "semantic_hash": ""
   },
   "lib/instagram/config.ts": {
-    "mtime": 1784298072.6019857,
-    "ast_hash": "5d1ab90512175e0f0446632bd97c82c2",
+    "mtime": 1784676192.5860589,
+    "ast_hash": "94c94593de402eacf081902808539f35",
     "semantic_hash": ""
   },
   "lib/instagram/emoji.ts": {
@@ -1915,8 +1915,8 @@
     "semantic_hash": ""
   },
   "lib/instagram/oauth.ts": {
-    "mtime": 1784464459.7914186,
-    "ast_hash": "1a6251911b3b515b3dee493e759b609c",
+    "mtime": 1784676192.588063,
+    "ast_hash": "0c87afc01f47d101104b722da6aa3a4a",
     "semantic_hash": ""
   },
   "lib/instagram/sender-profile.ts": {
@@ -2590,8 +2590,8 @@
     "semantic_hash": ""
   },
   "components/admin/system-errors-panel.tsx": {
-    "mtime": 1784675120.2171032,
-    "ast_hash": "d82df1d7e29bdc1f887be4b55751fae0",
+    "mtime": 1784676334.4598372,
+    "ast_hash": "0fba609e1a70625c250cbcef702ef883",
     "semantic_hash": ""
   },
   "tests/contact-identity-lock.test.ts": {
@@ -2610,8 +2610,8 @@
     "semantic_hash": ""
   },
   "tests/instagram-oauth.test.ts": {
-    "mtime": 1784119037.019103,
-    "ast_hash": "a734ccf611f2b5260c5bf49926f4b29e",
+    "mtime": 1784676192.625265,
+    "ast_hash": "2c0ca7b1a9c61c036483a5aacfb19cb1",
     "semantic_hash": ""
   },
   "components/dashboard/back-button.tsx": {
@@ -2942,6 +2942,26 @@
   "tests/admin-reporting-scope.test.ts": {
     "mtime": 1784675219.8892374,
     "ast_hash": "4e5e93482175e80e275e30b5d0a831d9",
+    "semantic_hash": ""
+  },
+  "app/api/admin/errors/route.ts": {
+    "mtime": 1784676192.5936139,
+    "ast_hash": "185b713b5cb46ab7c9c759661d7db5bf",
+    "semantic_hash": ""
+  },
+  "components/admin/clear-error-logs-button.tsx": {
+    "mtime": 1784676192.604146,
+    "ast_hash": "057251fd213be4917902636d4cc6152d",
+    "semantic_hash": ""
+  },
+  "tests/admin-error-logs.test.ts": {
+    "mtime": 1784676192.6272624,
+    "ast_hash": "61f22c220184355d6294319f57d0a681",
+    "semantic_hash": ""
+  },
+  "tests/instagram-global-routing.test.ts": {
+    "mtime": 1784676255.5231912,
+    "ast_hash": "b0ed89f38da69ddc6653fae904a9862b",
     "semantic_hash": ""
   }
 }

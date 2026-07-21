@@ -46,6 +46,13 @@ export interface InstagramOAuthConfig {
   igFollowersCount?: number
   /** IG biography. */
   igBiography?: string
+  /**
+   * Account ids that previously belonged to this channel. Meta can continue
+   * delivering their webhooks briefly after an account is replaced. Keeping
+   * them prevents the single-channel fallback from routing stale events to the
+   * newly connected account.
+   */
+  ignoredWebhookIds?: string[]
   /** ── Legacy Facebook Login fields (kept for backward compat with old channels) ── */
   /** Facebook Page id (legacy FB Login only). */
   pageId?: string
