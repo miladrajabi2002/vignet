@@ -69,7 +69,7 @@ export async function PopularPosts() {
         const isFa = locale === 'fa'
 
         return (
-                <section id="popular" className="marketing-story-section bg-[var(--bg-base)] py-16 sm:py-20 lg:py-24">
+                <section id="popular" className="marketing-story-section hidden bg-[var(--bg-base)] py-20 md:block lg:py-24">
                         <div className="mx-auto max-w-6xl px-6">
                                 {/* Heading */}
                                 <div className="mx-auto max-w-2xl text-center">
@@ -197,7 +197,7 @@ function PopularCard({
 					height={373}
                                         loading="lazy"
                                         decoding="async"
-										className="w-28 shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] sm:aspect-[3/2] sm:w-full"
+										className="hidden aspect-[3/2] w-full shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] md:block"
                                 />
                         )}
 						<div className="min-w-0 flex flex-1 flex-col p-4 sm:p-5">

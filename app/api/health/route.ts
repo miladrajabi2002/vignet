@@ -10,7 +10,11 @@ export async function GET() {
   // connection errors can contain internal hosts, ports and deployment paths.
   const publicReport = {
     ...report,
-    checks: report.checks.map(({ detail: _detail, ...check }) => check),
+    checks: report.checks.map((check) => ({
+      name: check.name,
+      ok: check.ok,
+      latencyMs: check.latencyMs,
+    })),
   }
   return NextResponse.json(publicReport, {
     status: httpStatus,

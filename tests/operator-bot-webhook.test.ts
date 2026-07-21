@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  operatorFindMany: vi.fn(),
+  operatorFindUnique: vi.fn(),
   operatorUpdate: vi.fn(),
   alertFindFirst: vi.fn(),
   alertUpdate: vi.fn(),
@@ -9,12 +9,13 @@ const mocks = vi.hoisted(() => ({
   alertCount: vi.fn(),
   routeReply: vi.fn(),
   captureError: vi.fn(),
+  rateLimit: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     operatorChannel: {
-      findMany: mocks.operatorFindMany,
+      findUnique: mocks.operatorFindUnique,
       update: mocks.operatorUpdate,
     },
     handoffAlert: {
@@ -37,25 +38,30 @@ vi.mock('@/lib/channels/telegram', () => ({
 }))
 
 vi.mock('@/lib/errors/capture', () => ({ captureError: mocks.captureError }))
+vi.mock('@/lib/ratelimit', () => ({ rateLimit: mocks.rateLimit }))
 
 import { POST } from '@/app/api/telegram-operator/webhook/route'
+import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
 
 describe('operator bot webhook callbacks', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.operatorFindMany.mockResolvedValue([
-      {
-        id: 'operator-1',
-        workspaceId: 'workspace-1',
-        botToken: 'encrypted-token',
-        operatorChatId: '42',
-        botUsername: 'vigent_operator_bot',
-        active: true,
-        lastError: null,
-      },
-    ])
+    vi.stubEnv('ENCRYPTION_KEY', '11'.repeat(32))
+    mocks.rateLimit.mockResolvedValue(true)
+    mocks.operatorFindUnique.mockResolvedValue({
+      id: 'operator-1',
+      workspaceId: 'workspace-1',
+      botToken: 'encrypted-token',
+      operatorChatId: '42',
+      botUsername: 'vigent_operator_bot',
+      active: true,
+      lastError: null,
+    })
     mocks.alertFindFirst.mockResolvedValue({
       id: 'alert_12345678',
       conversationId: 'conversation-1',
@@ -65,10 +71,20 @@ describe('operator bot webhook callbacks', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
   })
 
+  function webhookHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'x-telegram-bot-api-secret-token': operatorWebhookSecret(
+        'workspace-1',
+        'secret-token',
+      ),
+    }
+  }
+
   it('claims only a workspace-scoped alert for the configured operator chat', async () => {
-    const response = await POST(new Request('https://vigent.ir/api/telegram-operator/webhook?token=secret-token', {
+    const response = await POST(new Request('https://vigent.ir/api/telegram-operator/webhook?workspaceId=workspace-1', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: webhookHeaders(),
       body: JSON.stringify({
         update_id: 1,
         callback_query: {
@@ -102,9 +118,9 @@ describe('operator bot webhook callbacks', () => {
   })
 
   it('does not run management actions from an unconfigured chat', async () => {
-    const response = await POST(new Request('https://vigent.ir/api/telegram-operator/webhook?token=secret-token', {
+    const response = await POST(new Request('https://vigent.ir/api/telegram-operator/webhook?workspaceId=workspace-1', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: webhookHeaders(),
       body: JSON.stringify({
         update_id: 2,
         callback_query: {

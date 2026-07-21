@@ -36,8 +36,20 @@ export function encrypt(plaintext: string): string {
 
 export function decrypt(payload: string): string {
   const key = getKey()
-  const [ivHex, authTagHex, dataHex] = payload.split(':')
-  if (!ivHex || !authTagHex || !dataHex) {
+  const parts = payload.split(':')
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted payload format')
+  }
+  const [ivHex, authTagHex, dataHex] = parts
+  const isEvenHex = (value: string) =>
+    value.length > 0 && value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value)
+  if (
+    ivHex.length !== IV_LENGTH * 2 ||
+    authTagHex.length !== 32 ||
+    !isEvenHex(ivHex) ||
+    !isEvenHex(authTagHex) ||
+    !isEvenHex(dataHex)
+  ) {
     throw new Error('Invalid encrypted payload format')
   }
   const decipher = crypto.createDecipheriv(

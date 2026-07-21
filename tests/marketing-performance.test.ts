@@ -123,4 +123,17 @@ describe('marketing launch performance boundaries', () => {
 		expect(isProtected('/instagram/new')).toBe(true)
 		expect(isProtected('/vigento')).toBe(true)
 	})
+
+	it('keeps popular articles desktop-only and their cover images lazy', () => {
+		const source = readFileSync(
+			join(process.cwd(), 'components', 'marketing', 'popular-posts.tsx'),
+			'utf8',
+		)
+
+		expect(source).toContain('marketing-story-section hidden')
+		expect(source).toContain('md:block')
+		expect(source).toContain('loading="lazy"')
+		expect(source).toContain('width={560}')
+		expect(source).toContain('height={373}')
+	})
 })

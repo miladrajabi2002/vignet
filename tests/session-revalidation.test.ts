@@ -49,5 +49,13 @@ describe('session claim revalidation', () => {
     }))
     await expect(getCurrentUser()).resolves.toBeNull()
   })
-})
 
+  it('denies a management read after an ADMIN to MEMBER downgrade', async () => {
+    mocks.findUnique.mockResolvedValue({ ...staleAdmin, role: 'MEMBER' })
+    mocks.headers.mockResolvedValue(new Headers({
+      'x-pathname': '/api/agents/agent-1/channels',
+      'x-vigent-method': 'GET',
+    }))
+    await expect(getCurrentUser()).resolves.toBeNull()
+  })
+})

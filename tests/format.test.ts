@@ -15,6 +15,13 @@ describe('relativeTime', () => {
     const out = relativeTime(new Date(Date.now() - 3 * 60 * 1000), 'en')
     expect(out).toMatch(/minute/i)
   })
+  it('accepts an ISO date after a cached value is JSON-serialized', () => {
+    const serialized = new Date(Date.now() - 3 * 60 * 1000).toISOString()
+    expect(relativeTime(serialized, 'en')).toMatch(/minute/i)
+  })
+  it('fails safely for an invalid serialized date', () => {
+    expect(relativeTime('not-a-date', 'en')).toBe('')
+  })
   it('reports hours for a few hours ago (en)', () => {
     const out = relativeTime(new Date(Date.now() - 3 * 60 * 60 * 1000), 'en')
     expect(out).toMatch(/hour/i)

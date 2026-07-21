@@ -32,3 +32,50 @@ export function permissionForApiMutation(pathname: string, method: string): Work
   if (pathname.startsWith('/api/conversations') || pathname.startsWith('/api/contacts') || pathname.startsWith('/api/handoff-alerts')) return 'conversations:operate'
   return null
 }
+
+/**
+ * Resolve permissions for both management reads and mutations. Read access to
+ * operational conversations/appointments remains available to MEMBER, while
+ * agent prompts, catalogs, campaigns, integrations and operator configuration
+ * require their corresponding management grant.
+ */
+export function permissionForApiRequest(
+  pathname: string,
+  method: string,
+): WorkspacePermission | null {
+  if (method.toUpperCase() !== 'GET') {
+    return permissionForApiMutation(pathname, method)
+  }
+
+  if (pathname === '/api/agents' || pathname.startsWith('/api/agents/')) {
+    return 'agents:manage'
+  }
+  if (pathname === '/api/products' || pathname.startsWith('/api/products/')) {
+    return 'catalog:manage'
+  }
+  if (pathname === '/api/campaigns' || pathname.startsWith('/api/campaigns/')) {
+    return 'campaigns:manage'
+  }
+  if (pathname === '/api/integrations' || pathname.startsWith('/api/integrations/')) {
+    return 'integrations:manage'
+  }
+  if (pathname === '/api/operator-channel' || pathname.startsWith('/api/operator-channel/')) {
+    return 'workspace:configure'
+  }
+  if (pathname === '/api/appointments' || pathname.startsWith('/api/appointments/')) {
+    return 'appointments:manage'
+  }
+  if (
+    pathname === '/api/conversations' ||
+    pathname.startsWith('/api/conversations/') ||
+    pathname === '/api/contacts' ||
+    pathname.startsWith('/api/contacts/') ||
+    pathname === '/api/handoff-alerts' ||
+    pathname.startsWith('/api/handoff-alerts/') ||
+    pathname === '/api/crm/live'
+  ) {
+    return 'conversations:operate'
+  }
+
+  return null
+}

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 export type TelegramInlineKeyboardButton = {
   text: string
   callback_data?: string
@@ -121,4 +123,3 @@ export function parseOperatorBotCallback(value: string): OperatorBotCallback | n
 
   return null
 }
-import crypto from 'node:crypto'

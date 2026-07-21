@@ -27,9 +27,20 @@ if [ ! -f "${ENV_FILE}" ]; then
   exit 1
 fi
 
-DB_URL="$(get_env DATABASE_URL)"
-if [ -z "${DB_URL}" ]; then
-  echo "✗ DATABASE_URL در .env خالی است" >&2
+RAW_DB_URL="$(get_env DIRECT_URL)"
+if [ -z "${RAW_DB_URL}" ]; then
+  RAW_DB_URL="$(get_env DATABASE_URL)"
+fi
+if [ -z "${RAW_DB_URL}" ]; then
+  echo "✗ DIRECT_URL و DATABASE_URL در .env خالی هستند" >&2
+  exit 1
+fi
+
+# Prefer DIRECT_URL (it bypasses poolers) and remove Prisma-only query
+# parameters such as `schema` and `pgbouncer`. Passing those parameters
+# directly to pg_dump fails with "invalid URI query parameter".
+if ! DB_URL="$(node "${PROJECT_DIR}/deploy/sanitize-postgres-url.mjs" "${RAW_DB_URL}")"; then
+  echo "✗ آدرس اتصال دیتابیس برای pg_dump معتبر نیست" >&2
   exit 1
 fi
 
@@ -39,7 +50,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="${BACKUP_DIR}/vignet-${STAMP}.sql.gz"
 
 echo "==> گرفتن بک‌آپ → ${OUT}"
-# pg_dump مستقیماً connection string را می‌پذیرد؛ خروجی را gzip می‌کنیم.
+# pg_dump مستقیماً connection string سازگار با libpq را می‌پذیرد؛ خروجی را gzip می‌کنیم.
 if ! pg_dump "${DB_URL}" --no-owner --no-privileges | gzip > "${OUT}"; then
   echo "✗ pg_dump شکست خورد" >&2
   rm -f "${OUT}"

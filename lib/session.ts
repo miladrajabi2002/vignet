@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { hasWorkspacePermission, permissionForApiMutation } from '@/lib/workspace-permissions'
+import { hasWorkspacePermission, permissionForApiRequest } from '@/lib/workspace-permissions'
 
 export interface SessionUser {
   id: string
@@ -43,7 +43,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const requestHeaders = await headers()
   const pathname = requestHeaders.get('x-pathname') ?? ''
   const method = requestHeaders.get('x-vigent-method') ?? 'GET'
-  const permission = permissionForApiMutation(pathname, method)
+  const permission = permissionForApiRequest(pathname, method)
   if (permission && !hasWorkspacePermission(current.role, permission)) return null
 
   return current

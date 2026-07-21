@@ -30,6 +30,12 @@ describe('crypto encrypt/decrypt', () => {
     expect(() => decrypt(`${iv}:${tag}:${flipped}`)).toThrow()
   })
 
+  it('rejects non-hex suffixes instead of silently truncating them', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto')
+    const encrypted = encrypt('authenticated-payload')
+    expect(() => decrypt(`${encrypted}tampered`)).toThrow('Invalid encrypted payload format')
+  })
+
   it('rejects a malformed payload', async () => {
     const { decrypt } = await import('@/lib/crypto')
     expect(() => decrypt('not-valid')).toThrow()

@@ -241,8 +241,9 @@ mc mb --ignore-existing vignet-local/products
 # ─── نوشتن خودکار فایل .env ─────────────────────────────────────────────────
 echo "==> نوشتن مقادیر در .env"
 DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}?schema=public"
+DIRECT_DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
 set_env "DATABASE_URL" "${DB_URL}"
-set_env "DIRECT_URL"   "${DB_URL}"
+set_env "DIRECT_URL"   "${DIRECT_DB_URL}"
 set_env "REDIS_URL"    "redis://localhost:6379"
 set_env "NEXTAUTH_URL"          "${APP_URL}"
 set_env "NEXT_PUBLIC_APP_URL"   "${APP_URL}"
