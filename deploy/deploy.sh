@@ -2,6 +2,91 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+APP_ROOT="$(pwd -P)"
+
+port_listener_pids() {
+  local port="$1"
+
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -t -iTCP:"${port}" -sTCP:LISTEN 2>/dev/null || true
+  elif command -v fuser >/dev/null 2>&1; then
+    fuser -n tcp "${port}" 2>/dev/null | tr ' ' '\n' | sed '/^$/d' || true
+  elif command -v ss >/dev/null 2>&1; then
+    ss -H -lptn "sport = :${port}" 2>/dev/null \
+      | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' \
+      | sort -u
+  else
+    echo "ERROR: lsof, fuser, or ss is required to verify port ${port}" >&2
+    return 1
+  fi
+}
+
+stop_service_and_release_port() {
+  local service="$1"
+  local port="$2"
+  local expected_cwd="$3"
+  local pids pid pid_cwd
+
+  pm2 stop "${service}" >/dev/null 2>&1 || true
+
+  # A previous npm-based PM2 process may have left its child alive. Give a
+  # normal PM2 stop a chance first, then terminate only listeners whose cwd is
+  # this checkout (never an unrelated process that happens to use the port).
+  for _ in $(seq 1 10); do
+    pids="$(port_listener_pids "${port}")"
+    [ -z "${pids}" ] && return 0
+    sleep 1
+  done
+
+  for pid in ${pids}; do
+    pid_cwd="$(readlink -f "/proc/${pid}/cwd" 2>/dev/null || true)"
+    if [ "${pid_cwd}" != "${expected_cwd}" ]; then
+      echo "ERROR: port ${port} is owned by PID ${pid} outside ${expected_cwd} (${pid_cwd:-unknown})" >&2
+      return 1
+    fi
+    echo "==> Stopping stale ${service} listener (PID ${pid}, port ${port})"
+    kill -TERM "${pid}"
+  done
+
+  for _ in $(seq 1 10); do
+    pids="$(port_listener_pids "${port}")"
+    [ -z "${pids}" ] && return 0
+    sleep 1
+  done
+
+  for pid in ${pids}; do
+    pid_cwd="$(readlink -f "/proc/${pid}/cwd" 2>/dev/null || true)"
+    if [ "${pid_cwd}" = "${expected_cwd}" ]; then
+      echo "==> Force-stopping stale ${service} listener (PID ${pid})"
+      kill -KILL "${pid}"
+    fi
+  done
+
+  sleep 1
+  pids="$(port_listener_pids "${port}")"
+  if [ -n "${pids}" ]; then
+    echo "ERROR: port ${port} is still occupied by PID(s): ${pids//$'\n'/ }" >&2
+    return 1
+  fi
+}
+
+pm2_process_snapshot() {
+  local service="$1"
+  pm2 jlist 2>/dev/null | node -e '
+    let input = "";
+    process.stdin.on("data", chunk => input += chunk);
+    process.stdin.on("end", () => {
+      const name = process.argv[1];
+      try {
+        const processInfo = JSON.parse(input).find(item => item.name === name);
+        if (!processInfo) process.exit(1);
+        process.stdout.write(`${processInfo.pm2_env?.status || "unknown"}:${processInfo.pid || 0}`);
+      } catch {
+        process.exit(1);
+      }
+    });
+  ' "${service}"
+}
 
 if [ ! -f .env ]; then
   echo "ERROR: .env is required" >&2
@@ -68,30 +153,58 @@ bash deploy/backup.sh
 echo "==> Applying checked-in database migrations"
 npx prisma migrate deploy
 
-echo "==> Reloading services"
+echo "==> Restarting services"
 pm2 delete vignet-studio >/dev/null 2>&1 || true
-if pm2 describe vignet-web >/dev/null 2>&1; then
-  pm2 reload deploy/ecosystem.config.js --update-env
-else
-  pm2 start deploy/ecosystem.config.js
-fi
-pm2 save
+
+# Stop port-owning services before changing their PM2 command. This also
+# self-heals the orphaned Next.js/npm state created by older deployments.
+stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
+stop_service_and_release_port \
+  "vignet-whatsapp-bridge" \
+  3040 \
+  "${APP_ROOT}/mini-services/whatsapp-bridge"
+
+pm2 startOrRestart deploy/ecosystem.config.js --update-env
 
 echo "==> Waiting for application health"
 healthy=0
+stable_pid=""
+stable_checks=0
 for _ in $(seq 1 30); do
-  if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:3003/api/health >/dev/null; then
-    healthy=1
-    break
+  snapshot="$(pm2_process_snapshot vignet-web || true)"
+  status="${snapshot%%:*}"
+  pid="${snapshot##*:}"
+
+  if [ "${status}" = "online" ] \
+    && [ "${pid}" -gt 0 ] 2>/dev/null \
+    && curl --fail --silent --show-error --max-time 3 http://127.0.0.1:3003/api/health >/dev/null; then
+    if [ "${pid}" = "${stable_pid}" ]; then
+      stable_checks=$((stable_checks + 1))
+    else
+      stable_pid="${pid}"
+      stable_checks=1
+    fi
+
+    # Do not accept a response from an orphan/stale listener. The PM2-owned
+    # process must remain online with the same PID across three checks.
+    if [ "${stable_checks}" -ge 3 ]; then
+      healthy=1
+      break
+    fi
+  else
+    stable_pid=""
+    stable_checks=0
   fi
   sleep 2
 done
 
 if [ "${healthy}" -ne 1 ]; then
-  echo "ERROR: deployment reloaded but health check did not pass" >&2
+  echo "ERROR: deployment restarted but the PM2-owned web process did not become stable" >&2
   pm2 status
+  pm2 logs vignet-web --lines 50 --nostream || true
   exit 1
 fi
 
+pm2 save
 pm2 status
 echo "==> Deployment is healthy"

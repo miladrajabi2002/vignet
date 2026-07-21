@@ -1,20 +1,29 @@
+const path = require("path");
+
+const appRoot = path.resolve(__dirname, "..");
+const whatsappRoot = path.join(appRoot, "mini-services", "whatsapp-bridge");
+
 module.exports = {
   apps: [
     {
       name: "vignet-web",
-      script: "npm",
-      args: "run start",
-      cwd: __dirname + "/..",
+      // Run Next directly. When PM2 manages `npm run start`, stopping npm can
+      // leave its Next.js child alive and still listening on port 3003.
+      script: require.resolve("next/dist/bin/next", { paths: [appRoot] }),
+      args: ["start", "-H", "127.0.0.1", "-p", "3003"],
+      cwd: appRoot,
       env: { NODE_ENV: "production" },
       max_memory_restart: "1G",
       instances: 1,
+      exec_mode: "fork",
       autorestart: true,
+      kill_timeout: 10000,
     },
     {
       name: "vignet-worker",
-      script: "npm",
-      args: "run worker",
-      cwd: __dirname + "/..",
+      script: require.resolve("tsx/cli", { paths: [appRoot] }),
+      args: ["worker/index.ts"],
+      cwd: appRoot,
       env: { NODE_ENV: "production" },
       max_memory_restart: "512M",
       instances: 1,
@@ -22,9 +31,9 @@ module.exports = {
     },
     {
       name: "vignet-whatsapp-bridge",
-      script: "npm",
-      args: "run start",
-      cwd: __dirname + "/../mini-services/whatsapp-bridge",
+      script: require.resolve("tsx/cli", { paths: [whatsappRoot] }),
+      args: ["index.ts"],
+      cwd: whatsappRoot,
       env: {
         NODE_ENV: "production",
         WHATSAPP_BRIDGE_PORT: "3040",
