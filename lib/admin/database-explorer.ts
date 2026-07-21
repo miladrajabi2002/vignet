@@ -76,6 +76,11 @@ function serializeValue(key: string, value: unknown): string {
   return String(value)
 }
 
+function visibleDatabaseRow(modelKey: string, row: Record<string, unknown>): Record<string, unknown> {
+  if (modelKey !== 'User') return row
+  return Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'role'))
+}
+
 export async function readDatabaseModel(modelKey: string, page: number, pageSize = 25) {
   const model = DATABASE_MODELS.find((item) => item.key === modelKey) ?? DATABASE_MODELS[0]
   const safePage = Math.max(1, Math.floor(page) || 1)
@@ -92,6 +97,7 @@ export async function readDatabaseModel(modelKey: string, page: number, pageSize
       SELECT current_database() AS "database", version() AS "version"
     `,
   ])
+  const visibleRows = rawRows.map((row) => visibleDatabaseRow(model.key, row))
 
   return {
     model,
@@ -100,7 +106,7 @@ export async function readDatabaseModel(modelKey: string, page: number, pageSize
     total: Number(countRows[0]?.count ?? 0),
     database: connectionRows[0]?.database ?? 'PostgreSQL',
     version: connectionRows[0]?.version?.split(',')[0] ?? 'PostgreSQL',
-    columns: rawRows[0] ? Object.keys(rawRows[0]) : [],
-    rows: rawRows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, serializeValue(key, value)]))),
+    columns: visibleRows[0] ? Object.keys(visibleRows[0]) : [],
+    rows: visibleRows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, serializeValue(key, value)]))),
   }
 }

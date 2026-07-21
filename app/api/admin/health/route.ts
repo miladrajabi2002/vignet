@@ -4,7 +4,7 @@ import { HeadBucketCommand } from '@aws-sdk/client-s3'
 import { NextResponse } from 'next/server'
 import { isAdminAuthed } from '@/lib/admin/auth'
 import { ADMIN_OWNER_PHONE } from '@/lib/admin/auth'
-import { getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
+import { getCurrentMonthAiSpendUSD, getOpenRouterAccountUsage } from '@/lib/admin/ai-usage'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { QUEUE_NAMES, isQueueDisabled } from '@/lib/queue/connection'
@@ -146,14 +146,17 @@ async function storageHealth() {
 async function openRouterHealth() {
   const started = Date.now()
   try {
-    const usage = await timed(getOpenRouterAccountUsage(), 9_000)
+    const [usage, currentMonthSpendUSD] = await Promise.all([
+      timed(getOpenRouterAccountUsage(), 9_000),
+      getCurrentMonthAiSpendUSD().catch(() => null),
+    ])
     const state: HealthState = usage.status === 'connected' ? 'healthy' : usage.status === 'unconfigured' ? 'unconfigured' : 'down'
     return {
       state,
       latencyMs: Date.now() - started,
       detail: state === 'healthy' ? 'حساب OpenRouter متصل است' : state === 'unconfigured' ? 'کلید OpenRouter تنظیم نشده است' : 'OpenRouter پاسخ نداد',
       creditsRemainingUSD: usage.totalCreditsRemainingUSD,
-      usageMonthlyUSD: usage.usageMonthlyUSD,
+      usageMonthlyUSD: currentMonthSpendUSD,
     }
   } catch {
     return { state: 'down' as HealthState, latencyMs: Date.now() - started, detail: 'OpenRouter پاسخ نداد', creditsRemainingUSD: null, usageMonthlyUSD: null }

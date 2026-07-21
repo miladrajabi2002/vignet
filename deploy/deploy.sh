@@ -88,6 +88,28 @@ pm2_process_snapshot() {
   ' "${service}"
 }
 
+pm2_scripts_match_ecosystem() {
+  pm2 jlist 2>/dev/null | node -e '
+    const path = require("path");
+    let input = "";
+    process.stdin.on("data", chunk => input += chunk);
+    process.stdin.on("end", () => {
+      try {
+        const root = process.cwd();
+        const expectedApps = require(path.join(root, "deploy", "ecosystem.config.js")).apps;
+        const runningApps = JSON.parse(input);
+        const matches = expectedApps.every(expected => {
+          const current = runningApps.find(item => item.name === expected.name);
+          return current && path.resolve(current.pm2_env.pm_exec_path) === path.resolve(expected.script);
+        });
+        process.exit(matches ? 0 : 1);
+      } catch {
+        process.exit(1);
+      }
+    });
+  '
+}
+
 if [ ! -f .env ]; then
   echo "ERROR: .env is required" >&2
   exit 1
@@ -156,6 +178,13 @@ npx prisma migrate deploy
 echo "==> Restarting services"
 pm2 delete vignet-studio >/dev/null 2>&1 || true
 
+# PM2 restart/startOrRestart does not replace pm_exec_path for an existing app.
+# Detect the one-time migration from the old npm wrappers before stopping them.
+recreate_pm2_apps=0
+if ! pm2_scripts_match_ecosystem; then
+  recreate_pm2_apps=1
+fi
+
 # Stop port-owning services before changing their PM2 command. This also
 # self-heals the orphaned Next.js/npm state created by older deployments.
 stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
@@ -164,7 +193,13 @@ stop_service_and_release_port \
   3040 \
   "${APP_ROOT}/mini-services/whatsapp-bridge"
 
-pm2 startOrRestart deploy/ecosystem.config.js --update-env
+if [ "${recreate_pm2_apps}" -eq 1 ]; then
+  echo "==> Re-registering PM2 services with direct executables"
+  pm2 delete vignet-web vignet-worker vignet-whatsapp-bridge >/dev/null 2>&1 || true
+  pm2 start deploy/ecosystem.config.js
+else
+  pm2 restart deploy/ecosystem.config.js --update-env
+fi
 
 echo "==> Waiting for application health"
 healthy=0

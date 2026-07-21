@@ -41,12 +41,6 @@ export const dynamic = 'force-dynamic'
 
 type BadgeTone = 'default' | 'info' | 'muted' | 'success' | 'warning' | 'danger'
 
-const ROLE_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
-  OWNER: { label: 'مالک کسب‌وکار', tone: 'default' },
-  ADMIN: { label: 'مدیر کسب‌وکار', tone: 'info' },
-  MEMBER: { label: 'عضو', tone: 'muted' },
-}
-
 const PLAN_LABEL: Record<string, { label: string; tone: BadgeTone }> = {
   TRIAL: { label: 'آزمایشی', tone: 'muted' },
   STARTER: { label: 'استارتر', tone: 'info' },
@@ -184,7 +178,6 @@ export default async function AdminUserDetailPage(
     ]).then(([agent, knowledge, channel, conversation, payment, firstUsage, lastLogin]) => ({ agent, knowledge, channel, conversation, payment, firstUsage, lastLogin })),
   ])
 
-  const role = ROLE_LABEL[user.role] ?? { label: user.role, tone: 'muted' as BadgeTone }
   const plan = PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }
   const planDef = (await getEffectivePlanDefs())[ws.plan]
   const businessProfile = readBusinessProfile(ws.businessProfile)
@@ -315,10 +308,9 @@ export default async function AdminUserDetailPage(
                   <KV label="نام">{user.name ?? '—'}</KV>
                   <KV label="تلفن" mono><span dir="ltr">{user.phone}</span></KV>
                   <KV label="دسترسی">
-                    <span className="flex flex-wrap gap-1.5">
-                      <Badge tone={role.tone}>{role.label}</Badge>
-                      {user.platformRole === 'ADMIN' && <Badge tone="danger">مدیر اصلی ویجنتو</Badge>}
-                    </span>
+                    <Badge tone={user.platformRole === 'ADMIN' ? 'danger' : 'muted'}>
+                      {user.platformRole === 'ADMIN' ? 'مدیر اصلی ویجنتو' : 'کاربر'}
+                    </Badge>
                   </KV>
                   <KV label="زبان">{user.language}</KV>
                   <KV label="تاریخ عضویت">{memberSince}</KV>

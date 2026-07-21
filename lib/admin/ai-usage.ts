@@ -395,6 +395,19 @@ export async function getCurrentMonthAiSpendUSD(): Promise<number> {
   return Number(rows[0]?.providerCostUSD ?? 0)
 }
 
+/** Exact provider spend for the current UTC calendar day, excluding admin-owned workspaces. */
+export async function getCurrentDayAiSpendUSD(): Promise<number> {
+  const dayStart = new Date()
+  dayStart.setUTCHours(0, 0, 0, 0)
+  const rows = await prisma.$queryRaw<{ providerCostUSD: number | null }[]>`
+    SELECT COALESCE(sum("cost"), 0) AS "providerCostUSD"
+    FROM "UsageLog"
+    WHERE "date" >= ${dayStart} AND "status" = 'CAPTURED'
+      AND ${adminVisibleWorkspaceSql(Prisma.sql`"workspaceId"`)}
+  `
+  return Number(rows[0]?.providerCostUSD ?? 0)
+}
+
 /** Full operational report for the platform-managed OpenRouter account. */
 export async function getAiUsageReport(days = 30) {
   const since = new Date(Date.now() - days * 86_400_000)

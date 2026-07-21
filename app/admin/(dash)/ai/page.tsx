@@ -19,6 +19,7 @@ import { AiModelPolicyForm } from '@/components/admin/ai-model-policy-form'
 import { TrendChart } from '@/components/admin/trend-chart'
 import { cn } from '@/lib/utils'
 import {
+  getCurrentDayAiSpendUSD,
   getCurrentMonthAiSpendUSD,
   getAiUsageReport,
   getOpenRouterAccountUsage,
@@ -140,9 +141,13 @@ function RangeTabs({ current }: { current: UsageRange }) {
 function AccountStatus({
   config,
   account,
+  currentDaySpendUSD,
+  currentMonthSpendUSD,
 }: {
   config: OpenRouterConfigStatus
   account: OpenRouterAccountUsage
+  currentDaySpendUSD: number
+  currentMonthSpendUSD: number
 }) {
   const connected = account.status === 'connected'
   const connectionLabel = connected
@@ -206,15 +211,15 @@ function AccountStatus({
           </div>
           <dl className="grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-              <dt className="text-zinc-500">مصرف کلید در ماه جاری</dt>
+              <dt className="text-zinc-500">مصرف مشتریان در ماه جاری</dt>
               <dd dir="ltr" className="mt-1 text-left font-mono font-bold text-zinc-900">
-                {formatProviderUSD(account.usageMonthlyUSD)}
+                {formatProviderUSD(currentMonthSpendUSD)}
               </dd>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-              <dt className="text-zinc-500">مصرف امروز</dt>
+              <dt className="text-zinc-500">مصرف مشتریان امروز</dt>
               <dd dir="ltr" className="mt-1 text-left font-mono font-bold text-zinc-900">
-                {formatProviderUSD(account.usageDailyUSD)}
+                {formatProviderUSD(currentDaySpendUSD)}
               </dd>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
@@ -516,11 +521,12 @@ export default async function AdminAiPage({
   const params = await searchParams
   const range = parseRange(params.range)
   const days = RANGE_DAYS[range]
-  const [report, platformPolicy, commercialConfig, currentMonthSpendUSD, openRouterAccount] = await Promise.all([
+  const [report, platformPolicy, commercialConfig, currentMonthSpendUSD, currentDaySpendUSD, openRouterAccount] = await Promise.all([
     getAiUsageReport(days),
     getPlatformAiConfig(),
     getPlatformCommercialConfig(),
     getCurrentMonthAiSpendUSD(),
+    getCurrentDayAiSpendUSD(),
     getOpenRouterAccountUsage(),
   ])
   const config = getOpenRouterConfigStatus(platformPolicy, commercialConfig)
@@ -546,7 +552,12 @@ export default async function AdminAiPage({
         action={<RangeTabs current={range} />}
       />
 
-      <AccountStatus config={config} account={openRouterAccount} />
+      <AccountStatus
+        config={config}
+        account={openRouterAccount}
+        currentDaySpendUSD={currentDaySpendUSD}
+        currentMonthSpendUSD={currentMonthSpendUSD}
+      />
 
       <AiModelPolicyForm
         models={config.models.map((model) => ({

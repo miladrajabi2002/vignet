@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/ai/page.tsx": {
-    "mtime": 1784215438.4946797,
-    "ast_hash": "1326fb19d60217e9b5c6a7f7e6d670f5",
+    "mtime": 1784677249.199129,
+    "ast_hash": "82ba5442beada4df3ebb6adb51c7ebb0",
     "semantic_hash": ""
   },
   "app/admin/(dash)/blog/page.tsx": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/[userId]/page.tsx": {
-    "mtime": 1784674907.3380868,
-    "ast_hash": "a2a86d35c05dd898ccf74c1905be9ab1",
+    "mtime": 1784677249.2031326,
+    "ast_hash": "c16e20af1befe6b17cd904ed37b92128",
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/page.tsx": {
@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/health/route.ts": {
-    "mtime": 1784675154.328175,
-    "ast_hash": "a48f81aef2eda2bfaeb5689c3f31e93d",
+    "mtime": 1784677249.201136,
+    "ast_hash": "6992c5793183e32cfc2baa01f3b3cd5a",
     "semantic_hash": ""
   },
   "app/api/admin/instagram-diag/route.ts": {
@@ -1505,8 +1505,8 @@
     "semantic_hash": ""
   },
   "deploy/deploy.sh": {
-    "mtime": 1784676693.4701827,
-    "ast_hash": "862d1856eabb51f8e48bde765f81416f",
+    "mtime": 1784677207.7315142,
+    "ast_hash": "329191c76e5e3e05de5e3efe1180a8da",
     "semantic_hash": ""
   },
   "deploy/ecosystem.config.js": {
@@ -1545,8 +1545,8 @@
     "semantic_hash": ""
   },
   "lib/admin/ai-usage.ts": {
-    "mtime": 1784674981.3326564,
-    "ast_hash": "e16500172d4ea0638fe0e46ffcd01220",
+    "mtime": 1784677249.198128,
+    "ast_hash": "d47edca954b1bf5e903304ec6379559a",
     "semantic_hash": ""
   },
   "lib/admin/auth.ts": {
@@ -2640,8 +2640,8 @@
     "semantic_hash": ""
   },
   "lib/admin/database-explorer.ts": {
-    "mtime": 1784675040.8388584,
-    "ast_hash": "74b49c8ccc62c8055076da9b40a670a4",
+    "mtime": 1784677249.2021348,
+    "ast_hash": "4850a007b6161927340c34895763cdbc",
     "semantic_hash": ""
   },
   "components/onboarding/capability-options.tsx": {
@@ -2940,8 +2940,8 @@
     "semantic_hash": ""
   },
   "tests/admin-reporting-scope.test.ts": {
-    "mtime": 1784675219.8892374,
-    "ast_hash": "4e5e93482175e80e275e30b5d0a831d9",
+    "mtime": 1784677265.0169187,
+    "ast_hash": "00d35159866a7c77704cec31ce4849db",
     "semantic_hash": ""
   },
   "app/api/admin/errors/route.ts": {
