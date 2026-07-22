@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Prisma } from '@prisma/client'
 import { describe, expect, it } from 'vitest'
 import {
+  ADMIN_VISIBLE_KNOWLEDGE_WHERE,
   ADMIN_VISIBLE_RELATED_WHERE,
   ADMIN_VISIBLE_USER_WHERE,
   ADMIN_VISIBLE_WORKSPACE_WHERE,
@@ -20,6 +21,9 @@ describe('admin reporting scope', () => {
     expect(ADMIN_VISIBLE_RELATED_WHERE).toEqual({
       workspace: ADMIN_VISIBLE_WORKSPACE_WHERE,
     })
+    expect(ADMIN_VISIBLE_KNOWLEDGE_WHERE).toEqual({
+      agent: ADMIN_VISIBLE_RELATED_WHERE,
+    })
   })
 
   it('provides the same exclusion for raw aggregate queries', () => {
@@ -28,6 +32,14 @@ describe('admin reporting scope', () => {
     expect(sql).toContain('EXISTS')
     expect(sql).toContain('admin_scope_workspace."id"')
     expect(sql).toContain('admin_scope_workspace."excludeFromAdminReports" = false')
+  })
+
+  it('scopes knowledge counts through the owning agent relation', async () => {
+    const agentsPage = await readFile(path.join(process.cwd(), 'app/admin/(dash)/agents/page.tsx'), 'utf8')
+
+    expect(agentsPage).toMatch(
+      /prisma\.knowledgeBase\.count\(\{\s*where: \{\s*\.\.\.ADMIN_VISIBLE_KNOWLEDGE_WHERE/,
+    )
   })
 
   it('keeps every customer-facing admin data surface on the shared scope', async () => {

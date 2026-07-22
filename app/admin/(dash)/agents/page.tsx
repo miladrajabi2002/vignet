@@ -4,7 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { conversationsDailyByAgent } from '@/lib/admin/charts'
 import { Sparkline } from '@/components/admin/sparkline'
 import { PageHeader, StatCard, Card, Badge, EmptyState, fa, fmtDate } from '../ui'
-import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
+import {
+  ADMIN_VISIBLE_KNOWLEDGE_WHERE,
+  ADMIN_VISIBLE_RELATED_WHERE,
+} from '@/lib/admin/reporting-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +35,7 @@ export default async function AdminAgentsPage() {
       prisma.agent.count({ where: ADMIN_VISIBLE_RELATED_WHERE }),
       prisma.agent.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, active: true } }),
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
-      prisma.knowledgeBase.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'READY' } }),
+      prisma.knowledgeBase.count({ where: { ...ADMIN_VISIBLE_KNOWLEDGE_WHERE, status: 'READY' } }),
       conversationsDailyByAgent(7),
     ])
 

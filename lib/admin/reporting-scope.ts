@@ -21,6 +21,11 @@ export const ADMIN_VISIBLE_RELATED_WHERE = {
   workspace: ADMIN_VISIBLE_WORKSPACE_WHERE,
 }
 
+/** Scope a knowledge source through its owning agent (it has no workspace relation). */
+export const ADMIN_VISIBLE_KNOWLEDGE_WHERE = {
+  agent: ADMIN_VISIBLE_RELATED_WHERE,
+} satisfies Prisma.KnowledgeBaseWhereInput
+
 /** Scope raw reporting queries by a SQL expression containing a workspace id. */
 export function adminVisibleWorkspaceSql(workspaceId: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`

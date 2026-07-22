@@ -1,16 +1,16 @@
 # Graph Report - vignet  (2026-07-22)
 
 ## Corpus Check
-- 586 files · ~431,290 words
+- 586 files · ~431,301 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3459 nodes · 8129 edges · 227 communities (201 shown, 26 thin omitted)
+- 3459 nodes · 8129 edges · 228 communities (201 shown, 27 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 64 edges (avg confidence: 0.73)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d69c8b49`
+- Built from commit: `260f4ec3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -225,6 +225,7 @@
 - @types/jalaali-js
 - typescript
 - vitest
+- react
 - postcss.config.mjs
 - 📊 ADMIN DASHBOARD — ANALYTICS
 - { GET, POST }
@@ -257,7 +258,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (227 total, 26 thin omitted)
+## Communities (228 total, 27 thin omitted)
 
 ### Community 0 - "automation.ts"
 Cohesion: 0.11
@@ -277,7 +278,7 @@ Nodes (52): AddStoreForm(), DIRECTION_LABEL, ENTITY_LABEL, formatDate(), Integra
 
 ### Community 4 - "prisma.ts"
 Cohesion: 0.05
-Nodes (51): actionSchema, buttonSchema, createSchema, GET(), messageEntrySchema, Params, POST(), triggerSchema (+43 more)
+Nodes (55): actionSchema, buttonSchema, createSchema, GET(), messageEntrySchema, Params, POST(), triggerSchema (+47 more)
 
 ### Community 5 - "chat-engine.ts"
 Cohesion: 0.08
@@ -361,7 +362,7 @@ Nodes (63): GET(), PATCH(), Props, bookingErrorResponse(), GET(), POST(), GET(),
 
 ### Community 25 - "dependencies"
 Cohesion: 0.08
-Nodes (25): clsx, framer-motion, jalaali-js, lucide-react, next-auth, next-intl, dependencies, clsx (+17 more)
+Nodes (25): bullmq, clsx, framer-motion, jalaali-js, lucide-react, next-auth, next-intl, dependencies (+17 more)
 
 ### Community 26 - "devDependencies"
 Cohesion: 0.13
@@ -496,8 +497,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها, Source Nodes
 
 ### Community 59 - "appointments-workspace.tsx"
-Cohesion: 0.12
-Nodes (21): Params, POST(), appBaseUrl(), createSchema, encryptSensitiveFields(), GET(), POST(), SENSITIVE_FIELDS (+13 more)
+Cohesion: 0.10
+Nodes (27): baseUrl(), bodySchema, Params, POST(), WEBHOOK_PATH, Params, POST(), appBaseUrl() (+19 more)
 
 ### Community 60 - "iphone-preview.tsx"
 Cohesion: 0.10
@@ -544,8 +545,8 @@ Cohesion: 0.17
 Nodes (12): SettingsPage(), BusyAction, Feedback, fetchOperatorHealth(), GlassButton(), localeDate(), localeNumber(), OperatorChannelHealth (+4 more)
 
 ### Community 71 - "automation-manager.tsx"
-Cohesion: 0.13
-Nodes (18): baseUrl(), bodySchema, Params, POST(), WEBHOOK_PATH, bodySchema, GET(), ownAgent() (+10 more)
+Cohesion: 0.12
+Nodes (16): bodySchema, GET(), ownAgent(), Params, POST(), DELETE(), Params, GET() (+8 more)
 
 ### Community 72 - "charts.ts"
 Cohesion: 0.22
@@ -628,8 +629,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده, Source Nodes
 
 ### Community 92 - "index.ts"
-Cohesion: 0.25
-Nodes (13): databaseHealth(), FailedJobLog, GET(), HealthState, openRouterHealth(), POST(), QueueRow, redisAndQueuesHealth() (+5 more)
+Cohesion: 0.24
+Nodes (16): databaseHealth(), FailedJobLog, GET(), HealthState, openRouterHealth(), POST(), QueueRow, redisAndQueuesHealth() (+8 more)
 
 ### Community 93 - "VIGENT — Complete Claude Code Project Prompt v2"
 Cohesion: 0.14
@@ -684,8 +685,8 @@ Cohesion: 0.21
 Nodes (13): bodySchema, Params, POST(), POST(), secretsMatch(), handleInbound(), sendOutbound(), isMessengerType() (+5 more)
 
 ### Community 108 - "automation-card.tsx"
-Cohesion: 0.60
-Nodes (5): storageHealth(), assertS3Configured(), getBucket(), getS3Client(), isS3Configured()
+Cohesion: 0.50
+Nodes (3): GET(), Params, mocks
 
 ### Community 109 - "build-plugin-zip.mjs"
 Cohesion: 0.17
@@ -988,8 +989,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت, Source Nodes
 
 ### Community 201 - "route.ts"
-Cohesion: 0.09
-Nodes (17): buttonSchema, DELETE(), owns(), Params, PATCH(), updateSchema, bodySchema, Params (+9 more)
+Cohesion: 0.38
+Nodes (6): buttonSchema, DELETE(), owns(), Params, PATCH(), updateSchema
 
 ### Community 202 - "popular-posts.tsx"
 Cohesion: 0.50
@@ -1014,24 +1015,24 @@ Nodes (3): appRoot, path, whatsappRoot
 ## Knowledge Gaps
 - **1099 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1094 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **26 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
 **Preferred sources** — corroborated by past sessions; start here.
-- `intelligence-core.tsx` (3× useful, score=2.763549112)
-- `AgentDetailPage()` (2× useful, score=1.856084772)
-- `getConnectionGeometry()` (2× useful, score=1.842885767)
-- `neural-operation-graph.tsx` (2× useful, score=1.84187549)
+- `intelligence-core.tsx` (3× useful, score=2.762673303)
+- `AgentDetailPage()` (2× useful, score=1.855496552)
+- `getConnectionGeometry()` (2× useful, score=1.84230173)
+- `neural-operation-graph.tsx` (2× useful, score=1.841291774)
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `cn` to `ui.tsx`, `loader.js`, `page.tsx`, `captureError`, `webhook.ts`, `session.ts`, `page.tsx`, `commercial-config.ts`, `route.ts`, `rateLimit`, `ippanel.ts`, `page.tsx`, `popular-posts.tsx`, `trend-chart.tsx`, `material-select.tsx`, `getVerticalPack`, `page.tsx`, `social-links.tsx`, `iphone-preview.tsx`, `route.ts`, `contacts-view.tsx`, `chat-orchestrator.ts`, `layout.tsx`, `page.tsx`, `PageHeader`, `conversation-thread.tsx`, `scheduler.ts`, `checkWorkspaceActive`, `route.ts`, `media-uploader.tsx`, `page.tsx`, `page.tsx`?**
   _High betweenness centrality (0.069) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `route.ts`, `route.ts`, `page.tsx`, `page.tsx`, `model-select.tsx`, `page.tsx`, `isAdminAuthed`, `key`, `index.ts`?**
+- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `route.ts`, `route.ts`, `page.tsx`, `page.tsx`, `model-select.tsx`, `page.tsx`, `isAdminAuthed`, `key`, `react`?**
   _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `getCurrentUser()` connect `prisma.ts` to `page-header.tsx`, `route.ts`, `campaign-composer.tsx`, `charts.ts`, `page.tsx`, `activity.ts`, `route.ts`, `commercial-config.ts`, `automation-form.tsx`, `woocommerce.ts`, `page.tsx`, `oauth.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `route.ts`, `route.ts`, `appointments-workspace.tsx`, `automation-manager.tsx`, `charts.ts`, `booking-manager.tsx`, `route.ts`, `catalog.ts`, `logo.tsx`, `service.ts`, `automation-card.tsx`, `automation-card.tsx`, `formatDateTime`?**
+- **Why does `getCurrentUser()` connect `prisma.ts` to `page-header.tsx`, `route.ts`, `campaign-composer.tsx`, `charts.ts`, `page.tsx`, `activity.ts`, `route.ts`, `commercial-config.ts`, `automation-form.tsx`, `woocommerce.ts`, `page.tsx`, `oauth.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `route.ts`, `route.ts`, `appointments-workspace.tsx`, `automation-manager.tsx`, `charts.ts`, `booking-manager.tsx`, `route.ts`, `catalog.ts`, `logo.tsx`, `service.ts`, `automation-card.tsx`, `automation-card.tsx`, `automation-card.tsx`, `formatDateTime`?**
   _High betweenness centrality (0.028) - this node is a cross-community bridge._
 - **What connects `next/core-web-vitals`, `next/typescript`, `mini-services/**` to the rest of the system?**
   _1099 weakly-connected nodes found - possible documentation gaps or missing edges._

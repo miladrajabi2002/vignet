@@ -218,6 +218,7 @@
   "216": "@types/jalaali-js",
   "217": "typescript",
   "218": "vitest",
+  "219": "react",
   "220": "postcss.config.mjs",
   "221": "📊 ADMIN DASHBOARD — ANALYTICS",
   "222": "{ GET, POST }",

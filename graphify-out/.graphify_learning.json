@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-22T00:18:50.253244+00:00",
+  "generated_at": "2026-07-22T00:38:35.531359+00:00",
   "nodes": {
     "app_dashboard_agents_agentid_page_agentdetailpage": {
       "code_fingerprint": "e939cb7f7afe5313e3816bfaf496e052cf1473a095e7bf000ecd6a3f9384a8a1",
@@ -17,7 +17,7 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 1.856084772,
+      "score": 1.855496552,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "preferred",
       "uses": 2
@@ -33,7 +33,7 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.934096858,
+      "score": 0.933800829,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -49,7 +49,7 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.934096858,
+      "score": 0.933800829,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -65,7 +65,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902791885,
+      "score": 0.902505777,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -87,7 +87,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000162437,
+      "score": -0.000162385,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -110,7 +110,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000162437,
+      "score": -0.000162385,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -127,7 +127,7 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.928181954,
+      "score": 0.9278878,
       "source_file": "components/agent-builder/agent-wizard.tsx",
       "status": "tentative",
       "uses": 1
@@ -143,13 +143,13 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 0.927902817,
+      "score": 0.927608752,
       "source_file": "components/agents/agent-settings-form.tsx",
       "status": "tentative",
       "uses": 1
     },
     "components_channels_messenger_channel_channelsettings": {
-      "code_fingerprint": "7aaacc639c0656639a063c7fdf73c9f00cabe835d1cd42f1e1ca25072269ca49",
+      "code_fingerprint": "9f463093b5aee04f5052876857007b8dd0e0ed0eadea966a4475df90e3edc20b",
       "label": "ChannelSettings()",
       "last": "2026-07-18T18:53:57.257225+00:00",
       "provenance": [
@@ -159,7 +159,7 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.928181954,
+      "score": 0.9278878,
       "source_file": "components/channels/messenger-channel.tsx",
       "status": "tentative",
       "uses": 1
@@ -175,7 +175,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902791885,
+      "score": 0.902505777,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
@@ -191,7 +191,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902791885,
+      "score": 0.902505777,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
@@ -217,7 +217,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 2.763549112,
+      "score": 2.762673303,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 3
@@ -238,7 +238,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 1.842885767,
+      "score": 1.84230173,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 2
@@ -254,7 +254,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.920663345,
+      "score": 0.920371573,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -270,7 +270,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.921673621,
+      "score": 0.921381529,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -286,7 +286,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 0.921212146,
+      "score": 0.9209202,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -302,7 +302,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.921673621,
+      "score": 0.921381529,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -323,7 +323,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 1.84187549,
+      "score": 1.841291774,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "preferred",
       "uses": 2
@@ -339,8 +339,40 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.920663345,
+      "score": 0.920371573,
       "source_file": "components/marketing/neural-operation-graph.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_billing_entitlements": {
+      "code_fingerprint": "470921dfa47a8ee35a52ca177d2e77c0b3fc2bcc846888f9611a738eedc43a30",
+      "label": "entitlements.ts",
+      "last": "2026-07-22T00:34:27.473115+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T00:34:27.473115+00:00",
+          "outcome": "useful",
+          "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
+        }
+      ],
+      "score": 0.999933667,
+      "source_file": "lib/billing/entitlements.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_billing_plans": {
+      "code_fingerprint": "4a0ed9fd2630f5910a295b34746922ca5242a1f18fac254171f0c1d95663109d",
+      "label": "plans.ts",
+      "last": "2026-07-22T00:34:27.473115+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T00:34:27.473115+00:00",
+          "outcome": "useful",
+          "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
+        }
+      ],
+      "score": 0.999933667,
+      "source_file": "lib/billing/plans.ts",
       "status": "tentative",
       "uses": 1
     }

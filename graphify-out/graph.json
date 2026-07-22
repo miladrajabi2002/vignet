@@ -2031,7 +2031,7 @@
       "label": "AdminAgentsPage()",
       "file_type": "code",
       "source_file": "app/admin/(dash)/agents/page.tsx",
-      "source_location": "L11",
+      "source_location": "L14",
       "_origin": "ast",
       "id": "app_admin_dash_agents_page_adminagentspage",
       "community": 8,
@@ -3849,8 +3849,8 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "app_api_admin_health_route_storagehealth",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "storagehealth()"
     },
     {
@@ -4597,8 +4597,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -4608,8 +4608,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route_params",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "params"
     },
     {
@@ -4619,8 +4619,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route_bodyschema",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "bodyschema"
     },
     {
@@ -4630,8 +4630,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route_webhook_path",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "webhook_path"
     },
     {
@@ -4641,8 +4641,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route_baseurl",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "baseurl()"
     },
     {
@@ -4652,8 +4652,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "app_api_agents_agentid_channels_messenger_route_post",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "post()"
     },
     {
@@ -6445,8 +6445,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_handoff_route",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 4,
+      "community_name": "prisma.ts",
       "norm_label": "route.ts"
     },
     {
@@ -6456,8 +6456,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_handoff_route_params",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 4,
+      "community_name": "prisma.ts",
       "norm_label": "params"
     },
     {
@@ -6467,8 +6467,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_handoff_route_bodyschema",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 4,
+      "community_name": "prisma.ts",
       "norm_label": "bodyschema"
     },
     {
@@ -6478,8 +6478,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_handoff_route_post",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 4,
+      "community_name": "prisma.ts",
       "norm_label": "post()"
     },
     {
@@ -6489,8 +6489,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_messages_route",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 108,
+      "community_name": "automation-card.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -6500,8 +6500,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_messages_route_params",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 108,
+      "community_name": "automation-card.tsx",
       "norm_label": "params"
     },
     {
@@ -6511,8 +6511,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "app_api_conversations_conversationid_messages_route_get",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 108,
+      "community_name": "automation-card.tsx",
       "norm_label": "get()"
     },
     {
@@ -8832,8 +8832,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_menu_slug_page",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "page.tsx"
     },
     {
@@ -8843,8 +8843,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "app_menu_slug_page_props",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "props"
     },
     {
@@ -8854,8 +8854,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "app_menu_slug_page_generatemetadata",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "generatemetadata()"
     },
     {
@@ -8865,8 +8865,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "app_menu_slug_page_publicmenupage",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "publicmenupage()"
     },
     {
@@ -8895,7 +8895,7 @@
       "label": "NotFound()",
       "file_type": "code",
       "source_file": "app/not-found.tsx",
-      "source_location": "L27",
+      "source_location": "L23",
       "_origin": "ast",
       "id": "app_not_found_notfound",
       "community": 67,
@@ -18154,7 +18154,7 @@
       "label": "adminVisibleWorkspaceSql()",
       "file_type": "code",
       "source_file": "lib/admin/reporting-scope.ts",
-      "source_location": "L25",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "lib_admin_reporting_scope_adminvisibleworkspacesql",
       "community": 74,
@@ -18165,7 +18165,7 @@
       "label": "getAdminHiddenWorkspaceIds()",
       "file_type": "code",
       "source_file": "lib/admin/reporting-scope.ts",
-      "source_location": "L37",
+      "source_location": "L42",
       "_origin": "ast",
       "id": "lib_admin_reporting_scope_getadminhiddenworkspaceids",
       "community": 74,
@@ -21776,8 +21776,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "lib_channels_config_buildmessengerconfig",
-      "community": 71,
-      "community_name": "automation-manager.tsx",
+      "community": 59,
+      "community_name": "appointments-workspace.tsx",
       "norm_label": "buildmessengerconfig()"
     },
     {
@@ -22282,8 +22282,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "lib_channels_operator_handoff_getconnectedmessengerchannels",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 4,
+      "community_name": "prisma.ts",
       "norm_label": "getconnectedmessengerchannels()"
     },
     {
@@ -26308,8 +26308,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_notifications_create",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "create.ts"
     },
     {
@@ -26319,8 +26319,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "lib_notifications_create_notifyparams",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "notifyparams"
     },
     {
@@ -26374,8 +26374,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_notifications_operator_telegram",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "operator-telegram.ts"
     },
     {
@@ -26385,8 +26385,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "lib_notifications_operator_telegram_sendoperatortelegramnotification",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "sendoperatortelegramnotification()"
     },
     {
@@ -26649,8 +26649,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_prisma",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "prisma.ts"
     },
     {
@@ -26660,8 +26660,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "lib_prisma_globalforprisma",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 71,
+      "community_name": "automation-manager.tsx",
       "norm_label": "globalforprisma"
     },
     {
@@ -27815,8 +27815,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_storage_s3",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "s3.ts"
     },
     {
@@ -27826,8 +27826,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "lib_storage_s3_asserts3configured",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "asserts3configured()"
     },
     {
@@ -27837,8 +27837,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "lib_storage_s3_iss3configured",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "iss3configured()"
     },
     {
@@ -27848,8 +27848,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "lib_storage_s3_getbucket",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "getbucket()"
     },
     {
@@ -27859,8 +27859,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "lib_storage_s3_gets3client",
-      "community": 108,
-      "community_name": "automation-card.tsx",
+      "community": 92,
+      "community_name": "index.ts",
       "norm_label": "gets3client()"
     },
     {
@@ -29949,8 +29949,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "package_dependencies_bullmq",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "bullmq"
     },
     {
@@ -29960,8 +29960,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "bullmq",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "bullmq"
     },
     {
@@ -30015,8 +30015,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "package_dependencies_ioredis",
-      "community": 92,
-      "community_name": "index.ts",
+      "community": 205,
+      "community_name": "route.ts",
       "norm_label": "ioredis"
     },
     {
@@ -30026,8 +30026,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "ioredis",
-      "community": 92,
-      "community_name": "index.ts",
+      "community": 205,
+      "community_name": "route.ts",
       "norm_label": "ioredis"
     },
     {
@@ -30191,8 +30191,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "package_dependencies_react",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 219,
+      "community_name": "react",
       "norm_label": "react"
     },
     {
@@ -30202,8 +30202,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "react",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 219,
+      "community_name": "react",
       "norm_label": "react"
     },
     {
@@ -31843,8 +31843,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_crm_live_updates_test",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 108,
+      "community_name": "automation-card.tsx",
       "norm_label": "crm-live-updates.test.ts"
     },
     {
@@ -31854,8 +31854,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "tests_crm_live_updates_test_mocks",
-      "community": 201,
-      "community_name": "route.ts",
+      "community": 108,
+      "community_name": "automation-card.tsx",
       "norm_label": "mocks"
     },
     {
@@ -48733,7 +48733,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/admin/(dash)/agents/page.tsx",
-      "source_location": "L11",
+      "source_location": "L14",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_admin_dash_agents_page",
@@ -48926,7 +48926,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/admin/(dash)/agents/page.tsx",
-      "source_location": "L47",
+      "source_location": "L50",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_admin_dash_agents_page_adminagentspage",
@@ -48938,7 +48938,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/admin/(dash)/agents/page.tsx",
-      "source_location": "L96",
+      "source_location": "L99",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_admin_dash_agents_page_adminagentspage",
@@ -48950,7 +48950,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/admin/(dash)/agents/page.tsx",
-      "source_location": "L36",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_admin_dash_agents_page_adminagentspage",
@@ -77031,7 +77031,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/not-found.tsx",
-      "source_location": "L27",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_not_found",
@@ -95656,7 +95656,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/admin/reporting-scope.ts",
-      "source_location": "L25",
+      "source_location": "L30",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_admin_reporting_scope",
@@ -95667,7 +95667,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "lib/admin/reporting-scope.ts",
-      "source_location": "L37",
+      "source_location": "L42",
       "weight": 1.0,
       "_origin": "ast",
       "source": "lib_admin_reporting_scope",
@@ -132881,5 +132881,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d69c8b496928c1d204d46adef263c94200ec6d63"
+  "built_at_commit": "260f4ec3c85bb60e3e78e9f7e7216332b159a5b6"
 }
