@@ -484,7 +484,7 @@ export default async function ConversationsPage(props: {
                                                                                         </span>
                                                                                 )}
                                                                         </div>
-                                                                        <p dir="auto" className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
+                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
                                                                                 {last
                                                                                         ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}`
                                                                                         : c.agent.name}
