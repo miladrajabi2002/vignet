@@ -486,17 +486,17 @@ export default async function ConversationsPage(props: {
                                                                         </div>
                                                                         <p dir="auto" className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
                                                                                 {last
-                                                                                        ? `${last.role === 'ASSISTANT' ? '↩ ' : ''}${stripProductTokens(last.content)}`
+                                                                                        ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}`
                                                                                         : c.agent.name}
                                                                         </p>
                                                                 </div>
-                                                                 <span className="flex shrink-0 flex-col items-end gap-1.5 text-end text-[11px] leading-5 text-[var(--text-muted)]">
+                                                                 <span className="flex shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
                                                                          <ChannelBadge type={c.channel} />
-                                                                         {c.salesInsight && (
+                                                                         {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && (
                                                                                  <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />
                                                                          )}
-                                                                         <span className="block">{relativeTime(when, locale)}</span>
-                                                                        <span className="block tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
+                                                                         <span>{relativeTime(when, locale)}</span>
+                                                                        <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
                                                                         </span>
                                                         </Link>
                                                         </LiveArrivalItem>
