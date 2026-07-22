@@ -44,7 +44,7 @@ export function Footer() {
 	const copy = COPY[locale]
 	const t = useTranslations('marketing.footer')
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
-	const productHrefs = ['/#product', '/#demo', '/#vigento', '/#pricing']
+	const productHrefs = ['/#product', '/#demo', '/#vigento', '/pricing']
 	const solutionHrefs = ['/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/woocommerce']
 	const resourceHrefs = ['/docs', '/blog', '/status']
 
@@ -78,7 +78,11 @@ export function Footer() {
 					</div>
 
 					<div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-[10px] text-white/35 sm:flex-row sm:items-center sm:justify-between">
-						<div className="flex flex-wrap gap-x-5 gap-y-2"><span>{t('rights')}</span><span>{copy.made}</span></div>
+						<div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+							<span>{t('rights')}</span><span>{copy.made}</span>
+							<Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-white">{locale === 'fa' ? 'حریم خصوصی' : 'Privacy'}</Link>
+							<Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-white">{locale === 'fa' ? 'شرایط استفاده' : 'Terms'}</Link>
+						</div>
 					<Link href="/status" className="inline-flex min-h-11 items-center gap-2 self-start rounded-full border border-white/10 px-3 transition-colors hover:border-white/25 hover:text-white sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{copy.status}</Link>
 					</div>
 				</div>

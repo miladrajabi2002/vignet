@@ -56,6 +56,7 @@ appointments
 apt
 architecture
 are
+argument
 arrival
 arrivals
 assert
@@ -430,6 +431,7 @@ extract
 extracted
 eyebrow
 facebook
+facts
 fail
 failed
 failure
@@ -644,6 +646,7 @@ kill
 kind
 know
 knowledge
+knowledgebase
 label
 labels
 language
@@ -1376,6 +1379,8 @@ unanswered
 uncertain
 under
 unique
+unkno
+unknown
 unlock
 unsafe
 unseen
@@ -1486,6 +1491,7 @@ zoned
 اجرایی
 اختیاری
 ادمین
+ارور
 اساس
 استقرار
 اسکریپت
@@ -1552,9 +1558,11 @@ zoned
 حادثه
 حذف
 حساب
+خطا
 خوبه
 خیلی
 داده
+داریم
 داشبورد
 داشبوردی
 داشته

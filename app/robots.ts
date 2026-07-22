@@ -10,7 +10,6 @@ export default function robots(): MetadataRoute.Robots {
 				disallow: [
 					'/admin',
 					'/api',
-					'/onboarding',
 					'/settings',
 					'/billing',
 					'/agents',

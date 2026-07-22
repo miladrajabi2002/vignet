@@ -1,9 +1,14 @@
+import type { Metadata } from 'next'
 import { requireUser } from '@/lib/session'
 import { syncOnboarding } from '@/lib/onboarding'
 import { prisma } from '@/lib/prisma'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, noarchive: true, nosnippet: true },
+}
 
 export default async function OnboardingPage() {
   const user = await requireUser()

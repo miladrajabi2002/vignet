@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "app/(auth)/login/page.tsx": {
-    "mtime": 1783639802.7944765,
-    "ast_hash": "28635904c0340574040838731d9cb99a",
+    "mtime": 1784718970.43251,
+    "ast_hash": "2c575759899a09dd867c6e528ae98b9b",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/analytics/page.tsx": {
@@ -145,8 +145,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/onboarding/page.tsx": {
-    "mtime": 1783899013.0653522,
-    "ast_hash": "07d9ed0a0da713e7556a889f61b309a5",
+    "mtime": 1784718970.4335115,
+    "ast_hash": "25f57db0199506f76759829d5ba22431",
     "semantic_hash": ""
   },
   "app/(dashboard)/overview/page.tsx": {
@@ -915,13 +915,13 @@
     "semantic_hash": ""
   },
   "app/robots.ts": {
-    "mtime": 1782867435.6347444,
-    "ast_hash": "f59063c0a3f13cf1208577c17eb026b8",
+    "mtime": 1784718970.4385555,
+    "ast_hash": "3e138c55ad019c7b293e8cc283346e2a",
     "semantic_hash": ""
   },
   "app/sitemap.ts": {
-    "mtime": 1784067431.720311,
-    "ast_hash": "e8ea00d3788ea5e8c53af3554a1e04c9",
+    "mtime": 1784718970.443512,
+    "ast_hash": "c757c408e02e9bdb5f199333491f2b91",
     "semantic_hash": ""
   },
   "auth.config.ts": {
@@ -1350,8 +1350,8 @@
     "semantic_hash": ""
   },
   "components/marketing/footer.tsx": {
-    "mtime": 1784043895.6058974,
-    "ast_hash": "41973752e09a7b836f7337d2910be603",
+    "mtime": 1784718970.4659736,
+    "ast_hash": "c7ce6d89c80fd23ad1582bc14f3c6a45",
     "semantic_hash": ""
   },
   "components/marketing/hero.tsx": {
@@ -2160,8 +2160,8 @@
     "semantic_hash": ""
   },
   "next.config.mjs": {
-    "mtime": 1784464023.0450304,
-    "ast_hash": "aba2423ef83ac6bf6b95ed1a077db3c7",
+    "mtime": 1784718970.4659736,
+    "ast_hash": "a8086aec4cacbeccbf12d1e4b3af3a0a",
     "semantic_hash": ""
   },
   "package.json": {
@@ -2992,6 +2992,41 @@
   "graphify-out/memory/query_20260722_004336_\u062e\u0637\u0627_\u0648_\u0627\u0631\u0648\u0631_\u062f\u0627\u0631\u06cc\u0645__prisma_knowledgebase_count_unkno.md": {
     "mtime": 1784681016.3327897,
     "ast_hash": "26744eb0c7a41414306a547874c2e5d7",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/pricing/page.tsx": {
+    "mtime": 1784718970.4315095,
+    "ast_hash": "7871c3aafd2141b39c216888b0af0a54",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/privacy/page.tsx": {
+    "mtime": 1784718895.3887832,
+    "ast_hash": "79fce1f1d81a0ddbb10fff3cde6d7312",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/terms/page.tsx": {
+    "mtime": 1784718895.3887832,
+    "ast_hash": "7495c4de28d9dfc4aff3a7194bc5e869",
+    "semantic_hash": ""
+  },
+  "app/opengraph-image.tsx": {
+    "mtime": 1784718970.4684012,
+    "ast_hash": "dba87f365dd62c768d53626bc2e5fec3",
+    "semantic_hash": ""
+  },
+  "app/twitter-image.tsx": {
+    "mtime": 1784718970.4684012,
+    "ast_hash": "ad5bb8197df14de48b6aa364d2b987c9",
+    "semantic_hash": ""
+  },
+  "components/marketing/legal-page.tsx": {
+    "mtime": 1784718970.4305089,
+    "ast_hash": "5b5b85a76edb7609150c57953f8d2b28",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260722_010345_\u0642\u0627\u0628\u0644\u06cc\u062a_\u06cc\u06a9\u067e\u0627\u0631\u0686\u0647_\u0628\u0648\u062f\u0646_\u06a9\u0627\u0646\u0627\u0644_\u0647\u0627_\u0648_\u06af\u0641\u062a\u06af\u0648_\u0647\u0627_\u0648_\u0645\u0634\u062a\u0631\u06cc_\u0647\u0627.md": {
+    "mtime": 1784682225.1734703,
+    "ast_hash": "9bc7216cbdc09adc973485cc7c8ac64d",
     "semantic_hash": ""
   }
 }

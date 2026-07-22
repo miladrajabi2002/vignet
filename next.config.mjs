@@ -6,6 +6,35 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 const nextConfig = {
   reactStrictMode: true,
 	poweredByHeader: false,
+	async redirects() {
+		return [
+			{
+				source: '/signup',
+				destination: '/login',
+				permanent: true,
+			},
+			{
+				source: '/blog/sakht-chatbot-telegram',
+				destination: '/blog/telegram-chatbot-for-business-in-10-minutes',
+				permanent: true,
+			},
+			{
+				source: '/blog/automation-pashtibani-moshtari',
+				destination: '/blog/reduce-customer-support-cost-with-ai-chatbot',
+				permanent: true,
+			},
+			{
+				source: '/blog/ai-agent-chist',
+				destination: '/blog/ai-agent-chist-va-taghir-kasb-o-kar-irani',
+				permanent: true,
+			},
+			{
+				source: '/blog/automation-forosh',
+				destination: '/blog/woocommerce-ai-sales-automation',
+				permanent: true,
+			},
+		]
+	},
 	async headers() {
 		return [
 			{
