@@ -216,8 +216,8 @@ export default async function PublicBlogPostPage(props: Props) {
 			)}
             {/* Body */}
             <div
-				dir="auto"
-				className="blog-content mx-auto max-w-3xl rounded-[1.75rem] border border-black/[0.07] bg-white p-5 text-[15px] leading-8 text-[var(--text-primary)] shadow-[0_14px_45px_rgba(0,0,0,0.055)] sm:p-8"
+				dir={locale === 'fa' ? 'rtl' : 'ltr'}
+				className={`blog-content mx-auto max-w-3xl rounded-[1.75rem] border border-black/[0.07] bg-white p-5 text-[15px] leading-8 text-[var(--text-primary)] shadow-[0_14px_45px_rgba(0,0,0,0.055)] sm:p-8 ${locale === 'fa' ? 'text-right' : 'text-left'}`}
 				dangerouslySetInnerHTML={{ __html: html }}
 			/>
             {/* Social follow bar — keep readers connected after they finish */}

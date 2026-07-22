@@ -63,6 +63,7 @@ assert
 assign
 assignable
 assistant
+assurances
 asymmetric
 async
 attachment
@@ -663,6 +664,7 @@ lead
 leading
 learning
 legacy
+legal
 length
 lengths
 lenient
@@ -824,6 +826,7 @@ one
 only
 opacity
 open
+opengraph
 openrouter
 operating
 operation
@@ -959,6 +962,7 @@ principles
 prioritize
 priority
 prisma
+privacy
 private
 pro
 probably
@@ -1297,6 +1301,7 @@ template
 templates
 ten
 tenant
+terms
 test
 testing
 text
@@ -1368,6 +1373,7 @@ tsconfig
 tsx
 tts
 turn
+twitter
 two
 txt
 type
@@ -1511,6 +1517,7 @@ zoned
 انیمشن
 اون
 اپراتور
+اکیه
 ایجنت
 این
 اینو
@@ -1536,6 +1543,8 @@ zoned
 بهبودیافته
 بهتر
 بهترین
+بهود
+بودن
 بکاپ
 بکن
 بگیری
@@ -1603,6 +1612,7 @@ zoned
 فرمان
 فرمول
 فعال
+قابلیت
 قبل
 قسمت
 قواعد
@@ -1633,6 +1643,7 @@ zoned
 ناوبری
 نتیجه
 نحو
+نداره
 نشون
 نقش
 نقطه
@@ -1646,6 +1657,7 @@ zoned
 نوار
 نکات
 نکن
+نیاز
 نیازها
 های
 هدف
@@ -1654,6 +1666,7 @@ zoned
 هستن
 هفته
 همین
+هنوز
 هوش
 هوشمند
 هوشمندتر

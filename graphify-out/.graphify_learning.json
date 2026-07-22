@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-22T00:59:48.548767+00:00",
+  "generated_at": "2026-07-22T11:57:59.134791+00:00",
   "nodes": {
     "app_dashboard_agents_agentid_page_agentdetailpage": {
       "code_fingerprint": "e939cb7f7afe5313e3816bfaf496e052cf1473a095e7bf000ecd6a3f9384a8a1",
@@ -17,7 +17,7 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 1.854864997,
+      "score": 1.835379783,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "preferred",
       "uses": 2
@@ -33,7 +33,7 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.933482992,
+      "score": 0.923676825,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -49,7 +49,7 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.933482992,
+      "score": 0.923676825,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -65,7 +65,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902198592,
+      "score": 0.892721065,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -87,7 +87,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.00016233,
+      "score": -0.000160625,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -110,7 +110,7 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.00016233,
+      "score": -0.000160625,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
@@ -127,7 +127,7 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.927571975,
+      "score": 0.917827903,
       "source_file": "components/agent-builder/agent-wizard.tsx",
       "status": "tentative",
       "uses": 1
@@ -143,7 +143,7 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 0.927293022,
+      "score": 0.91755188,
       "source_file": "components/agents/agent-settings-form.tsx",
       "status": "tentative",
       "uses": 1
@@ -159,7 +159,7 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.927571975,
+      "score": 0.917827903,
       "source_file": "components/channels/messenger-channel.tsx",
       "status": "tentative",
       "uses": 1
@@ -175,7 +175,7 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902198592,
+      "score": 0.892721065,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
@@ -191,7 +191,23 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.902198592,
+      "score": 0.892721065,
+      "source_file": "components/crm/contacts-view.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_crm_contacts_view_contactsview": {
+      "code_fingerprint": "5354992aa76dd9a9fd0b6a1c08d5e6d3186e7be9bcc46e7ddc872997ca4b4e5f",
+      "label": "ContactsView()",
+      "last": "2026-07-22T01:03:45.170981+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T01:03:45.170981+00:00",
+          "outcome": "useful",
+          "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
+        }
+      ],
+      "score": 0.989557691,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
@@ -217,7 +233,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 2.761732973,
+      "score": 2.73272118,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 3
@@ -238,7 +254,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 1.841674666,
+      "score": 1.822328015,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 2
@@ -254,7 +270,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.920058307,
+      "score": 0.910393165,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -270,7 +286,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.921067919,
+      "score": 0.911392171,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -286,7 +302,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 0.920606747,
+      "score": 0.910935844,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -302,7 +318,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.921067919,
+      "score": 0.911392171,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -323,7 +339,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 1.840665054,
+      "score": 1.821329009,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "preferred",
       "uses": 2
@@ -339,7 +355,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.920058307,
+      "score": 0.910393165,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "tentative",
       "uses": 1
@@ -355,7 +371,7 @@
           "q": "خطا و ارور داریم: Prisma knowledgeBase.count Unknown argument workspace"
         }
       ],
-      "score": 0.999740046,
+      "score": 0.989237853,
       "source_file": "lib/admin/reporting-scope.ts",
       "status": "tentative",
       "uses": 1
@@ -371,7 +387,7 @@
           "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
         }
       ],
-      "score": 0.99959332,
+      "score": 0.989092669,
       "source_file": "lib/billing/entitlements.ts",
       "status": "tentative",
       "uses": 1
@@ -387,8 +403,56 @@
           "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
         }
       ],
-      "score": 0.99959332,
+      "score": 0.989092669,
       "source_file": "lib/billing/plans.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_channels_handler_processchannelinbound": {
+      "code_fingerprint": "6c902f3887079896f0a5e48a47cee361968cc9fa7e3672f085dd5c29f0f44fd3",
+      "label": "processChannelInbound()",
+      "last": "2026-07-22T01:03:45.170981+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T01:03:45.170981+00:00",
+          "outcome": "useful",
+          "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
+        }
+      ],
+      "score": 0.989557691,
+      "source_file": "lib/channels/handler.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_channels_outbound_sendoutbound": {
+      "code_fingerprint": "5fd1137fe0fb2adc36f8a8f20219603aefbb904778f857a781e8d7f780f70f21",
+      "label": "sendOutbound()",
+      "last": "2026-07-22T01:03:45.170981+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T01:03:45.170981+00:00",
+          "outcome": "useful",
+          "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
+        }
+      ],
+      "score": 0.989557691,
+      "source_file": "lib/channels/outbound.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_crm_live_version_conversationliveversion": {
+      "code_fingerprint": "bfbc6f02eaf629af886e68278d089d36b33f18b0c00554eb2c596a133712d0cf",
+      "label": "conversationLiveVersion()",
+      "last": "2026-07-22T01:03:45.170981+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T01:03:45.170981+00:00",
+          "outcome": "useful",
+          "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
+        }
+      ],
+      "score": 0.989557691,
+      "source_file": "lib/crm/live-version.ts",
       "status": "tentative",
       "uses": 1
     }

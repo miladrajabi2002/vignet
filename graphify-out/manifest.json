@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "app/(marketing)/blog/[slug]/page.tsx": {
-    "mtime": 1783900221.2912598,
-    "ast_hash": "d6ee51bc32ee0b992b3d3092b2c3cc4c",
+    "mtime": 1784721288.5706074,
+    "ast_hash": "3f29620cf552b4df3489c32105383380",
     "semantic_hash": ""
   },
   "app/(marketing)/blog/category/[slug]/page.tsx": {
