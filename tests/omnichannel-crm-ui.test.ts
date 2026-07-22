@@ -29,3 +29,45 @@ describe('omnichannel CRM user-visible contract', () => {
     expect(activity).toContain('ذخیره شد؛ تحویل نشد')
   })
 })
+
+describe('CRM avatar and customer deletion contract', () => {
+  it('uses the internal Instagram avatar proxy and puts channel identity in the trailing column', () => {
+    const contacts = source('app/(dashboard)/contacts/page.tsx')
+    const conversations = source('app/(dashboard)/conversations/page.tsx')
+    const avatar = source('components/crm/contact-avatar.tsx')
+
+    expect(contacts).toContain('contactAvatarSrc({')
+    expect(conversations).toContain('<ContactAvatar src={channelAvatarSrc} alt={who} />')
+    expect(conversations).toContain('flex shrink-0 flex-col items-end gap-1.5')
+    expect(avatar).toContain('setUsingFallback(true)')
+    expect(avatar).toContain('setBroken(true)')
+  })
+
+  it('provides an accessible customer deletion dialog with explicit history semantics', () => {
+    const action = source('components/crm/contact-delete-action.tsx')
+    const route = source('app/api/contacts/[contactId]/route.ts')
+
+    expect(action).toContain('aria-modal="true"')
+    expect(action).toContain("event.key === 'Escape'")
+    expect(action).toContain("router.replace('/contacts')")
+    expect(route).toContain('data: { contactId: null }')
+    expect(route).toContain('preservedConversations')
+  })
+})
+
+describe('conversation sales intelligence UI contract', () => {
+  it('surfaces classification, probability, filtering, and historical backfill', () => {
+    const list = source('app/(dashboard)/conversations/page.tsx')
+    const detail = source('app/(dashboard)/conversations/[conversationId]/page.tsx')
+    const filter = source('components/dashboard/conversation-filters.tsx')
+    const backfill = source('components/crm/sales-insight-backfill.tsx')
+
+    expect(list).toContain('<SalesInsightBadge insight={c.salesInsight}')
+    expect(list).toContain("'HIGH_INTENT'")
+    expect(filter).toContain('activeSales')
+    expect(detail).toContain('<SalesInsightCard insight={displayedSalesInsight}')
+    expect(detail).toContain('analyzeSalesConversation({')
+    expect(backfill).toContain("fetch('/api/conversations/sales-insights/backfill'")
+    expect(backfill).toContain('router.refresh()')
+  })
+})

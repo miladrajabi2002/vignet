@@ -55,6 +55,36 @@ export async function DELETE(_req: Request, props: Params) {
   if (!(await ownContact(user.workspaceId, params.contactId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
-  await prisma.contact.delete({ where: { id: params.contactId } })
-  return NextResponse.json({ ok: true })
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Deleting a CRM profile must not silently destroy the message history
+      // operators may still need for support, disputes, or audit. Preserve the
+      // conversations/messages and detach them before removing the contact.
+      const detached = await tx.conversation.updateMany({
+        where: {
+          contactId: params.contactId,
+          workspaceId: user.workspaceId,
+        },
+        data: { contactId: null },
+      })
+
+      // deleteMany keeps the tenant predicate on the destructive statement and
+      // makes a concurrent delete harmless instead of crossing workspace scope.
+      const deleted = await tx.contact.deleteMany({
+        where: { id: params.contactId, workspaceId: user.workspaceId },
+      })
+      if (deleted.count !== 1) throw new Error('CONTACT_DELETE_RACE')
+
+      return { preservedConversations: detached.count }
+    })
+
+    return NextResponse.json({ ok: true, ...result })
+  } catch (error) {
+    console.error('Failed to delete contact', {
+      contactId: params.contactId,
+      workspaceId: user.workspaceId,
+      error,
+    })
+    return NextResponse.json({ error: 'DELETE_FAILED' }, { status: 500 })
+  }
 }

@@ -26,7 +26,9 @@ export function ConversationFilters({
         activeStatus,
         activeChannel,
         activeAgent,
+        activeSales,
         agentOptions = [],
+        salesOptions = [],
         query,
         basePath = '/conversations',
         isFa,
@@ -36,7 +38,9 @@ export function ConversationFilters({
         activeStatus: string | undefined
         activeChannel: string | undefined
         activeAgent?: string
+        activeSales?: string
         agentOptions?: Array<{ key: string; label: string; count: number }>
+        salesOptions?: Array<{ key: string; label: string; count: number }>
         query?: string
         basePath?: string
         isFa: boolean
@@ -46,15 +50,16 @@ export function ConversationFilters({
         const paramsString = params.toString()
         const [searchValue, setSearchValue] = useState(query ?? '')
         const [isSearching, startSearchTransition] = useTransition()
-        const hasActiveFilter = !!activeStatus || !!activeChannel || !!activeAgent || !!searchValue
+        const hasActiveFilter = !!activeStatus || !!activeChannel || !!activeAgent || !!activeSales || !!searchValue
         const showAgent = agentOptions.length > 1
 
-        function navigate(next: { status?: string; channel?: string; agent?: string; q?: string }) {
+        function navigate(next: { status?: string; channel?: string; agent?: string; sales?: string; q?: string }) {
                 const sp = new URLSearchParams(params.toString())
                 const values = {
                         status: next.status !== undefined ? next.status : activeStatus,
                         channel: next.channel !== undefined ? next.channel : activeChannel,
                         agent: next.agent !== undefined ? next.agent : activeAgent,
+                        sales: next.sales !== undefined ? next.sales : activeSales,
                         q: next.q !== undefined ? next.q : searchValue.trim(),
                 }
                 for (const [key, value] of Object.entries(values)) {
@@ -105,6 +110,7 @@ export function ConversationFilters({
                         {activeStatus && <input type="hidden" name="status" value={activeStatus} />}
                         {activeChannel && <input type="hidden" name="channel" value={activeChannel} />}
                         {activeAgent && <input type="hidden" name="agent" value={activeAgent} />}
+                        {activeSales && <input type="hidden" name="sales" value={activeSales} />}
 
                         <div className="relative min-w-[12rem] flex-1">
                                 <span className="sr-only">{isFa ? 'جست‌وجوی گفتگو' : 'Search conversations'}</span>
@@ -148,6 +154,20 @@ export function ConversationFilters({
                                         ariaLabel={isFa ? 'ایجنت گفتگو' : 'Conversation agent'}
                                         className="min-w-40"
                                         options={[{ value: '', label: isFa ? 'همه ایجنت‌ها' : 'All agents', meta: nf.format(totalResults) }, ...agentOptions.map((option) => ({ value: option.key, label: option.label, meta: nf.format(option.count) }))]}
+                                />
+                        )}
+
+                        {salesOptions.length > 0 && (
+                                <MaterialSelect
+                                        value={activeSales ?? ''}
+                                        onValueChange={(sales) => navigate({ sales: sales || undefined })}
+                                        ariaLabel={isFa ? 'دسته‌بندی هوش فروش' : 'Sales intelligence category'}
+                                        className="min-w-44"
+                                        options={salesOptions.map((option) => ({
+                                                value: option.key === 'ALL' ? '' : option.key,
+                                                label: option.label,
+                                                meta: nf.format(option.count),
+                                        }))}
                                 />
                         )}
 

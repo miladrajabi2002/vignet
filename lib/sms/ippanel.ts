@@ -163,7 +163,9 @@ export async function sendSms(mobile: string, message: string): Promise<boolean>
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
   if (!isSmsConfigured() || !fromNumber) {
-    console.warn(`[ippanel] DEV MODE — SMS to ${normalized}: ${message}`)
+    // Never print recipients or bodies. Commercial messages can contain
+    // customer identity and payment details when production is misconfigured.
+    console.warn('[ippanel] notification SMS skipped: provider or sender is not configured')
     return false
   }
 
@@ -202,16 +204,12 @@ async function sendPatternSms(
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
   if (!isSmsConfigured() || !fromNumber) {
-    console.warn(
-      `[ippanel] DEV MODE — pattern SMS to ${normalized}: pattern=${patternCode ?? '?'} params=${JSON.stringify(params)}`,
-    )
+    console.warn('[ippanel] pattern SMS skipped: provider or sender is not configured')
     return false
   }
 
   if (!patternCode) {
-    console.error(
-      `[ippanel] cannot send pattern SMS — missing pattern code (params=${JSON.stringify(params)})`,
-    )
+    console.error('[ippanel] cannot send pattern SMS: missing pattern code')
     return false
   }
 

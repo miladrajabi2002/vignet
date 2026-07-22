@@ -26,6 +26,7 @@ import {
 } from '@/lib/instagram/automation'
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
+import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
 
 const AGENT_SELECT = {
         id: true,
@@ -271,7 +272,7 @@ async function persistInboundOnly(args: {
         channel: MessengerType
         metadata?: Prisma.InputJsonValue
 }): Promise<string> {
-        return prisma.$transaction(async (tx) => {
+        const conversationId = await prisma.$transaction(async (tx) => {
                 const conversation = await tx.conversation.upsert({
                         where: {
                                 agentId_channel_externalId: {
@@ -305,6 +306,12 @@ async function persistInboundOnly(args: {
                 })
 				return conversation.id
         })
+        // Automation-only, opt-out and paused-AI paths bypass shouldHandoff,
+        // but their customer intent must still stay current in the CRM.
+        await refreshConversationSalesInsight(conversationId).catch((error) =>
+                console.error('[handler] inbound-only sales insight refresh failed:', error),
+        )
+        return conversationId
 }
 
 async function persistFixedAssistantReply(conversationId: string, text: string): Promise<void> {

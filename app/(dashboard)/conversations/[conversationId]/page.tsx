@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { User, Phone, Sparkles } from 'lucide-react'
+import { Phone, Sparkles } from 'lucide-react'
 import type { ChannelType } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -20,6 +20,10 @@ import { isMessengerType } from '@/lib/channels/registry'
 import { channelHasOutboundCredentials } from '@/lib/channels/outbound'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { SalesInsightBadge, SalesInsightCard } from '@/components/crm/sales-insight'
+import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -40,7 +44,8 @@ export default async function ConversationThreadPage(props: {
                         summary: true,
                         createdAt: true,
                         agentId: true,
-                        agent: { select: { id: true, name: true } },
+                        workspace: { select: { businessType: true, language: true } },
+                        agent: { select: { id: true, name: true, language: true, roleTemplate: true } },
                         contact: {
                                 select: {
                                         id: true,
@@ -71,6 +76,7 @@ export default async function ConversationThreadPage(props: {
                                         summary: true,
                                 },
                         },
+                        salesInsight: true,
                         messages: {
                                 orderBy: { createdAt: 'asc' },
                                 select: {
@@ -79,12 +85,26 @@ export default async function ConversationThreadPage(props: {
                                         content: true,
                                         createdAt: true,
                                         contentType: true,
+                                        unanswered: true,
                                         metadata: true,
                                 },
                         },
                 },
         })
         if (!conversation) notFound()
+
+        // Historical conversations remain useful immediately, even before the
+        // bounded inbox backfill has persisted their first snapshot.
+        const displayedSalesInsight = conversation.salesInsight ?? {
+                ...analyzeSalesConversation({
+                        messages: conversation.messages,
+                        businessType: conversation.workspace.businessType,
+                        language: conversation.agent.language || conversation.workspace.language,
+                        roleTemplate: conversation.agent.roleTemplate,
+                }),
+                handoffRecommended: false,
+                analyzedAt: conversation.messages.at(-1)?.createdAt ?? conversation.createdAt,
+        }
 
         // Load the agent's active messenger channels so the panel can show
         // "go to Telegram/Bale/Rubika" indicators when a handoff is active.
@@ -118,6 +138,11 @@ export default async function ConversationThreadPage(props: {
                                                 : conversation.channel === 'INSTAGRAM'
                                                         ? conversation.contact?.instagramAvatarUrl ?? null
                                                         : null
+        const contactAvatarSource = contactAvatarSrc({
+                contactId: conversation.contact?.id,
+                channel: conversation.channel,
+                rawUrl: contactAvatarUrl,
+        })
         const contactHandle =
                 conversation.channel === 'TELEGRAM'
                         ? conversation.contact?.telegramUsername ?? null
@@ -173,26 +198,17 @@ export default async function ConversationThreadPage(props: {
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
                         <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-[1.5rem] p-4 sm:p-5">
-                                {contactAvatarUrl ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                                src={contactAvatarUrl}
-                                                alt={who}
-                                                width={40}
-                                                height={40}
-                                                decoding="async"
-                                                referrerPolicy="no-referrer"
-                                                className="h-10 w-10 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
-                                        />
-                                ) : (
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                                <User className="h-5 w-5" />
-                                        </div>
-                                )}
+                                <ContactAvatar
+                                        src={contactAvatarSource}
+                                        alt={who}
+                                        size="md"
+                                        loading="eager"
+                                />
                                 <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                                 {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">{who}</span>}
-                                                <ChannelBadge type={conversation.channel} />
+                                                 <ChannelBadge type={conversation.channel} />
+                                                 <SalesInsightBadge insight={displayedSalesInsight} locale={locale} compactOnMobile />
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                                                 <span>{conversation.agent.name}</span>
@@ -221,6 +237,7 @@ export default async function ConversationThreadPage(props: {
                                 locale={locale}
                           />
                           <aside className="space-y-3">
+                        <SalesInsightCard insight={displayedSalesInsight} locale={locale} />
                         {showPanel && (
                                 <ConversationPanel
                                         status={conversation.status}

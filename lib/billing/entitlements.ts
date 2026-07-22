@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
 import { getEffectivePlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/plans'
+import {
+  enqueueAdminCommercialSms,
+  processAdminCommercialSmsPayment,
+} from '@/lib/billing/admin-commercial-outbox'
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
@@ -143,7 +147,7 @@ type SubscriptionActivation = {
 async function persistSubscription(
   tx: Prisma.TransactionClient,
   params: SubscriptionActivation,
-): Promise<Date> {
+): Promise<{ currentPeriodEnd: Date; renewed: boolean }> {
   const { workspaceId, plan, monthlyPrice, currency } = params
   const now = new Date()
 
@@ -152,14 +156,17 @@ async function persistSubscription(
     select: { plan: true, status: true, currentPeriodEnd: true },
   })
 
-  // Same-plan renewal while active → extend; upgrade/lapsed → fresh period.
-  const base =
+  const extendsCurrentPeriod = Boolean(
     existing &&
     existing.status === 'ACTIVE' &&
     existing.plan === plan &&
-    existing.currentPeriodEnd > now
-      ? existing.currentPeriodEnd
-      : now
+    existing.currentPeriodEnd > now,
+  )
+  // A returning customer buying the same plan is a renewal even after lapse or
+  // cancellation. Period arithmetic is stricter: only an active, unexpired
+  // same-plan subscription extends from its existing end date.
+  const renewed = Boolean(existing && existing.plan === plan)
+  const base = extendsCurrentPeriod && existing ? existing.currentPeriodEnd : now
   const currentPeriodEnd = new Date(base.getTime() + PERIOD_DAYS * 24 * 60 * 60 * 1000)
 
   await tx.subscription.upsert({
@@ -184,7 +191,7 @@ async function persistSubscription(
       where: { id: workspaceId },
       data: { plan: plan as Plan },
     })
-  return currentPeriodEnd
+  return { currentPeriodEnd, renewed }
 }
 
 async function sendPurchaseConfirmation(
@@ -222,7 +229,7 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
   paymentUpdate: Prisma.PaymentUpdateManyMutationInput
 }): Promise<boolean> {
   const includedCreditIRR = (await getEffectivePlanDefs())[params.plan].includedCreditIRR
-  const currentPeriodEnd = await prisma.$transaction(async (tx) => {
+  const activation = await prisma.$transaction(async (tx) => {
     const claimed = await tx.payment.updateMany({
       where: {
         id: params.paymentId,
@@ -234,18 +241,30 @@ export async function activateSubscriptionPayment(params: SubscriptionActivation
       data: params.paymentUpdate,
     })
     if (claimed.count !== 1) return null
-    const currentPeriodEnd = await persistSubscription(tx, params)
+    const subscription = await persistSubscription(tx, params)
     await grantIncludedPlanCredit(tx, {
       paymentId: params.paymentId,
       workspaceId: params.workspaceId,
       plan: params.plan,
       amountIRR: includedCreditIRR,
     })
-    return currentPeriodEnd
+    await enqueueAdminCommercialSms(tx, {
+      kind: subscription.renewed ? 'SUBSCRIPTION_RENEWED' : 'SUBSCRIPTION_PURCHASED',
+      paymentId: params.paymentId,
+      workspaceId: params.workspaceId,
+    })
+    return subscription
   })
 
-  if (currentPeriodEnd) {
-    await sendPurchaseConfirmation(params.workspaceId, params.plan, currentPeriodEnd)
+  if (activation) {
+    await Promise.all([
+      sendPurchaseConfirmation(
+        params.workspaceId,
+        params.plan,
+        activation.currentPeriodEnd,
+      ),
+      processAdminCommercialSmsPayment(params.paymentId),
+    ])
   }
-  return currentPeriodEnd !== null
+  return activation !== null
 }

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType, ConvStatus, Prisma } from '@prisma/client'
-import { MessagesSquare, User, Clock, Filter, RefreshCw } from 'lucide-react'
+import { MessagesSquare, Clock, Filter, RefreshCw } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
@@ -29,6 +29,10 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { SalesInsightBadge } from '@/components/crm/sales-insight'
+import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
 import {
         LiveArrivalItem,
         LiveArrivalProvider,
@@ -48,6 +52,14 @@ const VALID_CHANNELS = new Set<ChannelType>([
         'API',
         'CHAT_LINK',
 ])
+type SalesFilter = 'HIGH_INTENT' | 'BUYER' | 'INFORMATION_SEEKER' | 'EXISTING_CUSTOMER' | 'SUPPORT_SEEKER'
+const VALID_SALES_FILTERS = new Set<SalesFilter>([
+        'HIGH_INTENT',
+        'BUYER',
+        'INFORMATION_SEEKER',
+        'EXISTING_CUSTOMER',
+        'SUPPORT_SEEKER',
+])
 
 const CHANNEL_LABELS_FA: Record<string, string> = {
         TELEGRAM: 'تلگرام',
@@ -66,6 +78,7 @@ export default async function ConversationsPage(props: {
                 channel?: string
                 status?: string
                 agent?: string
+                sales?: string
                 q?: string
         }>
 }) {
@@ -85,12 +98,20 @@ export default async function ConversationsPage(props: {
                 ? (searchParams.status as ConvStatus)
                 : undefined
         const agentFilter = searchParams.agent?.trim().slice(0, 64) || undefined
+        const salesFilter = VALID_SALES_FILTERS.has(searchParams.sales as SalesFilter)
+                ? (searchParams.sales as SalesFilter)
+                : undefined
         const query = searchParams.q?.trim().slice(0, 120) || undefined
 
         const where: Prisma.ConversationWhereInput = { workspaceId: user.workspaceId }
         if (channelFilter) where.channel = channelFilter
         if (statusFilter) where.status = statusFilter
         if (agentFilter) where.agentId = agentFilter
+        if (salesFilter === 'HIGH_INTENT') {
+                where.salesInsight = { is: { buyerProbability: { gte: 50 }, leadType: 'BUYER' } }
+        } else if (salesFilter) {
+                where.salesInsight = { is: { leadType: salesFilter } }
+        }
         if (query) {
                 where.OR = [
                         { summary: { contains: query, mode: 'insensitive' } },
@@ -116,6 +137,9 @@ export default async function ConversationsPage(props: {
                 audienceContacts,
                 latestConversation,
                 latestContactVersion,
+                salesGroups,
+                highIntentCount,
+                missingSalesInsightCount,
         ] = await Promise.all([
                 prisma.conversation.findMany({
                         where,
@@ -157,6 +181,9 @@ export default async function ConversationsPage(props: {
                                         orderBy: { createdAt: 'desc' },
                                         take: 3,
                                         select: { content: true, role: true, metadata: true },
+                                },
+                                salesInsight: {
+                                        select: { leadType: true, buyerProbability: true },
                                 },
                         },
                 }),
@@ -206,6 +233,21 @@ export default async function ConversationsPage(props: {
                         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
                         select: { id: true, updatedAt: true },
                 }),
+                prisma.conversationSalesInsight.groupBy({
+                        by: ['leadType'],
+                        where: { workspaceId: user.workspaceId },
+                        _count: { _all: true },
+                }),
+                prisma.conversationSalesInsight.count({
+                        where: { workspaceId: user.workspaceId, leadType: 'BUYER', buyerProbability: { gte: 50 } },
+                }),
+                prisma.conversation.count({
+                        where: {
+                                workspaceId: user.workspaceId,
+                                salesInsight: { is: null },
+                                messages: { some: { role: 'USER' } },
+                        },
+                }),
         ])
 
         const hasNext = conversations.length > PAGE_SIZE
@@ -220,6 +262,7 @@ export default async function ConversationsPage(props: {
                 channelFilter ?? '',
                 statusFilter ?? '',
                 agentFilter ?? '',
+                salesFilter ?? '',
                 query ?? '',
         ].join(':')
 
@@ -235,6 +278,7 @@ export default async function ConversationsPage(props: {
         const availableChannels = channelGroups
                 .map((g) => ({ channel: g.channel, count: g._count._all }))
                 .sort((a, b) => b.count - a.count)
+        const salesCounts = new Map(salesGroups.map((group) => [group.leadType, group._count._all]))
         const statusDonut = [
                 { label: isFa ? 'باز' : 'Open', value: openCount },
                 { label: isFa ? 'حل‌شده' : 'Resolved', value: resolvedCount },
@@ -279,6 +323,7 @@ export default async function ConversationsPage(props: {
                                 activeStatus={statusFilter}
                                 activeChannel={channelFilter}
                                 activeAgent={agentFilter}
+                                activeSales={salesFilter}
                                 query={query}
                                 basePath="/conversations"
                                 statusOptions={[
@@ -308,6 +353,14 @@ export default async function ConversationsPage(props: {
                                         label: agent.name,
                                         count: agent._count.conversations,
                                 }))}
+                                salesOptions={[
+                                        { key: 'ALL', label: isFa ? 'همه دسته‌های فروش' : 'All sales categories', count: totalCount },
+                                        { key: 'HIGH_INTENT', label: isFa ? 'فرصت‌های گرم (۵۰٪+)' : 'Warm opportunities (50%+)', count: highIntentCount },
+                                        { key: 'BUYER', label: isFa ? 'خریدار بالقوه' : 'Potential buyer', count: salesCounts.get('BUYER') ?? 0 },
+                                        { key: 'INFORMATION_SEEKER', label: isFa ? 'در حال کسب اطلاعات' : 'Information seeker', count: salesCounts.get('INFORMATION_SEEKER') ?? 0 },
+                                        { key: 'EXISTING_CUSTOMER', label: isFa ? 'مشتری فعلی' : 'Existing customer', count: salesCounts.get('EXISTING_CUSTOMER') ?? 0 },
+                                        { key: 'SUPPORT_SEEKER', label: isFa ? 'درخواست پشتیبانی' : 'Support request', count: salesCounts.get('SUPPORT_SEEKER') ?? 0 },
+                                ]}
                         />
                         </div>
                         </Suspense>
@@ -322,13 +375,13 @@ export default async function ConversationsPage(props: {
                                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
                                         <MessagesSquare className="h-8 w-8 text-[var(--text-muted)]" />
                                         <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                                                {channelFilter || statusFilter || agentFilter || query
+                                                {channelFilter || statusFilter || agentFilter || salesFilter || query
                                                         ? isFa
                                                                 ? 'مکالمه‌ای با این فیلتر یافت نشد'
                                                                 : 'No conversations match these filters'
                                                         : t('empty')}
                                         </p>
-                                        {!channelFilter && !statusFilter && !agentFilter && !query && (
+                                        {!channelFilter && !statusFilter && !agentFilter && !salesFilter && !query && (
                                                 <Link
                                                         href="/integrations"
                                                         className="mt-6 rounded-xl bg-[var(--white)] px-5 py-2.5 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
@@ -344,7 +397,10 @@ export default async function ConversationsPage(props: {
                                                 <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
                                                 <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
                                         </div>
-                                        <LiveArrivalStatus resource="conversations" locale={locale} />
+                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                                <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
+                                                <LiveArrivalStatus resource="conversations" locale={locale} />
+                                        </div>
                                 </div>
                                 {pageItems.map((c) => {
                                                 const last = c.messages[0]
@@ -376,6 +432,11 @@ export default async function ConversationsPage(props: {
                                                         whatsappAvatarUrl: c.contact?.whatsappAvatarUrl,
                                                         instagramAvatarUrl: c.contact?.instagramAvatarUrl,
                                                 })
+                                                const channelAvatarSrc = contactAvatarSrc({
+                                                        contactId: c.contact?.id,
+                                                        channel: c.channel,
+                                                        rawUrl: channelAvatar,
+                                                })
                                                 // A channelId proxy: if we have a contact at all, it has a
                                                 // channel-specific id. Use the conversation channel as the
                                                 // signal that a fallback label is appropriate.
@@ -397,23 +458,7 @@ export default async function ConversationsPage(props: {
                                                                         c.handedOff && c.status !== 'RESOLVED' && 'bg-amber-500/5',
                                                                 )}
                                                         >
-                                                                {channelAvatar ? (
-                                                                        // eslint-disable-next-line @next/next/no-img-element
-                                                                        <img
-                                                                                src={channelAvatar}
-                                                                                alt={who}
-                                                                                width={36}
-                                                                                height={36}
-                                                                                loading="lazy"
-                                                                                decoding="async"
-                                                                                referrerPolicy="no-referrer"
-                                                                                className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
-                                                                        />
-                                                                ) : (
-                                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                                                                                <User className="h-4 w-4" />
-                                                                        </div>
-                                                                )}
+                                                                <ContactAvatar src={channelAvatarSrc} alt={who} />
                                                                 <div className="min-w-0 flex-1">
                                                                         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                                                                                 <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
@@ -424,7 +469,6 @@ export default async function ConversationsPage(props: {
                                                                                                 @{channelHandle}
                                                                                         </span>
                                                                                 )}
-                                                                                <ChannelBadge type={c.channel} />
                                                                                 {sourceLabel && (
                                                                                         <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                                                                                 {sourceLabel}
@@ -446,8 +490,12 @@ export default async function ConversationsPage(props: {
                                                                                         : c.agent.name}
                                                                         </p>
                                                                 </div>
-                                                                <span className="shrink-0 text-end text-[11px] leading-5 text-[var(--text-muted)]">
-                                                                        <span className="block">{relativeTime(when, locale)}</span>
+                                                                 <span className="flex shrink-0 flex-col items-end gap-1.5 text-end text-[11px] leading-5 text-[var(--text-muted)]">
+                                                                         <ChannelBadge type={c.channel} />
+                                                                         {c.salesInsight && (
+                                                                                 <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />
+                                                                         )}
+                                                                         <span className="block">{relativeTime(when, locale)}</span>
                                                                         <span className="block tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
                                                                         </span>
                                                         </Link>
@@ -467,6 +515,7 @@ export default async function ConversationsPage(props: {
                                         if (channelFilter) sp.set('channel', channelFilter)
                                         if (statusFilter) sp.set('status', statusFilter)
                                         if (agentFilter) sp.set('agent', agentFilter)
+                                        if (salesFilter) sp.set('sales', salesFilter)
                                         if (query) sp.set('q', query)
                                         if (p > 1) sp.set('page', String(p))
                                         const qs = sp.toString()
@@ -492,8 +541,8 @@ export default async function ConversationsPage(props: {
                                                 term: locale === 'fa' ? 'فیلترها: ' : 'Filters: ',
                                                 body:
                                                         locale === 'fa'
-                                                                ? 'می‌توانید بر اساس کانال (تلگرام، واتساپ، ...) و وضعیت (باز، بسته‌شده، تحویل اپراتور) فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
-                                                                : 'Filter by channel (Telegram, WhatsApp, ...) and status (open, resolved, handed off). Filters are stored in the URL so they can be shared.',
+                                                                ? 'می‌توانید بر اساس کانال، وضعیت و دسته هوش فروش—از جمله فرصت‌های گرم—فیلتر کنید. فیلترها در URL ذخیره می‌شوند تا قابل اشتراک‌گذاری باشند.'
+                                                                : 'Filter by channel, status, and sales-intelligence category—including warm opportunities. Filters stay in the URL for sharing.',
                                         },
                                         {
                                                 icon: RefreshCw,

@@ -714,7 +714,15 @@
                         "saved": "Saved",
                         "history": "Conversation history",
                         "noHistory": "No conversations yet",
-                        "lastActivity": "last activity"
+                        "lastActivity": "last activity",
+                        "delete": "Delete customer",
+                        "deleteHint": "Delete the customer profile without erasing conversation or message history.",
+                        "deleteTitle": "Delete this customer?",
+                        "deleteDescription": "This customer profile will be permanently deleted. Conversations and messages are kept for history, but will no longer be linked to this customer. This action cannot be undone.",
+                        "deleteCancel": "Cancel",
+                        "deleteConfirm": "Delete customer",
+                        "deleting": "Deleting…",
+                        "deleteFailed": "The customer could not be deleted. Please try again."
                 }
         },
         "billing": {

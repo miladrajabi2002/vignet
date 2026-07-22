@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, X, Loader2 } from 'lucide-react'
+import { Users, Search, LayoutList, Columns3, GripVertical, Filter, X, Loader2 } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
@@ -20,6 +20,7 @@ import {
         LiveArrivalStatus,
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
 
 export interface ContactRow {
         id: string
@@ -31,6 +32,7 @@ export interface ContactRow {
         conversationCount: number
         lastActivity: string
         avatarUrl?: string | null
+        avatarFallbackUrl?: string | null
         channelUsernames?: Partial<Record<ChannelType, string | null>>
         marketingOptIn: boolean
 }
@@ -321,31 +323,6 @@ function StageSelect({
         )
 }
 
-function Avatar({ url, name }: { url?: string | null; name?: string | null }) {
-        const [broken, setBroken] = useState(false)
-        if (url && !broken) {
-                return (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                                src={url}
-                                alt={name ?? ''}
-                                width={36}
-                                height={36}
-                                loading="lazy"
-                                decoding="async"
-                                referrerPolicy="no-referrer"
-                                onError={() => setBroken(true)}
-                                className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
-                        />
-                )
-        }
-        return (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                        <User className="h-4 w-4" />
-                </div>
-        )
-}
-
 function ListView({
         rows,
         locale,
@@ -394,7 +371,11 @@ function ListView({
                                                 className="flex min-w-0 flex-1 items-center gap-3"
                                                 aria-label={rowDisplayName(c, t('anonymous'))}
                                         >
-                                                <Avatar url={c.avatarUrl} name={c.name} />
+                                                <ContactAvatar
+                                                        src={c.avatarUrl}
+                                                        fallbackSrc={c.avatarFallbackUrl}
+                                                        alt={rowDisplayName(c, t('anonymous'))}
+                                                />
                                                 <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap items-center gap-2">
                                                                 <span className="truncate text-sm font-medium text-[var(--text-primary)]">
@@ -519,6 +500,12 @@ function PipelineView({
                                                                         >
                                                                                 <div className="flex items-center gap-2">
                                                                                         <GripVertical className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                                                                                        <ContactAvatar
+                                                                                                src={c.avatarUrl}
+                                                                                                fallbackSrc={c.avatarFallbackUrl}
+                                                                                                alt={rowDisplayName(c, t('anonymous'))}
+                                                                                                size="xs"
+                                                                                        />
                                                                                         <Link
                                                                                                 href={`/contacts/${c.id}`}
                                                                                                 className="truncate text-sm font-medium text-[var(--text-primary)]"

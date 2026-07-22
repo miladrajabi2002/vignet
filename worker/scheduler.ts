@@ -18,6 +18,7 @@ import {
         type StoreIntegrationInput,
 } from '@/lib/integrations/woocommerce'
 import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
+import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -38,6 +39,7 @@ import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 const HOUR_MS = 60 * 60 * 1000
 const STALE_HOURS = 24
 const BATCH = 100
+const ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS = 5 * 60_000
 
 async function sweepStaleConversations(): Promise<void> {
         const cutoff = new Date(Date.now() - STALE_HOURS * HOUR_MS)
@@ -472,6 +474,17 @@ async function runTrialLifecycleSweep(): Promise<void> {
         }
 }
 
+async function runAdminCommercialSmsOutbox(): Promise<void> {
+        try {
+                const delivered = await sweepAdminCommercialSmsOutbox()
+                if (delivered > 0) {
+                        console.log(`[scheduler] delivered ${delivered} commercial admin SMS alert(s)`)
+                }
+        } catch (error) {
+                captureError('scheduler:admin-commercial-sms-outbox', error)
+        }
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
@@ -513,6 +526,12 @@ export function startScheduler(): () => void {
                 TRIAL_LIFECYCLE_INTERVAL_MS,
         )
 
+        const initialCommercialSms = setTimeout(runAdminCommercialSmsOutbox, 45_000)
+        const commercialSmsInterval = setInterval(
+                runAdminCommercialSmsOutbox,
+                ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS,
+        )
+
         return () => {
                 clearTimeout(initialSweep)
                 clearInterval(sweepInterval)
@@ -530,5 +549,7 @@ export function startScheduler(): () => void {
                 clearInterval(subExpiryInterval)
                 clearTimeout(initialTrialLifecycle)
                 clearInterval(trialLifecycleInterval)
+                clearTimeout(initialCommercialSms)
+                clearInterval(commercialSmsInterval)
         }
 }

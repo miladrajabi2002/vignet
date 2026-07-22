@@ -1,31 +1,35 @@
-import type { ChannelType } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
+import type { BusinessType, ChannelType } from '@prisma/client'
 import { createHandoffAlert } from '@/lib/channels/operator-handoff'
-import { notifyWorkspace } from '@/lib/notifications/create'
 import type { ChatAgent } from '@/lib/ai/chat-types'
+import {
+        analyzeSalesConversation,
+        loadSalesConversationContext,
+        normalizeSalesText,
+        persistConversationSalesInsight,
+        type SalesConversationAnalysis,
+} from '@/lib/ai/sales-intelligence'
 
 /**
- * Human-handoff decisions + unanswered detection, extracted from the chat
- * engine so the escalation policy lives in one reviewable place.
+ * Human-handoff policy. The decision uses observable conversation behaviour,
+ * not personality profiling, and shares the bounded sales-intelligence read.
  */
 
-/**
- * Total messages (user+assistant) that triggers long-chat escalation.
- * Override per-deployment with the LONG_CHAT_THRESHOLD env var (no migration
- * needed). Default is 10 — beyond that, the conversation is probably stuck:
- * either the user keeps re-asking, or the agent doesn't know the answer.
- */
 export const LONG_CHAT_THRESHOLD = Number.parseInt(
         process.env.LONG_CHAT_THRESHOLD ?? '10',
         10,
 ) || 10
 
-/** Stable reason codes so the UI/notifications can branch on them. */
 export type HandoffReasonCode =
-        | 'KEYWORD' // user typed a handoff keyword
-        | 'LONG_CHAT' // conversation exceeded the message threshold
-        | 'UNANSWERED' // agent failed to answer 3× in a row
-        | 'MANUAL' // operator triggered it by hand
+        | 'KEYWORD'
+        | 'EXPLICIT_REQUEST'
+        | 'HIGH_RISK'
+        | 'DISTRESS'
+        | 'UNANSWERED'
+        | 'REPEATED_REQUEST'
+        | 'LOW_CONFIDENCE'
+        | 'NEGOTIATION_AUTHORITY'
+        | 'LONG_CHAT'
+        | 'MANUAL'
 
 const UNANSWERED_PHRASES = [
         'اطلاعاتم کامل نیست',
@@ -36,120 +40,249 @@ const UNANSWERED_PHRASES = [
         'catalog is being updated',
 ]
 
-/** Does this reply amount to "I couldn't answer"? */
 export function detectUnanswered(reply: string, fallback: string | null): boolean {
         if (fallback && reply.trim() === fallback.trim()) return true
         const lower = reply.toLowerCase()
-        return UNANSWERED_PHRASES.some((p) => lower.includes(p.toLowerCase()))
+        return UNANSWERED_PHRASES.some((phrase) => lower.includes(phrase.toLowerCase()))
 }
 
 export interface HandoffDecision {
         handoff: boolean
-        /** Stable machine-readable code (empty when no handoff). */
+        /** Recommended even if the workspace's handoff master switch is off. */
+        recommended: boolean
         code: HandoffReasonCode | ''
-        /** Human-readable Persian reason (shown to operator). */
+        reasonCodes: HandoffReasonCode[]
         reason: string
+        score: number
+        priority: 'normal' | 'high' | 'urgent'
+        salesInsight?: SalesConversationAnalysis
+}
+
+export interface HandoffPolicyInput {
+        analysis: SalesConversationAnalysis
+        businessType: BusinessType
+        language?: string
+        messageCount: number
+        customKeyword?: string | null
+}
+
+function handoffThreshold(businessType: BusinessType): number {
+        if (businessType === 'SUPPORT' || businessType === 'APPOINTMENTS' || businessType === 'FOOD') {
+                return 4
+        }
+        return 5
+}
+
+function formatReason(
+        codes: HandoffReasonCode[],
+        analysis: SalesConversationAnalysis,
+        language: string,
+        customKeyword?: string | null,
+): string {
+        const fa: Partial<Record<HandoffReasonCode, string>> = {
+                KEYWORD: customKeyword ? `کلمه کلیدی تنظیم‌شده: ${customKeyword}` : 'کلمه کلیدی انتقال',
+                EXPLICIT_REQUEST: 'درخواست صریح ارتباط با اپراتور انسانی',
+                HIGH_RISK: `موضوع حساس یا پرریسک (${analysis.riskFlags.join('، ')})`,
+                DISTRESS: 'نارضایتی یا تنش شدید مشتری',
+                UNANSWERED: `پاسخ ناموفق متوالی (${analysis.operational.consecutiveUnanswered} بار)`,
+                REPEATED_REQUEST: 'تکرار درخواست حل‌نشده مشتری',
+                LOW_CONFIDENCE: `اطمینان پایین تحلیل (${Math.round(analysis.confidence * 100)}٪) همراه با اصطکاک`,
+                NEGOTIATION_AUTHORITY: 'مذاکره نیازمند اختیار قیمت یا شرایط انسانی',
+                LONG_CHAT: 'طولانی‌شدن گفتگو همراه با اصطکاک',
+        }
+        const en: Partial<Record<HandoffReasonCode, string>> = {
+                KEYWORD: customKeyword ? `configured keyword: ${customKeyword}` : 'configured handoff keyword',
+                EXPLICIT_REQUEST: 'explicit request for a human operator',
+                HIGH_RISK: `sensitive or high-risk topic (${analysis.riskFlags.join(', ')})`,
+                DISTRESS: 'severe customer distress or anger',
+                UNANSWERED: `${analysis.operational.consecutiveUnanswered} consecutive unsuccessful replies`,
+                REPEATED_REQUEST: 'repeated unresolved customer request',
+                LOW_CONFIDENCE: `low analysis confidence (${Math.round(analysis.confidence * 100)}%) with friction`,
+                NEGOTIATION_AUTHORITY: 'negotiation requiring human pricing or terms authority',
+                LONG_CHAT: 'long conversation with additional friction',
+        }
+        const english = language.toLowerCase().startsWith('en')
+        const dictionary = english ? en : fa
+        const reasons = codes
+                .map((code) => dictionary[code])
+                .filter((value): value is string => Boolean(value))
+        reasons.push(english
+                ? `buyer probability ${analysis.buyerProbability}%`
+                : `احتمال خرید ${analysis.buyerProbability}٪`)
+        return reasons.join('؛ ')
 }
 
 /**
- * Should this turn be escalated to a human?
- *
- * Three triggers, checked in order:
- *   1. The user typed one of the agent's handoff keywords.
- *   2. The conversation has dragged past LONG_CHAT_THRESHOLD messages — it's
- *      taking too long, which usually means the agent can't resolve it.
- *      Only fires once per conversation (status must still be OPEN/BOT_ACTIVE).
- *   3. The last 3 assistant replies were all fallbacks ("I don't know").
+ * Pure, testable policy. Conversation length alone is deliberately insufficient
+ * to transfer ownership, preventing routine discovery chats from over-handoff.
  */
+export function evaluateHandoffPolicy(input: HandoffPolicyInput): HandoffDecision {
+        const { analysis } = input
+        const codes: HandoffReasonCode[] = []
+        let score = 0
+        let hardTrigger = false
+        const add = (code: HandoffReasonCode, points: number, hard = false) => {
+                if (!codes.includes(code)) codes.push(code)
+                score += points
+                hardTrigger ||= hard
+        }
+
+        if (input.customKeyword) add('KEYWORD', 10, true)
+        if (analysis.operational.explicitHumanRequest) add('EXPLICIT_REQUEST', 10, true)
+        if (analysis.riskFlags.length > 0) add('HIGH_RISK', 10, true)
+        if (analysis.operational.severeDistress) add('DISTRESS', 8, true)
+        if (analysis.operational.consecutiveUnanswered >= 3) add('UNANSWERED', 8, true)
+
+        if (!hardTrigger) {
+                if (analysis.operational.consecutiveUnanswered === 2) add('UNANSWERED', 3)
+                if (analysis.operational.repeatedRequest) add('REPEATED_REQUEST', 3)
+                // Ordinary dissatisfaction contributes friction but is not labeled
+                // as urgent distress; only the severe lexicon above earns that code.
+                if (analysis.sentiment === 'NEGATIVE') score += 2
+                if (analysis.operational.requiresHumanAuthority) add('NEGOTIATION_AUTHORITY', 5)
+                if (analysis.urgency === 'HIGH') score += 1
+
+                const friction =
+                        analysis.operational.repeatedRequest ||
+                        analysis.operational.consecutiveUnanswered > 0 ||
+                        analysis.sentiment === 'NEGATIVE' ||
+                        analysis.operational.requiresHumanAuthority
+
+                if (
+                        analysis.confidence < 0.42 &&
+                        friction &&
+                        !analysis.operational.latestUserIsGreetingOrInfoOnly &&
+                        input.messageCount >= 4
+                ) add('LOW_CONFIDENCE', 1)
+
+                if (
+                        input.messageCount >= LONG_CHAT_THRESHOLD &&
+                        friction &&
+                        !analysis.operational.latestUserIsGreetingOrInfoOnly
+                ) add('LONG_CHAT', 1)
+        }
+
+        const threshold = handoffThreshold(input.businessType)
+        const recommended = hardTrigger || score >= threshold
+        const priorityOrder: HandoffReasonCode[] = [
+                'EXPLICIT_REQUEST',
+                'HIGH_RISK',
+                'DISTRESS',
+                'UNANSWERED',
+                'KEYWORD',
+                'REPEATED_REQUEST',
+                'NEGOTIATION_AUTHORITY',
+                'LOW_CONFIDENCE',
+                'LONG_CHAT',
+        ]
+        const code = recommended
+                ? priorityOrder.find((candidate) => codes.includes(candidate)) ?? 'LONG_CHAT'
+                : ''
+        const priority: HandoffDecision['priority'] =
+                codes.includes('HIGH_RISK') || codes.includes('DISTRESS')
+                        ? 'urgent'
+                        : hardTrigger || score >= threshold + 2
+                                ? 'high'
+                                : 'normal'
+
+        return {
+                handoff: recommended,
+                recommended,
+                code,
+                reasonCodes: recommended ? codes : [],
+                reason: recommended
+                        ? formatReason(codes, analysis, input.language ?? 'fa', input.customKeyword)
+                        : '',
+                score,
+                priority,
+                salesInsight: analysis,
+        }
+}
+
 export async function shouldHandoff(
         agent: ChatAgent,
         conversationId: string,
         userMessage: string,
 ): Promise<HandoffDecision> {
-        if (!agent.handoffEnabled) return { handoff: false, code: '', reason: '' }
+        const normalizedMessage = normalizeSalesText(userMessage)
+        const customKeyword = agent.handoffKeywords.find((keyword) => {
+                const normalizedKeyword = normalizeSalesText(keyword)
+                return normalizedKeyword.length > 0 && normalizedMessage.includes(normalizedKeyword)
+        }) ?? null
 
-        // 1. Keyword-triggered handoff.
-        if (agent.handoffKeywords.length > 0) {
-                const lower = userMessage.toLowerCase()
-                const hit = agent.handoffKeywords.find((kw) =>
-                        lower.includes(kw.toLowerCase()),
-                )
-                if (hit) {
-                        return {
-                                handoff: true,
-                                code: 'KEYWORD',
-                                reason: `کلمه کلیدی: ${hit}`,
-                        }
-                }
+        let context: Awaited<ReturnType<typeof loadSalesConversationContext>> = null
+        try {
+                context = await loadSalesConversationContext(conversationId)
+        } catch (error) {
+                // Insight availability must never take down the customer-facing AI.
+                console.error('[handoff] sales context load failed:', error)
         }
 
-        // 2. Long-chat escalation: if total message count exceeds threshold,
-        //    the conversation is taking too long — likely the agent can't
-        //    resolve it. Only triggers once (status still OPEN/BOT_ACTIVE) so
-        //    a conversation already handed off doesn't re-trigger.
-        const conv = await prisma.conversation.findUnique({
-                where: { id: conversationId },
-                select: { messageCount: true, status: true, workspaceId: true },
+        const messages = context
+                ? [...context.messages]
+                : [{ role: 'USER' as const, content: userMessage }]
+        const lastUser = [...messages].reverse().find((message) => message.role === 'USER')
+        if (!lastUser || normalizeSalesText(lastUser.content) !== normalizedMessage) {
+                messages.push({ role: 'USER', content: userMessage })
+        }
+
+        const analysis = analyzeSalesConversation({
+                messages,
+                businessType: context?.businessType ?? 'CUSTOM',
+                language: context?.language ?? agent.language,
+                roleTemplate: context?.roleTemplate ?? agent.roleTemplate,
         })
-        if (
-                conv &&
-                conv.status !== 'HANDED_OFF' &&
-                conv.messageCount >= LONG_CHAT_THRESHOLD
-        ) {
-                // Bell notification only — no SMS (SMS is reserved for OTP only).
-                void notifyWorkspace({
-                        workspaceId: conv.workspaceId,
-                        type: 'HANDOFF',
-                        title: '⏳ مکالمه طولانی شد — نیاز به اپراتور',
-                        body: `این گفتگو ${conv.messageCount} پیام شده و احتمالاً ایجنت نمی‌تواند آن را حل کند. به اپراتور منتقل شد.`,
-                        link: `/conversations/${conversationId}`,
-                })
-                return {
-                        handoff: true,
-                        code: 'LONG_CHAT',
-                        reason: `مکالمه طولانی (${conv.messageCount} پیام، آستانه ${LONG_CHAT_THRESHOLD})`,
-                }
-        }
-
-        // 3. Consecutive unanswered replies: the *latest* 3 assistant replies
-        //    were all fallbacks — a lifetime count would keep handing off forever.
-        const recent = await prisma.message.findMany({
-                where: { conversationId, role: 'ASSISTANT' },
-                orderBy: { createdAt: 'desc' },
-                take: 3,
-                select: { unanswered: true },
+        const candidate = evaluateHandoffPolicy({
+                analysis,
+                businessType: context?.businessType ?? 'CUSTOM',
+                language: context?.language ?? agent.language,
+                messageCount: Math.max(context?.messageCount ?? 0, messages.length),
+                customKeyword,
         })
-        if (recent.length === 3 && recent.every((m) => m.unanswered)) {
-                return {
-                        handoff: true,
-                        code: 'UNANSWERED',
-                        reason: 'پاسخ‌های متوالی ناموفق (۳ بار)',
-                }
+
+        if (context) {
+                await persistConversationSalesInsight(context, analysis, {
+                        handoffRecommended: candidate.recommended,
+                        handoffReasonCodes: candidate.reasonCodes,
+                }).catch((error) => console.error('[handoff] sales insight persist failed:', error))
         }
 
-        return { handoff: false, code: '', reason: '' }
+        return {
+                ...candidate,
+                // Owners retain the explicit agent-level master switch; inboxes can
+                // still surface the persisted recommendation for manual triage.
+                handoff: agent.handoffEnabled && candidate.recommended,
+        }
 }
 
-/**
- * Pick the text shown to the customer when a handoff fires. For long-chat we
- * use a dedicated "this took too long" message so the customer understands
- * why they're being moved; otherwise we fall back to the agent's generic
- * handoffMessage.
- */
-export function handoffReplyText(
-        decision: HandoffDecision,
-        agent: ChatAgent,
-): string {
-        if (decision.code === 'LONG_CHAT') {
-                return (
-                        agent.handoffMessage ||
-                        'این گفتگو کمی طولانی شده؛ برای اینکه سریع‌تر و دقیق‌تر کمکتان کنم، شما را به یک کارشناس متصل می‌کنم. لطفاً چند لحظه صبر کنید. 👨‍💼'
-                )
+export function handoffReplyText(decision: HandoffDecision, agent: ChatAgent): string {
+        if (agent.handoffMessage) return agent.handoffMessage
+        const english = agent.language.toLowerCase().startsWith('en')
+        if (decision.code === 'EXPLICIT_REQUEST') {
+                return english
+                        ? 'Of course. I’ll transfer this conversation with a summary to a human specialist, so you won’t need to repeat the details.'
+                        : 'حتماً؛ گفتگو را همراه با خلاصه همین صحبت‌ها به یک کارشناس منتقل می‌کنم تا لازم نباشد اطلاعات را دوباره توضیح دهید.'
         }
-        return agent.handoffMessage || 'در حال اتصال به پشتیبانی انسانی...'
+        if (decision.code === 'HIGH_RISK' || decision.code === 'DISTRESS') {
+                return english
+                        ? 'To have this handled carefully and promptly, I’m transferring the conversation with a complete summary to a human specialist now.'
+                        : 'برای اینکه موضوع شما دقیق‌تر و سریع‌تر پیگیری شود، همین حالا گفتگو را با خلاصه کامل به یک کارشناس منتقل می‌کنم.'
+        }
+        if (decision.code === 'UNANSWERED' || decision.code === 'REPEATED_REQUEST') {
+                return english
+                        ? 'I’m sorry the earlier answers did not resolve this. I’ll transfer the conversation and its history to a specialist so you do not have to repeat yourself.'
+                        : 'متأسفم که پاسخ کافی نگرفتید. گفتگو و سابقه پاسخ‌ها را به یک کارشناس منتقل می‌کنم تا بدون تکرار توضیحات پیگیری شود.'
+        }
+        if (decision.code === 'NEGOTIATION_AUTHORITY') {
+                return english
+                        ? 'For an accurate review of pricing or custom terms, I’ll transfer the conversation and its details to the right specialist.'
+                        : 'برای بررسی دقیق قیمت یا شرایط اختصاصی، گفتگو را همراه با جزئیات به کارشناس مربوط منتقل می‌کنم.'
+        }
+        return english
+                ? 'For a more precise follow-up, I’ll connect you to a human specialist with a summary of this conversation.'
+                : 'برای ادامه دقیق‌تر گفتگو، شما را همراه با خلاصه صحبت‌ها به یک کارشناس انسانی متصل می‌کنم.'
 }
 
-/** Notify the workspace owner that a conversation was handed off to a human. */
 export async function notifyHandoff(params: {
         workspaceId: string
         conversationId: string

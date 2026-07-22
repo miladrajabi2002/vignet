@@ -39,6 +39,7 @@ import {
         type ConversationReceipt,
 } from '@/lib/conversations/activity'
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
+import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -117,6 +118,15 @@ function buildSystemPrompt(params: {
         return base
 }
 
+function appendSalesGuidance(
+        messages: ReturnType<typeof buildMessages>,
+        guidance: string,
+): void {
+        const system = messages.find((item) => item.role === 'system')
+        if (!system) return
+        system.content = `${system.content ?? ''}\n\n${guidance}`
+}
+
 /**
  * Shared per-turn setup for both engines: plan gate, key lookup, conversation
  * resolution, identity extraction, prompt/history/RAG assembly and persisting
@@ -170,6 +180,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                         }),
                 ])
                 bumpContactActivity(conversationId)
+                // Human ownership stays sticky, but new customer messages still
+                // refresh the sales/urgency snapshot for operator triage.
+                await refreshConversationSalesInsight(conversationId).catch((error) =>
+                        console.error('[chat-engine] operator-owned sales insight refresh failed:', error),
+                )
                 return { error: 'OPERATOR_ACTIVE', conversationId }
         }
 
@@ -469,6 +484,12 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 controller.close()
                                 return
                         }
+                        if (!handoffCheck.recommended && handoffCheck.salesInsight) {
+                                appendSalesGuidance(
+                                        messages,
+                                        salesGuidanceForModel(handoffCheck.salesInsight, agent.language),
+                                )
+                        }
 
                         let full = ''
                         let usage: ChatUsage | null = null
@@ -621,6 +642,12 @@ export async function generateReply(
                         replyText: reply,
                 })
                 return { conversationId, reply }
+        }
+        if (!handoffCheck.recommended && handoffCheck.salesInsight) {
+                appendSalesGuidance(
+                        messages,
+                        salesGuidanceForModel(handoffCheck.salesInsight, agent.language),
+                )
         }
 
         // Channel typing indicators must not run before this point: prepareTurn

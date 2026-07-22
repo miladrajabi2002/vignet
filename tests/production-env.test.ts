@@ -61,4 +61,13 @@ describe('production environment gate', () => {
     expect(report.errors).toEqual([])
     expect(report.warnings).toContain('NOWPayments: partial configuration; missing NOWPAYMENTS_IPN_SECRET')
   })
+
+  it('rejects an invalid commercial SMS recipient instead of silently dropping alerts', () => {
+    const { errors } = validateProductionEnv({
+      ...validEnv,
+      ADMIN_COMMERCIAL_SMS_PHONE: 'not-a-phone',
+    })
+
+    expect(errors).toContain('ADMIN_COMMERCIAL_SMS_PHONE: invalid Iranian mobile number')
+  })
 })

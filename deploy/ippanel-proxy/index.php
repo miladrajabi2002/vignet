@@ -23,6 +23,8 @@ const PROXY_SECRET = 'PUT_A_LONG_RANDOM_SECRET_HERE';
 const IPPANEL_SEND_URL = 'https://edge.ippanel.com/v1/api/send';
 const ALLOWED_SENDING_TYPES = ['pattern', 'webservice'];
 
+require_once __DIR__ . '/payload.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 function respond(int $status, array $body)
@@ -44,12 +46,7 @@ if (PROXY_SECRET === '' || PROXY_SECRET === 'PUT_A_LONG_RANDOM_SECRET_HERE' || !
 $raw = file_get_contents('php://input');
 $payload = json_decode((string) $raw, true);
 
-if (!is_array($payload)
-    || empty($payload['sending_type'])
-    || !in_array($payload['sending_type'], ALLOWED_SENDING_TYPES, true)
-    || empty($payload['recipients'])
-    || !is_array($payload['recipients'])
-) {
+if (!is_valid_ippanel_payload($payload, ALLOWED_SENDING_TYPES)) {
     respond(400, ['error' => 'invalid_payload']);
 }
 

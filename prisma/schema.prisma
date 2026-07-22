@@ -43,28 +43,30 @@ model Workspace {
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
 
-  owner             User?
-  agents            Agent[]
-  contacts          Contact[]
-  conversations     Conversation[]
-  subscriptions     Subscription[]
-  usageLogs         UsageLog[]
-  products          Product[]
-  productCategories ProductCategory[]
-  notifications     Notification[]
-  blogPosts         BlogPost[]
-  blogCategories    BlogCategory[]
-  operatorChannels  OperatorChannel[]
-  storeIntegrations StoreIntegration[]
-  handoffAlerts     HandoffAlert[]
-  payments          Payment[]
-  walletEntries     WalletLedger[]
-  creditAlertStates CreditAlertState[]
-  chatLinks         ChatLink[]
-  vigentoRuns       VigentoRun[]
-  campaigns         Campaign[]
-  services          Service[]
-  appointments      Appointment[]
+  owner                    User?
+  agents                   Agent[]
+  contacts                 Contact[]
+  conversations            Conversation[]
+  subscriptions            Subscription[]
+  usageLogs                UsageLog[]
+  products                 Product[]
+  productCategories        ProductCategory[]
+  notifications            Notification[]
+  blogPosts                BlogPost[]
+  blogCategories           BlogCategory[]
+  operatorChannels         OperatorChannel[]
+  storeIntegrations        StoreIntegration[]
+  handoffAlerts            HandoffAlert[]
+  salesInsights            ConversationSalesInsight[]
+  payments                 Payment[]
+  adminCommercialSmsOutbox AdminCommercialSmsOutbox[]
+  walletEntries            WalletLedger[]
+  creditAlertStates        CreditAlertState[]
+  chatLinks                ChatLink[]
+  vigentoRuns              VigentoRun[]
+  campaigns                Campaign[]
+  services                 Service[]
+  appointments             Appointment[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -451,11 +453,12 @@ model Conversation {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
-  agent         Agent          @relation(fields: [agentId], references: [id])
-  contact       Contact?       @relation(fields: [contactId], references: [id])
+  workspace     Workspace                 @relation(fields: [workspaceId], references: [id])
+  agent         Agent                     @relation(fields: [agentId], references: [id])
+  contact       Contact?                  @relation(fields: [contactId], references: [id])
   messages      Message[]
   handoffAlerts HandoffAlert[]
+  salesInsight  ConversationSalesInsight?
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -472,6 +475,83 @@ enum ConvStatus {
 }
 
 // ─── MESSAGE ──────────────────────────────────────────────────────
+// Latest explainable, behaviour-based sales reading for a conversation.
+// This is deliberately not a psychological/personality profile: it records
+// observable buying signals, objections, urgency and recommended next steps.
+model ConversationSalesInsight {
+  id                   String              @id @default(cuid())
+  workspaceId          String
+  conversationId       String              @unique
+  leadType             SalesLeadType       @default(UNCLEAR)
+  stage                SalesIntentStage    @default(UNKNOWN)
+  buyerReadiness       SalesBuyerReadiness @default(COLD)
+  buyerProbability     Int                 @default(0)
+  sentiment            SalesSentiment      @default(NEUTRAL)
+  urgency              SalesUrgency        @default(LOW)
+  confidence           Float               @default(0)
+  objections           String[]            @default([])
+  riskFlags            String[]            @default([])
+  signalCodes          String[]            @default([])
+  // Bounded evidence snippets only (never a transcript dump).
+  evidence             Json?
+  recommendedAction    String?             @db.Text
+  explanation          String?             @db.Text
+  handoffRecommended   Boolean             @default(false)
+  handoffReasonCodes   String[]            @default([])
+  modelVersion         String              @default("sales-heuristic-v1")
+  analyzedMessageCount Int                 @default(0)
+  analyzedAt           DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, buyerProbability])
+  @@index([workspaceId, stage])
+  @@index([workspaceId, handoffRecommended])
+  @@index([workspaceId, updatedAt])
+}
+
+enum SalesLeadType {
+  UNCLEAR
+  INFORMATION_SEEKER
+  BUYER
+  EXISTING_CUSTOMER
+  SUPPORT_SEEKER
+}
+
+enum SalesIntentStage {
+  UNKNOWN
+  DISCOVERY
+  INFORMATION_GATHERING
+  CONSIDERATION
+  NEGOTIATION
+  PURCHASE_INTENT
+  POST_PURCHASE
+}
+
+enum SalesBuyerReadiness {
+  COLD
+  EXPLORING
+  WARM
+  HOT
+  CUSTOMER
+}
+
+enum SalesSentiment {
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+  MIXED
+  DISTRESSED
+}
+
+enum SalesUrgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model Message {
   id             String      @id @default(cuid())
   conversationId String
@@ -589,11 +669,32 @@ model Payment {
   createdAt       DateTime       @default(now())
   paidAt          DateTime?
 
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  walletEntry WalletLedger?
+  workspace          Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  walletEntry        WalletLedger?
+  adminCommercialSms AdminCommercialSmsOutbox?
 
   @@index([workspaceId, createdAt])
   @@index([status])
+}
+
+model AdminCommercialSmsOutbox {
+  id            String    @id @default(cuid())
+  paymentId     String    @unique
+  workspaceId   String
+  kind          String
+  attemptCount  Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  claimedAt     DateTime?
+  sentAt        DateTime?
+  lastError     String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  payment   Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt, nextAttemptAt])
+  @@index([workspaceId, createdAt])
 }
 
 enum PaymentKind {

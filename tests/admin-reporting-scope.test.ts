@@ -84,7 +84,7 @@ describe('admin reporting scope', () => {
     const userDetail = await readFile(path.join(process.cwd(), 'app/admin/(dash)/users/[userId]/page.tsx'), 'utf8')
 
     expect(schema).not.toContain('enum UserRole')
-    expect(schema).toContain('owner             User?')
+    expect(schema).toMatch(/\bowner\s+User\?/)
     expect(schema).toContain('@@unique([workspaceId])')
     expect(schema).toContain('excludeFromAdminReports')
     expect(migration).toContain('ALTER TABLE "User" DROP COLUMN "role"')

@@ -14,6 +14,7 @@ import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { contactLiveVersion } from '@/lib/crm/live-version'
 import { contactPhoneLookupVariants } from '@/lib/phone'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
 
 const PAGE_SIZE = 100
 
@@ -135,13 +136,31 @@ export default async function ContactsPage(
     const lastActivity = c.lastActivityAt ?? c.updatedAt
     // Pick the first available avatar across channels (Instagram first since
     // it has the most useful profile pictures).
-    const avatarUrl =
-      c.instagramAvatarUrl ??
-      c.telegramAvatarUrl ??
-      c.baleAvatarUrl ??
-      c.rubikaAvatarUrl ??
-      c.whatsappAvatarUrl ??
-      null
+    const avatar = c.instagramId
+      ? { rawUrl: c.instagramAvatarUrl, channel: 'INSTAGRAM' as const }
+      : c.telegramAvatarUrl
+        ? { rawUrl: c.telegramAvatarUrl, channel: 'TELEGRAM' as const }
+        : c.baleAvatarUrl
+          ? { rawUrl: c.baleAvatarUrl, channel: 'BALE' as const }
+          : c.rubikaAvatarUrl
+            ? { rawUrl: c.rubikaAvatarUrl, channel: 'RUBIKA' as const }
+            : c.whatsappAvatarUrl
+              ? { rawUrl: c.whatsappAvatarUrl, channel: 'WHATSAPP' as const }
+              : null
+    const avatarUrl = avatar
+      ? contactAvatarSrc({
+          contactId: c.id,
+          channel: avatar.channel,
+          rawUrl: avatar.rawUrl,
+        })
+      : null
+    const avatarFallbackUrl = c.instagramId
+      ? c.telegramAvatarUrl ??
+        c.baleAvatarUrl ??
+        c.rubikaAvatarUrl ??
+        c.whatsappAvatarUrl ??
+        null
+      : null
     // Per-channel usernames, keyed by ChannelType — only the non-null ones.
     const channelUsernames: Partial<Record<ChannelType, string | null>> = {}
     if (c.telegramUsername) channelUsernames.TELEGRAM = c.telegramUsername
@@ -159,6 +178,7 @@ export default async function ContactsPage(
       conversationCount: c._count.conversations,
       lastActivity: lastActivity.toISOString(),
       avatarUrl,
+      avatarFallbackUrl,
       channelUsernames,
       marketingOptIn: c.marketingOptIn,
     }

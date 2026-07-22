@@ -1,3 +1,5 @@
+import { normalizePhone } from '@/lib/phone'
+
 type Env = Record<string, string | undefined>
 
 export interface ProductionEnvReport {
@@ -112,6 +114,11 @@ export function validateProductionEnv(env: Env): ProductionEnvReport {
 
   const storeId = value(env, 'ZARINPAY_STORE_ID')
   if (storeId && !/^\d+$/.test(storeId)) errors.push('ZARINPAY_STORE_ID: must be an integer')
+
+  for (const key of ['ADMIN_OWNER_PHONE', 'ADMIN_COMMERCIAL_SMS_PHONE']) {
+    const phone = value(env, key)
+    if (phone && !normalizePhone(phone)) errors.push(`${key}: invalid Iranian mobile number`)
+  }
 
   const databaseUrl = value(env, 'DATABASE_URL')
   const directUrl = value(env, 'DIRECT_URL')

@@ -4,17 +4,21 @@ import { readUserToken, readIgUserId } from '@/lib/instagram/config'
 /**
  * Fetch the DM sender's profile (name, username, avatar).
  *
- * KEY INSIGHT (confirmed by Meta's docs + community reports):
+ * Meta's Instagram User Profile API accepts the Instagram-scoped sender ID
+ * from a messaging webhook after that user has consented by messaging the
+ * connected professional account. The returned `profile_pic` URL expires in a
+ * few days, so callers must be able to request it again.
+ *
+ * Instagram User Access Tokens
  * Instagram User Access Tokens (from "Instagram API with Instagram Login")
  * ONLY work on `graph.instagram.com`. Sending them to `graph.facebook.com`
  * returns 401 "Cannot parse access token" — the token is valid, just on the
  * wrong host. So we go DIRECTLY to graph.instagram.com and skip the 8 wasted
  * facebook.com attempts that the old code did.
  *
- * Note: graph.instagram.com can only fetch the CONNECTED account's profile,
- * not arbitrary users. For DM senders (other users), this may return limited
- * data. But it's the only host that accepts an IG User Token, so it's our
- * best (and only) option without a Page Access Token.
+ * The scoped ID must belong to a user who interacted with the same professional
+ * account represented by the token; blocked users or users without messaging
+ * consent are expected to return no profile.
  */
 export async function fetchInstagramSenderProfile(
 	channelConfig: Prisma.JsonValue,
@@ -51,6 +55,7 @@ export async function fetchInstagramSenderProfile(
 			console.log(`[ig-profile] → fields=${fields}`)
 			const res = await fetch(url, {
 				headers: { Authorization: `Bearer ${userToken}` },
+				signal: AbortSignal.timeout(7_000),
 			})
 			const bodyText = await res.text().catch(() => '')
 			if (!res.ok) {
@@ -88,9 +93,7 @@ export async function fetchInstagramSenderProfile(
 	}
 
 	console.warn(
-		`[ig-profile] sender=${senderId} → all graph.instagram.com attempts failed. ` +
-			`This is a known Meta limitation: IG User Tokens can only read the connected ` +
-			`account's profile. To fetch other users' profiles you need a Page Access Token.`,
+		`[ig-profile] sender=${senderId} → profile unavailable for this token or messaging consent`,
 	)
 	return null
 }

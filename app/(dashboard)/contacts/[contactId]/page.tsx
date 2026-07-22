@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations, getLocale } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
-import { User, Phone, MessageSquare } from 'lucide-react'
+import { Phone, MessageSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
@@ -10,6 +10,8 @@ import { ContactDetailEditor } from '@/components/crm/contact-detail'
 import { contactDisplayName } from '@/lib/crm/display'
 import { BackButton } from '@/components/dashboard/back-button'
 import { relativeTime } from '@/lib/format'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
 
 export default async function ContactDetailPage(
   props: {
@@ -63,13 +65,31 @@ export default async function ContactDetailPage(
 
   // Pick the first available avatar across channels (Instagram first since it
   // has the most useful profile pictures).
-  const avatarUrl =
-    contact.instagramAvatarUrl ??
-    contact.telegramAvatarUrl ??
-    contact.baleAvatarUrl ??
-    contact.rubikaAvatarUrl ??
-    contact.whatsappAvatarUrl ??
-    null
+  const primaryAvatar = contact.instagramId
+    ? { rawUrl: contact.instagramAvatarUrl, channel: 'INSTAGRAM' as const }
+    : contact.telegramAvatarUrl
+      ? { rawUrl: contact.telegramAvatarUrl, channel: 'TELEGRAM' as const }
+      : contact.baleAvatarUrl
+        ? { rawUrl: contact.baleAvatarUrl, channel: 'BALE' as const }
+        : contact.rubikaAvatarUrl
+          ? { rawUrl: contact.rubikaAvatarUrl, channel: 'RUBIKA' as const }
+          : contact.whatsappAvatarUrl
+            ? { rawUrl: contact.whatsappAvatarUrl, channel: 'WHATSAPP' as const }
+            : null
+  const avatarUrl = primaryAvatar
+    ? contactAvatarSrc({
+        contactId: contact.id,
+        channel: primaryAvatar.channel,
+        rawUrl: primaryAvatar.rawUrl,
+      })
+    : null
+  const avatarFallbackUrl = contact.instagramId
+    ? contact.telegramAvatarUrl ??
+      contact.baleAvatarUrl ??
+      contact.rubikaAvatarUrl ??
+      contact.whatsappAvatarUrl ??
+      null
+    : null
 
   // Build a list of per-channel identities (only channels the contact is
   // linked to) so the operator can see e.g. "Instagram @foo", "Telegram @bar"
@@ -124,22 +144,14 @@ export default async function ContactDetailPage(
           <BackButton href="/contacts" label={t('title')} />
         </div>
         <div className="flex items-center gap-4">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={who}
-              width={56}
-              height={56}
-              decoding="async"
-              referrerPolicy="no-referrer"
-              className="h-14 w-14 shrink-0 rounded-full border border-[var(--border-default)] object-cover"
-            />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
-              <User className="h-7 w-7" />
-            </div>
-          )}
+          <ContactAvatar
+            src={avatarUrl}
+            fallbackSrc={avatarFallbackUrl}
+            alt={who}
+            size="lg"
+            loading="eager"
+            className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
@@ -174,17 +186,15 @@ export default async function ContactDetailPage(
                 key={id.channel}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1.5"
               >
-                {id.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={id.avatarUrl}
+                {id.avatarUrl || id.channel === 'INSTAGRAM' ? (
+                  <ContactAvatar
+                    src={contactAvatarSrc({
+                      contactId: contact.id,
+                      channel: id.channel,
+                      rawUrl: id.avatarUrl,
+                    })}
                     alt={id.handle ?? id.channel}
-                    width={24}
-                    height={24}
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    className="h-6 w-6 rounded-full border border-[var(--border-default)] object-cover"
+                    size="xs"
                   />
                 ) : null}
                 <ChannelBadge type={id.channel} />

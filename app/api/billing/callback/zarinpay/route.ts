@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyZarinPayPayment } from '@/lib/billing/zarinpay'
 import { activateSubscriptionPayment } from '@/lib/billing/entitlements'
+import { captureAiCreditTopupPayment } from '@/lib/billing/credit-topups'
 import { isPaidPlan } from '@/lib/billing/plans'
 import type { Prisma } from '@prisma/client'
 import { readBoundedRequestBody } from '@/lib/security/request-body'
+import { captureError } from '@/lib/errors/capture'
 
 const MAX_CALLBACK_BYTES = 64 * 1024
 
@@ -80,15 +82,21 @@ async function handleCallback(req: Request, isPost: boolean) {
   if (payment.status === 'PAID') return to('success')
   if (payment.status !== 'PENDING') return to('failed')
 
-  const verify = await verifyZarinPayPayment(payment.authority).catch(() => null)
-  if (!verify?.success) {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'FAILED',
-        callbackPayload: (verify?.raw ?? null) as Prisma.InputJsonValue,
-      },
+  let verify
+  try {
+    verify = await verifyZarinPayPayment(payment.authority)
+  } catch (error) {
+    // A gateway/network outage is not evidence that the payment failed. Keep
+    // the row PENDING so refreshing the callback can verify it again.
+    captureError('billing:zarinpay-verify', error, {
+      workspaceId: payment.workspaceId,
+      metadata: { paymentId: payment.id },
     })
+    return to('failed')
+  }
+  if (!verify?.success) {
+    // The verify API can fail transiently (including non-2xx responses). Do not
+    // make an irreversible local transition until a verified response exists.
     return to('failed')
   }
 
@@ -99,41 +107,24 @@ async function handleCallback(req: Request, isPost: boolean) {
     Math.round(verify.amount) !== Math.round(payment.amount) ||
     (verify.orderId != null && verify.orderId !== payment.id)
   ) {
-    await prisma.payment.update({
-      where: { id: payment.id },
+    await prisma.payment.updateMany({
+      where: { id: payment.id, status: 'PENDING' },
       data: { status: 'FAILED', callbackPayload: verify.raw as Prisma.InputJsonValue },
     })
     return to('failed')
   }
 
   if (payment.kind === 'AI_CREDIT') {
-    await prisma.$transaction(async (tx) => {
-      const claimed = await tx.payment.updateMany({
-        where: { id: payment.id, status: 'PENDING' },
-        data: {
-          status: 'PAID',
-          paidAt: new Date(),
-          externalId: verify.paymentId,
-          callbackPayload: verify.raw as Prisma.InputJsonValue,
-        },
-      })
-      if (claimed.count !== 1) return
-
-      const workspace = await tx.workspace.update({
-        where: { id: payment.workspaceId },
-        data: { aiCreditBalanceIRR: { increment: Math.round(payment.amount) } },
-        select: { aiCreditBalanceIRR: true },
-      })
-      await tx.walletLedger.create({
-        data: {
-          workspaceId: payment.workspaceId,
-          paymentId: payment.id,
-          type: 'CREDIT_TOPUP',
-          amountIRR: Math.round(payment.amount),
-          balanceAfterIRR: workspace.aiCreditBalanceIRR,
-          note: 'ZarinPay AI credit top-up',
-        },
-      })
+    await captureAiCreditTopupPayment({
+      paymentId: payment.id,
+      workspaceId: payment.workspaceId,
+      amountIRR: Math.round(payment.amount),
+      paymentUpdate: {
+        status: 'PAID',
+        paidAt: new Date(),
+        externalId: verify.paymentId,
+        callbackPayload: verify.raw as Prisma.InputJsonValue,
+      },
     })
     return to('success')
   }
