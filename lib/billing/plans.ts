@@ -13,7 +13,7 @@ import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
  *   PLAN_PRICE_STARTER_IRR / PLAN_PRICE_PRO_IRR / PLAN_PRICE_BUSINESS_IRR
  *   PLAN_PRICE_STARTER_USD / PLAN_PRICE_PRO_USD / PLAN_PRICE_BUSINESS_USD
  *   PLAN_INCLUDED_CREDIT_STARTER_IRR / PLAN_INCLUDED_CREDIT_PRO_IRR / PLAN_INCLUDED_CREDIT_BUSINESS_IRR
- *   PLAN_LIMIT_TRIAL_AGENTS / PLAN_LIMIT_STARTER_AGENTS / PLAN_LIMIT_PRO_AGENTS / PLAN_LIMIT_BUSINESS_AGENTS
+ *   PLAN_LIMIT_TRIAL_CHANNELS / PLAN_LIMIT_STARTER_CHANNELS / PLAN_LIMIT_PRO_CHANNELS / PLAN_LIMIT_BUSINESS_CHANNELS
  */
 
 export interface PlanDef {
@@ -22,7 +22,8 @@ export interface PlanDef {
   priceIRR: number
   /** Monthly price in USD (NowPayments / crypto). 0 = free/trial. */
   priceUSD: number
-  maxAgents: number
+  /** Maximum active channel connections across the workspace. */
+  maxChannels: number
   /** Discount applied to fixed per-reply wallet prices (1000 = 10%). */
   replyDiscountBps: number
   /** Wallet credit granted once for each successful subscription payment. */
@@ -45,7 +46,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       plan: 'TRIAL',
       priceIRR: 0,
       priceUSD: 0,
-      maxAgents: envInt('PLAN_LIMIT_TRIAL_AGENTS', 1),
+      maxChannels: envInt('PLAN_LIMIT_TRIAL_CHANNELS', envInt('PLAN_LIMIT_TRIAL_AGENTS', 1)),
       replyDiscountBps: 0,
       includedCreditIRR: 0,
     },
@@ -53,7 +54,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       plan: 'STARTER',
       priceIRR: envInt('PLAN_PRICE_STARTER_IRR', 8_900_000),
       priceUSD: envInt('PLAN_PRICE_STARTER_USD', 9),
-      maxAgents: envInt('PLAN_LIMIT_STARTER_AGENTS', 2),
+      maxChannels: envInt('PLAN_LIMIT_STARTER_CHANNELS', envInt('PLAN_LIMIT_STARTER_AGENTS', 2)),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_STARTER_BPS', 0),
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
     },
@@ -61,7 +62,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       plan: 'PRO',
       priceIRR: envInt('PLAN_PRICE_PRO_IRR', 24_900_000),
       priceUSD: envInt('PLAN_PRICE_PRO_USD', 25),
-      maxAgents: envInt('PLAN_LIMIT_PRO_AGENTS', 5),
+      maxChannels: envInt('PLAN_LIMIT_PRO_CHANNELS', envInt('PLAN_LIMIT_PRO_AGENTS', 5)),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_PRO_BPS', 1_000),
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
     },
@@ -69,7 +70,7 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       plan: 'BUSINESS',
       priceIRR: envInt('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
       priceUSD: envInt('PLAN_PRICE_BUSINESS_USD', 59),
-      maxAgents: envInt('PLAN_LIMIT_BUSINESS_AGENTS', 20),
+      maxChannels: envInt('PLAN_LIMIT_BUSINESS_CHANNELS', envInt('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
       replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_BUSINESS_BPS', 2_000),
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
     },

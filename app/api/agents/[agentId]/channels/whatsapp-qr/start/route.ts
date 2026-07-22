@@ -9,6 +9,7 @@ import {
   bridgeHeaders,
   newBridgeSessionId,
 } from '@/lib/whatsapp/qr-config'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,15 @@ export async function POST(req: Request, props: Params) {
     select: { id: true, workspaceId: true },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type: 'WHATSAPP',
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
+  }
 
   const body = (await req.json().catch(() => ({}))) as {
     phone?: string
@@ -116,6 +126,15 @@ export async function PUT(req: Request, props: Params) {
     select: { id: true, workspaceId: true },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type: 'WHATSAPP',
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
+  }
 
   const body = (await req.json().catch(() => ({}))) as { sessionId?: string }
   if (!body.sessionId || !/^[A-Za-z0-9_-]{4,64}$/.test(body.sessionId)) {

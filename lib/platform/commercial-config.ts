@@ -5,7 +5,7 @@ import type { ModelAlias } from '@/lib/ai/models'
 export type ManagedPlanConfig = {
   priceIRR: number
   priceUSD: number
-  maxAgents: number
+  maxChannels: number
   replyDiscountBps: number
   includedCreditIRR: number
 }
@@ -58,28 +58,28 @@ function fallbackConfig(): PlatformCommercialConfig {
       TRIAL: {
         priceIRR: 0,
         priceUSD: 0,
-        maxAgents: positiveEnv('PLAN_LIMIT_TRIAL_AGENTS', 1),
+        maxChannels: positiveEnv('PLAN_LIMIT_TRIAL_CHANNELS', positiveEnv('PLAN_LIMIT_TRIAL_AGENTS', 1)),
         replyDiscountBps: 0,
         includedCreditIRR: 0,
       },
       STARTER: {
         priceIRR: positiveEnv('PLAN_PRICE_STARTER_IRR', 8_900_000),
         priceUSD: positiveEnv('PLAN_PRICE_STARTER_USD', 9),
-        maxAgents: positiveEnv('PLAN_LIMIT_STARTER_AGENTS', 2),
+        maxChannels: positiveEnv('PLAN_LIMIT_STARTER_CHANNELS', positiveEnv('PLAN_LIMIT_STARTER_AGENTS', 2)),
         replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_STARTER_BPS', 0),
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
       },
       PRO: {
         priceIRR: positiveEnv('PLAN_PRICE_PRO_IRR', 24_900_000),
         priceUSD: positiveEnv('PLAN_PRICE_PRO_USD', 25),
-        maxAgents: positiveEnv('PLAN_LIMIT_PRO_AGENTS', 5),
+        maxChannels: positiveEnv('PLAN_LIMIT_PRO_CHANNELS', positiveEnv('PLAN_LIMIT_PRO_AGENTS', 5)),
         replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_PRO_BPS', 1_000),
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
       },
       BUSINESS: {
         priceIRR: positiveEnv('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
         priceUSD: positiveEnv('PLAN_PRICE_BUSINESS_USD', 59),
-        maxAgents: positiveEnv('PLAN_LIMIT_BUSINESS_AGENTS', 20),
+        maxChannels: positiveEnv('PLAN_LIMIT_BUSINESS_CHANNELS', positiveEnv('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
         replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_BUSINESS_BPS', 2_000),
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
       },
@@ -124,7 +124,9 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
       return [plan, {
         priceIRR: plan === 'TRIAL' ? 0 : safePositive(stored.priceIRR, base.priceIRR),
         priceUSD: plan === 'TRIAL' ? 0 : safePositive(stored.priceUSD, base.priceUSD),
-        maxAgents: safePositive(stored.maxAgents, base.maxAgents),
+        // Read the former maxAgents key during rollout so existing DB-backed
+        // admin settings keep their value until the next save writes maxChannels.
+        maxChannels: safePositive(stored.maxChannels ?? stored.maxAgents, base.maxChannels),
         replyDiscountBps: plan === 'TRIAL' ? 0 : Math.min(9_000, safeNonNegative(stored.replyDiscountBps, base.replyDiscountBps)),
         includedCreditIRR: plan === 'TRIAL' ? 0 : safeNonNegative(stored.includedCreditIRR, base.includedCreditIRR),
       }]

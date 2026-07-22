@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { invalidateWidgetConfig } from '@/lib/widget/cache'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -54,6 +55,15 @@ export async function POST(req: Request, props: Params) {
     if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
     const config = (parsed.data.config ?? {}) as Prisma.InputJsonValue
+
+    const gate = await checkChannelConnectAllowed(user.workspaceId, {
+      kind: 'AGENT_CHANNEL',
+      agentId: params.agentId,
+      type: parsed.data.type,
+    })
+    if (!gate.allowed) {
+      return NextResponse.json({ error: gate.reason }, { status: 402 })
+    }
 
     const channel = await prisma.agentChannel.upsert({
 		where: { agentId_type: { agentId: params.agentId, type: parsed.data.type } },

@@ -67,6 +67,7 @@ export function WebWidgetChannel({
         const [showSettings, setShowSettings] = useState(false)
         const [saving, setSaving] = useState(false)
         const [saved, setSaved] = useState(false)
+        const [error, setError] = useState<string | null>(null)
 
         const initial = normalizeWidgetSettings(config)
         const [settings, setSettings] = useState<WidgetSettings>(initial)
@@ -81,12 +82,18 @@ export function WebWidgetChannel({
 
         async function enable() {
                 setBusy(true)
-                await fetch(`/api/agents/${agentId}/channels`, {
+                setError(null)
+                const res = await fetch(`/api/agents/${agentId}/channels`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ type: 'WEB_WIDGET' }),
                 })
                 setBusy(false)
+                if (!res.ok) {
+                        const data = await res.json().catch(() => ({}))
+                        setError(data.error === 'CHANNEL_LIMIT' ? t('channelLimitError') : t('connectError'))
+                        return
+                }
                 router.refresh()
         }
 
@@ -179,6 +186,12 @@ export function WebWidgetChannel({
                                         </button>
                                 )}
                         </div>
+
+                        {error && (
+                                <p role="alert" className="mt-3 text-sm leading-6 text-danger">
+                                        {error}
+                                </p>
+                        )}
 
                         {enabled && detailsOpen && (
                                 <div id="web-widget-details" className="mt-4 space-y-4">

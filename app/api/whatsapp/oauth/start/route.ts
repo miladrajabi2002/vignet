@@ -7,6 +7,7 @@ import {
   type WhatsappOAuthState,
 } from '@/lib/whatsapp/oauth'
 import { createOAuthState } from '@/lib/security/oauth-state'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,6 +48,15 @@ export async function POST(req: Request) {
   })
   if (!agent) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+  }
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type: 'WHATSAPP',
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
   }
 
   const nonce = crypto.randomUUID()

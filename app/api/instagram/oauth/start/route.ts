@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { buildInstagramAuthUrl, signState, type OAuthState } from '@/lib/instagram/oauth'
 import { createOAuthState } from '@/lib/security/oauth-state'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +33,15 @@ export async function POST(req: Request) {
     select: { id: true },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type: 'INSTAGRAM',
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
+  }
 
   const nonce = crypto.randomUUID()
   const state: OAuthState = {

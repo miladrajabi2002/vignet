@@ -257,11 +257,15 @@ export default async function BillingPage(
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                    {t('featAgents', { count: nf.format(def.maxAgents) })}
+                    {t('featChannelLimit', { count: nf.format(def.maxChannels) })}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {t('featChannels')}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                    {t('featUnlimitedAgents')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />

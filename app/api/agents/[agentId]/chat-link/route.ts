@@ -8,6 +8,7 @@ import {
 	normalizeSlug,
 	chatLinkUrl,
 } from '@/lib/chat-link/config'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -72,6 +73,15 @@ export async function PUT(req: Request, props: Params) {
 
 	const settings = normalizeChatLinkSettings(parsed.data.settings)
 	const enabled = parsed.data.enabled ?? true
+	if (enabled) {
+		const gate = await checkChannelConnectAllowed(user.workspaceId, {
+			kind: 'CHAT_LINK',
+			agentId: params.agentId,
+		})
+		if (!gate.allowed) {
+			return NextResponse.json({ error: gate.reason }, { status: 402 })
+		}
+	}
 
 	const link = await prisma.chatLink.upsert({
 		where: { agentId: params.agentId },

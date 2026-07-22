@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentCreateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
-import { checkAgentCreateAllowed } from '@/lib/billing/entitlements'
+import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 
 export async function GET() {
@@ -24,9 +24,11 @@ export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  // Plan gate: agent count is a per-plan limit.
-  if (!(await checkAgentCreateAllowed(user.workspaceId))) {
-    return NextResponse.json({ error: 'PLAN_LIMIT' }, { status: 402 })
+  // Agent count is intentionally not a plan dimension. Plans limit active
+  // channel connections; creating/editing agents only requires active access.
+  const access = await checkWorkspaceActive(user.workspaceId)
+  if (!access.allowed) {
+    return NextResponse.json({ error: access.reason }, { status: 402 })
   }
 
   const json = await req.json().catch(() => null)

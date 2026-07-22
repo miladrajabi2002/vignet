@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { buildMessengerConfig } from '@/lib/channels/config'
 import { getBotInfo, setWebhook, MESSENGER_TYPES } from '@/lib/channels/registry'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -46,6 +47,15 @@ export async function POST(req: Request, props: Params) {
   if (!parsed.success) return NextResponse.json({ error: 'INVALID' }, { status: 400 })
 
   const { type, botToken } = parsed.data
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type,
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
+  }
 
   // Verify the bot token with the platform before storing it.
   const info = await getBotInfo(type, botToken)

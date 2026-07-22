@@ -160,8 +160,8 @@ export const DOCS: DocPage[] = [
                                 type: 'list',
                                 items: [
                                         {
-                                                fa: 'اشتراک ماهانه، امکانات پلتفرم، تعداد ایجنت‌ها، کانال‌ها و ظرفیت سرویس را پوشش می‌دهد.',
-                                                en: 'The monthly subscription covers platform features, agent limits, channels, and service capacity.',
+                                                fa: 'اشتراک ماهانه، امکانات پلتفرم، تعداد اتصال‌های کانال و ظرفیت سرویس را پوشش می‌دهد؛ تعداد ایجنت محدود نیست.',
+                                                en: 'The monthly subscription covers platform features, channel connection limits, and service capacity; agent count is not limited.',
                                         },
                                         {
                                                 fa: 'اعتبار پاسخ، موجودی پیش‌پرداخت برای تولید پاسخ‌های هوش مصنوعی است؛ پلن مستقل یا بستهٔ پیام ماهانه نیست.',

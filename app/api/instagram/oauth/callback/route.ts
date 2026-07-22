@@ -17,6 +17,7 @@ import {
 } from '@/lib/instagram/config'
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,6 +115,18 @@ export async function GET(req: Request) {
   if (!code) {
     return NextResponse.redirect(
       new URL(`${channelsPath(state.agentId)}?ig_error=state`, base),
+      { status: 303 },
+    )
+  }
+
+  const gate = await checkChannelConnectAllowed(state.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: state.agentId,
+    type: 'INSTAGRAM',
+  })
+  if (!gate.allowed) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?ig_error=${gate.reason.toLowerCase()}`, base),
       { status: 303 },
     )
   }

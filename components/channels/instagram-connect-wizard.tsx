@@ -135,6 +135,8 @@ export function InstagramConnectFlow({
           setError('ابتدا وارد شوید.')
         } else if (data.error === 'NOT_FOUND') {
           setError('این ایجنت پیدا نشد.')
+        } else if (data.error === 'CHANNEL_LIMIT') {
+          setError('سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.')
         } else if (res.status === 500) {
           setError(
             'خطای سرور هنگام ساخت URL اتصال. احتمالاً INSTAGRAM_APP_ID یا INSTAGRAM_APP_SECRET در .env تنظیم نشده. ' +

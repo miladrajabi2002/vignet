@@ -330,7 +330,13 @@ export function MessengerChannel({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data.error === 'INVALID_TOKEN' ? t('invalidToken') : t('connectError'))
+        setError(
+          data.error === 'INVALID_TOKEN'
+            ? t('invalidToken')
+            : data.error === 'CHANNEL_LIMIT'
+              ? t('channelLimitError')
+              : t('connectError'),
+        )
         return
       }
       if (data.webhookSet === false) setError(t('webhookWarning'))

@@ -17,6 +17,7 @@ import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
@@ -128,7 +129,7 @@ export default async function AdminUserDetailPage(
   const ws = user.workspace
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [conversations, payments, usage, convSpark, paySpark, journeySignals] = await Promise.all([
+  const [conversations, payments, usage, activeChannelCount, convSpark, paySpark, journeySignals] = await Promise.all([
     prisma.conversation.findMany({
       where: { workspaceId: user.workspaceId },
       orderBy: { createdAt: 'desc' },
@@ -164,6 +165,7 @@ export default async function AdminUserDetailPage(
       _sum: { promptTokens: true, completionTokens: true, chargedIRR: true, cost: true },
       _count: { _all: true },
     }),
+    getActiveChannelConnectionCount(user.workspaceId),
     conversationsDailyByWorkspace(7),
     paymentsDailyByWorkspace(7),
     Promise.all([
@@ -483,7 +485,8 @@ export default async function AdminUserDetailPage(
               <KV label="قیمت ماهانه (دلار)">
                 {planDef.priceUSD > 0 ? fmtUSD(planDef.priceUSD) : 'رایگان'}
               </KV>
-              <KV label="حداکثر ایجنت">{fa(planDef.maxAgents)}</KV>
+              <KV label="اتصال کانال فعال">{fa(activeChannelCount)} از {fa(planDef.maxChannels)}</KV>
+              <KV label="محدودیت ایجنت">ندارد</KV>
             </div>
           </Panel>
 

@@ -14,6 +14,7 @@ import { buildWhatsappOAuthConfig } from '@/lib/whatsapp/config'
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
 import { sealPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +107,18 @@ export async function GET(req: Request) {
   if (!code) {
     return NextResponse.redirect(
       new URL(`${channelsPath(state.agentId)}?wa_error=state`, base),
+      { status: 303 },
+    )
+  }
+
+  const gate = await checkChannelConnectAllowed(state.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: state.agentId,
+    type: 'WHATSAPP',
+  })
+  if (!gate.allowed) {
+    return NextResponse.redirect(
+      new URL(`${channelsPath(state.agentId)}?wa_error=${gate.reason.toLowerCase()}`, base),
       { status: 303 },
     )
   }

@@ -27,6 +27,8 @@ import {
   chatLinkUrl,
 } from '@/lib/chat-link/config'
 import { openPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
+import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -48,7 +50,7 @@ export default async function AgentChannelsPage(
   const user = await requireUser()
   const t = await getTranslations('channels')
 
-  const [agent, workspace] = await Promise.all([
+  const [agent, workspace, planDefs, usedChannels] = await Promise.all([
     prisma.agent.findFirst({
       where: { id: params.agentId, workspaceId: user.workspaceId },
       select: {
@@ -64,10 +66,15 @@ export default async function AgentChannelsPage(
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
-      select: { slug: true },
+      select: { slug: true, plan: true },
     }),
+    getEffectivePlanDefs(),
+    getActiveChannelConnectionCount(user.workspaceId),
   ])
   if (!agent) notFound()
+
+  const maxChannels = planDefs[workspace?.plan ?? 'TRIAL'].maxChannels
+  const channelUsagePercent = Math.min(100, Math.round((usedChannels / maxChannels) * 100))
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
 
@@ -146,6 +153,40 @@ export default async function AgentChannelsPage(
 
   return (
     <div className="space-y-6">
+      <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6" aria-labelledby="channel-quota-title">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="channel-quota-title" className="text-sm font-semibold text-[var(--text-primary)]">
+              {t('quotaTitle')}
+            </h2>
+            <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
+              {t('quotaHint')}
+            </p>
+          </div>
+          <div className="shrink-0 text-start sm:text-end">
+            <p className="text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+              {t('quotaUsage', { used: usedChannels, limit: maxChannels })}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {usedChannels >= maxChannels ? t('quotaFull') : t('quotaRemaining', { count: maxChannels - usedChannels })}
+            </p>
+          </div>
+        </div>
+        <div
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-[var(--bg-muted)]"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={maxChannels}
+          aria-valuenow={usedChannels}
+          aria-label={t('quotaTitle')}
+        >
+          <div
+            className={`h-full rounded-full ${usedChannels >= maxChannels ? 'bg-danger' : 'bg-[var(--text-primary)]'}`}
+            style={{ width: `${channelUsagePercent}%` }}
+          />
+        </div>
+      </section>
+
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}
       {igConnected && (
         <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/5 p-4">
@@ -179,6 +220,7 @@ export default async function AgentChannelsPage(
               {igError === 'denied' && '(دسترسی لغو شد)'}
               {igError === 'exchange' && '(خطا در تأیید کد)'}
               {igError === 'state' && '(نشست نامعتبر)'}
+              {igError === 'channel_limit' && '(سهمیه اتصال کانال پلن شما تکمیل شده است)'}
             </p>
             <a
               href="/docs/instagram-connection"
@@ -223,6 +265,7 @@ export default async function AgentChannelsPage(
               {waError === 'state' && '(نشست نامعتبر — دوباره تلاش کنید)'}
               {waError === 'no_number' &&
                 '(هیچ شمارهٔ واتساپ Business روی حساب متای شما پیدا نشد)'}
+              {waError === 'channel_limit' && '(سهمیه اتصال کانال پلن شما تکمیل شده است)'}
             </p>
           </div>
         </div>

@@ -153,6 +153,9 @@ export function WhatsAppQrConnect({
           setConnectedName(data.name ?? nameInfo ?? null)
           // Refresh server data so the channels page shows the new connection.
           router.refresh()
+        } else if (data.error === 'CHANNEL_LIMIT') {
+          setState('error')
+          setError('سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.')
         }
       } catch {
         /* best-effort — the channel may still be persisted server-side */
@@ -241,7 +244,9 @@ export function WhatsAppQrConnect({
         if (!res.ok || !data.ok || !data.sessionId) {
           setState('error')
           setError(
-            data.detail ??
+            data.error === 'CHANNEL_LIMIT'
+              ? 'سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.'
+              : data.detail ??
               (data.error === 'BRIDGE_UNREACHABLE'
                 ? 'سرویس واتساپ در دسترس نیست. مطمئن شوید whatsapp-bridge روی پورت 3040 در حال اجرا است.'
                 : 'شروع اتصال ناموفق بود. دوباره تلاش کنید.'),
@@ -704,6 +709,8 @@ export function WhatsAppNumberPicker({
           setError('شمارهٔ انتخاب‌شده معتبر نیست. دوباره تلاش کنید.')
         } else if (data.error === 'UNAUTHORIZED') {
           setError('ابتدا وارد شوید.')
+        } else if (data.error === 'CHANNEL_LIMIT') {
+          setError('سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.')
         } else {
           setError('اتصال ناموفق بود. دوباره تلاش کنید.')
         }

@@ -104,6 +104,8 @@ export function ChatLinkChannel({
                                                 ? t('slugTaken')
                                                 : data?.error === 'INVALID_SLUG'
                                                         ? t('slugInvalid')
+                                                        : data?.error === 'CHANNEL_LIMIT'
+                                                                ? tc('channelLimitError')
                                                         : t('saveError'),
                                 )
                                 return
@@ -118,7 +120,7 @@ export function ChatLinkChannel({
                 } finally {
                         setSaving(false)
                 }
-        }, [agentId, slug, slugValid, settings, t, router])
+        }, [agentId, slug, slugValid, settings, t, tc, router])
 
         const remove = useCallback(async () => {
                 if (!confirm(t('confirmRemove'))) return

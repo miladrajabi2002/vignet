@@ -9,6 +9,7 @@ import {
   openPendingWhatsappOAuth,
   type PendingWhatsappNumber,
 } from '@/lib/whatsapp/pending-oauth'
+import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +65,15 @@ export async function POST(req: Request, props: Params) {
   )
   if (!num) {
     return NextResponse.json({ error: 'NUMBER_NOT_FOUND' }, { status: 400 })
+  }
+
+  const gate = await checkChannelConnectAllowed(user.workspaceId, {
+    kind: 'AGENT_CHANNEL',
+    agentId: agent.id,
+    type: 'WHATSAPP',
+  })
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 })
   }
 
   const config = buildWhatsappOAuthConfig({

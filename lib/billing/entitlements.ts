@@ -4,16 +4,32 @@ import { getEffectivePlanDefs, PERIOD_DAYS, type PaidPlan } from '@/lib/billing/
 import { sendSubscriptionPurchasedSms } from '@/lib/sms/ippanel'
 import { captureError } from '@/lib/errors/capture'
 import { grantIncludedPlanCredit } from '@/lib/billing/plan-credit'
-import type { Plan, Prisma } from '@prisma/client'
+import type { ChannelType, Plan, Prisma } from '@prisma/client'
 
 /**
  * Single place that answers "may this workspace do X?".
- * Used by the chat engine (every inbound message) and the agents API.
+ * Used by chat, agent-management, and channel-connection APIs.
  */
 
-export type BlockReason = 'TRIAL_EXPIRED' | 'SUBSCRIPTION_EXPIRED' | 'PLAN_LIMIT'
+export type BlockReason = 'TRIAL_EXPIRED' | 'SUBSCRIPTION_EXPIRED' | 'CHANNEL_LIMIT'
 export type ChatGate = { allowed: true; plan: Plan } | { allowed: false; reason: BlockReason }
 export type WorkspaceAccessGate = ChatGate
+export type ChannelConnectionTarget =
+  | { kind: 'AGENT_CHANNEL'; agentId: string; type: ChannelType }
+  | { kind: 'CHAT_LINK'; agentId: string }
+
+/** Canonical workspace usage shared by enforcement and reporting surfaces. */
+export async function getActiveChannelConnectionCount(workspaceId: string): Promise<number> {
+  const [agentChannels, chatLinks] = await Promise.all([
+    prisma.agentChannel.count({
+      // CHAT_LINK uses the canonical ChatLink model below. Excluding any
+      // historical AgentChannel rows prevents one public link counting twice.
+      where: { active: true, type: { not: 'CHAT_LINK' }, agent: { workspaceId } },
+    }),
+    prisma.chatLink.count({ where: { workspaceId, enabled: true } }),
+  ])
+  return agentChannels + chatLinks
+}
 
 function monthKey(): string {
   const d = new Date()
@@ -84,15 +100,37 @@ export async function checkWorkspaceActive(workspaceId: string): Promise<Workspa
   return { allowed: true, plan: ws.plan }
 }
 
-/** May this workspace create one more agent? */
-export async function checkAgentCreateAllowed(workspaceId: string): Promise<boolean> {
+/**
+ * May this workspace activate one more customer-facing channel connection?
+ * Existing active connections may always be reconfigured. Both AgentChannel
+ * rows and enabled ChatLink rows consume the same workspace-level allowance.
+ */
+export async function checkChannelConnectAllowed(
+  workspaceId: string,
+  target: ChannelConnectionTarget,
+): Promise<WorkspaceAccessGate> {
   const access = await checkWorkspaceActive(workspaceId)
-  if (!access.allowed) return false
-  const [limit, count] = [
-    (await getEffectivePlanDefs())[access.plan].maxAgents,
-    await prisma.agent.count({ where: { workspaceId } }),
-  ]
-  return count < limit
+  if (!access.allowed) return access
+
+  const existingActive = target.kind === 'CHAT_LINK'
+    ? await prisma.chatLink.findUnique({
+        where: { agentId: target.agentId },
+        select: { enabled: true },
+      }).then((link) => link?.enabled === true)
+    : await prisma.agentChannel.findUnique({
+        where: { agentId_type: { agentId: target.agentId, type: target.type } },
+        select: { active: true },
+      }).then((channel) => channel?.active === true)
+
+  if (existingActive) return access
+
+  const [defs, count] = await Promise.all([
+    getEffectivePlanDefs(),
+    getActiveChannelConnectionCount(workspaceId),
+  ])
+  return count < defs[access.plan].maxChannels
+    ? access
+    : { allowed: false, reason: 'CHANNEL_LIMIT' }
 }
 
 type SubscriptionActivation = {

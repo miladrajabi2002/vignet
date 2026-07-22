@@ -38,8 +38,9 @@ export async function PricingSection() {
 				locale === 'fa'
 					? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
 					: `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`,
-				t('agents', { count: number.format(def.maxAgents) }),
+				t('channelLimit', { count: number.format(def.maxChannels) }),
 				t('allChannels'),
+				t('unlimitedAgents'),
 				locale === 'fa' ? 'هوش مصنوعی آماده و کاملاً مدیریت‌شده' : 'Fully managed AI service',
 			],
 			value: t(`plans.${key}.value`),
@@ -142,8 +143,9 @@ export async function PricingSection() {
                                                                                         ? `${number.format(def.includedCreditIRR / 10)} تومان اعتبار هدیه؛ حدود ${number.format(includedReplies)} پاسخ سریع`
                                                                                         : `${number.format(def.includedCreditIRR / 10)} toman included credit; about ${number.format(includedReplies)} fast replies`}
                                                                         </Feature>
-                                                                        <Feature>{t('agents', { count: number.format(def.maxAgents) })}</Feature>
+                                                                        <Feature>{t('channelLimit', { count: number.format(def.maxChannels) })}</Feature>
                                                                         <Feature>{t('allChannels')}</Feature>
+                                                                        <Feature>{t('unlimitedAgents')}</Feature>
                                                                         <Feature>{locale === 'fa' ? 'هوش مصنوعی آماده و کاملاً مدیریت‌شده' : 'Fully managed AI service'}</Feature>
                                                                 </ul>
                                                                 <p className="mt-6 border-t border-[var(--border-subtle)] pt-4 text-xs leading-5 text-[var(--text-muted)]">{t(`plans.${key}.value`)}</p>
