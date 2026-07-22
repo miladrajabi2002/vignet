@@ -23,6 +23,7 @@
 import { prisma } from '@/lib/prisma'
 import { recordConversationActivity } from '@/lib/conversations/activity'
 import { toEnglishDigits, normalizePhone } from '@/lib/phone'
+import { applyContactIdentity } from '@/lib/crm/contact-identity'
 
 export interface ExtractedIdentity {
 	name: string | null
@@ -183,27 +184,21 @@ function extractEnglishName(text: string): string | null {
  * extractor do its job even when only one field is captured.
  */
 export async function applyExtractedIdentity(params: {
+	workspaceId: string
 	conversationId: string
 	contactId: string | null
 	extracted: ExtractedIdentity
-}): Promise<void> {
-	const { conversationId, contactId, extracted } = params
-	if (!extracted.name && !extracted.phone) return
+}): Promise<string | null> {
+	const { workspaceId, conversationId, contactId, extracted } = params
+	if (!extracted.name && !extracted.phone) return contactId
 
-	if (contactId) {
-		const existing = await prisma.contact.findUnique({
-			where: { id: contactId },
-			select: { id: true, name: true, phone: true },
-		})
-		if (existing) {
-			const data: { name?: string; phone?: string } = {}
-			if (extracted.name && !existing.name) data.name = extracted.name
-			if (extracted.phone && !existing.phone) data.phone = extracted.phone
-			if (Object.keys(data).length) {
-				await prisma.contact.update({ where: { id: contactId }, data })
-			}
-		}
-	}
+	const resolvedContactId = await applyContactIdentity({
+		workspaceId,
+		conversationId,
+		contactId,
+		name: extracted.name,
+		phone: extracted.phone,
+	})
 
 	// Mark conversation as collected once we have a name OR a phone.
 	if (extracted.name || extracted.phone) {
@@ -227,6 +222,8 @@ export async function applyExtractedIdentity(params: {
 			}).catch(() => {})
 		}
 	}
+
+	return resolvedContactId
 }
 
 /**

@@ -266,12 +266,19 @@ export async function routeOperatorReplyFromTelegram(params: {
 
         let delivered = false
         try {
-                delivered = await sendOutbound(
+                const delivery = await sendOutbound(
                         alert.conversation.agentId,
                         alert.conversation.channel,
                         alert.conversation.externalId,
                         params.operatorText,
                 )
+                delivered = delivery.status === 'sent'
+                if (delivery.status === 'failed') {
+                        captureError('operator-handoff:route-reply', delivery.cause ?? new Error('OUTBOUND_PROVIDER_ERROR'), {
+                                workspaceId: params.workspaceId,
+                                metadata: { conversationId: alert.conversationId },
+                        })
+                }
         } catch (e) {
                 captureError('operator-handoff:route-reply', e, {
                         workspaceId: params.workspaceId,
@@ -286,7 +293,11 @@ export async function routeOperatorReplyFromTelegram(params: {
                                 conversationId: alert.conversationId,
                                 role: 'ASSISTANT',
                                 content: params.operatorText,
-                                metadata: { operator: true, source: 'telegram_bot' },
+                                metadata: {
+                                        operator: true,
+                                        source: 'telegram_bot',
+                                        delivery: { status: 'sent' },
+                                },
                         },
                 })
                 await recordConversationActivity(prisma, alert.conversationId, {

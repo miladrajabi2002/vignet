@@ -22,26 +22,33 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'INVALID_RESOURCE' }, { status: 400 })
   }
 
-  const version =
-    resource === 'conversations'
-      ? conversationLiveVersion(
-          await prisma.conversation.findFirst({
-            where: { workspaceId: user.workspaceId },
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-            select: {
-              id: true,
-              createdAt: true,
-              contact: { select: { id: true, updatedAt: true } },
-            },
-          }),
-        )
-      : contactLiveVersion(
-          await prisma.contact.findFirst({
-            where: { workspaceId: user.workspaceId },
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-            select: { id: true, createdAt: true, updatedAt: true },
-          }),
-        )
+  let version: string
+  if (resource === 'conversations') {
+    const [count, latestConversation, latestContact] = await Promise.all([
+      prisma.conversation.count({ where: { workspaceId: user.workspaceId } }),
+      prisma.conversation.findFirst({
+        where: { workspaceId: user.workspaceId },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, updatedAt: true },
+      }),
+      prisma.contact.findFirst({
+        where: { workspaceId: user.workspaceId },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, updatedAt: true },
+      }),
+    ])
+    version = conversationLiveVersion({ count, latestConversation, latestContact })
+  } else {
+    const [count, latest] = await Promise.all([
+      prisma.contact.count({ where: { workspaceId: user.workspaceId } }),
+      prisma.contact.findFirst({
+        where: { workspaceId: user.workspaceId },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, updatedAt: true },
+      }),
+    ])
+    version = contactLiveVersion({ count, latest })
+  }
 
   return NextResponse.json(
     { version },

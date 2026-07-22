@@ -17,6 +17,7 @@ import {
         type HandoffAlertProp,
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
+import { channelHasOutboundCredentials } from '@/lib/channels/outbound'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 
@@ -89,13 +90,18 @@ export default async function ConversationThreadPage(props: {
         // "go to Telegram/Bale/Rubika" indicators when a handoff is active.
         const agentChannels = await prisma.agentChannel.findMany({
                 where: { agentId: conversation.agent.id, active: true },
-                select: { type: true },
+                select: { type: true, config: true },
         })
         const connectedChannels: ChannelType[] = agentChannels
                 .map((c) => c.type)
                 .filter((c): c is ChannelType => isMessengerType(c))
 
-        const canDeliver = isMessengerType(conversation.channel) && !!conversation.externalId
+        const deliveryChannel = agentChannels.find((item) => item.type === conversation.channel)
+        const canDeliver = Boolean(
+                conversation.externalId &&
+                deliveryChannel &&
+                channelHasOutboundCredentials(conversation.channel, deliveryChannel.config),
+        )
 
         // Pick the per-channel avatar + handle for the contact based on the
         // conversation's channel so the header reflects the same identity the

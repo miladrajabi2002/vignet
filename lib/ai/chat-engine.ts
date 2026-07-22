@@ -23,7 +23,6 @@ import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
 import { checkChatAllowed, type BlockReason } from '@/lib/billing/entitlements'
-import { withContactIdentityLock } from '@/lib/crm/contact-identity-lock'
 import { DEFAULT_MODEL, resolveModelAlias, resolveModelId } from '@/lib/ai/models'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import {
@@ -201,47 +200,23 @@ async function prepareTurn(params: StartChatParams): Promise<
         // Widget visitors have no platform identity — when the lead form gave us
         // a name/phone, find-or-create a CRM contact and attach it.
         let contactId = params.contactId ?? null
-        if (!contactId && (extracted.name || extracted.phone)) {
-                try {
-                        const identity = extracted.phone
-                                ? `phone:${extracted.phone}`
-                                : `conversation:${conversationId}`
-                        const contact = await withContactIdentityLock(workspaceId, identity, async (tx) => {
-                                const existing = extracted.phone
-                                        ? await tx.contact.findFirst({
-                                                  where: { workspaceId, phone: extracted.phone },
-                                                  orderBy: { createdAt: 'asc' },
-                                                  select: { id: true },
-                                          })
-                                        : null
-                                return existing ?? tx.contact.create({
-                                        data: { workspaceId, name: extracted.name, phone: extracted.phone },
-                                        select: { id: true },
-                                })
-                        })
-                        contactId = contact.id
-                        await prisma.conversation.update({
-                                where: { id: conversationId },
-                                data: { contactId },
-                        })
-                } catch (e) {
-                        console.error('[chat-engine] lead contact attach failed:', e)
-                }
-        }
-
         if (extracted.name || extracted.phone) {
-                await applyExtractedIdentity({
+                contactId = await applyExtractedIdentity({
+                        workspaceId,
                         conversationId,
                         contactId,
                         extracted,
-                }).catch(() => {})
+                }).catch((error) => {
+                        console.error('[chat-engine] lead contact attach failed:', error)
+                        return contactId
+                })
         }
 
         // Hydrate {customer_name} placeholder if the contact name is known.
         let resolvedContactName = params.contactName ?? null
-        if (!resolvedContactName && params.contactId) {
+        if (!resolvedContactName && contactId) {
                 const c = await prisma.contact.findUnique({
-                        where: { id: params.contactId },
+                        where: { id: contactId },
                         select: { name: true },
                 })
                 resolvedContactName = c?.name ?? null
@@ -250,7 +225,7 @@ async function prepareTurn(params: StartChatParams): Promise<
         if (extracted.name) resolvedContactName = extracted.name
 
         // Re-read the (possibly updated) identification state.
-        const freshState = extracted.name
+        const freshState = extracted.name || extracted.phone
                 ? 'collected'
                 : (await prisma.conversation.findUnique({
                           where: { id: conversationId },

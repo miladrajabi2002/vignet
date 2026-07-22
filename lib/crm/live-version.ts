@@ -1,26 +1,33 @@
-type ContactVersionRow = {
+type VersionRow = {
   id: string
-  createdAt: Date
   updatedAt: Date
 }
 
-type ConversationVersionRow = {
-  id: string
-  createdAt: Date
-  contact: { id: string; updatedAt: Date } | null
+type ContactSnapshot = {
+  count: number
+  latest: VersionRow | null
 }
 
-export function contactLiveVersion(row: ContactVersionRow | null): string {
-  if (!row) return 'empty'
-  return [row.createdAt.toISOString(), row.id, row.updatedAt.toISOString()].join('|')
+type ConversationSnapshot = {
+  count: number
+  latestConversation: VersionRow | null
+  latestContact: VersionRow | null
 }
 
-export function conversationLiveVersion(row: ConversationVersionRow | null): string {
-  if (!row) return 'empty'
+export function contactLiveVersion(snapshot: ContactSnapshot): string {
   return [
-    row.createdAt.toISOString(),
-    row.id,
-    row.contact?.id ?? 'no-contact',
-    row.contact?.updatedAt.toISOString() ?? 'no-profile',
+    snapshot.count,
+    snapshot.latest?.updatedAt.toISOString() ?? 'empty',
+    snapshot.latest?.id ?? 'empty',
+  ].join('|')
+}
+
+export function conversationLiveVersion(snapshot: ConversationSnapshot): string {
+  return [
+    snapshot.count,
+    snapshot.latestConversation?.updatedAt.toISOString() ?? 'empty',
+    snapshot.latestConversation?.id ?? 'empty',
+    snapshot.latestContact?.updatedAt.toISOString() ?? 'no-contact',
+    snapshot.latestContact?.id ?? 'no-contact',
   ].join('|')
 }

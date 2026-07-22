@@ -1,5 +1,5 @@
 import { getLocale } from 'next-intl/server'
-import type { ChannelType } from '@prisma/client'
+import type { ChannelType, Prisma } from '@prisma/client'
 import { Users, UserPlus, GitMerge, Tag } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -13,6 +13,7 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import { contactsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { contactLiveVersion } from '@/lib/crm/live-version'
+import { contactPhoneLookupVariants } from '@/lib/phone'
 
 const PAGE_SIZE = 100
 
@@ -31,7 +32,7 @@ const STAGE_LABELS_EN: Record<string, string> = {
 
 export default async function ContactsPage(
   props: {
-    searchParams: Promise<{ page?: string }>
+    searchParams: Promise<{ page?: string; q?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -39,10 +40,30 @@ export default async function ContactsPage(
   const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
   const isFa = locale === 'fa'
   const page = Math.max(1, Number(searchParams.page) || 1)
+  const query = searchParams.q?.trim().slice(0, 120) || ''
+  const phoneVariants = contactPhoneLookupVariants(query)
+  const where: Prisma.ContactWhereInput = {
+    workspaceId: user.workspaceId,
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' as const } },
+            { phone: { contains: query } },
+            ...(phoneVariants.length ? [{ phone: { in: phoneVariants } }] : []),
+            { telegramUsername: { contains: query, mode: 'insensitive' as const } },
+            { baleUsername: { contains: query, mode: 'insensitive' as const } },
+            { rubikaUsername: { contains: query, mode: 'insensitive' as const } },
+            { whatsappName: { contains: query, mode: 'insensitive' as const } },
+            { instagramUsername: { contains: query, mode: 'insensitive' as const } },
+            { tags: { has: query } },
+          ],
+        }
+      : {}),
+  }
 
-  const [contacts, totalCount, stageGroups, contactTrend, latestContact] = await Promise.all([
+  const [contacts, totalCount, matchedCount, stageGroups, contactTrend, latestContact] = await Promise.all([
     prisma.contact.findMany({
-      where: { workspaceId: user.workspaceId },
+      where,
       // Order by denormalized "last activity" first (bumped on every inbound/
       // AI/operator message); fall back to updatedAt so rows that predate the
       // lastActivityAt column still sort deterministically.
@@ -77,6 +98,7 @@ export default async function ContactsPage(
       },
     }),
     prisma.contact.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.contact.count({ where }),
     prisma.contact.groupBy({
       by: ['stage'],
       where: { workspaceId: user.workspaceId },
@@ -85,14 +107,14 @@ export default async function ContactsPage(
     contactsDailyByWorkspace(user.workspaceId, 14),
     prisma.contact.findFirst({
       where: { workspaceId: user.workspaceId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { id: true, createdAt: true, updatedAt: true },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, updatedAt: true },
     }),
   ])
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
-  const liveVersion = contactLiveVersion(latestContact)
+  const liveVersion = contactLiveVersion({ count: totalCount, latest: latestContact })
 
   // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
   const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
@@ -159,7 +181,9 @@ export default async function ContactsPage(
         locale={locale}
         liveVersion={liveVersion}
         liveEnabled={page === 1}
-        liveScope={`contacts:${page}`}
+        liveScope={`contacts:${page}:${query}`}
+        query={query}
+        totalResults={matchedCount}
         insights={
           <div className="grid gap-4 lg:grid-cols-2">
             <DashboardPanel
@@ -184,7 +208,7 @@ export default async function ContactsPage(
           <Pagination
             page={page}
             hasNext={hasNext}
-            makeHref={(p) => `/contacts?page=${p}`}
+            makeHref={(p) => `/contacts?page=${p}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
           />
         }
       />
@@ -202,8 +226,8 @@ export default async function ContactsPage(
               locale === 'fa' ? 'ایجاد خودکار: ' : 'Auto-created: ',
             body:
               locale === 'fa'
-                ? 'هر بار که یک شخص برای اولین بار از طریق یکی از کانال‌ها (تلگرام، بله، روبیکا، واتساپ، اینستاگرام یا وب‌ویجت) با ایجنت شما صحبت کند، یک مشتری جدید به‌صورت خودکار ایجاد می‌شود. نیازی به افزودن دستی نیست.'
-                : 'Every time someone talks to your agent for the first time through any channel (Telegram, Bale, Rubika, WhatsApp, Instagram, or web widget), a new customer is created automatically. No manual entry needed.',
+                ? 'در پیام‌رسان‌ها مشتری با شناسه کانال ساخته می‌شود؛ در وب‌ویجت و لینک چت نیز به‌محض دریافت نام یا شماره، پروفایل مشتری به‌صورت خودکار ایجاد و به گفتگو متصل می‌شود.'
+                : 'Messenger customers are created from their channel identity. In web widget and chat-link conversations, the customer profile is created and attached as soon as a name or phone is available.',
           },
           {
             icon: GitMerge,
@@ -213,8 +237,8 @@ export default async function ContactsPage(
                 : 'Cross-channel unification: ',
             body:
               locale === 'fa'
-                ? 'اگر یک شخص از دو کانال مختلف (مثلاً تلگرام و واتساپ) با شماره تلفن یکسان پیام بدهد، هر دو ارتباط به همان مشتری متصل می‌شود — «یک مشتری، چند کانال». این کار با تطبیق شماره تلفن انجام می‌شود.'
-                : 'If the same person messages from two different channels (e.g. Telegram and WhatsApp) with the same phone number, both connections are linked to one customer — "one customer, many channels". This is done by matching phone numbers.',
+                ? 'اگر یک شخص از چند کانال با یک شماره پیام بدهد، گفتگوها و سوابق او روی یک مشتری ادغام می‌شوند. قالب‌های +989…، 09… و 989… یک شماره واحد محسوب می‌شوند.'
+                : 'When the same person uses multiple channels with one phone number, conversations and history merge into one customer. +989…, 09…, and 989… formats are treated as the same number.',
           },
           {
             icon: Users,

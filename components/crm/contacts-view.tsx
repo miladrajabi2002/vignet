@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
-import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, X } from 'lucide-react'
+import { Users, Search, LayoutList, Columns3, User, GripVertical, Filter, X, Loader2 } from 'lucide-react'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
@@ -73,6 +74,8 @@ export function ContactsView({
         liveVersion,
         liveEnabled,
         liveScope,
+        query: serverQuery,
+        totalResults,
         insights,
         footer,
 }: {
@@ -81,13 +84,17 @@ export function ContactsView({
         liveVersion: string
         liveEnabled?: boolean
         liveScope: string
+        query: string
+        totalResults: number
         insights?: React.ReactNode
         footer?: React.ReactNode
 }) {
         const t = useTranslations('contacts')
+        const router = useRouter()
         const [rows, setRows] = useState(initial)
         const [view, setView] = useState<'list' | 'pipeline'>('list')
-        const [query, setQuery] = useState('')
+        const [query, setQuery] = useState(serverQuery)
+        const [isSearching, startSearchTransition] = useTransition()
         const [stageFilter, setStageFilter] = useState<Stage | ''>('')
         const [channelFilter, setChannelFilter] = useState<ChannelType | ''>('')
         const [tagFilter, setTagFilter] = useState('')
@@ -97,26 +104,37 @@ export function ContactsView({
                 setRows(initial)
         }, [initial])
 
+        useEffect(() => {
+                setQuery(serverQuery)
+        }, [serverQuery])
+
+        useEffect(() => {
+                const nextQuery = query.trim()
+                if (nextQuery === serverQuery) return
+                const timer = window.setTimeout(() => {
+                        startSearchTransition(() => {
+                                router.replace(
+                                        nextQuery ? `/contacts?q=${encodeURIComponent(nextQuery)}` : '/contacts',
+                                        { scroll: false },
+                                )
+                        })
+                }, 280)
+                return () => window.clearTimeout(timer)
+        }, [query, router, serverQuery])
+
         const availableTags = useMemo(
                 () => [...new Set(rows.flatMap((row) => row.tags))].sort((a, b) => a.localeCompare(b)),
                 [rows],
         )
 
         const filtered = useMemo(() => {
-                const q = query.trim().toLowerCase()
                 return rows.filter((r) => {
                         if (stageFilter && r.stage !== stageFilter) return false
                         if (channelFilter && !r.channels.includes(channelFilter)) return false
                         if (tagFilter && !r.tags.includes(tagFilter)) return false
-                        if (!q) return true
-                        return (
-                                (r.name ?? '').toLowerCase().includes(q) ||
-                                (r.phone ?? '').toLowerCase().includes(q) ||
-                                r.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-                                Object.values(r.channelUsernames ?? {}).some((handle) => (handle ?? '').toLowerCase().includes(q))
-                        )
+                        return true
                 })
-        }, [rows, query, stageFilter, channelFilter, tagFilter])
+        }, [rows, stageFilter, channelFilter, tagFilter])
 
         const campaignAudience = useMemo<CampaignAudienceInput>(() => {
                 if (selected.size > 0) return { selectedContactIds: [...selected] }
@@ -149,6 +167,7 @@ export function ContactsView({
                 setChannelFilter('')
                 setTagFilter('')
                 setSelected(new Set())
+                router.push('/contacts')
         }
 
         async function move(id: string, stage: Stage) {
@@ -207,11 +226,18 @@ export function ContactsView({
 
                         <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
                                 <div className="relative min-w-[12rem] flex-1">
-                                        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                                        {isSearching ? (
+                                                <Loader2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
+                                        ) : (
+                                                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                                        )}
                                         <input
+                                                name="q"
                                                 value={query}
                                                 onChange={(e) => setQuery(e.target.value)}
+                                                maxLength={120}
                                                 placeholder={t('search')}
+                                                aria-label={locale === 'fa' ? 'جست‌وجوی سراسری مشتریان' : 'Search all customers'}
                                                 className="input ps-9"
                                         />
                                 </div>
@@ -224,7 +250,7 @@ export function ContactsView({
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-                                <span className="inline-flex items-center gap-1.5"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${filtered.length.toLocaleString('fa-IR')} نتیجه در این صفحه` : `${filtered.length} results on this page`}</span>
+                                <span className="inline-flex items-center gap-1.5" aria-live="polite"><Filter className="h-3.5 w-3.5" />{locale === 'fa' ? `${(stageFilter || channelFilter || tagFilter ? filtered.length : totalResults).toLocaleString('fa-IR')} نتیجه` : `${stageFilter || channelFilter || tagFilter ? filtered.length : totalResults} results`}</span>
                                 <div className="flex flex-wrap items-center gap-2">
                                         <LiveArrivalStatus resource="contacts" locale={locale} />
                                         {view === 'list' && filtered.length > 0 && <button type="button" onClick={() => setSelected(new Set(filtered.map((row) => row.id)))} className="min-h-11 rounded-xl px-2.5 hover:bg-[var(--bg-hover)]">{locale === 'fa' ? 'انتخاب همه نتایج این صفحه' : 'Select all results on this page'}</button>}
@@ -242,9 +268,7 @@ export function ContactsView({
                                 <PipelineView rows={filtered} onMove={move} />
                         )}
 
-                        {/* Pagination only makes sense for the flat list; the pipeline drags
-          across stages within the loaded page and a search hides the controls. */}
-                        {footer && view === 'list' && !query ? footer : null}
+                        {footer && view === 'list' ? footer : null}
 
                 </div>
                 </LiveArrivalProvider>

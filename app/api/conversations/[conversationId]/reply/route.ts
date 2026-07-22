@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { sendOutbound } from '@/lib/channels/outbound'
+import { sendOutbound, type OutboundDeliveryResult } from '@/lib/channels/outbound'
 import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
@@ -44,20 +44,18 @@ export async function POST(req: Request, props: Params) {
   // external thread id. Web-widget / chat-link / API channels are
   // request/response — there's no API to push to, so we skip delivery
   // entirely and just persist the message.
-  let delivered = false
+  let delivery: OutboundDeliveryResult = isMessengerType(conversation.channel)
+    ? { status: 'unavailable', reason: conversation.externalId ? 'channel_inactive' : 'missing_thread' }
+    : { status: 'unavailable', reason: 'not_push_channel' }
   if (isMessengerType(conversation.channel) && conversation.externalId) {
-    try {
-      delivered = await sendOutbound(
-        conversation.agentId,
-        conversation.channel,
-        conversation.externalId,
-        text,
-      )
-    } catch (e) {
-      // Log the delivery failure but DON'T abort — the operator's reply
-      // should still be saved in the thread so it's visible in the
-      // dashboard and to the visitor on their next load.
-      captureError('conversation:operator-reply', e, {
+    delivery = await sendOutbound(
+      conversation.agentId,
+      conversation.channel,
+      conversation.externalId,
+      text,
+    )
+    if (delivery.status === 'failed') {
+      captureError('conversation:operator-reply', delivery.cause ?? new Error('OUTBOUND_PROVIDER_ERROR'), {
         workspaceId: user.workspaceId,
         metadata: { conversationId: conversation.id, channel: conversation.channel },
       })
@@ -82,9 +80,11 @@ export async function POST(req: Request, props: Params) {
       // `unanswered` surfaces this pair in the learning center as a suggestion;
       // approving it adds the Q&A to the knowledge base, dismissing clears it.
       unanswered: question.length > 0,
-      metadata: question.length > 0
-        ? { operator: true, question, operatorAnswer: text }
-        : { operator: true },
+      metadata: {
+        operator: true,
+        ...(question.length > 0 ? { question, operatorAnswer: text } : {}),
+        delivery: { status: delivery.status, reason: delivery.reason },
+      },
     },
     select: { id: true, content: true, createdAt: true, role: true },
   })
@@ -105,5 +105,9 @@ export async function POST(req: Request, props: Params) {
   // Keep the contact's denormalized last-activity fresh for the CRM list.
   bumpContactActivity(conversation.id)
 
-  return NextResponse.json({ message, delivered })
+  return NextResponse.json({
+    message,
+    delivered: delivery.status === 'sent',
+    delivery: { status: delivery.status, reason: delivery.reason },
+  })
 }

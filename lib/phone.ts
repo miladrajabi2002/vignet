@@ -32,6 +32,50 @@ export function normalizePhone(input: string): string | null {
   return `+98${s}`
 }
 
+/**
+ * Canonical phone value used by CRM identity matching.
+ *
+ * Iranian mobile numbers are always stored as E.164 (`+989XXXXXXXXX`) so
+ * `0912...`, `98912...`, and `+98912...` resolve to the same customer. For
+ * other international numbers we keep a conservative E.164 representation
+ * when a country code is explicitly present.
+ */
+export function normalizeContactPhone(input: string | null | undefined): string | null {
+  if (!input?.trim()) return null
+  const iranian = normalizePhone(input)
+  if (iranian) return iranian
+
+  let value = toEnglishDigits(input).trim().replace(/[\s\-().]/g, '')
+  if (value.startsWith('00')) value = `+${value.slice(2)}`
+  if (/^\+[1-9]\d{7,14}$/.test(value)) return value
+  return null
+}
+
+/**
+ * Legacy spellings that may still exist on older Contact rows. New writes use
+ * only the first (canonical) form; the rest make lookup and cleanup backwards
+ * compatible without treating formatting differences as separate people.
+ */
+export function contactPhoneLookupVariants(
+  input: string | null | undefined,
+): string[] {
+  const canonical = normalizeContactPhone(input)
+  if (!canonical) return []
+
+  if (canonical.startsWith('+98') && canonical.length === 13) {
+    const national = canonical.slice(3)
+    return [...new Set([
+      canonical,
+      canonical.slice(1),
+      `0${national}`,
+      national,
+      `0098${national}`,
+    ])]
+  }
+
+  return [canonical, canonical.slice(1)]
+}
+
 /** Zod schema that validates and normalizes to E.164 (+989XXXXXXXXX). */
 export const phoneSchema = z
   .string()

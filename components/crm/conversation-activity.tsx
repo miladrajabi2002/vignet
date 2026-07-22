@@ -6,11 +6,13 @@ import {
   CalendarCheck2,
   CalendarClock,
   CalendarX2,
+  CircleCheck,
   ExternalLink,
   Headphones,
   PackageCheck,
   Scale,
   Send,
+  TriangleAlert,
   UserRoundCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -127,9 +129,15 @@ export function MessageActivityReceipts({
   locale: Locale
 }) {
   const raw = metadata?.vigentoReceipts
-  if (!Array.isArray(raw)) return null
-  const receipts = raw.map(asReceipt).filter((item): item is Receipt => item != null)
-  if (receipts.length === 0) return null
+  const receipts = Array.isArray(raw)
+    ? raw.map(asReceipt).filter((item): item is Receipt => item != null)
+    : []
+  const deliveryRaw = metadata?.delivery
+  const delivery = deliveryRaw && typeof deliveryRaw === 'object'
+    ? deliveryRaw as Record<string, unknown>
+    : null
+  const deliveryStatus = delivery?.status
+  if (receipts.length === 0 && !['sent', 'unavailable', 'failed'].includes(String(deliveryStatus))) return null
 
   return (
     <div
@@ -150,6 +158,18 @@ export function MessageActivityReceipts({
           </span>
         )
       })}
+      {deliveryStatus === 'sent' && (
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300">
+          <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {locale === 'fa' ? 'تحویل‌شده به کانال' : 'Delivered to channel'}
+        </span>
+      )}
+      {(deliveryStatus === 'failed' || deliveryStatus === 'unavailable') && (
+        <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
+          <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {locale === 'fa' ? 'ذخیره شد؛ تحویل نشد' : 'Saved; not delivered'}
+        </span>
+      )}
     </div>
   )
 }

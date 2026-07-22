@@ -11,7 +11,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { withContactIdentityLock } from '@/lib/crm/contact-identity-lock'
+import { withContactIdentityLock, withContactIdentityLocks } from '@/lib/crm/contact-identity-lock'
 
 describe('withContactIdentityLock', () => {
   beforeEach(() => {
@@ -32,5 +32,22 @@ describe('withContactIdentityLock', () => {
     expect(mocks.executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
       operation.mock.invocationCallOrder[0],
     )
+  })
+
+  it('sorts and deduplicates multiple identity locks before the operation', async () => {
+    const operation = vi.fn().mockResolvedValue('contact-1')
+
+    await withContactIdentityLocks(
+      'workspace-1',
+      ['phone:+989128352271', 'TELEGRAM:42', 'phone:+989128352271'],
+      operation,
+    )
+
+    expect(mocks.executeRaw).toHaveBeenCalledTimes(2)
+    expect(mocks.executeRaw.mock.calls.map((call) => call[1])).toEqual([
+      'contact:workspace-1:TELEGRAM:42',
+      'contact:workspace-1:phone:+989128352271',
+    ])
+    expect(operation).toHaveBeenCalledOnce()
   })
 })

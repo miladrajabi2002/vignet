@@ -11,12 +11,25 @@ export async function withContactIdentityLock<T>(
   identity: string,
   operation: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
-  const lockKey = `contact:${workspaceId}:${identity}`
+  return withContactIdentityLocks(workspaceId, [identity], operation)
+}
+
+/** Acquire multiple identity locks in a stable order to avoid deadlocks. */
+export async function withContactIdentityLocks<T>(
+  workspaceId: string,
+  identities: string[],
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  const lockKeys = [...new Set(identities)]
+    .sort()
+    .map((identity) => `contact:${workspaceId}:${identity}`)
   return prisma.$transaction(async (tx) => {
     // pg_advisory_xact_lock returns PostgreSQL's `void` pseudo-type. Prisma 6
     // cannot deserialize that value through $queryRaw (P2010), so execute the
     // statement without asking Prisma to materialize a result column.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+    for (const lockKey of lockKeys) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+    }
     return operation(tx)
   })
 }

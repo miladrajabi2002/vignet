@@ -418,6 +418,7 @@ model Contact {
   appointments       Appointment[]
 
   @@index([workspaceId])
+  @@index([workspaceId, phone])
   @@index([telegramId])
   @@index([phone])
   @@index([lastActivityAt])
@@ -448,6 +449,7 @@ model Conversation {
   //   { aiPaused?: boolean, pausedAt?: string, pausedBy?: string }
   metadata          Json?
   createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id])
   agent         Agent          @relation(fields: [agentId], references: [id])
@@ -457,6 +459,7 @@ model Conversation {
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
+  @@index([workspaceId, updatedAt])
   @@index([agentId])
   @@index([contactId])
   @@index([externalId])

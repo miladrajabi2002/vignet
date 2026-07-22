@@ -76,16 +76,19 @@ async function processRecipient(params: {
 
   try {
     // sendOutbound re-checks active channel configuration and token safety.
-    const delivered = await sendOutbound(
+    const delivery = await sendOutbound(
       conversation.agentId,
       conversation.channel,
       conversation.externalId,
       params.message,
     )
-    if (!delivered) {
+    if (delivery.status !== 'sent') {
       await prisma.campaignRecipient.update({
         where: { id: recipient.id },
-        data: { status: 'SKIPPED', errorCode: 'CHANNEL_UNAVAILABLE' },
+        data: {
+          status: delivery.status === 'failed' ? 'FAILED' : 'SKIPPED',
+          errorCode: delivery.reason ?? 'CHANNEL_UNAVAILABLE',
+        },
       })
       return
     }

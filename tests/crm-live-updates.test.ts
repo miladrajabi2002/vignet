@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   conversationFindFirst: vi.fn(),
+  conversationCount: vi.fn(),
   contactFindFirst: vi.fn(),
+  contactCount: vi.fn(),
   messageFindFirst: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({ getCurrentUser: mocks.getCurrentUser }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    conversation: { findFirst: mocks.conversationFindFirst },
-    contact: { findFirst: mocks.contactFindFirst },
+    conversation: { findFirst: mocks.conversationFindFirst, count: mocks.conversationCount },
+    contact: { findFirst: mocks.contactFindFirst, count: mocks.contactCount },
     message: { findFirst: mocks.messageFindFirst },
   },
 }))
@@ -26,6 +28,8 @@ describe('GET /api/crm/live', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getCurrentUser.mockResolvedValue({ workspaceId: 'workspace-1' })
+    mocks.conversationCount.mockResolvedValue(2)
+    mocks.contactCount.mockResolvedValue(2)
   })
 
   it('keeps the change detector authenticated and workspace-scoped', async () => {
@@ -40,13 +44,13 @@ describe('GET /api/crm/live', () => {
   })
 
   it('returns a stable latest-conversation version without list data', async () => {
-    const createdAt = new Date('2026-07-18T10:00:00.000Z')
+    const updatedAt = new Date('2026-07-18T10:00:00.000Z')
     const profileUpdatedAt = new Date('2026-07-18T10:00:02.000Z')
     mocks.conversationFindFirst.mockResolvedValue({
       id: 'conversation-2',
-      createdAt,
-      contact: { id: 'contact-2', updatedAt: profileUpdatedAt },
+      updatedAt,
     })
+    mocks.contactFindFirst.mockResolvedValue({ id: 'contact-2', updatedAt: profileUpdatedAt })
 
     const response = await getLiveVersion(
       new Request('http://localhost/api/crm/live?resource=conversations'),
@@ -55,36 +59,22 @@ describe('GET /api/crm/live', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
       version:
-        '2026-07-18T10:00:00.000Z|conversation-2|contact-2|2026-07-18T10:00:02.000Z',
+        '2|2026-07-18T10:00:00.000Z|conversation-2|2026-07-18T10:00:02.000Z|contact-2',
     })
     expect(response.headers.get('Cache-Control')).toContain('no-store')
     expect(mocks.conversationFindFirst).toHaveBeenCalledWith({
       where: { workspaceId: 'workspace-1' },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: {
-        id: true,
-        createdAt: true,
-        contact: { select: { id: true, updatedAt: true } },
-      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, updatedAt: true },
     })
   })
 
   it('changes the conversation version when async profile enrichment completes', async () => {
-    const createdAt = new Date('2026-07-18T10:00:00.000Z')
-    mocks.conversationFindFirst
-      .mockResolvedValueOnce({
-        id: 'conversation-2',
-        createdAt,
-        contact: { id: 'contact-2', updatedAt: createdAt },
-      })
-      .mockResolvedValueOnce({
-        id: 'conversation-2',
-        createdAt,
-        contact: {
-          id: 'contact-2',
-          updatedAt: new Date('2026-07-18T10:00:03.000Z'),
-        },
-      })
+    const updatedAt = new Date('2026-07-18T10:00:00.000Z')
+    mocks.conversationFindFirst.mockResolvedValue({ id: 'conversation-2', updatedAt })
+    mocks.contactFindFirst
+      .mockResolvedValueOnce({ id: 'contact-2', updatedAt })
+      .mockResolvedValueOnce({ id: 'contact-2', updatedAt: new Date('2026-07-18T10:00:03.000Z') })
 
     const first = await getLiveVersion(
       new Request('http://localhost/api/crm/live?resource=conversations'),
@@ -103,11 +93,11 @@ describe('GET /api/crm/live', () => {
       new Request('http://localhost/api/crm/live?resource=contacts'),
     )
 
-    expect(await response.json()).toEqual({ version: 'empty' })
+    expect(await response.json()).toEqual({ version: '2|empty|empty' })
     expect(mocks.contactFindFirst).toHaveBeenCalledWith({
       where: { workspaceId: 'workspace-1' },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { id: true, createdAt: true, updatedAt: true },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, updatedAt: true },
     })
   })
 })

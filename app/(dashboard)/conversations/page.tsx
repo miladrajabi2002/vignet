@@ -115,6 +115,7 @@ export default async function ConversationsPage(props: {
                 agents,
                 audienceContacts,
                 latestConversation,
+                latestContactVersion,
         ] = await Promise.all([
                 prisma.conversation.findMany({
                         where,
@@ -194,18 +195,26 @@ export default async function ConversationsPage(props: {
                 }),
                 prisma.conversation.findFirst({
                         where: { workspaceId: user.workspaceId },
-                        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
                         select: {
                                 id: true,
-                                createdAt: true,
-                                contact: { select: { id: true, updatedAt: true } },
+                                updatedAt: true,
                         },
+                }),
+                prisma.contact.findFirst({
+                        where: { workspaceId: user.workspaceId },
+                        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+                        select: { id: true, updatedAt: true },
                 }),
         ])
 
         const hasNext = conversations.length > PAGE_SIZE
         const pageItems = hasNext ? conversations.slice(0, PAGE_SIZE) : conversations
-        const liveVersion = conversationLiveVersion(latestConversation)
+        const liveVersion = conversationLiveVersion({
+                count: totalCount,
+                latestConversation,
+                latestContact: latestContactVersion,
+        })
         const liveScope = [
                 page,
                 channelFilter ?? '',

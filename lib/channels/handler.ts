@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { withContactIdentityLock } from '@/lib/crm/contact-identity-lock'
+import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
@@ -7,7 +7,6 @@ import { synthesizeSpeech } from '@/lib/voice/tts'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
 import {
         getAdapter,
-        contactIdField,
         isMessengerType,
         type MessengerType,
 } from '@/lib/channels/registry'
@@ -208,76 +207,6 @@ function profileFields(
         }
 }
 
-/** Find or create the contact behind an inbound message. */
-async function upsertContact(
-        workspaceId: string,
-        type: MessengerType,
-        msg: InboundMessage,
-): Promise<string> {
-        const field = contactIdField(type)
-        const pf = profileFields(type)
-        return withContactIdentityLock(workspaceId, `${type}:${msg.senderId}`, async (tx) => {
-        // 1) Match by the channel-specific id first.
-        const byChannel = await tx.contact.findFirst({
-                where: { workspaceId, [field]: msg.senderId },
-                select: { id: true, name: true, phone: true },
-        })
-        if (byChannel) {
-                // Backfill name/phone/username if we learned them since.
-                const data: Prisma.ContactUpdateInput = {}
-                if (!byChannel.name && msg.senderName) data.name = msg.senderName
-                if (!byChannel.phone && msg.senderPhone) data.phone = msg.senderPhone
-                if (msg.senderUsername) data[pf.usernameField as keyof Prisma.ContactUpdateInput] = msg.senderUsername as never
-                if (msg.senderAvatarUrl) data[pf.avatarField as keyof Prisma.ContactUpdateInput] = msg.senderAvatarUrl as never
-                if (Object.keys(data).length) {
-                        await tx.contact.update({ where: { id: byChannel.id }, data })
-                }
-                // Every inbound message keeps the contact's last-activity fresh.
-                await tx.contact.update({ where: { id: byChannel.id }, data: { lastActivityAt: new Date() } })
-                return byChannel.id
-        }
-        // 2) Cross-channel unification: if the visitor gave the same phone on a
-        //    different channel (e.g. WhatsApp now after Telegram earlier), merge by
-        //    stamping the new channel id onto the existing contact row. This is the
-        //    "one customer, many channels" rule.
-        if (msg.senderPhone) {
-                const byPhone = await tx.contact.findFirst({
-                        where: { workspaceId, phone: msg.senderPhone },
-                        select: { id: true, name: true },
-                })
-                if (byPhone) {
-                        const data: Prisma.ContactUpdateInput = {
-                                [field]: msg.senderId,
-                                lastActivityAt: new Date(),
-                        }
-                        if (!byPhone.name && msg.senderName) data.name = msg.senderName
-                        if (msg.senderUsername) data[pf.usernameField as keyof Prisma.ContactUpdateInput] = msg.senderUsername as never
-                        if (msg.senderAvatarUrl) data[pf.avatarField as keyof Prisma.ContactUpdateInput] = msg.senderAvatarUrl as never
-                        await tx.contact.update({ where: { id: byPhone.id }, data })
-                        return byPhone.id
-                }
-        }
-        // 3) New contact.
-        const created = await tx.contact.create({
-                data: {
-                        workspaceId,
-                        name: msg.senderName ?? null,
-                        phone: msg.senderPhone ?? null,
-                        [field]: msg.senderId,
-                        lastActivityAt: new Date(),
-                        ...(msg.senderUsername
-                                ? { [pf.usernameField]: msg.senderUsername }
-                                : {}),
-                        ...(msg.senderAvatarUrl
-                                ? { [pf.avatarField]: msg.senderAvatarUrl }
-                                : {}),
-                },
-                select: { id: true, name: true },
-        })
-        return created.id
-        })
-}
-
 /** Look up the contact's display name so we can greet them by name. */
 async function getContactName(contactId: string): Promise<string | null> {
         const c = await prisma.contact.findUnique({
@@ -455,7 +384,15 @@ async function processChannelInbound(
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
 
-                        const contactId = await upsertContact(agent.workspaceId, type, msg)
+                        const contactId = await resolveInboundContact({
+                                workspaceId: agent.workspaceId,
+                                channel: type,
+                                senderId: msg.senderId,
+                                senderName: msg.senderName,
+                                senderPhone: msg.senderPhone,
+                                senderUsername: msg.senderUsername,
+                                senderAvatarUrl: msg.senderAvatarUrl,
+                        })
                         const contactName = await getContactName(contactId)
 
                         // Universal campaign opt-out. It runs before Instagram

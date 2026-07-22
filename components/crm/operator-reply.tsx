@@ -3,8 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Send, Loader2 } from 'lucide-react'
+import { Send, Loader2, CircleCheck, TriangleAlert } from 'lucide-react'
 import type { ThreadMessage } from './conversation-thread'
+
+type DeliveryFeedback = {
+  status: 'sent' | 'unavailable' | 'failed'
+  reason?: string
+}
 
 /**
  * Operator (human handoff) reply box. Sends a message directly to the contact
@@ -38,6 +43,7 @@ export function OperatorReply({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
+  const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   // Auto-grow the textarea to fit content (capped at ~6 lines), then shrink
@@ -60,6 +66,7 @@ export function OperatorReply({
     if (!body || busy) return
     setBusy(true)
     setError(false)
+    setDelivery(null)
     try {
       const res = await fetch(`/api/conversations/${conversationId}/reply`, {
         method: 'POST',
@@ -71,6 +78,7 @@ export function OperatorReply({
         return
       }
       const data = await res.json()
+      const deliveryResult = data.delivery as DeliveryFeedback | undefined
       // Instantly display the message via the parent's optimistic state.
       // The API returns { message: { id, content, createdAt, role }, delivered }.
       if (onSent && data.message) {
@@ -80,9 +88,13 @@ export function OperatorReply({
           content: data.message.content,
           createdAt: data.message.createdAt,
           contentType: 'TEXT',
-          metadata: { operator: true },
+          metadata: {
+            operator: true,
+            ...(deliveryResult ? { delivery: deliveryResult } : {}),
+          },
         })
       }
+      if (deliveryResult) setDelivery(deliveryResult)
       setText('')
       // Silent background refresh to sync conversation status / handoff panel.
       // The message is already visible — this is just for metadata consistency.
@@ -98,7 +110,7 @@ export function OperatorReply({
     <div>
       {!canDeliver && (
         <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          برای کانال‌های ویجت/لینک چت، پیام شما ذخیره می‌شود و در بازدید بعدی کاربر نمایش داده می‌شود.
+          ارسال زنده برای این گفتگو در دسترس نیست؛ پیام در تاریخچه ذخیره می‌شود. برای کانال‌های پیام‌رسان، اتصال و دسترسی کانال را بررسی کنید.
         </p>
       )}
       {/* dir="ltr" so the send button is reliably on the RIGHT (visual right)
@@ -138,7 +150,17 @@ export function OperatorReply({
         </button>
       </div>
       {error ? (
-        <p className="mt-1.5 text-xs text-[var(--red)]">{t('replyFailed')}</p>
+        <p className="mt-1.5 text-xs text-[var(--red)]" role="alert">{t('replyFailed')}</p>
+      ) : delivery?.status === 'failed' || (delivery?.status === 'unavailable' && canDeliver) ? (
+        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
+          <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+          {locale === 'fa' ? 'پیام ذخیره شد، اما به کانال نرسید. اتصال کانال را بررسی و دوباره تلاش کنید.' : 'Saved, but not delivered. Check the channel connection and try again.'}
+        </p>
+      ) : delivery?.status === 'sent' ? (
+        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
+          <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          {locale === 'fa' ? 'پیام با موفقیت به کانال رسید.' : 'Delivered to the channel.'}
+        </p>
       ) : (
         <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
       )}

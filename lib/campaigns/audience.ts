@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isMessengerType } from '@/lib/channels/registry'
+import { contactPhoneLookupVariants } from '@/lib/phone'
 
 const campaignChannels = ['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE'] as const
 
@@ -46,11 +47,18 @@ function audienceWhere(
     }
     const query = input.filters.query?.trim()
     if (query) {
+      const phoneVariants = contactPhoneLookupVariants(query)
       and.push({
         OR: [
           { name: { contains: query, mode: 'insensitive' } },
           { phone: { contains: query } },
+          ...(phoneVariants.length ? [{ phone: { in: phoneVariants } }] : []),
           { tags: { has: query } },
+          { telegramUsername: { contains: query, mode: 'insensitive' } },
+          { baleUsername: { contains: query, mode: 'insensitive' } },
+          { rubikaUsername: { contains: query, mode: 'insensitive' } },
+          { whatsappName: { contains: query, mode: 'insensitive' } },
+          { instagramUsername: { contains: query, mode: 'insensitive' } },
         ],
       })
     }
@@ -155,4 +163,3 @@ export function safeAudienceSnapshot(input: CampaignAudienceInput) {
     ? { mode: 'selected', selectedCount: new Set(input.selectedContactIds).size }
     : { mode: 'filtered', filters: input.filters ?? {} }
 }
-
