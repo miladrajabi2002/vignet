@@ -9,7 +9,6 @@ import {
   openPendingWhatsappOAuth,
   type PendingWhatsappNumber,
 } from '@/lib/whatsapp/pending-oauth'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +25,6 @@ export async function POST(req: Request, props: Params) {
   const params = await props.params
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
-
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
     select: { id: true, workspaceId: true },

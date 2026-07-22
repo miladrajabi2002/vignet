@@ -126,8 +126,7 @@ export async function processLowCreditAlert(params: {
 async function sendLowCreditSms(alert: AlertPayload): Promise<void> {
   try {
     const owner = await prisma.user.findFirst({
-      where: { workspaceId: alert.workspaceId, role: 'OWNER' },
-      orderBy: { createdAt: 'asc' },
+      where: { workspaceId: alert.workspaceId },
       select: { phone: true },
     })
     if (!owner?.phone) return

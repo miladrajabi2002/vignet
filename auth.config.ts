@@ -55,7 +55,6 @@ export const authConfig = {
       if (user) {
         token.id = user.id as string
         token.workspaceId = user.workspaceId
-        token.role = user.role
         token.platformRole = user.platformRole
         token.phone = user.phone
         token.name = user.name ?? null
@@ -66,7 +65,6 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string
         session.user.workspaceId = token.workspaceId as string
-        session.user.role = token.role as string
         session.user.platformRole = token.platformRole as string
         session.user.phone = token.phone as string
       }

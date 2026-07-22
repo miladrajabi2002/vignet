@@ -115,7 +115,6 @@ export default async function AdminUserDetailPage(
               agents: true,
               conversations: true,
               payments: true,
-              users: true,
               products: true,
             },
           },

@@ -3,7 +3,6 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { buildInstagramAuthUrl, signState, type OAuthState } from '@/lib/instagram/oauth'
 import { createOAuthState } from '@/lib/security/oauth-state'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +18,6 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
-
   const json = (await req.json().catch(() => null)) as {
     agentId?: string
     returnTo?: string

@@ -49,16 +49,16 @@ const DIRECT_WORKSPACE_MODELS = new Set([
 /** SQL is assembled only from the fixed DATABASE_MODELS allow-list above. */
 function adminVisibleDatabaseClause(modelKey: string): string {
   if (modelKey === 'Workspace') {
-    return 'WHERE NOT EXISTS (SELECT 1 FROM "User" admin_scope_user WHERE admin_scope_user."workspaceId" = "Workspace"."id" AND admin_scope_user."platformRole" = \'ADMIN\')'
+    return 'WHERE "Workspace"."excludeFromAdminReports" = false'
   }
   if (DIRECT_WORKSPACE_MODELS.has(modelKey)) {
-    return `WHERE NOT EXISTS (SELECT 1 FROM "User" admin_scope_user WHERE admin_scope_user."workspaceId" = "${modelKey}"."workspaceId" AND admin_scope_user."platformRole" = 'ADMIN')`
+    return `WHERE EXISTS (SELECT 1 FROM "Workspace" admin_scope_workspace WHERE admin_scope_workspace."id" = "${modelKey}"."workspaceId" AND admin_scope_workspace."excludeFromAdminReports" = false)`
   }
   if (modelKey === 'AgentChannel') {
-    return 'WHERE NOT EXISTS (SELECT 1 FROM "Agent" admin_scope_agent JOIN "User" admin_scope_user ON admin_scope_user."workspaceId" = admin_scope_agent."workspaceId" WHERE admin_scope_agent."id" = "AgentChannel"."agentId" AND admin_scope_user."platformRole" = \'ADMIN\')'
+    return 'WHERE EXISTS (SELECT 1 FROM "Agent" admin_scope_agent JOIN "Workspace" admin_scope_workspace ON admin_scope_workspace."id" = admin_scope_agent."workspaceId" WHERE admin_scope_agent."id" = "AgentChannel"."agentId" AND admin_scope_workspace."excludeFromAdminReports" = false)'
   }
   if (modelKey === 'Message') {
-    return 'WHERE NOT EXISTS (SELECT 1 FROM "Conversation" admin_scope_conversation JOIN "User" admin_scope_user ON admin_scope_user."workspaceId" = admin_scope_conversation."workspaceId" WHERE admin_scope_conversation."id" = "Message"."conversationId" AND admin_scope_user."platformRole" = \'ADMIN\')'
+    return 'WHERE EXISTS (SELECT 1 FROM "Conversation" admin_scope_conversation JOIN "Workspace" admin_scope_workspace ON admin_scope_workspace."id" = admin_scope_conversation."workspaceId" WHERE admin_scope_conversation."id" = "Message"."conversationId" AND admin_scope_workspace."excludeFromAdminReports" = false)'
   }
   return ''
 }
@@ -74,11 +74,6 @@ function serializeValue(key: string, value: unknown): string {
     return text.length > 520 ? `${text.slice(0, 520)}…` : text
   }
   return String(value)
-}
-
-function visibleDatabaseRow(modelKey: string, row: Record<string, unknown>): Record<string, unknown> {
-  if (modelKey !== 'User') return row
-  return Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'role'))
 }
 
 export async function readDatabaseModel(modelKey: string, page: number, pageSize = 25) {
@@ -97,8 +92,6 @@ export async function readDatabaseModel(modelKey: string, page: number, pageSize
       SELECT current_database() AS "database", version() AS "version"
     `,
   ])
-  const visibleRows = rawRows.map((row) => visibleDatabaseRow(model.key, row))
-
   return {
     model,
     page: safePage,
@@ -106,7 +99,7 @@ export async function readDatabaseModel(modelKey: string, page: number, pageSize
     total: Number(countRows[0]?.count ?? 0),
     database: connectionRows[0]?.database ?? 'PostgreSQL',
     version: connectionRows[0]?.version?.split(',')[0] ?? 'PostgreSQL',
-    columns: visibleRows[0] ? Object.keys(visibleRows[0]) : [],
-    rows: visibleRows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, serializeValue(key, value)]))),
+    columns: rawRows[0] ? Object.keys(rawRows[0]) : [],
+    rows: rawRows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, serializeValue(key, value)]))),
   }
 }

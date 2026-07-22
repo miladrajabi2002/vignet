@@ -159,8 +159,7 @@ async function sendPurchaseConfirmation(
   // throws — a failed SMS must not break the activation that already succeeded.
   try {
     const owner = await prisma.user.findFirst({
-      where: { workspaceId, role: 'OWNER' },
-      orderBy: { createdAt: 'asc' },
+      where: { workspaceId },
       select: { phone: true },
     })
     if (owner?.phone) {

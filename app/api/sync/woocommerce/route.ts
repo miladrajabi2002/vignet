@@ -11,7 +11,6 @@ import {
 } from '@/lib/integrations/woocommerce'
 import { handleWpContentWebhook } from '@/lib/integrations/wp-content'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -157,9 +156,6 @@ export async function POST(req: Request) {
 async function handleManualSync(req: Request) {
 	const user = await getCurrentUser()
 	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-	if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
-		return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-	}
 	if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
 		return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
 	}

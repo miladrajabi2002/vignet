@@ -7,7 +7,6 @@ import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/crypto'
 import { assertSafeHttpUrl, UnsafeHttpTargetError } from '@/lib/security/safe-http'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Store integration list + create (F2).
@@ -66,10 +65,6 @@ function appBaseUrl(): string {
 export async function GET() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         const integrations = await prisma.storeIntegration.findMany({
                 where: { workspaceId: user.workspaceId },
                 orderBy: { createdAt: 'desc' },
@@ -110,9 +105,6 @@ export async function GET() {
 export async function POST(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'integrations:manage')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
         if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
                 return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
         }

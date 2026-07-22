@@ -13,7 +13,6 @@ import {
 import { buildWhatsappOAuthConfig } from '@/lib/whatsapp/config'
 import { getCurrentUser } from '@/lib/session'
 import { consumeOAuthState } from '@/lib/security/oauth-state'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 import { sealPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
 
 export const dynamic = 'force-dynamic'
@@ -64,8 +63,7 @@ export async function GET(req: Request) {
   const bindingMatches =
     !!user &&
     user.id === state.userId &&
-    user.workspaceId === state.workspaceId &&
-    hasWorkspacePermission(user.role, 'agents:manage')
+    user.workspaceId === state.workspaceId
   if (!bindingMatches) {
     return NextResponse.redirect(new URL(`/?wa_error=state`, base), {
       status: 303,

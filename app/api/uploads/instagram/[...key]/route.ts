@@ -3,7 +3,6 @@ import { getCurrentUser } from '@/lib/session'
 import { readFile, unlink } from 'fs/promises'
 import { resolve, sep } from 'path'
 import { existsSync } from 'fs'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Instagram automation media — GET (serve from local disk) + DELETE.
@@ -138,10 +137,6 @@ export async function DELETE(_req: Request, props: Params) {
         if (!user) {
                 return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
         }
-        if (!hasWorkspacePermission(user.role, 'catalog:manage')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         // New uploads are namespaced by workspace. Legacy unscoped objects stay
         // publicly readable for Meta delivery but cannot be deleted by tenants.
         if (!keySegments || keySegments[0] !== user.workspaceId) {

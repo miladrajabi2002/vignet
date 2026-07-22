@@ -12,7 +12,6 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { tmpdir } from 'os'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 import { rateLimit, rateLimitCost } from '@/lib/ratelimit'
 
 const execFileAsync = promisify(execFile)
@@ -213,9 +212,6 @@ export async function POST(req: Request) {
         }
         if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
                 return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
-        }
-        if (!hasWorkspacePermission(user.role, 'catalog:manage')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
         }
         if (!(await rateLimit(`instagram-upload:${user.workspaceId}`, 12, 3600, { failClosed: true }))) {
                 return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })

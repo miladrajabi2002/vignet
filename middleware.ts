@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig } from '@/auth.config'
-import { hasWorkspacePermission, permissionForApiRequest } from '@/lib/workspace-permissions'
 
 const { auth } = NextAuth(authConfig)
 
@@ -13,15 +12,8 @@ const { auth } = NextAuth(authConfig)
 // reading an empty pathname and redirecting /onboarding → /onboarding in a loop
 // (blank page after a new user's first login).
 export default auth((req) => {
-  const permission = permissionForApiRequest(req.nextUrl.pathname, req.method)
-  const sessionUser = req.auth?.user as { role?: string } | undefined
-  if (permission && sessionUser && !hasWorkspacePermission(sessionUser.role, permission)) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
-
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-pathname', req.nextUrl.pathname)
-	requestHeaders.set('x-vigent-method', req.method)
   return NextResponse.next({ request: { headers: requestHeaders } })
 })
 

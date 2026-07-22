@@ -5,7 +5,6 @@ import { captureError } from '@/lib/errors/capture'
 import { readOperatorBotToken } from '@/lib/channels/operator-handoff'
 import { setTelegramBotCommands, setTelegramWebhook } from '@/lib/channels/telegram'
 import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 function appBaseUrl(): string {
 	return (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
@@ -20,10 +19,6 @@ function appBaseUrl(): string {
 export async function POST() {
 	const user = await getCurrentUser()
 	if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-	if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
-		return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-	}
-
 	const op = await prisma.operatorChannel.findUnique({
 		where: { workspaceId: user.workspaceId },
 		select: { id: true, botToken: true, operatorChatId: true },

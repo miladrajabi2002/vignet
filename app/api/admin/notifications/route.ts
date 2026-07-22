@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const input = parsed.data
 
   const audienceWhere: Prisma.WorkspaceWhereInput = input.mode === 'single'
-    ? { users: { some: { id: input.userId } } }
+    ? { owner: { is: { id: input.userId } } }
     : input.plan
       ? { plan: input.plan }
       : input.audience === 'paid'
@@ -47,8 +47,7 @@ export async function POST(request: Request) {
     select: {
       id: true,
       name: true,
-      users: {
-        orderBy: { createdAt: 'asc' },
+      owner: {
         select: { id: true, phone: true },
       },
     },
@@ -68,9 +67,9 @@ export async function POST(request: Request) {
         notificationCount += 1
       }
       if (sendSms) {
-        const recipient = input.mode === 'single'
-          ? workspace.users.find((user) => user.id === input.userId)
-          : workspace.users[0]
+        const recipient = input.mode === 'single' && workspace.owner?.id !== input.userId
+          ? null
+          : workspace.owner
         if (recipient?.phone) {
           await dispatchNotification({ kind: 'sms', to: recipient.phone, message: text })
           smsCount += 1

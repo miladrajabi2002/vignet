@@ -2963,5 +2963,10 @@
     "mtime": 1784676255.5231912,
     "ast_hash": "b0ed89f38da69ddc6653fae904a9862b",
     "semantic_hash": ""
+  },
+  "app/not-found.tsx": {
+    "mtime": 1784677821.6428032,
+    "ast_hash": "abc1db0317acd93213dd9932afa627f7",
+    "semantic_hash": ""
   }
 }

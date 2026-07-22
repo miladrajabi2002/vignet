@@ -10,9 +10,9 @@ import {
 } from '@/lib/admin/reporting-scope'
 
 describe('admin reporting scope', () => {
-  it('excludes every workspace which contains a platform admin', () => {
+  it('excludes every workspace explicitly marked as internal', () => {
     expect(ADMIN_VISIBLE_WORKSPACE_WHERE).toEqual({
-      users: { none: { platformRole: 'ADMIN' } },
+      excludeFromAdminReports: false,
     })
     expect(ADMIN_VISIBLE_USER_WHERE).toEqual({
       workspace: ADMIN_VISIBLE_WORKSPACE_WHERE,
@@ -25,9 +25,9 @@ describe('admin reporting scope', () => {
   it('provides the same exclusion for raw aggregate queries', () => {
     const clause = adminVisibleWorkspaceSql(Prisma.sql`usage."workspaceId"`)
     const sql = clause.strings.join('?')
-    expect(sql).toContain('NOT EXISTS')
-    expect(sql).toContain('admin_scope_user."workspaceId"')
-    expect(sql).toContain('admin_scope_user."platformRole" = \'ADMIN\'')
+    expect(sql).toContain('EXISTS')
+    expect(sql).toContain('admin_scope_workspace."id"')
+    expect(sql).toContain('admin_scope_workspace."excludeFromAdminReports" = false')
   })
 
   it('keeps every customer-facing admin data surface on the shared scope', async () => {
@@ -48,7 +48,7 @@ describe('admin reporting scope', () => {
 
     for (const file of files) {
       const source = await readFile(path.join(process.cwd(), file), 'utf8')
-      expect(source, file).toMatch(/ADMIN_VISIBLE_|adminVisibleWorkspace|admin_scope_user/)
+      expect(source, file).toMatch(/ADMIN_VISIBLE_|adminVisibleWorkspace|admin_scope_workspace/)
     }
   })
 
@@ -64,12 +64,22 @@ describe('admin reporting scope', () => {
     expect(health).not.toContain('usageMonthlyUSD: usage.usageMonthlyUSD')
   })
 
-  it('hides the obsolete workspace role from admin-facing user data', async () => {
+  it('removes workspace roles from the schema and admin-facing user data', async () => {
+    const schema = await readFile(path.join(process.cwd(), 'prisma/schema.prisma'), 'utf8')
+    const migration = await readFile(path.join(process.cwd(), 'prisma/migrations/20260722034500_single_owner_workspace_reporting/migration.sql'), 'utf8')
+    const auth = await readFile(path.join(process.cwd(), 'auth.ts'), 'utf8')
     const explorer = await readFile(path.join(process.cwd(), 'lib/admin/database-explorer.ts'), 'utf8')
     const userDetail = await readFile(path.join(process.cwd(), 'app/admin/(dash)/users/[userId]/page.tsx'), 'utf8')
 
-    expect(explorer).toContain("key !== 'role'")
-    expect(explorer).not.toContain("key !== 'platformRole'")
+    expect(schema).not.toContain('enum UserRole')
+    expect(schema).toContain('owner             User?')
+    expect(schema).toContain('@@unique([workspaceId])')
+    expect(schema).toContain('excludeFromAdminReports')
+    expect(migration).toContain('ALTER TABLE "User" DROP COLUMN "role"')
+    expect(migration).toContain('CREATE UNIQUE INDEX "User_workspaceId_key"')
+    expect(migration).toContain('owner."platformRole" = \'ADMIN\'')
+    expect(auth).toContain("excludeFromAdminReports: platformRole === 'ADMIN'")
+    expect(explorer).not.toContain('visibleDatabaseRow')
     expect(userDetail).not.toContain('ROLE_LABEL')
     expect(userDetail).not.toContain('user.role')
     expect(userDetail).toContain('user.platformRole')

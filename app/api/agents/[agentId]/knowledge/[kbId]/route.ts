@@ -3,7 +3,6 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { syncOnboarding } from '@/lib/onboarding'
 import { BUCKETS, deleteFile } from '@/lib/storage'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 type Params = { params: Promise<{ agentId: string; kbId: string }> }
 
@@ -11,10 +10,6 @@ export async function DELETE(_req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
-
   const kb = await prisma.knowledgeBase.findFirst({
     where: {
       id: params.kbId,

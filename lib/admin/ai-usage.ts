@@ -476,8 +476,6 @@ export async function getAiUsageReport(days = 30) {
                SELECT COALESCE(NULLIF(member."name", ''), member."phone")
                FROM "User" member
                WHERE member."workspaceId" = workspace."id"
-               ORDER BY CASE WHEN member."role" = 'OWNER' THEN 0 ELSE 1 END,
-                        member."createdAt" ASC
                LIMIT 1
              ) AS "ownerLabel",
              (SELECT count(*) FROM "User" member WHERE member."workspaceId" = workspace."id") AS "userCount",

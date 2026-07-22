@@ -8,7 +8,6 @@ import type { KBType } from '@prisma/client'
 import { assertSafeHttpUrl, UnsafeHttpTargetError } from '@/lib/security/safe-http'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { randomUUID } from 'node:crypto'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 import { rateLimit, rateLimitCost } from '@/lib/ratelimit'
 import { isProbablyUtf8Text, matchesPdfSignature } from '@/lib/security/file-signatures'
 import {
@@ -35,9 +34,6 @@ export async function GET(_req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
   if (!(await ownAgent(user.workspaceId, params.agentId)))
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -52,9 +48,6 @@ export async function POST(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
   if (!(await rateLimit(`knowledge-create:${user.workspaceId}`, 60, 3600, { failClosed: true }))) {
     return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
   }

@@ -7,7 +7,6 @@ import {
   type WhatsappOAuthState,
 } from '@/lib/whatsapp/oauth'
 import { createOAuthState } from '@/lib/security/oauth-state'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +25,6 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
-  if (!hasWorkspacePermission(user.role, 'agents:manage')) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-  }
-
   let agentId: string | undefined
   let returnTo: string | undefined
   try {

@@ -11,7 +11,6 @@ import {
 } from '@/lib/channels/telegram'
 import { readOperatorBotToken } from '@/lib/channels/operator-handoff'
 import { operatorWebhookSecret } from '@/lib/channels/operator-bot'
-import { hasWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Workspace-scoped management of the operator Telegram bot (F3).
@@ -60,10 +59,6 @@ const patchSchema = z.object({
 export async function GET() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         const op = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },
                 select: {
@@ -95,10 +90,6 @@ export async function GET() {
 export async function POST(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         const json = await req.json().catch(() => null)
         const parsed = createSchema.safeParse(json)
         if (!parsed.success) {
@@ -181,10 +172,6 @@ export async function POST(req: Request) {
 export async function DELETE() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         const op = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },
                 select: { id: true, botToken: true },
@@ -216,10 +203,6 @@ export async function DELETE() {
 export async function PATCH(req: Request) {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-        if (!hasWorkspacePermission(user.role, 'workspace:configure')) {
-                return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
-        }
-
         const existing = await prisma.operatorChannel.findUnique({
                 where: { workspaceId: user.workspaceId },
                 select: { id: true },

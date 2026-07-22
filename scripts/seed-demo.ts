@@ -49,7 +49,6 @@ async function main() {
       phone: DEMO_PHONE,
       name: 'کاربر دمو ویجنت',
       workspaceId: workspace.id,
-      role: 'OWNER',
     },
   })
 

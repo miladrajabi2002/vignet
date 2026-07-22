@@ -108,9 +108,7 @@ export default async function AdminPaymentsPage(
       include: {
         workspace: {
           select: {
-            users: {
-              orderBy: { createdAt: 'asc' },
-              take: 1,
+            owner: {
               select: { id: true, name: true, phone: true },
             },
           },
@@ -223,7 +221,7 @@ export default async function AdminPaymentsPage(
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {items.map((p) => {
-              const user = p.workspace.users[0]
+              const user = p.workspace.owner
               return (
               <tr key={p.id} className="hover:bg-zinc-50/60">
                 <Td>

@@ -64,9 +64,7 @@ export default async function AdminConversationsPage(
           agent: { select: { name: true } },
           workspace: {
             select: {
-              users: {
-                orderBy: { createdAt: 'asc' },
-                take: 1,
+              owner: {
                 select: { id: true, name: true, phone: true },
               },
             },
@@ -135,7 +133,7 @@ export default async function AdminConversationsPage(
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {items.map((c) => {
-              const user = c.workspace.users[0]
+              const user = c.workspace.owner
               const status = STATUS_META[c.status] ?? {
                 label: c.status,
                 tone: 'default' as const,

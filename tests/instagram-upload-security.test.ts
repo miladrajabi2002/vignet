@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  permission: vi.fn(),
   rateLimit: vi.fn(),
   rateLimitCost: vi.fn(),
 }))
@@ -10,16 +9,12 @@ vi.mock('@/lib/session', () => ({
   getCurrentUser: vi.fn(async () => ({
     id: 'user-1',
     workspaceId: 'workspace-1',
-    role: 'MEMBER',
     platformRole: 'USER',
     phone: '+989123456789',
   })),
 }))
 vi.mock('@/lib/billing/entitlements', () => ({
   checkWorkspaceActive: vi.fn(async () => ({ allowed: true })),
-}))
-vi.mock('@/lib/workspace-permissions', () => ({
-  hasWorkspacePermission: mocks.permission,
 }))
 vi.mock('@/lib/ratelimit', () => ({
   rateLimit: mocks.rateLimit,
@@ -35,19 +30,11 @@ function uploadRequest(file: File): Request {
 }
 
 beforeEach(() => {
-  mocks.permission.mockReset().mockReturnValue(true)
   mocks.rateLimit.mockReset().mockResolvedValue(true)
   mocks.rateLimitCost.mockReset().mockResolvedValue(true)
 })
 
 describe('Instagram upload abuse boundaries', () => {
-  it('requires a workspace management permission', async () => {
-    mocks.permission.mockReturnValue(false)
-    const response = await POST(uploadRequest(new File(['x'], 'x.png', { type: 'image/png' })))
-    expect(response.status).toBe(403)
-    expect(mocks.rateLimit).not.toHaveBeenCalled()
-  })
-
   it('rejects broad MIME-prefix bypasses such as SVG', async () => {
     const response = await POST(
       uploadRequest(new File(['<svg/>'], 'payload.svg', { type: 'image/svg+xml' })),
@@ -64,4 +51,3 @@ describe('Instagram upload abuse boundaries', () => {
     await expect(response.json()).resolves.toEqual({ error: 'UPLOAD_QUOTA_EXCEEDED' })
   })
 })
-

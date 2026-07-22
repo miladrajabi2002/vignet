@@ -275,10 +275,11 @@ model Workspace {
   language            String   @default("fa")
   onboardingStep      Int      @default(0)  // 0-4, tracks activation checklist
   onboardingCompleted Boolean  @default(false)
+  excludeFromAdminReports Boolean @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  users               User[]
+  owner               User?
   agents              Agent[]
   contacts            Contact[]
   conversations       Conversation[]
@@ -303,20 +304,19 @@ model User {
   workspaceId   String
   phone         String    @unique  // e.g. +989121234567
   name          String?
-  role          UserRole  @default(OWNER)
+  platformRole  PlatformRole @default(USER)
   language      String    @default("fa")
   createdAt     DateTime  @default(now())
 
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
 
-  @@index([workspaceId])
+  @@unique([workspaceId])
   @@index([phone])
 }
 
-enum UserRole {
-  OWNER
+enum PlatformRole {
+  USER
   ADMIN
-  MEMBER
 }
 
 // ─── OTP STORE (backed by Redis, but also DB fallback) ────────────
@@ -709,7 +709,7 @@ export async function POST(req: Request) {
       data: { name: name || 'کسب‌وکار من', slug: generateSlug() }
     })
     user = await prisma.user.create({
-      data: { phone: normalize(phone), name: name || null, workspaceId: workspace.id, role: 'OWNER' }
+      data: { phone: normalize(phone), name: name || null, workspaceId: workspace.id }
     })
   }
 

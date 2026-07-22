@@ -59,24 +59,27 @@ describe('owner-only admin security', () => {
     expect(() => verifyAdminActionToken(`${token.slice(0, -1)}x`)).toThrow('INVALID_ACTION_TOKEN')
   })
 
-  it('keeps natural-language CRUD allow-listed and never grants platform admin', () => {
+  it('keeps single-owner account deletion allow-listed and removes team mutations', () => {
     const token = createAdminActionToken({
-      kind: 'CREATE_WORKSPACE_MEMBER',
+      kind: 'DELETE_USER_ACCOUNT',
+      userId: 'user-1',
       workspaceId: 'workspace-1',
-      workspaceName: 'نمونه',
-      phone: '+989121234567',
-      name: 'عضو آزمایشی',
-      role: 'MEMBER',
-      reason: 'تست ابزار عضو',
+      label: 'مالک آزمایشی',
+      reason: 'تست حذف حساب',
     })
     const payload = verifyAdminActionToken(token)
-    expect(payload).toMatchObject({ kind: 'CREATE_WORKSPACE_MEMBER', role: 'MEMBER' })
+    expect(payload).toMatchObject({ kind: 'DELETE_USER_ACCOUNT', userId: 'user-1' })
+    expect(payload).not.toHaveProperty('role')
     expect(payload).not.toHaveProperty('platformRole')
 
     const actionSource = readFileSync(path.join(process.cwd(), 'lib/admin/vigento-actions.ts'), 'utf8')
     const routeSource = readFileSync(path.join(process.cwd(), 'app/api/admin/vigento/route.ts'), 'utf8')
-    expect(actionSource).toContain("platformRole: 'USER'")
     expect(actionSource).toContain("throw new Error('PROTECTED_USER')")
+    expect(actionSource).not.toContain('CREATE_WORKSPACE_MEMBER')
+    expect(actionSource).not.toContain('UPDATE_WORKSPACE_MEMBER')
+    expect(routeSource).toContain('propose_delete_user_account')
+    expect(routeSource).not.toContain('propose_create_workspace_member')
+    expect(routeSource).not.toContain('propose_update_workspace_member')
     expect(routeSource).not.toContain('propose_raw_sql')
     expect(routeSource).not.toContain('execute_sql')
   })

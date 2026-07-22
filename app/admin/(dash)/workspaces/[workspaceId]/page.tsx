@@ -9,12 +9,7 @@ export default async function AdminWorkspaceDetailPage(props: {
 }) {
   const { workspaceId } = await props.params
   const user = await prisma.user.findFirst({
-    where: { ...ADMIN_VISIBLE_USER_WHERE, workspaceId, role: 'OWNER' },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  }) ?? await prisma.user.findFirst({
     where: { ...ADMIN_VISIBLE_USER_WHERE, workspaceId },
-    orderBy: { createdAt: 'asc' },
     select: { id: true },
   })
 

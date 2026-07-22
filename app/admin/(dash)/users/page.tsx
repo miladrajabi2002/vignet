@@ -105,7 +105,7 @@ export default async function AdminUsersPage(
               plan: true,
               onboardingCompleted: true,
               createdAt: true,
-              _count: { select: { agents: true, conversations: true, payments: true, users: true } },
+              _count: { select: { agents: true, conversations: true, payments: true } },
             },
           },
         },

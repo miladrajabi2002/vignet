@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/integrations/page.tsx": {
-    "mtime": 1784464003.9821603,
-    "ast_hash": "9709db6b1ed76467af22403baf4f0dfa",
+    "mtime": 1784678253.4208949,
+    "ast_hash": "d82f2a4d2000dee491cee33ccedbd84c",
     "semantic_hash": ""
   },
   "app/(dashboard)/layout.tsx": {
@@ -187,11 +187,6 @@
   "app/(dashboard)/settings/page.tsx": {
     "mtime": 1784425868.2375536,
     "ast_hash": "1eff808b8c26687873eac9e49deff970",
-    "semantic_hash": ""
-  },
-  "app/(dashboard)/settings/team/page.tsx": {
-    "mtime": 1783940510.4592183,
-    "ast_hash": "8a4e69eac30fae4798c8a24e7ddc5edb",
     "semantic_hash": ""
   },
   "app/(dashboard)/vigento/page.tsx": {
@@ -290,8 +285,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/conversations/page.tsx": {
-    "mtime": 1784674889.9204392,
-    "ast_hash": "85e7b4bd1f69704161058016a709418e",
+    "mtime": 1784678354.810184,
+    "ast_hash": "ed1f0df2ac8fa96ea033541b8da5c88b",
     "semantic_hash": ""
   },
   "app/admin/(dash)/errors/page.tsx": {
@@ -325,8 +320,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/payments/page.tsx": {
-    "mtime": 1784674889.9224555,
-    "ast_hash": "e579344e34a0bb4a13e7e7f7139cf4fd",
+    "mtime": 1784678354.805183,
+    "ast_hash": "50f139b03b658df3bef415321007b09b",
     "semantic_hash": ""
   },
   "app/admin/(dash)/revenue/page.tsx": {
@@ -355,13 +350,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/[userId]/page.tsx": {
-    "mtime": 1784677249.2031326,
-    "ast_hash": "c16e20af1befe6b17cd904ed37b92128",
+    "mtime": 1784678354.813189,
+    "ast_hash": "ed2633ee9f7028bd87fbc89640ad37d4",
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/page.tsx": {
-    "mtime": 1784674889.9194324,
-    "ast_hash": "6cdf08c072f2842109e2868f43870e3c",
+    "mtime": 1784678354.812187,
+    "ast_hash": "e334c59bb5ee432e19749dc31a0700df",
     "semantic_hash": ""
   },
   "app/admin/(dash)/vigento/page.tsx": {
@@ -370,8 +365,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/[workspaceId]/page.tsx": {
-    "mtime": 1784674907.3390903,
-    "ast_hash": "2b484e6add060273b497ff25f597d071",
+    "mtime": 1784678354.8141868,
+    "ast_hash": "abf8e0b489e87a5d90f6444582440d61",
     "semantic_hash": ""
   },
   "app/admin/(dash)/workspaces/page.tsx": {
@@ -435,8 +430,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/notifications/route.ts": {
-    "mtime": 1784675064.242405,
-    "ast_hash": "9451e3b4ffc50bbaca3e2924d4e0ea8f",
+    "mtime": 1784678354.8111854,
+    "ast_hash": "889b082c3f50e9845c514a7d29583c79",
     "semantic_hash": ""
   },
   "app/api/admin/platform-settings/route.ts": {
@@ -450,8 +445,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/vigento/route.ts": {
-    "mtime": 1784675247.0874915,
-    "ast_hash": "c69ee363d2c2970de73ebb495d5dcbcf",
+    "mtime": 1784678476.9167376,
+    "ast_hash": "0b6e03c4274bde37aad3c3f680dbca83",
     "semantic_hash": ""
   },
   "app/api/admin/webhook-debug/route.ts": {
@@ -490,8 +485,8 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/channels/whatsapp-connect/route.ts": {
-    "mtime": 1784464564.0063906,
-    "ast_hash": "85206b91aa1352221bdc05326b276bb5",
+    "mtime": 1784678253.4999168,
+    "ast_hash": "9b0f14d31ab590e1ee258b99fff78984",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/channels/whatsapp-qr/disconnect/route.ts": {
@@ -530,13 +525,13 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/knowledge/[kbId]/route.ts": {
-    "mtime": 1784465283.3875651,
-    "ast_hash": "d66de06124098530a722bd6d74b12180",
+    "mtime": 1784678253.4959154,
+    "ast_hash": "e680534c2e115320360ef847c83a3a29",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/knowledge/route.ts": {
-    "mtime": 1784465249.970971,
-    "ast_hash": "a58b90b5f2f9d295d81a0057c2c3fba9",
+    "mtime": 1784678253.4979124,
+    "ast_hash": "37753bc0c385ffbae7e0c8e60f0375ca",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/learning/approve/route.ts": {
@@ -555,8 +550,8 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/route.ts": {
-    "mtime": 1784464003.9821603,
-    "ast_hash": "00c5fd4bdf61fac6f3db3d350d127762",
+    "mtime": 1784678253.49291,
+    "ast_hash": "f14bd72736726e1032d523526f82b314",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/versions/[versionId]/route.ts": {
@@ -565,8 +560,8 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/versions/route.ts": {
-    "mtime": 1784465270.917876,
-    "ast_hash": "2b01256165f99ea203ad84b2e308698b",
+    "mtime": 1784678253.493908,
+    "ast_hash": "de73a95b28de9bf5342f04cdda9b5da8",
     "semantic_hash": ""
   },
   "app/api/agents/draft/[runId]/feedback/route.ts": {
@@ -715,23 +710,23 @@
     "semantic_hash": ""
   },
   "app/api/instagram/oauth/callback/route.ts": {
-    "mtime": 1784676192.591591,
-    "ast_hash": "ff20a6255e5ba5cca8c52e6d77059b7e",
+    "mtime": 1784678253.421899,
+    "ast_hash": "1f27e8320e19d79a45bf1f5312f7b354",
     "semantic_hash": ""
   },
   "app/api/instagram/oauth/start/route.ts": {
-    "mtime": 1784464482.6262436,
-    "ast_hash": "b154f1eb6a46c91265a36f84817110af",
+    "mtime": 1784678253.4208949,
+    "ast_hash": "82aea65e211d101f04d062ff41d74eb7",
     "semantic_hash": ""
   },
   "app/api/integrations/[integrationId]/route.ts": {
-    "mtime": 1784464003.9821603,
-    "ast_hash": "459ada4c6d2f50a3d3f85889186b4605",
+    "mtime": 1784678273.969507,
+    "ast_hash": "1431cf48be348de5a1821235d31df7ea",
     "semantic_hash": ""
   },
   "app/api/integrations/route.ts": {
-    "mtime": 1784464003.9821603,
-    "ast_hash": "3369a92e5b15fd6646ca910dc32922db",
+    "mtime": 1784678273.9685073,
+    "ast_hash": "2ded7057cd9d2f13600158529a658de2",
     "semantic_hash": ""
   },
   "app/api/messages/[messageId]/rate/route.ts": {
@@ -755,13 +750,13 @@
     "semantic_hash": ""
   },
   "app/api/operator-channel/route.ts": {
-    "mtime": 1784465462.4163978,
-    "ast_hash": "f4c80756a72f3118077982fb86c16d74",
+    "mtime": 1784678273.9705076,
+    "ast_hash": "499bca4b8d4bee969ece16661b533dc3",
     "semantic_hash": ""
   },
   "app/api/operator-channel/test/route.ts": {
-    "mtime": 1784465440.3852584,
-    "ast_hash": "ffa0b6a6c97210aafa73cbfb219438a8",
+    "mtime": 1784678273.9715073,
+    "ast_hash": "94c0c32f8cd45e6c2d9271d3528caa36",
     "semantic_hash": ""
   },
   "app/api/products/[productId]/route.ts": {
@@ -785,8 +780,8 @@
     "semantic_hash": ""
   },
   "app/api/sync/woocommerce/route.ts": {
-    "mtime": 1784464098.194248,
-    "ast_hash": "6a2f461a1fda3ad8c9d0280415ef53c1",
+    "mtime": 1784678273.9745119,
+    "ast_hash": "2016fdb0077fcc40ae0cd30d12b93253",
     "semantic_hash": ""
   },
   "app/api/telegram-operator/webhook/route.ts": {
@@ -800,8 +795,8 @@
     "semantic_hash": ""
   },
   "app/api/uploads/instagram/[...key]/route.ts": {
-    "mtime": 1784465044.9790325,
-    "ast_hash": "e18b556352a6b008af53cf37113de8d5",
+    "mtime": 1784678273.9795089,
+    "ast_hash": "cf74d35b8fc4d2f033001637780ec50a",
     "semantic_hash": ""
   },
   "app/api/uploads/instagram/diag/route.ts": {
@@ -810,8 +805,8 @@
     "semantic_hash": ""
   },
   "app/api/uploads/instagram/route.ts": {
-    "mtime": 1784465044.9790325,
-    "ast_hash": "e66a90126027955d4ab5e4013ee55d0d",
+    "mtime": 1784678273.977511,
+    "ast_hash": "f91e761fb1b7f22e5c8b3646a4aa279e",
     "semantic_hash": ""
   },
   "app/api/vigento/assistant/route.ts": {
@@ -870,13 +865,13 @@
     "semantic_hash": ""
   },
   "app/api/whatsapp/oauth/callback/route.ts": {
-    "mtime": 1784464548.1422849,
-    "ast_hash": "f91ccadd274f6c9245e6711de2fbaf74",
+    "mtime": 1784678253.4889092,
+    "ast_hash": "c53b660e17c8b07aa3f6ff268a65aca4",
     "semantic_hash": ""
   },
   "app/api/whatsapp/oauth/start/route.ts": {
-    "mtime": 1784464482.6272378,
-    "ast_hash": "872e020763a0c4a78e4480bbdf76bc91",
+    "mtime": 1784678253.422906,
+    "ast_hash": "9328643ede2100485ca1b4d5c4834be5",
     "semantic_hash": ""
   },
   "app/api/widget/[agentId]/chat/route.ts": {
@@ -930,13 +925,13 @@
     "semantic_hash": ""
   },
   "auth.config.ts": {
-    "mtime": 1784463994.7674606,
-    "ast_hash": "9e2268f2c47935eb221cf4cc34e76721",
+    "mtime": 1784678205.5411448,
+    "ast_hash": "b45abc2e1073746dc7d7fb42329f6e89",
     "semantic_hash": ""
   },
   "auth.ts": {
-    "mtime": 1784463245.06135,
-    "ast_hash": "002480ceeb385974c2f30f9aed4b2cad",
+    "mtime": 1784678205.540157,
+    "ast_hash": "631297f9574883a3cdbc899ccae1d444",
     "semantic_hash": ""
   },
   "components/admin/admin-broadcast-form.tsx": {
@@ -1545,8 +1540,8 @@
     "semantic_hash": ""
   },
   "lib/admin/ai-usage.ts": {
-    "mtime": 1784677249.198128,
-    "ast_hash": "d47edca954b1bf5e903304ec6379559a",
+    "mtime": 1784678371.4750254,
+    "ast_hash": "121c2c554dc5ec3ea7687eed991f79a3",
     "semantic_hash": ""
   },
   "lib/admin/auth.ts": {
@@ -1580,8 +1575,8 @@
     "semantic_hash": ""
   },
   "lib/admin/vigento-actions.ts": {
-    "mtime": 1784213089.6294668,
-    "ast_hash": "e1567c40915c9857b47ffa918f18ac38",
+    "mtime": 1784678407.8534977,
+    "ast_hash": "f5737df699222921c88ea82baf5f959d",
     "semantic_hash": ""
   },
   "lib/ai/chat-engine.ts": {
@@ -1660,13 +1655,13 @@
     "semantic_hash": ""
   },
   "lib/billing/entitlements.ts": {
-    "mtime": 1784298072.5897138,
-    "ast_hash": "bf92984530455be135420d202459fbb1",
+    "mtime": 1784678371.4722004,
+    "ast_hash": "279eeb02b901d2acf5d9ce0db28a5f5a",
     "semantic_hash": ""
   },
   "lib/billing/low-credit-alert.ts": {
-    "mtime": 1784067735.1521947,
-    "ast_hash": "85688d22285cfa27de16e9c3c90d5ab0",
+    "mtime": 1784678371.473238,
+    "ast_hash": "14ebe99c8ba5c2a6107c9efae4992f73",
     "semantic_hash": ""
   },
   "lib/billing/nowpayments.ts": {
@@ -2055,8 +2050,8 @@
     "semantic_hash": ""
   },
   "lib/session.ts": {
-    "mtime": 1784664382.5783727,
-    "ast_hash": "82f01182ff5d719f10edc9c289755c8a",
+    "mtime": 1784678205.5431478,
+    "ast_hash": "95af427bd2dfa1011be2453d3040e02c",
     "semantic_hash": ""
   },
   "lib/sms/ippanel.ts": {
@@ -2139,11 +2134,6 @@
     "ast_hash": "53b325069182f9cc1b2ebe573896d872",
     "semantic_hash": ""
   },
-  "lib/workspace-permissions.ts": {
-    "mtime": 1784664382.5773807,
-    "ast_hash": "915f4f82ef7d4827df842f17574429fe",
-    "semantic_hash": ""
-  },
   "messages/en.json": {
     "mtime": 1784464966.6772833,
     "ast_hash": "f8c225c636bb042db0805ad226303b8e",
@@ -2155,8 +2145,8 @@
     "semantic_hash": ""
   },
   "middleware.ts": {
-    "mtime": 1784664382.5783727,
-    "ast_hash": "39720e602ad0aa939f6bc8d0db8a6512",
+    "mtime": 1784678205.5441515,
+    "ast_hash": "33ec0b3505527e52717525c6a1fed934",
     "semantic_hash": ""
   },
   "mini-services/whatsapp-bridge/index.ts": {
@@ -2335,8 +2325,8 @@
     "semantic_hash": ""
   },
   "scripts/seed-demo.ts": {
-    "mtime": 1783894985.0195105,
-    "ast_hash": "8fdf2a37f7166e1a6e0165fec7b107b4",
+    "mtime": 1784678632.8700838,
+    "ast_hash": "47f7668fc475d0e0e3ad2cf75eb9c64a",
     "semantic_hash": ""
   },
   "scripts/start-demo.sh": {
@@ -2355,8 +2345,8 @@
     "semantic_hash": ""
   },
   "tests/admin-owner-platform-settings.test.ts": {
-    "mtime": 1784227110.017682,
-    "ast_hash": "f12c34490c634e5f0a9e7cf0c0099657",
+    "mtime": 1784678544.9427655,
+    "ast_hash": "c422ed06d7eeb04e9339ee21f82cda5c",
     "semantic_hash": ""
   },
   "tests/billing-finance.test.ts": {
@@ -2439,19 +2429,14 @@
     "ast_hash": "3f818f02c99562d31dceeacce133779a",
     "semantic_hash": ""
   },
-  "tests/workspace-permissions.test.ts": {
-    "mtime": 1784664382.5803833,
-    "ast_hash": "c961158be7b22f465ccb30dc01084cdf",
-    "semantic_hash": ""
-  },
   "tsconfig.json": {
     "mtime": 1783965800.0,
     "ast_hash": "b3473da410c1eb107e13ede6921a80eb",
     "semantic_hash": ""
   },
   "types/next-auth.d.ts": {
-    "mtime": 1783939455.2656765,
-    "ast_hash": "73ea453801d71b47bdcf4488f46fa9f1",
+    "mtime": 1784678205.5421453,
+    "ast_hash": "e4c831476c839c8c60a67cfcaa6affd1",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
@@ -2470,8 +2455,8 @@
     "semantic_hash": ""
   },
   "worker/scheduler.ts": {
-    "mtime": 1783840589.4576497,
-    "ast_hash": "5e9522817f2f6748115a3298a83ca787",
+    "mtime": 1784678632.8710601,
+    "ast_hash": "6746802d61a270196d819a721edd5ff8",
     "semantic_hash": ""
   },
   ".agents/skills/animation-vocabulary/SKILL.md": {
@@ -2545,8 +2530,8 @@
     "semantic_hash": ""
   },
   "vigent-prompt-v2.md": {
-    "mtime": 1783781978.0921073,
-    "ast_hash": "acf381e1bdad1747852c475aab51acb4",
+    "mtime": 1784678679.017546,
+    "ast_hash": "ab72ba7229bb68431755ee3310cff5e3",
     "semantic_hash": ""
   },
   "wordpress-plugin/vigent-woo/readme.txt": {
@@ -2640,8 +2625,8 @@
     "semantic_hash": ""
   },
   "lib/admin/database-explorer.ts": {
-    "mtime": 1784677249.2021348,
-    "ast_hash": "4850a007b6161927340c34895763cdbc",
+    "mtime": 1784678182.9990444,
+    "ast_hash": "8dc81acf5ce57165acc74b3d454e5368",
     "semantic_hash": ""
   },
   "components/onboarding/capability-options.tsx": {
@@ -2870,8 +2855,8 @@
     "semantic_hash": ""
   },
   "tests/instagram-upload-security.test.ts": {
-    "mtime": 1784463476.9412239,
-    "ast_hash": "c1c4c565842d340d836e148bf764ad0e",
+    "mtime": 1784678544.9417639,
+    "ast_hash": "19c6f40379231c6e57e24a79cb7398a4",
     "semantic_hash": ""
   },
   "tests/marketing-performance.test.ts": {
@@ -2920,8 +2905,8 @@
     "semantic_hash": ""
   },
   "tests/session-revalidation.test.ts": {
-    "mtime": 1784664382.5813806,
-    "ast_hash": "61498eb52083cc11a43113630539ee41",
+    "mtime": 1784678544.9407666,
+    "ast_hash": "5e3f562133d097f1082f1740422f9a48",
     "semantic_hash": ""
   },
   "docs/PRODUCTION_LAUNCH_CHECKLIST.fa.md": {
@@ -2935,13 +2920,13 @@
     "semantic_hash": ""
   },
   "lib/admin/reporting-scope.ts": {
-    "mtime": 1784675094.0201888,
-    "ast_hash": "e2e8d94edb3927f28f54563385ba46f4",
+    "mtime": 1784678182.998043,
+    "ast_hash": "d98e4688b2bd08ae78bd5906a9de3071",
     "semantic_hash": ""
   },
   "tests/admin-reporting-scope.test.ts": {
-    "mtime": 1784677265.0169187,
-    "ast_hash": "00d35159866a7c77704cec31ce4849db",
+    "mtime": 1784678779.5819385,
+    "ast_hash": "5983e38bdfe87ee05348c61e2e86cab2",
     "semantic_hash": ""
   },
   "app/api/admin/errors/route.ts": {
@@ -2967,6 +2952,11 @@
   "app/not-found.tsx": {
     "mtime": 1784677821.6428032,
     "ast_hash": "abc1db0317acd93213dd9932afa627f7",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20260722034500_single_owner_workspace_reporting/migration.sql": {
+    "mtime": 1784678182.9970398,
+    "ast_hash": "438cb04b4b4cd98248b347b875c05095",
     "semantic_hash": ""
   }
 }

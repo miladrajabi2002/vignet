@@ -37,10 +37,12 @@ model Workspace {
   onboardingCompleted        Boolean      @default(false)
   onboardingKnowledgeSkipped Boolean      @default(false)
   onboardingChannelSkipped   Boolean      @default(false)
+  // Internal/test workspaces are intentionally omitted from admin commercial reports.
+  excludeFromAdminReports    Boolean      @default(false)
   createdAt                  DateTime     @default(now())
   updatedAt                  DateTime     @updatedAt
 
-  users             User[]
+  owner             User?
   agents            Agent[]
   contacts          Contact[]
   conversations     Conversation[]
@@ -64,6 +66,7 @@ model Workspace {
   appointments      Appointment[]
 
   @@index([slug])
+  @@index([excludeFromAdminReports])
 }
 
 enum Plan {
@@ -90,8 +93,6 @@ model User {
   workspaceId  String
   phone        String       @unique // e.g. +989121234567
   name         String?
-  // Ownership inside one business workspace. This is not platform admin.
-  role         UserRole     @default(OWNER)
   // Platform-wide authority is intentionally separate and has one owner.
   platformRole PlatformRole @default(USER)
   language     String       @default("fa")
@@ -99,15 +100,9 @@ model User {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
-  @@index([workspaceId])
+  @@unique([workspaceId])
   @@index([phone])
   @@index([platformRole])
-}
-
-enum UserRole {
-  OWNER
-  ADMIN
-  MEMBER
 }
 
 enum PlatformRole {

@@ -361,8 +361,7 @@ async function remindExpiringSubscriptions(): Promise<void> {
 
                 try {
                         const owner = await prisma.user.findFirst({
-                                where: { workspaceId: sub.workspaceId, role: 'OWNER' },
-                                orderBy: { createdAt: 'asc' },
+                                where: { workspaceId: sub.workspaceId },
                                 select: { phone: true },
                         })
                         if (!owner?.phone) continue
@@ -419,7 +418,7 @@ async function runTrialLifecycleSweep(): Promise<void> {
                 where: {
                         plan: 'TRIAL',
                         trialEndsAt: { gt: now },
-                        users: { some: { role: 'OWNER' } },
+                        owner: { isNot: null },
                 },
                 select: {
                         id: true,
@@ -427,10 +426,7 @@ async function runTrialLifecycleSweep(): Promise<void> {
                         trialEndsAt: true,
                         onboardingStep: true,
                         onboardingCompleted: true,
-                        users: {
-                                where: { role: 'OWNER' },
-                                orderBy: { createdAt: 'asc' },
-                                take: 1,
+                        owner: {
                                 select: { phone: true },
                         },
                 },
@@ -439,7 +435,7 @@ async function runTrialLifecycleSweep(): Promise<void> {
         const redis = getRedis()
 
         for (const workspace of workspaces) {
-                const phone = workspace.users[0]?.phone
+                const phone = workspace.owner?.phone
                 if (!phone || !workspace.trialEndsAt) continue
 
                 if (workspace.onboardingCompleted) {

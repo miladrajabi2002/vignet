@@ -47,6 +47,7 @@ export const { handlers, auth, signOut } = NextAuth({
           // workspace/user without an owner name.
           if (!name) return null
           const commercialConfig = await getPlatformCommercialConfig()
+          const platformRole = isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER'
           const workspace = await prisma.workspace.create({
             data: {
               name: name || 'کسب‌وکار من',
@@ -55,6 +56,7 @@ export const { handlers, auth, signOut } = NextAuth({
               // credit remains unchanged; only successful AI replies consume it.
               trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               aiCreditBalanceIRR: commercialConfig.trialCreditIRR,
+              excludeFromAdminReports: platformRole === 'ADMIN',
             },
           })
           user = await prisma.user.create({
@@ -62,8 +64,7 @@ export const { handlers, auth, signOut } = NextAuth({
               phone,
               name,
               workspaceId: workspace.id,
-              role: 'OWNER',
-              platformRole: isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER',
+              platformRole,
             },
           })
           await sendWelcomeSms(phone, { name })
@@ -77,12 +78,18 @@ export const { handlers, auth, signOut } = NextAuth({
           })
         }
 
+        if (user.platformRole === 'ADMIN') {
+          await prisma.workspace.update({
+            where: { id: user.workspaceId },
+            data: { excludeFromAdminReports: true },
+          })
+        }
+
         return {
           id: user.id,
           name: user.name,
           phone: user.phone,
           workspaceId: user.workspaceId,
-          role: user.role,
           platformRole: user.platformRole,
         }
       },
