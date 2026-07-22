@@ -35,7 +35,10 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { formatDateTime } from '@/lib/format'
 import { dateLocaleTag } from '@/lib/localized-date'
-import { CHANNEL_LABELS } from '@/components/crm/channel-badge'
+import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { contactDisplayName, channelHandleFor, channelAvatarFor } from '@/lib/crm/display'
+import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { cn } from '@/lib/utils'
 import { Sparkline } from '@/components/admin/sparkline'
 import {
@@ -162,7 +165,23 @@ export default async function OverviewPage() {
         summary: true,
         lastMessageAt: true,
         createdAt: true,
-        contact: { select: { name: true, phone: true } },
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            telegramUsername: true,
+            baleUsername: true,
+            rubikaUsername: true,
+            whatsappName: true,
+            instagramUsername: true,
+            telegramAvatarUrl: true,
+            baleAvatarUrl: true,
+            rubikaAvatarUrl: true,
+            whatsappAvatarUrl: true,
+            instagramAvatarUrl: true,
+          },
+        },
         agent: { select: { name: true } },
         _count: { select: { messages: true } },
       },
@@ -483,31 +502,64 @@ export default async function OverviewPage() {
         >
           {recentConversations.length ? recentConversations.map((conversation) => {
             const timestamp = conversation.lastMessageAt ?? conversation.createdAt
-            const customer = conversation.contact?.name || conversation.contact?.phone || (fa ? 'مشتری بدون نام' : 'Unnamed customer')
+            const channelHandle = channelHandleFor({
+              channel: conversation.channel,
+              telegramUsername: conversation.contact?.telegramUsername,
+              baleUsername: conversation.contact?.baleUsername,
+              rubikaUsername: conversation.contact?.rubikaUsername,
+              whatsappName: conversation.contact?.whatsappName,
+              instagramUsername: conversation.contact?.instagramUsername,
+            })
+            const channelAvatar = channelAvatarFor({
+              channel: conversation.channel,
+              telegramAvatarUrl: conversation.contact?.telegramAvatarUrl,
+              baleAvatarUrl: conversation.contact?.baleAvatarUrl,
+              rubikaAvatarUrl: conversation.contact?.rubikaAvatarUrl,
+              whatsappAvatarUrl: conversation.contact?.whatsappAvatarUrl,
+              instagramAvatarUrl: conversation.contact?.instagramAvatarUrl,
+            })
+            const channelAvatarSrc = contactAvatarSrc({
+              contactId: conversation.contact?.id,
+              channel: conversation.channel,
+              rawUrl: channelAvatar,
+            })
+            const channelId = conversation.contact ? (conversation.channel as string) : null
+            const who = contactDisplayName({
+              name: conversation.contact?.name,
+              phone: conversation.contact?.phone,
+              handle: channelHandle,
+              channel: conversation.channel,
+              channelId,
+              anonymousLabel: fa ? 'مشتری بدون نام' : 'Unnamed customer',
+            })
             return (
-              <Link key={conversation.id} href={`/conversations/${conversation.id}`} className="group flex min-h-[4.4rem] min-w-0 items-center gap-3 overflow-hidden py-2.5">
-                <span className={cn(
-                  'grid h-9 w-9 shrink-0 place-items-center rounded-xl border text-xs font-semibold',
-                  conversation.status === 'HANDED_OFF'
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)]',
-                )}>
-                  {customer.slice(0, 1).toUpperCase()}
-                </span>
+              <Link
+                key={conversation.id}
+                href={`/conversations/${conversation.id}`}
+                className={cn(
+                  'group grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-3 py-2.5 transition-colors hover:bg-[var(--bg-hover)]',
+                  conversation.status === 'HANDED_OFF' && 'bg-amber-500/5',
+                )}
+              >
+                <ContactAvatar src={channelAvatarSrc} alt={who} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span dir="auto" className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{customer}</span>
+                    <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate text-xs font-semibold text-[var(--text-primary)]">{who}</span>
                     <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{formatDateTime(timestamp, lang)}</span>
                   </span>
                   <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-                    <span>{CHANNEL_LABELS[conversation.channel] ?? conversation.channel}</span>
+                    <ChannelBadge type={conversation.channel} />
                     <span>·</span>
-                    <span>{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
-                    <span>·</span>
-                    <span dir="auto" className="min-w-0 truncate">{conversation.summary || conversation.agent.name}</span>
+                    <span className="tabular-nums">{nf.format(conversation._count.messages)} {fa ? 'پیام' : 'messages'}</span>
+                    {(conversation.summary || conversation.agent.name) && (
+                      <>
+                        <span>·</span>
+                        <span dir={fa ? 'rtl' : 'ltr'} className="min-w-0 truncate">{conversation.summary || conversation.agent.name}</span>
+                      </>
+                    )}
                   </span>
                 </span>
-                <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+                <Arrow className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
               </Link>
             )
           }) : (
