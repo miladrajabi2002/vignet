@@ -26,6 +26,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { computeOnboarding } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/panel'
+import { DashboardCompletionChecklist } from '@/components/dashboard/completion-checklist'
 import { IntelligenceCoreLazy } from '@/components/dashboard/intelligence-core-lazy'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
@@ -108,6 +109,9 @@ export default async function OverviewPage() {
     subscription,
     messagesUsed,
     operatorChannel,
+    primaryAgent,
+    readyKnowledgeSources,
+    activeServices,
     conversationsMiniTrend,
     contactsMiniTrend,
     resolvedMiniTrend,
@@ -122,6 +126,7 @@ export default async function OverviewPage() {
         aiCreditBalanceIRR: true,
         businessType: true,
         businessProfile: true,
+        dashboardChecklistDismissedAt: true,
       },
     }),
     computeOnboarding(workspaceId),
@@ -171,6 +176,24 @@ export default async function OverviewPage() {
       where: { workspaceId },
       select: { active: true, operatorChatId: true },
     }),
+    prisma.agent.findFirst({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        systemPrompt: true,
+        promptConfig: true,
+      },
+    }),
+    prisma.knowledgeBase.count({
+      where: {
+        workspaceId,
+        status: 'READY',
+        type: { not: 'PRODUCT_CATALOG' },
+      },
+    }),
+    prisma.service.count({ where: { workspaceId, active: true } }),
     conversationsDailyByWorkspace(workspaceId, 7),
     contactsDailyByWorkspace(workspaceId, 7),
     resolvedDailyByWorkspace(workspaceId, 7),
@@ -226,11 +249,28 @@ export default async function OverviewPage() {
     : null
   const nf = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
   const Arrow = fa ? ArrowLeft : ArrowRight
+  const hasConfiguredAgent = !!primaryAgent
+    && primaryAgent.name.trim().length > 0
+    && (primaryAgent.systemPrompt.trim().length > 0 || primaryAgent.promptConfig !== null)
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+      {!workspace.dashboardChecklistDismissedAt && (
+        <DashboardCompletionChecklist
+          locale={lang}
+          facts={{
+            agentId: primaryAgent?.id ?? null,
+            hasConfiguredAgent,
+            hasKnowledge: readyKnowledgeSources > 0 || activeProducts > 0 || activeServices > 0,
+            hasActiveChannel: activeChannels > 0,
+            hasConversation: totalConversations > 0,
+            hasOperator: !!operatorChannel?.active && !!operatorChannel.operatorChatId,
+          }}
+        />
+      )}
+
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="dashboard-arrival dashboard-intro relative order-2 overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7 xl:order-none">
+        <div className="dashboard-arrival dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-5 sm:p-7">
           <div className="relative">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex min-h-7 items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-secondary)]">
@@ -301,9 +341,9 @@ export default async function OverviewPage() {
 
         {/* IntelligenceCore only shows after onboarding is complete */}
         {onboarding.completed ? (
-          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core order-1 xl:order-none" />
+          <IntelligenceCoreLazy locale={lang} businessName={displayName} businessLabel={businessLabel} businessType={workspace.businessType} modules={modules} className="dashboard-arrival dashboard-arrival--core" />
         ) : (
-          <div className="order-1 flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center xl:order-none">
+          <div className="flex items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
             <div>
               <Sparkles className="mx-auto h-6 w-6 text-[var(--text-hint)]" />
               <p className="mt-3 text-sm text-[var(--text-muted)]">

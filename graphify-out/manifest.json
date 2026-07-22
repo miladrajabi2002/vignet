@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/overview/page.tsx": {
-    "mtime": 1784307458.867229,
-    "ast_hash": "9a6efe29bb4e1c2a8d57a9bdfbfb12fe",
+    "mtime": 1784681449.5421267,
+    "ast_hash": "bd2c87af7f070b4e1f0408968f679644",
     "semantic_hash": ""
   },
   "app/(dashboard)/products/[productId]/edit/page.tsx": {
@@ -2967,6 +2967,31 @@
   "graphify-out/memory/query_20260722_003427_\u0627\u0644\u0627\u0646_\u0645\u062d\u062f\u0648\u062f\u06cc\u062a_\u0631\u0648\u06cc_\u0627\u06cc\u062c\u0646\u062a_\u0647\u0633\u062a\u0634_\u0645\u0639\u0645\u0648\u0644\u0627_\u06a9\u0633\u0628_\u06a9\u0627\u0631_\u0647\u0627_\u0646\u0647\u0627\u06cc.md": {
     "mtime": 1784680467.473586,
     "ast_hash": "2bd4c012d3d649bafacbb9615bd4d5f7",
+    "semantic_hash": ""
+  },
+  "app/api/dashboard/checklist/route.ts": {
+    "mtime": 1784681421.7094269,
+    "ast_hash": "110a5dae6063ca8ec0e5d94c44cbd1ec",
+    "semantic_hash": ""
+  },
+  "components/dashboard/completion-checklist.tsx": {
+    "mtime": 1784681771.7835212,
+    "ast_hash": "3360ff72f06535602f1c2f792a140d70",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20260722093000_dashboard_checklist_dismissal/migration.sql": {
+    "mtime": 1784681421.7074323,
+    "ast_hash": "8a7dcba2c9da98e7682148ed8c0c554e",
+    "semantic_hash": ""
+  },
+  "tests/dashboard-checklist-dismiss.test.ts": {
+    "mtime": 1784681421.7104273,
+    "ast_hash": "13c83bf7afb06039a51ae1d3e348daed",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260722_004336_\u062e\u0637\u0627_\u0648_\u0627\u0631\u0648\u0631_\u062f\u0627\u0631\u06cc\u0645__prisma_knowledgebase_count_unkno.md": {
+    "mtime": 1784681016.3327897,
+    "ast_hash": "26744eb0c7a41414306a547874c2e5d7",
     "semantic_hash": ""
   }
 }
