@@ -168,7 +168,7 @@ export function verifyAdminCredentialsDetailed(
 			`[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۴ (TOTP_INVALID): کد وارد شده هم‌خوانی ندارد`,
 		)
 		console.error(
-			`[ADMIN-AUTH-DEBUG]    کدی که سرور الان تولید می‌کند: ${totpConfiguredfix issue} (با اپ گوشی مقایسه کنید)`,
+			`[ADMIN-AUTH-DEBUG]    کدی که سرور الان تولید می‌کند: ${totpConfigured} (با اپ گوشی مقایسه کنید)`,
 		)
 		console.error(
 			`[ADMIN-AUTH-DEBUG]    اگه کد اپ فرق دارد، secret را دوباره در اپ وارد کنید`,
