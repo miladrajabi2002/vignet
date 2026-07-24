@@ -650,16 +650,15 @@ function KnowledgeStep({
         ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد. دو راه برای افزودن محصولات دارید:
       </motion.p>
 
-      {/* Two-option grid */}
+      {/* Two-option grid — spatial-surface style to match the rest of the dashboard */}
       <motion.div variants={staggerChild} className="mt-6 grid gap-3 sm:grid-cols-2 text-start">
         {/* Option A: Connect WooCommerce */}
         <Link
           href="/products?onboarding=1"
-          className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
-          style={{ boxShadow: 'var(--shadow-card)' }}
+          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 transition-[border-color] hover:border-[var(--border-strong)]"
         >
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
               <Link2 className="h-4 w-4" strokeWidth={2} />
             </span>
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">پیشنهادی</span>
@@ -679,8 +678,7 @@ function KnowledgeStep({
         {/* Option B: Manual product entry */}
         <Link
           href="/products/new?onboarding=1"
-          className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
-          style={{ boxShadow: 'var(--shadow-card)' }}
+          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 transition-[border-color] hover:border-[var(--border-strong)]"
         >
           <div className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">

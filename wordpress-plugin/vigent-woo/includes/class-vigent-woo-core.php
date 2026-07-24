@@ -1,6 +1,6 @@
 <?php
 /**
- * Core class — settings, webhook sender, retry queue, connection status.
+ * Core class — settings, webhook sender, retry queue, auto-connect.
  *
  * @package VigentWoo
  */
@@ -29,7 +29,7 @@ class Vigent_Woo_Core {
 			'webhook_url'    => '',
 			'webhook_secret' => '',
 			'sync_products'  => '1',
-			'sync_orders'    => '',
+			'sync_orders'    => '1',
 			'enable_retry'   => '1',
 		);
 		$saved = get_option( VIGENT_WOO_OPTION, array() );
@@ -60,6 +60,81 @@ class Vigent_Woo_Core {
 	public function sync_orders_enabled() {
 		$s = $this->get_settings();
 		return ! empty( $s['sync_orders'] ) && $this->is_configured();
+	}
+
+	// ─── Auto-connect to Vigent ──────────────────────────────────────────
+
+	/**
+	 * Connect to Vigent: ask the Vigent panel for the webhook URL + secret
+	 * for this site. The Vigent panel exposes an endpoint that returns the
+	 * credentials for a site by its URL.
+	 *
+	 * Called when the user clicks "اتصال" in the plugin.
+	 *
+	 * @param string $site_url The site URL (defaults to home_url()).
+	 * @return array { success, message }
+	 */
+	public function connect_to_vigent( $site_url = '' ) {
+		if ( empty( $site_url ) ) {
+			$site_url = home_url();
+		}
+		$site_url = untrailingslashit( $site_url );
+
+		// The Vigent panel exposes a public endpoint that returns the webhook
+		// URL + secret for a site by its URL. The endpoint is at
+		// /api/integrations/lookup?site_url=...
+		$panel_url = 'https://vigent.ir/api/integrations/lookup';
+		$lookup_url = add_query_arg( 'site_url', rawurlencode( $site_url ), $panel_url );
+
+		$response = wp_remote_get( $lookup_url, array(
+			'timeout' => 15,
+			'headers' => array( 'Accept' => 'application/json' ),
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'success' => false,
+				'message' => sprintf( __( 'خطا در ارتباط با ویجنت: %s', 'vigent-woo' ), $response->get_error_message() ),
+			);
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+
+		if ( 200 !== $code || ! is_array( $data ) ) {
+			return array(
+				'success' => false,
+				/* translators: %d: HTTP code */
+				'message' => sprintf( __( 'پاسخ نامعتبر از ویجنت (کد %d). ابتدا در پنل ویجنت یک اتصال سایت بسازید.', 'vigent-woo' ), $code ),
+			);
+		}
+
+		$webhook_url    = isset( $data['webhook_url'] ) ? $data['webhook_url'] : '';
+		$webhook_secret = isset( $data['webhook_secret'] ) ? $data['webhook_secret'] : '';
+
+		if ( empty( $webhook_url ) || empty( $webhook_secret ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'اطلاعات اتصال در پنل ویجنت یافت نشد. ابتدا در پنل یک اتصال سایت بسازید.', 'vigent-woo' ),
+			);
+		}
+
+		// Save the credentials.
+		$s = $this->get_settings();
+		$s['webhook_url']    = esc_url_raw( $webhook_url );
+		$s['webhook_secret'] = sanitize_text_field( $webhook_secret );
+		$this->update_settings( $s );
+
+		// Send a test ping to confirm.
+		$test = $this->refresh_connection_status();
+
+		return array(
+			'success' => $test['connected'],
+			'message' => $test['connected']
+				? __( 'اتصال با موفقیت برقرار شد!', 'vigent-woo' )
+				: sprintf( __( 'اطلاعات ذخیره شد اما تست اتصال ناموفق بود (کد %d).', 'vigent-woo' ), (int) $test['http_code'] ),
+		);
 	}
 
 	// ─── ارسال رویداد ────────────────────────────────────────────────────
@@ -99,9 +174,9 @@ class Vigent_Woo_Core {
 			return array( 'code' => 0, 'body' => $response->get_error_message(), 'success' => false );
 		}
 
-		$code     = (int) wp_remote_retrieve_response_code( $response );
+		$code      = (int) wp_remote_retrieve_response_code( $response );
 		$resp_body = wp_remote_retrieve_body( $response );
-		$success  = $code >= 200 && $code < 300;
+		$success   = $code >= 200 && $code < 300;
 
 		if ( ! $success && $retry && ! empty( $s['enable_retry'] ) ) {
 			$this->queue_retry( $topic, $body, "HTTP $code: $resp_body" );
