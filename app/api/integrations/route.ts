@@ -130,6 +130,60 @@ export async function POST(req: Request) {
                 if (!(error instanceof UnsafeHttpTargetError)) console.error('[integrations] URL validation failed:', error)
                 return NextResponse.json({ error: 'UNSAFE_STORE_URL' }, { status: 400 })
         }
+
+        // ── Idempotent create ───────────────────────────────────────────
+        // If an ACTIVE integration already exists for the same type + storeUrl
+        // in this workspace, return it instead of creating a duplicate. This
+        // is critical because the WordPress plugin's auto-discovery endpoint
+        // (/api/integrations/lookup) finds an integration by storeUrl — if
+        // multiple exist for the same URL, the lookup picks one arbitrarily
+        // (typically the oldest) and the WP plugin ends up holding a different
+        // webhookSecret than the one the onboarding wizard is polling for.
+        // Returning the same integration from POST on every call keeps both
+        // sides in sync.
+        //
+        // We also opportunistically clean up INACTIVE integrations for the
+        // same URL+type so the workspace doesn't accumulate stale rows from
+        // old disconnect/reconnect cycles. Active integrations are NEVER
+        // touched here — only the caller can disconnect/delete them.
+        const existing = await prisma.storeIntegration.findFirst({
+                where: { workspaceId: user.workspaceId, type, storeUrl, active: true },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                        id: true,
+                        type: true,
+                        storeUrl: true,
+                        webhookSecret: true,
+                        pollIntervalMinutes: true,
+                        active: true,
+                        createdAt: true,
+                },
+        })
+        if (existing) {
+                // Cleanup any INACTIVE duplicates for the same URL+type.
+                // (Active ones are left alone — the caller owns them.)
+                await prisma.storeIntegration.deleteMany({
+                        where: {
+                                workspaceId: user.workspaceId,
+                                type,
+                                storeUrl,
+                                active: false,
+                                id: { not: existing.id },
+                        },
+                }).catch(() => { /* best-effort cleanup — ignore errors */ })
+
+                const webhookUrl =
+                        type === 'WOOCOMMERCE'
+                                ? `${appBaseUrl()}/api/sync/woocommerce?token=${existing.webhookSecret}`
+                                : null
+                return NextResponse.json({
+                        integration: existing,
+                        webhookUrl,
+                        webhookSecret: existing.webhookSecret,
+                        mode: 'webhook-only',
+                }, { status: 200 })
+        }
+
         const webhookSecret = parsed.data.webhookSecret ?? crypto.randomBytes(32).toString('base64url')
 
         // Encrypt sensitive credential fields before persisting.

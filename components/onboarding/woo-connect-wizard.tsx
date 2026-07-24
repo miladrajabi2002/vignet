@@ -71,10 +71,8 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   const [polling, setPolling] = useState(false)
 
   // ── Refs used by the polling loop so the callback can stay stable ──
-  // `integrationIdRef` holds the current integration ID without triggering
-  // re-renders. `onConnectedRef` holds the latest onConnected callback so
-  // the polling closure can call it without being re-created on every render.
-  const integrationIdRef = useRef<string | null>(null)
+  // `onConnectedRef` holds the latest onConnected callback so the polling
+  // closure can call it without being re-created on every render.
   const onConnectedRef = useRef(onConnected)
   onConnectedRef.current = onConnected
 
@@ -125,8 +123,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
         )
         return
       }
-      // Integration created — move to the install step.
-      integrationIdRef.current = data.integration.id
+      // Integration created (or returned idempotently) — move to install step.
       setIntegration({
         id: data.integration.id,
         storeUrl: data.integration.storeUrl,
@@ -154,23 +151,28 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   // polling interval is set ONCE when `polling` flips to true and cleared
   // when it flips back to false. This prevents the feedback loop that
   // previously caused a request storm.
+  //
+  // FORGIVING MATCH: we accept the connection as live if ANY WooCommerce
+  // integration in the workspace has syncLogs > 0 — not just the specific
+  // integration ID we created. This handles the case where the user has
+  // duplicate integrations for the same URL (e.g. from earlier test runs
+  // before POST became idempotent) and the WP plugin's auto-discovery
+  // picked a different one. Once the user has clicked "اتصال" anywhere,
+  // we let them proceed.
   const checkConnection = useCallback(async () => {
-    const integrationId = integrationIdRef.current
-    if (!integrationId) return
     if (pollStoppedRef.current) return
     try {
       const res = await fetch('/api/integrations', { cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
-      const woo = (data.integrations ?? []).find(
-        (i: { id: string; type: string }) => i.id === integrationId && i.type === 'WOOCOMMERCE',
+      const integrations: Array<{ type: string; _count?: { syncLogs?: number } }> = data.integrations ?? []
+      const anyConnected = integrations.some(
+        (i) => i.type === 'WOOCOMMERCE' && (i._count?.syncLogs ?? 0) > 0,
       )
-      if (!woo) return
-      const newCount = woo._count?.syncLogs ?? 0
 
       // The plugin's first event is `test.connection` which creates a syncLog.
-      // Once we see at least one, the connection is live.
-      if (newCount > 0) {
+      // Once we see at least one on any WC integration, the connection is live.
+      if (anyConnected) {
         pollStoppedRef.current = true
         setPolling(false)
         setStep('success')

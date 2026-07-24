@@ -28,11 +28,19 @@ export async function GET(req: Request) {
     }
 
     // Look up the integration by store_url (exact match after normalization).
+    // IMPORTANT: filter by active: true and order by createdAt desc so the
+    // WordPress plugin always gets the MOST RECENT active integration for the
+    // site URL. This is what the onboarding wizard's POST just created (or
+    // returned idempotently) — without this, findFirst would return an
+    // arbitrary row (typically the oldest), which could be a stale duplicate
+    // and the wizard would never detect the plugin's test.connection ping.
     const integration = await prisma.storeIntegration.findFirst({
         where: {
             type: 'WOOCOMMERCE',
             storeUrl: siteUrl,
+            active: true,
         },
+        orderBy: { createdAt: 'desc' },
         select: {
             id: true,
             storeUrl: true,

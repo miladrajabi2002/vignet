@@ -623,43 +623,51 @@ function KnowledgeStep({
 
   return (
     <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-center">
-      <motion.div variants={staggerChild} className="mx-auto flex justify-center">
-        <div className="relative">
-          <motion.div
-            animate={done ? {} : { scale: [1, 1.05, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            className="grid h-20 w-20 place-items-center rounded-3xl bg-[var(--text-primary)] text-white"
-            style={{ boxShadow: 'var(--shadow-lift)' }}
-          >
-            <Package className="h-9 w-9" strokeWidth={1.5} />
+      {/* Parent step header (icon / badge / title / subtitle) is hidden when
+          the wizard is open — the wizard has its own header and the
+          "two ways to add products" subtitle is irrelevant once the user has
+          committed to the WordPress path. */}
+      {!showWizard && (
+        <>
+          <motion.div variants={staggerChild} className="mx-auto flex justify-center">
+            <div className="relative">
+              <motion.div
+                animate={done ? {} : { scale: [1, 1.05, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="grid h-20 w-20 place-items-center rounded-3xl bg-[var(--text-primary)] text-white"
+                style={{ boxShadow: 'var(--shadow-lift)' }}
+              >
+                <Package className="h-9 w-9" strokeWidth={1.5} />
+              </motion.div>
+              {!done && (
+                <motion.span
+                  className="absolute -inset-2 rounded-3xl border-2 border-[var(--text-primary)]"
+                  animate={{ opacity: [0.15, 0, 0.15], scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+            </div>
           </motion.div>
-          {!done && (
-            <motion.span
-              className="absolute -inset-2 rounded-3xl border-2 border-[var(--text-primary)]"
-              animate={{ opacity: [0.15, 0, 0.15], scale: [1, 1.1, 1] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          )}
-        </div>
-      </motion.div>
 
-      <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        مرحله ۳ از ۴
-      </motion.p>
+          <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            مرحله ۳ از ۴
+          </motion.p>
 
-      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-        محصولات یا خدمات را اضافه کنید
-      </motion.h2>
+          <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+            محصولات یا خدمات را اضافه کنید
+          </motion.h2>
 
-      <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-        ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد. دو راه برای افزودن محصولات دارید:
-      </motion.p>
+          <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
+            ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد. دو راه برای افزودن محصولات دارید:
+          </motion.p>
+        </>
+      )}
 
       {/* When the wizard is open, render it INLINE (replacing the two-option
           grid) instead of as a modal overlay. The user wanted the wizard to
           NOT be a popup. */}
       {showWizard ? (
-        <motion.div variants={staggerChild} className="mt-6 text-start">
+        <motion.div variants={staggerChild} className="mt-2 text-start">
           <WooConnectWizard
             onConnected={() => {
               setShowWizard(false)
