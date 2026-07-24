@@ -4,7 +4,7 @@ Tags: woocommerce, wordpress, ai, chatbot, ecommerce, sync, knowledge-base
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 3.0.0
+Stable tag: 4.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,20 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 بله. فایل `uninstall.php` هنگام حذف افزونه همهٔ تنظیمات، صف retry و transients را پاک می‌کند.
 
 == Changelog ==
+
+= 4.0.3 =
+* اطمینان از نمایش رنگ سفید برای عنوان «ویجنت» در هدر
+* حذف بخش «متصل / آخرین بررسی» زیر هدر — اکنون «آخرین بررسی» مستقیماً در هدر نمایش داده می‌شود
+* وسط‌چین‌سازی متن راهنما در هر سه مرحله (اتصال / ارسال / موفقیت)
+* حذف بخش «هم‌گام‌سازی دستی» — همگام‌سازی اولیه در مرحله فعال‌سازی اجباری است
+* همگام‌سازی خودکار هر ۳۰ دقیقه از طریق WP-Cron
+* افزودن دکمه «قطع اتصال» در هدر که هم وضعیت محلی و هم وضعیت اتصال در پنل ویجنت را قطع می‌کند
+* هدر no-cache برای دانلود همیشه آخرین نسخه را روی کلاینت می‌دهد
+
+= 4.0.2 =
+* رمزگذاری webhook_secret در دیتابیس (AES-256-GCM)
+* مهاجرت خودکار کاربران قدیمی به حالت رمزنگاری‌شده
+* بهبود اعتبارسنجی nonce و rate-limiting
 
 = 3.0.0 =
 * معماری جدید: تفکیک به کلاس‌های Core, Sync, Admin, AJAX, CLI, DashboardWidget

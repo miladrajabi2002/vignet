@@ -341,7 +341,7 @@ export function WooSetupCard({
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <a
-                                    href="/api/downloads/wordpress-plugin"
+                                    href={`/api/downloads/wordpress-plugin?v=${Date.now()}`}
                                     download
                                     className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-yellow-600 px-3 text-xs font-bold text-white transition-colors hover:bg-yellow-700"
                                 >

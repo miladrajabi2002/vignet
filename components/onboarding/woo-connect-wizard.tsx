@@ -12,24 +12,20 @@ import {
   Plug,
   RefreshCw,
   Sparkles,
-  X,
   ArrowLeft,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 /**
- * WooConnectWizard — in-onboarding WooCommerce connect wizard.
+ * WooConnectWizard — inline (non-modal) WooCommerce connect wizard.
  *
- * Replaces the old "link to /products?onboarding=1" approach with a self-
- * contained, multi-step modal-style wizard that runs INSIDE the onboarding
- * KnowledgeStep. The user never leaves the onboarding flow.
+ * Renders INSIDE the onboarding KnowledgeStep (no popup / no overlay).
  *
  *  Flow:
  *   1. URL → user enters their WP site URL. We POST /api/integrations to
  *      create the StoreIntegration row (webhook-only mode — no REST keys
  *      needed, the plugin pushes via signed webhook).
  *   2. Install → show download link for the WP plugin + the "click اتصال in
- *      the plugin" instruction. Poll /api/integrations every 4s; the plugin's
+ *      the plugin" instruction. Poll /api/integrations every 5s; the plugin's
  *      test.connection ping will create a sync log row which signals "connected".
  *   3. Success → "با موفقیت وصل شد" card, then auto-advance to the next
  *      onboarding step after a short delay.
@@ -37,6 +33,12 @@ import { cn } from '@/lib/utils'
  * The wizard is dismissible — the user can close it and pick the "manual
  * product entry" path instead. Closing resets all local state so reopening
  * starts fresh.
+ *
+ * ─── Polling design note ──────────────────────────────────────────
+ * The integration ID is stored in a ref (not state) so the polling
+ * callback can stay stable (empty deps). This avoids the feedback loop
+ * where every poll → setState → recreate callback → re-run useEffect →
+ * immediate fire, which previously caused ~10-20 requests/sec.
  */
 
 type WizardStep = 'url' | 'install' | 'success'
@@ -53,11 +55,10 @@ interface IntegrationState {
   storeUrl: string
   webhookSecret: string
   active: boolean
-  syncLogCount: number
 }
 
 const EASE = [0.16, 1, 0.3, 1] as const
-const POLL_INTERVAL_MS = 4000
+const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 5 * 60 * 1000 // give up after 5 minutes
 
 export function WooConnectWizard({ onConnected, onDismiss }: Props) {
@@ -68,8 +69,18 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [integration, setIntegration] = useState<IntegrationState | null>(null)
   const [polling, setPolling] = useState(false)
+
+  // ── Refs used by the polling loop so the callback can stay stable ──
+  // `integrationIdRef` holds the current integration ID without triggering
+  // re-renders. `onConnectedRef` holds the latest onConnected callback so
+  // the polling closure can call it without being re-created on every render.
+  const integrationIdRef = useRef<string | null>(null)
+  const onConnectedRef = useRef(onConnected)
+  onConnectedRef.current = onConnected
+
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollStartRef = useRef<number>(0)
+  const pollStoppedRef = useRef<boolean>(false)
 
   // ── Step 1: submit URL → create integration ──
   async function submitUrl(e: React.FormEvent) {
@@ -82,7 +93,6 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       setError('آدرس سایت را وارد کنید.')
       return
     }
-    // Light client-side validation — the server does the real assertSafeHttpUrl.
     try {
       // eslint-disable-next-line no-new
       new URL(trimmed)
@@ -116,16 +126,17 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
         return
       }
       // Integration created — move to the install step.
+      integrationIdRef.current = data.integration.id
       setIntegration({
         id: data.integration.id,
         storeUrl: data.integration.storeUrl,
         webhookSecret: data.webhookSecret,
         active: data.integration.active,
-        syncLogCount: 0,
       })
       setStep('install')
       // Start polling for the plugin's test.connection ping.
       pollStartRef.current = Date.now()
+      pollStoppedRef.current = false
       setPolling(true)
     } catch {
       setError('خطا در ارتباط با سرور.')
@@ -138,42 +149,52 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   // The plugin sends a `test.connection` event when the user clicks "اتصال"
   // in the WP admin. That event creates a StoreSyncLog row. We poll
   // /api/integrations and watch for syncLogs count to go from 0 → >0.
+  //
+  // IMPORTANT: this callback has EMPTY deps so it never re-creates. The
+  // polling interval is set ONCE when `polling` flips to true and cleared
+  // when it flips back to false. This prevents the feedback loop that
+  // previously caused a request storm.
   const checkConnection = useCallback(async () => {
-    if (!integration) return
+    const integrationId = integrationIdRef.current
+    if (!integrationId) return
+    if (pollStoppedRef.current) return
     try {
       const res = await fetch('/api/integrations', { cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
       const woo = (data.integrations ?? []).find(
-        (i: { id: string; type: string }) => i.id === integration.id && i.type === 'WOOCOMMERCE',
+        (i: { id: string; type: string }) => i.id === integrationId && i.type === 'WOOCOMMERCE',
       )
       if (!woo) return
       const newCount = woo._count?.syncLogs ?? 0
-      setIntegration((prev) => (prev ? { ...prev, syncLogCount: newCount } : prev))
 
       // The plugin's first event is `test.connection` which creates a syncLog.
       // Once we see at least one, the connection is live.
       if (newCount > 0) {
+        pollStoppedRef.current = true
         setPolling(false)
         setStep('success')
         // Auto-advance to the next onboarding step after a short celebration.
-        setTimeout(() => onConnected(), 1800)
+        setTimeout(() => onConnectedRef.current(), 1800)
         return
       }
 
       // Timeout — stop polling after POLL_TIMEOUT_MS.
       if (Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
+        pollStoppedRef.current = true
         setPolling(false)
         // Don't error — just let the user know they can come back later.
       }
     } catch {
       // Network blip — keep polling.
     }
-  }, [integration, onConnected])
+  }, [])
 
   useEffect(() => {
     if (!polling || step !== 'install') return
-    // Fire immediately, then on interval.
+    // Fire immediately, then on interval. The interval is set ONCE — the
+    // callback is stable (empty deps) so this effect won't re-run on every
+    // render, breaking the previous request-storm feedback loop.
     void checkConnection()
     pollTimerRef.current = setInterval(checkConnection, POLL_INTERVAL_MS)
     return () => {
@@ -188,222 +209,212 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
     }
   }, [])
 
+  // Cache-busting query param on the plugin download link — guarantees the
+  // browser always fetches the latest zip instead of serving a cached copy.
+  const pluginDownloadHref = `/api/downloads/wordpress-plugin?v=${Date.now()}`
+
   return (
     <motion.div
-      className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4 backdrop-blur-md"
-      initial={reduceMotion ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={reduceMotion ? undefined : { opacity: 0 }}
-      transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onDismiss()
-      }}
+      className="w-full overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
-      <motion.div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="woo-connect-title"
-        className="w-full max-w-[32rem] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
-        initial={reduceMotion ? false : { opacity: 0, scale: 0.96, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={reduceMotion ? undefined : { opacity: 0, scale: 0.98, y: 6 }}
-        transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-              <Plug className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 id="woo-connect-title" className="text-sm font-bold text-[var(--text-primary)]">
-                اتصال سایت وردپرس / ووکامرس
-              </h2>
-              <p className="text-[11px] text-[var(--text-muted)]">
-                {step === 'url' && 'مرحله ۱ از ۳ — آدرس سایت'}
-                {step === 'install' && 'مرحله ۲ از ۳ — نصب افزونه و اتصال'}
-                {step === 'success' && 'مرحله ۳ از ۳ — اتصال موفق'}
-              </p>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
+            <Plug className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">
+              اتصال سایت وردپرس / ووکامرس
+            </h2>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {step === 'url' && 'مرحله ۱ از ۳ — آدرس سایت'}
+              {step === 'install' && 'مرحله ۲ از ۳ — نصب افزونه و اتصال'}
+              {step === 'success' && 'مرحله ۳ از ۳ — اتصال موفق'}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onDismiss}
-            disabled={submitting}
-            className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
-            aria-label="بستن"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={submitting}
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
+          aria-label="بستن"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+          بازگشت
+        </button>
+      </div>
 
-        {/* Body — animated step transitions */}
-        <div className="px-6 py-5">
-          <AnimatePresence mode="wait" initial={false}>
-            {step === 'url' && (
-              <motion.div
-                key="url"
-                initial={reduceMotion ? false : { opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, x: -16 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
-                className="space-y-4"
-              >
-                <div className="text-center">
-                  <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                    <Globe className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-3 text-base font-semibold text-[var(--text-primary)]">
-                    آدرس سایت خود را وارد کنید
-                  </h3>
-                  <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-5 text-[var(--text-muted)]">
-                    سایت وردپرسی یا فروشگاه ووکامرسی خود را وارد کنید. ما اتصال را برای شما می‌سازیم.
-                  </p>
-                </div>
+      {/* Body — animated step transitions */}
+      <div className="px-6 py-5">
+        <AnimatePresence mode="wait" initial={false}>
+          {step === 'url' && (
+            <motion.div
+              key="url"
+              initial={reduceMotion ? false : { opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, x: -16 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
+              className="space-y-4"
+            >
+              <div className="text-center">
+                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+                  <Globe className="h-5 w-5" />
+                </span>
+                <h3 className="mt-3 text-base font-semibold text-[var(--text-primary)]">
+                  آدرس سایت خود را وارد کنید
+                </h3>
+                <p className="mx-auto mt-1.5 max-w-sm text-[12px] leading-5 text-[var(--text-muted)]">
+                  سایت وردپرسی یا فروشگاه ووکامرسی خود را وارد کنید. ما اتصال را برای شما می‌سازیم.
+                </p>
+              </div>
 
-                <form onSubmit={submitUrl} className="space-y-3">
-                  <div>
-                    <input
-                      dir="ltr"
-                      type="url"
-                      required
-                      value={storeUrl}
-                      onChange={(e) => setStoreUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      className="input w-full text-center font-mono text-sm"
-                      autoFocus
-                    />
-                  </div>
-                  {error && (
-                    <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
-                      {error}
-                    </p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
-                  >
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    {submitting ? 'در حال ایجاد اتصال…' : 'ادامه'}
-                  </button>
-                </form>
-              </motion.div>
-            )}
-
-            {step === 'install' && integration && (
-              <motion.div
-                key="install"
-                initial={reduceMotion ? false : { opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, x: -16 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
-                className="space-y-4"
-              >
-                {/* Confirmed URL banner */}
-                <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-                  <span dir="ltr" className="truncate text-xs font-medium text-green-800">
-                    {integration.storeUrl}
-                  </span>
-                </div>
-
-                {/* Steps */}
-                <ol className="space-y-3">
-                  <StepRow
-                    num={1}
-                    title="افزونه ویجنت را دانلود و نصب کنید"
-                    desc="در وردپرس: افزونه‌ها → افزودن → بارگذاری افزونه → این فایل را انتخاب کنید."
-                    action={
-                      <a
-                        href="/api/downloads/wordpress-plugin"
-                        download
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        دانلود افزونه
-                      </a>
-                    }
-                  />
-                  <StepRow
-                    num={2}
-                    title="در افزونه دکمه «اتصال» را بزنید"
-                    desc="به صفحه «ویجنت» در منوی وردپرس بروید و دکمه بزرگ «اتصال» را بزنید. همه چیز خودکار است."
-                  />
-                  <StepRow
-                    num={3}
-                    title="منتظر بمانید تا اتصال برقرار شود"
-                    desc="ما به‌صورت خودکار اتصال را تشخیص می‌دهیم — نیازی به کاری ندارید."
-                  />
-                </ol>
-
-                {/* Live status — pulsing while polling */}
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
-                  {polling ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin text-[var(--text-secondary)]" />
-                      <span className="text-xs font-medium text-[var(--text-secondary)]">
-                        در انتظار اتصال افزونه…
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 text-[var(--text-muted)]" />
-                      <span className="text-xs text-[var(--text-muted)]">
-                        اتصال قطع شد — دوباره تلاش کنید
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Skip / dismiss */}
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  className="block w-full text-center text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
-                  بعداً وصل می‌کنم — افزودن دستی محصولات
-                </button>
-              </motion.div>
-            )}
-
-            {step === 'success' && (
-              <motion.div
-                key="success"
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                transition={{ duration: reduceMotion ? 0 : 0.3, ease: EASE }}
-                className="space-y-4 text-center"
-              >
-                <motion.div
-                  initial={reduceMotion ? false : { scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, type: 'spring', bounce: 0.5 }}
-                  className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-green-100"
-                >
-                  <CheckCircle2 className="h-9 w-9 text-green-600" strokeWidth={2} />
-                </motion.div>
-
+              <form onSubmit={submitUrl} className="space-y-3">
                 <div>
-                  <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                    با موفقیت وصل شد!
-                  </h3>
-                  <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[var(--text-secondary)]">
-                    سایت شما به ویجنت متصل شد. محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند. در حال ادامه راه‌اندازی…
+                  <input
+                    dir="ltr"
+                    type="url"
+                    required
+                    value={storeUrl}
+                    onChange={(e) => setStoreUrl(e.target.value)}
+                    placeholder="https://example.com"
+                    className="input w-full text-center font-mono text-sm"
+                    autoFocus
+                  />
+                </div>
+                {error && (
+                  <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {error}
                   </p>
-                </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-6 text-[13px] font-semibold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {submitting ? 'در حال ایجاد اتصال…' : 'ادامه'}
+                </button>
+              </form>
+            </motion.div>
+          )}
 
-                {/* Spinner while we auto-advance */}
-                <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ادامه به مرحله بعد…
-                </div>
+          {step === 'install' && integration && (
+            <motion.div
+              key="install"
+              initial={reduceMotion ? false : { opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, x: -16 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
+              className="space-y-4"
+            >
+              {/* Confirmed URL banner */}
+              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                <span dir="ltr" className="truncate text-xs font-medium text-green-800">
+                  {integration.storeUrl}
+                </span>
+              </div>
+
+              {/* Steps */}
+              <ol className="space-y-3">
+                <StepRow
+                  num={1}
+                  title="افزونه ویجنت را دانلود و نصب کنید"
+                  desc="در وردپرس: افزونه‌ها → افزودن → بارگذاری افزونه → این فایل را انتخاب کنید."
+                  action={
+                    <a
+                      href={pluginDownloadHref}
+                      download
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      دانلود افزونه
+                    </a>
+                  }
+                />
+                <StepRow
+                  num={2}
+                  title="در افزونه دکمه «اتصال» را بزنید"
+                  desc="به صفحه «ویجنت» در منوی وردپرس بروید و دکمه بزرگ «اتصال» را بزنید. همه چیز خودکار است."
+                />
+                <StepRow
+                  num={3}
+                  title="منتظر بمانید تا اتصال برقرار شود"
+                  desc="ما به‌صورت خودکار اتصال را تشخیص می‌دهیم — نیازی به کاری ندارید."
+                />
+              </ol>
+
+              {/* Live status — pulsing while polling */}
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3">
+                {polling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-[var(--text-secondary)]" />
+                    <span className="text-xs font-medium text-[var(--text-secondary)]">
+                      در انتظار اتصال افزونه…
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 text-[var(--text-muted)]" />
+                    <span className="text-xs text-[var(--text-muted)]">
+                      اتصال قطع شد — دوباره تلاش کنید
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Skip / dismiss */}
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="block w-full text-center text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                بعداً وصل می‌کنم — افزودن دستی محصولات
+              </button>
+            </motion.div>
+          )}
+
+          {step === 'success' && (
+            <motion.div
+              key="success"
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
+              transition={{ duration: reduceMotion ? 0 : 0.3, ease: EASE }}
+              className="space-y-4 text-center"
+            >
+              <motion.div
+                initial={reduceMotion ? false : { scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE, type: 'spring', bounce: 0.5 }}
+                className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-green-100"
+              >
+                <CheckCircle2 className="h-9 w-9 text-green-600" strokeWidth={2} />
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+
+              <div>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">
+                  با موفقیت وصل شد!
+                </h3>
+                <p className="mx-auto mt-2 max-w-sm text-[13px] leading-6 text-[var(--text-secondary)]">
+                  سایت شما به ویجنت متصل شد. محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند. در حال ادامه راه‌اندازی…
+                </p>
+              </div>
+
+              {/* Spinner while we auto-advance */}
+              <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ادامه به مرحله بعد…
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   )
 }
