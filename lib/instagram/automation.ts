@@ -360,7 +360,11 @@ export async function runInstagramAutomation(
       }
       matched = matchKeywords(msg.text, trigger)
     } else {
-      matched = matchKeywords(msg.text, trigger)
+      // DIRECT_MESSAGE: when no keywords are configured (the form's
+      // "هر کلمه‌ای" / ANY option), the scenario matches every inbound DM.
+      // When keywords are present, apply normal keyword matching.
+      const kws = trigger.keywords ?? []
+      matched = kws.length === 0 || matchKeywords(msg.text, trigger)
     }
     if (!matched) continue
 

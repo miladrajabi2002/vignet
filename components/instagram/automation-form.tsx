@@ -437,7 +437,12 @@ export function AutomationForm({
         const isStory = type === 'STORY'
 
         // The preview needs the bot's message text and the user-side keyword.
-        const previewUserText = form.keywords[0] ?? ''
+        // When the keyword filter is ANY (match-all), use a placeholder bubble
+        // so the iPhone preview still shows something meaningful.
+        const previewUserText =
+                form.keywordFilter === 'SPECIFIC'
+                        ? (form.keywords[0] ?? '')
+                        : 'سلام'
         const previewMessages = useMemo<AutomationMessage[]>(() => {
                 if (form.replyMode !== 'STATIC' && form.replyMode !== 'MULTI_MESSAGE') return []
                 if (isComment && form.replyMode === 'MULTI_MESSAGE') {
@@ -564,21 +569,22 @@ export function AutomationForm({
                                                         </div>
                                                 )}
 
-                                                {/* Keyword filter (ANY / SPECIFIC) — for COMMENT and STORY */}
-                                                {(isComment || isStory) && (
-                                                        <SegmentedField
-                                                                label="کدام کلمات؟"
-                                                                value={form.keywordFilter}
-                                                                onChange={(v) => set('keywordFilter', v as KeywordFilter)}
-                                                                options={[
-                                                                        { value: 'ANY', label: 'هر کلمه‌ای' },
-                                                                        { value: 'SPECIFIC', label: 'کلمات خاص' },
-                                                                ]}
-                                                        />
-                                                )}
+                                                {/* Keyword filter (ANY / SPECIFIC) — for DM, COMMENT and STORY.
+                                                        ANY  = scenario matches ALL messages (no keyword filtering).
+                                                        SPECIFIC = scenario matches only when one of `keywords` is present. */}
+                                                <SegmentedField
+                                                        label="کدام کلمات؟"
+                                                        value={form.keywordFilter}
+                                                        onChange={(v) => set('keywordFilter', v as KeywordFilter)}
+                                                        options={[
+                                                                { value: 'ANY', label: 'هر کلمه‌ای' },
+                                                                { value: 'SPECIFIC', label: 'کلمات خاص' },
+                                                        ]}
+                                                />
 
-                                                {/* Keywords tag input — for DM always; for COMMENT/STORY when SPECIFIC */}
-                                                {(isDm || form.keywordFilter === 'SPECIFIC') && (
+                                                {/* Keywords tag input — shown only when SPECIFIC is selected.
+                                                        For DM/COMMENT/STORY alike. */}
+                                                {form.keywordFilter === 'SPECIFIC' && (
                                                         <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                         کلمات کلیدی
@@ -593,15 +599,13 @@ export function AutomationForm({
                                                                         placeholder="کلمه را بنویس و Enter بزن…"
                                                                 />
                                                                 <p className="text-[11px] text-[var(--text-muted)]">
-                                                                        {isDm
-                                                                                ? 'زمانی که کاربر کلمات زیر را در دایرکت ارسال کند، این سناریو اجرا می‌شود. خالی = همه پیام‌ها.'
-                                                                                : 'با Enter یا کاما اضافه کنید.'}
+                                                                        زمانی که کاربر کلمات زیر را در {isDm ? 'دایرکت' : isComment ? 'کامنت' : 'استوری'} ارسال کند، این سناریو اجرا می‌شود. با Enter یا کاما اضافه کنید.
                                                                 </p>
                                                         </div>
                                                 )}
 
-                                                {/* Match mode — SEGMENTED CONTROL (DM only) */}
-                                                {isDm && (
+                                                {/* Match mode — SEGMENTED CONTROL (DM only, only meaningful with SPECIFIC keywords) */}
+                                                {isDm && form.keywordFilter === 'SPECIFIC' && (
                                                         <div className="space-y-1.5">
                                                                 <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                         نحوه تطبیق کلمه‌کلیدی
