@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CapabilityOptions } from '@/components/onboarding/capability-options'
+import { WooConnectWizard } from '@/components/onboarding/woo-connect-wizard'
 import {
   BUSINESS_TYPES,
   getVerticalPack,
@@ -605,6 +606,10 @@ function KnowledgeStep({
   onSkip: () => Promise<void>
 }) {
   const [skipping, setSkipping] = useState(false)
+  // WooConnectWizard visibility — when open, the wizard overlays the
+  // onboarding flow as a modal. After a successful connect, we call
+  // onContinue() to advance to the next onboarding step (channel).
+  const [showWizard, setShowWizard] = useState(false)
 
   async function skip() {
     if (skipping) return
@@ -652,10 +657,13 @@ function KnowledgeStep({
 
       {/* Two-option grid — spatial-surface style to match the rest of the dashboard */}
       <motion.div variants={staggerChild} className="mt-6 grid gap-3 sm:grid-cols-2 text-start">
-        {/* Option A: Connect WooCommerce */}
-        <Link
-          href="/products?onboarding=1"
-          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 transition-[border-color] hover:border-[var(--border-strong)]"
+        {/* Option A: Connect WooCommerce — opens the in-onboarding wizard.
+            No longer navigates away to /products; the wizard runs in-place
+            and advances the onboarding when the plugin connects. */}
+        <button
+          type="button"
+          onClick={() => setShowWizard(true)}
+          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 text-start transition-[border-color] hover:border-[var(--border-strong)]"
         >
           <div className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
@@ -673,7 +681,7 @@ function KnowledgeStep({
             شروع اتصال
             <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
           </div>
-        </Link>
+        </button>
 
         {/* Option B: Manual product entry */}
         <Link
@@ -739,6 +747,23 @@ function KnowledgeStep({
         <ArrowLeft className="h-4 w-4 rotate-180" />
         بازگشت به مرحله ایجنت
       </motion.button>
+
+      {/* WooCommerce connect wizard — rendered as a modal overlay when the
+          user clicks the "اتصال سایت وردپرس یا ووکامرس" card. The wizard
+          runs entirely in-onboarding (no navigation away) and calls
+          onContinue when the plugin successfully connects, advancing the
+          user to the next onboarding step. */}
+      <AnimatePresence>
+        {showWizard && (
+          <WooConnectWizard
+            onConnected={() => {
+              setShowWizard(false)
+              onContinue()
+            }}
+            onDismiss={() => setShowWizard(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
