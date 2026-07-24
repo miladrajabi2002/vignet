@@ -4,7 +4,7 @@ Tags: woocommerce, wordpress, ai, chatbot, ecommerce, sync, knowledge-base
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.3
+Stable tag: 4.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 بله. فایل `uninstall.php` هنگام حذف افزونه همهٔ تنظیمات، صف retry و transients را پاک می‌کند.
 
 == Changelog ==
+
+= 4.0.4 =
+* رفع باگ «۱۰۰٪ شد و دوباره برگشت از اول» — vgFinalize اکنون mark_pushed را با ۳ بار retry تلاش می‌کند و در صورت شکست پیام خطای واضح می‌دهد (به جای reload خاموش)
+* رفع باگ soft-fail در vgPushKind — خطای یک batch دیگر کل push را silent abort نمی‌کند؛ batch رد می‌شود و push ادامه می‌یابد
+* محاسبه درصد پیشرفت بر اساس totalSent واقعی (نه offset+25) — درصد همیشه دقیق است
+* safety cap: ۵ خطای متوالی → توقف push با finalize
+* reset شمارنده خطا در vgStartPush
 
 = 4.0.3 =
 * اطمینان از نمایش رنگ سفید برای عنوان «ویجنت» در هدر
