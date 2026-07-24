@@ -383,12 +383,15 @@ function IntegrationCard({
                 </div>
             )}
 
-            {/* Recent logs */}
+            {/* Recent logs — last 3 days */}
             {isPluginConfigured && integration.syncLogs.length > 0 && (
                 <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">رویدادهای اخیر</p>
-                    <div className="space-y-1">
-                        {integration.syncLogs.slice(0, 4).map((log) => (
+                    <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
+                        رویدادهای اخیر (۳ روز)
+                        <span className="mr-2 text-[var(--text-muted)]">— {integration.syncLogs.length} رویداد</span>
+                    </p>
+                    <div className="max-h-64 space-y-1 overflow-y-auto">
+                        {integration.syncLogs.map((log) => (
                             <div key={log.id} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2 text-xs">
                                 {log.outcome === 'ok' ? (
                                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />

@@ -78,8 +78,10 @@ export default async function ProductsPage(
       orderBy: { createdAt: 'desc' },
       include: {
         syncLogs: {
+          // Show all events from the last 3 days (capped at 100 for safety).
           orderBy: { createdAt: 'desc' },
-          take: 5,
+          where: { createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+          take: 100,
           select: {
             id: true,
             direction: true,

@@ -341,18 +341,23 @@ export async function syncWooProducts(
         for (const wp of products) {
                 try {
                         const data = mapWooProduct(wp)
-                        // Match by SKU first (the stable business key); fall back to name when
-                        // the store doesn't use SKUs.
-                        const existing = await prisma.product.findFirst({
-                                where: {
-                                        workspaceId,
-                                        OR: [
-                                                ...(data.sku ? [{ sku: data.sku }] : []),
-                                                { name: data.name },
-                                        ],
-                                },
-                                select: { id: true },
-                        })
+                        // ─── Deduplication (same as webhook path) ───
+                        // 1. SKU (most reliable), 2. Name (fallback).
+                        let existing: { id: string } | null = null
+
+                        if (data.sku) {
+                                existing = await prisma.product.findFirst({
+                                        where: { workspaceId, sku: data.sku },
+                                        select: { id: true },
+                                })
+                        }
+
+                        if (!existing) {
+                                existing = await prisma.product.findFirst({
+                                        where: { workspaceId, name: data.name },
+                                        select: { id: true },
+                                })
+                        }
 
                         const product = existing
                                 ? await prisma.product.update({
@@ -644,16 +649,25 @@ async function upsertProductFromWoo(
         const { workspaceId } = integration
         const data = mapWooProduct(wp)
 
-        const existing = await prisma.product.findFirst({
-                where: {
-                        workspaceId,
-                        OR: [
-                                ...(data.sku ? [{ sku: data.sku }] : []),
-                                { name: data.name },
-                        ],
-                },
-                select: { id: true },
-        })
+        // ─── Deduplication logic (priority order) ───
+        // 1. Match by SKU (most reliable — unique business key from WooCommerce).
+        // 2. Match by name (fallback for products without SKU).
+        // 3. Match by SKU = WC product ID (some stores use WC id as SKU).
+        let existing: { id: string } | null = null
+
+        if (data.sku) {
+                existing = await prisma.product.findFirst({
+                        where: { workspaceId, sku: data.sku },
+                        select: { id: true },
+                })
+        }
+
+        if (!existing) {
+                existing = await prisma.product.findFirst({
+                        where: { workspaceId, name: data.name },
+                        select: { id: true },
+                })
+        }
 
         const product = existing
                 ? await prisma.product.update({

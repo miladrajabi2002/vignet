@@ -360,28 +360,6 @@ export function WooSetupCard({
                 </div>
             )}
 
-            {/* Connected — show recent events */}
-            {isPluginConfigured && integration.syncLogs.length > 0 && (
-                <div className="mt-4">
-                    <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">رویدادهای اخیر</p>
-                    <div className="space-y-1">
-                        {integration.syncLogs.slice(0, 4).map((log) => (
-                            <div key={log.id} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2 text-xs">
-                                {log.outcome === 'ok' ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                                ) : (
-                                    <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                                )}
-                                <span className="text-[var(--text-secondary)]">{entityLabel(log.entity)}</span>
-                                <span className="text-[var(--text-muted)]">·</span>
-                                <span className="text-[var(--text-muted)]">{log.count} مورد</span>
-                                <span className="ml-auto text-[var(--text-muted)]">{formatDate(log.createdAt)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* Error */}
             {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs leading-relaxed text-red-700">
