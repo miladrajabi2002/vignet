@@ -15,28 +15,26 @@ import {
     AlertCircle,
     CheckCircle2,
     X,
-    ChevronDown,
-    ChevronUp,
     Settings2,
     BookOpen,
     Zap,
+    Globe,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 /**
- * WooCommerce setup + management card for the Products page.
+ * WooCommerce / WordPress setup + management card for the Products page.
  *
- * Replaces the simple "connect/disconnect" banner with a richer flow that:
- *  1. Lets the admin create a webhook-only integration (no REST keys needed
- *     for push from the WP plugin).
- *  2. Auto-generates the webhook URL + secret on the Vigent side and shows
- *     them with copy buttons so the user can paste them into the WP plugin.
- *  3. Provides a refresh button + checklist of what gets synced.
- *  4. Optionally lets the user add REST API credentials for two-way sync.
+ * Simplified flow:
+ *  1. User enters site URL only → Vigent auto-generates webhook URL + secret.
+ *  2. User copies them into the WordPress plugin.
+ *  3. Plugin pushes data via webhook — no Consumer Key/Secret needed.
  *
- * Server passes the initial integration state; this component owns the
- * interactive bits (add form, sync-now, toggle, copy, delete).
+ * Connection state badges:
+ *  - "متصل" (green) when plugin has been verified to reach Vigent (syncLogs > 0)
+ *  - "در انتظار" (yellow) when integration is created but plugin not yet configured
+ *  - "غیرفعال" (gray) when admin disabled the integration
  */
 
 interface SyncLogEntry {
@@ -70,7 +68,6 @@ export function WooSetupCard({
 }) {
     const router = useRouter()
     const [showForm, setShowForm] = useState(false)
-    const [showAdvanced, setShowAdvanced] = useState(false)
     const [syncing, setSyncing] = useState(false)
     const [pinging, setPinging] = useState(false)
     const [syncError, setSyncError] = useState<string | null>(null)
@@ -78,8 +75,6 @@ export function WooSetupCard({
 
     // ── form state ──────────────────────────────────────────────────────
     const [storeUrl, setStoreUrl] = useState('')
-    const [consumerKey, setConsumerKey] = useState('')
-    const [consumerSecret, setConsumerSecret] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
 
@@ -88,21 +83,15 @@ export function WooSetupCard({
         setFormError(null)
         setSubmitting(true)
         try {
-            // In webhook-only mode (no advanced creds), credentials is {}.
-            // When advanced creds are provided, we send them along so Vigent
-            // can also POLL the WC REST API.
-            const credentials: Record<string, string> =
-                showAdvanced && consumerKey.trim() && consumerSecret.trim()
-                    ? { consumerKey: consumerKey.trim(), consumerSecret: consumerSecret.trim() }
-                    : {}
-
+            // Simplified flow: just URL — Vigent auto-generates webhook URL + secret.
+            // No Consumer Key/Secret required; everything works via webhook push.
             const res = await fetch('/api/integrations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'WOOCOMMERCE',
                     storeUrl: storeUrl.trim(),
-                    credentials,
+                    credentials: {},
                 }),
             })
             const data = await res.json().catch(() => ({}))
@@ -118,8 +107,6 @@ export function WooSetupCard({
             }
             setShowForm(false)
             setStoreUrl('')
-            setConsumerKey('')
-            setConsumerSecret('')
             router.refresh()
         } catch {
             setFormError('خطا در ارتباط با سرور.')
@@ -147,11 +134,12 @@ export function WooSetupCard({
                 )
                 return
             }
-            if (data.mode === 'webhook-only') {
-                setSyncOk('این اتصال فقط webhook است — داده‌ها به‌صورت لحظه‌ای از افزونه می‌آیند.')
+            // In webhook-only mode, the plugin pushes data live; poll just syncs what's already pushed.
+            const pcount = data.products?.count ?? 0
+            const ocount = data.orders?.count ?? 0
+            if (pcount === 0 && ocount === 0 && data.mode === 'webhook-only') {
+                setSyncOk('داده‌ها به‌صورت لحظه‌ای از افزونه می‌آیند. افزونه را در وردپرس نصب و راه‌اندازی کنید.')
             } else {
-                const pcount = data.products?.count ?? 0
-                const ocount = data.orders?.count ?? 0
                 setSyncOk(`${pcount} محصول و ${ocount} سفارش هم‌گام شد.`)
             }
             router.refresh()
@@ -216,14 +204,14 @@ export function WooSetupCard({
                         </span>
                         <div className="min-w-0">
                             <h2 className="text-base font-bold text-[var(--text-primary)]">
-                                سایت ووکامرسی دارید و می‌خواهید محصولات خودکار به‌روز شوند؟
+                                سایت وردپرسی یا ووکامرسی دارید؟
                             </h2>
                             <p className="mt-1 max-w-2xl text-xs leading-6 text-[var(--text-secondary)]">
-                                افزونهٔ ویجنت را روی وردپرس نصب کنید؛ محصول جدید، تغییر قیمت، موجودی و سفارش‌ها
+                                افزونهٔ ویجنت را روی وردپرس نصب کنید؛ نوشته‌ها، برگه‌ها، محصولات، تغییر قیمت، موجودی و سفارش‌ها
                                 بدون ورود دستی به ویجنت می‌رسند و ایجنت همیشه با اطلاعات واقعی پاسخ می‌دهد.
                             </p>
                             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--text-muted)]">
-                                <span>۱. اتصال فروشگاه (این صفحه)</span>
+                                <span>۱. اتصال سایت (این صفحه)</span>
                                 <span>۲. نصب افزونه در وردپرس</span>
                                 <span>۳. جای‌گذاری لینک و کلید در افزونه</span>
                                 <span>۴. هم‌گام‌سازی اولیه</span>
@@ -232,7 +220,7 @@ export function WooSetupCard({
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
                         <a
-                            href="/downloads/vigent-wordpress.zip"
+                            href="/api/downloads/wordpress-plugin"
                             download
                             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-hover)]"
                         >
@@ -244,7 +232,7 @@ export function WooSetupCard({
                             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white shadow-[var(--shadow-control)] hover:opacity-90"
                         >
                             <Plus className="h-3.5 w-3.5" />
-                            اتصال ووکامرس
+                            اتصال سایت
                         </button>
                     </div>
                 </div>
@@ -256,7 +244,7 @@ export function WooSetupCard({
                     >
                         <div className="mb-4 flex items-center justify-between">
                             <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                                راه‌اندازی اتصال ووکامرس
+                                راه‌اندازی اتصال سایت
                             </h3>
                             <button
                                 type="button"
@@ -270,7 +258,7 @@ export function WooSetupCard({
                         <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-6 text-blue-800">
                             <p className="font-semibold mb-1">راه‌اندازی ساده در ۳ گام:</p>
                             <ol className="list-decimal pr-4 space-y-1">
-                                <li>آدرس سایت ووکامرسی خود را وارد و «ایجاد اتصال» بزنید.</li>
+                                <li>آدرس سایت وردپرسی/ووکامرسی خود را وارد و «ایجاد اتصال» بزنید.</li>
                                 <li>ویجنت به‌صورت خودکار یک <strong>لینک webhook</strong> و یک <strong>کلید امنیتی</strong> تصادفی می‌سازد.</li>
                                 <li>افزونه را در وردپرس نصب کنید و این لینک و کلید را در تنظیمات آن جای‌گذاری کنید.</li>
                             </ol>
@@ -279,7 +267,7 @@ export function WooSetupCard({
                         <div className="grid gap-3">
                             <div>
                                 <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                    آدرس فروشگاه <span className="text-danger">*</span>
+                                    آدرس سایت <span className="text-danger">*</span>
                                 </label>
                                 <input
                                     dir="ltr"
@@ -287,58 +275,13 @@ export function WooSetupCard({
                                     required
                                     value={storeUrl}
                                     onChange={(e) => setStoreUrl(e.target.value)}
-                                    placeholder="https://shop.example.com"
+                                    placeholder="https://example.com"
                                     className="input font-mono text-sm"
                                 />
                                 <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                                    آدرس کامل سایت وردپرسی/ووکامرسی شما — بدون اسلش در انتها.
+                                    آدرس کامل سایت وردپرسی یا ووکامرسی شما — بدون اسلش در انتها. با یا بدون ووکامرس کار می‌کند.
                                 </p>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setShowAdvanced((v) => !v)}
-                                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                                {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                                تنظیمات پیشرفته (Consumer Key/Secret برای هم‌گام‌سازی دوطرفه)
-                            </button>
-
-                            {showAdvanced && (
-                                <div className="grid gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3 sm:grid-cols-2">
-                                    <div>
-                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                            Consumer Key
-                                        </label>
-                                        <input
-                                            dir="ltr"
-                                            type="text"
-                                            value={consumerKey}
-                                            onChange={(e) => setConsumerKey(e.target.value)}
-                                            placeholder="ck_..."
-                                            className="input font-mono text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                            Consumer Secret
-                                        </label>
-                                        <input
-                                            dir="ltr"
-                                            type="password"
-                                            value={consumerSecret}
-                                            onChange={(e) => setConsumerSecret(e.target.value)}
-                                            placeholder="cs_..."
-                                            className="input font-mono text-sm"
-                                        />
-                                    </div>
-                                    <p className="text-[11px] text-[var(--text-muted)] sm:col-span-2">
-                                        این کلیدها فقط برای هم‌گام‌سازی کششی (poll) از سمت ویجنت لازم‌اند.
-                                        بدون آن‌ها، افزونه وردپرس همچنان داده‌ها را از طریق webhook به ویجنت می‌فرستد.
-                                        برای ساخت: ووکامرس ← تنظیمات ← پیشرفته ← REST API.
-                                    </p>
-                                </div>
-                            )}
 
                             {formError && <p className="text-sm text-danger">{formError}</p>}
 
@@ -371,51 +314,57 @@ export function WooSetupCard({
         ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/sync/woocommerce?token=${integration.webhookSecret}`
         : null
 
+    // Determine real connection state:
+    // - "متصل" (green): plugin has sent at least one event (syncLogs > 0)
+    // - "در انتظار راه‌اندازی" (yellow): integration created but plugin not configured yet
+    // - "غیرفعال" (gray): admin disabled it
+    const isPluginConfigured = integration._count.syncLogs > 0
+    const statusLabel = !integration.active
+        ? 'غیرفعال'
+        : isPluginConfigured
+            ? 'متصل'
+            : 'در انتظار راه‌اندازی'
+    const statusColor = !integration.active
+        ? 'bg-gray-100 text-gray-600'
+        : isPluginConfigured
+            ? 'bg-green-50 text-green-700'
+            : 'bg-yellow-50 text-yellow-700'
+
     return (
         <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)]">
-                        <CheckCircle2 className="h-5 w-5" />
+                        {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
                     <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-base font-bold text-[var(--text-primary)]">
-                                فروشگاه ووکامرس متصل است
-                            </h2>
-                            <span
-                                className={cn(
-                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                    integration.active
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-gray-100 text-gray-600',
-                                )}
-                            >
-                                ● {integration.active ? 'فعال' : 'غیرفعال'}
-                            </span>
-                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                                {integration.hasCredentials ? 'هم‌گام‌سازی کامل' : 'webhook-only'}
-                            </span>
-                        </div>
+                        {/* Site URL at top — most prominent */}
                         <p
                             dir="ltr"
-                            className="mt-1 truncate text-xs text-[var(--text-secondary)]"
+                            className="truncate text-sm font-bold text-[var(--text-primary)]"
                             title={integration.storeUrl}
                         >
                             {integration.storeUrl}
                         </p>
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                            {integration._count.orders} سفارش · {integration._count.syncLogs} لاگ هم‌گام‌سازی
-                            {integration.pollIntervalMinutes > 0
-                                ? ` · هر ${integration.pollIntervalMinutes} دقیقه poll`
-                                : ' · فقط webhook'}
-                            {integration.lastSyncAt
-                                ? ` · آخرین همگام‌سازی: ${formatDate(integration.lastSyncAt)}`
-                                : ' · هم‌گام‌سازی نشده'}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', statusColor)}>
+                                ● {statusLabel}
+                            </span>
+                            <span className="text-xs text-[var(--text-muted)]">
+                                {integration._count.orders} سفارش · {integration._count.syncLogs} لاگ هم‌گام‌سازی
+                                {integration.lastSyncAt
+                                    ? ` · آخرین همگام‌سازی: ${formatDate(integration.lastSyncAt)}`
+                                    : ' · هم‌گام‌سازی نشده'}
+                            </span>
+                        </div>
                         {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
                             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
                                 <strong>خطای آخرین هم‌گام‌سازی:</strong> {integration.lastSyncError}
+                            </p>
+                        )}
+                        {!isPluginConfigured && integration.active && (
+                            <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs leading-5 text-yellow-800">
+                                <strong>در انتظار راه‌اندازی:</strong> افزونه را روی وردپرس نصب کنید و لینک و کلید زیر را در آن جای‌گذاری کنید.
                             </p>
                         )}
                     </div>
@@ -447,7 +396,7 @@ export function WooSetupCard({
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
                     >
                         {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        بروزرسانی محصولات
+                        بروزرسانی
                     </button>
                     <button
                         type="button"
@@ -473,7 +422,7 @@ export function WooSetupCard({
                 </div>
             )}
 
-            {/* Webhook URL + Secret copy panel */}
+            {/* Webhook URL + Secret copy panel — always shown when integration exists */}
             {webhookUrl && integration.webhookSecret && (
                 <div className="mt-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
                     <div className="mb-3 flex items-center justify-between">
@@ -493,7 +442,7 @@ export function WooSetupCard({
                         <CopyField label="۲. کلید امنیتی" value={integration.webhookSecret} />
                     </div>
                     <ol className="mt-3 space-y-1.5 text-[11px] text-[var(--text-secondary)]">
-                        <li>۱. افزونه را از <a href="/downloads/vigent-wordpress.zip" download className="text-[var(--text-primary)] underline">اینجا</a> دانلود و در وردپرس نصب کنید.</li>
+                        <li>۱. افزونه را از <a href="/api/downloads/wordpress-plugin" download className="text-[var(--text-primary)] underline">اینجا</a> دانلود و در وردپرس نصب کنید.</li>
                         <li>۲. در پیشخوان وردپرس به <strong>«ویجنت ← تنظیمات»</strong> بروید.</li>
                         <li>۳. مقادیر بالا را در فیلدهای مربوطه جای‌گذاری و «ذخیره» بزنید.</li>
                         <li>۴. دکمهٔ «تست اتصال» را بزنید و سپس به تب «هم‌گام‌سازی» بروید.</li>
@@ -508,13 +457,9 @@ export function WooSetupCard({
                         چک‌لیست هم‌گام‌سازی
                     </h3>
                     <ul className="space-y-1.5 text-[11px] text-[var(--text-secondary)]">
-                        <ChecklistItem done={!!webhookUrl} label="اتصال webhook برقرار است" />
-                        <ChecklistItem done={integration._count.syncLogs > 0} label="حداقل یک رویداد از افزونه دریافت شده" />
-                        <ChecklistItem
-                            done={integration.hasCredentials}
-                            label="Consumer Key/Secret تنظیم شده (برای poll)"
-                            optional
-                        />
+                        <ChecklistItem done={!!webhookUrl} label="اتصال در ویجنت ساخته شد" />
+                        <ChecklistItem done={integration._count.syncLogs > 0} label="افزونه در وردپرس نصب و فعال شد" />
+                        <ChecklistItem done={integration._count.syncLogs > 0} label="اولین رویداد از افزونه دریافت شد" />
                         <ChecklistItem
                             done={integration._count.orders > 0}
                             label="سفارش‌ها در حال هم‌گام‌سازی هستند"

@@ -137,7 +137,7 @@ export function StoreIntegrationsSection({
                                 <div className="flex items-center gap-2">
                                         <ShoppingBag className="h-4 w-4 text-[var(--text-secondary)]" />
                                         <h2 className="text-sm font-medium text-[var(--text-secondary)]">
-                                                فروشگاه آنلاین
+                                                سایت (وردپرس/ووکامرس)
                                         </h2>
                                 </div>
                                 <button
@@ -145,7 +145,7 @@ export function StoreIntegrationsSection({
                                         className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                                 >
                                         {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                                        {showForm ? 'انصراف' : 'افزودن فروشگاه'}
+                                        {showForm ? 'انصراف' : 'افزودن سایت'}
                                 </button>
                         </div>
 
@@ -182,11 +182,11 @@ export function StoreIntegrationsSection({
                                         <ol className="mx-auto mt-5 max-w-md space-y-2 text-xs text-[var(--text-secondary)]">
                                                 <li className="flex items-start gap-2">
                                                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۱</span>
-                                                        افزونهٔ ویجنت را دانلود و در وردپرس نصب کنید.
+                                                        با دکمهٔ «افزودن سایت» آدرس سایت را ثبت کنید تا آدرس webhook و کلید امنیتی بگیرید.
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۲</span>
-                                                        با دکمهٔ «افزودن فروشگاه» آدرس سایت را ثبت کنید تا آدرس webhook و کلید امنیتی بگیرید.
+                                                        افزونهٔ ویجنت را دانلود و در وردپرس نصب کنید.
                                                 </li>
                                                 <li className="flex items-start gap-2">
                                                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۳</span>
@@ -194,21 +194,21 @@ export function StoreIntegrationsSection({
                                                 </li>
                                         </ol>
                                         <div className="mt-5 flex flex-wrap justify-center gap-3">
-                                                <a
-                                                        href="/downloads/vigent-wordpress.zip"
-                                                        download
+                                                <button
+                                                        onClick={() => setShowForm(true)}
                                                         className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
+                                                >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        افزودن سایت
+                                                </button>
+                                                <a
+                                                        href="/api/downloads/wordpress-plugin"
+                                                        download
+                                                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
                                                 >
                                                         <Download className="h-3.5 w-3.5" />
                                                         دانلود افزونهٔ وردپرس
                                                 </a>
-                                                <button
-                                                        onClick={() => setShowForm(true)}
-                                                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                                >
-                                                        <Plus className="h-3.5 w-3.5" />
-                                                        افزودن فروشگاه
-                                                </button>
                                         </div>
                                 </div>
                         ) : (
@@ -247,7 +247,7 @@ export function StoreIntegrationsSection({
                                                 </div>
                                         </div>
                                         <a
-                                                href="/downloads/vigent-wordpress.zip"
+                                                href="/api/downloads/wordpress-plugin"
                                                 download
                                                 className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
                                         >
@@ -260,14 +260,10 @@ export function StoreIntegrationsSection({
         )
 }
 
-// ─── add-store form ──────────────────────────────────────────────────────────
+// ─── add-store form (simplified — URL only, auto webhook generation) ────────
 
 function AddStoreForm({ onDone }: { onDone: () => void }) {
-        const [type, setType] = useState<StoreType>('WOOCOMMERCE')
         const [storeUrl, setStoreUrl] = useState('')
-        const [consumerKey, setConsumerKey] = useState('')
-        const [consumerSecret, setConsumerSecret] = useState('')
-        const [pollInterval, setPollInterval] = useState('30')
         const [submitting, setSubmitting] = useState(false)
         const [error, setError] = useState<string | null>(null)
 
@@ -276,26 +272,25 @@ function AddStoreForm({ onDone }: { onDone: () => void }) {
                 setError(null)
                 setSubmitting(true)
                 try {
-                        const credentials: Record<string, string> =
-                                type === 'WOOCOMMERCE'
-                                        ? { consumerKey: consumerKey.trim(), consumerSecret: consumerSecret.trim() }
-                                        : {}
+                        // Simplified: only URL needed. Vigent auto-generates webhook URL + secret.
+                        // No Consumer Key/Secret required — the plugin pushes via webhook.
                         const res = await fetch('/api/integrations', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                        type,
+                                        type: 'WOOCOMMERCE',
                                         storeUrl: storeUrl.trim(),
-                                        credentials,
-                                        pollIntervalMinutes: parseInt(pollInterval, 10) || 30,
+                                        credentials: {},
                                 }),
                         })
                         const data = await res.json().catch(() => ({}))
                         if (!res.ok) {
                                 setError(
                                         data.error === 'INVALID'
-                                                ? 'ورودی نامعتبر است.'
-                                                : 'خطا در افزودن فروشگاه.',
+                                                ? 'آدرس سایت نامعتبر است.'
+                                                : data.error === 'UNSAFE_STORE_URL'
+                                                        ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.'
+                                                        : 'خطا در افزودن سایت.',
                                 )
                                 return
                         }
@@ -312,92 +307,38 @@ function AddStoreForm({ onDone }: { onDone: () => void }) {
                         onSubmit={submit}
                         className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5"
                 >
-                        <h3 className="mb-4 text-sm font-medium text-[var(--text-primary)]">
-                                افزودن فروشگاه جدید
-                        </h3>
-
-                        <div className="mb-4 flex gap-2">
-                                {(['WOOCOMMERCE', 'CUSTOM_URL'] as StoreType[]).map((t) => (
-                                        <button
-                                                key={t}
-                                                type="button"
-                                                onClick={() => setType(t)}
-                                                className={cn(
-                                                        'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors',
-                                                        type === t
-                                                                ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
-                                                                : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                                                )}
-                                        >
-                                                {TYPE_LABEL[t]}
-                                        </button>
-                                ))}
+                        <div className="mb-4 flex items-center justify-between">
+                                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                                        افزودن سایت وردپرس/ووکامرس
+                                </h3>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
-                                <div>
-                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                                آدرس فروشگاه
-                                        </label>
-                                        <input
-                                                dir="ltr"
-                                                type="url"
-                                                required
-                                                value={storeUrl}
-                                                onChange={(e) => setStoreUrl(e.target.value)}
-                                                placeholder="https://shop.example.com"
-                                                className="input font-mono text-sm"
-                                        />
-                                </div>
-                                <div>
-                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                                دورهٔ هم‌گام‌سازی (دقیقه)
-                                        </label>
-                                        <input
-                                                dir="ltr"
-                                                type="number"
-                                                min="0"
-                                                max="1440"
-                                                value={pollInterval}
-                                                onChange={(e) => setPollInterval(e.target.value)}
-                                                className="input font-mono text-sm"
-                                        />
-                                </div>
-                                {type === 'WOOCOMMERCE' && (
-                                        <>
-                                                <div>
-                                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                                                Consumer Key
-                                                        </label>
-                                                        <input
-                                                                dir="ltr"
-                                                                type="text"
-                                                                value={consumerKey}
-                                                                onChange={(e) => setConsumerKey(e.target.value)}
-                                                                placeholder="ck_..."
-                                                                className="input font-mono text-sm"
-                                                        />
-                                                </div>
-                                                <div>
-                                                        <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                                                Consumer Secret
-                                                        </label>
-                                                        <input
-                                                                dir="ltr"
-                                                                type="password"
-                                                                value={consumerSecret}
-                                                                onChange={(e) => setConsumerSecret(e.target.value)}
-                                                                placeholder="cs_..."
-                                                                className="input font-mono text-sm"
-                                                        />
-                                                </div>
-                                                <p className="text-[11px] text-[var(--text-muted)] sm:col-span-2">
-                                                        کلیدهای REST فقط برای ووکامرس لازم‌اند (برای هم‌گام‌سازی دوره‌ای). اگر
-                                                        سایت وردپرسی بدون فروشگاه دارید، این دو فیلد را خالی بگذارید — اتصال
-                                                        از طریق افزونه و webhook انجام می‌شود.
-                                                </p>
-                                        </>
-                                )}
+                        <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-6 text-blue-800">
+                                <p className="font-semibold mb-1">راه‌اندازی ساده در ۳ گام:</p>
+                                <ol className="list-decimal pr-4 space-y-1">
+                                        <li>آدرس سایت وردپرسی/ووکامرسی خود را وارد و «ایجاد اتصال» بزنید.</li>
+                                        <li>ویجنت به‌صورت خودکار یک <strong>لینک webhook</strong> و یک <strong>کلید امنیتی</strong> تصادفی می‌سازد.</li>
+                                        <li>افزونه را در وردپرس نصب کنید و این لینک و کلید را در تنظیمات آن جای‌گذاری کنید.</li>
+                                </ol>
+                        </div>
+
+                        <div>
+                                <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
+                                        آدرس سایت <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                        dir="ltr"
+                                        type="url"
+                                        required
+                                        value={storeUrl}
+                                        onChange={(e) => setStoreUrl(e.target.value)}
+                                        placeholder="https://example.com"
+                                        className="input font-mono text-sm"
+                                        autoFocus
+                                />
+                                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                                        آدرس کامل سایت وردپرسی یا ووکامرسی شما — بدون اسلش در انتها. با یا بدون ووکامرس کار می‌کند.
+                                </p>
                         </div>
 
                         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
@@ -409,7 +350,7 @@ function AddStoreForm({ onDone }: { onDone: () => void }) {
                                         className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
                                 >
                                         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                                        {submitting ? 'در حال افزودن…' : 'افزودن'}
+                                        {submitting ? 'در حال ایجاد…' : 'ایجاد اتصال'}
                                 </button>
                         </div>
                 </form>
@@ -437,44 +378,55 @@ function IntegrationCard({
                 ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/sync/woocommerce?token=${integration.webhookSecret}`
                 : null
 
+        // Determine real connection state (same logic as WooSetupCard):
+        // - "متصل": plugin has sent at least one event
+        // - "در انتظار راه‌اندازی": integration created but plugin not configured yet
+        // - "غیرفعال": admin disabled it
+        const isPluginConfigured = integration._count.syncLogs > 0
+        const statusLabel = !integration.active
+                ? 'غیرفعال'
+                : isPluginConfigured
+                        ? 'متصل'
+                        : 'در انتظار راه‌اندازی'
+        const statusColor = !integration.active
+                ? 'text-[var(--text-muted)]'
+                : isPluginConfigured
+                        ? 'text-[var(--green)]'
+                        : 'text-yellow-600'
+
         return (
                 <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2">
-                                                <span className="rounded-lg bg-[var(--bg-base)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-                                                        {TYPE_LABEL[integration.type]}
-                                                </span>
-                                                <span
-                                                        className={cn(
-                                                                'inline-flex items-center gap-1 text-xs',
-                                                                integration.active
-                                                                        ? 'text-[var(--green)]'
-                                                                        : 'text-[var(--text-muted)]',
-                                                        )}
-                                                >
-                                                        ● {integration.active ? 'فعال' : 'غیرفعال'}
-                                                </span>
-                                        </div>
                                         <p
                                                 dir="ltr"
-                                                className="mt-1 truncate text-sm text-[var(--text-primary)]"
+                                                className="truncate text-sm font-bold text-[var(--text-primary)]"
                                                 title={integration.storeUrl}
                                         >
                                                 {integration.storeUrl}
                                         </p>
-                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                                {integration._count.orders} سفارش · {integration._count.syncLogs} لاگ هم‌گام‌سازی
-                                                {integration.pollIntervalMinutes > 0
-                                                        ? ` · هر ${integration.pollIntervalMinutes} دقیقه`
-                                                        : ' · فقط webhook'}
-                                                {integration.lastSyncAt
-                                                        ? ` · آخرین هم‌گام‌سازی: ${formatDate(integration.lastSyncAt)}`
-                                                        : ' · هم‌گام‌سازی نشده'}
-                                        </p>
+                                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                <span className="rounded-lg bg-[var(--bg-base)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
+                                                        {TYPE_LABEL[integration.type]}
+                                                </span>
+                                                <span className={cn('inline-flex items-center gap-1 text-xs', statusColor)}>
+                                                        ● {statusLabel}
+                                                </span>
+                                                <span className="text-xs text-[var(--text-muted)]">
+                                                        {integration._count.orders} سفارش · {integration._count.syncLogs} لاگ
+                                                        {integration.lastSyncAt
+                                                                ? ` · آخرین هم‌گام‌سازی: ${formatDate(integration.lastSyncAt)}`
+                                                                : ' · هم‌گام‌سازی نشده'}
+                                                </span>
+                                        </div>
                                         {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
                                                 <p className="mt-1 text-xs text-danger">
                                                         خطای آخرین هم‌گام‌سازی: {integration.lastSyncError}
+                                                </p>
+                                        )}
+                                        {!isPluginConfigured && integration.active && (
+                                                <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs leading-5 text-yellow-800">
+                                                        <strong>در انتظار راه‌اندازی:</strong> افزونه را روی وردپرس نصب کنید و لینک و کلید زیر را در آن جای‌گذاری کنید.
                                                 </p>
                                         )}
                                 </div>

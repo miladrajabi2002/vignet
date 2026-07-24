@@ -668,7 +668,7 @@ function KnowledgeStep({
             اتصال سایت وردپرس یا ووکامرس
           </h3>
           <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
-            سایت فروشگاهی دارید؟ با چند کلیک وصل کنید — محصولات خودکار بروز و اضافه می‌شوند به پنل.
+            سایت وردپرسی یا فروشگاهی دارید؟ با چند کلیک وصل کنید — نوشته‌ها، محصولات و سفارش‌ها خودکار بروز و اضافه می‌شوند به پنل.
           </p>
           <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--text-primary)]">
             شروع اتصال
