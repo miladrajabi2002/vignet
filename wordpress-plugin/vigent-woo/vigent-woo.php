@@ -70,6 +70,7 @@ function vigent_woo_activate() {
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
         wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
+        wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
 register_activation_hook( __FILE__, 'vigent_woo_activate' );
 
@@ -80,6 +81,7 @@ function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
         wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
+        wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
 register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
 
@@ -103,6 +105,10 @@ function vigent_woo_cron_schedules( $schedules ) {
                 'interval' => 1800,
                 'display'  => __( 'هر ۳۰ دقیقه', 'vigent-woo' ),
         );
+        $schedules['twenty_four_hours'] = array(
+                'interval' => DAY_IN_SECONDS, // 86400 ثانیه = ۲۴ ساعت
+                'display'  => __( 'هر ۲۴ ساعت', 'vigent-woo' ),
+        );
         return $schedules;
 }
 add_filter( 'cron_schedules', 'vigent_woo_cron_schedules' );
@@ -117,6 +123,12 @@ function vigent_woo_setup_cron() {
         }
         if ( ! wp_next_scheduled( 'vigent_woo_auto_sync' ) ) {
                 wp_schedule_event( time() + 1800, 'thirty_minutes', 'vigent_woo_auto_sync' );
+        }
+        // بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
+        // این cron فایل info رو از سرور ویجنت می‌خونه و در صورت وجود نسخه جدید،
+        // آن را در transient بروزرسانی‌ها ثبت می‌کنه تا وردپرس بنر آپدیت رو نشون بده.
+        if ( ! wp_next_scheduled( 'vigent_woo_daily_update_check' ) ) {
+                wp_schedule_event( time() + 3600, 'twenty_four_hours', 'vigent_woo_daily_update_check' );
         }
 }
 add_action( 'admin_init', 'vigent_woo_setup_cron' );

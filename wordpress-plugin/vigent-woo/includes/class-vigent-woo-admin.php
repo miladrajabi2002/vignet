@@ -105,6 +105,17 @@ class Vigent_Woo_Admin {
                         .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #1e40af; }
                         .vg-update-banner .vg-btn-install { background: #3b82f6; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
                         .vg-update-banner .vg-btn-install:hover { background: #2563eb; color: #fff; }
+                        /* Update-status card — small informational strip below the header.
+                           Always visible (unlike .vg-update-banner which only appears when an
+                           update exists). Shows "آخرین بررسی: ... · بررسی بعدی: ..." so the user
+                           knows the auto-check is running. */
+                        .vg-update-status { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #6b7280; }
+                        .vg-update-status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+                        .vg-update-status-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #374151; }
+                        .vg-update-status-label svg { color: #6b7280; }
+                        .vg-update-status-info { font-variant-numeric: tabular-nums; color: #6b7280; }
+                        .vg-update-status-info .num { color: #111; font-weight: 600; }
+                        .vg-update-status-info .sep { margin: 0 8px; opacity: .4; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
@@ -789,7 +800,50 @@ class Vigent_Woo_Admin {
          * inside our own admin page — that's WP Core's job.
          */
         private function render_update_banner() {
+                // اطلاعات آخرین چک خودکار (روی صفحه نشون می‌دیم تا کاربر بدونه
+                // سیستم هر ۲۴ ساعت خودش چک می‌کنه).
+                $last_check = class_exists( 'Vigent_Woo_Updater' )
+                        ? Vigent_Woo_Updater::instance()->get_last_check()
+                        : false;
+                $next_ts = wp_next_scheduled( 'vigent_woo_daily_update_check' );
                 ?>
+                <!-- Update-status card — always visible, shows last-auto-check + next scheduled check.
+                     This is informational, not an alert. The actual "new version" banner is the
+                     vg-update-banner element below. -->
+                <div class="vg-update-status">
+                        <div class="vg-update-status-row">
+                                <span class="vg-update-status-label">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                        <?php esc_html_e( 'بررسی خودکار بروزرسانی', 'vigent-woo' ); ?>
+                                </span>
+                                <span class="vg-update-status-info">
+                                        <?php
+                                        if ( $last_check && ! empty( $last_check['checked_at'] ) ) {
+                                                printf(
+                                                        /* translators: %s: datetime */
+                                                        esc_html__( 'آخرین بررسی: %s', 'vigent-woo' ),
+                                                        '<span class="num">' . esc_html( $last_check['checked_at'] ) . '</span>'
+                                                );
+                                        } else {
+                                                echo '<span class="num">' . esc_html__( 'هنوز بررسی نشده', 'vigent-woo' ) . '</span>';
+                                        }
+                                        ?>
+                                        <span class="sep">·</span>
+                                        <?php
+                                        if ( $next_ts ) {
+                                                printf(
+                                                        /* translators: %s: datetime */
+                                                        esc_html__( 'بررسی بعدی: %s', 'vigent-woo' ),
+                                                        '<span class="num" data-next-check="' . (int) $next_ts . '">' . esc_html( date_i18n( 'Y/m/d H:i', (int) $next_ts ) ) . '</span>'
+                                                );
+                                        } else {
+                                                echo '<span class="num">' . esc_html__( 'زمان‌بندی نشده', 'vigent-woo' ) . '</span>';
+                                        }
+                                        ?>
+                                </span>
+                        </div>
+                </div>
+
                 <div class="vg-update-banner" id="vg-update-banner" style="display:none;">
                         <div class="icon">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>

@@ -313,6 +313,17 @@ class Vigent_Woo_Ajax {
                         wp_update_plugins();
                 }
 
+                // Include last-auto-check metadata so the UI can show
+                // "آخرین بررسی خودکار: ۱۴۰۳/۰۵/۰۱ ۱۲:۳۰". The manual check
+                // itself doesn't update this option (only the daily cron
+                // does), so the value reflects the most recent 24h tick.
+                $result['last_auto_check'] = Vigent_Woo_Updater::instance()->get_last_check();
+                // Next-scheduled timestamp for the daily cron — lets the UI
+                // show "بررسی بعدی: ۱۴:۳۰" so the user knows when the next
+                // automatic check will happen.
+                $next_ts = wp_next_scheduled( 'vigent_woo_daily_update_check' );
+                $result['next_auto_check_ts'] = $next_ts ? (int) $next_ts : 0;
+
                 wp_send_json( array( 'success' => $result['success'], 'data' => $result ) );
         }
 }

@@ -73,9 +73,75 @@ class Vigent_Woo_Updater {
                 add_action( 'upgrader_process_complete', array( $this, 'on_upgrader_complete' ), 10, 2 );
                 // Show a custom "update available" notice on the plugin's own admin page.
                 add_action( 'admin_notices', array( $this, 'maybe_show_update_notice' ) );
+                // Cron — چک خودکار هر ۲۴ ساعت.
+                // این cron به‌صورت اختصاصی پیاده‌سازی شده تا مستقل از چک پیش‌فرض
+                // وردپرس (که هر ۱۲ ساعت است) عمل کنه و cache رو force-refresh کنه.
+                add_action( 'vigent_woo_daily_update_check', array( $this, 'daily_check' ) );
         }
 
         // ─── Public API used by the AJAX layer ───────────────────────────────
+
+        /**
+         * Cron callback — چک خودکار روزانه بروزرسانی.
+         *
+         * این متد هر ۲۴ ساعت یک‌بار توسط WP-Cron اجرا می‌شه (cron event
+         * `vigent_woo_daily_update_check`). کارهای زیر رو انجام می‌ده:
+         *
+         *   1. fetch_latest_info( true ) — اطلاعات نسخه رو از سرور ویجنت با
+         *      bypass کش می‌خونه (force_refresh).
+         *   2. در صورت وجود نسخه جدید، transient بروزرسانی‌های وردپرس رو
+         *      پاک می‌کنه تا در بار بعدی wp_update_plugins اطلاعات جدید ما
+         *      وارد transient بشه و بنر آپدیت در صفحه Plugins نمایش داده بشه.
+         *   3. اطلاعاتی مثل آخرین زمان چک و نسخه آخرین بررسی‌شده رو در یک
+         *      option ذخیره می‌کنه تا در پنل افزونه نمایش بدیم.
+         *
+         * این متد silent هست — هیچ alert یا notice‌ای به کاربر نمایش نمی‌ده.
+         * فقط در صورت وجود بروزرسانی، بنر زرد وردپرس در صفحه Plugins
+         * نشون داده می‌شه و در پنل افزونه هم notice آبی نشون داده می‌شه.
+         *
+         * @return void
+         */
+        public function daily_check() {
+                // اطلاعات جدید رو از سرور بگیر (بدون کش).
+                $info = $this->fetch_latest_info( true );
+
+                // ذخیره آخرین زمان چک و آخرین نسخه دیده‌شده برای نمایش در پنل.
+                $last_check = array(
+                        'checked_at'   => current_time( 'mysql' ),
+                        'checked_at_ts' => time(),
+                        'latest_version' => is_array( $info ) && ! empty( $info['version'] )
+                                ? $info['version']
+                                : '',
+                        'current_version' => VIGENT_WOO_VERSION,
+                        'update_available' => is_array( $info ) && ! empty( $info['version'] )
+                                ? version_compare( VIGENT_WOO_VERSION, $info['version'], '<' )
+                                : false,
+                );
+                update_option( 'vigent_woo_last_update_check', $last_check, false );
+
+                // اگر نسخه جدید پیدا شد، transient وردپرس رو پاک کن تا در بار
+                // بعدی wp_update_plugins اطلاعات جدید ما واردش بشه.
+                if ( $last_check['update_available'] ) {
+                        delete_site_transient( 'update_plugins' );
+                        // force WP to re-build the transient on next admin page-load.
+                        // wp_update_plugins() خودش در قالب pre_set_site_transient_update_plugins
+                        // از filter_update_transient ما رد می‌شه و اطلاعات ما رو می‌خونه.
+                        wp_update_plugins();
+                }
+        }
+
+        /**
+         * Get the last automatic check metadata (for UI display).
+         *
+         * @return array|false داده‌های ذخیره‌شده، یا false اگر هنوز چکی انجام نشده.
+         */
+        public function get_last_check() {
+                $data = get_option( 'vigent_woo_last_update_check', false );
+                if ( ! is_array( $data ) ) {
+                        return false;
+                }
+                return $data;
+        }
 
         /**
          * Force a fresh check (bypass cache). Called by `vigent_woo_check_update`.
