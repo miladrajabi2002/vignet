@@ -10,7 +10,6 @@ import {
         type StoreIntegrationInput,
         type WooCredentials,
 } from '@/lib/integrations/woocommerce'
-import { handleWpContentWebhook } from '@/lib/integrations/wp-content'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 
 export const dynamic = 'force-dynamic'
@@ -130,15 +129,10 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: 'INVALID_JSON' }, { status: 400 })
         }
 
-        // Content topics (posts/pages from plain WordPress) don't need Woo REST
-        // credentials — handle them before credential resolution so the plugin
-        // works on any WordPress site, with or without WooCommerce.
+        // Content topics (posts/pages) are deprecated — we no longer sync content.
+        // Silently accept and ignore them so old plugin versions don't error.
         if (topic.startsWith('content.')) {
-                void handleWpContentWebhook(
-                        { id: integration.id, workspaceId: integration.workspaceId },
-                        { topic, data },
-                ).catch((e) => console.error('[wp-content-webhook] handler error:', e))
-                return NextResponse.json({ ok: true })
+                return NextResponse.json({ ok: true, ignored: 'content_deprecated' })
         }
 
         // Webhook push processing does NOT need REST API credentials — the

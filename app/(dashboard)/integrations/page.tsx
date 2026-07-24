@@ -79,19 +79,9 @@ export default async function IntegrationsPage() {
                 },
         })
 
-        // Strip encrypted credential ciphertext from the payload we hand to the
-        // client — only non-sensitive fields (consumerKey, etc.) are visible.
+        // Strip encrypted credential ciphertext — only non-sensitive fields are visible.
         const storeIntegrations: StoreIntegrationItem[] = storeIntegrationsRaw.map(
                 (row) => {
-                        const visible: Record<string, unknown> = {}
-                        if (row.credentials && typeof row.credentials === 'object') {
-                                for (const [k, v] of Object.entries(
-                                        row.credentials as Record<string, unknown>,
-                                )) {
-                                        if (k.endsWith('Enc')) continue
-                                        visible[k] = v
-                                }
-                        }
                         return {
                                 id: row.id,
                                 type: row.type,

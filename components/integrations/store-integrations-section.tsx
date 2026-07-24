@@ -1,558 +1,436 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-        ShoppingBag,
-        Plus,
-        Loader2,
-        RefreshCw,
-        Trash2,
-        Copy,
-        Check,
-        ExternalLink,
-        Download,
-        AlertCircle,
-        CheckCircle2,
-        X,
+    Plus,
+    Loader2,
+    RefreshCw,
+    Trash2,
+    CheckCircle2,
+    AlertCircle,
+    X,
+    Globe,
+    Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 /**
- * "Online store" section of the integrations page (F2). Lists the workspace's
- * connected `StoreIntegration` rows, lets the admin add a new WooCommerce or
- * custom-URL store, run an on-demand sync, and inspect the recent sync log.
- *
- * Server passes the initial list + sync logs; this component owns the
- * interactive bits (add form, sync-now button, delete, copy webhook URL).
+ * Integrations page — "WordPress/WooCommerce" section.
+ * Same minimal design as the Products page card.
  */
 
-type StoreType = 'WOOCOMMERCE' | 'CUSTOM_URL' | 'SHOPIFY'
-
 interface SyncLogEntry {
-        id: string
-        direction: string
-        entity: string
-        outcome: string
-        count: number
-        message: string | null
-        createdAt: string
+    id: string
+    direction: string
+    entity: string
+    outcome: string
+    count: number
+    message: string | null
+    createdAt: string
 }
 
 export interface StoreIntegrationItem {
-        id: string
-        type: StoreType
-        storeUrl: string
-        webhookSecret: string | null
-        pollIntervalMinutes: number
-        active: boolean
-        lastSyncAt: string | null
-        lastSyncStatus: string | null
-        lastSyncError: string | null
-        _count: { orders: number; syncLogs: number }
-        syncLogs: SyncLogEntry[]
-}
-
-const TYPE_LABEL: Record<StoreType, string> = {
-        WOOCOMMERCE: 'وردپرس / ووکامرس',
-        CUSTOM_URL: 'URL دلخواه',
-        SHOPIFY: 'Shopify',
-}
-
-const ENTITY_LABEL: Record<string, string> = {
-        products: 'محصولات',
-        orders: 'سفارش‌ها',
-        product_update: 'به‌روزرسانی محصول',
-        order_update: 'به‌روزرسانی سفارش',
-        content_update: 'محتوای سایت',
-}
-
-const DIRECTION_LABEL: Record<string, string> = {
-        push: 'دریافت از فروشگاه',
-        poll: 'کشش از ویجنت',
+    id: string
+    type: string
+    storeUrl: string
+    webhookSecret: string | null
+    pollIntervalMinutes: number
+    active: boolean
+    lastSyncAt: string | null
+    lastSyncStatus: string | null
+    lastSyncError: string | null
+    _count: { orders: number; syncLogs: number }
+    syncLogs: SyncLogEntry[]
 }
 
 export function StoreIntegrationsSection({
-        integrations,
+    integrations: initial,
 }: {
-        integrations: StoreIntegrationItem[]
+    integrations: StoreIntegrationItem[]
 }) {
-        const router = useRouter()
-        const [showForm, setShowForm] = useState(false)
-        const [syncingId, setSyncingId] = useState<string | null>(null)
-        const [deletingId, setDeletingId] = useState<string | null>(null)
-        const [syncError, setSyncError] = useState<string | null>(null)
-        const [syncOk, setSyncOk] = useState<string | null>(null)
+    const router = useRouter()
+    const [integrations, setIntegrations] = useState(initial)
+    const [showForm, setShowForm] = useState(false)
+    const [syncingId, setSyncingId] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [notice, setNotice] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
 
-        async function syncNow(integration: StoreIntegrationItem) {
-                setSyncingId(integration.id)
-                setSyncError(null)
-                setSyncOk(null)
-                try {
-                        const res = await fetch(
-                                `/api/sync/woocommerce?integrationId=${integration.id}`,
-                                { method: 'POST' },
-                        )
-                        const data = await res.json().catch(() => ({}))
-                        if (!res.ok) {
-                                setSyncError(data.error === 'NOT_FOUND' ? 'فروشگاه پیدا نشد.' : 'خطا در هم‌گام‌سازی.')
-                                return
+    // Auto-poll when not connected.
+    useEffect(() => {
+        setIntegrations(initial)
+        const hasUnconnected = initial.some((i) => i._count.syncLogs === 0)
+        if (hasUnconnected || initial.length === 0) {
+            const interval = setInterval(() => {
+                fetch('/api/integrations', { cache: 'no-store' })
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (data.integrations) {
+                            const woo = data.integrations.filter((i: { type: string }) => i.type === 'WOOCOMMERCE')
+                            // Map and set.
+                            const mapped = woo.map((i: StoreIntegrationItem & { credentials?: Record<string, unknown> }) => ({
+                                id: i.id,
+                                type: i.type,
+                                storeUrl: i.storeUrl,
+                                webhookSecret: i.webhookSecret,
+                                pollIntervalMinutes: i.pollIntervalMinutes,
+                                active: i.active,
+                                lastSyncAt: i.lastSyncAt,
+                                lastSyncStatus: i.lastSyncStatus,
+                                lastSyncError: i.lastSyncError,
+                                _count: i._count,
+                                syncLogs: i.syncLogs,
+                            }))
+                            setIntegrations(mapped)
+                            // If any just became connected, refresh for full data.
+                            const justConnected = mapped.some((i: StoreIntegrationItem) => i._count.syncLogs > 0)
+                            const wasUnconnected = initial.some((i) => i._count.syncLogs === 0)
+                            if (justConnected && wasUnconnected) router.refresh()
                         }
-                        const pcount = data.products?.count ?? 0
-                        const ocount = data.orders?.count ?? 0
-                        setSyncOk(`${pcount} محصول و ${ocount} سفارش هم‌گام شد.`)
-                        router.refresh()
-                } catch {
-                        setSyncError('خطا در ارتباط با سرور.')
-                } finally {
-                        setSyncingId(null)
-                }
+                    })
+                    .catch(() => {})
+            }, 4000)
+            return () => clearInterval(interval)
         }
+    }, [initial, router])
 
-        async function remove(integration: StoreIntegrationItem) {
-                if (!confirm('این اتصال فروشگاه حذف شود؟ سفارش‌های ذخیره‌شده هم پاک می‌شوند.')) return
-                setDeletingId(integration.id)
-                try {
-                        await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
-                        router.refresh()
-                } finally {
-                        setDeletingId(null)
-                }
+    async function submit(storeUrl: string, onDone: () => void) {
+        const res = await fetch('/api/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'WOOCOMMERCE', storeUrl, credentials: {} }),
+        })
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            setNotice({ type: 'err', msg: data.error === 'INVALID' ? 'آدرس نامعتبر است.' : 'خطا در ایجاد اتصال.' })
+            return
         }
+        onDone()
+        router.refresh()
+    }
 
-        async function toggleActive(integration: StoreIntegrationItem, next: boolean) {
-                await fetch(`/api/integrations/${integration.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ active: next }),
-                })
-                router.refresh()
+    async function syncNow(integration: StoreIntegrationItem) {
+        setSyncingId(integration.id)
+        setNotice(null)
+        try {
+            const res = await fetch(`/api/sync/woocommerce?integrationId=${integration.id}`, { method: 'POST' })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                setNotice({ type: 'err', msg: 'خطا در هم‌گام‌سازی.' })
+                return
+            }
+            const pcount = data.products?.count ?? 0
+            const ocount = data.orders?.count ?? 0
+            setNotice({ type: 'ok', msg: `${pcount} محصول و ${ocount} سفارش هم‌گام شد.` })
+            router.refresh()
+        } catch {
+            setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
+        } finally {
+            setSyncingId(null)
         }
+    }
 
-        return (
-                <div id="online-store" className="scroll-mt-24 space-y-5">
-                        <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                        <ShoppingBag className="h-4 w-4 text-[var(--text-secondary)]" />
-                                        <h2 className="text-sm font-medium text-[var(--text-secondary)]">
-                                                سایت (وردپرس/ووکامرس)
-                                        </h2>
-                                </div>
-                                <button
-                                        onClick={() => setShowForm((v) => !v)}
-                                        className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                >
-                                        {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                                        {showForm ? 'انصراف' : 'افزودن سایت'}
-                                </button>
-                        </div>
+    async function toggleActive(integration: StoreIntegrationItem) {
+        await fetch(`/api/integrations/${integration.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: !integration.active }),
+        })
+        router.refresh()
+    }
 
-                        {syncOk && (
-                                <div className="flex items-center gap-2 rounded-xl border border-[var(--green)]/30 bg-[var(--green)]/5 px-4 py-2.5 text-sm text-[var(--green)]">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        {syncOk}
-                                </div>
-                        )}
-                        {syncError && (
-                                <div className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm text-danger">
-                                        <AlertCircle className="h-4 w-4" />
-                                        {syncError}
-                                </div>
-                        )}
+    async function remove(integration: StoreIntegrationItem) {
+        if (!confirm('این اتصال حذف شود؟')) return
+        setDeletingId(integration.id)
+        try {
+            await fetch(`/api/integrations/${integration.id}`, { method: 'DELETE' })
+            router.refresh()
+        } finally {
+            setDeletingId(null)
+        }
+    }
 
-                        {showForm && <AddStoreForm onDone={() => {
-                                setShowForm(false)
-                                router.refresh()
-                        }} />}
+    return (
+        <div id="online-store" className="scroll-mt-24 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">سایت (وردپرس/ووکامرس)</h2>
+                {integrations.length > 0 && (
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        افزودن سایت
+                    </button>
+                )}
+            </div>
 
-                        {integrations.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8">
-                                        <div className="text-center">
-                                                <ShoppingBag className="mx-auto mb-3 h-8 w-8 text-[var(--text-muted)]" />
-                                                <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                        سایت وردپرسی یا فروشگاه ووکامرسی دارید؟ همین حالا وصلش کنید
-                                                </p>
-                                                <p className="mx-auto mt-1 max-w-md text-xs text-[var(--text-secondary)]">
-                                                        با اتصال سایت، نوشته‌ها و برگه‌ها وارد پایگاه دانش ایجنت می‌شوند و اگر
-                                                        ووکامرس داشته باشید، محصولات و سفارش‌ها هم خودکار همگام می‌شوند.
-                                                </p>
-                                        </div>
-                                        <ol className="mx-auto mt-5 max-w-md space-y-2 text-xs text-[var(--text-secondary)]">
-                                                <li className="flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۱</span>
-                                                        با دکمهٔ «افزودن سایت» آدرس سایت را ثبت کنید تا آدرس webhook و کلید امنیتی بگیرید.
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۲</span>
-                                                        افزونهٔ ویجنت را دانلود و در وردپرس نصب کنید.
-                                                </li>
-                                                <li className="flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-muted)] text-[11px] text-[var(--text-primary)]">۳</span>
-                                                        آدرس و کلید را در تنظیمات افزونه وارد کرده و «هم‌گام‌سازی کامل» را بزنید.
-                                                </li>
-                                        </ol>
-                                        <div className="mt-5 flex flex-wrap justify-center gap-3">
-                                                <button
-                                                        onClick={() => setShowForm(true)}
-                                                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-4 py-2 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02]"
-                                                >
-                                                        <Plus className="h-3.5 w-3.5" />
-                                                        افزودن سایت
-                                                </button>
-                                                <a
-                                                        href="/api/downloads/wordpress-plugin"
-                                                        download
-                                                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                                >
-                                                        <Download className="h-3.5 w-3.5" />
-                                                        دانلود افزونهٔ وردپرس
-                                                </a>
-                                        </div>
-                                </div>
-                        ) : (
-                                <div className="space-y-4">
-                                        {integrations.map((integration) => (
-                                                <IntegrationCard
-                                                        key={integration.id}
-                                                        integration={integration}
-                                                        syncing={syncingId === integration.id}
-                                                        deleting={deletingId === integration.id}
-                                                        onSync={() => syncNow(integration)}
-                                                        onDelete={() => remove(integration)}
-                                                        onToggle={(next) => toggleActive(integration, next)}
-                                                />
-                                        ))}
-                                </div>
-                        )}
-
-                        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div className="flex items-start gap-3">
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-                                                <div className="text-xs text-[var(--text-muted)]">
-                                                        <p>
-                                                                افزونهٔ ویجنت را روی وردپرس نصب کنید و آدرس webhook و کلید امنیتی
-                                                                بالا را در تنظیمات آن وارد کنید — روی همهٔ سایت‌های وردپرسی کار
-                                                                می‌کند، با یا بدون ووکامرس.
-                                                        </p>
-                                                        <Link
-                                                                href="/docs/woocommerce"
-                                                                className="mt-1 inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                                                        >
-                                                                مشاهدهٔ راهنمای نصب افزونه
-                                                                <ExternalLink className="h-3 w-3" />
-                                                        </Link>
-                                                </div>
-                                        </div>
-                                        <a
-                                                href="/api/downloads/wordpress-plugin"
-                                                download
-                                                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
-                                        >
-                                                <Download className="h-3.5 w-3.5" />
-                                                دانلود افزونه
-                                        </a>
-                                </div>
-                        </div>
+            {/* Notice */}
+            {notice && (
+                <div className={cn(
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-xs',
+                    notice.type === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700',
+                )}>
+                    {notice.type === 'ok' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                    {notice.msg}
                 </div>
-        )
+            )}
+
+            {/* Form */}
+            {showForm && (
+                <AddSiteForm
+                    onDone={() => { setShowForm(false); router.refresh() }}
+                    onSubmit={submit}
+                />
+            )}
+
+            {/* Empty state */}
+            {integrations.length === 0 && !showForm && (
+                <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-6 text-center">
+                    <Globe className="mx-auto mb-3 h-7 w-7 text-[var(--text-muted)]" />
+                    <p className="text-sm font-medium text-[var(--text-primary)]">سایت خود را وصل کنید</p>
+                    <p className="mx-auto mt-1 max-w-sm text-xs text-[var(--text-secondary)]">
+                        فقط آدرس سایت را وارد کنید — محصولات و سفارش‌ها خودکار همگام می‌شوند.
+                    </p>
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        اتصال سایت
+                    </button>
+                </div>
+            )}
+
+            {/* Integration cards */}
+            {integrations.map((integration) => (
+                <IntegrationCard
+                    key={integration.id}
+                    integration={integration}
+                    syncing={syncingId === integration.id}
+                    deleting={deletingId === integration.id}
+                    onSync={() => syncNow(integration)}
+                    onToggle={() => toggleActive(integration)}
+                    onDelete={() => remove(integration)}
+                />
+            ))}
+
+            {/* Footer help */}
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                        افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید — همه چیز خودکار است.
+                    </p>
+                    <Link
+                        href="/docs/woocommerce"
+                        className="shrink-0 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    >
+                        راهنما
+                    </Link>
+                </div>
+            </div>
+        </div>
+    )
 }
 
-// ─── add-store form (simplified — URL only, auto webhook generation) ────────
+// ─── Add site form (minimal) ─────────────────────────────────────────────
 
-function AddStoreForm({ onDone }: { onDone: () => void }) {
-        const [storeUrl, setStoreUrl] = useState('')
-        const [submitting, setSubmitting] = useState(false)
-        const [error, setError] = useState<string | null>(null)
+function AddSiteForm({
+    onDone,
+    onSubmit,
+}: {
+    onDone: () => void
+    onSubmit: (url: string, onDone: () => void) => Promise<void>
+}) {
+    const [storeUrl, setStoreUrl] = useState('')
+    const [submitting, setSubmitting] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-        async function submit(e: React.FormEvent) {
-                e.preventDefault()
-                setError(null)
-                setSubmitting(true)
-                try {
-                        // Simplified: only URL needed. Vigent auto-generates webhook URL + secret.
-                        // No Consumer Key/Secret required — the plugin pushes via webhook.
-                        const res = await fetch('/api/integrations', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                        type: 'WOOCOMMERCE',
-                                        storeUrl: storeUrl.trim(),
-                                        credentials: {},
-                                }),
-                        })
-                        const data = await res.json().catch(() => ({}))
-                        if (!res.ok) {
-                                setError(
-                                        data.error === 'INVALID'
-                                                ? 'آدرس سایت نامعتبر است.'
-                                                : data.error === 'UNSAFE_STORE_URL'
-                                                        ? 'آدرس سایت به دلایل امنیتی قابل قبول نیست.'
-                                                        : 'خطا در افزودن سایت.',
-                                )
-                                return
-                        }
-                        onDone()
-                } catch {
-                        setError('خطا در ارتباط با سرور.')
-                } finally {
-                        setSubmitting(false)
-                }
-        }
+    async function submit(e: React.FormEvent) {
+        e.preventDefault()
+        setError(null)
+        setSubmitting(true)
+        await onSubmit(storeUrl.trim(), onDone)
+        setSubmitting(false)
+    }
 
-        return (
-                <form
-                        onSubmit={submit}
-                        className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5"
+    return (
+        <form onSubmit={submit} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+            <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">آدرس سایت را وارد کنید</h3>
+                <button type="button" onClick={onDone} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                    dir="ltr"
+                    type="url"
+                    required
+                    value={storeUrl}
+                    onChange={(e) => setStoreUrl(e.target.value)}
+                    placeholder="https://example.com"
+                    className="input flex-1 font-mono text-sm"
+                    autoFocus
+                />
+                <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
-                        <div className="mb-4 flex items-center justify-between">
-                                <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                                        افزودن سایت وردپرس/ووکامرس
-                                </h3>
-                        </div>
-
-                        <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-6 text-blue-800">
-                                <p className="font-semibold mb-1">راه‌اندازی ساده در ۳ گام:</p>
-                                <ol className="list-decimal pr-4 space-y-1">
-                                        <li>آدرس سایت وردپرسی/ووکامرسی خود را وارد و «ایجاد اتصال» بزنید.</li>
-                                        <li>ویجنت به‌صورت خودکار یک <strong>لینک webhook</strong> و یک <strong>کلید امنیتی</strong> تصادفی می‌سازد.</li>
-                                        <li>افزونه را در وردپرس نصب کنید و این لینک و کلید را در تنظیمات آن جای‌گذاری کنید.</li>
-                                </ol>
-                        </div>
-
-                        <div>
-                                <label className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-                                        آدرس سایت <span className="text-danger">*</span>
-                                </label>
-                                <input
-                                        dir="ltr"
-                                        type="url"
-                                        required
-                                        value={storeUrl}
-                                        onChange={(e) => setStoreUrl(e.target.value)}
-                                        placeholder="https://example.com"
-                                        className="input font-mono text-sm"
-                                        autoFocus
-                                />
-                                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                                        آدرس کامل سایت وردپرسی یا ووکامرسی شما — بدون اسلش در انتها. با یا بدون ووکامرس کار می‌کند.
-                                </p>
-                        </div>
-
-                        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
-
-                        <div className="mt-4 flex justify-end gap-2">
-                                <button
-                                        type="submit"
-                                        disabled={submitting}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-[var(--white)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
-                                >
-                                        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                                        {submitting ? 'در حال ایجاد…' : 'ایجاد اتصال'}
-                                </button>
-                        </div>
-                </form>
-        )
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {submitting ? 'در حال ایجاد…' : 'ایجاد اتصال'}
+                </button>
+            </div>
+            {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+        </form>
+    )
 }
 
-// ─── integration card ────────────────────────────────────────────────────────
+// ─── Integration card (same design as WooSetupCard) ──────────────────────
 
 function IntegrationCard({
-        integration,
-        syncing,
-        deleting,
-        onSync,
-        onDelete,
-        onToggle,
+    integration,
+    syncing,
+    deleting,
+    onSync,
+    onToggle,
+    onDelete,
 }: {
-        integration: StoreIntegrationItem
-        syncing: boolean
-        deleting: boolean
-        onSync: () => void
-        onDelete: () => void
-        onToggle: (next: boolean) => void
+    integration: StoreIntegrationItem
+    syncing: boolean
+    deleting: boolean
+    onSync: () => void
+    onToggle: () => void
+    onDelete: () => void
 }) {
-        const webhookUrl = integration.webhookSecret
-                ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/sync/woocommerce?token=${integration.webhookSecret}`
-                : null
+    const isPluginConfigured = integration._count.syncLogs > 0
+    const statusLabel = !integration.active
+        ? 'غیرفعال'
+        : isPluginConfigured
+            ? 'متصل'
+            : 'در انتظار اتصال افزونه'
+    const statusColor = !integration.active
+        ? 'bg-gray-100 text-gray-600'
+        : isPluginConfigured
+            ? 'bg-green-50 text-green-700'
+            : 'bg-yellow-50 text-yellow-700'
 
-        // Determine real connection state (same logic as WooSetupCard):
-        // - "متصل": plugin has sent at least one event
-        // - "در انتظار راه‌اندازی": integration created but plugin not configured yet
-        // - "غیرفعال": admin disabled it
-        const isPluginConfigured = integration._count.syncLogs > 0
-        const statusLabel = !integration.active
-                ? 'غیرفعال'
-                : isPluginConfigured
-                        ? 'متصل'
-                        : 'در انتظار راه‌اندازی'
-        const statusColor = !integration.active
-                ? 'text-[var(--text-muted)]'
-                : isPluginConfigured
-                        ? 'text-[var(--green)]'
-                        : 'text-yellow-600'
-
-        return (
-                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                        <p
-                                                dir="ltr"
-                                                className="truncate text-sm font-bold text-[var(--text-primary)]"
-                                                title={integration.storeUrl}
-                                        >
-                                                {integration.storeUrl}
-                                        </p>
-                                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                <span className="rounded-lg bg-[var(--bg-base)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-                                                        {TYPE_LABEL[integration.type]}
-                                                </span>
-                                                <span className={cn('inline-flex items-center gap-1 text-xs', statusColor)}>
-                                                        ● {statusLabel}
-                                                </span>
-                                                <span className="text-xs text-[var(--text-muted)]">
-                                                        {integration._count.orders} سفارش · {integration._count.syncLogs} لاگ
-                                                        {integration.lastSyncAt
-                                                                ? ` · آخرین هم‌گام‌سازی: ${formatDate(integration.lastSyncAt)}`
-                                                                : ' · هم‌گام‌سازی نشده'}
-                                                </span>
-                                        </div>
-                                        {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
-                                                <p className="mt-1 text-xs text-danger">
-                                                        خطای آخرین هم‌گام‌سازی: {integration.lastSyncError}
-                                                </p>
-                                        )}
-                                        {!isPluginConfigured && integration.active && (
-                                                <p className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs leading-5 text-yellow-800">
-                                                        <strong>در انتظار راه‌اندازی:</strong> افزونه را روی وردپرس نصب کنید و لینک و کلید زیر را در آن جای‌گذاری کنید.
-                                                </p>
-                                        )}
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                        <button
-                                                type="button"
-                                                onClick={() => onToggle(!integration.active)}
-                                                className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-                                        >
-                                                {integration.active ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
-                                        </button>
-                                        {integration.type === 'WOOCOMMERCE' && (
-                                                <button
-                                                        type="button"
-                                                        onClick={onSync}
-                                                        disabled={syncing || !integration.active}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-3 py-1.5 text-xs font-medium text-[var(--bg-base)] transition-transform hover:scale-[1.02] disabled:opacity-50"
-                                                >
-                                                        {syncing ? (
-                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        ) : (
-                                                                <RefreshCw className="h-3.5 w-3.5" />
-                                                        )}
-                                                        هم‌گام‌سازی
-                                                </button>
-                                        )}
-                                        <button
-                                                type="button"
-                                                onClick={onDelete}
-                                                disabled={deleting}
-                                                className="rounded-lg border border-[var(--border-default)] p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
-                                                aria-label="حذف"
-                                        >
-                                                {deleting ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                )}
-                                        </button>
-                                </div>
+    return (
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5">
+            {/* Top row */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                    <span className={cn(
+                        'grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white',
+                        isPluginConfigured ? 'bg-green-600' : 'bg-black',
+                    )}>
+                        {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+                    </span>
+                    <div className="min-w-0">
+                        <p dir="ltr" className="truncate text-sm font-bold text-[var(--text-primary)]" title={integration.storeUrl}>
+                            {integration.storeUrl}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', statusColor)}>
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                {statusLabel}
+                            </span>
+                            {isPluginConfigured && (
+                                <span className="text-[11px] text-[var(--text-muted)]">
+                                    {integration._count.orders} سفارش · {integration._count.syncLogs} رویداد
+                                </span>
+                            )}
                         </div>
-
-                        {integration.type === 'WOOCOMMERCE' && webhookUrl && integration.webhookSecret && (
-                                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                                        <CopyField label="آدرس webhook" value={webhookUrl} />
-                                        <CopyField label="کلید امنیتی" value={integration.webhookSecret} />
-                                </div>
-                        )}
-
-                        {integration.syncLogs.length > 0 && (
-                                <div className="mt-4">
-                                        <p className="mb-2 text-xs text-[var(--text-secondary)]">
-                                                آخرین رویدادهای هم‌گام‌سازی
-                                        </p>
-                                        <ul className="space-y-1">
-                                                {integration.syncLogs.slice(0, 10).map((log) => (
-                                                        <li
-                                                                key={log.id}
-                                                                className="flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-1.5 text-xs"
-                                                        >
-                                                                {log.outcome === 'ok' ? (
-                                                                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--green)]" />
-                                                                ) : (
-                                                                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-danger" />
-                                                                )}
-                                                                <span className="text-[var(--text-secondary)]">
-                                                                        {ENTITY_LABEL[log.entity] ?? log.entity}
-                                                                </span>
-                                                                <span className="text-[var(--text-muted)]">·</span>
-                                                                <span className="text-[var(--text-muted)]">
-                                                                        {DIRECTION_LABEL[log.direction] ?? log.direction}
-                                                                </span>
-                                                                <span className="text-[var(--text-muted)]">·</span>
-                                                                <span className="text-[var(--text-muted)]">{log.count} مورد</span>
-                                                                <span className="ms-auto text-[var(--text-muted)]">
-                                                                        {formatDate(log.createdAt)}
-                                                                </span>
-                                                        </li>
-                                                ))}
-                                        </ul>
-                                </div>
-                        )}
+                    </div>
                 </div>
-        )
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={onSync}
+                        disabled={syncing || !integration.active || !isPluginConfigured}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-black px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                    >
+                        {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        بروزرسانی
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                    >
+                        {integration.active ? 'غیرفعال' : 'فعال'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        disabled={deleting}
+                        className="rounded-lg border border-[var(--border-default)] p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
+                    >
+                        {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                </div>
+            </div>
+
+            {/* Pending state */}
+            {!isPluginConfigured && integration.active && (
+                <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-3">
+                    <p className="text-[11px] font-semibold text-yellow-800">در انتظار اتصال افزونه</p>
+                    <p className="mt-1 text-[11px] leading-5 text-yellow-700">
+                        افزونه را در وردپرس نصب و دکمه «اتصال» را بزنید.
+                    </p>
+                    <a
+                        href="/api/downloads/wordpress-plugin"
+                        download
+                        className="mt-2 inline-flex items-center gap-1 rounded-md bg-yellow-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-yellow-700"
+                    >
+                        <Download className="h-3 w-3" />
+                        دانلود افزونه
+                    </a>
+                </div>
+            )}
+
+            {/* Recent logs */}
+            {isPluginConfigured && integration.syncLogs.length > 0 && (
+                <div className="mt-4">
+                    <p className="mb-2 text-[11px] font-medium text-[var(--text-secondary)]">رویدادهای اخیر</p>
+                    <div className="space-y-1">
+                        {integration.syncLogs.slice(0, 4).map((log) => (
+                            <div key={log.id} className="flex items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] px-2.5 py-1.5 text-[11px]">
+                                {log.outcome === 'ok' ? (
+                                    <CheckCircle2 className="h-3 w-3 shrink-0 text-green-600" />
+                                ) : (
+                                    <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
+                                )}
+                                <span className="text-[var(--text-secondary)]">{entityLabel(log.entity)}</span>
+                                <span className="text-[var(--text-muted)]">·</span>
+                                <span className="text-[var(--text-muted)]">{log.count} مورد</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Error */}
+            {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] leading-5 text-red-700">
+                    <strong>خطا:</strong> {integration.lastSyncError}
+                </div>
+            )}
+        </div>
+    )
 }
 
-function CopyField({ label, value }: { label: string; value: string }) {
-        const [copied, setCopied] = useState(false)
-        async function copy() {
-                try {
-                        await navigator.clipboard.writeText(value)
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 1500)
-                } catch {
-                        // ignore — clipboard may be unavailable
-                }
-        }
-        return (
-                <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-2">
-                        <p className="mb-1 text-xs text-[var(--text-muted)]">{label}</p>
-                        <div className="flex items-center gap-2">
-                                <code
-                                        dir="ltr"
-                                        className="flex-1 truncate text-xs text-[var(--text-primary)]"
-                                        title={value}
-                                >
-                                        {value}
-                                </code>
-                                <button
-                                        type="button"
-                                        onClick={copy}
-                                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-                                        aria-label="کپی"
-                                >
-                                        {copied ? <Check className="h-3.5 w-3.5 text-[var(--green)]" /> : <Copy className="h-3.5 w-3.5" />}
-                                </button>
-                        </div>
-                </div>
-        )
-}
-
-function formatDate(iso: string): string {
-        try {
-                return formatLocalizedDateTime(iso, 'fa')
-        } catch {
-                return iso
-        }
+function entityLabel(entity: string): string {
+    const map: Record<string, string> = {
+        products: 'محصولات',
+        orders: 'سفارش‌ها',
+        product_update: 'محصول',
+        order_update: 'سفارش',
+        content_update: 'محتوا',
+    }
+    return map[entity] ?? entity
 }

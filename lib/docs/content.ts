@@ -1378,10 +1378,6 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                                 en: 'Orders: an order status change (e.g. to “Processing” or “Completed”) creates a StoreOrder record and links it to the matching contact by phone/email.',
                                         },
                                         {
-                                                fa: 'محتوا: نوشته‌ها و برگه‌های منتشرشده به پایگاه دانش ایجنت می‌روند (بدون نیاز به ووکامرس).',
-                                                en: 'Content: published posts and pages are added to the agent’s knowledge base (works without WooCommerce).',
-                                        },
-                                        {
                                                 fa: 'همگام‌سازی دستی: هر زمان دکمهٔ «بروزرسانی محصولات» را در صفحهٔ محصولات بزنید، کل محصولات و سفارش‌های اخیر دوباره fetch می‌شوند (در حالت کامل).',
                                                 en: 'Manual sync: hit “Refresh products” any time on the products page to re-fetch the full product list and recent orders (in full mode).',
                                         },

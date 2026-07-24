@@ -13,7 +13,6 @@ import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { WooSetupCard, type WooIntegrationState } from '@/components/products/woo-setup-card'
-import { resolveWooCredentials } from '@/lib/integrations/woocommerce'
 
 const PAGE_SIZE = 24
 
@@ -97,17 +96,9 @@ export default async function ProductsPage(
   ])
 
   // Map the raw Prisma row to the client component's expected shape.
-  // - Strips encrypted credential ciphertext (only hasCredentials bool is kept).
-  // - Converts dates to ISO strings for client transport.
+  // Converts dates to ISO strings for client transport.
   let wooIntegration: WooIntegrationState | null = null
   if (wooIntegrationRaw) {
-    let hasCredentials = false
-    try {
-      resolveWooCredentials(wooIntegrationRaw.credentials)
-      hasCredentials = true
-    } catch {
-      hasCredentials = false
-    }
     wooIntegration = {
       id: wooIntegrationRaw.id,
       storeUrl: wooIntegrationRaw.storeUrl,
@@ -117,7 +108,7 @@ export default async function ProductsPage(
       lastSyncAt: wooIntegrationRaw.lastSyncAt ? wooIntegrationRaw.lastSyncAt.toISOString() : null,
       lastSyncStatus: wooIntegrationRaw.lastSyncStatus,
       lastSyncError: wooIntegrationRaw.lastSyncError,
-      hasCredentials,
+      hasCredentials: false, // deprecated field, kept for type compat
       _count: {
         orders: wooIntegrationRaw._count.orders,
         syncLogs: wooIntegrationRaw._count.syncLogs,

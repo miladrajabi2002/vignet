@@ -55,7 +55,9 @@ interface WooProduct {
         tags?: { name?: string }[]
         attributes?: {
                 name?: string
-                options?: string[]
+                // WooCommerce sometimes sends options as a string, sometimes as an array.
+                // We normalize to string[] in the mapper.
+                options?: string[] | string
         }[]
 }
 
@@ -275,7 +277,18 @@ function mapWooProduct(p: WooProduct) {
         const attrs: Record<string, string> = {}
         for (const a of p.attributes ?? []) {
                 if (!a.name) continue
-                attrs[a.name] = (a.options ?? []).join(', ')
+                // WooCommerce sends `options` as string[] sometimes, as string other times.
+                // Normalize: if string, treat it as a single option; if array, join.
+                const raw = a.options
+                let val = ''
+                if (Array.isArray(raw)) {
+                        val = raw.map((x) => String(x)).join(', ')
+                } else if (typeof raw === 'string') {
+                        val = raw
+                } else if (raw != null) {
+                        val = String(raw)
+                }
+                attrs[a.name] = val
         }
         return {
                 name: p.name,
@@ -287,7 +300,9 @@ function mapWooProduct(p: WooProduct) {
                 images,
                 tags,
                 attributes: attrs,
-                status: p.status,
+                // Note: `status` is intentionally NOT returned — the Product table has no
+                // `status` column (Prisma would reject it). We use `active` instead, derived
+                // from `status !== 'draft'` at the call site.
         }
 }
 
@@ -344,7 +359,7 @@ export async function syncWooProducts(
                                                 where: { id: existing.id },
                                                 data: {
                                                         ...data,
-                                                        active: data.status !== 'draft',
+                                                        active: wp.status !== 'draft',
                                                         attributes: data.attributes,
                                                 },
                                         })
@@ -352,7 +367,7 @@ export async function syncWooProducts(
                                                 data: {
                                                         workspaceId,
                                                         ...data,
-                                                        active: data.status !== 'draft',
+                                                        active: wp.status !== 'draft',
                                                         attributes: data.attributes,
                                                 },
                                         })
@@ -645,7 +660,7 @@ async function upsertProductFromWoo(
                                 where: { id: existing.id },
                                 data: {
                                         ...data,
-                                        active: data.status !== 'draft',
+                                        active: wp.status !== 'draft',
                                         attributes: data.attributes,
                                 },
                         })
@@ -653,7 +668,7 @@ async function upsertProductFromWoo(
                                 data: {
                                         workspaceId,
                                         ...data,
-                                        active: data.status !== 'draft',
+                                        active: wp.status !== 'draft',
                                         attributes: data.attributes,
                                 },
                         })

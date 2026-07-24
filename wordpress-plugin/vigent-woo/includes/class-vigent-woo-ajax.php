@@ -1,9 +1,6 @@
 <?php
 /**
- * AJAX handlers for Vigent Woo plugin.
- *
- * Handles: live status polling, test connection, sync batch (progress bar),
- * clear retry queue.
+ * AJAX handlers — status, test, sync batch, save toggles.
  *
  * @package VigentWoo
  */
@@ -27,6 +24,7 @@ class Vigent_Woo_Ajax {
 		add_action( 'wp_ajax_vigent_woo_status', array( $this, 'ajax_status' ) );
 		add_action( 'wp_ajax_vigent_woo_test', array( $this, 'ajax_test' ) );
 		add_action( 'wp_ajax_vigent_woo_sync_batch', array( $this, 'ajax_sync_batch' ) );
+		add_action( 'wp_ajax_vigent_woo_save_toggles', array( $this, 'ajax_save_toggles' ) );
 		add_action( 'wp_ajax_vigent_woo_clear_retry', array( $this, 'ajax_clear_retry' ) );
 	}
 
@@ -43,69 +41,52 @@ class Vigent_Woo_Ajax {
 		}
 	}
 
-	/**
-	 * AJAX: Get live connection status.
-	 */
 	public function ajax_status() {
 		$this->verify_nonce();
-		$status = $this->core()->get_connection_status();
-		wp_send_json_success( $status );
+		$status     = $this->core()->get_connection_status();
+		$configured = $this->core()->is_configured();
+		wp_send_json_success( array_merge( $status, array( 'configured' => $configured ) ) );
 	}
 
-	/**
-	 * AJAX: Test connection by sending a ping to Vigent.
-	 */
 	public function ajax_test() {
 		$this->verify_nonce();
-
 		if ( ! $this->core()->is_configured() ) {
-			$result = array(
-				'success' => false,
-				'message' => __( 'ابتدا آدرس webhook و کلید امنیتی را وارد و ذخیره کنید.', 'vigent-woo' ),
-			);
-		} else {
-			$core   = $this->core();
-			$result = $core->refresh_connection_status();
-			if ( $result['connected'] ) {
-				$msg = __( 'اتصال با موفقیت برقرار است.', 'vigent-woo' );
-			} else {
-				/* translators: %d: HTTP code, %s: error message */
-				$msg = sprintf( __( 'خطا در اتصال (کد %1$d): %2$s', 'vigent-woo' ), (int) $result['http_code'], $result['error'] ?? '' );
-			}
-			$result = array(
-				'success' => $result['connected'],
-				'message' => $msg,
-			);
+			wp_send_json( array( 'success' => false, 'data' => array( 'message' => __( 'ابتدا اتصال را برقرار کنید.', 'vigent-woo' ) ) ) );
 		}
-
-		wp_send_json( array( 'success' => $result['success'], 'data' => $result ) );
+		$result = $this->core()->refresh_connection_status();
+		$msg    = $result['connected']
+			? __( 'اتصال با موفقیت برقرار است.', 'vigent-woo' )
+			: sprintf( __( 'خطا در اتصال (کد %1$d): %2$s', 'vigent-woo' ), (int) $result['http_code'], $result['error'] ?? '' );
+		wp_send_json( array( 'success' => $result['connected'], 'data' => array( 'message' => $msg ) ) );
 	}
 
-	/**
-	 * AJAX: Sync a single batch (called repeatedly by the progress bar JS).
-	 */
 	public function ajax_sync_batch() {
 		$this->verify_nonce();
-
 		$kind   = isset( $_POST['kind'] ) ? sanitize_text_field( wp_unslash( $_POST['kind'] ) ) : '';
 		$offset = isset( $_POST['offset'] ) ? max( 0, (int) $_POST['offset'] ) : 0;
-
-		if ( ! in_array( $kind, array( 'products', 'orders', 'content' ), true ) ) {
-			wp_send_json_error( array( 'message' => __( 'نوع هم‌گام‌سازی نامعتبر است.', 'vigent-woo' ) ) );
+		$filter = isset( $_POST['filter'] ) ? json_decode( wp_unslash( $_POST['filter'] ), true ) : array();
+		if ( ! is_array( $filter ) ) {
+			$filter = array();
 		}
-
-		$sync = Vigent_Woo_Sync::instance();
-		$result = $sync->sync_batch( $kind, $offset, 25 );
-
+		if ( ! in_array( $kind, array( 'products', 'orders' ), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'نوع نامعتبر.', 'vigent-woo' ) ) );
+		}
+		$result = Vigent_Woo_Sync::instance()->sync_batch( $kind, $offset, 25, $filter );
 		wp_send_json_success( $result );
 	}
 
-	/**
-	 * AJAX: Clear the retry queue.
-	 */
+	public function ajax_save_toggles() {
+		$this->verify_nonce();
+		$s = $this->core()->get_settings();
+		$s['sync_products'] = ! empty( $_POST['sync_products'] ) ? '1' : '';
+		$s['sync_orders']   = ! empty( $_POST['sync_orders'] ) ? '1' : '';
+		$this->core()->update_settings( $s );
+		wp_send_json_success( array( 'message' => __( 'ذخیره شد.', 'vigent-woo' ) ) );
+	}
+
 	public function ajax_clear_retry() {
 		$this->verify_nonce();
 		$this->core()->clear_retry_queue();
-		wp_send_json_success( array( 'message' => __( 'صف retry پاک شد.', 'vigent-woo' ) ) );
+		wp_send_json_success( array( 'message' => __( 'صف پاک شد.', 'vigent-woo' ) ) );
 	}
 }
