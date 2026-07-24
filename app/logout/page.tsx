@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { signOut } from '@/auth'
 
 export const dynamic = 'force-dynamic'
@@ -68,8 +68,18 @@ export default async function LogoutPage() {
         <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.6 }}>
           خطایی در خروج خودکار رخ داد. برای خروج کامل، روی لینک زیر بزنید:
         </p>
-        <a
+        {/*
+          We use <Link> with prefetch={false} instead of a plain <a>:
+          • Satisfies the @next/next/no-html-link-for-pages ESLint rule.
+          • CRITICAL: prefetch={false} prevents Next from fetching the
+            /api/auth/force-logout route on hover/focus — that route clears
+            the session cookie, so a default-prefetch Link would log the
+            user out the moment their cursor grazed the link. With
+            prefetch={false}, the route is only hit on an actual click.
+        */}
+        <Link
           href="/api/auth/force-logout"
+          prefetch={false}
           style={{
             display: 'inline-block',
             marginTop: '1.5rem',
@@ -83,7 +93,7 @@ export default async function LogoutPage() {
           }}
         >
           خروج اجباری
-        </a>
+        </Link>
       </div>
     </div>
   )
