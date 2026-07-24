@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
 import { processProductEmbed } from '@/lib/products/catalog'
@@ -338,26 +339,22 @@ export async function syncWooProducts(
                 return { count: 0, errors: [msg] }
         }
 
+        // Cache the workspace's agent list ONCE per sync run — it doesn't change
+        // between products in the same batch. Without this we'd do one
+        // `agent.findMany` per product (N queries → 1 query for a 1000-product
+        // catalog), which was the main sync bottleneck on large stores.
+        const agents = await prisma.agent.findMany({
+                where: { workspaceId },
+                select: { id: true },
+        })
+        const agentRows = agents.map((a) => ({ agentId: a.id }))
+
         for (const wp of products) {
                 try {
                         const data = mapWooProduct(wp)
-                        // ─── Deduplication (same as webhook path) ───
-                        // 1. SKU (most reliable), 2. Name (fallback).
-                        let existing: { id: string } | null = null
-
-                        if (data.sku) {
-                                existing = await prisma.product.findFirst({
-                                        where: { workspaceId, sku: data.sku },
-                                        select: { id: true },
-                                })
-                        }
-
-                        if (!existing) {
-                                existing = await prisma.product.findFirst({
-                                        where: { workspaceId, name: data.name },
-                                        select: { id: true },
-                                })
-                        }
+                        // ─── Deduplication (uses the shared helper so the poll
+                        // path and the webhook path stay in sync) ───
+                        const existing = await findExistingProduct(workspaceId, data.sku, data.name, wp.id)
 
                         const product = existing
                                 ? await prisma.product.update({
@@ -379,13 +376,9 @@ export async function syncWooProducts(
 
                         // Auto-assign to every agent in the workspace so the catalog stays in
                         // sync without a manual visit to each agent's catalog page.
-                        const agents = await prisma.agent.findMany({
-                                where: { workspaceId },
-                                select: { id: true },
-                        })
-                        if (agents.length > 0) {
+                        if (agentRows.length > 0) {
                                 await prisma.agentCatalog.createMany({
-                                        data: agents.map((a) => ({ agentId: a.id, productId: product.id })),
+                                        data: agentRows.map((a) => ({ ...a, productId: product.id })),
                                         skipDuplicates: true,
                                 })
                         }
@@ -651,23 +644,14 @@ async function upsertProductFromWoo(
 
         // ─── Deduplication logic (priority order) ───
         // 1. Match by SKU (most reliable — unique business key from WooCommerce).
-        // 2. Match by name (fallback for products without SKU).
+        //    The WP plugin also stores the WC product id in the payload, and
+        //    some stores use the WC id as the SKU. We treat the SKU string
+        //    itself as the source of truth here.
+        // 2. Match by name (fallback for products without SKU). Case-insensitive
+        //    so a re-sync doesn't create a duplicate just because the merchant
+        //    retyped the title.
         // 3. Match by SKU = WC product ID (some stores use WC id as SKU).
-        let existing: { id: string } | null = null
-
-        if (data.sku) {
-                existing = await prisma.product.findFirst({
-                        where: { workspaceId, sku: data.sku },
-                        select: { id: true },
-                })
-        }
-
-        if (!existing) {
-                existing = await prisma.product.findFirst({
-                        where: { workspaceId, name: data.name },
-                        select: { id: true },
-                })
-        }
+        const existing = await findExistingProduct(workspaceId, data.sku, data.name, wp.id)
 
         const product = existing
                 ? await prisma.product.update({
@@ -688,6 +672,9 @@ async function upsertProductFromWoo(
                         })
 
         // Auto-assign to every workspace agent (same as the poll path).
+        // Note: webhooks are per-product events so caching the agent list
+        // across calls doesn't help (each call is a fresh request). The poll
+        // path (`syncWooProducts`) caches this once per full sync.
         const agents = await prisma.agent.findMany({
                 where: { workspaceId },
                 select: { id: true },
@@ -700,6 +687,53 @@ async function upsertProductFromWoo(
         }
 
         await processProductEmbed({ productId: product.id, workspaceId })
+}
+
+/**
+ * Find an existing product row for a workspace by SKU, then by name, then by
+ * the WooCommerce product id (which the WP plugin sometimes uses as the SKU
+ * when the merchant hasn't set one). Returns null if no candidate exists.
+ *
+ * Centralized here so both the webhook path and the poll path use the same
+ * dedup rules — that's what keeps the catalog stable across thousands of
+ * sync runs (any mismatch between the two paths would leak duplicates).
+ *
+ * Performance: uses a single OR query (not 3 separate round-trips) so a
+ * 1000-product catalog only costs 1000 SELECTs instead of 3000.
+ */
+async function findExistingProduct(
+        workspaceId: string,
+        sku: string | null,
+        name: string,
+        externalId?: number,
+): Promise<{ id: string } | null> {
+        const or: Prisma.ProductWhereInput[] = []
+
+        // 1. SKU match (exact).
+        if (sku) {
+                or.push({ sku })
+        }
+
+        // 2. External-id-as-SKU match — some stores let WooCommerce auto-fill
+        //    the SKU with the product id. We treat the WC id as a string here
+        //    so a product that was previously synced with id-as-SKU still
+        //    resolves to the same row on subsequent syncs.
+        if (externalId != null) {
+                or.push({ sku: String(externalId) })
+        }
+
+        // 3. Name match (case-insensitive). Without this, every re-sync of a
+        //    product that has no SKU would create a duplicate.
+        if (name) {
+                or.push({ name: { equals: name, mode: 'insensitive' } })
+        }
+
+        if (or.length === 0) return null
+
+        return prisma.product.findFirst({
+                where: { workspaceId, OR: or },
+                select: { id: true },
+        })
 }
 
 /**

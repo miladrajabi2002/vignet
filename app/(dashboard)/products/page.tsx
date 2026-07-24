@@ -41,6 +41,10 @@ export default async function ProductsPage(
           ? { queryCount: 'desc' }
           : { createdAt: 'desc' }
 
+  // ── Note: we intentionally do NOT fetch syncLogs / "recent events" here.
+  //    The recent-events panel was noisy and duplicated what the WooSetupCard
+  //    already shows. Removing it keeps the products page focused on the
+  //    catalog itself.
   const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw] = await Promise.all([
     prisma.product.findMany({
       where: {
@@ -76,29 +80,24 @@ export default async function ProductsPage(
     prisma.storeIntegration.findFirst({
       where: { workspaceId: user.workspaceId, type: 'WOOCOMMERCE' },
       orderBy: { createdAt: 'desc' },
-      include: {
-        syncLogs: {
-          // Show all events from the last 3 days (capped at 100 for safety).
-          orderBy: { createdAt: 'desc' },
-          where: { createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
-          take: 100,
-          select: {
-            id: true,
-            direction: true,
-            entity: true,
-            outcome: true,
-            count: true,
-            message: true,
-            createdAt: true,
-          },
-        },
+      // Only fetch the lightweight fields needed for the setup card's status
+      // row — we no longer pull the full syncLogs list (recent events are
+      // dropped from this page on purpose).
+      select: {
+        id: true,
+        storeUrl: true,
+        webhookSecret: true,
+        pollIntervalMinutes: true,
+        active: true,
+        lastSyncAt: true,
+        lastSyncStatus: true,
+        lastSyncError: true,
         _count: { select: { orders: true, syncLogs: true } },
       },
     }),
   ])
 
   // Map the raw Prisma row to the client component's expected shape.
-  // Converts dates to ISO strings for client transport.
   let wooIntegration: WooIntegrationState | null = null
   if (wooIntegrationRaw) {
     wooIntegration = {
@@ -115,15 +114,8 @@ export default async function ProductsPage(
         orders: wooIntegrationRaw._count.orders,
         syncLogs: wooIntegrationRaw._count.syncLogs,
       },
-      syncLogs: wooIntegrationRaw.syncLogs.map((l) => ({
-        id: l.id,
-        direction: l.direction,
-        entity: l.entity,
-        outcome: l.outcome,
-        count: l.count,
-        message: l.message,
-        createdAt: l.createdAt.toISOString(),
-      })),
+      // Recent events intentionally omitted — see comment above.
+      syncLogs: [],
     }
   }
 
@@ -139,6 +131,9 @@ export default async function ProductsPage(
     const qs = sp.toString()
     return qs ? `/products?${qs}` : '/products'
   }
+
+  // Total pages for the numeric pager. We cap at 1 when there's nothing.
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE))
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -219,7 +214,12 @@ export default async function ProductsPage(
             defaultCategory={categoryId}
           />
           <ProductGrid products={pageProducts} />
-          <Pagination page={page} hasNext={hasNext} makeHref={makeHref} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            hasNext={hasNext}
+            makeHref={makeHref}
+          />
         </>
       )}
     </div>

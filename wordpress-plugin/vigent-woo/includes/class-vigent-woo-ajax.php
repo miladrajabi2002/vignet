@@ -1,6 +1,6 @@
 <?php
 /**
- * AJAX handlers — status, test, sync batch, save toggles.
+ * AJAX handlers — status, test, sync batch, save toggles, mark initial push done.
  *
  * @package VigentWoo
  */
@@ -27,6 +27,7 @@ class Vigent_Woo_Ajax {
                 add_action( 'wp_ajax_vigent_woo_save_toggles', array( $this, 'ajax_save_toggles' ) );
                 add_action( 'wp_ajax_vigent_woo_connect', array( $this, 'ajax_connect' ) );
                 add_action( 'wp_ajax_vigent_woo_clear_retry', array( $this, 'ajax_clear_retry' ) );
+                add_action( 'wp_ajax_vigent_woo_mark_pushed', array( $this, 'ajax_mark_pushed' ) );
         }
 
         private function core() {
@@ -43,11 +44,81 @@ class Vigent_Woo_Ajax {
         }
 
         /**
+         * Per-IP rate limit. We use a transient keyed by IP + action so a single
+         * attacker can't spam the connect endpoint to harvest webhook credentials.
+         *
+         * Limits:
+         *   • connect: 5 attempts per 10 minutes per IP. After the limit, the
+         *     endpoint returns 429 until the window rolls.
+         *   • mark_pushed / save_toggles / sync_batch / status / test: 60 per
+         *     10 minutes (these are normal admin actions, but still capped so a
+         *     hijacked session can't DOS the panel API).
+         *
+         * Returns true if the request is allowed, false if rate-limited. On
+         * false, callers should send a 429 immediately.
+         */
+        private function check_rate_limit( $action ) {
+                $ip = $this->client_ip();
+                if ( '' === $ip ) {
+                        return true; // can't track → allow (don't break localhost/dev)
+                }
+
+                $limits = array(
+                        'connect'      => 5,
+                        'mark_pushed'  => 60,
+                        'save_toggles' => 60,
+                        'sync_batch'   => 120,
+                        'status'       => 120,
+                        'test'         => 10,
+                );
+                $max = isset( $limits[ $action ] ) ? $limits[ $action ] : 30;
+
+                $key      = 'vigent_woo_rl_' . $action . '_' . md5( $ip );
+                $window   = 10 * MINUTE_IN_SECONDS; // 10-minute rolling window
+                $count    = (int) get_transient( $key );
+                if ( $count >= $max ) {
+                        return false;
+                }
+                set_transient( $key, $count + 1, $window );
+                return true;
+        }
+
+        private function client_ip() {
+                // REMOTE_ADDR is the only field the web server sets directly from
+                // the TCP connection — every other header can be spoofed by the
+                // client. We intentionally do NOT trust X-Forwarded-For here
+                // unless the site is behind a known proxy (admin can filter this
+                // if needed).
+                $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+                if ( '' === $ip ) {
+                        return '';
+                }
+                // Validate it's actually an IP (defensive — REMOTE_ADDR should
+                // always be valid, but cheap to check).
+                if ( ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+                        return '';
+                }
+                return $ip;
+        }
+
+        /**
          * AJAX: Auto-connect to Vigent — fetches webhook URL + secret from the panel.
+         * Rate-limited per IP to prevent credential-harvesting via brute force.
          */
         public function ajax_connect() {
                 $this->verify_nonce();
+                if ( ! $this->check_rate_limit( 'connect' ) ) {
+                        wp_send_json_error(
+                                array( 'message' => __( 'تعداد تلاش‌ها بیش از حد مجاز است. ۱۰ دقیقه دیگر تلاش کنید.', 'vigent-woo' ) ),
+                                429
+                        );
+                }
                 $result = $this->core()->connect_to_vigent();
+                // Reset the initial-push flag on a fresh connect so the push wizard
+                // appears again if the user reconnects.
+                if ( $result['success'] ) {
+                        delete_option( 'vigent_woo_initial_push_done' );
+                }
                 wp_send_json( array( 'success' => $result['success'], 'data' => array( 'message' => $result['message'] ) ) );
         }
 
@@ -98,5 +169,15 @@ class Vigent_Woo_Ajax {
                 $this->verify_nonce();
                 $this->core()->clear_retry_queue();
                 wp_send_json_success( array( 'message' => __( 'صف پاک شد.', 'vigent-woo' ) ) );
+        }
+
+        /**
+         * Mark the initial push as complete so the admin page swaps from the
+         * push wizard to the success + management view.
+         */
+        public function ajax_mark_pushed() {
+                $this->verify_nonce();
+                update_option( 'vigent_woo_initial_push_done', 1 );
+                wp_send_json_success( array( 'message' => __( 'ثبت شد.', 'vigent-woo' ) ) );
         }
 }

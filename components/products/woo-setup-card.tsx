@@ -283,7 +283,7 @@ export function WooSetupCard({
                             </span>
                             {isPluginConfigured && (
                                 <span className="text-xs text-[var(--text-muted)]">
-                                    {integration._count.orders} سفارش · {integration._count.syncLogs} رویداد
+                                    {integration._count.orders} سفارش
                                     {integration.lastSyncAt ? ` · ${formatDate(integration.lastSyncAt)}` : ''}
                                 </span>
                             )}

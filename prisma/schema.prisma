@@ -291,6 +291,14 @@ model Product {
   category     ProductCategory? @relation(fields: [categoryId], references: [id])
   catalogItems AgentCatalog[]
 
+  // SKU must be unique within a workspace so WooCommerce sync can never create
+  // duplicate rows even if the application-layer dedup has a bug. In Postgres,
+  // multiple NULL values are allowed on a unique index, so products without a
+  // SKU don't conflict with each other.
+  @@unique([workspaceId, sku])
+  // Name is the secondary dedup key (case-insensitive matching happens at the
+  // app layer). A plain index keeps the case-sensitive name lookups fast.
+  @@index([workspaceId, name])
   @@index([workspaceId])
   @@index([categoryId])
 }

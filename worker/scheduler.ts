@@ -128,7 +128,10 @@ async function runChannelCheck(): Promise<void> {
 
 // ─── store integration polling (F2) ─────────────────────────────────────────
 
-const STORE_SYNC_INTERVAL_MS = 10 * 60 * 1000 // every 10 minutes
+// 30 minutes — matches the WP plugin's own auto-sync cadence so the server
+// and the plugin stay in lockstep. Going faster risks rate-limit issues on
+// stores with thousands of products (each sync walks the full catalog).
+const STORE_SYNC_INTERVAL_MS = 30 * 60 * 1000 // every 30 minutes
 
 /**
  * Find every active store integration whose `pollIntervalMinutes` has elapsed
@@ -136,6 +139,11 @@ const STORE_SYNC_INTERVAL_MS = 10 * 60 * 1000 // every 10 minutes
  * types (CUSTOM_URL) the polling path is a no-op — those are handled by the
  * URL crawler instead. Per-integration errors are caught and logged so a
  * single failing store doesn't block the rest.
+ *
+ * Integrations are synced in parallel via `Promise.allSettled` so a slow or
+ * unresponsive store doesn't stall the rest of the queue — a 30s timeout on
+ * one store only costs the others 30s of waiting at worst (vs. sequential
+ * processing which would block for N × 30s).
  */
 async function syncStoreIntegrations(): Promise<void> {
         const now = Date.now()
@@ -153,42 +161,67 @@ async function syncStoreIntegrations(): Promise<void> {
                 take: 100,
         })
 
-        for (const row of rows) {
-                if (row.type !== 'WOOCOMMERCE') continue
+        // Filter to WooCommerce integrations whose poll interval has elapsed.
+        // We do the type + elapsed check up front so we don't even spin up a
+        // promise for stores that don't need syncing this cycle.
+        const due = rows.filter((row) => {
+                if (row.type !== 'WOOCOMMERCE') return false
                 const lastMs = row.lastSyncAt ? row.lastSyncAt.getTime() : 0
                 const elapsed = now - lastMs
-                if (elapsed < row.pollIntervalMinutes * 60 * 1000) continue
+                return elapsed >= row.pollIntervalMinutes * 60 * 1000
+        })
 
-                let credentials
-                try {
-                        credentials = resolveWooCredentials(row.credentials)
-                } catch (e) {
-                        console.error(
-                                `[scheduler] store ${row.id} credential resolve failed:`,
-                                e instanceof Error ? e.message : e,
-                        )
-                        continue
-                }
+        if (due.length === 0) return
 
-                const integration: StoreIntegrationInput = {
-                        id: row.id,
-                        workspaceId: row.workspaceId,
-                        storeUrl: row.storeUrl,
-                        credentials,
-                }
+        // Sync all due integrations in parallel. Each one resolves or rejects
+        // independently; a single failure never blocks the others.
+        const results = await Promise.allSettled(
+                due.map(async (row) => {
+                        let credentials
+                        try {
+                                credentials = resolveWooCredentials(row.credentials)
+                        } catch (e) {
+                                throw new Error(
+                                        `credential resolve failed: ${e instanceof Error ? e.message : e}`,
+                                )
+                        }
 
-                try {
+                        const integration: StoreIntegrationInput = {
+                                id: row.id,
+                                workspaceId: row.workspaceId,
+                                storeUrl: row.storeUrl,
+                                credentials,
+                        }
+
                         const products = await syncWooProducts(integration)
                         const orders = await syncWooOrders(integration, { sinceDays: 30 })
+                        return { id: row.id, products: products.count, orders: orders.count }
+                }),
+        )
+
+        // Log each result — settled or rejected — so the operator can see what
+        // happened without grepping for stack traces.
+        let okCount = 0
+        let errCount = 0
+        results.forEach((r, i) => {
+                const row = due[i]
+                if (r.status === 'fulfilled') {
+                        okCount++
                         console.log(
-                                `[scheduler] store ${row.id} synced: ${products.count} products, ${orders.count} orders`,
+                                `[scheduler] store ${row.id} synced: ${r.value.products} products, ${r.value.orders} orders`,
                         )
-                } catch (e) {
+                } else {
+                        errCount++
                         console.error(
                                 `[scheduler] store ${row.id} sync failed:`,
-                                e instanceof Error ? e.message : e,
+                                r.reason instanceof Error ? r.reason.message : r.reason,
                         )
                 }
+        })
+        if (okCount + errCount > 0) {
+                console.log(
+                        `[scheduler] store-sync batch: ${okCount} ok, ${errCount} failed (of ${due.length} due)`,
+                )
         }
 }
 

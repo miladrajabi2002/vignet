@@ -2,6 +2,14 @@
 /**
  * Sync class — full sync (with progress), product/order hooks, retry queue.
  *
+ *  Dedup strategy:
+ *   - Auto-sync (every 30 min) sends `product.updated` for every product so the
+ *     Vigent server treats each as an upsert keyed by (workspace, sku|name).
+ *     This is critical — sending `product.created` would create duplicates on
+ *     every sync cycle, which corrupts the catalog and the agent's RAG index.
+ *   - Real-time hooks (new/update/delete) fire on the actual change events,
+ *     so they use the correct topic.
+ *
  * @package VigentWoo
  */
 
@@ -21,7 +29,7 @@ class Vigent_Woo_Sync {
         }
 
         private function __construct() {
-                // Product hooks.
+                // Product hooks — real-time, single-product events.
                 add_action( 'woocommerce_new_product', array( $this, 'on_product_new' ), 10, 2 );
                 add_action( 'woocommerce_update_product', array( $this, 'on_product_update' ), 10, 2 );
                 add_action( 'woocommerce_trash_product', array( $this, 'on_product_delete' ) );
@@ -129,6 +137,20 @@ class Vigent_Woo_Sync {
                 return 0;
         }
 
+        /**
+         * Sync one batch of products or orders.
+         *
+         * IMPORTANT — duplicate prevention:
+         *   For the auto-sync and manual "send all" paths we use the
+         *   `product.updated` topic (not `product.created`). The Vigent server
+         *   treats `product.updated` as an upsert keyed by (workspace, sku|name),
+         *   so re-running the sync on the same catalog never creates duplicate
+         *   rows. Sending `product.created` for already-synced products would
+         *   duplicate them on every sync cycle.
+         *
+         *   Real-time hooks (`on_product_new` / `on_product_update`) still use
+         *   the correct topics because they fire on the actual change event.
+         */
         public function sync_batch( $kind, $offset, $batch_size = 25, $filter = array() ) {
                 $sent   = 0;
                 $errors = array();
@@ -152,7 +174,9 @@ class Vigent_Woo_Sync {
                         $products = wc_get_products( $args );
 
                         foreach ( $products as $product ) {
-                                $result = $this->core()->send_event( 'product.created', $this->core()->product_to_payload( $product ) );
+                                // Use product.updated so the server treats this as an upsert
+                                // (matched by sku|name) instead of creating duplicates.
+                                $result = $this->core()->send_event( 'product.updated', $this->core()->product_to_payload( $product ) );
                                 if ( ! empty( $result['success'] ) ) {
                                         $sent++;
                                 } else {
@@ -179,7 +203,8 @@ class Vigent_Woo_Sync {
                         $orders = wc_get_orders( $args );
 
                         foreach ( $orders as $order ) {
-                                $result = $this->core()->send_event( 'order.created', $this->core()->order_to_payload( $order ) );
+                                // Same pattern: order.updated → upsert keyed by externalOrderId.
+                                $result = $this->core()->send_event( 'order.updated', $this->core()->order_to_payload( $order ) );
                                 if ( ! empty( $result['success'] ) ) {
                                         $sent++;
                                 } else {
@@ -201,8 +226,17 @@ class Vigent_Woo_Sync {
 
         /**
          * Auto-sync — runs every 30 minutes via WP-Cron.
+         *
          * Pushes all products and recent orders to Vigent so the agent always
-         * has up-to-date data, even if a webhook was missed.
+         * has up-to-date data, even if a webhook was missed. Uses the upsert
+         * topic (product.updated / order.updated) so re-syncing never creates
+         * duplicate rows on the Vigent side — this is what keeps the catalog
+         * stable across thousands of sync runs.
+         *
+         * Rate-limit safety: each batch is small (50 items) and the cron
+         * handler on the server side processes async; the JS wizard uses a
+         * 300ms gap between batches. Here in PHP cron we rely on small batch
+         * size + the 30-minute cadence — far under any reasonable rate limit.
          */
         public function run_auto_sync() {
                 if ( ! $this->core()->is_configured() ) {
@@ -221,8 +255,9 @@ class Vigent_Woo_Sync {
                                         break;
                                 }
                                 $offset += 50;
-                                // Safety cap: 20 batches (1000 products) per auto-sync run.
-                                if ( $offset > 1000 ) {
+                                // Safety cap: 40 batches (2000 products) per auto-sync run.
+                                // Larger catalogs sync progressively across cycles.
+                                if ( $offset > 2000 ) {
                                         break;
                                 }
                         }
@@ -237,7 +272,7 @@ class Vigent_Woo_Sync {
                                         break;
                                 }
                                 $offset += 50;
-                                if ( $offset > 500 ) {
+                                if ( $offset > 1000 ) {
                                         break;
                                 }
                         }
