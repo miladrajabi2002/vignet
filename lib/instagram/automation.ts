@@ -73,13 +73,15 @@ export interface AutomationAction {
   /**
    * `messages[]` is used by STATIC (sent in order) and MULTI_MESSAGE (one
    * picked at random). Each entry is a typed payload that the media helpers
-   * know how to send (TEXT/IMAGE/AUDIO/VIDEO/QUICK_REPLY/PRODUCT).
+   * know how to send (TEXT/IMAGE/AUDIO/VIDEO/QUICK_REPLY/PRODUCT/PRODUCT_LIST).
    */
   messages?: Array<{
-    type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+    type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
     text?: string
     mediaUrl?: string
     productId?: string
+    /** PRODUCT_LIST: ordered list of product ids (max 10). */
+    productIds?: string[]
     /** QUICK_REPLY: up to 3 buttons. Accepts the new object form or legacy strings. */
     buttons?: Array<{ title: string; url?: string } | string>
     /** Button display style: 'button' (Button Template) or 'quick_reply' (chip). */
@@ -175,21 +177,29 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
               m.type === 'AUDIO' ||
               m.type === 'VIDEO' ||
               m.type === 'QUICK_REPLY' ||
-              m.type === 'PRODUCT'
+              m.type === 'PRODUCT' ||
+              m.type === 'PRODUCT_LIST'
                 ? m.type
                 : 'TEXT'
-            ) as 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+            ) as 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
             const entry: {
-              type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+              type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
               text?: string
               mediaUrl?: string
               productId?: string
+              productIds?: string[]
               buttons?: Array<{ title: string; url?: string } | string>
             } = {
               type,
               text: typeof m.text === 'string' ? m.text : undefined,
               mediaUrl: typeof m.mediaUrl === 'string' ? m.mediaUrl : undefined,
               productId: typeof m.productId === 'string' ? m.productId : undefined,
+            }
+            // PRODUCT_LIST: ordered list of product ids (max 10).
+            if (type === 'PRODUCT_LIST' && Array.isArray(m.productIds)) {
+              entry.productIds = m.productIds
+                .filter((id): id is string => typeof id === 'string' && !!id)
+                .slice(0, 10)
             }
             // Preserve buttons for QUICK_REPLY entries. Accept the new object
             // form ({title, url?}) or legacy plain strings.
@@ -212,7 +222,9 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
                 ? !!m.text || !!m.buttons?.length
                 : m.type === 'PRODUCT'
                   ? !!m.productId
-                  : !!m.mediaUrl,
+                  : m.type === 'PRODUCT_LIST'
+                    ? !!m.productIds?.length
+                    : !!m.mediaUrl,
           ))
       : [],
     mediaType:
@@ -568,6 +580,7 @@ async function executeAction(
           quickReplies: isComment ? undefined : quickReplies,
         }),
       (productId) => resolveProduct(agent.id, productId),
+      (productIds) => resolveProducts(agent.id, productIds),
       agent.workspaceId,
     )
     // Optionally also push the public reply text on a comment→DM funnel.
@@ -632,6 +645,7 @@ async function executeAction(
             quickReplies: isComment ? undefined : quickReplies,
           }),
         (productId) => resolveProduct(agent.id, productId),
+        (productIds) => resolveProducts(agent.id, productIds),
         agent.workspaceId,
       )
     }
@@ -1253,6 +1267,7 @@ async function resolveProduct(
           description: true,
           price: true,
           images: true,
+          externalUrl: true,
         },
       },
     },
@@ -1265,7 +1280,7 @@ async function resolveProduct(
       description: p.description,
       price: p.price,
       imageUrl: p.images?.[0] ?? null,
-      productUrl: null,
+      productUrl: p.externalUrl ?? null,
     }
   }
   // Fallback: look up the product directly by id (it might not be in the
@@ -1284,6 +1299,7 @@ async function resolveProduct(
       description: true,
       price: true,
       images: true,
+      externalUrl: true,
     },
   })
   if (!product) return null
@@ -1293,6 +1309,38 @@ async function resolveProduct(
     description: product.description,
     price: product.price,
     imageUrl: product.images?.[0] ?? null,
-    productUrl: null,
+    productUrl: product.externalUrl ?? null,
   }
+}
+
+/**
+ * Resolve multiple products by id for the carousel (PRODUCT_LIST) reply mode.
+ * Returns the showcase snapshots in the SAME ORDER as the input `productIds`,
+ * skipping any ids that don't resolve (so a missing product doesn't break the
+ * carousel — Meta would reject a card with an empty title).
+ *
+ * Caps the result at 10 entries — Meta's Generic Template Carousel limit.
+ */
+async function resolveProducts(
+  agentId: string,
+  productIds: string[],
+): Promise<ProductShowcase[]> {
+  // De-duplicate while preserving order so the carousel never shows the same
+  // product twice even if the form accidentally stored a duplicate id.
+  const seen = new Set<string>()
+  const uniqueIds: string[] = []
+  for (const id of productIds) {
+    if (id && !seen.has(id)) {
+      seen.add(id)
+      uniqueIds.push(id)
+    }
+  }
+  const capped = uniqueIds.slice(0, 10)
+
+  const out: ProductShowcase[] = []
+  for (const id of capped) {
+    const p = await resolveProduct(agentId, id)
+    if (p) out.push(p)
+  }
+  return out
 }

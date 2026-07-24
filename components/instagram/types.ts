@@ -35,13 +35,17 @@ export type ReplyMode = 'STATIC' | 'AI' | 'SILENT' | 'STOP_AI' | 'MULTI_MESSAGE'
 export type GateMode = 'SOFT' | 'STORY_MENTION'
 
 // ── Message types (inside action.messages[]) ─────────────────────────────
-//   TEXT        → plain text body (uses `text`)
-//   IMAGE       → single image with optional caption (uses `mediaUrl` + `text`)
-//   AUDIO       → voice clip (uses `mediaUrl`)
-//   VIDEO       → video clip (uses `mediaUrl`)
-//   QUICK_REPLY → text + up to 3 tappable button titles (uses `text` + `buttons`)
-//   PRODUCT     → product card (uses `productId`)
-export type MessageType = 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+//   TEXT         → plain text body (uses `text`)
+//   IMAGE        → single image with optional caption (uses `mediaUrl` + `text`)
+//   AUDIO        → voice clip (uses `mediaUrl`)
+//   VIDEO        → video clip (uses `mediaUrl`)
+//   QUICK_REPLY  → text + up to 3 tappable button titles (uses `text` + `buttons`)
+//   PRODUCT      → single product card (uses `productId`)
+//   PRODUCT_LIST → horizontal carousel of up to 10 product cards
+//                  (uses `productIds[]`). Renders as Meta's Generic Template
+//                  Carousel. Falls back to sending one PRODUCT card at a time
+//                  if the API rejects the carousel payload.
+export type MessageType = 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
 
 export type MediaType = 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'PRODUCT'
 
@@ -67,6 +71,9 @@ export interface AutomationMessage {
         mediaUrl?: string
         mediaType?: MediaType
         productId?: string
+        /** For PRODUCT_LIST messages: ordered list of product ids to render as a
+         *  horizontal carousel (max 10 — Meta's Generic Template Carousel limit). */
+        productIds?: string[]
         /** Up to 3 quick-reply buttons (for QUICK_REPLY messages). Accepts the new
          *  object form ({title, url?}) or a legacy plain-string (treated as a
          *  postback button with that title). */

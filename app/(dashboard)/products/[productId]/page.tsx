@@ -8,11 +8,17 @@ import {
   Bot,
   Boxes,
   Tag,
+  ExternalLink,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { formatDateTime } from '@/lib/format'
 import { BackButton } from '@/components/dashboard/back-button'
+import { normalizeAttributes } from '@/lib/products/description'
+import {
+  extractListItems,
+  stripListBlocks,
+} from '@/lib/products/description'
 
 export default async function ProductDetailPage(
   props: {
@@ -162,6 +168,23 @@ export default async function ProductDetailPage(
               SKU: {product.sku}
             </p>
           )}
+          {/* External product URL — the canonical link on the source store
+              (WooCommerce permalink, etc.). Used by the Instagram automation
+              engine to render the "View product" button on product cards. */}
+          {product.externalUrl && (
+            <a
+              href={product.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              dir="ltr"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {product.externalUrl.length > 48
+                ? `${product.externalUrl.slice(0, 48)}…`
+                : product.externalUrl}
+            </a>
+          )}
           {/* Description — rendered as plain text; <ul>/<li> blocks were
               extracted into the attributes list above so they don't leak raw
               HTML here. */}
@@ -258,139 +281,7 @@ export default async function ProductDetailPage(
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────
-
-type AttrRow = { label: string; value: string }
-
-/**
- * Normalize the `attributes` JSON column into a flat list of
- * `{ label, value }` rows. Handles every shape we've seen in the wild:
- *
- *   - { color: "blue" }                        → [ { color, blue } ]
- *   - { color: { name: "رنگ", options: ["blue"] } }   (webhook path)
- *   - { color: ["blue", "red"] }               (multi-value)
- *   - [ { name: "color", options: ["blue"] } ] (WC REST shape)
- *
- * Without this, the detail page would call `String(value)` on each value and
- * print `[object Object]` for the nested-object shapes.
- */
-function normalizeAttributes(raw: unknown): AttrRow[] {
-  if (!raw || typeof raw !== 'object') return []
-  const out: AttrRow[] = []
-
-  // Array shape: [{ name, options }] (WC REST poll path).
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (!item || typeof item !== 'object') continue
-      const obj = item as Record<string, unknown>
-      const label = typeof obj.name === 'string' ? obj.name : '—'
-      const value = formatAttrValue(obj.options ?? obj.value)
-      if (value) out.push({ label, value })
-    }
-    return out
-  }
-
-  // Object shape: { key: value | { name, options } | array }
-  const entries = Object.entries(raw as Record<string, unknown>)
-  for (const [key, value] of entries) {
-    if (value == null) continue
-
-    // Nested WC attribute object: { name: "رنگ", options: ["blue"] } or
-    // { name: "رنگ", option: "blue" }.
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      const obj = value as Record<string, unknown>
-      const label = typeof obj.name === 'string' && obj.name ? obj.name : key
-      const inner = obj.options ?? obj.option ?? obj.value
-      const formatted = formatAttrValue(inner)
-      if (formatted) out.push({ label, value: formatted })
-      continue
-    }
-
-    // Primitive or array.
-    const formatted = formatAttrValue(value)
-    if (formatted) out.push({ label: key, value: formatted })
-  }
-  return out
-}
-
-/** Format a single attribute value into a display string. */
-function formatAttrValue(v: unknown): string {
-  if (v == null) return ''
-  if (Array.isArray(v)) {
-    return v.map((x) => formatAttrValue(x)).filter(Boolean).join('، ')
-  }
-  if (typeof v === 'object') {
-    // Last-resort fallback: try common fields, then stringify.
-    const obj = v as Record<string, unknown>
-    if (typeof obj.name === 'string') return obj.name
-    if (Array.isArray(obj.options)) return formatAttrValue(obj.options)
-    if (typeof obj.value === 'string') return obj.value
-    // Avoid the `[object Object]` bug — JSON is at least readable.
-    try {
-      return JSON.stringify(obj)
-    } catch {
-      return ''
-    }
-  }
-  return String(v)
-}
-
-/**
- * Extract every <li>…</li> body from an HTML string. Used when a WooCommerce
- * merchant writes their product specs as a bullet list inside the description
- * (e.g. "<ul><li>جنس: پنبه‌ای</li><li>سایزبندی: فری سایز</li></ul>"). The
- * extracted items are merged into the attributes list so they render as
- * proper label/value rows.
- *
- * The list items are expected to be in `label: value` form; we split on the
- * first colon (Persian or ASCII). Items without a colon become label-only
- * rows with an empty value.
- */
-function extractListItems(html: string): AttrRow[] {
-  if (!html || !html.includes('<li')) return []
-  const out: AttrRow[] = []
-  const re = /<li[^>]*>([\s\S]*?)<\/li>/gi
-  let m: RegExpExecArray | null
-  while ((m = re.exec(html)) !== null) {
-    const raw = m[1]
-      .replace(/<[^>]+>/g, '')   // strip nested tags
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .trim()
-    if (!raw) continue
-    // Split on first ASCII or Persian colon.
-    const colonIdx = raw.search(/[:：]/)
-    if (colonIdx > 0) {
-      const label = raw.slice(0, colonIdx).trim()
-      const value = raw.slice(colonIdx + 1).trim()
-      out.push({ label, value })
-    } else {
-      out.push({ label: raw, value: '' })
-    }
-  }
-  return out
-}
-
-/**
- * Strip <ul>…</ul> blocks from an HTML string. Used after extracting list
- * items into the attributes list so the description doesn't show the same
- * content twice (once as attributes, once as raw HTML).
- *
- * Also strips any other HTML tags so the description renders as plain text.
- */
-function stripListBlocks(html: string): string {
-  if (!html) return ''
-  return html
-    .replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim()
-}
+// `normalizeAttributes`, `formatAttrValue`, `extractListItems`, and
+// `stripListBlocks` live in `lib/products/description.ts` so the Instagram
+// automation engine can reuse the same HTML-stripping logic for product card
+// subtitles.

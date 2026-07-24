@@ -3,6 +3,7 @@ import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { cleanDescriptionForChat } from '@/lib/products/description'
 
 /**
  * Rich-media send helpers for the Instagram Messaging API.
@@ -404,6 +405,11 @@ export async function sendVideo(
  * is `product.productUrl` (falls back to `product.imageUrl`).
  *
  * Used by the `PRODUCT` rich reply mode in automation scenarios.
+ *
+ * The subtitle is sanitized via `cleanDescriptionForChat()` so HTML from
+ * WooCommerce product descriptions (e.g. `<ul><li>…</li></ul>` blocks) is
+ * stripped to plain text — Meta's Generic Template `subtitle` field does not
+ * support HTML and would otherwise render the raw tags.
  */
 export async function sendProductCard(
         channelConfig: Prisma.JsonValue,
@@ -415,10 +421,11 @@ export async function sendProductCard(
 
         console.log(`[ig-product] sending product card: id=${product.id} name="${product.name}" image=${product.imageUrl ? 'yes' : 'no'} price=${product.price ?? 'n/a'}`)
 
-        const subtitle = product.description
+        const cleanDesc = cleanDescriptionForChat(product.description, 80)
+        const subtitle = cleanDesc
                 ? product.price != null
-                        ? `${product.description} — ${formatPrice(product.price)}`
-                        : product.description
+                        ? `${cleanDesc} — ${formatPrice(product.price)}`
+                        : cleanDesc
                 : product.price != null
                         ? formatPrice(product.price)
                         : 'محصول'
@@ -477,6 +484,100 @@ export async function sendProductCard(
                 console.warn(`[ig-product] sendProductCard failed (${res.status}): ${errText.slice(0, 300)}`)
         }
         await throwIfError(res, 'sendProductCard')
+}
+
+/**
+ * Send a generic-template "carousel" of product cards — up to 10 elements
+ * scrollable horizontally in the Instagram DM. Each element has its own image,
+ * title, subtitle, and a "مشاهده محصول" button (web_url when `productUrl` is
+ * set, otherwise a postback fallback).
+ *
+ * Meta's Generic Template Carousel limit is 10 elements; this function slices
+ * the input to that limit. Callers (e.g. `resolveProducts`) already cap, but
+ * this is a defensive guard so a future caller can't blow past the limit.
+ *
+ * Subtitles are sanitized with `cleanDescriptionForChat()` for the same reason
+ * as `sendProductCard` — Meta does not render HTML inside template subtitles.
+ */
+export async function sendProductCarousel(
+        channelConfig: Prisma.JsonValue,
+        chatId: string,
+        products: ProductShowcase[],
+): Promise<void> {
+        const token = resolveToken(channelConfig)
+        if (!token) throw new Error('INSTAGRAM sendProductCarousel: missing access token')
+
+        if (products.length === 0) {
+                console.warn('[ig-product] sendProductCarousel called with empty list — skipping')
+                return
+        }
+
+        const elements = products.slice(0, 10).map((product) => {
+                const cleanDesc = cleanDescriptionForChat(product.description, 80)
+                const subtitle = cleanDesc
+                        ? product.price != null
+                                ? `${cleanDesc} — ${formatPrice(product.price)}`
+                                : cleanDesc
+                        : product.price != null
+                                ? formatPrice(product.price)
+                                : 'محصول'
+
+                const buttonUrl =
+                        product.productUrl ?? product.imageUrl ?? undefined
+
+                const buttons: Array<Record<string, unknown>> = []
+                if (buttonUrl) {
+                        buttons.push({
+                                type: 'web_url',
+                                url: buttonUrl,
+                                title: 'مشاهده محصول',
+                        })
+                } else {
+                        buttons.push({
+                                type: 'postback',
+                                title: 'مشاهده محصول',
+                                payload: `product:${product.id}`,
+                        })
+                }
+
+                const element: Record<string, unknown> = {
+                        title: product.name.slice(0, 80),
+                        subtitle: subtitle.slice(0, 80),
+                        buttons,
+                }
+                if (product.imageUrl) {
+                        element.image_url = product.imageUrl
+                }
+                return element
+        })
+
+        console.log(`[ig-product] sending product carousel: count=${elements.length}`)
+
+        const res = await fetch(messagesUrl(), {
+                method: 'POST',
+                headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                        recipient: { id: chatId },
+                        message: {
+                                attachment: {
+                                        type: 'template',
+                                        payload: {
+                                                template_type: 'generic',
+                                                elements,
+                                        },
+                                },
+                        },
+                        messaging_type: MESSAGING_TYPE_RESPONSE,
+                }),
+        })
+        if (!res.ok) {
+                const errText = await res.text().catch(() => '')
+                console.warn(`[ig-product] sendProductCarousel failed (${res.status}): ${errText.slice(0, 300)}`)
+        }
+        await throwIfError(res, 'sendProductCarousel')
 }
 
 /**
@@ -551,10 +652,11 @@ export async function sendRichEntry(
         channelConfig: Prisma.JsonValue,
         chatId: string,
         entry: {
-                type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT'
+                type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
                 text?: string
                 mediaUrl?: string
                 productId?: string
+                productIds?: string[]
                 buttons?: Array<{ title: string; url?: string } | string>
                 buttonType?: 'button' | 'quick_reply'
         },
@@ -564,6 +666,13 @@ export async function sendRichEntry(
         resolveProduct?: (
                 productId: string,
         ) => Promise<ProductShowcase | null>,
+        /** Called for PRODUCT_LIST entries — the caller resolves a list of product
+         *  snapshots. Falls back to calling `resolveProduct` for each id when this
+         *  is not provided, so callers that already have a batched lookup can pass
+         *  it for efficiency, and callers that don't don't have to. */
+        resolveProducts?: (
+                productIds: string[],
+        ) => Promise<ProductShowcase[]>,
         workspaceId?: string,
 ): Promise<void> {
         try {
@@ -614,6 +723,30 @@ export async function sendRichEntry(
                                 if (!entry.productId || !resolveProduct) return
                                 const product = await resolveProduct(entry.productId)
                                 if (product) await sendProductCard(channelConfig, chatId, product)
+                                break
+                        }
+                        case 'PRODUCT_LIST': {
+                                const ids = (entry.productIds ?? []).filter(Boolean)
+                                if (ids.length === 0) return
+                                // Prefer the batched resolver when available — the automation
+                                // engine passes `resolveProducts` to skip N+1 agent lookups.
+                                const products = resolveProducts
+                                        ? await resolveProducts(ids)
+                                        : (
+                                                await Promise.all(
+                                                        ids
+                                                                .slice(0, 10)
+                                                                .map((id) => resolveProduct?.(id).catch(() => null) ?? Promise.resolve(null)),
+                                                )
+                                        ).filter((p): p is ProductShowcase => p != null)
+                                if (products.length === 0) return
+                                if (products.length === 1) {
+                                        // One product — send as a single card (smaller payload,
+                                        // avoids the carousel chrome for the trivial case).
+                                        await sendProductCard(channelConfig, chatId, products[0])
+                                } else {
+                                        await sendProductCarousel(channelConfig, chatId, products)
+                                }
                                 break
                         }
                 }

@@ -50,6 +50,7 @@ export default async function EditProductPage(
           stock: product.stock?.toString() ?? '',
           categoryId: product.categoryId ?? '',
           tags: product.tags.join(', '),
+          externalUrl: product.externalUrl ?? '',
           images: product.images,
           attributes,
           active: product.active,

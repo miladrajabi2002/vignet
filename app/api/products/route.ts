@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       images: d.images ?? [],
       attributes: d.attributes,
       tags: d.tags ?? [],
+      externalUrl: d.externalUrl ?? null,
       active: d.active ?? true,
     },
   })

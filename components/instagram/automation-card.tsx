@@ -18,6 +18,7 @@ import {
         Tag,
         KeyRound,
         ChevronLeft,
+        Boxes,
         type LucideIcon,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
@@ -51,6 +52,7 @@ const MESSAGE_TYPE_ICON: Record<MessageType, LucideIcon> = {
         VIDEO: ImageIcon,
         QUICK_REPLY: KeyRound,
         PRODUCT: Tag,
+        PRODUCT_LIST: Boxes,
 }
 
 /**

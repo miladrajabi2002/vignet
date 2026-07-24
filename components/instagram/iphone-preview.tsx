@@ -176,7 +176,9 @@ function DMScreen(props: ScreenProps) {
         } = props
 
         const visibleMessages = (messages ?? []).filter(
-                (m) => m.type !== 'PRODUCT' || m.productId,
+                (m) =>
+                        (m.type !== 'PRODUCT' || m.productId) &&
+                        (m.type !== 'PRODUCT_LIST' || (m.productIds && m.productIds.length > 0)),
         )
 
         return (
@@ -405,6 +407,63 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                         </Bubble>
                 )
         }
+        // PRODUCT_LIST — horizontal carousel of product cards.
+        // Renders up to 3 cards (3 = what visually fits in the phone preview
+        // width without overcrowding; the real Instagram carousel supports up
+        // to 10 — the preview is just an indicator, not an exact rendering).
+        if (message.type === 'PRODUCT_LIST') {
+                const ids = (message.productIds ?? []).filter(Boolean)
+                if (ids.length === 0) {
+                        return (
+                                <Bubble side="bot" flush>
+                                        <div className="w-[210px] overflow-hidden rounded-2xl rounded-br-md border border-black/10 bg-white">
+                                                <div
+                                                        className="flex h-20 items-center justify-center text-white"
+                                                        style={{ background: IG_GRADIENT }}
+                                                >
+                                                        <ImageIcon className="h-7 w-7 opacity-80" />
+                                                </div>
+                                                <div className="p-2.5">
+                                                        <p className="text-[11px] font-medium text-black/60">ویترین محصولات</p>
+                                                        <p className="text-[10px] text-black/40">محصولی اضافه نشده</p>
+                                                </div>
+                                        </div>
+                                </Bubble>
+                        )
+                }
+                const cards = ids.slice(0, 3)
+                return (
+                        <Bubble side="bot" flush>
+                                <div className="flex w-[210px] gap-1.5 overflow-x-auto rounded-2xl rounded-br-md p-1.5 bg-transparent">
+                                        {cards.map((id, i) => (
+                                                <div
+                                                        key={id}
+                                                        className="w-[150px] shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white"
+                                                >
+                                                        <div
+                                                                className="flex h-20 items-center justify-center text-white"
+                                                                style={{ background: IG_GRADIENT }}
+                                                        >
+                                                                <ImageIcon className="h-6 w-6 opacity-80" />
+                                                        </div>
+                                                        <div className="p-2">
+                                                                <p className="truncate text-[10px] font-semibold text-black">
+                                                                        محصول {i + 1}
+                                                                </p>
+                                                                <p className="text-[9px] text-black/60">قیمت: —</p>
+                                                                <button
+                                                                        className="mt-1 w-full rounded-md py-0.5 text-[9px] font-medium text-white"
+                                                                        style={{ background: IG_GRADIENT }}
+                                                                >
+                                                                        مشاهده
+                                                                </button>
+                                                        </div>
+                                                </div>
+                                        ))}
+                                </div>
+                        </Bubble>
+                )
+        }
         // QUICK_REPLY — render differently based on buttonType:
         //   'button' (default) → buttons INSIDE the bubble (Button Template style)
         //   'quick_reply'      → chips BELOW the bubble (Quick Reply style)
@@ -500,7 +559,9 @@ function StoryScreen(props: ScreenProps) {
         } = props
 
         const visibleMessages = (messages ?? []).filter(
-                (m) => m.type !== 'PRODUCT' || m.productId,
+                (m) =>
+                        (m.type !== 'PRODUCT' || m.productId) &&
+                        (m.type !== 'PRODUCT_LIST' || (m.productIds && m.productIds.length > 0)),
         )
 
         return (

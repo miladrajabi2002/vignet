@@ -40,11 +40,12 @@ const updateSchema = z.object({
         .array(
           z.object({
             type: z
-              .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT'])
+              .enum(['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'QUICK_REPLY', 'PRODUCT', 'PRODUCT_LIST'])
               .optional(),
             text: z.string().optional(),
             mediaUrl: z.string().optional(),
             productId: z.string().optional(),
+            productIds: z.array(z.string()).max(10).optional(),
             buttons: z.array(buttonSchema).max(3).optional(),
             buttonType: z.enum(['button', 'quick_reply']).optional(),
           }),

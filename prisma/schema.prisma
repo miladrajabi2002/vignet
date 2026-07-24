@@ -281,6 +281,7 @@ model Product {
   images             String[] // Supabase Storage URLs
   attributes         Json? // {"color": "blue", "size": "XL"}
   tags               String[]
+  externalUrl        String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
   active             Boolean   @default(true)
   embeddingUpdatedAt DateTime? // track when last embedded into vector store
   queryCount         Int       @default(0) // how many times AI retrieved this product

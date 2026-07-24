@@ -577,6 +577,7 @@ class Vigent_Woo_Core {
                         'manage_stock'      => $product->get_manage_stock(),
                         'stock_quantity'    => $product->get_stock_quantity(),
                         'in_stock'          => $product->is_in_stock(),
+                        'permalink'         => $product->get_permalink(),
                         'images'            => $images,
                         'attributes'        => $attrs,
                         'tags'              => $tags,

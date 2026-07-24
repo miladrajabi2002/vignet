@@ -34,6 +34,7 @@ import {
         Trash2,
         Type,
         ShoppingBag,
+        Layers,
         Shield,
         Mic,
         Film,
@@ -170,6 +171,9 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
                 mediaUrl: m.mediaUrl,
                 mediaType: m.mediaType,
                 productId: m.productId,
+                productIds: Array.isArray(m.productIds)
+                        ? m.productIds.filter((id) => typeof id === 'string' && !!id).slice(0, 10)
+                        : [],
                 buttons: rawButtons.slice(0, 3).map(toButton),
                 buttonType: m.buttonType ?? 'button',
         }
@@ -246,7 +250,9 @@ export function AutomationForm({
                                         ? { id: newMessageId(), type: 'QUICK_REPLY', text: '', buttons: [] }
                                         : t === 'PRODUCT'
                                                 ? { id: newMessageId(), type: 'PRODUCT', text: '', productId: undefined }
-                                                : { id: newMessageId(), type: t, text: '' }
+                                                : t === 'PRODUCT_LIST'
+                                                        ? { id: newMessageId(), type: 'PRODUCT_LIST', text: '', productIds: [] }
+                                                        : { id: newMessageId(), type: t, text: '' }
                         return { ...f, messages: [...f.messages, msg] }
                 })
         }
@@ -333,6 +339,10 @@ export function AutomationForm({
                         if (m.text?.trim()) out.text = m.text
                         if (m.mediaUrl) out.mediaUrl = m.mediaUrl
                         if (m.productId) out.productId = m.productId
+                        // PRODUCT_LIST: cap at 10 (Meta carousel limit), drop empties.
+                        if (m.type === 'PRODUCT_LIST' && m.productIds && m.productIds.length > 0) {
+                                out.productIds = m.productIds.filter((id) => typeof id === 'string' && !!id).slice(0, 10)
+                        }
                         if (m.buttons && m.buttons.length > 0) {
                                 // Drop empty-title buttons; keep at most 3 (Instagram limit).
                                 const cleanButtons = m.buttons
@@ -1222,6 +1232,7 @@ function MessageBuilder({
                 { value: 'VIDEO', label: 'ویدیو', Icon: Film },
                 { value: 'QUICK_REPLY', label: 'کلید', Icon: KeyRound },
                 { value: 'PRODUCT', label: 'محصول', Icon: ShoppingBag },
+                { value: 'PRODUCT_LIST', label: 'ویترین محصولات', Icon: Layers },
         ]
 
         return (
@@ -1622,6 +1633,19 @@ function MessageCard({
                                         )}
                                 </div>
                         )}
+
+                        {message.type === 'PRODUCT_LIST' && (
+                                <div className="space-y-3">
+                                        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                ویترین افقی تا ۱۰ محصول — کاربر می‌تونه بین کارت‌ها swipe کنه. ترتیب با فلش‌های بالا/پایین قابل تغییره.
+                                        </p>
+                                        <MultiProductPicker
+                                                channelId={channelId}
+                                                selectedIds={message.productIds ?? []}
+                                                onChange={(ids) => onUpdate({ productIds: ids })}
+                                        />
+                                </div>
+                        )}
                 </div>
         )
 }
@@ -1960,6 +1984,268 @@ function ProductThumb({ product }: { product: ProductLite }) {
                         style={{ background: 'linear-gradient(45deg, #f58529, #dd2a7b, #8134af)' }}
                 >
                         <Tag className="h-4 w-4" />
+                </div>
+        )
+}
+
+// ── Multi-product picker (carousel builder for PRODUCT_LIST messages) ─────
+// Up to 10 products (Meta's Generic Template Carousel limit). Search + add,
+// drag-free reorder via up/down arrows, click X to remove. Same API as the
+// single ProductPicker above so the data shape (`ProductLite`) is shared.
+function MultiProductPicker({
+        channelId,
+        selectedIds,
+        onChange,
+}: {
+        channelId: string
+        selectedIds: string[]
+        onChange: (ids: string[]) => void
+}) {
+        const MAX = 10
+        const [open, setOpen] = useState(false)
+        const [q, setQ] = useState('')
+        const [loading, setLoading] = useState(false)
+        const [items, setItems] = useState<ProductLite[]>([])
+        // Cache of {id -> ProductLite} for the selected rows so the UI shows
+        // thumbnails/names without re-fetching on every render.
+        const [cache, setCache] = useState<Record<string, ProductLite>>({})
+        const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+        // Resolve any selected ids that aren't in the cache yet (e.g. on form load).
+        useEffect(() => {
+                const missing = selectedIds.filter((id) => id && !cache[id])
+                if (missing.length === 0) return
+                let cancelled = false
+                Promise.all(
+                        missing.map((id) =>
+                                fetch(`/api/products/${id}`)
+                                        .then((r) => r.json())
+                                        .then((d) => (d as { product?: ProductLite }).product ?? null)
+                                        .catch(() => null),
+                        ),
+                ).then((rows) => {
+                        if (cancelled) return
+                        setCache((prev) => {
+                                const next = { ...prev }
+                                for (const p of rows) {
+                                        if (p) next[p.id] = p
+                                }
+                                return next
+                        })
+                })
+                return () => {
+                        cancelled = true
+                }
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [selectedIds.join(',')])
+
+        // Load initial 20 products when the picker opens.
+        useEffect(() => {
+                if (!open) return
+                let cancelled = false
+                setLoading(true)
+                fetch(`/api/products?sort=newest`)
+                        .then((r) => r.json())
+                        .then((d) => {
+                                if (cancelled) return
+                                const list: ProductLite[] = ((d.products ?? []) as ProductLite[]).slice(0, 20)
+                                setItems(list)
+                                setCache((prev) => {
+                                        const next = { ...prev }
+                                        for (const p of list) next[p.id] = p
+                                        return next
+                                })
+                        })
+                        .catch(() => {})
+                        .finally(() => !cancelled && setLoading(false))
+                return () => {
+                        cancelled = true
+                }
+        }, [open, channelId])
+
+        // Debounced search.
+        useEffect(() => {
+                if (!open) return
+                if (debounceRef.current) clearTimeout(debounceRef.current)
+                if (!q.trim()) return
+                debounceRef.current = setTimeout(() => {
+                        setLoading(true)
+                        fetch(`/api/products?q=${encodeURIComponent(q)}`)
+                                .then((r) => r.json())
+                                .then((d) => {
+                                        const list = ((d.products ?? []) as ProductLite[]).slice(0, 20)
+                                        setItems(list)
+                                        setCache((prev) => {
+                                                const next = { ...prev }
+                                                for (const p of list) next[p.id] = p
+                                                return next
+                                        })
+                                })
+                                .catch(() => {})
+                                .finally(() => setLoading(false))
+                }, 300)
+                return () => {
+                        if (debounceRef.current) clearTimeout(debounceRef.current)
+                }
+        }, [q, open])
+
+        function add(id: string) {
+                if (selectedIds.includes(id)) return
+                if (selectedIds.length >= MAX) return
+                onChange([...selectedIds, id])
+        }
+
+        function remove(id: string) {
+                onChange(selectedIds.filter((x) => x !== id))
+        }
+
+        function move(idx: number, dir: -1 | 1) {
+                const next = idx + dir
+                if (next < 0 || next >= selectedIds.length) return
+                const arr = selectedIds.slice()
+                const [item] = arr.splice(idx, 1)
+                arr.splice(next, 0, item)
+                onChange(arr)
+        }
+
+        return (
+                <div className="space-y-2">
+                        {/* Selected rows (reorderable) */}
+                        {selectedIds.length > 0 && (
+                                <div className="space-y-1.5">
+                                        {selectedIds.map((id, idx) => {
+                                                const p = cache[id]
+                                                return (
+                                                        <div
+                                                                key={id}
+                                                                className="flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2"
+                                                        >
+                                                                {p ? <ProductThumb product={p} /> : (
+                                                                        <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-[var(--bg-muted)]" />
+                                                                )}
+                                                                <div className="min-w-0 flex-1">
+                                                                        <p className="truncate text-xs font-medium text-[var(--text-primary)]">
+                                                                                {p?.name ?? '…'}
+                                                                        </p>
+                                                                        <p className="text-[11px] text-[var(--text-secondary)]">
+                                                                                {p?.price != null
+                                                                                        ? `${p.price.toLocaleString('fa-IR')} تومان`
+                                                                                        : 'بدون قیمت'}
+                                                                        </p>
+                                                                </div>
+                                                                {/* Reorder arrows (LTR for stable arrow direction) */}
+                                                                <div className="flex flex-col" dir="ltr">
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => move(idx, -1)}
+                                                                                disabled={idx === 0}
+                                                                                className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                                                aria-label="بالا"
+                                                                        >
+                                                                                <ArrowUp className="h-3 w-3" />
+                                                                        </button>
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => move(idx, 1)}
+                                                                                disabled={idx === selectedIds.length - 1}
+                                                                                className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
+                                                                                aria-label="پایین"
+                                                                        >
+                                                                                <ArrowDown className="h-3 w-3" />
+                                                                        </button>
+                                                                </div>
+                                                                <button
+                                                                        type="button"
+                                                                        onClick={() => remove(id)}
+                                                                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--danger)]"
+                                                                        aria-label="حذف"
+                                                                >
+                                                                        <X className="h-4 w-4" />
+                                                                </button>
+                                                        </div>
+                                                )
+                                        })}
+                                </div>
+                        )}
+
+                        {/* Add button (disabled when at the carousel limit) */}
+                        {selectedIds.length < MAX ? (
+                                <button
+                                        type="button"
+                                        onClick={() => setOpen((v) => !v)}
+                                        className="flex w-full items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3.5 py-2.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)]"
+                                >
+                                        <span className="inline-flex items-center gap-2">
+                                                <Plus className="h-3.5 w-3.5" />
+                                                افزودن محصول ({selectedIds.length.toLocaleString('fa-IR')} از {MAX.toLocaleString('fa-IR')})
+                                        </span>
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                        ) : (
+                                <p className="text-center text-[11px] text-[var(--text-muted)]">
+                                        حداکثر {MAX.toLocaleString('fa-IR')} محصول در هر ویترین.
+                                </p>
+                        )}
+
+                        {open && selectedIds.length < MAX && (
+                                <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] shadow-lg">
+                                        <div className="border-b border-[var(--border-subtle)] p-2">
+                                                <div className="flex items-center gap-2 rounded-lg bg-[var(--bg-surface)] px-2.5 py-1.5">
+                                                        <Search className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+                                                        <input
+                                                                value={q}
+                                                                onChange={(e) => setQ(e.target.value)}
+                                                                placeholder="جستجوی محصول…"
+                                                                className="flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
+                                                                autoFocus
+                                                        />
+                                                </div>
+                                        </div>
+                                        <div className="max-h-56 overflow-y-auto">
+                                                {loading && (
+                                                        <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--text-muted)]">
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                در حال بارگذاری…
+                                                        </div>
+                                                )}
+                                                {!loading && items.length === 0 && (
+                                                        <p className="py-6 text-center text-xs text-[var(--text-muted)]">
+                                                                محصولی پیدا نشد.
+                                                        </p>
+                                                )}
+                                                {!loading &&
+                                                        items.map((p) => {
+                                                                const isSelected = selectedIds.includes(p.id)
+                                                                return (
+                                                                        <button
+                                                                                key={p.id}
+                                                                                type="button"
+                                                                                disabled={isSelected}
+                                                                                onClick={() => add(p.id)}
+                                                                                className={`flex w-full items-center gap-2.5 px-3 py-2 text-right transition-colors ${
+                                                                                        isSelected
+                                                                                                ? 'cursor-not-allowed opacity-40'
+                                                                                                : 'hover:bg-[var(--bg-muted)]'
+                                                                                }`}
+                                                                        >
+                                                                                <ProductThumb product={p} />
+                                                                                <div className="min-w-0 flex-1">
+                                                                                        <p className="truncate text-xs font-medium text-[var(--text-primary)]">
+                                                                                                {p.name}
+                                                                                        </p>
+                                                                                        <p className="text-[11px] text-[var(--text-secondary)]">
+                                                                                                {p.price != null
+                                                                                                        ? `${p.price.toLocaleString('fa-IR')} تومان`
+                                                                                                        : 'بدون قیمت'}
+                                                                                        </p>
+                                                                                </div>
+                                                                                {isSelected && <Check className="h-3.5 w-3.5 text-[var(--text-muted)]" />}
+                                                                        </button>
+                                                                )
+                                                        })}
+                                        </div>
+                                </div>
+                        )}
                 </div>
         )
 }

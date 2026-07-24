@@ -21,6 +21,7 @@ export interface ProductFormData {
   stock: string
   categoryId: string
   tags: string
+  externalUrl: string
   images: string[]
   attributes: { key: string; value: string }[]
   active: boolean
@@ -50,6 +51,7 @@ export function ProductForm({
       stock: '',
       categoryId: '',
       tags: '',
+      externalUrl: '',
       images: [],
       attributes: [],
       active: true,
@@ -75,6 +77,7 @@ export function ProductForm({
       stock: form.stock === '' ? null : Number(form.stock),
       categoryId: form.categoryId || null,
       tags: form.tags ? form.tags.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      externalUrl: form.externalUrl || undefined,
       images: form.images,
       attributes: Object.keys(attributes).length ? attributes : undefined,
       active: form.active,
@@ -129,6 +132,17 @@ export function ProductForm({
             { value: '', label: t('noCategory') },
             ...categories.map((category) => ({ value: category.id, label: category.name })),
           ]}
+        />
+      </Field>
+
+      <Field label={t('externalUrl')}>
+        <input
+          dir="ltr"
+          value={form.externalUrl}
+          onChange={(e) => set('externalUrl', e.target.value)}
+          placeholder="https://shop.example.com/product/…"
+          className="input font-mono text-sm"
+          type="url"
         />
       </Field>
 

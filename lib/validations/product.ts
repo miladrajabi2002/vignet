@@ -11,6 +11,13 @@ export const productCreateSchema = z.object({
   images: z.array(z.string().url()).max(10).optional(),
   attributes: z.record(z.string(), z.string()).optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
+  externalUrl: z
+    .string()
+    .url()
+    .max(2048)
+    .nullable()
+    .optional()
+    .or(z.literal('').transform(() => null)),
   active: z.boolean().optional(),
 })
 

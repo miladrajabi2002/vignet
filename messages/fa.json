@@ -876,6 +876,7 @@
                         "category": "دسته‌بندی",
                         "noCategory": "بدون دسته",
                         "tags": "تگ‌ها (با کاما جدا کنید)",
+                        "externalUrl": "لینک محصول در سایت فروشگاه",
                         "attributes": "مشخصات",
                         "attrKey": "ویژگی",
                         "attrValue": "مقدار",

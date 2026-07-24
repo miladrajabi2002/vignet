@@ -52,6 +52,7 @@ interface WooProduct {
         in_stock?: boolean
         manage_stock?: boolean
         status?: string
+        permalink?: string
         images?: { src?: string }[]
         tags?: { name?: string }[]
         attributes?: {
@@ -301,6 +302,7 @@ function mapWooProduct(p: WooProduct) {
                 images,
                 tags,
                 attributes: attrs,
+                externalUrl: typeof p.permalink === 'string' && p.permalink.trim() ? p.permalink.trim() : null,
                 // Note: `status` is intentionally NOT returned — the Product table has no
                 // `status` column (Prisma would reject it). We use `active` instead, derived
                 // from `status !== 'draft'` at the call site.

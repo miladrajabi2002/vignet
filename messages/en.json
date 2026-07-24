@@ -876,6 +876,7 @@
                         "category": "Category",
                         "noCategory": "No category",
                         "tags": "Tags (comma separated)",
+                        "externalUrl": "Product URL on store site",
                         "attributes": "Attributes",
                         "attrKey": "Attribute",
                         "attrValue": "Value",
