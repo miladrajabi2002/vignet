@@ -11,7 +11,6 @@ import {
     Trash2,
     Copy,
     Check,
-    ExternalLink,
     Download,
     AlertCircle,
     CheckCircle2,
@@ -19,8 +18,6 @@ import {
     ChevronDown,
     ChevronUp,
     Settings2,
-    KeyRound,
-    FileText,
     BookOpen,
     Zap,
 } from 'lucide-react'
@@ -74,7 +71,6 @@ export function WooSetupCard({
     const router = useRouter()
     const [showForm, setShowForm] = useState(false)
     const [showAdvanced, setShowAdvanced] = useState(false)
-    const [showCreds, setShowCreds] = useState(false)
     const [syncing, setSyncing] = useState(false)
     const [pinging, setPinging] = useState(false)
     const [syncError, setSyncError] = useState<string | null>(null)

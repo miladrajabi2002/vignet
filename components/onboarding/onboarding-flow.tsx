@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
 import {
   Briefcase,
@@ -652,7 +653,7 @@ function KnowledgeStep({
       {/* Two-option grid */}
       <motion.div variants={staggerChild} className="mt-6 grid gap-3 sm:grid-cols-2 text-start">
         {/* Option A: Connect WooCommerce */}
-        <a
+        <Link
           href="/products?onboarding=1"
           className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
           style={{ boxShadow: 'var(--shadow-card)' }}
@@ -673,10 +674,10 @@ function KnowledgeStep({
             شروع اتصال
             <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
           </div>
-        </a>
+        </Link>
 
         {/* Option B: Manual product entry */}
-        <a
+        <Link
           href="/products/new?onboarding=1"
           className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
           style={{ boxShadow: 'var(--shadow-card)' }}
@@ -697,7 +698,7 @@ function KnowledgeStep({
             افزودن محصول
             <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
           </div>
-        </a>
+        </Link>
       </motion.div>
 
       {/* CTA buttons */}
