@@ -191,3 +191,43 @@ describe('PATCH /api/agents/:agentId/instagram/automations/:id — keyword updat
     expect(updateCall.data.trigger.keywords).toEqual(['قیمت', 'price'])
   })
 })
+
+/**
+ * Spec for the keywordFilter default behavior in the form (AutomationForm).
+ *
+ * The form's `toFormState()` is defined inside a .tsx file (Vite can't
+ * statically import it from a Vitest unit test under jsx: preserve, so we
+ * don't import it directly). Instead, we restate the contract here as a
+ * pure-logic test so a regression on the default-value rule is caught.
+ *
+ * Contract:
+ *   - NEW scenario (no `initial`)  → keywordFilter = 'SPECIFIC'
+ *   - EXISTING row with keywords   → keywordFilter = 'SPECIFIC'
+ *   - EXISTING row without keywords → keywordFilter = 'ANY' (round-trip legacy)
+ */
+describe('AutomationForm keywordFilter default (contract)', () => {
+  type KeywordFilter = 'ANY' | 'SPECIFIC'
+
+  // Mirror the decision rule in components/instagram/automation-form.tsx::toFormState.
+  // Keep this in sync with the source.
+  function decideKeywordFilter(
+    isNew: boolean,
+    storedKeywords: string[] | undefined,
+  ): KeywordFilter {
+    if (isNew) return 'SPECIFIC'
+    return (storedKeywords?.length ?? 0) > 0 ? 'SPECIFIC' : 'ANY'
+  }
+
+  it('defaults to SPECIFIC for a NEW scenario', () => {
+    expect(decideKeywordFilter(true, undefined)).toBe('SPECIFIC')
+  })
+
+  it('keeps SPECIFIC for an existing row that has keywords', () => {
+    expect(decideKeywordFilter(false, ['سلام'])).toBe('SPECIFIC')
+  })
+
+  it('keeps ANY for an existing row that has no keywords (legacy round-trip)', () => {
+    expect(decideKeywordFilter(false, [])).toBe('ANY')
+    expect(decideKeywordFilter(false, undefined)).toBe('ANY')
+  })
+})

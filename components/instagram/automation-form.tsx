@@ -103,6 +103,16 @@ interface FormState {
 }
 
 function toFormState(a: Automation | undefined, type: AutomationType): FormState {
+        // For NEW scenarios, default the keyword filter to SPECIFIC so the user
+        // is prompted to enter keywords right away. For EXISTING scenarios,
+        // infer the filter from the stored keywords (ANY when empty, SPECIFIC
+        // otherwise) so editing older rows round-trips correctly.
+        const keywordFilter: KeywordFilter =
+                a === undefined
+                        ? 'SPECIFIC'
+                        : (a?.trigger.keywords?.length ?? 0) > 0
+                                ? 'SPECIFIC'
+                                : 'ANY'
         const base: FormState = {
                 name: a?.name ?? '',
                 active: a?.active ?? true,
@@ -112,7 +122,7 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 storyScope: a?.trigger.storyScope ?? 'KEYWORD',
                 postFilter: (a?.trigger.postIds?.length ?? 0) > 0 ? 'SPECIFIC' : 'ANY',
                 postIdsText: (a?.trigger.postIds ?? []).join(', '),
-                keywordFilter: (a?.trigger.keywords?.length ?? 0) > 0 ? 'SPECIFIC' : 'ANY',
+                keywordFilter,
                 replyMode: a?.action.replyMode ?? defaultReplyMode(type),
                 messages: a?.action.messages?.length
                         ? a.action.messages.map(normalizeMessage)

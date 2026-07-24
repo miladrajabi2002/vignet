@@ -63,7 +63,6 @@ function makeDmMessage(text: string): InboundMessage {
     senderName: 'Sender',
     text,
     chatId: 'chat-1',
-    receivedAt: new Date(),
   }
 }
 
