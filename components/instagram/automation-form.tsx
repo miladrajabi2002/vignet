@@ -1241,7 +1241,7 @@ function MessageBuilder({
                 { value: 'AUDIO', label: 'صوت', Icon: Mic },
                 { value: 'VIDEO', label: 'ویدیو', Icon: Film },
                 { value: 'QUICK_REPLY', label: 'کلید', Icon: KeyRound },
-                { value: 'PRODUCT_LIST', label: 'محصول', Icon: Layers },
+                { value: 'PRODUCT_LIST', label: 'ویترین محصولات', Icon: Layers },
         ]
 
         return (
@@ -1345,7 +1345,7 @@ function MessageCard({
                                                 ? 'ویدیو'
                                                 : message.type === 'QUICK_REPLY'
                                                         ? 'کلید'
-                                                        : 'محصول'
+                                                        : 'ویترین محصولات'
         const TypeIcon =
                 message.type === 'TEXT'
                         ? Type

@@ -93,6 +93,18 @@ class Vigent_Woo_Admin {
                         .vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 34px; }
                         .vg-header .vg-btn-disconnect:hover { background: rgba(239,68,68,.3); color: #fff; border-color: rgba(239,68,68,.5); }
                         .vg-header .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
+                        /* Update button in header — subtle blue tint, sits next to the disconnect button */
+                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(59,130,246,.15); color: #93c5fd; transition: all .12s; min-height: 34px; }
+                        .vg-header .vg-btn-update:hover { background: rgba(59,130,246,.3); color: #fff; border-color: rgba(59,130,246,.5); }
+                        .vg-header .vg-btn-update:disabled { opacity: .4; cursor: not-allowed; }
+                        .vg-header .vg-btn-update.has-update { background: rgba(16,185,129,.25); color: #6ee7b7; border-color: rgba(16,185,129,.5); animation: vg-pulse 1.8s ease-in-out infinite; }
+                        @keyframes vg-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.4); } 50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } }
+                        .vg-update-banner { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #93c5fd; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+                        .vg-update-banner .icon { width: 38px; height: 38px; border-radius: 10px; background: #3b82f6; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                        .vg-update-banner .text { flex: 1; font-size: 13px; color: #1e3a8a; line-height: 1.6; }
+                        .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #1e40af; }
+                        .vg-update-banner .vg-btn-install { background: #3b82f6; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
+                        .vg-update-banner .vg-btn-install:hover { background: #2563eb; color: #fff; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
@@ -249,6 +261,7 @@ class Vigent_Woo_Admin {
                                         finalizing: '<?php echo esc_js( __( 'در حال نهایی‌سازی…', 'vigent-woo' ) ); ?>',
                                         productSent: '<?php echo esc_js( __( 'محصولات ارسال شد', 'vigent-woo' ) ); ?>',
                                         ordersSent: '<?php echo esc_js( __( 'سفارش‌ها ارسال شد', 'vigent-woo' ) ); ?>',
+                                        checkingUpdate: '<?php echo esc_js( __( 'بررسی…', 'vigent-woo' ) ); ?>',
                                 },
                         };
 
@@ -503,6 +516,62 @@ class Vigent_Woo_Admin {
                                         .catch(function() { alert('<?php echo esc_js( __( "خطا در ارتباط.", "vigent-woo" ) ); ?>'); btn.disabled = false; btn.innerHTML = orig; });
                         }
 
+                        // ─── Check for plugin updates (manual button) ───────────
+                        // Calls the `vigent_woo_check_update` AJAX endpoint which
+                        // hits https://vigent.ir/api/wordpress-plugin/info and
+                        // compares the remote version with VIGENT_WOO_VERSION.
+                        //
+                        // Three outcomes handled:
+                        //   1. Already on the latest version → toast "شما از آخرین نسخه استفاده می‌کنید".
+                        //   2. New version available → banner appears with
+                        //      "نصب بروزرسانی" button → user clicks → redirected
+                        //      to WP's update-core.php which runs the actual
+                        //      installer (uses WP Core's upgrader).
+                        //   3. Network error → toast with error message.
+                        var vgUpdateChecked = false;
+                        function vgCheckUpdate(btn) {
+                                if (btn) { btn.disabled = true; var orig = btn.innerHTML; btn.innerHTML = '<span class="vg-spinner"></span> ' + window.VG.i18n.checkingUpdate; }
+
+                                var body = new FormData();
+                                body.append('action', 'vigent_woo_check_update');
+                                body.append('nonce', window.VG.nonce);
+
+                                fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+                                                vgUpdateChecked = true;
+
+                                                if (!data.success) {
+                                                        alert(data.data && data.data.message ? data.data.message : 'خطا در بررسی بروزرسانی.');
+                                                        return;
+                                                }
+                                                var d = data.data;
+                                                if (d.update_available) {
+                                                        // Show the update banner with install button.
+                                                        var banner = document.getElementById('vg-update-banner');
+                                                        if (banner) {
+                                                                banner.style.display = 'flex';
+                                                                var verEl = banner.querySelector('.latest-version');
+                                                                if (verEl) verEl.textContent = d.latest_version;
+                                                                var curEl = banner.querySelector('.current-version');
+                                                                if (curEl) curEl.textContent = d.current_version;
+                                                                var installBtn = banner.querySelector('.vg-btn-install');
+                                                                if (installBtn && d.install_url) installBtn.href = d.install_url;
+                                                        }
+                                                        // Mark the header button as "has update" so it glows.
+                                                        var headerBtn = document.getElementById('vg-btn-update');
+                                                        if (headerBtn) headerBtn.classList.add('has-update');
+                                                } else {
+                                                        alert(d.message || 'شما از آخرین نسخه استفاده می‌کنید.');
+                                                }
+                                        })
+                                        .catch(function() {
+                                                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+                                                alert('خطا در ارتباط با سرور ویجنت.');
+                                        });
+                        }
+
                         // ─── Refresh header status (pill + last-check) ────────────
                         // Replaces the old live-banner. Only updates the small pill
                         // and the "last check" line inside the header — no separate
@@ -672,6 +741,13 @@ class Vigent_Woo_Admin {
                                 // Disconnect button — only when configured.
                                 if ( $configured ) :
                                         ?>
+                                        <button class="vg-btn-update" id="vg-btn-update" onclick="vgCheckUpdate(this)" title="<?php esc_attr_e( 'بررسی بروزرسانی افزونه', 'vigent-woo' ); ?>">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                                <?php
+                                                /* translators: %s: current plugin version */
+                                                printf( esc_html__( 'بروزرسانی (%s)', 'vigent-woo' ), esc_html( VIGENT_WOO_VERSION ) );
+                                                ?>
+                                        </button>
                                         <button class="vg-btn-disconnect" onclick="vgDisconnect(this)">
                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                                                 <?php esc_html_e( 'قطع اتصال', 'vigent-woo' ); ?>
@@ -689,7 +765,46 @@ class Vigent_Woo_Admin {
                         } else {
                                 $this->render_connected_view( $core, $settings, $status, $has_wc );
                         }
+
+                        // Update banner — always rendered in the DOM but hidden by
+                        // default. JavaScript toggles its display when vgCheckUpdate()
+                        // finds a new version. This way, the check is lazy (only
+                        // happens when the user clicks) but the banner is instantly
+                        // available without re-rendering the page.
+                        $this->render_update_banner();
                         ?>
+                </div>
+                <?php
+        }
+
+        /**
+         * Update banner — shown when a new version is available.
+         *
+         * Hidden by default (display:none). vgCheckUpdate() flips it to
+         * display:flex when the server reports a newer version.
+         *
+         * The install button is an <a> so the user gets a real navigation
+         * to update-core.php (where WordPress shows its own confirmation
+         * screen + progress UI). We don't try to install the plugin from
+         * inside our own admin page — that's WP Core's job.
+         */
+        private function render_update_banner() {
+                ?>
+                <div class="vg-update-banner" id="vg-update-banner" style="display:none;">
+                        <div class="icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
+                        <div class="text">
+                                <strong><?php esc_html_e( 'بروزرسانی جدید افزونه ویجنت موجود است', 'vigent-woo' ); ?></strong>
+                                <?php
+                                /* translators: 1: current version, 2: latest version */
+                                printf( esc_html__( 'نسخه فعلی شما %1$s است و نسخه جدید %2$s منتشر شده است.', 'vigent-woo' ), '<span class="current-version">' . esc_html( VIGENT_WOO_VERSION ) . '</span>', '<span class="latest-version">—</span>' );
+                                ?>
+                        </div>
+                        <a href="#" class="vg-btn-install" onclick="return confirm('<?php echo esc_js( __( 'آیا از نصب بروزرسانی مطمئن هستید؟ افزونه به‌طور موقت غیرفعال خواهد شد.', 'vigent-woo' ) ); ?>');">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                <?php esc_html_e( 'نصب بروزرسانی', 'vigent-woo' ); ?>
+                        </a>
                 </div>
                 <?php
         }

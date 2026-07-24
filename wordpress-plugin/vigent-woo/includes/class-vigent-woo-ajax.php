@@ -29,6 +29,7 @@ class Vigent_Woo_Ajax {
                 add_action( 'wp_ajax_vigent_woo_disconnect', array( $this, 'ajax_disconnect' ) );
                 add_action( 'wp_ajax_vigent_woo_clear_retry', array( $this, 'ajax_clear_retry' ) );
                 add_action( 'wp_ajax_vigent_woo_mark_pushed', array( $this, 'ajax_mark_pushed' ) );
+                add_action( 'wp_ajax_vigent_woo_check_update', array( $this, 'ajax_check_update' ) );
         }
 
         private function core() {
@@ -72,6 +73,7 @@ class Vigent_Woo_Ajax {
                         'sync_batch'   => 120,
                         'status'       => 120,
                         'test'         => 10,
+                        'check_update' => 15,
                 );
                 $max = isset( $limits[ $action ] ) ? $limits[ $action ] : 30;
 
@@ -247,5 +249,70 @@ class Vigent_Woo_Ajax {
                 $this->verify_nonce();
                 update_option( 'vigent_woo_initial_push_done', 1 );
                 wp_send_json_success( array( 'message' => __( 'ثبت شد.', 'vigent-woo' ) ) );
+        }
+
+        /**
+         * AJAX: Check for a plugin update against the Vigent server.
+         *
+         * Bypasses the 6-hour cache so the user gets an immediate answer
+         * when they click the "بررسی بروزرسانی" button. Rate-limited to 15
+         * checks per 10 minutes per IP — generous enough for normal use,
+         * tight enough that a hijacked session can't DOS the endpoint.
+         *
+         * Response shape (success):
+         *   {
+         *     "success": true,
+         *     "data": {
+         *       "update_available": bool,
+         *       "current_version": "4.1.0",
+         *       "latest_version":  "4.2.0",
+         *       "message": "نسخه جدید 4.2.0 موجود است...",
+         *       "download_url": "https://vigent.ir/...",
+         *       "install_url": "https://example.com/wp-admin/update-core.php?action=upgrade-plugin&plugin=vigent-woo/vigent-woo.php&_wpnonce=..."
+         *     }
+         *   }
+         *
+         * If an update is available, we also build an `install_url` that
+         * points at WP's native `update-core.php` with the plugin-upgrade
+         * action + a fresh nonce. The plugin's UI uses this URL for the
+         * "نصب بروزرسانی" button so the actual install runs through
+         * WordPress Core's upgrader (no custom install code on our side).
+         */
+        public function ajax_check_update() {
+                $this->verify_nonce();
+                if ( ! $this->check_rate_limit( 'check_update' ) ) {
+                        wp_send_json_error(
+                                array( 'message' => __( 'تعداد درخواست‌ها بیش از حد مجاز است. ۱۰ دقیقه دیگر تلاش کنید.', 'vigent-woo' ) ),
+                                429
+                        );
+                }
+
+                if ( ! class_exists( 'Vigent_Woo_Updater' ) ) {
+                        wp_send_json_error(
+                                array( 'message' => __( 'ماژول بروزرسانی بارگذاری نشده است.', 'vigent-woo' ) ),
+                                500
+                        );
+                }
+
+                $result = Vigent_Woo_Updater::instance()->manual_check();
+
+                // Build the WP-native install URL when an update exists.
+                // This lets the plugin's UI just open this URL and let
+                // WP-Core do the actual file replacement + DB upgrade —
+                // much safer than rolling our own installer.
+                if ( ! empty( $result['update_available'] ) ) {
+                        $result['install_url'] = wp_nonce_url(
+                                admin_url( 'update-core.php?action=upgrade-plugin&plugin=' . rawurlencode( Vigent_Woo_Updater::PLUGIN_FILE ) ),
+                                'upgrade-plugin_' . Vigent_Woo_Updater::PLUGIN_FILE
+                        );
+
+                        // Also force-refresh WP's update transient so the
+                        // install_url actually works on the first click
+                        // (otherwise WP might not yet know an update exists).
+                        delete_site_transient( 'update_plugins' );
+                        wp_update_plugins();
+                }
+
+                wp_send_json( array( 'success' => $result['success'], 'data' => $result ) );
         }
 }
