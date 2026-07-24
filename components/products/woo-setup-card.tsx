@@ -370,17 +370,6 @@ export function WooSetupCard({
     )
 }
 
-function entityLabel(entity: string): string {
-    const map: Record<string, string> = {
-        products: 'محصولات',
-        orders: 'سفارش‌ها',
-        product_update: 'محصول',
-        order_update: 'سفارش',
-        content_update: 'محتوا',
-    }
-    return map[entity] ?? entity
-}
-
 function formatDate(iso: string): string {
     try {
         return formatLocalizedDateTime(iso, 'fa')

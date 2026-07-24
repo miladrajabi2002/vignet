@@ -1,5 +1,3 @@
-import { Package, FolderTree, Plus } from 'lucide-react'
-
 /**
  * Skeleton loader for the products page.
  *

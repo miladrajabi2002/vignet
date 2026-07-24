@@ -45,6 +45,15 @@ const ICONS: Record<BusinessTypeValue, LucideIcon> = {
   CUSTOM: Settings2,
 }
 
+// ─── Persian digit map (for step badges) ────────────────────────
+// The onboarding flow shows "مرحله N از ۴" badges. We hardcode Persian
+// digits (۱, ۲, …) everywhere else so they don't get rendered as English
+// digits by JS template literals. This map is used by CtaStep which takes
+// `step` as a JS number — we convert before rendering.
+const TO_FA_DIGIT: Record<number, string> = {
+  0: '۰', 1: '۱', 2: '۲', 3: '۳', 4: '۴', 5: '۵', 6: '۶', 7: '۷', 8: '۸', 9: '۹',
+}
+
 // ─── Animation variants ─────────────────────────────────────────
 const EASE = [0.16, 1, 0.3, 1] as const
 
@@ -115,6 +124,11 @@ export function OnboardingFlow({
   const [draftBusinessType, setDraftBusinessType] = useState<BusinessTypeValue | null>(
     hasProfile ? businessType as BusinessTypeValue : null,
   )
+  // Set to true when the user just successfully connected WooCommerce via
+  // the in-onboarding wizard. Drives the "با موفقیت سایت شما به ویجنت وصل شد"
+  // success banner shown on the channel step. Reset when the user advances
+  // past the channel step.
+  const [wooJustConnected, setWooJustConnected] = useState(false)
 
   // Determine current phase from server state
   const serverPhase: Phase = (() => {
@@ -198,6 +212,13 @@ export function OnboardingFlow({
                 done={hasKnowledge}
                 onBack={() => { setDirection(-1); setPhaseOverride('agent') }}
                 onContinue={() => { setDirection(1); setPhaseOverride('channel') }}
+                onWooConnected={() => {
+                  // Woo was just connected — set the flag so the channel
+                  // step shows the success banner.
+                  setDirection(1)
+                  setWooJustConnected(true)
+                  setPhaseOverride('channel')
+                }}
                 onSkip={() => skipSetupStep('SKIP_KNOWLEDGE', router)}
               />
             )}
@@ -217,8 +238,9 @@ export function OnboardingFlow({
                 skipLabel="بعداً اتصال می‌دهم"
                 onSkip={() => skipSetupStep('SKIP_CHANNEL', router)}
                 backLabel="بازگشت به محصولات و خدمات"
-                onBack={() => { setDirection(-1); setPhaseOverride('knowledge') }}
-                onContinue={() => { setDirection(1); setPhaseOverride('done') }}
+                onBack={() => { setDirection(-1); setWooJustConnected(false); setPhaseOverride('knowledge') }}
+                onContinue={() => { setDirection(1); setWooJustConnected(false); setPhaseOverride('done') }}
+                successBanner={wooJustConnected ? 'با موفقیت سایت شما به ویجنت وصل شد' : undefined}
               />
             )}
 
@@ -372,7 +394,7 @@ function DetailsStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۱ از ۴
+          مرحله ۲ از ۴
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           اطلاعات کسب‌وکار
@@ -468,6 +490,7 @@ function CtaStep({
   backLabel,
   onBack,
   onContinue,
+  successBanner,
 }: {
   icon: LucideIcon
   step: number
@@ -482,6 +505,12 @@ function CtaStep({
   backLabel: string
   onBack: () => void
   onContinue?: () => void
+  /**
+   * Optional success banner text shown ABOVE the step icon. Used by the
+   * channel step to confirm a successful WooCommerce connection just made
+   * on the previous step. When undefined, no banner is shown.
+   */
+  successBanner?: string
 }) {
   const [skipping, setSkipping] = useState(false)
 
@@ -495,8 +524,30 @@ function CtaStep({
     }
   }
 
+  // Step badge text. The 4th step (channel) is the final onboarding step
+  // so we label it "مرحله آخر" instead of "مرحله ۴ از ۴" — cleaner UX and
+  // matches the user's request. Earlier steps use Persian digits to stay
+  // consistent with the rest of the onboarding flow.
+  const stepBadge =
+    step === 4 ? 'مرحله آخر' : `مرحله ${TO_FA_DIGIT[step]} از ۴`
+
   return (
     <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-center">
+      {/* Success banner — shown above the icon when the user just completed
+          a milestone (e.g. WooCommerce connect). Animates in subtly so it
+          doesn't compete with the rest of the step. */}
+      {successBanner && (
+        <motion.div
+          variants={staggerChild}
+          className="mx-auto mb-6 flex max-w-md items-center justify-center gap-2.5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800"
+        >
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green-600 text-white">
+            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+          </span>
+          <p className="text-[13px] font-semibold leading-5">{successBanner}</p>
+        </motion.div>
+      )}
+
       <motion.div variants={staggerChild} className="mx-auto flex justify-center">
         <div className="relative">
           <motion.div
@@ -518,7 +569,7 @@ function CtaStep({
       </motion.div>
 
       <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        مرحله {step} از ۴
+        {stepBadge}
       </motion.p>
 
       <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
@@ -599,16 +650,24 @@ function KnowledgeStep({
   onBack,
   onContinue,
   onSkip,
+  onWooConnected,
 }: {
   done: boolean
   onBack: () => void
   onContinue: () => void
   onSkip: () => Promise<void>
+  /**
+   * Called when the user successfully connects WooCommerce via the in-
+   * onboarding wizard. Differs from onContinue in that the parent can use
+   * this signal to show a "site connected" success banner on the next step.
+   */
+  onWooConnected?: () => void
 }) {
   const [skipping, setSkipping] = useState(false)
   // WooConnectWizard visibility — when open, the wizard renders INLINE
   // (replacing the two-option grid). After a successful connect, we call
-  // onContinue() to advance to the next onboarding step (channel).
+  // onWooConnected() (if provided) so the parent can flag the success
+  // banner on the next step, then advance to the channel step.
   const [showWizard, setShowWizard] = useState(false)
 
   async function skip() {
@@ -671,7 +730,11 @@ function KnowledgeStep({
           <WooConnectWizard
             onConnected={() => {
               setShowWizard(false)
-              onContinue()
+              // Prefer onWooConnected so the parent can flag the success
+              // banner on the channel step. Fall back to onContinue if the
+              // parent didn't wire it up.
+              if (onWooConnected) onWooConnected()
+              else onContinue()
             }}
             onDismiss={() => setShowWizard(false)}
           />
