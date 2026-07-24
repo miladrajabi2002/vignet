@@ -1225,14 +1225,23 @@ function MessageBuilder({
         // All six message types the builder supports. AUDIO and VIDEO are now
         // first-class options (previously only IMAGE existed, with a misleading
         // "عکس، وویس، ویدیو" label that only ever created an IMAGE entry).
+        //
+        // Note: PRODUCT (single-card) is intentionally NOT in this list anymore.
+        // PRODUCT_LIST handles both cases — when the user picks a single product
+        // the engine sends a regular product card (no carousel chrome), and when
+        // they pick 2+ it sends a horizontal carousel. This collapses two
+        // near-identical buttons into one and removes a recurring source of
+        // confusion ("which one do I pick?").
+        // The legacy PRODUCT type is still rendered in MessageCard (and still
+        // round-trips through the API/engine) so existing scenarios that use it
+        // remain editable — only NEW PRODUCT entries can't be created from the UI.
         const addOptions: { value: MessageType; label: string; Icon: LucideIcon }[] = [
                 { value: 'TEXT', label: 'متن', Icon: Type },
                 { value: 'IMAGE', label: 'عکس', Icon: ImagePlus },
                 { value: 'AUDIO', label: 'صوت', Icon: Mic },
                 { value: 'VIDEO', label: 'ویدیو', Icon: Film },
                 { value: 'QUICK_REPLY', label: 'کلید', Icon: KeyRound },
-                { value: 'PRODUCT', label: 'محصول', Icon: ShoppingBag },
-                { value: 'PRODUCT_LIST', label: 'ویترین محصولات', Icon: Layers },
+                { value: 'PRODUCT_LIST', label: 'محصول', Icon: Layers },
         ]
 
         return (
@@ -1637,7 +1646,7 @@ function MessageCard({
                         {message.type === 'PRODUCT_LIST' && (
                                 <div className="space-y-3">
                                         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-                                                ویترین افقی تا ۱۰ محصول — کاربر می‌تونه بین کارت‌ها swipe کنه. ترتیب با فلش‌های بالا/پایین قابل تغییره.
+                                                یک محصول = کارت محصول تکی، دو یا بیشتر = ویترین افقی قابل‌scroll. ترتیب با فلش‌های بالا/پایین قابل تغییره. حداکثر ۱۰ محصول.
                                         </p>
                                         <MultiProductPicker
                                                 channelId={channelId}
