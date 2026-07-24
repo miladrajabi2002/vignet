@@ -26,6 +26,7 @@ class Vigent_Woo_Ajax {
                 add_action( 'wp_ajax_vigent_woo_sync_batch', array( $this, 'ajax_sync_batch' ) );
                 add_action( 'wp_ajax_vigent_woo_save_toggles', array( $this, 'ajax_save_toggles' ) );
                 add_action( 'wp_ajax_vigent_woo_connect', array( $this, 'ajax_connect' ) );
+                add_action( 'wp_ajax_vigent_woo_disconnect', array( $this, 'ajax_disconnect' ) );
                 add_action( 'wp_ajax_vigent_woo_clear_retry', array( $this, 'ajax_clear_retry' ) );
                 add_action( 'wp_ajax_vigent_woo_mark_pushed', array( $this, 'ajax_mark_pushed' ) );
         }
@@ -65,6 +66,7 @@ class Vigent_Woo_Ajax {
 
                 $limits = array(
                         'connect'      => 5,
+                        'disconnect'   => 5,
                         'mark_pushed'  => 60,
                         'save_toggles' => 60,
                         'sync_batch'   => 120,
@@ -120,6 +122,72 @@ class Vigent_Woo_Ajax {
                         delete_option( 'vigent_woo_initial_push_done' );
                 }
                 wp_send_json( array( 'success' => $result['success'], 'data' => array( 'message' => $result['message'] ) ) );
+        }
+
+        /**
+         * AJAX: Disconnect from Vigent.
+         *
+         * Sends a final `connection.disconnected` webhook event to the Vigent
+         * panel so it can mark the integration as inactive, then clears the
+         * local credentials + initial-push flag + connection-status transient.
+         * After this call returns success, the plugin reloads and shows the
+         * connect step again.
+         *
+         * We send the notification BEFORE clearing the credentials, because the
+         * webhook send needs the webhook_url + webhook_secret to be signed.
+         * If the notification fails (network error, server down, etc.) we
+         * still clear the local credentials — the user wants to disconnect
+         * and we shouldn't trap them in a connected state just because the
+         * server is unreachable. The server will eventually notice the
+         * heartbeat has stopped and mark the integration inactive on its own.
+         */
+        public function ajax_disconnect() {
+                $this->verify_nonce();
+                if ( ! $this->check_rate_limit( 'disconnect' ) ) {
+                        wp_send_json_error(
+                                array( 'message' => __( 'تعداد تلاش‌ها بیش از حد مجاز است. کمی بعد تلاش کنید.', 'vigent-woo' ) ),
+                                429
+                        );
+                }
+
+                $result = $this->core()->disconnect_from_vigent();
+
+                // Always clear local state — even if the server notification
+                // failed. The user explicitly asked to disconnect; trapping
+                // them in a connected state because of a transient network
+                // error would be worse.
+                $s = $this->core()->get_settings();
+                $s['webhook_url']    = '';
+                $s['webhook_secret'] = '';
+                $this->core()->update_settings( $s );
+
+                // Reset the initial-push flag so the wizard reappears on
+                // reconnect. Also clear the connection-status transient.
+                delete_option( 'vigent_woo_initial_push_done' );
+                delete_transient( 'vigent_woo_status' );
+
+                // Clear the cron schedules — no point running auto-sync with
+                // no credentials. They'll be re-created on the next connect
+                // via vigent_woo_setup_cron().
+                wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+
+                if ( ! $result['success'] ) {
+                        // Server notification failed but we still disconnected
+                        // locally. Inform the user with a softer message.
+                        wp_send_json( array(
+                                'success' => true,
+                                'data'    => array(
+                                        'message' => __( 'اتصال قطع شد. (اعلان سرور ویجنت با خطا مواجه شد اما اطلاعات محلی پاک شد.)', 'vigent-woo' ),
+                                ),
+                        ) );
+                }
+
+                wp_send_json( array(
+                        'success' => true,
+                        'data'    => array(
+                                'message' => __( 'اتصال با موفقیت قطع شد.', 'vigent-woo' ),
+                        ),
+                ) );
         }
 
         public function ajax_status() {

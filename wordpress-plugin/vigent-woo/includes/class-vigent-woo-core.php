@@ -245,6 +245,60 @@ class Vigent_Woo_Core {
                 );
         }
 
+        // ─── Disconnect from Vigent ──────────────────────────────────────────
+
+        /**
+         * Notify the Vigent panel that this site is disconnecting.
+         *
+         * Sends a `connection.disconnected` webhook event with the site URL +
+         * timestamp. The Vigent server's webhook handler marks the
+         * StoreIntegration as `active = false` so the panel shows "قطع شد".
+         *
+         * This method does NOT clear the local credentials — the caller
+         * (ajax_disconnect) is responsible for that, and only AFTER this
+         * notification has been attempted (so the webhook can still be
+         * signed with the current secret).
+         *
+         * @return array { success, message }
+         */
+        public function disconnect_from_vigent() {
+                if ( ! $this->is_configured() ) {
+                        // Already disconnected — nothing to notify.
+                        return array(
+                                'success' => true,
+                                'message' => __( 'اتصال قبلاً قطع شده است.', 'vigent-woo' ),
+                        );
+                }
+
+                $payload = array(
+                        'site_url'  => home_url(),
+                        'site_name' => get_bloginfo( 'name' ),
+                        'timestamp' => current_time( 'mysql' ),
+                        'reason'    => 'user_disconnect',
+                );
+
+                // Send with retry=false so we don't queue a retry for a
+                // disconnect notification (there's no point — the credentials
+                // are about to be wiped).
+                $result = $this->send_event( 'connection.disconnected', $payload, false );
+
+                if ( ! empty( $result['success'] ) ) {
+                        return array(
+                                'success' => true,
+                                'message' => __( 'اعلان قطع اتصال به ویجنت ارسال شد.', 'vigent-woo' ),
+                        );
+                }
+
+                return array(
+                        'success' => false,
+                        'message' => sprintf(
+                                /* translators: %s: error message */
+                                __( 'خطا در ارسال اعلان قطع به ویجنت: %s', 'vigent-woo' ),
+                                $result['body']
+                        ),
+                );
+        }
+
         // ─── ارسال رویداد ────────────────────────────────────────────────────
 
         public function send_event( $topic, $data, $retry = true ) {

@@ -576,8 +576,13 @@ export async function handleWooWebhook(
         const topic = payload.topic
         const data = payload.data
 
+        // Determine the entity type for sync-log rows. Connection events get
+        // their own entity label so they're easy to filter in the admin panel.
         const entity =
-                topic.startsWith('product.') ? 'product_update' : 'order_update'
+                topic.startsWith('product.') ? 'product_update'
+                : topic.startsWith('order.') ? 'order_update'
+                : topic.startsWith('connection.') ? 'connection'
+                : 'unknown'
 
         try {
                 if (topic === 'product.created' || topic === 'product.updated') {
@@ -595,6 +600,13 @@ export async function handleWooWebhook(
                         if (wo && wo.id) {
                                 await upsertOrderFromWoo(integration, wo)
                         }
+                } else if (topic === 'connection.disconnected') {
+                        // The WP plugin sends this when the user clicks "قطع اتصال".
+                        // Mark the integration as inactive so the Vigent panel
+                        // shows "قطع شد" and the scheduler stops polling it.
+                        // Products/orders already synced are kept — the user
+                        // might reconnect later.
+                        await markIntegrationDisconnected(integrationId)
                 } else {
                         // Unknown topic — log and bail. Don't fail the webhook (we still 200
                         // so the plugin doesn't retry-storm).
@@ -631,6 +643,29 @@ export async function handleWooWebhook(
                         message: `${topic}: ${msg}`.slice(0, 1000),
                 })
                 throw e
+        }
+}
+
+/**
+ * Mark a store integration as disconnected. Called when the WP plugin sends
+ * a `connection.disconnected` webhook. Sets `active = false` and records the
+ * timestamp so the Vigent panel can show "قطع شد" and the scheduler stops
+ * polling this integration. Synced products/orders are preserved so a
+ * future reconnect picks up where things left off.
+ */
+async function markIntegrationDisconnected(integrationId: string): Promise<void> {
+        try {
+                await prisma.storeIntegration.update({
+                        where: { id: integrationId },
+                        data: {
+                                active: false,
+                                lastSyncAt: new Date(),
+                                lastSyncStatus: 'disconnected',
+                                lastSyncError: null,
+                        },
+                })
+        } catch (e) {
+                console.error('[woocommerce] failed to mark integration disconnected:', e)
         }
 }
 

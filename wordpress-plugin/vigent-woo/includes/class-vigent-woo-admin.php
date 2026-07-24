@@ -85,9 +85,14 @@ class Vigent_Woo_Admin {
                         .vg-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; background: #000; border-radius: 16px; color: #fff; margin-bottom: 20px; }
                         .vg-logo { width: 40px; height: 40px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
                         .vg-logo svg { width: 24px; height: 24px; }
-                        .vg-header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
-                        .vg-header .sub { margin: 3px 0 0; font-size: 12px; opacity: .6; }
+                        .vg-header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+                        .vg-header .sub { margin: 3px 0 0; font-size: 12px; opacity: .6; color: #fff; }
+                        .vg-header .last-check { margin: 2px 0 0; font-size: 10px; opacity: .45; color: #fff; }
                         .vg-header .pill { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+                        /* Disconnect button in header — red tint, sits next to the status pill */
+                        .vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 34px; }
+                        .vg-header .vg-btn-disconnect:hover { background: rgba(239,68,68,.3); color: #fff; border-color: rgba(239,68,68,.5); }
+                        .vg-header .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
@@ -172,12 +177,12 @@ class Vigent_Woo_Admin {
                         .vg-btn-center { background: #000; color: #fff; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 14px; min-height: 56px; display: inline-flex; align-items: center; gap: 10px; transition: all .15s; text-decoration: none; border: none; cursor: pointer; }
                         .vg-btn-center:hover { background: #1a1a1a; color: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
                         .vg-btn-center:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
-                        .vg-center-steps { max-width: 400px; margin: 0 auto; text-align: right; }
-                        .vg-center-info { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: right; }
-                        .vg-center-info p { font-size: 12px; font-weight: 600; color: #374151; margin: 0 0 8px; }
-                        .vg-center-info ul { list-style: none; padding: 0; margin: 0; }
-                        .vg-center-info ul li { font-size: 12px; color: #6b7280; line-height: 1.8; padding-right: 18px; position: relative; }
-                        .vg-center-info ul li::before { content: "✓"; position: absolute; right: 0; color: #10b981; font-weight: 700; }
+                        .vg-center-steps { max-width: 400px; margin: 0 auto; text-align: center; }
+                        .vg-center-steps li { justify-content: center; text-align: center; }
+                        .vg-center-info { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: center; }
+                        .vg-center-info p { font-size: 12px; font-weight: 600; color: #374151; margin: 0 0 8px; text-align: center; }
+                        .vg-center-info ul { list-style: none; padding: 0; margin: 0; text-align: center; }
+                        .vg-center-info ul li { font-size: 12px; color: #6b7280; line-height: 1.8; text-align: center; }
 
                         /* Push wizard steps (visual indicator) */
                         .vg-wizard-steps { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 24px; max-width: 460px; }
@@ -187,6 +192,22 @@ class Vigent_Woo_Admin {
                         .vg-wizard-step.active .dot { background: #000; border-color: #000; color: #fff; }
                         .vg-wizard-step.done .dot { background: #10b981; border-color: #10b981; color: #fff; }
                         .vg-wizard-line { width: 24px; height: 2px; background: #e5e7eb; }
+
+                        /* ─── Next-sync countdown card ─── */
+                        /* Compact card that sits between the success banner and the stats.
+                           Shows a live countdown ("هم‌گام‌سازی بعدی تا ۱۲:۳۴") + a thin
+                           progress bar that fills up as the next sync approaches. When the
+                           countdown hits zero, the text flips to "در حال همگام‌سازی…" and
+                           the page reloads a few seconds later to refresh the stats. */
+                        .vg-next-sync { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px 22px; margin-bottom: 16px; }
+                        .vg-next-sync-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+                        .vg-next-sync-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; font-weight: 600; }
+                        .vg-next-sync-label svg { color: #10b981; }
+                        .vg-next-sync-time { font-size: 13px; color: #6b7280; font-variant-numeric: tabular-nums; font-weight: 600; }
+                        .vg-next-sync-time .num { color: #111; font-weight: 800; }
+                        .vg-next-sync-bar-wrap { margin-top: 12px; background: #f3f4f6; border-radius: 999px; height: 6px; overflow: hidden; }
+                        .vg-next-sync-bar { height: 100%; background: linear-gradient(90deg, #10b981, #000); border-radius: 999px; transition: width 1s linear; width: 0%; }
+                        .vg-next-sync-hint { margin-top: 8px; font-size: 11px; color: #9ca3af; text-align: center; }
                 </style>
                 <?php
         }
@@ -196,6 +217,20 @@ class Vigent_Woo_Admin {
                 $nonce    = wp_create_nonce( VIGENT_WOO_NONCE );
                 $has_wc   = $this->core()->has_wc();
                 $pushed   = (int) get_option( 'vigent_woo_initial_push_done', 0 ) === 1;
+
+                // Compute the next scheduled auto-sync timestamp. WP-Cron stores
+                // the next run as a Unix timestamp (UTC, seconds). We pass it to
+                // JS so the countdown can be computed client-side without an
+                // extra AJAX poll every second.
+                //
+                // If the cron isn't scheduled (e.g. user just connected and
+                // admin_init hasn't run yet), we fall back to "30 min from now"
+                // so the countdown still shows something sensible.
+                $next_sync_ts = wp_next_scheduled( 'vigent_woo_auto_sync' );
+                if ( ! $next_sync_ts ) {
+                        $next_sync_ts = time() + 30 * MINUTE_IN_SECONDS;
+                }
+                $sync_interval_sec = 30 * MINUTE_IN_SECONDS; // matches the cron schedule
                 ?>
                 <script>
                         window.VG = {
@@ -203,6 +238,8 @@ class Vigent_Woo_Admin {
                                 nonce: '<?php echo esc_js( $nonce ); ?>',
                                 hasWc: <?php echo $has_wc ? 'true' : 'false'; ?>,
                                 pushed: <?php echo $pushed ? 'true' : 'false'; ?>,
+                                nextSync: <?php echo (int) $next_sync_ts; ?>,
+                                syncIntervalSec: <?php echo (int) $sync_interval_sec; ?>,
                                 i18n: {
                                         connecting: '<?php echo esc_js( __( 'در حال اتصال…', 'vigent-woo' ) ); ?>',
                                         syncing: '<?php echo esc_js( __( 'در حال ارسال…', 'vigent-woo' ) ); ?>',
@@ -435,6 +472,123 @@ class Vigent_Woo_Admin {
                                         .then(function() { btn.innerHTML = '<?php echo esc_js( __( "✓ ذخیره شد", "vigent-woo" ) ); ?>'; setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 1500); })
                                         .catch(function() { btn.innerHTML = orig; btn.disabled = false; });
                         }
+
+                        // ─── Disconnect from Vigent ────────────────────────────────
+                        // Sends a final notification to the Vigent panel so it can
+                        // mark the integration as disconnected, then clears the
+                        // local credentials and reloads to the connect step.
+                        function vgDisconnect(btn) {
+                                if (!confirm('<?php echo esc_js( __( "از قطع اتصال مطمئن هستید؟ محصولات و سفارش‌های همگام‌شده در پنل ویجنت باقی می‌مانند اما به‌روزرسانی خودکار متوقف می‌شود.", "vigent-woo" ) ); ?>')) return;
+                                btn.disabled = true;
+                                var orig = btn.innerHTML;
+                                btn.innerHTML = '<span class="vg-spinner"></span> <?php echo esc_js( __( "در حال قطع…", "vigent-woo" ) ); ?>';
+
+                                var body = new FormData();
+                                body.append('action', 'vigent_woo_disconnect');
+                                body.append('nonce', window.VG.nonce);
+
+                                fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                if (data.success) {
+                                                        // Reload → page will show the connect step since
+                                                        // credentials are now cleared.
+                                                        location.reload();
+                                                } else {
+                                                        alert(data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( "خطا در قطع اتصال.", "vigent-woo" ) ); ?>');
+                                                        btn.disabled = false;
+                                                        btn.innerHTML = orig;
+                                                }
+                                        })
+                                        .catch(function() { alert('<?php echo esc_js( __( "خطا در ارتباط.", "vigent-woo" ) ); ?>'); btn.disabled = false; btn.innerHTML = orig; });
+                        }
+
+                        // ─── Refresh header status (pill + last-check) ────────────
+                        // Replaces the old live-banner. Only updates the small pill
+                        // and the "last check" line inside the header — no separate
+                        // banner below the header anymore.
+                        function vgRefreshHeaderStatus() {
+                                fetch(window.VG.ajaxUrl + '?action=vigent_woo_status&nonce=' + window.VG.nonce)
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                if (!data.success) return;
+                                                var s = data.data;
+                                                var pill = document.getElementById('vg-status-pill');
+                                                var lc = document.getElementById('vg-last-check');
+                                                if (!pill) return;
+                                                var cls, txt;
+                                                if (s.connected === true) {
+                                                        cls = 'ok'; txt = '<?php echo esc_js( __( "متصل", "vigent-woo" ) ); ?>';
+                                                } else if (s.connected === false) {
+                                                        cls = 'err'; txt = '<?php echo esc_js( __( "قطع", "vigent-woo" ) ); ?>';
+                                                } else {
+                                                        cls = 'warn'; txt = '<?php echo esc_js( __( "در انتظار", "vigent-woo" ) ); ?>';
+                                                }
+                                                pill.className = 'pill ' + cls;
+                                                pill.textContent = txt;
+                                                if (lc) {
+                                                        lc.textContent = s.last_check ? ('آخرین بررسی: ' + s.last_check) : '';
+                                                }
+                                        })
+                                        .catch(function() {});
+                        }
+                        setInterval(vgRefreshHeaderStatus, 30000);
+                        document.addEventListener('DOMContentLoaded', vgRefreshHeaderStatus);
+
+                        // ─── Next-sync countdown ──────────────────────────────────
+                        // Live countdown to the next scheduled auto-sync. window.VG.nextSync
+                        // is the Unix timestamp (seconds) of the next cron run, set by PHP
+                        // via wp_next_scheduled(). The bar fills from 0→100% over the
+                        // 30-minute window. When the countdown hits zero we flip the text
+                        // to "در حال همگام‌سازی…" and reload the page after 10s so the
+                        // refreshed stats show the new sync.
+                        function vgFormatCountdown(secs) {
+                                if (secs < 0) secs = 0;
+                                var m = Math.floor(secs / 60);
+                                var s = secs % 60;
+                                // Persian digits — looks more native on the dashboard.
+                                var faDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+                                var pad = function(n) { return (n < 10 ? '۰' : '') + String(n).replace(/\d/g, function(d) { return faDigits[+d]; }); };
+                                return pad(m) + ':' + pad(s);
+                        }
+
+                        function vgUpdateCountdown() {
+                                var wrap = document.getElementById('vg-next-sync');
+                                if (!wrap || !window.VG.nextSync) return;
+                                var bar = document.getElementById('vg-next-sync-bar');
+                                var timeEl = document.getElementById('vg-next-sync-time');
+                                var labelEl = document.getElementById('vg-next-sync-label-text');
+                                var hintEl = document.getElementById('vg-next-sync-hint');
+                                if (!timeEl || !bar) return;
+
+                                var nowSec = Math.floor(Date.now() / 1000);
+                                var remain = window.VG.nextSync - nowSec;
+                                var total = window.VG.syncIntervalSec || 1800; // 30 min default
+
+                                if (remain <= 0) {
+                                        // Countdown finished — sync should be running now.
+                                        if (labelEl) labelEl.textContent = '<?php echo esc_js( __( "در حال همگام‌سازی…", "vigent-woo" ) ); ?>';
+                                        if (timeEl) timeEl.innerHTML = '<span class="num">…</span>';
+                                        if (bar) bar.style.width = '100%';
+                                        if (hintEl) hintEl.textContent = '<?php echo esc_js( __( "لطفاً صبر کنید.", "vigent-woo" ) ); ?>';
+                                        // Reload once after 10s to refresh stats. We guard with a
+                                        // flag so the timer doesn't keep reloading in a loop.
+                                        if (!window.vgReloadScheduled) {
+                                                window.vgReloadScheduled = true;
+                                                setTimeout(function() { location.reload(); }, 10000);
+                                        }
+                                        return;
+                                }
+
+                                // Progress = (total - remain) / total → 0% at start, 100% at end.
+                                var pct = Math.max(0, Math.min(100, Math.round(((total - remain) / total) * 100)));
+                                if (bar) bar.style.width = pct + '%';
+                                if (timeEl) timeEl.innerHTML = '<span class="num">' + vgFormatCountdown(remain) + '</span>';
+                        }
+                        document.addEventListener('DOMContentLoaded', function() {
+                                vgUpdateCountdown();
+                                setInterval(vgUpdateCountdown, 1000);
+                        });
                 </script>
                 <?php
         }
@@ -497,17 +651,33 @@ class Vigent_Woo_Admin {
                                 <div style="flex:1;">
                                         <h1><?php esc_html_e( 'ویجنت', 'vigent-woo' ); ?></h1>
                                         <p class="sub"><?php esc_html_e( 'اتصال سایت به ایجنت هوشمند ویجنت', 'vigent-woo' ); ?></p>
+                                        <?php if ( $configured && ! empty( $status['last_check'] ) ) : ?>
+                                                <p class="last-check" id="vg-last-check"><?php printf( esc_html__( 'آخرین بررسی: %s', 'vigent-woo' ), esc_html( $status['last_check'] ) ); ?></p>
+                                        <?php else : ?>
+                                                <p class="last-check" id="vg-last-check"></p>
+                                        <?php endif; ?>
                                 </div>
                                 <?php
+                                // Status pill — always present (JS updates it every 30s).
                                 if ( ! $configured ) {
-                                        echo '<span class="pill warn">' . esc_html__( 'پیکربندی نشده', 'vigent-woo' ) . '</span>';
+                                        echo '<span id="vg-status-pill" class="pill warn">' . esc_html__( 'پیکربندی نشده', 'vigent-woo' ) . '</span>';
                                 } elseif ( true === $status['connected'] ) {
-                                        echo '<span class="pill ok">' . esc_html__( 'متصل', 'vigent-woo' ) . '</span>';
+                                        echo '<span id="vg-status-pill" class="pill ok">' . esc_html__( 'متصل', 'vigent-woo' ) . '</span>';
                                 } elseif ( false === $status['connected'] ) {
-                                        echo '<span class="pill err">' . esc_html__( 'قطع', 'vigent-woo' ) . '</span>';
+                                        echo '<span id="vg-status-pill" class="pill err">' . esc_html__( 'قطع', 'vigent-woo' ) . '</span>';
                                 } else {
-                                        echo '<span class="pill warn">' . esc_html__( 'در انتظار', 'vigent-woo' ) . '</span>';
+                                        echo '<span id="vg-status-pill" class="pill warn">' . esc_html__( 'در انتظار', 'vigent-woo' ) . '</span>';
                                 }
+
+                                // Disconnect button — only when configured.
+                                if ( $configured ) :
+                                        ?>
+                                        <button class="vg-btn-disconnect" onclick="vgDisconnect(this)">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                                <?php esc_html_e( 'قطع اتصال', 'vigent-woo' ); ?>
+                                        </button>
+                                        <?php
+                                endif;
                                 ?>
                         </div>
 
@@ -561,8 +731,6 @@ class Vigent_Woo_Admin {
 
         private function render_push_wizard( $has_wc ) {
                 ?>
-                <?php $this->render_live_banner( $this->core()->get_connection_status() ); ?>
-
                 <div class="vg-card vg-center-card">
                         <div class="vg-center-icon">
                                 <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -627,8 +795,6 @@ class Vigent_Woo_Admin {
 
         private function render_connected_view( $core, $settings, $status, $has_wc ) {
                 ?>
-                <?php $this->render_live_banner( $status ); ?>
-
                 <!-- Success card — centered -->
                 <div class="vg-card vg-center-card">
                         <div class="vg-center-icon">
@@ -637,6 +803,25 @@ class Vigent_Woo_Admin {
                         <h2 class="vg-center-title"><?php esc_html_e( 'با موفقیت وصل شد!', 'vigent-woo' ); ?></h2>
                         <p class="vg-center-sub"><?php esc_html_e( 'سایت و محصولات شما با موفقیت به ویجنت وصل شد. هم‌گام‌سازی خودکار هر ۳۰ دقیقه فعال است و تغییرات (مثل قیمت یا موجودی) بلافاصله اعمال می‌شوند.', 'vigent-woo' ); ?></p>
                 </div>
+
+                <!-- Next-sync countdown — only shown when WooCommerce is active
+                     (otherwise there's nothing to sync). The bar + time are
+                     updated live by vgUpdateCountdown() in output_inline_scripts. -->
+                <?php if ( $has_wc ) : ?>
+                        <div class="vg-next-sync" id="vg-next-sync">
+                                <div class="vg-next-sync-row">
+                                        <span class="vg-next-sync-label">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                <span id="vg-next-sync-label-text"><?php esc_html_e( 'هم‌گام‌سازی بعدی تا', 'vigent-woo' ); ?></span>
+                                        </span>
+                                        <span class="vg-next-sync-time" id="vg-next-sync-time"><span class="num">—</span></span>
+                                </div>
+                                <div class="vg-next-sync-bar-wrap">
+                                        <div class="vg-next-sync-bar" id="vg-next-sync-bar"></div>
+                                </div>
+                                <p class="vg-next-sync-hint" id="vg-next-sync-hint"><?php esc_html_e( 'محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند.', 'vigent-woo' ); ?></p>
+                        </div>
+                <?php endif; ?>
 
                 <!-- Stats — compact -->
                 <div class="vg-stats">
@@ -653,46 +838,6 @@ class Vigent_Woo_Admin {
                                 <div class="lbl"><?php esc_html_e( 'در صف تلاش مجدد', 'vigent-woo' ); ?></div>
                         </div>
                 </div>
-
-                <!-- Sync section — compact -->
-                <?php if ( $has_wc ) : ?>
-                        <div class="vg-card">
-                                <h2><?php esc_html_e( 'هم‌گام‌سازی دستی', 'vigent-woo' ); ?></h2>
-                                <p><?php esc_html_e( 'در صورت نیاز، محصولات یا سفارش‌ها را به‌صورت دستی هم‌گام کنید. هم‌گام‌سازی خودکار هر ۳۰ دقیقه نیز فعال است.', 'vigent-woo' ); ?></p>
-
-                                <!-- Minimal category filter (RTL, simple) -->
-                                <div class="vg-field" style="max-width:280px;">
-                                        <label><?php esc_html_e( 'دسته‌بندی محصولات', 'vigent-woo' ); ?></label>
-                                        <select id="filter-category" class="vg-select-minimal">
-                                                <option value=""><?php esc_html_e( 'همه دسته‌ها', 'vigent-woo' ); ?></option>
-                                                <?php
-                                                $categories = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) );
-                                                if ( is_array( $categories ) ) :
-                                                        foreach ( $categories as $cat ) :
-                                                ?>
-                                                                <option value="<?php echo esc_attr( $cat->term_id ); ?>"><?php echo esc_html( $cat->name ); ?></option>
-                                                        <?php endforeach; endif; ?>
-                                        </select>
-                                </div>
-
-                                <div class="vg-btns">
-                                        <button class="vg-btn vg-btn-black" onclick="vgSync('products', this)">
-                                                <?php esc_html_e( 'ارسال محصولات', 'vigent-woo' ); ?>
-                                        </button>
-                                        <button class="vg-btn vg-btn-white" onclick="vgSync('orders', this)">
-                                                <?php esc_html_e( 'ارسال سفارش‌ها', 'vigent-woo' ); ?>
-                                        </button>
-                                </div>
-
-                                <div id="vg-progress" class="vg-progress" style="display:none;">
-                                        <div class="vg-progress-bar-wrap">
-                                                <div id="vg-pbar" class="vg-progress-bar"></div>
-                                                <div id="vg-ptext" class="vg-progress-text">0%</div>
-                                        </div>
-                                        <div id="vg-pinfo" class="vg-progress-info"><span></span><span></span></div>
-                                </div>
-                        </div>
-                <?php endif; ?>
 
                 <!-- Settings -->
                 <div class="vg-card">
@@ -719,44 +864,6 @@ class Vigent_Woo_Admin {
                                 <button class="vg-btn vg-btn-black" onclick="vgSaveToggles(this)"><?php esc_html_e( 'ذخیره', 'vigent-woo' ); ?></button>
                         </div>
                 </div>
-                <?php
-        }
-
-        private function render_live_banner( $status ) {
-                echo '<div id="vg-live" class="vg-live pending"><span class="icon">○</span><div class="text"><strong>' . esc_html__( 'در حال بارگذاری…', 'vigent-woo' ) . '</strong><small></small></div></div>';
-                ?>
-                <script>
-                        // Live status — refresh every 30s.
-                        function vgRefreshStatus() {
-                                fetch(window.VG.ajaxUrl + '?action=vigent_woo_status&nonce=' + window.VG.nonce)
-                                        .then(function(r) { return r.json(); })
-                                        .then(function(data) {
-                                                if (!data.success) return;
-                                                var s = data.data;
-                                                var banner = document.getElementById('vg-live');
-                                                if (!banner) return;
-                                                var cls, icon, msg, sub;
-                                                if (s.connected === true) {
-                                                        cls = 'connected'; icon = '✓';
-                                                        msg = '<?php echo esc_js( __( 'متصل', 'vigent-woo' ) ); ?>';
-                                                        sub = s.last_check ? ('آخرین بررسی: ' + s.last_check) : '';
-                                                } else if (s.connected === false) {
-                                                        cls = 'disconnected'; icon = '✗';
-                                                        msg = '<?php echo esc_js( __( 'اتصال قطع است', 'vigent-woo' ) ); ?>';
-                                                        sub = s.error ? s.error.substring(0, 120) : '';
-                                                } else {
-                                                        cls = 'pending'; icon = '○';
-                                                        msg = '<?php echo esc_js( __( 'در انتظار', 'vigent-woo' ) ); ?>';
-                                                        sub = '';
-                                                }
-                                                banner.className = 'vg-live ' + cls;
-                                                banner.innerHTML = '<span class="icon">' + icon + '</span><div class="text"><strong>' + msg + '</strong><small>' + sub + '</small></div>';
-                                        })
-                                        .catch(function() {});
-                        }
-                        setInterval(vgRefreshStatus, 30000);
-                        document.addEventListener('DOMContentLoaded', vgRefreshStatus);
-                </script>
                 <?php
         }
 
