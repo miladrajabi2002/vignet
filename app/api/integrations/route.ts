@@ -25,9 +25,14 @@ import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 const createSchema = z.object({
         type: z.enum(['WOOCOMMERCE', 'CUSTOM_URL', 'SHOPIFY']),
         storeUrl: z.string().url().max(500),
+        // credentials are now optional — webhook-only mode is supported.
+        // The plugin pushes data via signed webhook; consumerKey/Secret are only
+        // needed when the user wants Vigent to also POLL the WC REST API.
         credentials: z.record(z.string(), z.unknown()).default({}),
         webhookSecret: z.string().min(32).max(128).optional(),
         pollIntervalMinutes: z.number().int().min(0).max(1440).optional(),
+        // Optional human-friendly label for the integration (e.g. "فروشگاه اصلی").
+        label: z.string().max(120).optional(),
 })
 
 /** Per-type list of credential field names that must be encrypted at rest. */
@@ -128,7 +133,13 @@ export async function POST(req: Request) {
         const webhookSecret = parsed.data.webhookSecret ?? crypto.randomBytes(32).toString('base64url')
 
         // Encrypt sensitive credential fields before persisting.
+        // credentials may be {} in webhook-only mode — that's fine, the plugin
+        // pushes via signed webhook without needing REST API keys.
         const safeCredentials = encryptSensitiveFields(type, credentials) as Prisma.InputJsonValue
+
+        // In webhook-only mode (no credentials), disable polling by setting interval to 0.
+        const hasCredentials = credentials && Object.keys(credentials).length > 0
+        const effectivePollInterval = pollIntervalMinutes ?? (hasCredentials ? 30 : 0)
 
         const integration = await prisma.storeIntegration.create({
                 data: {
@@ -137,7 +148,7 @@ export async function POST(req: Request) {
                         storeUrl,
                         credentials: safeCredentials,
                         webhookSecret,
-                        pollIntervalMinutes: pollIntervalMinutes ?? 30,
+                        pollIntervalMinutes: effectivePollInterval,
                 },
                 select: {
                         id: true,
@@ -156,5 +167,10 @@ export async function POST(req: Request) {
                         ? `${appBaseUrl()}/api/sync/woocommerce?token=${webhookSecret}`
                         : null
 
-        return NextResponse.json({ integration, webhookUrl }, { status: 201 })
+        return NextResponse.json({
+                integration,
+                webhookUrl,
+                webhookSecret,
+                mode: hasCredentials ? 'full' : 'webhook-only',
+        }, { status: 201 })
 }

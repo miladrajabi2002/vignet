@@ -1,0 +1,517 @@
+# Copyright (C) 2026 Vigent
+# This file is distributed under the GPL-2.0-or-later license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Vigent — WordPress & WooCommerce Integration 3.0.0\n"
+"Report-Msgid-Bugs-To: https://vigent.ir/support\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"X-Generator: GlotPress\n"
+"X-Domain: vigent-woo\n"
+
+#. Plugin Name of the plugin
+msgid "Vigent — WordPress & WooCommerce Integration"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://vigent.ir/docs/woocommerce"
+msgstr ""
+
+#. Description of the plugin
+msgid "Connects your WordPress site to the Vigent AI agent platform: posts and pages flow into the agent's knowledge base; if WooCommerce is active, products and orders sync automatically."
+msgstr ""
+
+#. Author of the plugin
+msgid "Vigent"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://vigent.ir"
+msgstr ""
+
+#. translators: %d: post id, %s: error message
+msgid "Content #%1$d: %2$s"
+msgstr ""
+
+#. translators: %d: product id, %s: error message
+msgid "Product #%1$d: %2$s"
+msgstr ""
+
+#. translators: %d: order id, %s: error message
+msgid "Order #%1$d: %2$s"
+msgstr ""
+
+msgid "Vigent"
+msgstr ""
+
+msgid "Vigent — Dashboard"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Vigent — Connection Status"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Connection Settings"
+msgstr ""
+
+msgid "Sync"
+msgstr ""
+
+msgid "Site Stats"
+msgstr ""
+
+msgid "Tools"
+msgstr ""
+
+msgid "Help"
+msgstr ""
+
+msgid "Unauthorized access."
+msgstr ""
+
+msgid "Vigent — Dashboard"
+msgstr ""
+
+msgid "Overview of your site's connection and sync status with Vigent."
+msgstr ""
+
+msgid "Products"
+msgstr ""
+
+msgid "Orders"
+msgstr ""
+
+msgid "Posts"
+msgstr ""
+
+msgid "Pages"
+msgstr ""
+
+msgid "Sync status"
+msgstr ""
+
+msgid "Live info about recent syncs and events sent to Vigent."
+msgstr ""
+
+msgid "Synced products"
+msgstr ""
+
+msgid "Synced orders"
+msgstr ""
+
+msgid "In retry queue"
+msgstr ""
+
+msgid "Last connection check"
+msgstr ""
+
+msgid "Test connection"
+msgstr ""
+
+msgid "Go to sync"
+msgstr ""
+
+msgid "Configure connection"
+msgstr ""
+
+msgid "System info"
+msgstr ""
+
+msgid "Plugin version"
+msgstr ""
+
+msgid "WooCommerce"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Inactive"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Disconnected"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Connection is active"
+msgstr ""
+
+msgid "Connection is broken"
+msgstr ""
+
+msgid "Status unknown"
+msgstr ""
+
+msgid "Last check: %s"
+msgstr ""
+
+msgid "Not checked yet"
+msgstr ""
+
+msgid "Webhook URL"
+msgstr ""
+
+msgid "Webhook secret"
+msgstr ""
+
+msgid "Copy this URL from the Vigent panel."
+msgstr ""
+
+msgid "Includes the token at the end of the URL."
+msgstr ""
+
+msgid "The key displayed in the Vigent panel for this connection."
+msgstr ""
+
+msgid "Save settings"
+msgstr ""
+
+msgid "Choose what to sync"
+msgstr ""
+
+msgid "Choose what data is sent automatically from your site to Vigent."
+msgstr ""
+
+msgid "Sync content (posts and pages)"
+msgstr ""
+
+msgid "When a post or page is published or edited, its content is added to the agent's knowledge base."
+msgstr ""
+
+msgid "Sync products"
+msgstr ""
+
+msgid "Requires WooCommerce"
+msgstr ""
+
+msgid "When a product is created, edited, or deleted, send it to Vigent."
+msgstr ""
+
+msgid "Sync orders"
+msgstr ""
+
+msgid "When an order status changes, send it to Vigent."
+msgstr ""
+
+msgid "Product filter"
+msgstr ""
+
+msgid "All products"
+msgstr ""
+
+msgid "Only published products"
+msgstr ""
+
+msgid "Only products with a price"
+msgstr ""
+
+msgid "Only selected categories"
+msgstr ""
+
+msgid "Filter which products are synced."
+msgstr ""
+
+msgid "Selected categories"
+msgstr ""
+
+msgid "Show dashboard widget"
+msgstr ""
+
+msgid "Adds a small widget to the WordPress dashboard showing connection status."
+msgstr ""
+
+msgid "Enable retry for failed events"
+msgstr ""
+
+msgid "If a webhook fails, it will be retried automatically up to 5 times with increasing intervals."
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Quick setup"
+msgstr ""
+
+msgid "In Vigent panel:"
+msgstr ""
+
+msgid "Create a WooCommerce connection."
+msgstr ""
+
+msgid "Copy values:"
+msgstr ""
+
+msgid "Copy the webhook URL and secret."
+msgstr ""
+
+msgid "On this page:"
+msgstr ""
+
+msgid "Paste the values and save."
+msgstr ""
+
+msgid "Test connection:"
+msgstr ""
+
+msgid "Click the Test connection button."
+msgstr ""
+
+msgid "Sync:"
+msgstr ""
+
+msgid "Go to the Sync tab."
+msgstr ""
+
+msgid "Full sync"
+msgstr ""
+
+msgid "Send all current site data to Vigent. The progress bar updates live."
+msgstr ""
+
+msgid "Send all posts and pages"
+msgstr ""
+
+msgid "Send all products"
+msgstr ""
+
+msgid "Send all orders"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Preparing..."
+msgstr ""
+
+msgid "Sent"
+msgstr ""
+
+msgid "Errors"
+msgstr ""
+
+msgid "Done!"
+msgstr ""
+
+msgid "Retry queue"
+msgstr ""
+
+msgid "Failed events that will be resent automatically."
+msgstr ""
+
+msgid "Topic"
+msgstr ""
+
+msgid "Attempt"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Clear queue"
+msgstr ""
+
+msgid "Sync checklist"
+msgstr ""
+
+msgid "Name, SKU, description, price, stock, images, attributes and tags."
+msgstr ""
+
+msgid "Number, status, total, payment method, billing info and order items."
+msgstr ""
+
+msgid "Published posts and pages with title, excerpt, full content and URL."
+msgstr ""
+
+msgid "After sync: go to the Vigent panel (Products) and see the updated list."
+msgstr ""
+
+msgid "Site stats"
+msgstr ""
+
+msgid "Overview of your site data and sync status with Vigent."
+msgstr ""
+
+msgid "Total products"
+msgstr ""
+
+msgid "Published products"
+msgstr ""
+
+msgid "Products with a price"
+msgstr ""
+
+msgid "Total stock"
+msgstr ""
+
+msgid "Products — last 7 days"
+msgstr ""
+
+msgid "Number of products created in the last 7 days."
+msgstr ""
+
+msgid "Orders — last 7 days"
+msgstr ""
+
+msgid "Number of orders placed in the last 7 days."
+msgstr ""
+
+msgid "Order status breakdown"
+msgstr ""
+
+msgid "Orders grouped by status."
+msgstr ""
+
+msgid "Content stats"
+msgstr ""
+
+msgid "Published posts"
+msgstr ""
+
+msgid "Published pages"
+msgstr ""
+
+msgid "Approved comments"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "Test, troubleshooting and management tools."
+msgstr ""
+
+msgid "Verify the connection between your site and Vigent."
+msgstr ""
+
+msgid "Data cleanup"
+msgstr ""
+
+msgid "Clear cache transients and the retry queue."
+msgstr ""
+
+msgid "Clear cache"
+msgstr ""
+
+msgid "Clear retry queue"
+msgstr ""
+
+msgid "Retry queue cleared."
+msgstr ""
+
+msgid "HPOS"
+msgstr ""
+
+msgid "Memory Limit"
+msgstr ""
+
+msgid "Max Execution Time"
+msgstr ""
+
+msgid "WP-Cron"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "If you have server access, you can use WP-CLI:"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Copied!"
+msgstr ""
+
+msgid "Setup guide"
+msgstr ""
+
+msgid "Create a WooCommerce connection in the Vigent panel. Vigent auto-generates the link and key."
+msgstr ""
+
+msgid "Go to Vigent → Connection Settings, paste the URL and key, and save."
+msgstr ""
+
+msgid "Click Test connection. The connection status is shown live."
+msgstr ""
+
+msgid "Go to the Sync tab and click the buttons you want. The progress bar updates live."
+msgstr ""
+
+msgid "FAQ"
+msgstr ""
+
+msgid "Does it work without WooCommerce?"
+msgstr ""
+
+msgid "Yes. Content sync works on any WordPress site."
+msgstr ""
+
+msgid "Fatal error: get_billing()?"
+msgstr ""
+
+msgid "This is fixed in version 2.0.0 and later. Update the plugin."
+msgstr ""
+
+msgid "401 error in Vigent panel?"
+msgstr ""
+
+msgid "Caused by wrong Consumer Key/Secret. Recreate the keys in WooCommerce or use webhook-only mode."
+msgstr ""
+
+msgid "No logs in the panel?"
+msgstr ""
+
+msgid "After Test connection, a log row should appear immediately. If not, the webhook URL is wrong or the host is blocking outgoing requests."
+msgstr ""
+
+msgid "Nonce verification failed."
+msgstr ""
+
+msgid "Invalid sync kind."
+msgstr ""
+
+msgid "WooCommerce is not active."
+msgstr ""
+
+msgid "Webhook settings are incomplete."
+msgstr ""
+
+msgid "Error building JSON."
+msgstr ""
+
+msgid "Connection successful."
+msgstr ""
+
+msgid "Connection error (code %1$d): %2$s"
+msgstr ""
+
+msgid "Clear retry queue?"
+msgstr ""
+
+msgid "Syncing..."
+msgstr ""
+
+msgid "Testing..."
+msgstr ""
+
+msgid "Every 5 minutes"
+msgstr ""

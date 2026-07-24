@@ -19,6 +19,7 @@ import {
   Sparkles,
   Utensils,
   ArrowLeft,
+  Link2,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -191,20 +192,11 @@ export function OnboardingFlow({
             )}
 
             {currentPhase === 'knowledge' && (
-              <CtaStep
-                icon={Package}
-                step={3}
-                title="محصولات یا خدمات را اضافه کنید"
-                subtitle="ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد"
-                tip="محصولات را با نام، قیمت و موجودی وارد کنید. ایجنت از این داده‌ها برای پیشنهاد و فروش استفاده می‌کند."
-                ctaLabel="افزودن محصولات"
-                ctaHref="/products/new?onboarding=1"
+              <KnowledgeStep
                 done={hasKnowledge}
-                skipLabel="بعداً اضافه می‌کنم"
-                onSkip={() => skipSetupStep('SKIP_KNOWLEDGE', router)}
-                backLabel="بازگشت به مرحله ایجنت"
                 onBack={() => { setDirection(-1); setPhaseOverride('agent') }}
                 onContinue={() => { setDirection(1); setPhaseOverride('channel') }}
+                onSkip={() => skipSetupStep('SKIP_KNOWLEDGE', router)}
               />
             )}
 
@@ -594,6 +586,159 @@ function CtaStep({
       >
         <ArrowLeft className="h-4 w-4 rotate-180" />
         {backLabel}
+      </motion.button>
+    </motion.div>
+  )
+}
+
+// ─── Step 3: Knowledge / Products (with WooCommerce connect option) ────
+function KnowledgeStep({
+  done,
+  onBack,
+  onContinue,
+  onSkip,
+}: {
+  done: boolean
+  onBack: () => void
+  onContinue: () => void
+  onSkip: () => Promise<void>
+}) {
+  const [skipping, setSkipping] = useState(false)
+
+  async function skip() {
+    if (skipping) return
+    setSkipping(true)
+    try {
+      await onSkip()
+    } finally {
+      setSkipping(false)
+    }
+  }
+
+  return (
+    <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-center">
+      <motion.div variants={staggerChild} className="mx-auto flex justify-center">
+        <div className="relative">
+          <motion.div
+            animate={done ? {} : { scale: [1, 1.05, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="grid h-20 w-20 place-items-center rounded-3xl bg-[var(--text-primary)] text-white"
+            style={{ boxShadow: 'var(--shadow-lift)' }}
+          >
+            <Package className="h-9 w-9" strokeWidth={1.5} />
+          </motion.div>
+          {!done && (
+            <motion.span
+              className="absolute -inset-2 rounded-3xl border-2 border-[var(--text-primary)]"
+              animate={{ opacity: [0.15, 0, 0.15], scale: [1, 1.1, 1] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+        </div>
+      </motion.div>
+
+      <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        مرحله ۳ از ۴
+      </motion.p>
+
+      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+        محصولات یا خدمات را اضافه کنید
+      </motion.h2>
+
+      <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
+        ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد. دو راه برای افزودن محصولات دارید:
+      </motion.p>
+
+      {/* Two-option grid */}
+      <motion.div variants={staggerChild} className="mt-6 grid gap-3 sm:grid-cols-2 text-start">
+        {/* Option A: Connect WooCommerce */}
+        <a
+          href="/products?onboarding=1"
+          className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-white">
+              <Link2 className="h-4 w-4" strokeWidth={2} />
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">پیشنهادی</span>
+          </div>
+          <h3 className="mt-3 text-[14px] font-bold text-[var(--text-primary)]">
+            اتصال سایت وردپرس یا ووکامرس
+          </h3>
+          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
+            سایت فروشگاهی دارید؟ با چند کلیک وصل کنید — محصولات خودکار بروز و اضافه می‌شوند به پنل.
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--text-primary)]">
+            شروع اتصال
+            <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
+          </div>
+        </a>
+
+        {/* Option B: Manual product entry */}
+        <a
+          href="/products/new?onboarding=1"
+          className="spatial-press group relative overflow-hidden rounded-2xl border-2 border-[var(--border-default)] bg-white p-4 transition-all hover:border-[var(--text-primary)]"
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+              <Package className="h-4 w-4" strokeWidth={2} />
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">دستی</span>
+          </div>
+          <h3 className="mt-3 text-[14px] font-bold text-[var(--text-primary)]">
+            افزودن دستی محصولات
+          </h3>
+          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
+            محصول را با نام، قیمت و موجودی وارد کنید. ایجنت از این داده‌ها برای پیشنهاد و فروش استفاده می‌کند.
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--text-primary)]">
+            افزودن محصول
+            <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
+          </div>
+        </a>
+      </motion.div>
+
+      {/* CTA buttons */}
+      <motion.div variants={staggerChild} className="mt-8 flex flex-col items-center gap-2">
+        {done ? (
+          <button
+            type="button"
+            onClick={onContinue}
+            className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+          >
+            <motion.span
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="grid h-7 w-7 place-items-center rounded-full bg-[var(--text-primary)] text-white"
+            >
+              <Check className="h-4 w-4" strokeWidth={3} />
+            </motion.span>
+            ادامه به مرحله بعد
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void skip()}
+            disabled={skipping}
+            className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)] disabled:opacity-50"
+          >
+            {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {skipping ? 'در حال ثبت…' : 'بعداً اضافه می‌کنم'}
+          </button>
+        )}
+      </motion.div>
+      <motion.button
+        variants={staggerChild}
+        type="button"
+        onClick={onBack}
+        className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
+      >
+        <ArrowLeft className="h-4 w-4 rotate-180" />
+        بازگشت به مرحله ایجنت
       </motion.button>
     </motion.div>
   )

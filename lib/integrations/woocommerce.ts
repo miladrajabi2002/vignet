@@ -95,6 +95,10 @@ interface WooOrder {
  * the StoreIntegration row. Accepts either a plaintext `consumerSecret` (dev)
  * or an encrypted `consumerSecretEnc` payload (production). Throws on missing
  * fields so callers fail loudly instead of silently 401'ing against the WC API.
+ *
+ * Note: In webhook-only mode (no credentials configured), this throws — the
+ * caller is expected to catch and skip polling, since the WP plugin pushes
+ * data via signed webhook without needing REST API keys.
  */
 export function resolveWooCredentials(raw: unknown): WooCredentials {
         if (!raw || typeof raw !== 'object') {
@@ -112,6 +116,20 @@ export function resolveWooCredentials(raw: unknown): WooCredentials {
                 throw new Error('Missing WooCommerce consumerKey/consumerSecret')
         }
         return { consumerKey, consumerSecret }
+}
+
+/**
+ * Check whether an integration has REST API credentials configured.
+ * Returns false for webhook-only integrations (no consumerKey/consumerSecret).
+ * Used by the scheduler and manual sync to skip polling gracefully.
+ */
+export function hasWooCredentials(raw: unknown): boolean {
+        try {
+                resolveWooCredentials(raw)
+                return true
+        } catch {
+                return false
+        }
 }
 
 // ─── HMAC webhook signature verification ────────────────────────────────────
