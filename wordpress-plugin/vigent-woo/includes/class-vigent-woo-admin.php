@@ -552,10 +552,13 @@ class Vigent_Woo_Admin {
                         //
                         // Three outcomes handled:
                         //   1. Already on the latest version → toast "شما از آخرین نسخه استفاده می‌کنید".
-                        //   2. New version available → banner appears with
-                        //      "نصب بروزرسانی" button → user clicks → redirected
-                        //      to WP's update-core.php which runs the actual
-                        //      installer (uses WP Core's upgrader).
+                        //   2. New version available → banner appears at the TOP of the
+                        //      page with "نصب بروزرسانی" button. JS auto-scrolls to it
+                        //      so the user immediately sees it. The button calls
+                        //      vgInstallUpdate() which runs our custom AJAX installer
+                        //      (no page navigation). If the AJAX installer fails (e.g.
+                        //      filesystem credentials needed), the user is offered
+                        //      the fallback URL to update.php.
                         //   3. Network error → toast with error message.
                         var vgUpdateChecked = false;
                         function vgCheckUpdate(btn) {
@@ -577,7 +580,7 @@ class Vigent_Woo_Admin {
                                                 }
                                                 var d = data.data;
                                                 if (d.update_available) {
-                                                        // Show the update banner with install button.
+                                                        // Show the update banner at the top of the page.
                                                         var banner = document.getElementById('vg-update-banner');
                                                         if (banner) {
                                                                 banner.style.display = 'flex';
@@ -585,12 +588,23 @@ class Vigent_Woo_Admin {
                                                                 if (verEl) verEl.textContent = d.latest_version;
                                                                 var curEl = banner.querySelector('.current-version');
                                                                 if (curEl) curEl.textContent = d.current_version;
-                                                                var installBtn = banner.querySelector('.vg-btn-install');
-                                                                if (installBtn && d.install_url) installBtn.href = d.install_url;
+                                                                // Save the fallback URL (WP-native update.php) for use
+                                                                // if our AJAX installer fails. We don't set it on the
+                                                                // button itself because the button now triggers AJAX.
+                                                                if (d.fallback_install_url) {
+                                                                        window.VG.fallbackInstallUrl = d.fallback_install_url;
+                                                                }
                                                         }
                                                         // Mark the header button as "has update" so it glows.
                                                         var headerBtn = document.getElementById('vg-btn-update');
                                                         if (headerBtn) headerBtn.classList.add('has-update');
+                                                        // Auto-scroll the banner into view so the user sees it
+                                                        // even if they were scrolled down when they clicked.
+                                                        setTimeout(function() {
+                                                                if (banner && banner.scrollIntoView) {
+                                                                        banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                }
+                                                        }, 100);
                                                 } else {
                                                         alert(d.message || 'شما از آخرین نسخه استفاده می‌کنید.');
                                                 }
@@ -598,6 +612,64 @@ class Vigent_Woo_Admin {
                                         .catch(function() {
                                                 if (btn) { btn.disabled = false; btn.innerHTML = orig; }
                                                 alert('خطا در ارتباط با سرور ویجنت.');
+                                        });
+                        }
+
+                        // ─── Install the update via AJAX ─────────────────────────
+                        // Calls `vigent_woo_install_update` which uses WP Core's
+                        // Plugin_Upgrader to download + install the new ZIP in place.
+                        // This avoids the blank-page issue with update-core.php and
+                        // gives the user a smooth in-page experience:
+                        //   click → spinner → success alert → page reload.
+                        //
+                        // If the AJAX installer fails (most commonly because the site
+                        // needs FTP credentials and the user hasn't entered them), we
+                        // offer the fallback URL to update.php?action=upgrade-plugin
+                        // which shows WP's standard confirmation screen.
+                        var vgInstalling = false;
+                        function vgInstallUpdate(btn) {
+                                if (vgInstalling) return;
+                                if (!confirm('<?php echo esc_js( __( "آیا از نصب بروزرسانی مطمئن هستید؟ افزونه به‌طور موقت غیرفعال خواهد شد.", "vigent-woo" ) ); ?>')) return;
+
+                                vgInstalling = true;
+                                var orig = btn ? btn.innerHTML : '';
+                                if (btn) {
+                                        btn.disabled = true;
+                                        btn.innerHTML = '<span class="vg-spinner"></span> <?php echo esc_js( __( "در حال نصب…", "vigent-woo" ) ); ?>';
+                                }
+
+                                var body = new FormData();
+                                body.append('action', 'vigent_woo_install_update');
+                                body.append('nonce', window.VG.nonce);
+
+                                fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                if (data.success) {
+                                                        if (btn) {
+                                                                btn.innerHTML = '<span class="vg-spinner"></span> <?php echo esc_js( __( "تکمیل…", "vigent-woo" ) ); ?>';
+                                                        }
+                                                        alert(data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( "بروزرسانی با موفقیت نصب شد.", "vigent-woo" ) ); ?>');
+                                                        // Reload to show the new version.
+                                                        setTimeout(function() { location.reload(); }, 800);
+                                                        return;
+                                                }
+                                                // Failed — re-enable the button and offer the fallback.
+                                                vgInstalling = false;
+                                                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+                                                var msg = data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( "خطا در نصب بروزرسانی.", "vigent-woo" ) ); ?>';
+                                                if (window.VG.fallbackInstallUrl) {
+                                                        if (confirm(msg + '\n\n<?php echo esc_js( __( "آیا می‌خواهید از روش جایگزین (صفحه بروزرسانی وردپرس) استفاده کنید؟", "vigent-woo" ) ); ?>')) {
+                                                                window.location.href = window.VG.fallbackInstallUrl;
+                                                        }
+                                                } else {
+                                                        alert(msg);
+                                                }
+                                        })
+                                        .catch(function() {
+                                                vgInstalling = false;
+                                                if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+                                                alert('<?php echo esc_js( __( "خطا در ارتباط با سرور.", "vigent-woo" ) ); ?>');
                                         });
                         }
 
@@ -812,6 +884,12 @@ class Vigent_Woo_Admin {
                         </div>
 
                         <?php
+                        // Update banner — rendered at the TOP of the page (right after
+                        // the header) so the user sees it immediately when an update is
+                        // available, without scrolling past all the stats and settings.
+                        // It's hidden by default and toggled by vgCheckUpdate() JS.
+                        $this->render_update_banner();
+
                         if ( 'connect' === $view ) {
                                 $this->render_connect_step( $has_wc );
                         } elseif ( 'push' === $view ) {
@@ -819,13 +897,6 @@ class Vigent_Woo_Admin {
                         } else {
                                 $this->render_connected_view( $core, $settings, $status, $has_wc );
                         }
-
-                        // Update banner — always rendered in the DOM but hidden by
-                        // default. JavaScript toggles its display when vgCheckUpdate()
-                        // finds a new version. This way, the check is lazy (only
-                        // happens when the user clicks) but the banner is instantly
-                        // available without re-rendering the page.
-                        $this->render_update_banner();
                         ?>
                 </div>
                 <?php
@@ -898,10 +969,10 @@ class Vigent_Woo_Admin {
                                 printf( esc_html__( 'نسخه فعلی شما %1$s است و نسخه جدید %2$s منتشر شده است.', 'vigent-woo' ), '<span class="current-version">' . esc_html( VIGENT_WOO_VERSION ) . '</span>', '<span class="latest-version">—</span>' );
                                 ?>
                         </div>
-                        <a href="#" class="vg-btn-install" onclick="return confirm('<?php echo esc_js( __( 'آیا از نصب بروزرسانی مطمئن هستید؟ افزونه به‌طور موقت غیرفعال خواهد شد.', 'vigent-woo' ) ); ?>');">
+                        <button type="button" class="vg-btn-install" id="vg-btn-install" onclick="vgInstallUpdate(this)">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                 <?php esc_html_e( 'نصب بروزرسانی', 'vigent-woo' ); ?>
-                        </a>
+                        </button>
                 </div>
                 <?php
         }

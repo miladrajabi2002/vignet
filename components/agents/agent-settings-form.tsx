@@ -15,7 +15,6 @@ import {
         Sparkles,
         MessageSquare,
         ShieldAlert,
-        AlertCircle,
         HelpCircle,
         Type,
         ListChecks,

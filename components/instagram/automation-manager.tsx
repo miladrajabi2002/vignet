@@ -10,7 +10,6 @@ import {
         Circle,
         Plus,
         Loader2,
-        AlertCircle,
         Bot,
         Shield,
         Zap,
