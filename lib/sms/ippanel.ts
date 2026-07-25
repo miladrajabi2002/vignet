@@ -357,3 +357,20 @@ export async function verifyOTP(mobile: string, code: string): Promise<boolean> 
   )
   return consumed === 1
 }
+
+/** Check a code without consuming it, so registration can collect the name next. */
+export async function isOTPValid(mobile: string, code: string): Promise<boolean> {
+  const normalized = normalizePhone(mobile)
+  if (!normalized) return false
+
+  const redis = getRedis()
+  const matches = await redis.eval(
+    `local stored = redis.call('GET', KEYS[1])
+     if not stored or stored ~= ARGV[1] then return 0 end
+     return 1`,
+    1,
+    `otp:${normalized}`,
+    code,
+  )
+  return matches === 1
+}

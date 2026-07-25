@@ -12,7 +12,7 @@ vi.mock('@/lib/ratelimit', () => ({
   rateLimit: mocks.rateLimit,
 }))
 
-import { verifyOTP } from '@/lib/sms/ippanel'
+import { isOTPValid, verifyOTP } from '@/lib/sms/ippanel'
 import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
 
 beforeEach(() => {
@@ -35,6 +35,16 @@ describe('OTP verification security', () => {
   it('does not accept an OTP that Redis did not consume', async () => {
     mocks.eval.mockResolvedValue(0)
     await expect(verifyOTP('09123456789', '000000')).resolves.toBe(false)
+  })
+
+  it('can validate an OTP without consuming it during registration', async () => {
+    mocks.eval.mockResolvedValue(1)
+
+    await expect(isOTPValid('09123456789', '123456')).resolves.toBe(true)
+    const [script, keyCount, key, value] = mocks.eval.mock.calls[0]
+    expect(script).toContain("redis.call('GET', KEYS[1])")
+    expect(script).not.toContain("redis.call('DEL', KEYS[1])")
+    expect([keyCount, key, value]).toEqual([1, 'otp:+989123456789', '123456'])
   })
 
   it('fails closed on either the phone or client verification limit', async () => {

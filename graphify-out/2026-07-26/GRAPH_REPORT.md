@@ -1,7 +1,7 @@
 # Graph Report - vignet  (2026-07-26)
 
 ## Corpus Check
-- 655 files · ~489,139 words
+- 655 files · ~489,117 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -521,8 +521,8 @@ Cohesion: 0.13
 Nodes (17): DELETE(), GET(), getOwnedAgent(), Params, PATCH(), detectRole(), fallbackVigentoDraft(), recommendedChannels (+9 more)
 
 ### Community 62 - "helpers.ts"
-Cohesion: 0.10
-Nodes (20): VigentoPage(), Message, Proposal, QUICK_PROMPTS, VigentoAdminConsole(), WELCOME, Msg, TestPlayground() (+12 more)
+Cohesion: 0.12
+Nodes (16): VigentoPage(), Message, Proposal, QUICK_PROMPTS, VigentoAdminConsole(), WELCOME, ConversationBubble(), ConversationBubbleTone (+8 more)
 
 ### Community 63 - "page.tsx"
 Cohesion: 0.08
@@ -737,20 +737,20 @@ Cohesion: 0.22
 Nodes (8): Available Domains, Available Stacks, How to Use, Output Formats, Prerequisites, Rule Categories by Priority, Search Reference, UI/UX Pro Max - Design Intelligence
 
 ### Community 119 - "route.ts"
-Cohesion: 0.09
-Nodes (26): CHANNEL_LABELS_FA, SalesFilter, VALID_CHANNELS, VALID_SALES_FILTERS, VALID_STATUSES, CampaignComposer(), DraftCampaign, Preview (+18 more)
+Cohesion: 0.15
+Nodes (13): CampaignComposer(), DraftCampaign, Preview, CampaignLaunchButton(), CHANNEL_LABEL, ListView(), PipelineView(), rowDisplayName() (+5 more)
 
 ### Community 121 - "vigento-actions.ts"
-Cohesion: 0.07
-Nodes (29): AgentCatalogPage(), agent_hint_body(), agent_hint_title(), AgentsPage(), CHANNELS, IntegrationsPage(), DigitalMenuDashboardPage(), CategoriesPage() (+21 more)
+Cohesion: 0.08
+Nodes (26): AgentCatalogPage(), agent_hint_body(), agent_hint_title(), AgentsPage(), CHANNELS, IntegrationsPage(), DigitalMenuDashboardPage(), CategoriesPage() (+18 more)
 
 ### Community 122 - "formatDateTime"
 Cohesion: 0.21
 Nodes (10): DELETE(), Params, PATCH(), GET(), POST(), categoryCreateSchema, categoryUpdateSchema, productCreateSchema (+2 more)
 
 ### Community 123 - "page.tsx"
-Cohesion: 0.10
-Nodes (37): AgentAnalyticsPage(), ContactDetailPage(), ContactsPage(), ConversationThreadPage(), ConversationsPage(), buildTrend(), daysAgo(), isRecord() (+29 more)
+Cohesion: 0.07
+Nodes (50): AgentAnalyticsPage(), ContactDetailPage(), ContactsPage(), ConversationThreadPage(), CHANNEL_LABELS_FA, ConversationsPage(), SalesFilter, VALID_CHANNELS (+42 more)
 
 ### Community 125 - "normalizeChatLinkSettings"
 Cohesion: 0.16
@@ -842,7 +842,7 @@ Nodes (24): POST(), appUrl(), GET(), handleCallback(), POST(), readPid(), appUrl
 
 ### Community 148 - "route.ts"
 Cohesion: 0.05
-Nodes (43): AgentLayout(), AttentionItem(), fmtBytes(), Metrics, Sample, ServerStatsWidget(), AgentTabItem, AgentTabs() (+35 more)
+Nodes (50): AgentLayout(), AttentionItem(), ServicesPage(), fmtBytes(), Metrics, Sample, ServerStatsWidget(), Msg (+42 more)
 
 ### Community 149 - "نکات اجرایی"
 Cohesion: 0.33

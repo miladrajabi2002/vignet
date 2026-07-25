@@ -33,12 +33,14 @@ export function PhoneOtpForm({
   const [isNewUser, setIsNewUser] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [codeVerified, setCodeVerified] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Bumped on every failed verify so the shake animation replays.
   const [shakeKey, setShakeKey] = useState(0)
   const [resendIn, setResendIn] = useState(0)
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
   // Guards the auto-verify effect from double-submitting the same code.
   const submittingRef = useRef(false)
 
@@ -75,6 +77,7 @@ export function PhoneOtpForm({
       setStep('otp')
       setResendIn(RESEND_SECONDS)
       setCode(Array(OTP_LENGTH).fill(''))
+      setCodeVerified(false)
       submittingRef.current = false
       setTimeout(() => otpRefs.current[0]?.focus(), 350)
     } catch {
@@ -118,6 +121,7 @@ export function PhoneOtpForm({
           setError('INVALID_CODE')
           setShakeKey((k) => k + 1)
           setCode(Array(OTP_LENGTH).fill(''))
+          setCodeVerified(false)
           submittingRef.current = false
           otpRefs.current[0]?.focus()
           return
@@ -140,16 +144,52 @@ export function PhoneOtpForm({
     [phone, isNewUser, nextPath, preferredPlan],
   )
 
+  const checkRegistrationCode = useCallback(
+    async (fullCode: string) => {
+      if (submittingRef.current) return
+      submittingRef.current = true
+      setError(null)
+      setLoading(true)
+      try {
+        const res = await fetch('/api/auth/otp/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code: fullCode }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error ?? 'INVALID_CODE')
+          setShakeKey((k) => k + 1)
+          setCode(Array(OTP_LENGTH).fill(''))
+          setCodeVerified(false)
+          setTimeout(() => otpRefs.current[0]?.focus(), 0)
+          return
+        }
+
+        setCodeVerified(true)
+        setError('NAME_REQUIRED')
+        setTimeout(() => nameInputRef.current?.focus(), 0)
+      } catch {
+        setError('GENERIC')
+      } finally {
+        submittingRef.current = false
+        setLoading(false)
+      }
+    },
+    [phone],
+  )
+
   // Auto-verify the moment the last digit lands (typed, pasted or autofilled).
   // Only fires when code reaches 6 digits — does NOT re-fire on name changes
   // (verify is stable across name edits because it reads from nameRef).
   useEffect(() => {
     const fullCode = code.join('')
     if (step === 'otp' && fullCode.length === OTP_LENGTH && !success) {
-      verify(fullCode)
+      if (isNewUser) void checkRegistrationCode(fullCode)
+      else void verify(fullCode)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, step, success])
+  }, [code, step, success, isNewUser, checkRegistrationCode, verify])
 
   // WebOTP: on Android Chrome the browser reads the incoming SMS (its last
   // line carries "@domain #code") and offers the code with one tap.
@@ -185,6 +225,8 @@ export function PhoneOtpForm({
   }
 
   function handleOtpChange(index: number, raw: string) {
+    setCodeVerified(false)
+    if (error) setError(null)
     const digits = toEnglishDigits(raw).replace(/\D/g, '')
     if (!digits) {
       setCode((prev) => {
@@ -282,6 +324,7 @@ export function PhoneOtpForm({
                 setStep('phone')
                 setError(null)
                 setCode(Array(OTP_LENGTH).fill(''))
+                setCodeVerified(false)
                 submittingRef.current = false
               }}
               className="mb-2 inline-flex min-h-10 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
@@ -303,18 +346,33 @@ export function PhoneOtpForm({
                   {t('nameLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
+                  ref={nameInputRef}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    const nextName = e.target.value
+                    setName(nextName)
+                    if (codeVerified) {
+                      setError(nextName.trim().length >= 3 ? null : 'NAME_REQUIRED')
+                    }
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && name.trim()) {
-                      otpRefs.current[0]?.focus()
+                    if (
+                      e.key === 'Enter' &&
+                      codeVerified &&
+                      name.trim().length >= 3 &&
+                      !loading &&
+                      !success
+                    ) {
+                      void verify(code.join(''))
                     }
                   }}
                   placeholder={t('namePlaceholder')}
                   autoFocus
                   required
                   className={`min-h-12 w-full rounded-xl border bg-[var(--bg-surface)] px-4 text-base text-[var(--text-primary)] outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-[var(--text-hint)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_rgba(10,132,255,0.12)] ${
-                    error === 'NAME_REQUIRED'
+                    codeVerified && name.trim().length >= 3
+                      ? 'border-success'
+                      : error === 'NAME_REQUIRED'
                       ? 'border-danger'
                       : 'border-[var(--border-default)]'
                   }`}
@@ -358,15 +416,15 @@ export function PhoneOtpForm({
                   inputMode="numeric"
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   maxLength={OTP_LENGTH}
-                  disabled={success}
+                  disabled={success || codeVerified}
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
                   aria-label={`digit ${i + 1}`}
                   className={`h-12 w-[clamp(2.35rem,11vw,3rem)] rounded-xl border text-center font-mono text-xl outline-none transition-[border-color,background-color,box-shadow] sm:h-14 sm:rounded-2xl sm:text-2xl ${
-                    success
+                    success || codeVerified
                       ? 'border-success text-success'
-                      : error
+                      : error === 'INVALID_CODE'
                         ? 'border-danger text-[var(--text-primary)]'
                         : digit
                           ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
@@ -432,11 +490,16 @@ export function PhoneOtpForm({
               <button
                 type="button"
                 onClick={() => {
-                  if (code.join('').length === OTP_LENGTH && !loading && !success) {
+                  if (codeVerified && name.trim().length >= 3 && !loading && !success) {
                     void verify(code.join(''))
                   }
                 }}
-                disabled={loading || success || code.join('').length < OTP_LENGTH}
+                disabled={
+                  loading ||
+                  success ||
+                  !codeVerified ||
+                  name.trim().length < 3
+                }
                 className="marketing-pressable mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
