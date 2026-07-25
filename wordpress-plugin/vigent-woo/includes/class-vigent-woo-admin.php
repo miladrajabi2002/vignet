@@ -200,21 +200,30 @@ class Vigent_Woo_Admin {
                         .vg-btn-center { background: #000; color: #fff; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 14px; min-height: 56px; display: inline-flex; align-items: center; gap: 10px; transition: all .15s; text-decoration: none; border: none; cursor: pointer; }
                         .vg-btn-center:hover { background: #1a1a1a; color: #fff; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
                         .vg-btn-center:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
-                        .vg-center-steps { max-width: 400px; margin: 0 auto; text-align: center; }
-                        .vg-center-steps li { justify-content: center; text-align: center; }
+                        .vg-center-steps { max-width: 420px; margin: 0 auto; text-align: center; }
+                        .vg-center-steps li { flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 0; }
+                        .vg-center-steps li .num { width: 32px; height: 32px; font-size: 13px; margin: 0; }
+                        .vg-center-steps li .txt { text-align: center; }
+                        .vg-center-steps li .txt strong { text-align: center; margin-bottom: 4px; }
                         .vg-center-info { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 12px; padding: 18px 22px; max-width: 420px; margin: 24px auto 0; text-align: center; }
                         .vg-center-info p { font-size: 12px; font-weight: 600; color: #374151; margin: 0 0 8px; text-align: center; }
                         .vg-center-info ul { list-style: none; padding: 0; margin: 0; text-align: center; }
                         .vg-center-info ul li { font-size: 12px; color: #6b7280; line-height: 1.8; text-align: center; }
 
-                        /* Push wizard steps (visual indicator) */
-                        .vg-wizard-steps { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 24px; max-width: 460px; }
-                        .vg-wizard-step { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af; font-weight: 600; }
-                        .vg-wizard-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; }
-                        .vg-wizard-step.active { color: #111; }
+                        /* Push wizard steps (visual indicator) — horizontal pill row:
+                              (1) ─── (2) ─── (3)
+                           Each step is a self-contained pill with the number on the LEFT
+                           and the label on the RIGHT, separated by a thin line. The number
+                           stays inline (not on top) because horizontal space is tight when
+                           "سفارش‌ها" is shown. */
+                        .vg-wizard-steps { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 0 auto 24px; max-width: 520px; }
+                        .vg-wizard-step { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: #f3f4f6; font-size: 12px; color: #9ca3af; font-weight: 600; transition: all .2s; }
+                        .vg-wizard-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; background: #fff; flex-shrink: 0; }
+                        .vg-wizard-step.active { color: #111; background: #f3f4f6; }
                         .vg-wizard-step.active .dot { background: #000; border-color: #000; color: #fff; }
+                        .vg-wizard-step.done { color: #10b981; background: #ecfdf5; }
                         .vg-wizard-step.done .dot { background: #10b981; border-color: #10b981; color: #fff; }
-                        .vg-wizard-line { width: 24px; height: 2px; background: #e5e7eb; }
+                        .vg-wizard-line { width: 20px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
 
                         /* ─── Next-sync countdown card ─── */
                         /* Compact card that sits between the success banner and the stats.
@@ -324,7 +333,16 @@ class Vigent_Woo_Admin {
                                 vgSetStep('products', 'active');
                                 if (includeOrders) {
                                         var stepOrders = document.getElementById('vg-step-orders');
-                                        if (stepOrders) stepOrders.style.display = 'flex';
+                                        if (stepOrders) stepOrders.style.display = 'inline-flex';
+                                        var stepOrdersLine = document.getElementById('vg-step-orders-line');
+                                        if (stepOrdersLine) stepOrdersLine.style.display = 'block';
+                                        var finalizeDot = document.getElementById('vg-step-finalize-dot');
+                                        if (finalizeDot) finalizeDot.textContent = '3';
+                                } else {
+                                        var stepOrdersLine = document.getElementById('vg-step-orders-line');
+                                        if (stepOrdersLine) stepOrdersLine.style.display = 'none';
+                                        var finalizeDot = document.getElementById('vg-step-finalize-dot');
+                                        if (finalizeDot) finalizeDot.textContent = '2';
                                 }
 
                                 // Chain: products → orders → finalize.
@@ -582,6 +600,31 @@ class Vigent_Woo_Admin {
                                                 alert('خطا در ارتباط با سرور ویجنت.');
                                         });
                         }
+
+                        // ─── Sync the wizard-step indicators with the "include orders"
+                        // checkbox state. When the user toggles the checkbox, we hide/show
+                        // the orders step + its connector line, and renumber the finalize
+                        // dot (3 when orders is on, 2 when off). This keeps the visual
+                        // indicator in sync with what will actually happen on submit.
+                        function vgSyncWizardSteps() {
+                                var cb = document.getElementById('vg-include-orders');
+                                if (!cb) return;
+                                var includeOrders = cb.checked;
+                                var stepOrders = document.getElementById('vg-step-orders');
+                                var stepOrdersLine = document.getElementById('vg-step-orders-line');
+                                var finalizeDot = document.getElementById('vg-step-finalize-dot');
+                                if (stepOrders) stepOrders.style.display = includeOrders ? 'inline-flex' : 'none';
+                                if (stepOrdersLine) stepOrdersLine.style.display = includeOrders ? 'block' : 'none';
+                                if (finalizeDot) finalizeDot.textContent = includeOrders ? '3' : '2';
+                        }
+                        document.addEventListener('DOMContentLoaded', function() {
+                                var cb = document.getElementById('vg-include-orders');
+                                if (cb) {
+                                        cb.addEventListener('change', vgSyncWizardSteps);
+                                        // Run once on load to make sure the initial state matches.
+                                        vgSyncWizardSteps();
+                                }
+                        });
 
                         // ─── Refresh header status (pill + last-check) ────────────
                         // Replaces the old live-banner. Only updates the small pill
@@ -882,8 +925,20 @@ class Vigent_Woo_Admin {
                         </div>
 
                         <ol class="vg-steps vg-center-steps">
-                                <li><span class="num">1</span><span class="txt"><strong><?php esc_html_e( 'در پنل ویجنت', 'vigent-woo' ); ?></strong><?php esc_html_e( 'یک اتصال سایت با آدرس همین سایت بسازید.', 'vigent-woo' ); ?></span></li>
-                                <li><span class="num">2</span><span class="txt"><strong><?php esc_html_e( 'دکمه «اتصال» را بزنید', 'vigent-woo' ); ?></strong><?php esc_html_e( 'اتصال خودکار برقرار می‌شود.', 'vigent-woo' ); ?></span></li>
+                                <li>
+                                        <span class="num">1</span>
+                                        <span class="txt">
+                                                <strong><?php esc_html_e( 'در پنل ویجنت', 'vigent-woo' ); ?></strong>
+                                                <?php esc_html_e( 'یک اتصال سایت با آدرس همین سایت بسازید.', 'vigent-woo' ); ?>
+                                        </span>
+                                </li>
+                                <li>
+                                        <span class="num">2</span>
+                                        <span class="txt">
+                                                <strong><?php esc_html_e( 'دکمه «اتصال» را بزنید', 'vigent-woo' ); ?></strong>
+                                                <?php esc_html_e( 'اتصال خودکار برقرار می‌شود.', 'vigent-woo' ); ?>
+                                        </span>
+                                </li>
                         </ol>
                 </div>
 
@@ -917,7 +972,12 @@ class Vigent_Woo_Admin {
                                         </div>
                                 </label>
 
-                                <!-- Step indicators -->
+                                <!-- Step indicators — horizontal pill row:
+                                     "(1) محصولات ── (2) سفارش‌ها ── (3) نهایی‌سازی"
+                                     The orders step is hidden until the user toggles the
+                                     "include orders" checkbox. The dot (number) sits on
+                                     the LEFT of the label inside each pill, separated by
+                                     a thin line between pills. -->
                                 <div class="vg-wizard-steps">
                                         <div class="vg-wizard-step active" id="vg-step-products">
                                                 <span class="dot">1</span>
@@ -930,8 +990,8 @@ class Vigent_Woo_Admin {
                                         </div>
                                         <div class="vg-wizard-line" id="vg-step-orders-line" style="display:none;"></div>
                                         <div class="vg-wizard-step" id="vg-step-finalize">
-                                                <span class="dot"><?php echo $has_wc ? '3' : '2'; ?></span>
-                                                <span><?php esc_html_e( 'نهایی‌سازی', 'vigent-woo' ); ?></span>
+                                                <span class="dot" id="vg-step-finalize-dot"><?php echo $has_wc ? '3' : '2'; ?></span>
+                                                <span id="vg-step-finalize-label"><?php esc_html_e( 'نهایی‌سازی', 'vigent-woo' ); ?></span>
                                         </div>
                                 </div>
 
