@@ -117,9 +117,34 @@ export function StoreIntegrationsSection({
                 setNotice({ type: 'err', msg: 'خطا در هم‌گام‌سازی.' })
                 return
             }
+
+            // Context-aware message — see woo-setup-card.tsx for the full
+            // rationale. Short version: "0 محصول و 0 سفارش هم‌گام شد" is
+            // confusing when nothing was actually synced. Replace it with
+            // a message that explains what happened.
             const pcount = data.products?.count ?? 0
             const ocount = data.orders?.count ?? 0
-            setNotice({ type: 'ok', msg: `${pcount} محصول و ${ocount} سفارش هم‌گام شد.` })
+            const pErrors = data.products?.errors?.length ?? 0
+            const skipped = data.products?.skipped === true || data.orders?.skipped === true
+            const now = new Date()
+            const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+            const shortUrl = integration.storeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+
+            let msg: string
+            if (skipped) {
+                msg = `بررسی ${shortUrl} در ساعت ${timeStr} انجام شد. این اتصال در حالت webhook-only است — هم‌گام‌سازی کششی فعال نیست، اما افزونه تغییرات را به‌صورت لحظه‌ای از طریق webhook ارسال می‌کند.`
+            } else if (pcount === 0 && ocount === 0 && pErrors === 0) {
+                msg = `بررسی ${shortUrl} در ساعت ${timeStr} انجام شد. هیچ محصول یا سفارش جدیدی برای هم‌گام‌سازی یافت نشد. اگر انتظار دارید محصولاتی وجود دارند، مطمئن شوید در ووکامرس وضعیت «منتشر شده» دارند.`
+            } else {
+                const parts: string[] = []
+                if (pcount > 0) parts.push(`${pcount} محصول`)
+                if (ocount > 0) parts.push(`${ocount} سفارش`)
+                const okMsg = parts.length > 0
+                    ? `${parts.join(' و ')} از ${shortUrl} هم‌گام شد.`
+                    : `هیچ مورد جدیدی از ${shortUrl} برای هم‌گام‌سازی نبود.`
+                msg = `${okMsg} (ساعت ${timeStr}${pErrors > 0 ? ` · ${pErrors} خطا` : ''})`
+            }
+            setNotice({ type: 'ok', msg })
             router.refresh()
         } catch {
             setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
@@ -366,9 +391,10 @@ function IntegrationCard({
                         type="button"
                         onClick={onDelete}
                         disabled={deleting}
-                        className="inline-flex min-h-9 items-center rounded-xl border border-[var(--border-default)] p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
                     >
                         {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        حذف
                     </button>
                 </div>
             </div>

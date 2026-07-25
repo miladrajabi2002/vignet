@@ -153,9 +153,41 @@ export function WooSetupCard({
                 setNotice({ type: 'err', msg: 'خطا در هم‌گام‌سازی.' })
                 return
             }
+
+            // Build a useful, context-aware message instead of the old
+            // generic "X محصول و Y سفارش هم‌گام شد" which often showed
+            // "0 محصول و 0 سفارش" and left the user wondering if anything
+            // actually happened. The new message explains what the sync
+            // actually did (or didn't do) and why.
             const pcount = data.products?.count ?? 0
             const ocount = data.orders?.count ?? 0
-            setNotice({ type: 'ok', msg: `${pcount} محصول و ${ocount} سفارش هم‌گام شد.` })
+            const pErrors = data.products?.errors?.length ?? 0
+            const skipped = data.products?.skipped === true || data.orders?.skipped === true
+            const now = new Date()
+            const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+
+            let msg: string
+            if (skipped) {
+                // webhook-only mode — no REST credentials configured, so
+                // the manual "sync now" couldn't actually pull anything.
+                // Webhook push from the plugin still works.
+                msg = `بررسی هم‌گام‌سازی در ساعت ${timeStr} انجام شد. این اتصال در حالت webhook-only است — هم‌گام‌سازی کششی فعال نیست، اما افزونه تغییرات محصولات و سفارش‌ها را به‌صورت لحظه‌ای از طریق webhook ارسال می‌کند.`
+            } else if (pcount === 0 && ocount === 0 && pErrors === 0) {
+                // The server returned 0/0 with no errors. This usually means
+                // the store has no published products / recent orders, OR
+                // the WooCommerce REST API is reachable but empty.
+                msg = `بررسی در ساعت ${timeStr} انجام شد. هیچ محصول یا سفارش جدیدی برای هم‌گام‌سازی یافت نشد. اگر انتظار دارید محصولاتی وجود دارند، مطمئن شوید در ووکامرس وضعیت «منتشر شده» دارند.`
+            } else {
+                // We got some real counts. Build a clear summary.
+                const parts: string[] = []
+                if (pcount > 0) parts.push(`${pcount} محصول`)
+                if (ocount > 0) parts.push(`${ocount} سفارش`)
+                const okMsg = parts.length > 0
+                    ? `${parts.join(' و ')} هم‌گام شد.`
+                    : 'هیچ مورد جدیدی برای هم‌گام‌سازی نبود.'
+                msg = `${okMsg} (ساعت ${timeStr}${pErrors > 0 ? ` · ${pErrors} خطا` : ''})`
+            }
+            setNotice({ type: 'ok', msg })
             router.refresh()
         } catch {
             setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
@@ -311,9 +343,10 @@ export function WooSetupCard({
                     <button
                         type="button"
                         onClick={remove}
-                        className="inline-flex min-h-9 items-center rounded-xl border border-[var(--border-default)] p-1.5 text-[var(--text-muted)] transition-colors hover:text-danger"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
+                        حذف
                     </button>
                 </div>
             </div>
