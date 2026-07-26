@@ -30,8 +30,11 @@ import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
-import { stripProductTokens } from '@/lib/widget/config'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
+import {
+        parseProductShowcaseContent,
+        ProductShowcaseRail,
+} from '@/components/products/product-showcase'
 import { OperatorReply } from './operator-reply'
 import {
         ConversationTimelineActivity,
@@ -239,6 +242,10 @@ export function ConversationThread({
                                         const sourceLabel = isUser
                                                 ? inboundSourceLabel(readInboundSource(m.metadata), locale)
                                                 : null
+                                        const showcase = isUser
+                                                ? { text: m.content, products: [] }
+                                                : parseProductShowcaseContent(m.content)
+                                        const hasShowcase = showcase.products.length > 0
                                         return (
                                                 <motion.div
                                                         key={m.id}
@@ -252,8 +259,10 @@ export function ConversationThread({
                                                                 className={cn(
                                                                         'flex max-w-[82%] flex-col',
                                                                         isUser ? 'items-end' : 'items-start',
+                                                                        hasShowcase && !isUser && 'w-full max-w-full',
                                                                 )}
                                                         >
+                                                                {showcase.text && (
                                                                 <div className="relative max-w-full">
                                                                 {isLiveMessage && (
                                                                         <motion.span
@@ -280,7 +289,7 @@ export function ConversationThread({
                                                                                 </span>
                                                                         )}
                                                                         <ConversationText
-                                                                                text={stripProductTokens(m.content)}
+                                                                                text={showcase.text}
                                                                                 markdown={!isUser}
                                                                         />
                                                                         <span
@@ -295,6 +304,20 @@ export function ConversationThread({
                                                                         </span>
                                                                 </ConversationBubble>
                                                                 </div>
+                                                                )}
+                                                                {!isUser && hasShowcase && (
+                                                                        <ProductShowcaseRail
+                                                                                products={showcase.products}
+                                                                                locale={locale}
+                                                                                compact
+                                                                                className="mt-2 w-full max-w-[46rem]"
+                                                                        />
+                                                                )}
+                                                                {!isUser && hasShowcase && !showcase.text && (
+                                                                        <span className="mt-0.5 px-1 text-[10px] text-[var(--text-muted)]">
+                                                                                {formatDateTime(new Date(m.createdAt), locale)}
+                                                                        </span>
+                                                                )}
                                                                 {!isUser && (
                                                                         <MessageActivityReceipts
                                                                                 metadata={m.metadata}

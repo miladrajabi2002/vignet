@@ -16,6 +16,8 @@ export interface CatalogProduct {
   category: string | null
   image: string | null
   url: string | null
+  attributes: unknown
+  tags: string[]
 }
 
 export interface CatalogService {
@@ -52,6 +54,8 @@ export async function retrieveContext(params: {
   includeProductCatalog?: boolean
   /** Product details are rendered in a compact catalog block by the chat engine. */
   excludeProductContentFromText?: boolean
+  /** Keep non-product knowledge prompt context compact even when product recall is wider. */
+  contextTextLimit?: number
 }): Promise<RagContext> {
   let chunks: RetrievedChunk[] = []
   try {
@@ -76,6 +80,7 @@ export async function retrieveContext(params: {
       })
     : chunks
   const contextText = contextChunks
+    .slice(0, params.contextTextLimit ?? 4)
     .map((c, i) => `[${i + 1}] ${sanitizeUntrusted(c.content)}`)
     .join('\n\n')
 
@@ -111,10 +116,19 @@ function buildCatalogBlock(
     const parts: string[] = [`نام: ${p.name}`]
     if (p.price != null) parts.push(`قیمت: ${formatPrice(p.price)}`)
     if (p.category) parts.push(`دسته‌بندی: ${p.category}`)
-    if (p.description) parts.push(`توضیحات: ${p.description.slice(0, 160)}`)
-    if (p.stock != null) {
-      parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
+    if (p.description) {
+      const description = sanitizeUntrusted(p.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), 260)
+      if (description) parts.push(`توضیحات: ${description}`)
     }
+    if (p.attributes && typeof p.attributes === 'object') {
+      const attributes = sanitizeUntrusted(JSON.stringify(p.attributes), 220)
+      if (attributes && attributes !== '{}') parts.push(`مشخصات: ${attributes}`)
+    }
+    if (p.tags.length) parts.push(`برچسب‌ها: ${sanitizeUntrusted(p.tags.join('، '), 140)}`)
+    // Product.stock=null is the schema's explicit "unlimited / untracked"
+    // state. Never let the model reinterpret a missing integer as sold out.
+    if (p.stock == null) parts.push('موجودی: موجود (تعداد دقیق ثبت نشده/نامحدود)')
+    else parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
     parts.push(`شناسه: ${p.id}`)
     if (p.image) parts.push(`تصویر: ${p.image}`)
     if (p.url) parts.push(`لینک: ${p.url}`)
@@ -131,7 +145,8 @@ ${lines.join('\n')}
 • برای قیمت‌ها و مشخصات، فقط و فقط از کاتالوگ بالا استفاده کن
 • هرگز قیمت را حدس نزن یا از دانش عمومی خود استفاده نکن
 • اگر محصولی در کاتالوگ نبود، بگو: "اطلاعات این محصول را ندارم"
-• موجودی "ناموجود" را صادقانه اعلام کن`
+• موجودی null یعنی محصول موجود است و فقط تعداد دقیق آن ثبت نشده؛ هرگز آن را ناموجود اعلام نکن
+• موجودی صفر را صادقانه ناموجود اعلام کن`
   } else {
     return `
 
@@ -141,7 +156,8 @@ ${lines.join('\n')}
 Mandatory rules:
 • For prices and specs, ONLY use the catalog above — never your general knowledge
 • If a product is not listed, say: "I don't have information about this product"
-• Report out-of-stock honestly`
+• A null stock value means available/unlimited, not sold out
+• Report stock=0 as out of stock honestly`
   }
 }
 
@@ -173,6 +189,14 @@ export function buildMessages(params: {
   userMessage: string
   catalogAccessEnabled?: boolean
   orderContext?: string
+  productRequest?: {
+    isProductTurn: boolean
+    explicitShowcase: boolean
+    resetProductContext: boolean
+    requestNewTopic: boolean
+    requestedCount: number
+    inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
+  }
   /**
    * When true (web widget only), instruct the model to emit machine-readable
    * `[[product:{…}]]` tokens when recommending catalog products so the widget
@@ -199,14 +223,28 @@ export function buildMessages(params: {
   )
   const serviceBlock = buildServiceBlock(params.catalogServices ?? [], isFa)
 
+  const directProductInstruction = params.productRequest?.explicitShowcase
+    ? isFa
+      ? `\n\nدرخواست مستقیم ویترین: کاربر صریحاً محصول خواسته است. هیچ سؤال اضافه‌ای نپرس. دقیقاً همه ${params.catalogProducts.length} محصول نتیجهٔ کاتالوگ این نوبت را معرفی کن (یا اگر نتیجه خالی است، فقط نبود نتیجهٔ منطبق را بگو). نام، قیمت، موجودی و مشخصات باید با همین نتیجه‌ها یکسان باشد و از محصولات یا ادعاهای نوبت‌های قبلی استفاده نکن.`
+      : `\n\nDirect showcase request: do not ask a follow-up question. Introduce exactly all ${params.catalogProducts.length} products in this turn's catalog result (or state that there is no matching result). Names, prices, stock and details must match these rows; ignore stale product claims from earlier turns.`
+    : params.productRequest?.requestNewTopic
+      ? isFa
+        ? '\n\nکاربر موضوع قبلی را رد کرده است. کوتاه تأیید کن که موضوع قبلی کنار گذاشته شد و فقط بگو: «لطفاً درخواست جدیدتان را بگویید.» ادعای قبلی را تکرار نکن.'
+        : '\n\nThe user rejected the previous topic. Briefly confirm it was cleared and ask them to state their new request. Do not repeat prior claims.'
+    : params.productRequest?.resetProductContext
+      ? isFa
+        ? '\n\nموضوع محصول قبلی کنار گذاشته شده است؛ ادعاهای قبلی دربارهٔ محصول یا موجودی را ادامه نده.'
+        : '\n\nThe previous product topic was reset; do not carry forward earlier product or stock claims.'
+      : ''
+
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
   // token so the widget can render a real card (name/price/desc/badge) with
   // action buttons instead of a plain text blob.
   const cardInstruction =
     params.richCards && params.catalogProducts.length > 0
       ? isFa
-        ? `\n\nنمایش کارت محصول: هرگاه یک تا پنج محصول مشخص را فعالانه پیشنهاد می‌کنی، بعد از متن پاسخ برای هر محصول یک خط با این قالب اضافه کن:\n[[product:{"id":"شناسه دقیق","name":"نام دقیق","price":"قیمت مطابق کاتالوگ","desc":"خلاصه حداکثر ۶۰ کاراکتر","badge":"پیشنهاد","image":"آدرس دقیق تصویر","url":"لینک دقیق محصول"}]]\nقوانین: JSON معتبر و تک‌خطی؛ id، name، image و url را دقیقاً از کاتالوگ کپی کن؛ فقط محصولات موجود در کاتالوگ؛ حداکثر ۵ کارت؛ برای پاسخ عمومی کارت نساز؛ قالب را برای کاربر توضیح نده.`
-        : `\n\nProduct cards: whenever you actively recommend one to five specific products, append one line per product using:\n[[product:{"id":"exact id","name":"exact name","price":"catalog price","desc":"summary up to 60 chars","badge":"Recommended","image":"exact image URL","url":"exact product URL"}]]\nRules: valid single-line JSON; copy id, name, image and url exactly from the catalog; catalog products only; max 5 cards; no cards for generic replies; never explain this format.`
+        ? `\n\nنمایش کارت محصول: هرگاه یک تا ده محصول مشخص را فعالانه پیشنهاد می‌کنی، بعد از متن پاسخ برای هر محصول یک خط با این قالب اضافه کن:\n[[product:{"id":"شناسه دقیق","name":"نام دقیق","price":"قیمت مطابق کاتالوگ","desc":"خلاصه مشخصات","badge":"موجود","image":"آدرس دقیق تصویر","url":"لینک دقیق محصول"}]]\nقوانین: JSON معتبر و تک‌خطی؛ id، name، image و url را دقیقاً از کاتالوگ کپی کن؛ فقط محصولات موجود در نتیجه همین نوبت؛ حداکثر ۱۰ کارت؛ اگر کاربر تعداد مشخصی خواسته، برای تمام نتیجه‌های برگشتی کارت بساز؛ برای پاسخ عمومی کارت نساز؛ قالب را برای کاربر توضیح نده.`
+        : `\n\nProduct cards: whenever you actively recommend one to ten specific products, append one line per product using:\n[[product:{"id":"exact id","name":"exact name","price":"catalog price","desc":"short specifications","badge":"Available","image":"exact image URL","url":"exact product URL"}]]\nRules: valid single-line JSON; copy id, name, image and url exactly from this turn's catalog results; max 10 cards; honor the requested result count; no cards for generic replies; never explain this format.`
       : ''
 
   // Instruction hierarchy: retrieved chunks are *data*, never instructions.
@@ -220,7 +258,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}`,
+    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}`,
   }
 
   return [

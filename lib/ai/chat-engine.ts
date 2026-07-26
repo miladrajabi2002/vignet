@@ -17,8 +17,12 @@ import {
         loadHistory,
         fetchCatalogProducts,
         fetchCatalogServices,
+        historyForProductTurn,
         isHumanOwnedConversation,
+        planProductRequest,
+        type ProductRequestPlan,
 } from '@/lib/ai/conversation'
+import type { CatalogProduct } from '@/lib/ai/rag'
 import { shouldHandoff, notifyHandoff, detectUnanswered, handoffReplyText } from '@/lib/ai/handoff'
 import { syncOnboarding } from '@/lib/onboarding'
 import { captureError } from '@/lib/errors/capture'
@@ -129,6 +133,37 @@ function appendSalesGuidance(
         system.content = `${system.content ?? ''}\n\n${guidance}`
 }
 
+async function buildDeterministicTurnReply(params: {
+        workspaceId: string
+        agent: ChatAgent
+        channel: StartChatParams['channel']
+        catalogProducts: CatalogProduct[]
+        productRequest: ProductRequestPlan
+        canBypass: boolean
+}): Promise<string | null> {
+        if (!params.canBypass || params.channel === 'API') return null
+        if (params.productRequest.requestNewTopic) {
+                return params.agent.language === 'en'
+                        ? 'Okay, I cleared the previous topic. Please tell me your new request.'
+                        : 'باشه؛ موضوع قبلی را کنار گذاشتم. لطفاً درخواست جدیدتان را بگویید.'
+        }
+        if (!params.productRequest.explicitShowcase) return null
+        if (!params.agent.productAccessEnabled) {
+                return params.agent.language === 'en'
+                        ? 'This agent does not currently have access to the product catalog.'
+                        : 'دسترسی این ایجنت به کاتالوگ محصولات در حال حاضر غیرفعال است.'
+        }
+
+        return buildTrustedProductReply({
+                raw: '',
+                workspaceId: params.workspaceId,
+                agentId: params.agent.id,
+                isFa: params.agent.language !== 'en',
+                preferredProductIds: params.catalogProducts.map((product) => product.id),
+                forceShowcase: true,
+        })
+}
+
 /**
  * Shared per-turn setup for both engines: plan gate, key lookup, conversation
  * resolution, identity extraction, prompt/history/RAG assembly and persisting
@@ -149,6 +184,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                   contactPhone: string | null
                   messages: ReturnType<typeof buildMessages>
                   retrievedChunks: Array<{ metadata: unknown }>
+                  catalogProducts: CatalogProduct[]
+                  productRequest: ProductRequestPlan
+                  canBypassDeterministicReply: boolean
           }
 > {
         const { workspaceId, agent, message } = params
@@ -289,13 +327,20 @@ async function prepareTurn(params: StartChatParams): Promise<
                 bumpContactActivity(conversationId)
 
         // Retrieve context and build the prompt.
+                const productRequest = planProductRequest(message, history)
+                const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
+                        ? productRequest.searchTerms.join(' ')
+                        : message
                 const { contextText, chunks } = await retrieveContext({
                         workspaceId,
                         agentId: agent.id,
-                        query: message,
-                        limit: agent.productAccessEnabled ? 5 : 3,
-                        includeProductCatalog: agent.productAccessEnabled,
+                        query: retrievalQuery,
+                        limit: agent.productAccessEnabled && productRequest.isProductTurn
+                                ? Math.min(24, Math.max(12, productRequest.requestedCount * 2))
+                                : 3,
+                        includeProductCatalog: agent.productAccessEnabled && productRequest.isProductTurn,
                         excludeProductContentFromText: true,
+                        contextTextLimit: 4,
                 })
                 bumpProductQueries(workspaceId, chunks)
 
@@ -310,7 +355,7 @@ async function prepareTurn(params: StartChatParams): Promise<
 
                 const [catalogProducts, orderContext] = await Promise.all([
                         agent.productAccessEnabled
-                                ? fetchCatalogProducts(agent.id, productIds, message)
+                                ? fetchCatalogProducts(agent.id, productIds, productRequest)
                                 : Promise.resolve([]),
                         buildOrderContext({
                                 workspaceId,
@@ -328,10 +373,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                         contextText,
                         catalogProducts,
                         catalogServices,
-                        history,
+                        history: historyForProductTurn(history, productRequest),
                         userMessage: message,
                         catalogAccessEnabled: agent.productAccessEnabled,
                         orderContext,
+                        productRequest,
                         // Web surfaces render cards directly; messenger channels
                         // resolve markers against trusted DB rows before sending.
                         richCards: agent.productAccessEnabled && params.channel !== 'API',
@@ -347,6 +393,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                         contactPhone: resolvedContactPhone,
                         messages,
                         retrievedChunks: chunks,
+                        catalogProducts,
+                        productRequest,
+                        canBypassDeterministicReply: freshState !== 'pending',
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -471,6 +520,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 contactPhone,
                 messages,
                 retrievedChunks,
+                catalogProducts,
+                productRequest,
+                canBypassDeterministicReply,
         } = prep
 
         const encoder = new TextEncoder()
@@ -514,6 +566,45 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
                                 controller.close()
                                 return
+                        }
+
+                        try {
+                                const deterministicReply = await buildDeterministicTurnReply({
+                                        workspaceId,
+                                        agent,
+                                        channel: params.channel,
+                                        catalogProducts,
+                                        productRequest,
+                                        canBypass: canBypassDeterministicReply,
+                                })
+                                if (deterministicReply) {
+                                        // No model call and therefore no AI charge. The DB
+                                        // result itself is the trusted response and marker source.
+                                        await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
+                                        send({ type: 'delta', text: deterministicReply })
+                                        try {
+                                                const { messageId } = await persistAssistantTurn({
+                                                        workspaceId,
+                                                        agent,
+                                                        conversationId,
+                                                        model,
+                                                        userMessage: message,
+                                                        reply: deterministicReply,
+                                                        retrievedChunks,
+                                                        extraReceipts: [],
+                                                })
+                                                send({ type: 'done', messageId })
+                                        } catch (error) {
+                                                console.error('[chat-engine] deterministic persist failed:', error)
+                                                send({ type: 'done' })
+                                        }
+                                        controller.close()
+                                        return
+                                }
+                        } catch (error) {
+                                // DB hydration failure falls back to the regular model path;
+                                // the reservation remains valid and no customer turn is lost.
+                                console.error('[chat-engine] deterministic reply failed:', error)
                         }
                         if (!handoffCheck.recommended && handoffCheck.salesInsight) {
                                 appendSalesGuidance(
@@ -578,9 +669,9 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         }
 
                         if (
-                                !providerFailed &&
                                 agent.productAccessEnabled &&
-                                (params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK')
+                                params.channel !== 'API' &&
+                                (!providerFailed || productRequest.explicitShowcase)
                         ) {
                                 try {
                                         const trustedReply = await buildTrustedProductReply({
@@ -588,6 +679,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 workspaceId,
                                                 agentId: agent.id,
                                                 isFa: agent.language !== 'en',
+                                                preferredProductIds: catalogProducts.map((product) => product.id),
+                                                forceShowcase: productRequest.explicitShowcase,
                                         })
                                         if (trustedReply !== full) {
                                                 full = trustedReply
@@ -674,6 +767,9 @@ export async function generateReply(
                 contactPhone,
                 messages,
                 retrievedChunks,
+                catalogProducts,
+                productRequest,
+                canBypassDeterministicReply,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -699,6 +795,38 @@ export async function generateReply(
                         replyText: reply,
                 })
                 return { conversationId, reply }
+        }
+
+        try {
+                const deterministicReply = await buildDeterministicTurnReply({
+                        workspaceId,
+                        agent,
+                        channel: params.channel,
+                        catalogProducts,
+                        productRequest,
+                        canBypass: canBypassDeterministicReply,
+                })
+                if (deterministicReply) {
+                        await options.onGenerationStart?.()
+                        await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
+                        try {
+                                await persistAssistantTurn({
+                                        workspaceId,
+                                        agent,
+                                        conversationId,
+                                        model,
+                                        userMessage: message,
+                                        reply: deterministicReply,
+                                        retrievedChunks,
+                                        extraReceipts: [],
+                                })
+                        } catch (error) {
+                                console.error('[chat-engine] deterministic persist failed:', error)
+                        }
+                        return { conversationId, reply: deterministicReply }
+                }
+        } catch (error) {
+                console.error('[chat-engine] deterministic reply failed:', error)
         }
         if (!handoffCheck.recommended && handoffCheck.salesInsight) {
                 appendSalesGuidance(
@@ -751,6 +879,29 @@ export async function generateReply(
                 // Empty provider content is a failed reply for billing purposes.
                 providerFailed = true
                 reply = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
+        }
+
+        // Canonicalize markers for every public messenger before persistence
+        // and return. Text, carousel and conversation UIs now share the exact
+        // same trusted DB result-set; model-authored ids/prices never leak.
+        if (
+                agent.productAccessEnabled &&
+                params.channel !== 'API' &&
+                (!providerFailed || productRequest.explicitShowcase)
+        ) {
+                try {
+                        reply = await buildTrustedProductReply({
+                                raw: reply,
+                                workspaceId,
+                                agentId: agent.id,
+                                isFa: agent.language !== 'en',
+                                preferredProductIds: catalogProducts.map((product) => product.id),
+                                forceShowcase: productRequest.explicitShowcase,
+                        })
+                } catch (error) {
+                        console.error('[chat-engine] product-card hydration failed:', error)
+                        reply = parseProductDirectives(reply).text
+                }
         }
 
 	if (providerFailed) {

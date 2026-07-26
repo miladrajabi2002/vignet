@@ -15,6 +15,11 @@ import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
+import {
+	parseProductShowcaseContent,
+	ProductShowcaseRail,
+	type ShowcaseProduct,
+} from '@/components/products/product-showcase'
 
 // ─── Refined send icon ──────────────────────────────────────────────────────
 // A clean, modern paper-plane — more balanced than the raw Telegram glyph and
@@ -30,15 +35,7 @@ function SendIcon({ className }: { className?: string }) {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type ProductCard = {
-	id: string
-	name: string
-	price: string
-	desc: string
-	badge: string
-	image: string
-	url: string
-}
+type ProductCard = ShowcaseProduct
 
 type Msg =
 	| { id: string; role: 'user'; text: string }
@@ -62,49 +59,12 @@ type Props = {
 
 // ─── Assistant parsing (mirrors public/widget/loader.js) ────────────────────
 
-const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
-
-function safeHttpUrl(value: unknown): string {
-	if (typeof value !== 'string' || !value) return ''
-	try {
-		const url = new URL(value)
-		return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : ''
-	} catch {
-		return ''
-	}
-}
-
 function parseAssistant(
 	raw: string,
 	done: boolean,
 ): { text: string; cards: ProductCard[] } {
-	const cards: ProductCard[] = []
-	let text = raw.replace(PRODUCT_TOKEN, (_m, json: string) => {
-		try {
-			const p = JSON.parse(json)
-			if (done && p && typeof p.name === 'string' && p.name) {
-				cards.push({
-					id: p.id != null ? String(p.id).slice(0, 80) : '',
-					name: String(p.name).slice(0, 80),
-					price: p.price != null ? String(p.price).slice(0, 40) : '',
-					desc: p.desc != null ? String(p.desc).slice(0, 90) : '',
-					badge: p.badge != null ? String(p.badge).slice(0, 20) : '',
-					image: safeHttpUrl(p.image),
-					url: safeHttpUrl(p.url),
-				})
-			}
-		} catch {
-			/* malformed token — drop it silently */
-		}
-		return ''
-	})
-	// While streaming, hold back an unterminated trailing token so it never
-	// flashes as raw text; once done, whatever remains is real text.
-	if (!done) {
-		const tail = text.lastIndexOf('[[')
-		if (tail !== -1 && text.indexOf(']]', tail) === -1) text = text.slice(0, tail)
-	}
-	return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards }
+	const shared = parseProductShowcaseContent(raw, done)
+	return { text: shared.text, cards: done ? shared.products : [] }
 }
 
 function errorText(code?: string): string {
@@ -995,62 +955,12 @@ function MessageRow({
 					</ConversationBubble>
 				)}
 				{!isUser && msg.cards.length > 0 && (
-					<div
-						dir="rtl"
-						className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-					>
-						{msg.cards.map((card, i) => (
-							<article
-								key={card.id || `${card.name}-${i}`}
-								className="w-[232px] shrink-0 snap-start overflow-hidden rounded-2xl border border-black/[0.07] bg-white shadow-[0_10px_28px_-16px_rgba(0,0,0,0.28)]"
-							>
-								{card.image ? (
-									// eslint-disable-next-line @next/next/no-img-element
-									<img
-										src={card.image}
-										alt={card.name}
-										loading="lazy"
-										className="h-32 w-full bg-neutral-100 object-cover"
-									/>
-								) : (
-									<span
-										className="flex h-24 w-full items-center justify-center text-2xl font-semibold"
-										style={{ backgroundColor: `${accent}12`, color: accent }}
-									>
-										{card.name.charAt(0)}
-									</span>
-								)}
-								<div className="p-3 text-start">
-									<div className="flex items-start gap-2">
-										<h3 className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-neutral-900">
-											{card.name}
-										</h3>
-										{card.badge && (
-											<span
-												className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
-												style={{ backgroundColor: `${accent}14`, color: accent }}
-											>
-												{card.badge}
-											</span>
-										)}
-									</div>
-									{card.desc && <p className="mt-1 line-clamp-2 text-xs leading-5 text-neutral-500">{card.desc}</p>}
-									{card.price && <p className="mt-2 text-[13px] font-bold text-neutral-900">{card.price}</p>}
-									{card.url && (
-										<a
-											href={card.url}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="mt-3 flex min-h-11 items-center justify-center rounded-xl text-xs font-semibold transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-											style={{ backgroundColor: accent, color: onAccent }}
-										>
-											مشاهده محصول
-										</a>
-									)}
-								</div>
-							</article>
-						))}
-					</div>
+					<ProductShowcaseRail
+						products={msg.cards}
+						locale="fa"
+						accent={accent}
+						onAccent={onAccent}
+					/>
 				)}
 			</div>
 		</motion.div>

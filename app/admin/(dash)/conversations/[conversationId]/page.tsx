@@ -4,6 +4,10 @@ import { ArrowRight, Bot, MessageSquare, UserRound } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
+import {
+  parseProductShowcaseContent,
+  ProductShowcaseRail,
+} from '@/components/products/product-showcase'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,13 +56,32 @@ export default async function AdminConversationDetailPage({ params }: { params: 
             {conversation.messages.length ? conversation.messages.map((message) => {
               if (message.role === 'SYSTEM') return <div key={message.id} className="mx-auto max-w-xl rounded-xl bg-zinc-100 px-3 py-2 text-center text-[11px] leading-6 text-zinc-500">{message.content}</div>
               const isUser = message.role === 'USER'
+              const showcase = isUser
+                ? { text: message.content, products: [] }
+                : parseProductShowcaseContent(message.content)
+              const hasShowcase = showcase.products.length > 0
               return (
                 <div key={message.id} className={`flex items-end gap-2 ${isUser ? 'justify-start' : 'justify-end'}`}>
                   {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}
-                  <div className={`max-w-[82%] rounded-2xl px-4 py-3 ${isUser ? 'rounded-br-md border border-zinc-150 bg-white text-zinc-800 shadow-sm' : 'rounded-bl-md bg-black text-white'}`}>
-                    <p className="whitespace-pre-wrap text-xs leading-6">{message.content}</p>
-                    {message.audioUrl && <audio controls src={message.audioUrl} className="mt-2 max-w-full" />}
-                    <time className={`mt-2 block text-[9px] ${isUser ? 'text-zinc-400' : 'text-white/45'}`}>{fmtDate(message.createdAt)}</time>
+                  <div className={hasShowcase && !isUser ? 'w-full max-w-[46rem]' : 'max-w-[82%]'}>
+                    {(showcase.text || message.audioUrl) && (
+                      <div className={`rounded-2xl px-4 py-3 ${isUser ? 'rounded-br-md border border-zinc-150 bg-white text-zinc-800 shadow-sm' : 'rounded-bl-md bg-black text-white'}`}>
+                        {showcase.text && <p className="whitespace-pre-wrap text-xs leading-6">{showcase.text}</p>}
+                        {message.audioUrl && <audio controls src={message.audioUrl} className="mt-2 max-w-full" />}
+                        <time className={`mt-2 block text-[9px] ${isUser ? 'text-zinc-400' : 'text-white/45'}`}>{fmtDate(message.createdAt)}</time>
+                      </div>
+                    )}
+                    {!isUser && hasShowcase && (
+                      <ProductShowcaseRail
+                        products={showcase.products}
+                        locale="fa"
+                        compact
+                        className="mt-2"
+                      />
+                    )}
+                    {!isUser && hasShowcase && !showcase.text && !message.audioUrl && (
+                      <time className="mt-0.5 block px-1 text-[9px] text-zinc-400">{fmtDate(message.createdAt)}</time>
+                    )}
                   </div>
                   {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-black text-white"><Bot className="h-3.5 w-3.5" /></div>}
                 </div>

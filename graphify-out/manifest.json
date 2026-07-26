@@ -150,8 +150,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/overview/page.tsx": {
-    "mtime": 1784761858.0,
-    "ast_hash": "a77a5e4ffbe4c3b9328514511747938c",
+    "mtime": 1785028963.8811831,
+    "ast_hash": "5537e2e3169a52568a08e0468ce20ef3",
     "semantic_hash": ""
   },
   "app/(dashboard)/products/[productId]/edit/page.tsx": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/conversations/[conversationId]/page.tsx": {
-    "mtime": 1784674907.3410933,
-    "ast_hash": "338962f79732d0ddaa6b91a43f02aa9a",
+    "mtime": 1785029214.1929524,
+    "ast_hash": "105c3349623ab920cc1859e60c765d36",
     "semantic_hash": ""
   },
   "app/admin/(dash)/conversations/page.tsx": {
@@ -675,8 +675,8 @@
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/messages/route.ts": {
-    "mtime": 1784371651.7033448,
-    "ast_hash": "c398c53d6aea5db97d642e3dd6fa8a9c",
+    "mtime": 1785029183.7072597,
+    "ast_hash": "e19b21b6e0537208aebb3fa8ae90a8c7",
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/reply/route.ts": {
@@ -890,8 +890,8 @@
     "semantic_hash": ""
   },
   "app/c/[slug]/chat-client.tsx": {
-    "mtime": 1785019464.5492215,
-    "ast_hash": "dcc7da578ca7188ea423bc82be63507a",
+    "mtime": 1785029150.0373678,
+    "ast_hash": "bae85f04f317a97e0358c1b854232946",
     "semantic_hash": ""
   },
   "app/c/[slug]/page.tsx": {
@@ -1130,8 +1130,8 @@
     "semantic_hash": ""
   },
   "components/crm/conversation-thread.tsx": {
-    "mtime": 1784371960.3972776,
-    "ast_hash": "8196b018ec596762cae5c4f4086b2fd9",
+    "mtime": 1785029175.7527745,
+    "ast_hash": "00ddee53c9ac29376fb3d138fe9e4d25",
     "semantic_hash": ""
   },
   "components/crm/operator-channel-setup.tsx": {
@@ -1225,8 +1225,8 @@
     "semantic_hash": ""
   },
   "components/dashboard/notification-bell.tsx": {
-    "mtime": 1784465096.1843681,
-    "ast_hash": "9a131f9af62189f97962bef3c88c6294",
+    "mtime": 1785029427.8162134,
+    "ast_hash": "8c40e9cd371b29e325694a225a2aec48",
     "semantic_hash": ""
   },
   "components/dashboard/page-header.tsx": {
@@ -1580,8 +1580,8 @@
     "semantic_hash": ""
   },
   "lib/ai/chat-engine.ts": {
-    "mtime": 1785019870.1595442,
-    "ast_hash": "6ed040732a57f4c0603a9bee343f53b3",
+    "mtime": 1785030171.9281209,
+    "ast_hash": "f02f600e5e839f5611f60382725b174d",
     "semantic_hash": ""
   },
   "lib/ai/chat-types.ts": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "lib/ai/conversation.ts": {
-    "mtime": 1785019895.4720263,
-    "ast_hash": "991c9b537510f22f8f898b6bb389d48a",
+    "mtime": 1785030411.9065776,
+    "ast_hash": "912271c5dbde29cfd86bdd392db93fdc",
     "semantic_hash": ""
   },
   "lib/ai/customer-identification.ts": {
@@ -1635,8 +1635,8 @@
     "semantic_hash": ""
   },
   "lib/ai/rag.ts": {
-    "mtime": 1785020485.415458,
-    "ast_hash": "c30c0233a5ddce879dd1e493289eb8b4",
+    "mtime": 1785029626.2231143,
+    "ast_hash": "333007dce3f9ede460817030e5578821",
     "semantic_hash": ""
   },
   "lib/ai/vigento-draft.ts": {
@@ -1755,8 +1755,8 @@
     "semantic_hash": ""
   },
   "lib/channels/instagram.ts": {
-    "mtime": 1784298072.5977,
-    "ast_hash": "cde02570ea27d6df9f830af7fa3e9d8d",
+    "mtime": 1785029000.5289903,
+    "ast_hash": "4e1c3291bb224bb84e8258bc96c3b5a8",
     "semantic_hash": ""
   },
   "lib/channels/operator-handoff.ts": {
@@ -2055,8 +2055,8 @@
     "semantic_hash": ""
   },
   "lib/sms/ippanel.ts": {
-    "mtime": 1785015633.731672,
-    "ast_hash": "0f85294f90d3354214b93c9dca5fb2b7",
+    "mtime": 1785028963.876974,
+    "ast_hash": "050192c3400d7c3682821b17625057d6",
     "semantic_hash": ""
   },
   "lib/storage.ts": {
@@ -2305,8 +2305,8 @@
     "semantic_hash": ""
   },
   "public/widget/loader.js": {
-    "mtime": 1785019464.5512197,
-    "ast_hash": "c2bd98c948c0ab96ab4628c62716986f",
+    "mtime": 1785029558.5737782,
+    "ast_hash": "205517a1d6ba5ff00f2634cfc88a2dd7",
     "semantic_hash": ""
   },
   "scripts/build-plugin-zip.mjs": {
@@ -2800,8 +2800,8 @@
     "semantic_hash": ""
   },
   "lib/config/production-env.ts": {
-    "mtime": 1784725657.1568613,
-    "ast_hash": "76987f8b83aba382467a4101dc62b8a7",
+    "mtime": 1785028963.879179,
+    "ast_hash": "3830acbd94f39af1a49839a0ae5e3978",
     "semantic_hash": ""
   },
   "lib/i18n/client-messages.ts": {
@@ -2885,8 +2885,8 @@
     "semantic_hash": ""
   },
   "tests/production-env.test.ts": {
-    "mtime": 1784725660.4068408,
-    "ast_hash": "1e39b06cdc8d4ef336584d20a05dd2c5",
+    "mtime": 1785029009.797934,
+    "ast_hash": "c548b91e6a22ee041a4959e446ee216f",
     "semantic_hash": ""
   },
   "tests/prompt-naturalness.test.ts": {
@@ -3060,8 +3060,8 @@
     "semantic_hash": ""
   },
   "lib/billing/admin-commercial-notifications.ts": {
-    "mtime": 1784725167.193958,
-    "ast_hash": "55f3d8efba0ed1b39e0e848909dfde97",
+    "mtime": 1785028963.8780496,
+    "ast_hash": "1fa991b592c6f221250f25bf4be01168",
     "semantic_hash": ""
   },
   "lib/billing/credit-topups.ts": {
@@ -3070,8 +3070,8 @@
     "semantic_hash": ""
   },
   "tests/admin-commercial-notifications.test.ts": {
-    "mtime": 1784725416.0599174,
-    "ast_hash": "ad48e12b26deae306d61fa268ef5350e",
+    "mtime": 1785029009.7969322,
+    "ast_hash": "b3bf53dcb4de78b4ed4fefbecdc38b73",
     "semantic_hash": ""
   },
   "tests/billing-payment-success.test.ts": {
@@ -3320,8 +3320,8 @@
     "semantic_hash": ""
   },
   "components/agents/store-access-settings.tsx": {
-    "mtime": 1785019188.0067985,
-    "ast_hash": "935d0dd56c657f40da2dc8110b4fcb06",
+    "mtime": 1785029379.4609294,
+    "ast_hash": "1807228b428cd941fdc22857073298ff",
     "semantic_hash": ""
   },
   "components/integrations/format-sync-result.ts": {
@@ -3340,13 +3340,23 @@
     "semantic_hash": ""
   },
   "lib/products/presentation.ts": {
-    "mtime": 1785020485.4165776,
-    "ast_hash": "33c6d4da3324cfd2883989001fd270a8",
+    "mtime": 1785030451.9180484,
+    "ast_hash": "3292cad6d0884fb41c6b60c7ae98eeab",
     "semantic_hash": ""
   },
   "prisma/migrations/20260726100000_woocommerce_delta_sync/migration.sql": {
     "mtime": 1785020328.8819761,
     "ast_hash": "075d8c92f9ae337d01c7b55512b63f6c",
+    "semantic_hash": ""
+  },
+  "components/products/product-showcase.tsx": {
+    "mtime": 1785029577.7113411,
+    "ast_hash": "a6d83a2614890d30ccbb7d5462032896",
+    "semantic_hash": ""
+  },
+  "tests/product-request-plan.test.ts": {
+    "mtime": 1785030411.907738,
+    "ast_hash": "645566109d8e0a43acf88e54659e91d9",
     "semantic_hash": ""
   }
 }

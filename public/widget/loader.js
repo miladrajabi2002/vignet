@@ -364,6 +364,7 @@
                         // width:fit-content + max-width:100% lets the group size to content
                         // (same fix as .vgt-bubble-wrap — prevents mid-word breaks).
                         '.vgt-group{display:flex;flex-direction:column;align-items:flex-start;gap:7px;max-width:100%;width:fit-content;}' +
+                        '.vgt-group.vgt-has-cards{width:100%;}' +
                         '.vgt-group .vgt-msg{animation:none;max-width:84%;}' +
                         '.vgt-group:empty{display:none;}' +
                         // source chip ("از کاتالوگ محصول")
@@ -372,28 +373,32 @@
                         'animation:vgt-in .3s ease both;}' +
                         '.vgt-source svg{width:12px;height:12px;}' +
                         // product card
-                        '.vgt-card-rail{display:flex;gap:10px;width:min(620px,calc(100vw - 88px));max-width:100%;overflow-x:auto;' +
-                        'padding:2px 2px 8px;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-inline:contain;}' +
-                        '.vgt-card-rail::-webkit-scrollbar{display:none;}' +
-                        '.vgt-card{width:236px;flex:0 0 236px;overflow:hidden;scroll-snap-align:start;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
-                        'background:var(--vgt-bg);box-shadow:0 10px 30px -14px rgba(0,0,0,.22);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
+                        '.vgt-card-rail{display:flex;gap:12px;width:min(660px,calc(100vw - 88px));max-width:100%;overflow-x:auto;' +
+                        'padding:2px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.16) transparent;overscroll-behavior-inline:contain;}' +
+                        '.vgt-card{width:min(250px,78vw);flex:0 0 min(250px,78vw);display:flex;flex-direction:column;overflow:hidden;scroll-snap-align:start;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
+                        'background:var(--vgt-bg);box-shadow:0 12px 32px -20px rgba(0,0,0,.34);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
                         'transition:transform .2s ease,box-shadow .2s ease;}' +
                         '.vgt-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px -14px rgba(0,0,0,.3);}' +
-                        '.vgt-card-image{display:block;width:100%;height:132px;object-fit:cover;background:var(--vgt-surface);}' +
-                        '.vgt-card-row{display:flex;align-items:center;gap:12px;padding:12px;}' +
+                        '.vgt-card-image{display:block;width:100%;height:156px;object-fit:cover;background:var(--vgt-surface);}' +
+                        '.vgt-card-placeholder{display:flex;align-items:center;justify-content:center;color:var(--vgt-muted);}' +
+                        '.vgt-card-placeholder svg{width:30px;height:30px;opacity:.5;}' +
+                        '.vgt-card-row{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 10px;}' +
                         '.vgt-card-thumb{width:58px;height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;' +
                         'border-radius:14px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
                         'color:var(--vgt-on-accent);font-size:24px;font-weight:700;box-shadow:0 6px 16px -6px var(--vgt-accent-shadow);}' +
-                        '.vgt-card-main{flex:1;min-width:0;}' +
-                        '.vgt-card-top{display:flex;align-items:center;gap:6px;min-width:0;}' +
-                        '.vgt-card-name{font-size:13.5px;font-weight:700;color:var(--vgt-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+                        '.vgt-card-main{display:flex;flex:1;min-width:0;flex-direction:column;}' +
+                        '.vgt-card-top{display:flex;align-items:flex-start;gap:6px;min-width:0;}' +
+                        '.vgt-card-name{display:-webkit-box;font-size:13.5px;font-weight:750;line-height:1.55;color:var(--vgt-text);overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
                         '.vgt-card-badge{flex:0 0 auto;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;' +
                         'color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);border:1px solid var(--vgt-accent-line);}' +
-                        '.vgt-card-desc{margin-top:2px;font-size:11.5px;color:var(--vgt-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
-                        '.vgt-card-price{margin-top:5px;font-size:14px;font-weight:800;color:var(--vgt-text);}' +
-                        '.vgt-card-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin:0 12px 12px;border-radius:12px;' +
+                        '.vgt-card-desc{display:-webkit-box;margin-top:5px;font-size:11.5px;line-height:1.75;color:var(--vgt-muted);overflow:hidden;-webkit-line-clamp:3;-webkit-box-orient:vertical;}' +
+                        '.vgt-card-specs{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;}' +
+                        '.vgt-card-spec{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 7px;border-radius:6px;background:var(--vgt-surface);color:var(--vgt-muted);font-size:10px;}' +
+                        '.vgt-card-price{margin-top:8px;font-size:14px;font-weight:800;color:var(--vgt-text);font-variant-numeric:tabular-nums;}' +
+                        '.vgt-card-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin:auto 14px 14px;border-radius:12px;' +
                         'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:12px;font-weight:700;text-decoration:none;' +
                         'transition:opacity .18s,transform .15s;}' +
+                        '.vgt-card-no-link{display:flex;align-items:center;min-height:44px;margin:auto 14px 10px;color:var(--vgt-muted);font-size:11px;}' +
                         '.vgt-card-link:hover{opacity:.9;transform:translateY(-1px);}' +
                         '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
                         // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
@@ -1117,7 +1122,8 @@
         }
 
         // ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
-        var PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
+        var PRODUCT_PREFIX = '[[product:'
+        var MAX_SHOWCASE_PRODUCTS = 10
 
         function safeHttpUrl(value) {
                 if (typeof value !== 'string' || !value) return ''
@@ -1131,55 +1137,123 @@
                 }
         }
 
-        /** Split a raw assistant string into visible text + parsed product cards,
-            holding back a trailing partial token while streaming. */
-        function parseAssistant(raw, done) {
-                var cards = []
-                var text = raw.replace(PRODUCT_TOKEN, function (m, json) {
-                        try {
-                                var p = JSON.parse(json)
-                                if (done && p && typeof p.name === 'string' && p.name) {
-                                        cards.push({
-                                                id: p.id != null ? String(p.id).slice(0, 80) : '',
-                                                name: String(p.name).slice(0, 80),
-                                                price: p.price != null ? String(p.price).slice(0, 40) : '',
-                                                desc: p.desc != null ? String(p.desc).slice(0, 90) : '',
-                                                badge: p.badge != null ? String(p.badge).slice(0, 20) : '',
-                                                image: safeHttpUrl(p.image),
-                                                url: safeHttpUrl(p.url),
-                                        })
-                                }
-                        } catch (e) {
-                                /* malformed token — drop it silently */
+        function compactProductText(value, max) {
+                return typeof value === 'string'
+                        ? value.replace(/\s+/g, ' ').trim().slice(0, max)
+                        : ''
+        }
+
+        function productSpecs(product) {
+                var raw = product.specs || product.attributes
+                var specs = []
+                if (Array.isArray(raw)) {
+                        for (var i = 0; i < raw.length && specs.length < 4; i++) {
+                                var item = compactProductText(raw[i], 70)
+                                if (item) specs.push(item)
                         }
-                        return ''
-                })
-                // While streaming, hold back an unterminated trailing token so it never
-                // flashes as raw text; once done, whatever remains is real text.
-                if (!done) {
-                        var tail = text.lastIndexOf('[[')
-                        if (tail !== -1 && text.indexOf(']]', tail) === -1) {
-                                text = text.slice(0, tail)
+                } else if (raw && typeof raw === 'object') {
+                        Object.keys(raw).some(function (key) {
+                                var value = raw[key]
+                                if (typeof value !== 'string' && typeof value !== 'number') return false
+                                var label = compactProductText(key, 28)
+                                var detail = compactProductText(String(value), 38)
+                                if (label && detail) specs.push(label + ': ' + detail)
+                                return specs.length >= 4
+                        })
+                }
+                return specs
+        }
+
+        function productTokenBounds(raw, jsonStart) {
+                var depth = 0
+                var quoted = false
+                var escaped = false
+                for (var index = jsonStart; index < raw.length; index++) {
+                        var char = raw.charAt(index)
+                        if (quoted) {
+                                if (escaped) escaped = false
+                                else if (char === '\\') escaped = true
+                                else if (char === '"') quoted = false
+                                continue
+                        }
+                        if (char === '"') {
+                                quoted = true
+                                continue
+                        }
+                        if (char === '{') depth++
+                        else if (char === '}') {
+                                depth--
+                                if (depth === 0 && raw.slice(index + 1, index + 3) === ']]') {
+                                        return { jsonEnd: index + 1, tokenEnd: index + 3 }
+                                }
                         }
                 }
+                return null
+        }
+
+        /** Split raw assistant content into clean text + at most ten cards.
+            A prefix/end scanner is used instead of a brace regex so escaped
+            JSON and future optional fields remain backward-compatible. */
+        function parseAssistant(raw, done) {
+                var cards = []
+                var visible = []
+                var seen = {}
+                var cursor = 0
+                while (cursor < raw.length) {
+                        var start = raw.indexOf(PRODUCT_PREFIX, cursor)
+                        if (start === -1) {
+                                visible.push(raw.slice(cursor))
+                                break
+                        }
+                        visible.push(raw.slice(cursor, start))
+                        var jsonStart = start + PRODUCT_PREFIX.length
+                        var bounds = productTokenBounds(raw, jsonStart)
+                        if (!bounds) break
+
+                        if (done && cards.length < MAX_SHOWCASE_PRODUCTS) {
+                                try {
+                                        var p = JSON.parse(raw.slice(jsonStart, bounds.jsonEnd))
+                                        var name = compactProductText(p && p.name, 120)
+                                        var identity = compactProductText(p && p.id, 80) || name.toLocaleLowerCase()
+                                        if (name && !seen[identity]) {
+                                                seen[identity] = true
+                                                cards.push({
+                                                        id: compactProductText(p.id, 80),
+                                                        name: name,
+                                                        price: p.price != null ? compactProductText(String(p.price), 60) : '',
+                                                        desc: compactProductText(p.desc || p.description, 240),
+                                                        badge: compactProductText(p.badge, 28),
+                                                        image: safeHttpUrl(p.image || p.imageUrl),
+                                                        url: safeHttpUrl(p.url || p.productUrl),
+                                                        specs: productSpecs(p),
+                                                })
+                                        }
+                                } catch (e) {
+                                        /* malformed marker is removed, never displayed */
+                                }
+                        }
+                        cursor = bounds.tokenEnd
+                }
+                var text = visible.join('')
                 return { text: text.replace(/\n{3,}/g, '\n\n').trim(), cards: cards }
         }
 
         function renderCard(p) {
-                var card = el('div', 'vgt-card')
+                var card = el('article', 'vgt-card')
                 if (p.image) {
                         var image = document.createElement('img')
                         image.className = 'vgt-card-image'
                         image.src = p.image
                         image.alt = p.name
                         image.loading = 'lazy'
+                        image.decoding = 'async'
+                        image.width = 320
+                        image.height = 240
                         card.appendChild(image)
+                } else {
+                        card.appendChild(el('div', 'vgt-card-image vgt-card-placeholder', svg('box')))
                 }
                 var row = el('div', 'vgt-card-row')
-                var initial = (p.name || '؟').trim().charAt(0)
-                if (!p.image) {
-                        row.appendChild(el('div', 'vgt-card-thumb', '')).textContent = initial
-                }
                 var main = el('div', 'vgt-card-main')
                 var top = el('div', 'vgt-card-top')
                 var name = el('div', 'vgt-card-name')
@@ -1196,6 +1270,15 @@
                         desc.textContent = p.desc
                         main.appendChild(desc)
                 }
+                if (p.specs && p.specs.length) {
+                        var specs = el('div', 'vgt-card-specs')
+                        for (var i = 0; i < p.specs.length; i++) {
+                                var spec = el('span', 'vgt-card-spec')
+                                spec.textContent = p.specs[i]
+                                specs.appendChild(spec)
+                        }
+                        main.appendChild(specs)
+                }
                 if (p.price) {
                         var price = el('div', 'vgt-card-price')
                         price.textContent = p.price
@@ -1210,6 +1293,10 @@
                         link.rel = 'noopener noreferrer'
                         link.textContent = t('مشاهده محصول', 'View product')
                         card.appendChild(link)
+                } else {
+                        var noLink = el('div', 'vgt-card-no-link')
+                        noLink.textContent = t('برای اطلاعات بیشتر پیام دهید', 'Message us for details')
+                        card.appendChild(noLink)
                 }
                 return card
         }
@@ -1248,6 +1335,8 @@
                                 msg.innerHTML = html
                                 msg.setAttribute('data-raw', parsed.text)
                         }
+                } else if (done && msg) {
+                        msg.remove()
                 }
 
                 // source chip — appears once the first card is complete
@@ -1259,19 +1348,28 @@
                         )
                         group.insertBefore(chip, group.firstChild)
                 }
+                if (parsed.cards.length > 0) group.classList.add('vgt-has-cards')
 
-                // cards — append only new ones (already-rendered count tracked on the node)
-                var rendered = Number(group.getAttribute('data-cards') || 0)
+                // Cards are rebuilt only when their trusted identity changes.
+                // This keeps SSE replacement deterministic without doing DOM work
+                // for every text delta.
                 var rail = group.querySelector('.vgt-card-rail')
                 if (parsed.cards.length > 0 && !rail) {
                         rail = el('div', 'vgt-card-rail')
+                        rail.tabIndex = 0
+                        rail.setAttribute('role', 'region')
+                        rail.setAttribute('aria-label', t('ویترین محصولات پیشنهادی', 'Recommended products'))
                         group.appendChild(rail)
                 }
-                for (var i = rendered; i < parsed.cards.length; i++) {
-                        rail.appendChild(renderCard(parsed.cards[i]))
-                }
-                if (parsed.cards.length !== rendered) {
-                        group.setAttribute('data-cards', String(parsed.cards.length))
+                var signature = parsed.cards.map(function (card) {
+                        return card.id || card.name
+                }).join('|')
+                if (rail && group.getAttribute('data-card-signature') !== signature) {
+                        while (rail.firstChild) rail.removeChild(rail.firstChild)
+                        for (var i = 0; i < parsed.cards.length; i++) {
+                                rail.appendChild(renderCard(parsed.cards[i]))
+                        }
+                        group.setAttribute('data-card-signature', signature)
                 }
 
                 // action chips — once, after streaming finished, for the first card

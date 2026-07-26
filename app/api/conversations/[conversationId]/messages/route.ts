@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { stripProductTokens } from '@/lib/widget/config'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
@@ -82,7 +81,10 @@ export async function GET(_req: Request, props: Params) {
     .map((m) => ({
       id: m.id,
       role: m.role,
-      content: stripProductTokens(m.content),
+      // Keep canonical product markers for the shared conversation renderer.
+      // Machine syntax is removed visually by the renderer, not destructively
+      // at the API boundary, so rich cards survive polling and refreshes.
+      content: m.content,
       createdAt: m.createdAt.toISOString(),
       contentType: m.contentType,
       metadata: m.metadata as Record<string, unknown> | null,

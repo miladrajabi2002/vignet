@@ -76,8 +76,8 @@ export function StoreAccessSettings({
   }
 
   return (
-    <div className="space-y-5">
-      <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-5 sm:p-6">
+    <div className="space-y-4">
+      <section className="spatial-surface overflow-hidden rounded-[1.5rem] p-4 sm:p-5">
         <div className="max-w-2xl">
           <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">
             {t('title')}
@@ -87,7 +87,7 @@ export function StoreAccessSettings({
           </p>
         </div>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-4 grid gap-2.5">
           <AccessRow
             icon={Package}
             title={t('productsTitle')}
@@ -115,15 +115,15 @@ export function StoreAccessSettings({
         </div>
       </section>
 
-      <aside className="flex items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 sm:p-5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
-          <ShieldCheck className="h-5 w-5" />
+      <aside className="flex items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 sm:p-4">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+          <ShieldCheck className="h-4 w-4" />
         </span>
         <div>
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">
             {t('readOnlyTitle')}
           </h3>
-          <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+          <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)] sm:text-sm">
             {t('readOnlyDescription')}
           </p>
         </div>
@@ -171,26 +171,26 @@ function AccessRow({
   onChange: (enabled: boolean) => void
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-4 sm:flex-row sm:items-center">
+    <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3 sm:px-3.5">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
-          <Icon className="h-5 w-5" />
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--bg-muted)] text-[var(--text-primary)]">
+          <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">
             {title}
           </h3>
-          <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-[var(--text-secondary)] sm:line-clamp-none">
             {description}
           </p>
-          <span className="mt-2 inline-flex rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs text-[var(--text-muted)]">
+          <span className="mt-1.5 inline-flex rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[10px] text-[var(--text-muted)]">
             {count}
           </span>
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">
+      <div className="ms-auto flex shrink-0 items-center gap-1.5">
+        <span className="hidden text-[11px] font-medium text-[var(--text-secondary)] sm:inline">
           {enabled ? enabledLabel : disabledLabel}
         </span>
         <button
@@ -201,20 +201,24 @@ function AccessRow({
           aria-label={title}
           disabled={disabled}
           onClick={() => onChange(!enabled)}
-          className={cn(
-            'relative inline-flex h-11 w-[4.5rem] shrink-0 items-center rounded-full border p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70',
-            enabled
-              ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
-              : 'border-[var(--border-default)] bg-[var(--bg-muted)]',
-          )}
+          className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
         >
           <span
             className={cn(
-              'grid h-8 w-8 place-items-center rounded-full bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm transition-transform',
-              enabled ? 'translate-x-7' : 'translate-x-0',
+              'relative inline-flex h-6 w-10 items-center rounded-full border p-0.5 transition-colors',
+              enabled
+                ? 'border-[var(--text-primary)] bg-[var(--text-primary)]'
+                : 'border-[var(--border-default)] bg-[var(--bg-muted)]',
             )}
           >
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span
+              className={cn(
+                'grid h-[18px] w-[18px] place-items-center rounded-full bg-[var(--bg-base)] text-[var(--text-primary)] shadow-sm transition-transform duration-200',
+                enabled ? 'translate-x-4' : 'translate-x-0',
+              )}
+            >
+              {pending && <Loader2 className="h-3 w-3 animate-spin" />}
+            </span>
           </span>
         </button>
       </div>

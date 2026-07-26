@@ -26,7 +26,10 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { computeOnboarding } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/panel'
-import { DashboardCompletionChecklist } from '@/components/dashboard/completion-checklist'
+import {
+  DashboardCompletionChecklist,
+  type DashboardChecklistFacts,
+} from '@/components/dashboard/completion-checklist'
 import { IntelligenceCoreLazy } from '@/components/dashboard/intelligence-core-lazy'
 import { ConversationChart } from '@/components/dashboard/charts/lazy'
 import type { TrendPoint } from '@/components/dashboard/charts/conversation-chart'
@@ -271,20 +274,35 @@ export default async function OverviewPage() {
   const hasConfiguredAgent = !!primaryAgent
     && primaryAgent.name.trim().length > 0
     && (primaryAgent.systemPrompt.trim().length > 0 || primaryAgent.promptConfig !== null)
+  const checklistFacts: DashboardChecklistFacts = {
+    agentId: primaryAgent?.id ?? null,
+    hasConfiguredAgent,
+    hasKnowledge: readyKnowledgeSources > 0 || activeProducts > 0 || activeServices > 0,
+    hasActiveChannel: activeChannels > 0,
+    hasConversation: totalConversations > 0,
+    hasOperator: !!operatorChannel?.active && !!operatorChannel.operatorChatId,
+  }
+  const checklistCompleted = checklistFacts.hasConfiguredAgent
+    && checklistFacts.hasKnowledge
+    && checklistFacts.hasActiveChannel
+    && checklistFacts.hasConversation
+
+  // Completion is evaluated before rendering, so the checklist disappears
+  // without client-side flicker. Persisting the same dismissal timestamp makes
+  // that decision permanent for the workspace on every device and session.
+  if (checklistCompleted && !workspace.dashboardChecklistDismissedAt) {
+    await prisma.workspace.updateMany({
+      where: { id: workspaceId, dashboardChecklistDismissedAt: null },
+      data: { dashboardChecklistDismissedAt: new Date() },
+    })
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
-      {!workspace.dashboardChecklistDismissedAt && (
+      {!workspace.dashboardChecklistDismissedAt && !checklistCompleted && (
         <DashboardCompletionChecklist
           locale={lang}
-          facts={{
-            agentId: primaryAgent?.id ?? null,
-            hasConfiguredAgent,
-            hasKnowledge: readyKnowledgeSources > 0 || activeProducts > 0 || activeServices > 0,
-            hasActiveChannel: activeChannels > 0,
-            hasConversation: totalConversations > 0,
-            hasOperator: !!operatorChannel?.active && !!operatorChannel.operatorChatId,
-          }}
+          facts={checklistFacts}
         />
       )}
 

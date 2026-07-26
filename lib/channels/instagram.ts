@@ -40,6 +40,49 @@ import { isEmojiOnly } from '@/lib/instagram/emoji'
  * surface a clear error if a reply is attempted with an IG-user token.
  */
 const COMMENT_PREFIX = 'comment:'
+// Meta rejects message[text] above 2,000 UTF-16 code units. Leave some
+// headroom and split at natural boundaries so Persian replies remain readable.
+const INSTAGRAM_TEXT_CHUNK_LIMIT = 1900
+
+export function splitInstagramText(
+        value: string,
+        limit = INSTAGRAM_TEXT_CHUNK_LIMIT,
+): string[] {
+        const text = value.trim()
+        if (!text) return []
+        const chunkLimit = Math.max(
+                100,
+                Math.min(1990, Number.isFinite(limit) ? Math.floor(limit) : INSTAGRAM_TEXT_CHUNK_LIMIT),
+        )
+        const chunks: string[] = []
+        let start = 0
+
+        while (start < text.length) {
+                let end = Math.min(text.length, start + chunkLimit)
+                // Never cut between a UTF-16 surrogate pair (emoji, some symbols).
+                if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1] ?? '')) end--
+
+                if (end < text.length) {
+                        const window = text.slice(start, end)
+                        const candidates = [
+                                window.lastIndexOf('\n\n'),
+                                window.lastIndexOf('\n'),
+                                window.lastIndexOf('。'),
+                                window.lastIndexOf('. '),
+                                window.lastIndexOf(' '),
+                        ]
+                        const boundary = Math.max(...candidates)
+                        if (boundary >= Math.floor(chunkLimit * 0.55)) end = start + boundary + 1
+                }
+
+                const chunk = text.slice(start, end).trim()
+                if (chunk) chunks.push(chunk)
+                start = end
+                while (start < text.length && /\s/.test(text[start])) start++
+        }
+
+        return chunks
+}
 
 /** Facebook Graph API base — used by Page Access Tokens (DMs + comments). */
 const FB_BASE = GRAPH_BASE // https://graph.facebook.com/v21.0
@@ -308,13 +351,17 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // `/{comment-id}/replies`, so comment replies work with either token type.
                         if (chatId.startsWith(COMMENT_PREFIX)) {
                                 const commentId = chatId.slice(COMMENT_PREFIX.length)
+                                const commentChunks = splitInstagramText(text)
+                                const commentText = commentChunks.length > 1
+                                        ? `${commentChunks[0].replace(/[.…]?$/, '')}…`
+                                        : commentChunks[0] ?? ''
                                 const res = await fetch(`${h.base}/${commentId}/replies`, {
                                         method: 'POST',
                                         headers: {
                                                 'Content-Type': 'application/json',
                                                 Authorization: `Bearer ${token}`,
                                         },
-                                        body: JSON.stringify({ message: text }),
+                                        body: JSON.stringify({ message: commentText }),
                                 })
                                 if (!res.ok) {
                                         const detail = await res.text().catch(() => '')
@@ -336,27 +383,31 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // Quick replies (tappable suggestion chips) are supported on IG DMs;
                         // tapping one sends its title as a normal message. Platform limits:
                         // max 13 replies, titles ≤20 chars.
-                        const message: Record<string, unknown> = { text }
-                        if (opts?.quickReplies?.length) {
-                                message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
-                                        content_type: 'text',
-                                        title: q.slice(0, 20),
-                                        payload: `qr_${i}`,
-                                }))
-                        }
-                        const res = await fetch(`${h.base}/me/messages`, {
-                                method: 'POST',
-                                headers: {
-                                        'Content-Type': 'application/json',
-                                        Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({
-                                        recipient: { id: chatId },
-                                        message,
-                                        messaging_type: 'RESPONSE',
-                                }),
-                        })
-                        if (!res.ok) {
+                        const chunks = splitInstagramText(text)
+                        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                                const message: Record<string, unknown> = { text: chunks[chunkIndex] }
+                                // Suggested replies belong only to the final text part.
+                                if (chunkIndex === chunks.length - 1 && opts?.quickReplies?.length) {
+                                        message.quick_replies = opts.quickReplies.slice(0, 13).map((q, i) => ({
+                                                content_type: 'text',
+                                                title: q.slice(0, 20),
+                                                payload: `qr_${i}`,
+                                        }))
+                                }
+                                const res = await fetch(`${h.base}/me/messages`, {
+                                        method: 'POST',
+                                        headers: {
+                                                'Content-Type': 'application/json',
+                                                Authorization: `Bearer ${token}`,
+                                        },
+                                        body: JSON.stringify({
+                                                recipient: { id: chatId },
+                                                message,
+                                                messaging_type: 'RESPONSE',
+                                        }),
+                                })
+                                if (res.ok) continue
+
                                 const detail = await res.text().catch(() => '')
                                 // Map the most common Meta error codes to actionable Persian hints so
                                 // the operator sees "what to do" in /admin/errors, not just an opaque
@@ -371,6 +422,9 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 } else if (/"code"\s*:\s*10\b/.test(detail) || /permission.*denied/i.test(detail)) {
                                         hint =
                                                 ' [راه‌حل: توکن دسترسی لازم را ندارد. در Graph API Explorer، تیک instagram_manage_messages و pages_messaging را بزنید و توکن جدید بسازید، سپس کانال را disconnect و دوباره وصل کنید.]'
+                                } else if (/length of param message\[text\]/i.test(detail)) {
+                                        hint =
+                                                ' [راه‌حل: متن پاسخ از سقف اینستاگرام عبور کرده است؛ پاسخ باید به بخش‌های حداکثر ۲۰۰۰ کاراکتری تقسیم شود.]'
                                 } else if (/"code"\s*:\s*100/.test(detail)) {
                                         hint =
                                                 ' [راه‌حل: گیرنده هنوز مکالمه را accept نکرده (در request folder)، یا پنجره ۲۴ساعته پاسخ‌دهی بسته شده است.]'

@@ -280,6 +280,58 @@ export async function sendSubscriptionPurchasedSms(
   })
 }
 
+type AdminSubscriptionPatternData = {
+  workspace: string
+  owner: string
+  phone: string
+  plan: string
+  amount: string
+  gateway: string
+  reference: string
+}
+
+type AdminCreditTopupPatternData = Omit<AdminSubscriptionPatternData, 'plan'> & {
+  balance: string
+}
+
+/**
+ * Platform-owner commercial alerts intentionally have no free-text fallback.
+ * Each event uses its own pre-approved IPPanel pattern so a financial callback
+ * can never silently switch to webservice-mode delivery.
+ */
+export async function sendAdminSubscriptionPurchasedSms(
+  mobile: string,
+  data: AdminSubscriptionPatternData,
+): Promise<boolean> {
+  return sendPatternSms(
+    mobile,
+    process.env.IPPANEL_ADMIN_SUBSCRIPTION_PURCHASED_PATTERN_CODE,
+    data,
+  )
+}
+
+export async function sendAdminSubscriptionRenewedSms(
+  mobile: string,
+  data: AdminSubscriptionPatternData,
+): Promise<boolean> {
+  return sendPatternSms(
+    mobile,
+    process.env.IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE,
+    data,
+  )
+}
+
+export async function sendAdminCreditTopupSms(
+  mobile: string,
+  data: AdminCreditTopupPatternData,
+): Promise<boolean> {
+  return sendPatternSms(
+    mobile,
+    process.env.IPPANEL_ADMIN_CREDIT_TOPPED_UP_PATTERN_CODE,
+    data,
+  )
+}
+
 /**
  * Subscription-expiry reminder SMS — sent N days before the subscription ends.
  * Uses a dedicated IPPanel pattern (IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE)

@@ -31,6 +31,9 @@ const validEnv = {
   IPPANEL_PROXY_SECRET: 'h'.repeat(32),
   IPPANEL_PATTERN_CODE: 'otp-pattern',
   IPPANEL_FROM_NUMBER: '+983000505',
+  IPPANEL_ADMIN_SUBSCRIPTION_PURCHASED_PATTERN_CODE: 'admin-purchase-pattern',
+  IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE: 'admin-renewal-pattern',
+  IPPANEL_ADMIN_CREDIT_TOPPED_UP_PATTERN_CODE: 'admin-credit-pattern',
   FINANCE_USD_TO_IRR: '900000',
 }
 
@@ -69,5 +72,14 @@ describe('production environment gate', () => {
     })
 
     expect(errors).toContain('ADMIN_COMMERCIAL_SMS_PHONE: invalid Iranian mobile number')
+  })
+
+  it('requires all three pre-approved admin commercial patterns', () => {
+    const { errors } = validateProductionEnv({
+      ...validEnv,
+      IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE: '',
+    })
+
+    expect(errors).toContain('IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE: missing')
   })
 })

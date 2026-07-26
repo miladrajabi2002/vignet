@@ -2,7 +2,11 @@ import { ADMIN_OWNER_PHONE } from '@/lib/admin/owner'
 import { captureError } from '@/lib/errors/capture'
 import { normalizePhone } from '@/lib/phone'
 import { prisma } from '@/lib/prisma'
-import { sendSms } from '@/lib/sms/ippanel'
+import {
+  sendAdminCreditTopupSms,
+  sendAdminSubscriptionPurchasedSms,
+  sendAdminSubscriptionRenewedSms,
+} from '@/lib/sms/ippanel'
 
 export type AdminCommercialEventKind =
   | 'SUBSCRIPTION_PURCHASED'
@@ -70,18 +74,6 @@ function formatAmount(amount: number, currency: string): string {
   return `${amount.toLocaleString('fa-IR', { maximumFractionDigits: 2 })} ${currency}`
 }
 
-function formatPaidAt(date: Date): string {
-  try {
-    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-      timeZone: process.env.DASHBOARD_TZ || 'Asia/Tehran',
-    }).format(date)
-  } catch {
-    return date.toISOString()
-  }
-}
-
 /**
  * Notify the platform owner after a commercial payment has been durably claimed.
  *
@@ -135,35 +127,30 @@ export async function notifyAdminCommercialEvent(
       return false
     }
 
-    const title = event.kind === 'SUBSCRIPTION_RENEWED'
-      ? 'تمدید اشتراک'
-      : event.kind === 'SUBSCRIPTION_PURCHASED'
-        ? 'خرید اشتراک'
-        : 'شارژ اعتبار'
-    const workspace = `${compact(payment.workspace.name)} (${compact(payment.workspace.slug)})`
-    const owner = `${compact(payment.workspace.owner?.name)} | ${compact(payment.workspace.owner?.phone)}`
-    const commercialDetail = expectsCredit
-      ? [
-          `مبلغ شارژ: ${formatAmount(payment.amount, payment.currency)}`,
-          `موجودی جدید: ${formatAmount(payment.workspace.aiCreditBalanceIRR, 'IRR')}`,
-        ]
-      : [
-          `پلن: ${planLabelFa(payment.plan)}`,
-          `مبلغ: ${formatAmount(payment.amount, payment.currency)}`,
-        ]
+    const common = {
+      workspace: compact(`${payment.workspace.name} (${payment.workspace.slug})`),
+      owner: compact(payment.workspace.owner?.name),
+      phone: compact(payment.workspace.owner?.phone),
+      amount: formatAmount(payment.amount, payment.currency),
+      gateway: gatewayLabelFa(payment.gateway),
+      reference: compact(payment.externalId, payment.id),
+    }
 
-    const message = [
-      `ویجنت | ${title}`,
-      `کسب‌وکار: ${workspace}`,
-      `کاربر: ${owner}`,
-      ...commercialDetail,
-      `درگاه: ${gatewayLabelFa(payment.gateway)}`,
-      `شناسه تراکنش درگاه: ${compact(payment.externalId)}`,
-      `شناسه پرداخت: ${payment.id}`,
-      `زمان: ${formatPaidAt(payment.paidAt)}`,
-    ].join('\n')
+    const delivered = event.kind === 'SUBSCRIPTION_PURCHASED'
+      ? await sendAdminSubscriptionPurchasedSms(mobile, {
+          ...common,
+          plan: planLabelFa(payment.plan),
+        })
+      : event.kind === 'SUBSCRIPTION_RENEWED'
+        ? await sendAdminSubscriptionRenewedSms(mobile, {
+            ...common,
+            plan: planLabelFa(payment.plan),
+          })
+        : await sendAdminCreditTopupSms(mobile, {
+            ...common,
+            balance: formatAmount(payment.workspace.aiCreditBalanceIRR, 'IRR'),
+          })
 
-    const delivered = await sendSms(mobile, message)
     if (!delivered) {
       captureAdminCommercialSmsError(event, new Error('SMS_DELIVERY_FAILED'))
     }
