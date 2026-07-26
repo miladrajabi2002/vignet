@@ -192,11 +192,14 @@ export function buildMessages(params: {
   productRequest?: {
     isProductTurn: boolean
     explicitShowcase: boolean
+    discoveryBrowse?: boolean
     resetProductContext: boolean
     requestNewTopic: boolean
     requestedCount: number
     inventoryMode: 'AVAILABLE' | 'OUT_OF_STOCK' | 'ANY'
   }
+  /** Store category names shown on browse turns so the overview is factual. */
+  catalogCategories?: string[]
   /**
    * When true (web widget only), instruct the model to emit machine-readable
    * `[[product:{…}]]` tokens when recommending catalog products so the widget
@@ -212,8 +215,8 @@ export function buildMessages(params: {
   // the need first, only pitch a product once the user's intent is clear — don't
   // dump a sales offer on a bare "hi".
   const toneInstruction = isFa
-    ? 'لحنت صمیمی، مختصر و انسانی باشد — مثل یک فروشنده خوب، نه ربات. از جملات کوتاه و روشن استفاده کن. در پیام اول فقط خوش‌آمد بگو و بپرس چطور می‌توانی کمک کنی؛ محصول یا قیمت را تا وقتی نیاز کاربر روشن نشده پیشنهاد نده.'
-    : "Be warm, concise and human — like a good salesperson, not a robot. Use short, clear sentences. On the first message just greet and ask how you can help; don't pitch a product or price until the user's need is clear."
+    ? 'لحنت صمیمی، مختصر و انسانی باشد — مثل یک فروشنده خوب، نه ربات. از جملات کوتاه و روشن استفاده کن. در پیام اول فقط خوش‌آمد بگو و بپرس چطور می‌توانی کمک کنی؛ محصول یا قیمت را تا وقتی نیاز کاربر روشن نشده پیشنهاد نده. قانون طلایی فروش: اگر مشتری صریح خواست محصولی را ببیند یا بفرستی، بدون هیچ سؤال اضافه‌ای نشان بده؛ اگر درخواست کلی و مبهم بود، فقط یک سؤال کوتاه برای روشن‌شدن نیاز بپرس. در هر نوبت حداکثر یک سؤال بپرس و مشتری را سؤال‌پیچ نکن.'
+    : "Be warm, concise and human — like a good salesperson, not a robot. Use short, clear sentences. On the first message just greet and ask how you can help; don't pitch a product or price until the user's need is clear. Golden sales rule: when the customer explicitly asks to see products, show them with zero extra questions; when the request is broad, ask exactly one short narrowing question. Never ask more than one question per turn."
 
   const catalogBlock = buildCatalogBlock(
     params.catalogProducts,
@@ -231,11 +234,30 @@ export function buildMessages(params: {
       ? isFa
         ? '\n\nکاربر موضوع قبلی را رد کرده است. کوتاه تأیید کن که موضوع قبلی کنار گذاشته شد و فقط بگو: «لطفاً درخواست جدیدتان را بگویید.» ادعای قبلی را تکرار نکن.'
         : '\n\nThe user rejected the previous topic. Briefly confirm it was cleared and ask them to state their new request. Do not repeat prior claims.'
-    : params.productRequest?.resetProductContext
-      ? isFa
-        ? '\n\nموضوع محصول قبلی کنار گذاشته شده است؛ ادعاهای قبلی دربارهٔ محصول یا موجودی را ادامه نده.'
-        : '\n\nThe previous product topic was reset; do not carry forward earlier product or stock claims.'
-      : ''
+    : params.productRequest?.discoveryBrowse && params.catalogAccessEnabled !== false
+      ? (() => {
+          const categories = (params.catalogCategories ?? []).slice(0, 12).join('، ')
+          const hasProducts = params.catalogProducts.length > 0
+          const useCards = Boolean(params.richCards) && hasProducts
+          const highlightFa = hasProducts
+            ? `\n۲) حداکثر ۲ تا ۳ مورد از پرطرفدارترین‌های نتیجهٔ کاتالوگ همین نوبت را کوتاه معرفی کن${useCards ? ' (فقط برای همان‌ها کارت بساز، نه بیشتر)' : ' (به‌صورت متنی و کوتاه، بدون قالب خاص)'}.`
+            : '\n۲) نتیجهٔ کاتالوگ این نوبت خالی است؛ هیچ محصول مشخصی را نام نبر و چیزی از خودت نساز.'
+          const highlightEn = hasProducts
+            ? `\n2) Briefly highlight at most 2–3 of the most popular items from this turn's catalog result${useCards ? ' (cards only for those, no more)' : ' (as short text, no special format)'}.`
+            : '\n2) This turn\'s catalog result is empty; do not name or invent any specific product.'
+          return isFa
+            ? `\n\nگشت‌وگذار کلی: مشتری پرسیده چه چیزهایی دارید ولی هنوز نگفته دنبال چیست. مثل یک فروشندهٔ ماهر مشاوره بده، لیست کامل نفرست:\n۱) در یک جمله بگو فروشگاه در چه زمینه‌ای فعال است${categories ? ` و به دسته‌های اصلی اشاره کن (دسته‌های واقعی فروشگاه: ${categories})` : ''}.${highlightFa}\n۳) فقط یک سؤال کوتاه برای روشن‌شدن نیاز بپرس (مثلاً کاربرد، سایز، رنگ یا بودجه) و همان‌جا بگو اگر بخواهد همهٔ موارد را هم نشانش می‌دهی.\nبیش از یک سؤال نپرس؛ اگر مشتری در پاسخ گفت «همه را نشان بده»، در نوبت بعد بدون سؤال نشان داده می‌شود.`
+            : `\n\nBrowse turn: the customer asked what you carry but has not said what they need. Consult like a skilled salesperson instead of dumping a list:\n1) In one sentence say what the store sells${categories ? ` and mention its real categories (${categories})` : ''}.${highlightEn}\n3) Ask exactly ONE short narrowing question (use-case, size, color or budget) and add that you can also show everything if they prefer.\nNever ask more than one question; if they answer "show me everything", the next turn will show it without questions.`
+        })()
+      : params.productRequest?.resetProductContext
+        ? isFa
+          ? '\n\nموضوع محصول قبلی کنار گذاشته شده است؛ ادعاهای قبلی دربارهٔ محصول یا موجودی را ادامه نده.'
+          : '\n\nThe previous product topic was reset; do not carry forward earlier product or stock claims.'
+        : params.productRequest?.isProductTurn
+          ? isFa
+            ? '\n\nمشاورهٔ محصول: مشتری دنبال محصول مشخصی است. اول دقیق به همان درخواست پاسخ بده و مناسب‌ترین گزینه(ها) را از نتیجهٔ کاتالوگ همین نوبت با یک دلیل کوتاه معرفی کن؛ موجودی و قیمت را از همین داده‌ها بگو. اگر یک مشخصهٔ مهم (مثل سایز یا رنگ) واقعاً برای انتخاب لازم است، در پایان فقط همان یک سؤال را بپرس. اگر مورد منطبق ناموجود بود، صادقانه بگو و نزدیک‌ترین جایگزین موجود را پیشنهاد بده.'
+            : '\n\nProduct consult: the customer wants something specific. Answer that exact request first, recommending the best-fitting option(s) from this turn\'s catalog result with one short reason; quote stock and price only from these rows. If one key attribute (size, color) is truly needed to choose, ask only that one question at the end. If the match is out of stock, say so honestly and offer the closest available alternative.'
+          : ''
 
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
   // token so the widget can render a real card (name/price/desc/badge) with

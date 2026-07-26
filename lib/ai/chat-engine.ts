@@ -15,6 +15,7 @@ import {
 import {
         resolveConversation,
         loadHistory,
+        fetchCatalogCategories,
         fetchCatalogProducts,
         fetchCatalogServices,
         historyForProductTurn,
@@ -397,7 +398,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         })
                         .filter((id): id is string => !!id)
 
-                const [catalogProducts, orderContext] = await Promise.all([
+                const [catalogProducts, orderContext, catalogCategories] = await Promise.all([
                         agent.productAccessEnabled
                                 ? fetchCatalogProducts(agent.id, productIds, productRequest)
                                 : Promise.resolve([]),
@@ -409,6 +410,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 enabled: agent.orderTrackingEnabled,
                                 language: agent.language,
                         }),
+                        // Category overview keeps browse-turn consulting factual.
+                        agent.productAccessEnabled && productRequest.discoveryBrowse
+                                ? fetchCatalogCategories(agent.id).catch(() => [] as string[])
+                                : Promise.resolve([] as string[]),
                 ])
 
                 const messages = buildMessages({
@@ -422,6 +427,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         catalogAccessEnabled: agent.productAccessEnabled,
                         orderContext,
                         productRequest,
+                        catalogCategories,
                         // Web surfaces render cards directly; messenger channels
                         // resolve markers against trusted DB rows before sending.
                         richCards: agent.productAccessEnabled && params.channel !== 'API',

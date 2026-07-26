@@ -22,8 +22,8 @@ const FALLBACK: PlatformAiConfig = {
 
 const DEFAULT_PROVIDER_MODELS: Partial<Record<ModelAlias, string>> = {
   fast: 'deepseek/deepseek-v4-flash',
-  standard: 'qwen/qwen3.7-plus',
-  balanced: 'qwen/qwen3.6-35b-a3b',
+  standard: 'google/gemini-3.1-flash-lite',
+  balanced: 'openai/gpt-5.4-nano',
   premium: 'deepseek/deepseek-v4-pro',
 }
 

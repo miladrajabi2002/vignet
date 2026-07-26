@@ -51,33 +51,33 @@ export const AGENT_MODELS: AgentModel[] = [
   },
   {
     id: 'standard',
-    name: 'توانمند و استدلالی',
-    provider: 'Qwen 3.7 Plus',
-    providerId: 'qwen/qwen3.7-plus',
+    name: 'هوشمند و خوش‌فهم',
+    provider: 'Gemini 3.1 Flash Lite',
+    providerId: 'google/gemini-3.1-flash-lite',
     tier: 'balanced',
     quality: 4,
     cost: 2,
     goodForPersian: true,
     replyPriceIRR: 4_500,
-    inputUsdPerMillion: 0.15,
-    outputUsdPerMillion: 0.60,
-    descFa: 'برای پاسخ‌های پیچیده‌تر، تحلیل چندمرحله‌ای و گفتگوهایی که دقت و درک بهتر متن مهم است؛ انتخابی مطمئن برای کارهای روزمره حرفه‌ای.',
-    descEn: 'For complex replies, multi-step analysis and professional conversations where stronger text understanding matters.',
+    inputUsdPerMillion: 0.25,
+    outputUsdPerMillion: 1.5,
+    descFa: 'بهترین درک فارسی در این رده؛ دستورالعمل‌ها را دقیق اجرا می‌کند و برای مشاوره فروش حرفه‌ای و گفتگوهای چندمرحله‌ای که فهم درست پیام مشتری مهم است، انتخاب اول است.',
+    descEn: 'Best-in-class Persian understanding; follows instructions precisely — the first pick for professional sales consulting and multi-step conversations.',
   },
   {
     id: 'balanced',
-    name: 'سریع و مقیاس‌پذیر',
-    provider: 'Qwen 3.6 35B',
-    providerId: 'qwen/qwen3.6-35b-a3b',
+    name: 'چابک و مقیاس‌پذیر',
+    provider: 'GPT-5.4 Nano',
+    providerId: 'openai/gpt-5.4-nano',
     tier: 'balanced',
     quality: 4,
     cost: 2,
     goodForPersian: true,
     replyPriceIRR: 6_500,
-    inputUsdPerMillion: 0.14,
-    outputUsdPerMillion: 1,
-    descFa: 'مناسب حجم بالای گفتگو، پاسخ‌گویی سریع و سناریوهای پشتیبانی پرتکرار که ثبات، سرعت و هزینه کنترل‌شده اهمیت بیشتری دارد.',
-    descEn: 'For high-volume conversations and support workloads where consistency, speed and controlled cost matter.',
+    inputUsdPerMillion: 0.20,
+    outputUsdPerMillion: 1.25,
+    descFa: 'ساخته‌شده برای حجم بالای گفتگو؛ پاسخ فوری و پایدار با کیفیت مطمئن OpenAI — مناسب فروشگاه‌های پرترافیک، کمپین‌ها و پشتیبانی پرتکرار.',
+    descEn: 'Built for high-volume workloads; instant, consistent replies with dependable OpenAI quality — ideal for busy stores, campaigns and repetitive support.',
   },
   {
     id: 'premium',
@@ -110,8 +110,10 @@ const LEGACY_ALIAS_MAP: Record<string, ModelAlias> = {
   'qwen/qwen3.5-35b-a3b': 'balanced',
   'qwen/qwen3.6-35b-a3b': 'balanced',
   'qwen/qwen-2.5-72b-instruct': 'balanced',
+  'openai/gpt-5.4-nano': 'balanced',
   'openai/gpt-4o-mini': 'standard',
   'qwen/qwen3.7-plus': 'standard',
+  'google/gemini-3.1-flash-lite': 'standard',
   'anthropic/claude-haiku-4.5': 'balanced',
   'deepseek/deepseek-v4-pro': 'premium',
   'anthropic/claude-sonnet-5': 'premium',
@@ -146,10 +148,10 @@ export function resolveModelId(
   const configured = providerModels?.[alias]?.trim()
   if (configured) return configured
   if (alias === 'balanced') {
-    return process.env.OPENROUTER_MODEL_BALANCED || 'qwen/qwen3.6-35b-a3b'
+    return process.env.OPENROUTER_MODEL_BALANCED || 'openai/gpt-5.4-nano'
   }
   if (alias === 'standard') {
-    return process.env.OPENROUTER_MODEL_STANDARD || 'qwen/qwen3.7-plus'
+    return process.env.OPENROUTER_MODEL_STANDARD || 'google/gemini-3.1-flash-lite'
   }
   if (alias === 'premium') {
     return process.env.OPENROUTER_MODEL_PREMIUM || 'deepseek/deepseek-v4-pro'

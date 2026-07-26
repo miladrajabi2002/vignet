@@ -20,10 +20,10 @@ const PLAN_META = {
 } as const
 
 const MODEL_META = {
-  fast: 'سریع',
-  standard: 'استاندارد',
-  balanced: 'متعادل',
-  premium: 'حرفه‌ای',
+  fast: 'سریع و اقتصادی',
+  standard: 'هوشمند و خوش‌فهم',
+  balanced: 'چابک و مقیاس‌پذیر',
+  premium: 'دقیق و حرفه‌ای',
 } as const
 
 export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialConfig }) {

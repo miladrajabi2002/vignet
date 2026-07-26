@@ -28,8 +28,8 @@ export const promptConversationSchema = z.object({
 export const promptConfigSchema = z.object({
   personality: z.string().max(2000).default(''),
   tone: z.string().max(2000).default(''),
-  doSay: z.array(z.string().max(500)).max(20).default([]),
-  dontSay: z.array(z.string().max(500)).max(20).default([]),
+  doSay: z.array(z.string().max(500)).max(30).default([]),
+  dontSay: z.array(z.string().max(500)).max(30).default([]),
   fallbackBehavior: z.string().max(2000).default(''),
   format: promptFormatSchema.default({
     bold: true,

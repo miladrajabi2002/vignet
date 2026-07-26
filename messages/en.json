@@ -438,7 +438,7 @@
                         "quality": "Quality",
                         "cost": "Cost",
                         "advanced": "Managed AI modes",
-                        "customHint": "Choose Vigent's Fast, Balanced or Premium mode; the provider model is managed on the server",
+                        "customHint": "Choose one of Vigent's four managed modes (Fast & economical, Smart & fluent, Agile & scalable, Precise & professional); the provider model is managed on the server",
                         "free": "Free"
                 }
         },

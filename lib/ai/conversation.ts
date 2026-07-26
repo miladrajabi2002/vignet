@@ -20,6 +20,12 @@ export interface ProductRequestPlan {
         isProductTurn: boolean
         /** The customer explicitly asked to see/list/send products. */
         explicitShowcase: boolean
+        /**
+         * A broad "what do you have?" browse with no specific product, count or
+         * prior context. The agent should consult like a skilled salesperson
+         * (brief overview + one narrowing question) instead of dumping a list.
+         */
+        discoveryBrowse: boolean
         /** A fresh request must not inherit old assistant product claims. */
         resetProductContext: boolean
         /** The customer explicitly rejected/reset the old topic and expects a fresh prompt. */
@@ -36,14 +42,36 @@ const PRODUCT_INTENT_RE =
         /(?:محصول|کالا|کاتالوگ|فروشگاه|قیمت|موجود|خرید|پیراهن|لباس|کفش|کیف|product|catalog|price|buy|shop|in\s*stock|available)/i
 const PRODUCT_SUBJECT_RE =
         /(?:محصول|کالا|کاتالوگ|فروشگاه|پیراهن|لباس|کفش|کیف|product|catalog|shop)/i
-const SHOWCASE_INTENT_RE =
-        /(?:بفرست|ارسال|نشون|نشان|نمایش|لیست|فهرست|معرفی|پیشنهاد|گزینه|هرچی|هرچه|چی\s*(?:دار|موجود)|send|show|list|recommend|what\s+do\s+you\s+have)/i
+/** Imperative "send/show/list" — the customer commands a showcase. */
+const SHOWCASE_COMMAND_RE =
+        /(?:بفرست|ارسال|نشون|نشان|نمایش|لیست|فهرست|معرفی|پیشنهاد|گزینه|هرچی|هرچه|send|show|list|recommend)/i
+/** Interrogative browsing — "what do you have / sell?" without a command. */
+const BROWSE_QUERY_RE =
+        /(?:چی\s*(?:دار|موجود|هست|می\s*فروش)|چیا\s*(?:دار|موجود)|چه\s*(?:محصول|کالا|جنس|چیز|مدل)|محصولات(?:تون|تان|تو)?\s*چی|what\s+do\s+you\s+(?:have|sell)|what(?:'s|\s+is)\s+available)/i
+/** A short bare "yes / show me" reply to the agent's own narrowing question. */
+const AFFIRMATIVE_SHOW_RE =
+        /^(?:آره|اره|بله|باشه|اوکی|اکی|حتما|حتماً|بفرما|ببینم|نشون\s*بده|نشان\s*بده|بفرست|همه|همش|ok(?:ay)?|yes|sure|show\s*me)[\s.!؟?]*$/i
+
+// A genuine first-person offer to show products, in one clause. Loose word
+// co-occurrence is not enough: polite fillers such as «ببینید،» and «در مورد»
+// appear in almost every Persian assistant sentence and must not count.
+const ASSISTANT_OFFER_VERB =
+        '(?:نشون(?:تون|تان)?\\s*(?:بدم|می\\s*دم|میدم)|نشان(?:تان)?\\s*(?:بدهم|می\\s*دهم|دهم)|بفرستم|معرفی\\s*کنم|لیست\\s*کنم|نمایش\\s*(?:بدم|بدهم|می\\s*دهم)|show|send|list)'
+const ASSISTANT_OFFER_NOUN =
+        '(?:محصول|گزینه|مدل|کاتالوگ|ویترین|پرفروش|پرطرفدار|همه|بیشتر|لیست|موارد|products?|options?|items?|catalog|all|more|popular)'
+const ASSISTANT_OFFER_RE = new RegExp(
+        `${ASSISTANT_OFFER_NOUN}[^.!؟?\\n]{0,60}${ASSISTANT_OFFER_VERB}|${ASSISTANT_OFFER_VERB}[^.!؟?\\n]{0,60}${ASSISTANT_OFFER_NOUN}`,
+        'i',
+)
 const RESET_CONTEXT_RE =
         /(?:بیخیال|بی‌خیال|فراموش|از\s*اول|درخواست\s*جدید|موضوع\s*جدید|ربطی\s*ندار|اشتباه|بدرد\s*نمی|به\s*درد\s*نمی|never\s*mind|forget|start\s*over|new\s*(?:request|topic))/i
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
 const AVAILABLE_RE = /(?:موجود|دار(?:ی|ید|ین|یم|ن)|in\s+stock|available|have)/i
 const ORDER_ONLY_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|ارسال\s*سفارش|order|tracking|shipment)/i
-const SERVICE_ONLY_RE = /(?:خدمت|خدمات|سرویس|نوبت|وقت|رزرو|service|appointment|booking)/i
+// Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
+// booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
+const SERVICE_ONLY_RE =
+        /(?:خدمت|خدمات|سرویس|نوبت|رزرو|وقت\s*(?:بگیر|میخوا|می‌خوا|خالی|آزاد|مشاوره|ویزیت|بد[هی]|دهی)|service|appointment|booking)/i
 
 const PRODUCT_STOP_WORDS = new Set([
         'سلام', 'درود', 'لطفا', 'لطفاً', 'خواهشاً', 'میشه', 'می‌شه', 'میتونی', 'می‌تونی',
@@ -59,9 +87,20 @@ const PRODUCT_STOP_WORDS = new Set([
         'موجودتون', 'موجودتان', 'محصولاتتون', 'محصولاتتان', 'محصولامون', 'محصولاتون', 'مشخصات',
         'بفرستی', 'بفرستم', 'بفرستن', 'بفرستیم',
         'قبلی', 'قبل', 'بیخیال', 'فراموش', 'اطلاعات',
+        'چیزی', 'چیا', 'چه', 'می', 'فروشید', 'فروشی', 'میفروشید', 'میفروشی', 'بفروشید',
+        // Greetings must never become catalog search terms («سلام وقت بخیر»).
+        'وقت', 'بخیر', 'صبح', 'عصر', 'شب', 'ظهر', 'خسته', 'نباشید', 'خداقوت',
+        'hi', 'hello', 'good', 'morning', 'evening',
+        // Affirmatives/acknowledgements must never become catalog search terms.
+        'آره', 'اره', 'بله', 'باشه', 'اوکی', 'اکی', 'حتما', 'حتماً', 'بفرما', 'بفرمایید', 'ممنون',
+        // Polite imperative endings («معرفی کنید», «نشونم بده»).
+        'کن', 'کنید', 'کنین', 'بدید', 'بدین', 'نشونم',
+        'yes', 'sure', 'ok', 'okay', 'yeah',
         'product', 'products', 'catalog', 'shop', 'store', 'price', 'prices', 'buy', 'send', 'show',
         'list', 'recommend', 'available', 'stock', 'in', 'have', 'all', 'any', 'please', 'me', 'the',
         'a', 'an', 'some', 'without', 'question', 'questions', 'new', 'more',
+        'what', 'whats', "what's", 'you', 'your', 'do', 'does', 'sell', 'selling', 'got',
+        'there', 'is', 'are', 'anything', 'something',
 ])
 
 function normalizePersianText(value: string): string {
@@ -100,8 +139,8 @@ function extractProductTerms(value: string): string[] {
         return terms
 }
 
-function requestedProductCount(message: string, explicitShowcase: boolean): number {
-        const normalized = normalizePersianText(message).toLocaleLowerCase('fa')
+/** An explicit number/word count in the message, or null when none was given. */
+function explicitRequestedCount(normalized: string): number | null {
         const tokens = normalized.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
         const contextualNumber = normalized.match(
                 /(?:^|\s)(\d+)\s*(?:تا|عدد|مورد|محصول|کالا|گزینه|products?|items?)(?:\s|$)/iu,
@@ -120,12 +159,18 @@ function requestedProductCount(message: string, explicitShowcase: boolean): numb
                 ['one', 1], ['two', 2], ['three', 3], ['four', 4], ['five', 5],
                 ['six', 6], ['seven', 7], ['eight', 8], ['nine', 9], ['ten', 10],
         ])
-        for (const token of tokens) {
-                const value = words.get(token)
-                if (value) return value
+        // «یه سوال» and the negation «نه» are not counts: a word-number only
+        // counts when a counting noun follows it («سه تا», «یه محصول», 'two items').
+        const counterNouns = new Set([
+                'تا', 'عدد', 'مورد', 'محصول', 'کالا', 'گزینه', 'مدل', 'دونه',
+                'product', 'products', 'item', 'items', 'option', 'options',
+        ])
+        for (let index = 0; index < tokens.length; index += 1) {
+                const value = words.get(tokens[index])
+                if (value && counterNouns.has(tokens[index + 1] ?? '')) return value
         }
         if (/(?:هرچی|هرچه|همه|تمام|all|everything)/i.test(normalized)) return MAX_SHOWCASE_PRODUCTS
-        return explicitShowcase ? MAX_SHOWCASE_PRODUCTS : 5
+        return null
 }
 
 /**
@@ -137,7 +182,8 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const normalized = normalizePersianText(message)
         const resetRequested = RESET_CONTEXT_RE.test(normalized)
         const orderOnly = ORDER_ONLY_RE.test(normalized)
-        const showcaseVerb = SHOWCASE_INTENT_RE.test(normalized)
+        const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
+        const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
         // Availability verbs such as «دارید» are useful for named-product
         // queries, but are not product intent when the user explicitly asks
@@ -146,11 +192,17 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const directProductSignal = productKeywordSignal || (!serviceOnly && AVAILABLE_RE.test(normalized))
 
         let priorProductTerms: string[] = []
+        // A prior browse turn ("what do you have?") counts as product context
+        // even when it produced no search terms — it lets a follow-up such as
+        // "show all" or a bare "yes" complete the browse into a showcase.
+        let priorProductSignal = false
         if (!resetRequested) {
                 for (let index = history.length - 1; index >= 0; index -= 1) {
                         const previous = history[index]
                         if (previous.role !== 'user') continue
-                        const previousContent = previous.content ?? ''
+                        // Normalize like the current turn: ZWNJ («چی می‌فروشید»)
+                        // must not hide a prior browse signal from the regexes.
+                        const previousContent = normalizePersianText(previous.content ?? '')
                         if (RESET_CONTEXT_RE.test(previousContent)) break
                         const previousProductKeyword = PRODUCT_INTENT_RE.test(previousContent)
                         const previousIsNonProduct =
@@ -158,24 +210,62 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                                 (SERVICE_ONLY_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent))
                         if (previousIsNonProduct) continue
                         const previousHasProductSignal =
-                                previousProductKeyword || AVAILABLE_RE.test(previousContent)
+                                previousProductKeyword ||
+                                AVAILABLE_RE.test(previousContent) ||
+                                BROWSE_QUERY_RE.test(previousContent)
                         if (!previousHasProductSignal) continue
+                        priorProductSignal = true
                         priorProductTerms = extractProductTerms(previousContent)
                         if (priorProductTerms.length) break
                 }
         }
 
+        // A bare "yes / show me" is only a showcase acceptance when the agent
+        // itself just offered to show products — a bare "بله" answering "shall I
+        // register your order?" must never dump a product list.
+        const lastAssistant = [...history].reverse().find((item) => item.role === 'assistant')
+        const assistantOfferedShowcase =
+                !!lastAssistant && ASSISTANT_OFFER_RE.test(normalizePersianText(lastAssistant.content ?? ''))
+        const affirmativeFollowUp =
+                AFFIRMATIVE_SHOW_RE.test(normalized.trim()) && priorProductSignal && assistantOfferedShowcase
+
+        const currentTerms = extractProductTerms(normalized)
+
         // A generic verb such as "send/show/list" is not enough by itself:
         // "send this message" and "show my orders" must never become a catalog
         // showcase. A product/commercial cue or a recent product context is
-        // required; the latter supports follow-ups such as "send five".
+        // required; the latter supports follow-ups such as "send five" and
+        // "show all" right after a browse question.
+        const showcaseFromContext =
+                showcaseCommand &&
+                (priorProductTerms.length > 0 || (priorProductSignal && currentTerms.length === 0))
         const explicitShowcase =
-                !orderOnly && !serviceOnly && showcaseVerb && (directProductSignal || priorProductTerms.length > 0)
-        const requestNewTopic = resetRequested && !explicitShowcase
-        const isProductTurn = !requestNewTopic && !orderOnly && !serviceOnly && (directProductSignal || explicitShowcase)
-        let searchTerms = isProductTurn ? extractProductTerms(normalized) : []
+                !orderOnly && !serviceOnly && (
+                        (showcaseCommand && directProductSignal) ||
+                        showcaseFromContext ||
+                        affirmativeFollowUp
+                )
+        // «بیخیال، چی دارین؟» resets AND states the new request in one message;
+        // only a reset with no product/browse content asks for a fresh prompt.
+        const requestNewTopic =
+                resetRequested && !explicitShowcase && !browseQuery && !directProductSignal
+        const isProductTurn =
+                !requestNewTopic && !orderOnly && !serviceOnly &&
+                (directProductSignal || browseQuery || explicitShowcase)
+        // An accepted offer refers to what was discussed before, never to the
+        // affirmative word itself.
+        let searchTerms = isProductTurn ? (affirmativeFollowUp ? [] : currentTerms) : []
 
         if (isProductTurn && searchTerms.length === 0 && !resetRequested) searchTerms = priorProductTerms
+
+        const explicitCount = explicitRequestedCount(normalized.toLocaleLowerCase('fa'))
+
+        // "What do you have?" with no specific product, no count and no prior
+        // product context is a browse — the professional move is a short
+        // consult (overview + one narrowing question), not a 10-card dump.
+        const discoveryBrowse =
+                isProductTurn && !explicitShowcase &&
+                browseQuery && explicitCount == null && searchTerms.length === 0
 
         const inventoryMode = OUT_OF_STOCK_RE.test(normalized)
                 ? 'OUT_OF_STOCK'
@@ -186,9 +276,11 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         return {
                 isProductTurn,
                 explicitShowcase,
+                discoveryBrowse,
                 resetProductContext: resetRequested || explicitShowcase,
                 requestNewTopic,
-                requestedCount: requestedProductCount(normalized, explicitShowcase),
+                requestedCount:
+                        explicitCount ?? (explicitShowcase ? MAX_SHOWCASE_PRODUCTS : discoveryBrowse ? 6 : 5),
                 searchTerms,
                 inventoryMode,
         }
@@ -209,13 +301,13 @@ export function historyForProductTurn(
         for (let index = history.length - 1; index >= 0; index -= 1) {
                 const item = history[index]
                 if (item.role !== 'user') continue
-                const content = item.content ?? ''
+                const content = normalizePersianText(item.content ?? '')
                 if (RESET_CONTEXT_RE.test(content)) return history.slice(index + 1)
 
                 const priorShowcaseBoundary =
                         !ORDER_ONLY_RE.test(content) &&
                         !(SERVICE_ONLY_RE.test(content) && !PRODUCT_SUBJECT_RE.test(content)) &&
-                        SHOWCASE_INTENT_RE.test(content) &&
+                        SHOWCASE_COMMAND_RE.test(content) &&
                         (PRODUCT_INTENT_RE.test(content) || AVAILABLE_RE.test(content))
                 if (priorShowcaseBoundary) return history.slice(index)
         }
@@ -532,6 +624,37 @@ export async function fetchCatalogProducts(
                 attributes: product.attributes,
                 tags: product.tags,
         }))
+}
+
+/**
+ * Compact category overview for browse/discovery turns, so the agent can say
+ * what the store actually sells ("پیراهن، ست، شلوار…") before narrowing down.
+ */
+export async function fetchCatalogCategories(agentId: string): Promise<string[]> {
+        const rows = await prisma.product.findMany({
+                where: {
+                        active: true,
+                        catalogItems: { some: { agentId } },
+                        category: { isNot: null },
+                        // The overview must reflect what can actually be bought.
+                        OR: [{ stock: null }, { stock: { gt: 0 } }],
+                },
+                select: { category: { select: { name: true } } },
+                // Deterministic sample: the most-asked-about products first, so
+                // the top-12 category list is stable even for huge catalogs.
+                orderBy: [{ queryCount: 'desc' }, { updatedAt: 'desc' }],
+                take: 400,
+        })
+        const counts = new Map<string, number>()
+        for (const row of rows) {
+                const name = row.category?.name?.trim()
+                if (!name) continue
+                counts.set(name, (counts.get(name) ?? 0) + 1)
+        }
+        return [...counts.entries()]
+                .sort((left, right) => right[1] - left[1])
+                .slice(0, 12)
+                .map(([name]) => name)
 }
 
 /** Active services are a shared operational catalog for chat and booking tools. */

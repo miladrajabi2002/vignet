@@ -950,8 +950,8 @@
     "semantic_hash": ""
   },
   "components/admin/platform-settings-form.tsx": {
-    "mtime": 1784680050.2873805,
-    "ast_hash": "718bd3caad368f258a6cb53650e62f51",
+    "mtime": 1785080824.3816316,
+    "ast_hash": "5445ff0158f423ca2df4f95674c9b709",
     "semantic_hash": ""
   },
   "components/admin/range-switch.tsx": {
@@ -1580,8 +1580,8 @@
     "semantic_hash": ""
   },
   "lib/ai/chat-engine.ts": {
-    "mtime": 1785077866.9623518,
-    "ast_hash": "7c52b23ccd07ae4a70ce16c7719e3326",
+    "mtime": 1785080523.8626666,
+    "ast_hash": "f670d6ccce5bb3e9484b319e330acbed",
     "semantic_hash": ""
   },
   "lib/ai/chat-types.ts": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "lib/ai/conversation.ts": {
-    "mtime": 1785030411.9065776,
-    "ast_hash": "912271c5dbde29cfd86bdd392db93fdc",
+    "mtime": 1785083522.5578697,
+    "ast_hash": "1ca398788a3bf0559676b09b9d336996",
     "semantic_hash": ""
   },
   "lib/ai/customer-identification.ts": {
@@ -1615,8 +1615,8 @@
     "semantic_hash": ""
   },
   "lib/ai/models.ts": {
-    "mtime": 1784215438.4926772,
-    "ast_hash": "77bc77de3f8e663d73871ccef5a44662",
+    "mtime": 1785080788.31921,
+    "ast_hash": "f73a9017a13939da49e49a2c91bc49a3",
     "semantic_hash": ""
   },
   "lib/ai/openrouter.ts": {
@@ -1625,18 +1625,18 @@
     "semantic_hash": ""
   },
   "lib/ai/platform-config.ts": {
-    "mtime": 1784215438.4936833,
-    "ast_hash": "77d5a8f5bd1f7e27188eba382313f4d1",
+    "mtime": 1785080791.2910254,
+    "ast_hash": "4999e7e7e967f37987d29a430d5bf339",
     "semantic_hash": ""
   },
   "lib/ai/prompt-builder.ts": {
-    "mtime": 1784465048.2114096,
-    "ast_hash": "d1c55fc828708330017706431eb82506",
+    "mtime": 1785080660.7572765,
+    "ast_hash": "1f406b71a96e9cfd29f29b491fae173e",
     "semantic_hash": ""
   },
   "lib/ai/rag.ts": {
-    "mtime": 1785029626.2231143,
-    "ast_hash": "333007dce3f9ede460817030e5578821",
+    "mtime": 1785083451.8787224,
+    "ast_hash": "d39d3d8c671ac9dd4dc143c3c1410f52",
     "semantic_hash": ""
   },
   "lib/ai/vigento-draft.ts": {
@@ -2075,8 +2075,8 @@
     "semantic_hash": ""
   },
   "lib/validations/agent.ts": {
-    "mtime": 1785018831.0772104,
-    "ast_hash": "07033cbb6f9e331e7ec1e557365f9071",
+    "mtime": 1785081026.2194128,
+    "ast_hash": "cc18df83cf6b817bcb99a89ac080b7ae",
     "semantic_hash": ""
   },
   "lib/validations/product.ts": {
@@ -2135,13 +2135,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1785026923.1157546,
-    "ast_hash": "93f0e18c6b28d98d2845bee030ef2b6e",
+    "mtime": 1785080847.5934825,
+    "ast_hash": "5fab18b8ee2f4e5b74a9d441849c4383",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1785026923.11375,
-    "ast_hash": "ce6b2d06a2c8af251f40496caa963781",
+    "mtime": 1785080847.5934825,
+    "ast_hash": "229ebfa8058a0a0a688a373a91870969",
     "semantic_hash": ""
   },
   "middleware.ts": {
@@ -2305,8 +2305,8 @@
     "semantic_hash": ""
   },
   "public/widget/loader.js": {
-    "mtime": 1785079968.5036411,
-    "ast_hash": "10d8c8d08290aa1337f6f0b370362cec",
+    "mtime": 1785080232.156896,
+    "ast_hash": "efa3fbc7651f6e7b79245f99465ffa6d",
     "semantic_hash": ""
   },
   "scripts/build-plugin-zip.mjs": {
@@ -2510,13 +2510,13 @@
     "semantic_hash": ""
   },
   "CHANGES.md": {
-    "mtime": 1782986528.0,
-    "ast_hash": "eed9a2e4588c325bf3afd8315f0c9c6c",
+    "mtime": 1785083635.0509655,
+    "ast_hash": "04818fca37d4bfc0c30077a97f2dc812",
     "semantic_hash": ""
   },
   "PRICING-GUIDE.fa.md": {
-    "mtime": 1784680065.7329493,
-    "ast_hash": "33bc5337a8783e77e7fe96e87ac874e5",
+    "mtime": 1785083562.286441,
+    "ast_hash": "1965526a8a3c382c3b169d33c731a87d",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3355,8 +3355,8 @@
     "semantic_hash": ""
   },
   "tests/product-request-plan.test.ts": {
-    "mtime": 1785030411.907738,
-    "ast_hash": "645566109d8e0a43acf88e54659e91d9",
+    "mtime": 1785083495.7618558,
+    "ast_hash": "d44b29a153ab5a664530b5c845b554f2",
     "semantic_hash": ""
   },
   "components/chat/chat-composer.tsx": {
@@ -3417,6 +3417,11 @@
   "docs/release-readiness-report.md": {
     "mtime": 1785077866.9613514,
     "ast_hash": "8b012f3580c5ca0e64ae5805a67fbcf7",
+    "semantic_hash": ""
+  },
+  "prisma/migrations/20260726130000_refresh_mid_tier_models/migration.sql": {
+    "mtime": 1785083467.3671553,
+    "ast_hash": "0ec3fa0e868046a14af2ebe06bd72f93",
     "semantic_hash": ""
   }
 }
