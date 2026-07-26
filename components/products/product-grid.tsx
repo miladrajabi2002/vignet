@@ -412,28 +412,32 @@ export function ProductsToolbar({
   defaultQuery,
   defaultSort,
   defaultCategory,
+  defaultStock,
 }: {
   categories: { id: string; name: string }[]
   defaultQuery: string
   defaultSort: string
   defaultCategory: string
+  defaultStock: string
 }) {
   const t = useTranslations('products')
   const router = useRouter()
 
   function update(params: Record<string, string>) {
     const sp = new URLSearchParams()
-    // When the user changes the search query, category, or sort, reset to
+    // When the user changes the search query, category, stock, or sort, reset to
     // page 1 — otherwise they'd land on an empty page if the new filter has
     // fewer results than the current page index.
     const isFilterChange =
       params.q !== undefined ||
       params.categoryId !== undefined ||
-      params.sort !== undefined
+      params.sort !== undefined ||
+      params.stock !== undefined
     const merged = {
       q: defaultQuery,
       sort: defaultSort,
       categoryId: defaultCategory,
+      stock: defaultStock,
       ...(isFilterChange ? {} : {}),
       ...params,
     }
@@ -462,6 +466,17 @@ export function ProductsToolbar({
         options={[
           { value: '', label: t('allCategories') },
           ...categories.map((category) => ({ value: category.id, label: category.name })),
+        ]}
+      />
+      <MaterialSelect
+        value={defaultStock}
+        onValueChange={(value) => update({ stock: value })}
+        ariaLabel={t('stockFilter')}
+        className="min-w-40"
+        options={[
+          { value: '', label: t('allStockStatuses') },
+          { value: 'in_stock', label: t('inStock') },
+          { value: 'out_of_stock', label: t('outOfStock') },
         ]}
       />
       <MaterialSelect

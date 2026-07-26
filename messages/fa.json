@@ -861,6 +861,8 @@
                 "sortPriceDesc": "گران‌ترین",
                 "sortQueried": "پرجستجوترین",
                 "allCategories": "همه دسته‌ها",
+                "stockFilter": "فیلتر موجودی",
+                "allStockStatuses": "همه وضعیت‌های موجودی",
                 "inStock": "موجود",
                 "outOfStock": "ناموجود",
                 "unlimited": "نامحدود",

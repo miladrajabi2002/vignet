@@ -861,6 +861,8 @@
                 "sortPriceDesc": "Price: high to low",
                 "sortQueried": "Most queried",
                 "allCategories": "All categories",
+                "stockFilter": "Stock filter",
+                "allStockStatuses": "All stock statuses",
                 "inStock": "In stock",
                 "outOfStock": "Out of stock",
                 "unlimited": "Unlimited",

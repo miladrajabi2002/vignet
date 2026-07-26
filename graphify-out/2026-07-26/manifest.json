@@ -1635,8 +1635,8 @@
     "semantic_hash": ""
   },
   "lib/ai/rag.ts": {
-    "mtime": 1785019166.229634,
-    "ast_hash": "67a1b3ca62d0cf789d7dbd287ebee98b",
+    "mtime": 1785020485.415458,
+    "ast_hash": "c30c0233a5ddce879dd1e493289eb8b4",
     "semantic_hash": ""
   },
   "lib/ai/vigento-draft.ts": {
@@ -2010,8 +2010,8 @@
     "semantic_hash": ""
   },
   "lib/products/catalog.ts": {
-    "mtime": 1785019781.2956026,
-    "ast_hash": "3f264799bfe48de8fd8067038a3d719a",
+    "mtime": 1785020552.472032,
+    "ast_hash": "29e535e3f7563a5da4acf7c8ee094447",
     "semantic_hash": ""
   },
   "lib/queue/connection.ts": {
@@ -3120,8 +3120,8 @@
     "semantic_hash": ""
   },
   "app/api/wordpress-plugin/info/route.ts": {
-    "mtime": 1784923608.0,
-    "ast_hash": "ec8427a91957c8668278f85e3695c436",
+    "mtime": 1785020801.8730297,
+    "ast_hash": "6b442dd2c46abf672daecd7f4b13b798",
     "semantic_hash": ""
   },
   "app/logout/page.tsx": {
@@ -3340,8 +3340,8 @@
     "semantic_hash": ""
   },
   "lib/products/presentation.ts": {
-    "mtime": 1785019425.072597,
-    "ast_hash": "236fbd12cdf8f20793526e431e7c9517",
+    "mtime": 1785020485.4165776,
+    "ast_hash": "33c6d4da3324cfd2883989001fd270a8",
     "semantic_hash": ""
   },
   "prisma/migrations/20260726100000_woocommerce_delta_sync/migration.sql": {

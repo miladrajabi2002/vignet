@@ -19,7 +19,7 @@ const PAGE_SIZE = 24
 
 export default async function ProductsPage(
   props: {
-    searchParams: Promise<{ q?: string; sort?: string; categoryId?: string; page?: string }>
+    searchParams: Promise<{ q?: string; sort?: string; categoryId?: string; stock?: string; page?: string }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -31,6 +31,9 @@ export default async function ProductsPage(
   const q = searchParams.q?.trim() ?? ''
   const sort = searchParams.sort ?? 'newest'
   const categoryId = searchParams.categoryId ?? ''
+  const stock = ['in_stock', 'out_of_stock'].includes(searchParams.stock ?? '')
+    ? searchParams.stock!
+    : ''
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   const orderBy: Prisma.ProductOrderByWithRelationInput =
@@ -45,12 +48,19 @@ export default async function ProductsPage(
   const productWhere: Prisma.ProductWhereInput = {
     workspaceId: user.workspaceId,
     ...(categoryId ? { categoryId } : {}),
+    ...(stock === 'in_stock'
+      ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
+      : stock === 'out_of_stock'
+        ? { stock: 0 }
+        : {}),
     ...(q
       ? {
-          OR: [
-            { name: { contains: q, mode: 'insensitive' } },
-            { sku: { contains: q, mode: 'insensitive' } },
-          ],
+          AND: [{
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { sku: { contains: q, mode: 'insensitive' } },
+            ],
+          }],
         }
       : {}),
   }
@@ -130,6 +140,7 @@ export default async function ProductsPage(
     if (q) sp.set('q', q)
     if (sort !== 'newest') sp.set('sort', sort)
     if (categoryId) sp.set('categoryId', categoryId)
+    if (stock) sp.set('stock', stock)
     if (p > 1) sp.set('page', String(p))
     const qs = sp.toString()
     return qs ? `/products?${qs}` : '/products'
@@ -173,7 +184,7 @@ export default async function ProductsPage(
       <WooSetupCard integration={wooIntegration} />
 
       {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
-      {!q && !categoryId && (
+      {!q && !categoryId && !stock && (
         <div className="grid gap-4 lg:grid-cols-2">
           <DashboardPanel
             title={fa ? 'محصولات — ۷ روز' : 'Products — 7 days'}
@@ -205,7 +216,7 @@ export default async function ProductsPage(
         </div>
       )}
 
-      {products.length === 0 && !q && !categoryId ? (
+      {products.length === 0 && !q && !categoryId && !stock ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-16 text-center">
           <Package className="h-8 w-8 text-[var(--text-muted)]" />
           <h2 className="mt-4 text-lg text-[var(--text-primary)]">{t('empty')}</h2>
@@ -221,6 +232,7 @@ export default async function ProductsPage(
             defaultQuery={q}
             defaultSort={sort}
             defaultCategory={categoryId}
+            defaultStock={stock}
           />
           <ProductGrid products={pageProducts} />
           <Pagination

@@ -81,14 +81,21 @@ export function MaterialSelect({
                         const target = event.target as Node
                         if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false)
                 }
-                function onViewportChange() { setOpen(false) }
+                function onResize() { setOpen(false) }
+                function onScroll(event: Event) {
+                        const target = event.target
+                        // Ignore the listbox's own scroll. This listener runs in capture
+                        // phase, so menu scrolling otherwise closes long option lists.
+                        if (target instanceof Node && menuRef.current?.contains(target)) return
+                        setOpen(false)
+                }
                 document.addEventListener('pointerdown', onPointerDown)
-                window.addEventListener('resize', onViewportChange, { passive: true })
-                window.addEventListener('scroll', onViewportChange, { passive: true, capture: true })
+                window.addEventListener('resize', onResize, { passive: true })
+                window.addEventListener('scroll', onScroll, { passive: true, capture: true })
                 return () => {
                         document.removeEventListener('pointerdown', onPointerDown)
-                        window.removeEventListener('resize', onViewportChange)
-                        window.removeEventListener('scroll', onViewportChange, true)
+                        window.removeEventListener('resize', onResize)
+                        window.removeEventListener('scroll', onScroll, true)
                 }
         }, [open, updatePosition])
 
@@ -168,7 +175,7 @@ export function MaterialSelect({
                                         id={`${id}-menu`}
                                         role="listbox"
                                         aria-label={ariaLabel}
-                                        className={cn('material-select-menu fixed z-[120] max-h-[min(22rem,60dvh)] overflow-y-auto rounded-[1.15rem] border border-black/10 bg-white/95 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] backdrop-blur-xl', menuClassName)}
+                                        className={cn('material-select-menu fixed z-[120] max-h-[min(22rem,60dvh)] overscroll-contain overflow-y-auto rounded-[1.15rem] border border-black/10 bg-white/95 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.2)] backdrop-blur-xl', menuClassName)}
                                         style={position}
                                 >
                                         {options.map((option, index) => {

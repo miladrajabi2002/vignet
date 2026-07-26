@@ -1,16 +1,16 @@
 # Graph Report - vignet  (2026-07-26)
 
 ## Corpus Check
-- 662 files · ~493,115 words
+- 662 files · ~493,299 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3913 nodes · 9108 edges · 248 communities (220 shown, 28 thin omitted)
+- 3913 nodes · 9108 edges · 251 communities (222 shown, 29 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 89 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cbeca845`
+- Built from commit: `339d18ba`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -211,6 +211,7 @@
 - route.ts
 - popular-posts.tsx
 - wp-content.ts
+- page.tsx
 - route.ts
 - route.ts
 - deploy.sh
@@ -222,6 +223,9 @@
 - sitemap.ts
 - resend
 - route.ts
+- stt.ts
+- route.ts
+- session-revalidation.test.ts
 - postcss.config.mjs
 - 📊 ADMIN DASHBOARD — ANALYTICS
 - { GET, POST }
@@ -240,7 +244,6 @@
 - page.tsx
 - finance.ts
 - customer-identification.ts
-- page.tsx
 - @ricky0123/vad-web
 - tailwind-merge
 
@@ -263,23 +266,23 @@
   components/admin/admin-broadcast-form.tsx → lib/config/production-env.ts
 - `AgentAnalyticsPage()` --indirect_call--> `value()`  [INFERRED]
   app/(dashboard)/agents/[agentId]/analytics/page.tsx → lib/config/production-env.ts
-- `AgentCatalogPage()` --calls--> `requireUser()`  [EXTRACTED]
-  app/(dashboard)/agents/[agentId]/catalog/page.tsx → lib/session.ts
+- `EditAutomationPage()` --calls--> `requireUser()`  [EXTRACTED]
+  app/(dashboard)/agents/[agentId]/instagram/[automationId]/edit/page.tsx → lib/session.ts
 - `AgentKnowledgePage()` --calls--> `requireUser()`  [EXTRACTED]
   app/(dashboard)/agents/[agentId]/knowledge/page.tsx → lib/session.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (248 total, 28 thin omitted)
+## Communities (251 total, 29 thin omitted)
 
 ### Community 0 - "automation.ts"
 Cohesion: 0.11
 Nodes (45): AutomationAction, AutomationPolicy, AutomationRow, AutomationTrigger, checkUserFollows(), DEFAULT_AUTOMATION_POLICY, executeAction(), isReplyMode() (+37 more)
 
 ### Community 1 - "cn"
-Cohesion: 0.17
-Nodes (18): POST(), bodySchema, GET(), Params, POST(), bodySchema, POST(), bodySchema (+10 more)
+Cohesion: 0.14
+Nodes (25): bodySchema, Params, POST(), POST(), bodySchema, GET(), Params, POST() (+17 more)
 
 ### Community 2 - "ui.tsx"
 Cohesion: 0.10
@@ -291,7 +294,7 @@ Nodes (45): actionChip(), applyConfig(), applyViewportHeight(), autoGrow(), bubb
 
 ### Community 4 - "prisma.ts"
 Cohesion: 0.06
-Nodes (34): GET(), ownAgent(), Params, POST(), saveSchema, DELETE(), ownAgent(), Params (+26 more)
+Nodes (38): bodySchema, GET(), ownAgent(), Params, PUT(), DELETE(), ownAgent(), Params (+30 more)
 
 ### Community 5 - "chat-engine.ts"
 Cohesion: 0.07
@@ -466,8 +469,8 @@ Cohesion: 0.25
 Nodes (3): vigent_woo_migrate_4_2_0(), vigent_woo_migrate_existing_users(), vigent_woo_setup_cron()
 
 ### Community 48 - "config.ts"
-Cohesion: 0.09
-Nodes (28): bodySchema, Params, POST(), confirmSchema, Params, POST(), execFileAsync, hasFfmpeg() (+20 more)
+Cohesion: 0.22
+Nodes (10): execFileAsync, hasFfmpeg(), MIME_TO_EXT, POST(), publicBaseUrl(), transcodeToInstagramAudio(), UploadedFile, rateLimitCost() (+2 more)
 
 ### Community 50 - "route.ts"
 Cohesion: 0.14
@@ -574,8 +577,8 @@ Cohesion: 0.22
 Nodes (14): GET(), Params, buildFallbackSummary(), compact(), ConversationSummaryResult, ensureConversationSummary(), isEmojiOnly(), isGreetingOnly() (+6 more)
 
 ### Community 77 - "conversation-thread.tsx"
-Cohesion: 0.13
-Nodes (23): InstagramAutomationContent(), normalizeSettings(), AutomationCard(), MESSAGE_TYPE_ICON, REPLY_MODE_ICON, TYPE_ICON, InstagramAutomationManager(), TabDef (+15 more)
+Cohesion: 0.11
+Nodes (28): EditAutomationPage(), InstagramAutomationContent(), normalizeSettings(), EditInstagramAutomationPage(), AutomationCard(), MESSAGE_TYPE_ICON, REPLY_MODE_ICON, TYPE_ICON (+20 more)
 
 ### Community 78 - "neural-operation-graph.tsx"
 Cohesion: 0.11
@@ -586,8 +589,8 @@ Cohesion: 0.16
 Nodes (19): bodySchema, Params, POST(), campaignDeliveryText(), CampaignJobData, processCampaign(), processRecipient(), SEND_INTERVAL_MS (+11 more)
 
 ### Community 80 - "scheduler.ts"
-Cohesion: 0.15
-Nodes (20): GET(), normalizeSiteUrl(), appBaseUrl(), createSchema, encryptSensitiveFields(), GET(), normalizeWooStoreUrl(), POST() (+12 more)
+Cohesion: 0.17
+Nodes (17): appBaseUrl(), createSchema, encryptSensitiveFields(), GET(), normalizeWooStoreUrl(), POST(), SENSITIVE_FIELDS, assertSafeHttpUrl() (+9 more)
 
 ### Community 81 - "API"
 Cohesion: 0.12
@@ -734,16 +737,16 @@ Cohesion: 0.22
 Nodes (8): Available Domains, Available Stacks, How to Use, Output Formats, Prerequisites, Rule Categories by Priority, Search Reference, UI/UX Pro Max - Design Intelligence
 
 ### Community 119 - "route.ts"
-Cohesion: 0.40
-Nodes (4): AgentCatalogPage(), AccessKey, AccessRow(), StoreAccessSettings()
+Cohesion: 0.31
+Nodes (7): bodySchema, POST(), fetchGenerationCost(), MIME_BY_FORMAT, SynthesizedAudio, SynthesizeInput, synthesizeSpeech()
 
 ### Community 121 - "vigento-actions.ts"
-Cohesion: 0.14
-Nodes (17): EditAutomationPage(), NewAutomationPage(), EditInstagramAutomationPage(), NewInstagramAutomationPage(), InstagramWorkspacePage(), CategoriesPage(), NewProductPage(), BackButton() (+9 more)
+Cohesion: 0.11
+Nodes (19): AgentCatalogPage(), NewAutomationPage(), AgentLearningPage(), NewInstagramAutomationPage(), InstagramWorkspacePage(), CategoriesPage(), NewProductPage(), LearningCenter() (+11 more)
 
 ### Community 122 - "formatDateTime"
-Cohesion: 0.11
-Nodes (24): bodySchema, GET(), ownAgent(), Params, PUT(), DELETE(), Params, PATCH() (+16 more)
+Cohesion: 0.15
+Nodes (16): confirmSchema, Params, POST(), DELETE(), Params, PATCH(), GET(), POST() (+8 more)
 
 ### Community 123 - "page.tsx"
 Cohesion: 0.06
@@ -906,8 +909,8 @@ Cohesion: 0.23
 Nodes (8): POST(), { handlers, auth, signOut }, isPlatformOwnerPhone(), normalizePhone(), allowOtpVerificationAttempt(), isOTPValid(), verifyOTP(), mocks
 
 ### Community 165 - "route.ts"
-Cohesion: 0.12
-Nodes (18): agent_hint_body(), agent_hint_title(), AgentsPage(), DigitalMenuDashboardPage(), isOrderStatus(), ORDER_STATUSES, OrdersPage(), OrderStatus (+10 more)
+Cohesion: 0.18
+Nodes (11): agent_hint_body(), agent_hint_title(), AgentsPage(), DigitalMenuDashboardPage(), ServicesPage(), PageHeader(), IMPORTANT: by request, there is NO kicker / eyebrow text above the title., MenuShareCard() (+3 more)
 
 ### Community 166 - "@prisma/client"
 Cohesion: 0.40
@@ -1001,6 +1004,10 @@ Nodes (4): Answer, Outcome, Q: قابلیت یکپارچه بودن کانال �
 Cohesion: 0.23
 Nodes (12): AdminCommercialEvent, AdminCommercialEventKind, adminCommercialSmsPhone(), captureAdminCommercialSmsError(), compact(), formatAmount(), formatPaidAt(), gatewayLabelFa() (+4 more)
 
+### Community 204 - "page.tsx"
+Cohesion: 0.39
+Nodes (7): isOrderStatus(), ORDER_STATUSES, OrdersPage(), OrderStatus, shortStoreUrl(), STATUS_TRANSLATION_KEYS, statusClassName()
+
 ### Community 205 - "route.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: خطا و ارور داریم: Prisma knowledgeBase.count Unknown argument workspace, Source Nodes
@@ -1016,6 +1023,14 @@ Nodes (10): CHANNELS, IntegrationsPage(), formatWooSyncResult(), SyncFeedback, W
 ### Community 214 - "sitemap.ts"
 Cohesion: 0.15
 Nodes (19): adminLogin(), AdminLoginState, REASON_MESSAGES_FA, AdminLoginForm(), initial, AdminLoginPage(), metadata, ADMIN_COOKIE (+11 more)
+
+### Community 216 - "route.ts"
+Cohesion: 0.47
+Nodes (5): GET(), ownAgent(), Params, POST(), saveSchema
+
+### Community 217 - "stt.ts"
+Cohesion: 0.53
+Nodes (4): POST(), audioFormat(), transcribeAudio(), TranscribeInput
 
 ### Community 218 - "route.ts"
 Cohesion: 0.38
@@ -1069,14 +1084,10 @@ Nodes (15): AdminRevenuePage(), PLAN_BADGE, calculateFinanceSummary(), FinanceIn
 Cohesion: 0.33
 Nodes (5): VigentoPage(), CAPABILITIES, ChatMessage, Locale, VigentoWorkspace()
 
-### Community 253 - "page.tsx"
-Cohesion: 0.47
-Nodes (3): AgentLearningPage(), LearningCenter(), LearningItem
-
 ## Knowledge Gaps
 - **1192 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1187 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
@@ -1089,17 +1100,17 @@ Nodes (3): AgentLearningPage(), LearningCenter(), LearningItem
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `route.ts` to `charts.ts`, `models.ts`, `captureError`, `session.ts`, `page.tsx`, `activity.ts`, `commercial-config.ts`, `rateLimit`, `layout.tsx`, `route.ts`, `popular-posts.tsx`, `trend-chart.tsx`, `material-select.tsx`, `getVerticalPack`, `page.tsx`, `route.ts`, `social-links.tsx`, `iphone-preview.tsx`, `route.ts`, `chat-orchestrator.ts`, `page.tsx`, `PageHeader`, `conversation-thread.tsx`, `checkWorkspaceActive`, `wp-content.ts`, `index.ts`, `page.tsx`, `route.ts`, `react-dom`, `page.tsx`, `automation-card.tsx`, `page.tsx`, `route.ts`, `route.ts`, `vigento-actions.ts`, `page.tsx`?**
+- **Why does `cn()` connect `route.ts` to `charts.ts`, `models.ts`, `captureError`, `session.ts`, `page.tsx`, `activity.ts`, `commercial-config.ts`, `rateLimit`, `layout.tsx`, `route.ts`, `popular-posts.tsx`, `trend-chart.tsx`, `material-select.tsx`, `getVerticalPack`, `page.tsx`, `route.ts`, `social-links.tsx`, `iphone-preview.tsx`, `route.ts`, `chat-orchestrator.ts`, `page.tsx`, `PageHeader`, `page.tsx`, `conversation-thread.tsx`, `checkWorkspaceActive`, `wp-content.ts`, `index.ts`, `page.tsx`, `route.ts`, `react-dom`, `page.tsx`, `automation-card.tsx`, `page.tsx`, `route.ts`, `vigento-actions.ts`, `page.tsx`?**
   _High betweenness centrality (0.071) - this node is a cross-community bridge._
 - **Why does `dependencies` connect `dependencies` to `@ricky0123/vad-web`, `tailwind-merge`, `route.ts`, `@prisma/client`, `route.ts`, `model-select.tsx`, `isAdminAuthed`, `index.ts`?**
   _High betweenness centrality (0.037) - this node is a cross-community bridge._
-- **Why does `getCurrentUser()` connect `prisma.ts` to `cn`, `ui.tsx`, `page-header.tsx`, `campaign-composer.tsx`, `page.tsx`, `registry.ts`, `route.ts`, `automation-form.tsx`, `registry.ts`, `route.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `config.ts`, `layout.tsx`, `low-credit-alert.ts`, `appointments-workspace.tsx`, `helpers.ts`, `service-health-panel.tsx`, `automation-manager.tsx`, `charts.ts`, `booking-manager.tsx`, `page.tsx`, `automation-manager.tsx`, `scheduler.ts`, `auth.ts`, `route.ts`, `logo.tsx`, `material-select.tsx`, `service.ts`, `route.ts`, `automation-card.tsx`, `media-uploader.tsx`, `page.tsx`, `vigento-actions.ts`, `formatDateTime`, `normalizeChatLinkSettings`?**
+- **Why does `getCurrentUser()` connect `prisma.ts` to `cn`, `ui.tsx`, `page-header.tsx`, `campaign-composer.tsx`, `page.tsx`, `registry.ts`, `route.ts`, `automation-form.tsx`, `registry.ts`, `route.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `config.ts`, `layout.tsx`, `low-credit-alert.ts`, `appointments-workspace.tsx`, `helpers.ts`, `service-health-panel.tsx`, `automation-manager.tsx`, `charts.ts`, `booking-manager.tsx`, `page.tsx`, `automation-manager.tsx`, `scheduler.ts`, `auth.ts`, `route.ts`, `route.ts`, `stt.ts`, `session-revalidation.test.ts`, `logo.tsx`, `material-select.tsx`, `service.ts`, `route.ts`, `automation-card.tsx`, `media-uploader.tsx`, `page.tsx`, `route.ts`, `vigento-actions.ts`, `formatDateTime`, `normalizeChatLinkSettings`?**
   _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **What connects `next/core-web-vitals`, `next/typescript`, `mini-services/**` to the rest of the system?**
   _1192 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `automation.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.10730804810360776 - nodes in this community are weakly interconnected._
+- **Should `cn` be split into smaller, more focused modules?**
+  _Cohesion score 0.13781512605042018 - nodes in this community are weakly interconnected._
 - **Should `ui.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.10252100840336134 - nodes in this community are weakly interconnected._
-- **Should `loader.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.1130952380952381 - nodes in this community are weakly interconnected._

@@ -12,6 +12,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q')?.trim()
   const categoryId = searchParams.get('categoryId') ?? undefined
+  const stock = searchParams.get('stock')
   const sort = searchParams.get('sort') ?? 'newest'
 
   const orderBy =
@@ -27,8 +28,13 @@ export async function GET(req: Request) {
     where: {
       workspaceId: user.workspaceId,
       categoryId,
+      ...(stock === 'in_stock'
+        ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
+        : stock === 'out_of_stock'
+          ? { stock: 0 }
+          : {}),
       ...(q
-        ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] }
+        ? { AND: [{ OR: [{ name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] }] }
         : {}),
     },
     orderBy,
