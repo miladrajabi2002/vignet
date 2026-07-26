@@ -14,9 +14,12 @@ import {
     Globe,
     Download,
     Sparkles,
+    Package,
+    ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
+import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
 
 /**
  * Vigent connection card — uses the same `spatial-surface` design language
@@ -154,40 +157,7 @@ export function WooSetupCard({
                 return
             }
 
-            // Build a useful, context-aware message instead of the old
-            // generic "X محصول و Y سفارش هم‌گام شد" which often showed
-            // "0 محصول و 0 سفارش" and left the user wondering if anything
-            // actually happened. The new message explains what the sync
-            // actually did (or didn't do) and why.
-            const pcount = data.products?.count ?? 0
-            const ocount = data.orders?.count ?? 0
-            const pErrors = data.products?.errors?.length ?? 0
-            const skipped = data.products?.skipped === true || data.orders?.skipped === true
-            const now = new Date()
-            const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
-
-            let msg: string
-            if (skipped) {
-                // webhook-only mode — no REST credentials configured, so
-                // the manual "sync now" couldn't actually pull anything.
-                // Webhook push from the plugin still works.
-                msg = `بررسی هم‌گام‌سازی در ساعت ${timeStr} انجام شد. این اتصال در حالت webhook-only است — هم‌گام‌سازی کششی فعال نیست، اما افزونه تغییرات محصولات و سفارش‌ها را به‌صورت لحظه‌ای از طریق webhook ارسال می‌کند.`
-            } else if (pcount === 0 && ocount === 0 && pErrors === 0) {
-                // The server returned 0/0 with no errors. This usually means
-                // the store has no published products / recent orders, OR
-                // the WooCommerce REST API is reachable but empty.
-                msg = `بررسی در ساعت ${timeStr} انجام شد. هیچ محصول یا سفارش جدیدی برای هم‌گام‌سازی یافت نشد. اگر انتظار دارید محصولاتی وجود دارند، مطمئن شوید در ووکامرس وضعیت «منتشر شده» دارند.`
-            } else {
-                // We got some real counts. Build a clear summary.
-                const parts: string[] = []
-                if (pcount > 0) parts.push(`${pcount} محصول`)
-                if (ocount > 0) parts.push(`${ocount} سفارش`)
-                const okMsg = parts.length > 0
-                    ? `${parts.join(' و ')} هم‌گام شد.`
-                    : 'هیچ مورد جدیدی برای هم‌گام‌سازی نبود.'
-                msg = `${okMsg} (ساعت ${timeStr}${pErrors > 0 ? ` · ${pErrors} خطا` : ''})`
-            }
-            setNotice({ type: 'ok', msg })
+            setNotice(formatWooSyncResult(data))
             router.refresh()
         } catch {
             setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
@@ -323,12 +293,12 @@ export function WooSetupCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <button
                         type="button"
                         onClick={syncNow}
                         disabled={syncing || !integration.active || !isPluginConfigured}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
                     >
                         {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         بروزرسانی
@@ -336,14 +306,14 @@ export function WooSetupCard({
                     <button
                         type="button"
                         onClick={toggleActive}
-                        className="inline-flex min-h-9 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                     >
                         {integration.active ? 'غیرفعال' : 'فعال'}
                     </button>
                     <button
                         type="button"
                         onClick={remove}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                         حذف
@@ -351,9 +321,32 @@ export function WooSetupCard({
                 </div>
             </div>
 
+            <nav
+                aria-label="مدیریت اطلاعات فروشگاه"
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"
+            >
+                <Link
+                    href="/products"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                >
+                    <Package className="h-4 w-4" />
+                    مشاهده محصولات
+                </Link>
+                <Link
+                    href="/products/orders"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                >
+                    <ShoppingBag className="h-4 w-4" />
+                    مشاهده سفارش‌ها
+                </Link>
+            </nav>
+
             {/* Notice */}
             {notice && (
-                <div className={cn(
+                <div
+                    role={notice.type === 'err' ? 'alert' : 'status'}
+                    aria-live="polite"
+                    className={cn(
                     'mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
                     notice.type === 'ok' ? 'border border-[var(--green)]/30 bg-[var(--green)]/5 text-[var(--green)]' : 'border border-danger/30 bg-danger/5 text-danger',
                 )}>
@@ -374,16 +367,16 @@ export function WooSetupCard({
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <a
-                                    href={`/api/downloads/wordpress-plugin?v=${Date.now()}`}
+                                    href="/api/downloads/wordpress-plugin"
                                     download
-                                    className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-yellow-600 px-3 text-xs font-bold text-white transition-colors hover:bg-yellow-700"
+                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-yellow-600 px-3 text-xs font-bold text-white transition-colors hover:bg-yellow-700"
                                 >
                                     <Download className="h-3.5 w-3.5" />
                                     دانلود افزونه
                                 </a>
                                 <Link
                                     href="/docs/woocommerce"
-                                    className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-yellow-300 px-3 text-xs font-medium text-yellow-800 transition-colors hover:bg-yellow-100"
+                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-yellow-300 px-3 text-xs font-medium text-yellow-800 transition-colors hover:bg-yellow-100"
                                 >
                                     راهنما
                                 </Link>

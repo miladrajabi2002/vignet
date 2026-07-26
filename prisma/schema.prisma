@@ -158,6 +158,8 @@ model Agent {
   //   before the agent proceeds. Drives the collect-info flow at thread open.
   requireCustomerInfo Boolean  @default(false)
   customerInfoPrompt  String?  @db.Text
+  productAccessEnabled Boolean @default(true)
+  orderTrackingEnabled Boolean @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -251,26 +253,35 @@ enum ChannelType {
 
 // ─── PRODUCT CATALOG ──────────────────────────────────────────────
 model ProductCategory {
-  id          String   @id @default(cuid())
-  workspaceId String
-  name        String
-  slug        String
-  parentId    String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  sourceIntegrationId String?
+  externalId          String?
+  name                String
+  slug                String
+  parentId            String?
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
 
-  workspace Workspace         @relation(fields: [workspaceId], references: [id])
-  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children  ProductCategory[] @relation("CategoryTree")
-  products  Product[]
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id])
+  sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
+  parent           ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children         ProductCategory[] @relation("CategoryTree")
+  products         Product[]
 
   @@unique([workspaceId, slug])
+  @@unique([sourceIntegrationId, externalId])
   @@index([workspaceId])
+  @@index([sourceIntegrationId])
 }
 
 model Product {
   id                 String    @id @default(cuid())
   workspaceId        String
+  sourceIntegrationId String?
+  externalId         String?
+  sourceUpdatedAt    DateTime?
+  sourceHash         String?
   categoryId         String?
   name               String
   description        String?   @db.Text
@@ -288,19 +299,21 @@ model Product {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  workspace    Workspace        @relation(fields: [workspaceId], references: [id])
-  category     ProductCategory? @relation(fields: [categoryId], references: [id])
-  catalogItems AgentCatalog[]
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
+  sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
+  category          ProductCategory?  @relation(fields: [categoryId], references: [id])
+  catalogItems      AgentCatalog[]
 
-  // SKU must be unique within a workspace so WooCommerce sync can never create
-  // duplicate rows even if the application-layer dedup has a bug. In Postgres,
-  // multiple NULL values are allowed on a unique index, so products without a
-  // SKU don't conflict with each other.
-  @@unique([workspaceId, sku])
+  // External source identity is authoritative. SKU remains indexed for search
+  // and one-time adoption of catalog rows created before source IDs existed.
+  // The migration also adds a partial unique SKU index for manual rows only.
+  @@unique([sourceIntegrationId, externalId])
   // Name is the secondary dedup key (case-insensitive matching happens at the
   // app layer). A plain index keeps the case-sensitive name lookups fast.
   @@index([workspaceId, name])
+  @@index([workspaceId, sku])
   @@index([workspaceId])
+  @@index([sourceIntegrationId])
   @@index([categoryId])
 }
 
@@ -1092,6 +1105,9 @@ model StoreIntegration {
   lastSyncAt          DateTime?
   lastSyncStatus      String? // 'ok' | 'error'
   lastSyncError       String?
+  connectedAt         DateTime?
+  lastWebhookAt       DateTime?
+  pluginVersion       String?
   active              Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -1099,8 +1115,12 @@ model StoreIntegration {
   workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orders    StoreOrder[]
   syncLogs  StoreSyncLog[]
+  products  Product[]
+  categories ProductCategory[]
+  webhookDeliveries StoreWebhookDelivery[]
 
   @@index([workspaceId])
+  @@index([webhookSecret])
 }
 
 enum StoreType {
@@ -1163,6 +1183,24 @@ model StoreSyncLog {
 
   @@index([integrationId, createdAt])
   @@index([workspaceId])
+}
+
+model StoreWebhookDelivery {
+  id            String    @id @default(cuid())
+  integrationId String
+  deliveryId    String
+  payloadHash   String
+  eventCount    Int       @default(0)
+  status        String    @default("pending")
+  error         String?   @db.Text
+  receivedAt    DateTime  @default(now())
+  processedAt   DateTime?
+
+  integration StoreIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, deliveryId])
+  @@index([integrationId, status])
+  @@index([receivedAt])
 }
 
 // ─── INSTAGRAM AUTOMATION (DM / Comment / Story) ─────────────────────

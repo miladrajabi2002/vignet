@@ -7,6 +7,7 @@ import { processSummary } from '@/lib/conversations/summary'
 import { processNotification } from '@/lib/notifications/notify'
 import { handleInbound } from '@/lib/channels/handler'
 import { processCampaign } from '@/lib/campaigns/process'
+import { processWooWebhookBatch } from '@/lib/integrations/woocommerce'
 import { startScheduler } from '@/worker/scheduler'
 
 /**
@@ -79,6 +80,15 @@ const campaignWorker = new Worker(
   { connection, concurrency: 1 },
 )
 
+const wooWebhookWorker = new Worker(
+  QUEUE_NAMES.wooWebhook,
+  async (job) => {
+    console.log(`[worker] woo-webhook job ${job.id}`)
+    await processWooWebhookBatch(job.data)
+  },
+  { connection, concurrency: 3 },
+)
+
 for (const [name, w] of [
   ['ingestion', ingestionWorker],
   ['product-embed', productWorker],
@@ -86,6 +96,7 @@ for (const [name, w] of [
   ['notifications', notificationWorker],
   ['inbound-message', inboundWorker],
   ['campaigns', campaignWorker],
+  ['woo-webhook', wooWebhookWorker],
 ] as const) {
   w.on('failed', (job, err) =>
     console.error(`[worker:${name}] job ${job?.id} failed:`, err.message),
@@ -106,6 +117,7 @@ async function shutdown() {
     notificationWorker.close(),
     inboundWorker.close(),
     campaignWorker.close(),
+    wooWebhookWorker.close(),
   ])
   process.exit(0)
 }

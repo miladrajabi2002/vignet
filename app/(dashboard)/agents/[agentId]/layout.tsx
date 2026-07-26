@@ -44,7 +44,7 @@ export default async function AgentLayout(
     { key: 'overview', href: `/agents/${agent.id}`, label: t('overview') },
     { key: 'settings', href: `/agents/${agent.id}/settings`, label: t('settings') },
     { key: 'knowledge', href: `/agents/${agent.id}/knowledge`, label: t('knowledge') },
-    ...(modules.includes('products') ? [{ key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('products') }] : []),
+    ...(modules.includes('products') ? [{ key: 'catalog', href: `/agents/${agent.id}/catalog`, label: t('storeAccessTab') }] : []),
     { key: 'channels', href: `/agents/${agent.id}/channels`, label: t('channels') },
     { key: 'learning', href: `/agents/${agent.id}/learning`, label: t('learning'), badge: learningCount },
     { key: 'analytics', href: `/agents/${agent.id}/analytics`, label: t('analytics') },

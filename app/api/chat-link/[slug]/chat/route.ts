@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
 import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
-import { stripProductTokens } from '@/lib/widget/config'
 import { getClientIp } from '@/lib/security/request-ip'
 import {
         createPublicConversationToken,
@@ -84,7 +83,8 @@ export async function GET(req: Request, props: Params) {
                 .map((m) => ({
                         id: m.id,
                         role: m.role === 'USER' ? 'user' : 'assistant',
-                        content: stripProductTokens(m.content),
+                        // Keep product markers so rich cards survive a reload.
+                        content: m.content,
                 }))
 
         return NextResponse.json({ messages })
@@ -142,6 +142,8 @@ export async function POST(req: Request, props: Params) {
                                         roleTemplate: true,
                                         requireCustomerInfo: true,
                                         customerInfoPrompt: true,
+                                        productAccessEnabled: true,
+                                        orderTrackingEnabled: true,
                                 },
                         },
                 },

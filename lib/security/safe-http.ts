@@ -115,7 +115,21 @@ export async function assertSafeHttpUrl(raw: string): Promise<URL> {
  */
 export async function safeHttpGet(raw: string, options: SafeHttpOptions = {}): Promise<SafeHttpResponse> {
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS
-  return request(raw, options, 0, maxRedirects)
+  return request(raw, options, 0, maxRedirects, 'GET')
+}
+
+/**
+ * POST a small body to a tenant-controlled URL with the same DNS pinning and
+ * redirect validation as safeHttpGet. Pairing callers should normally set
+ * maxRedirects to 0 so a one-time proof is never forwarded to another host.
+ */
+export async function safeHttpPost(
+  raw: string,
+  body: string | Buffer,
+  options: SafeHttpOptions = {},
+): Promise<SafeHttpResponse> {
+  const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS
+  return request(raw, options, 0, maxRedirects, 'POST', Buffer.from(body))
 }
 
 async function request(
@@ -123,6 +137,8 @@ async function request(
   options: SafeHttpOptions,
   redirectCount: number,
   maxRedirects: number,
+  method: 'GET' | 'POST',
+  requestBody?: Buffer,
 ): Promise<SafeHttpResponse> {
   const url = parseHttpUrl(raw)
   const originalHostname = hostnameWithoutBrackets(url.hostname)
@@ -139,11 +155,12 @@ async function request(
         family: target.family,
         port: url.port || undefined,
         path: `${url.pathname}${url.search}`,
-        method: 'GET',
+        method,
         servername: net.isIP(originalHostname) ? undefined : originalHostname,
         headers: {
           Host: url.host,
           Accept: '*/*',
+          ...(requestBody ? { 'Content-Length': String(requestBody.length) } : {}),
           ...options.headers,
         },
       },
@@ -170,13 +187,21 @@ async function request(
     )
     req.setTimeout(timeoutMs, () => req.destroy(new Error('HTTP_REQUEST_TIMEOUT')))
     req.on('error', reject)
-    req.end()
+    req.end(requestBody)
   })
 
   if ([301, 302, 303, 307, 308].includes(response.status)) {
     const location = response.headers.location
     if (!location || redirectCount >= maxRedirects) throw new Error('HTTP_REDIRECT_LIMIT')
-    return request(new URL(location, url).toString(), options, redirectCount + 1, maxRedirects)
+    const redirectedMethod = response.status === 303 ? 'GET' : method
+    return request(
+      new URL(location, url).toString(),
+      options,
+      redirectCount + 1,
+      maxRedirects,
+      redirectedMethod,
+      redirectedMethod === 'POST' ? requestBody : undefined,
+    )
   }
 
   const contentType = String(response.headers['content-type'] ?? '').toLowerCase()

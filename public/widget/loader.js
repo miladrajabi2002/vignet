@@ -372,10 +372,14 @@
                         'animation:vgt-in .3s ease both;}' +
                         '.vgt-source svg{width:12px;height:12px;}' +
                         // product card
-                        '.vgt-card{width:min(300px,100%);overflow:hidden;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
+                        '.vgt-card-rail{display:flex;gap:10px;width:min(620px,calc(100vw - 88px));max-width:100%;overflow-x:auto;' +
+                        'padding:2px 2px 8px;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-inline:contain;}' +
+                        '.vgt-card-rail::-webkit-scrollbar{display:none;}' +
+                        '.vgt-card{width:236px;flex:0 0 236px;overflow:hidden;scroll-snap-align:start;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
                         'background:var(--vgt-bg);box-shadow:0 10px 30px -14px rgba(0,0,0,.22);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
                         'transition:transform .2s ease,box-shadow .2s ease;}' +
                         '.vgt-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px -14px rgba(0,0,0,.3);}' +
+                        '.vgt-card-image{display:block;width:100%;height:132px;object-fit:cover;background:var(--vgt-surface);}' +
                         '.vgt-card-row{display:flex;align-items:center;gap:12px;padding:12px;}' +
                         '.vgt-card-thumb{width:58px;height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;' +
                         'border-radius:14px;background:linear-gradient(135deg,var(--vgt-accent) 0%,var(--vgt-accent-deep) 100%);' +
@@ -387,6 +391,11 @@
                         'color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);border:1px solid var(--vgt-accent-line);}' +
                         '.vgt-card-desc{margin-top:2px;font-size:11.5px;color:var(--vgt-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
                         '.vgt-card-price{margin-top:5px;font-size:14px;font-weight:800;color:var(--vgt-text);}' +
+                        '.vgt-card-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin:0 12px 12px;border-radius:12px;' +
+                        'background:var(--vgt-accent);color:var(--vgt-on-accent);font-size:12px;font-weight:700;text-decoration:none;' +
+                        'transition:opacity .18s,transform .15s;}' +
+                        '.vgt-card-link:hover{opacity:.9;transform:translateY(-1px);}' +
+                        '.vgt-card-link:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
                         // action chips under a bot reply — ≥44px touch height (11px*2 + ~22px line)
                         '.vgt-actions{display:flex;flex-wrap:wrap;gap:7px;animation:vgt-in .35s .1s ease both;}' +
                         '.vgt-action{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--vgt-border);cursor:pointer;' +
@@ -572,7 +581,7 @@
                         // Messages use a bit more screen width on mobile.
                         '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
                         // Cards can stretch wider on narrow screens.
-                        '.vgt-card{width:100%!important;}' +
+                        '.vgt-card{width:min(76vw,252px)!important;flex-basis:min(76vw,252px)!important;}' +
                         // ── LEAD FORM & INTRO: prevent disappearing when keyboard opens ──
                         // On mobile, when the soft keyboard opens the body shrinks
                         // (e.g. from 673px to 271px). The lead form (~406px) and
@@ -1110,6 +1119,18 @@
         // ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
         var PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 
+        function safeHttpUrl(value) {
+                if (typeof value !== 'string' || !value) return ''
+                try {
+                        var parsed = new URL(value)
+                        return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+                                ? parsed.toString()
+                                : ''
+                } catch (e) {
+                        return ''
+                }
+        }
+
         /** Split a raw assistant string into visible text + parsed product cards,
             holding back a trailing partial token while streaming. */
         function parseAssistant(raw, done) {
@@ -1117,12 +1138,15 @@
                 var text = raw.replace(PRODUCT_TOKEN, function (m, json) {
                         try {
                                 var p = JSON.parse(json)
-                                if (p && typeof p.name === 'string' && p.name) {
+                                if (done && p && typeof p.name === 'string' && p.name) {
                                         cards.push({
+                                                id: p.id != null ? String(p.id).slice(0, 80) : '',
                                                 name: String(p.name).slice(0, 80),
                                                 price: p.price != null ? String(p.price).slice(0, 40) : '',
                                                 desc: p.desc != null ? String(p.desc).slice(0, 90) : '',
                                                 badge: p.badge != null ? String(p.badge).slice(0, 20) : '',
+                                                image: safeHttpUrl(p.image),
+                                                url: safeHttpUrl(p.url),
                                         })
                                 }
                         } catch (e) {
@@ -1143,9 +1167,19 @@
 
         function renderCard(p) {
                 var card = el('div', 'vgt-card')
+                if (p.image) {
+                        var image = document.createElement('img')
+                        image.className = 'vgt-card-image'
+                        image.src = p.image
+                        image.alt = p.name
+                        image.loading = 'lazy'
+                        card.appendChild(image)
+                }
                 var row = el('div', 'vgt-card-row')
                 var initial = (p.name || '؟').trim().charAt(0)
-                row.appendChild(el('div', 'vgt-card-thumb', '')).textContent = initial
+                if (!p.image) {
+                        row.appendChild(el('div', 'vgt-card-thumb', '')).textContent = initial
+                }
                 var main = el('div', 'vgt-card-main')
                 var top = el('div', 'vgt-card-top')
                 var name = el('div', 'vgt-card-name')
@@ -1169,6 +1203,14 @@
                 }
                 row.appendChild(main)
                 card.appendChild(row)
+                if (p.url) {
+                        var link = el('a', 'vgt-card-link')
+                        link.href = p.url
+                        link.target = '_blank'
+                        link.rel = 'noopener noreferrer'
+                        link.textContent = t('مشاهده محصول', 'View product')
+                        card.appendChild(link)
+                }
                 return card
         }
 
@@ -1220,8 +1262,13 @@
 
                 // cards — append only new ones (already-rendered count tracked on the node)
                 var rendered = Number(group.getAttribute('data-cards') || 0)
+                var rail = group.querySelector('.vgt-card-rail')
+                if (parsed.cards.length > 0 && !rail) {
+                        rail = el('div', 'vgt-card-rail')
+                        group.appendChild(rail)
+                }
                 for (var i = rendered; i < parsed.cards.length; i++) {
-                        group.appendChild(renderCard(parsed.cards[i]))
+                        rail.appendChild(renderCard(parsed.cards[i]))
                 }
                 if (parsed.cards.length !== rendered) {
                         group.setAttribute('data-cards', String(parsed.cards.length))
@@ -1366,6 +1413,9 @@
                                                                 } else if (evt.type === 'delta') {
                                                                         raw += evt.text
                                                                         renderAssistantGroup(ensureGroup(), raw, false)
+                                                                } else if (evt.type === 'replace' && typeof evt.text === 'string') {
+                                                                        raw = evt.text
+                                                                        renderAssistantGroup(ensureGroup(), raw, true)
                                                                 } else if (evt.type === 'done') {
                                                                         if (group) renderAssistantGroup(group, raw, true)
                                                                         // The server emits the persisted assistant message id on

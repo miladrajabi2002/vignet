@@ -45,6 +45,8 @@ export async function POST(req: Request) {
       // ─ F3: customer identification
       requireCustomerInfo: true,
       customerInfoPrompt: true,
+      productAccessEnabled: true,
+      orderTrackingEnabled: true,
     },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })

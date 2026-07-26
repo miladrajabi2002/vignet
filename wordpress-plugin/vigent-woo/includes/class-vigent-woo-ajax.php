@@ -23,7 +23,8 @@ class Vigent_Woo_Ajax {
         private function __construct() {
                 add_action( 'wp_ajax_vigent_woo_status', array( $this, 'ajax_status' ) );
                 add_action( 'wp_ajax_vigent_woo_test', array( $this, 'ajax_test' ) );
-                add_action( 'wp_ajax_vigent_woo_sync_batch', array( $this, 'ajax_sync_batch' ) );
+		add_action( 'wp_ajax_vigent_woo_sync_batch', array( $this, 'ajax_sync_batch' ) );
+		add_action( 'wp_ajax_vigent_woo_flush_delta', array( $this, 'ajax_flush_delta' ) );
                 add_action( 'wp_ajax_vigent_woo_save_toggles', array( $this, 'ajax_save_toggles' ) );
                 add_action( 'wp_ajax_vigent_woo_connect', array( $this, 'ajax_connect' ) );
                 add_action( 'wp_ajax_vigent_woo_disconnect', array( $this, 'ajax_disconnect' ) );
@@ -71,7 +72,8 @@ class Vigent_Woo_Ajax {
                         'disconnect'     => 5,
                         'mark_pushed'    => 60,
                         'save_toggles'   => 60,
-                        'sync_batch'     => 120,
+			'sync_batch'     => 120,
+			'flush_delta'    => 30,
                         'status'         => 120,
                         'test'           => 10,
                         'check_update'   => 15,
@@ -173,7 +175,10 @@ class Vigent_Woo_Ajax {
                 // Clear the cron schedules — no point running auto-sync with
                 // no credentials. They'll be re-created on the next connect
                 // via vigent_woo_setup_cron().
-                wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+		wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+		wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+		wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
+		update_option( Vigent_Woo_Sync::DELTA_QUEUE_OPTION, array(), false );
 
                 if ( ! $result['success'] ) {
                         // Server notification failed but we still disconnected
@@ -194,15 +199,22 @@ class Vigent_Woo_Ajax {
                 ) );
         }
 
-        public function ajax_status() {
-                $this->verify_nonce();
-                $status     = $this->core()->get_connection_status();
-                $configured = $this->core()->is_configured();
-                wp_send_json_success( array_merge( $status, array( 'configured' => $configured ) ) );
-        }
+	public function ajax_status() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'status' ) ) {
+			wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
+		}
+		$status     = $this->core()->get_connection_status();
+		$configured = $this->core()->is_configured();
+		$delta      = Vigent_Woo_Sync::instance()->get_delta_status();
+		wp_send_json_success( array_merge( $status, $delta, array( 'configured' => $configured ) ) );
+	}
 
-        public function ajax_test() {
-                $this->verify_nonce();
+	public function ajax_test() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'test' ) ) {
+			wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
+		}
                 if ( ! $this->core()->is_configured() ) {
                         wp_send_json( array( 'success' => false, 'data' => array( 'message' => __( 'ابتدا اتصال را برقرار کنید.', 'vigent-woo' ) ) ) );
                 }
@@ -213,8 +225,11 @@ class Vigent_Woo_Ajax {
                 wp_send_json( array( 'success' => $result['connected'], 'data' => array( 'message' => $msg ) ) );
         }
 
-        public function ajax_sync_batch() {
-                $this->verify_nonce();
+	public function ajax_sync_batch() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'sync_batch' ) ) {
+			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها بیش از حد مجاز است.', 'vigent-woo' ) ), 429 );
+		}
                 $kind   = isset( $_POST['kind'] ) ? sanitize_text_field( wp_unslash( $_POST['kind'] ) ) : '';
                 $offset = isset( $_POST['offset'] ) ? max( 0, (int) $_POST['offset'] ) : 0;
                 $filter = isset( $_POST['filter'] ) ? json_decode( wp_unslash( $_POST['filter'] ), true ) : array();
@@ -224,12 +239,27 @@ class Vigent_Woo_Ajax {
                 if ( ! in_array( $kind, array( 'products', 'orders' ), true ) ) {
                         wp_send_json_error( array( 'message' => __( 'نوع نامعتبر.', 'vigent-woo' ) ) );
                 }
-                $result = Vigent_Woo_Sync::instance()->sync_batch( $kind, $offset, 25, $filter );
-                wp_send_json_success( $result );
-        }
+		$result = Vigent_Woo_Sync::instance()->sync_batch( $kind, $offset, 50, $filter );
+		wp_send_json_success( $result );
+	}
 
-        public function ajax_save_toggles() {
-                $this->verify_nonce();
+	public function ajax_flush_delta() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'flush_delta' ) ) {
+			wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
+		}
+		$result = Vigent_Woo_Sync::instance()->flush_delta_queue( 50 );
+		if ( ! empty( $result['success'] ) ) {
+			wp_send_json_success( $result );
+		}
+		wp_send_json_error( $result, 502 );
+	}
+
+	public function ajax_save_toggles() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'save_toggles' ) ) {
+			wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
+		}
                 $s = $this->core()->get_settings();
                 $s['sync_products'] = ! empty( $_POST['sync_products'] ) ? '1' : '';
                 $s['sync_orders']   = ! empty( $_POST['sync_orders'] ) ? '1' : '';
@@ -247,8 +277,11 @@ class Vigent_Woo_Ajax {
          * Mark the initial push as complete so the admin page swaps from the
          * push wizard to the success + management view.
          */
-        public function ajax_mark_pushed() {
-                $this->verify_nonce();
+	public function ajax_mark_pushed() {
+		$this->verify_nonce();
+		if ( ! $this->check_rate_limit( 'mark_pushed' ) ) {
+			wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
+		}
                 update_option( 'vigent_woo_initial_push_done', 1 );
                 wp_send_json_success( array( 'message' => __( 'ثبت شد.', 'vigent-woo' ) ) );
         }
@@ -307,8 +340,8 @@ class Vigent_Woo_Ajax {
                 // producing a blank page for some users.
                 if ( ! empty( $result['update_available'] ) ) {
                         $result['fallback_install_url'] = wp_nonce_url(
-                                admin_url( 'update.php?action=upgrade-plugin&plugin=' . rawurlencode( Vigent_Woo_Updater::PLUGIN_FILE ) ),
-                                'upgrade-plugin_' . Vigent_Woo_Updater::PLUGIN_FILE
+				admin_url( 'update.php?action=upgrade-plugin&plugin=' . rawurlencode( Vigent_Woo_Updater::plugin_file() ) ),
+				'upgrade-plugin_' . Vigent_Woo_Updater::plugin_file()
                         );
 
                         // Also force-refresh WP's update transient so both
@@ -390,7 +423,7 @@ class Vigent_Woo_Ajax {
 
                 // Verify the transient now has our update info.
                 $current = get_site_transient( 'update_plugins' );
-                if ( ! is_object( $current ) || ! isset( $current->response[ Vigent_Woo_Updater::PLUGIN_FILE ] ) ) {
+		if ( ! is_object( $current ) || ! isset( $current->response[ Vigent_Woo_Updater::plugin_file() ] ) ) {
                         wp_send_json_error(
                                 array( 'message' => __( 'بروزرسانی در زمان مقرر یافت نشد. چند ثانیه دیگر دوباره دکمه «بررسی بروزرسانی» را بزنید.', 'vigent-woo' ) ),
                                 500
@@ -398,7 +431,7 @@ class Vigent_Woo_Ajax {
                 }
 
                 // Bootstrap WP Core's upgrader classes.
-                if ( ! function_exists( 'WP_Ajax_Upgrader_Skin' ) ) {
+		if ( ! class_exists( 'WP_Ajax_Upgrader_Skin' ) ) {
                         require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
                 }
                 if ( ! function_exists( 'request_filesystem_credentials' ) ) {
@@ -414,7 +447,7 @@ class Vigent_Woo_Ajax {
                 // unzip, etc.) we get a WP_Error back.
                 $skin     = new WP_Ajax_Upgrader_Skin();
                 $upgrader = new Plugin_Upgrader( $skin );
-                $result   = $upgrader->upgrade( Vigent_Woo_Updater::PLUGIN_FILE );
+		$result   = $upgrader->upgrade( Vigent_Woo_Updater::plugin_file() );
 
                 if ( is_wp_error( $result ) ) {
                         wp_send_json_error(
@@ -448,7 +481,7 @@ class Vigent_Woo_Ajax {
                 // plugin header. This is more reliable than trusting the
                 // remote info (which might have been cached).
                 $new_version = VIGENT_WOO_VERSION;
-                $plugin_path = WP_PLUGIN_DIR . '/' . Vigent_Woo_Updater::PLUGIN_FILE;
+		$plugin_path = WP_PLUGIN_DIR . '/' . Vigent_Woo_Updater::plugin_file();
                 if ( file_exists( $plugin_path ) ) {
                         $plugin_data = get_plugin_data( $plugin_path, false, false );
                         if ( ! empty( $plugin_data['Version'] ) ) {
@@ -462,8 +495,8 @@ class Vigent_Woo_Ajax {
 
                 // Reactivate the plugin if it was active before the upgrade
                 // (Plugin_Upgrader preserves activation state, but be defensive).
-                if ( ! is_plugin_active( Vigent_Woo_Updater::PLUGIN_FILE ) ) {
-                        activate_plugin( Vigent_Woo_Updater::PLUGIN_FILE );
+		if ( ! is_plugin_active( Vigent_Woo_Updater::plugin_file() ) ) {
+			activate_plugin( Vigent_Woo_Updater::plugin_file() );
                 }
 
                 wp_send_json_success( array(

@@ -125,6 +125,8 @@ export const agentCreateSchema = z.object({
   // ─ F3: customer identification
   requireCustomerInfo: z.boolean().optional(),
   customerInfoPrompt: z.string().max(1000).optional(),
+  productAccessEnabled: z.boolean().optional(),
+  orderTrackingEnabled: z.boolean().optional(),
 })
 
 export const agentUpdateSchema = agentCreateSchema.partial().extend({

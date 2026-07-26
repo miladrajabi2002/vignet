@@ -66,6 +66,8 @@ export async function retrieveChunks(params: {
   /** Raw customer query for exact-term/full-text recall in the hybrid ranker. */
   queryText?: string
   limit?: number
+  /** Exclude product-catalog chunks when the agent's catalog access is off. */
+  includeProductCatalog?: boolean
 }): Promise<RetrievedChunk[]> {
   const literal = toVectorLiteral(params.queryEmbedding)
   const limit = params.limit ?? 5
@@ -73,6 +75,7 @@ export async function retrieveChunks(params: {
   // Pull a slightly larger candidate set so the recency re-rank has headroom.
   const candidateLimit = Math.max(limit * 3, limit + 5)
   const queryText = params.queryText?.replace(/\s+/g, ' ').trim().slice(0, 500) ?? ''
+  const includeProductCatalog = params.includeProductCatalog !== false
 
   // The workspace/agent WHERE filter is applied *after* the HNSW scan, so for
   // small tenants the default ef_search (40) can return too few (or zero)
@@ -89,6 +92,7 @@ export async function retrieveChunks(params: {
         WHERE kc."workspaceId" = ${params.workspaceId}
           AND kc."agentId" = ${params.agentId}
           AND kc.embedding IS NOT NULL
+          AND (${includeProductCatalog} OR kc.metadata ->> 'productId' IS NULL)
         ORDER BY kc.embedding <=> ${literal}::vector
         LIMIT ${candidateLimit}
       ),
@@ -104,6 +108,7 @@ export async function retrieveChunks(params: {
         WHERE ${queryText} <> ''
           AND kc."workspaceId" = ${params.workspaceId}
           AND kc."agentId" = ${params.agentId}
+          AND (${includeProductCatalog} OR kc.metadata ->> 'productId' IS NULL)
           AND to_tsvector('simple', kc.content) @@ websearch_to_tsquery('simple', ${queryText})
         ORDER BY ts_rank_cd(
           to_tsvector('simple', kc.content),

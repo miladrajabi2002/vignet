@@ -8,6 +8,7 @@ export const QUEUE_NAMES = {
   notifications: 'notifications',
   inboundMessage: 'inbound-message',
   campaigns: 'campaigns',
+  wooWebhook: 'woo-webhook',
 } as const
 
 /**

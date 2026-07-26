@@ -182,22 +182,41 @@ class Vigent_Woo_Core {
          * @param string $site_url The site URL (defaults to home_url()).
          * @return array { success, message }
          */
-        public function connect_to_vigent( $site_url = '' ) {
+	public function connect_to_vigent( $site_url = '' ) {
                 if ( empty( $site_url ) ) {
                         $site_url = home_url();
                 }
                 $site_url = untrailingslashit( $site_url );
 
-                // The Vigent panel exposes a public endpoint that returns the webhook
-                // URL + secret for a site by its URL. The endpoint is at
-                // /api/integrations/lookup?site_url=...
-                $panel_url = 'https://vigent.ir/api/integrations/lookup';
-                $lookup_url = add_query_arg( 'site_url', rawurlencode( $site_url ), $panel_url );
+		// Prove control of this WordPress site before the panel returns a secret.
+		// The panel calls the one-time REST challenge while this lookup is open.
+		$pairing_nonce = wp_generate_password( 64, false, false );
+		set_transient(
+			'vigent_woo_pairing_challenge',
+			array(
+				'hash'       => hash( 'sha256', $pairing_nonce ),
+				'site_url'   => $site_url,
+				'created_at' => time(),
+			),
+			5 * MINUTE_IN_SECONDS
+		);
 
-                $response = wp_remote_get( $lookup_url, array(
+		$panel_url = 'https://vigent.ir/api/integrations/lookup';
+		$lookup_url = add_query_arg(
+			array(
+				'site_url'     => $site_url,
+				'pairing_nonce'=> $pairing_nonce,
+			),
+			$panel_url
+		);
+
+		$response = wp_remote_get( $lookup_url, array(
                         'timeout' => 15,
                         'headers' => array( 'Accept' => 'application/json' ),
-                ) );
+		) );
+		// The nonce is single-use at the REST endpoint and short-lived; also
+		// remove it here so failed/aborted lookups cannot be replayed.
+		delete_transient( 'vigent_woo_pairing_challenge' );
 
                 if ( is_wp_error( $response ) ) {
                         return array(
@@ -301,7 +320,7 @@ class Vigent_Woo_Core {
 
         // ─── ارسال رویداد ────────────────────────────────────────────────────
 
-        public function send_event( $topic, $data, $retry = true ) {
+	public function send_event( $topic, $data, $retry = true ) {
                 $s = $this->get_settings();
                 if ( empty( $s['webhook_url'] ) || empty( $s['webhook_secret'] ) ) {
                         return array( 'code' => 0, 'body' => __( 'تنظیمات کامل نیست.', 'vigent-woo' ), 'success' => false );
@@ -346,8 +365,29 @@ class Vigent_Woo_Core {
 
                 $this->update_connection_status( $success, $code, $success ? null : $resp_body );
 
-                return array( 'code' => $code, 'body' => $resp_body, 'success' => $success );
-        }
+		return array( 'code' => $code, 'body' => $resp_body, 'success' => $success );
+	}
+
+	/**
+	 * Send up to 50 events in the versioned batch envelope understood by Vigent.
+	 * A 2xx response accepts the whole batch; callers retain their queue on any
+	 * other response.
+	 */
+	public function send_batch_events( $events, $retry = false ) {
+		if ( ! is_array( $events ) || empty( $events ) ) {
+			return array( 'code' => 0, 'body' => __( 'بچ خالی است.', 'vigent-woo' ), 'success' => false );
+		}
+		$events = array_slice( array_values( $events ), 0, 50 );
+		return $this->send_event(
+			'sync.batch',
+			array(
+				'version'  => 1,
+				'site_url' => home_url(),
+				'events'   => $events,
+			),
+			$retry
+		);
+	}
 
         // ─── Connection Status ──────────────────────────────────────────────
 
@@ -377,17 +417,19 @@ class Vigent_Woo_Core {
                 return $status;
         }
 
-        public function refresh_connection_status() {
+	public function refresh_connection_status() {
                 if ( ! $this->is_configured() ) {
                         return $this->update_connection_status( false, 0, __( 'پیکربندی نشده', 'vigent-woo' ) );
                 }
-                $payload = array(
-                        'test'      => true,
-                        'site_url'  => home_url(),
-                        'site_name' => get_bloginfo( 'name' ),
-                        'timestamp' => current_time( 'mysql' ),
-                        'has_wc'    => $this->has_wc(),
-                );
+		$payload = array(
+			'test'           => true,
+			'site_url'       => home_url(),
+			'site_name'      => get_bloginfo( 'name' ),
+			'timestamp'      => current_time( 'mysql' ),
+			'has_wc'         => $this->has_wc(),
+			'plugin_version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
+			'capabilities'   => array( 'sync.batch', 'product.categories', 'delta.queue.v1' ),
+		);
                 $result = $this->send_event( 'test.connection', $payload, false );
                 return $this->update_connection_status( $result['success'], (int) $result['code'], $result['success'] ? null : $result['body'] );
         }
@@ -556,13 +598,28 @@ class Vigent_Woo_Core {
                         }
                 }
 
-                $tags = array();
-                $terms = get_the_terms( $product->get_id(), 'product_tag' );
-                if ( is_array( $terms ) ) {
-                        foreach ( $terms as $term ) {
-                                $tags[] = array( 'name' => $term->name );
-                        }
-                }
+		$tags = array();
+		$taxonomy_product_id = $product->get_parent_id() ? $product->get_parent_id() : $product->get_id();
+		$terms = get_the_terms( $taxonomy_product_id, 'product_tag' );
+		if ( is_array( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$tags[] = array( 'name' => $term->name );
+			}
+		}
+
+		$categories    = array();
+		$category_terms = get_the_terms( $taxonomy_product_id, 'product_cat' );
+		if ( is_array( $category_terms ) ) {
+			foreach ( $category_terms as $term ) {
+				$categories[] = array(
+					'id'     => (int) $term->term_id,
+					'name'   => $term->name,
+					'slug'   => $term->slug,
+					'parent' => (int) $term->parent,
+				);
+			}
+		}
+		$date_modified = $product->get_date_modified();
 
                 return array(
                         'id'                => $product->get_id(),
@@ -577,11 +634,14 @@ class Vigent_Woo_Core {
                         'manage_stock'      => $product->get_manage_stock(),
                         'stock_quantity'    => $product->get_stock_quantity(),
                         'in_stock'          => $product->is_in_stock(),
-                        'permalink'         => $product->get_permalink(),
+			'permalink'         => $product->get_permalink(),
+			'date_modified'     => $date_modified ? $date_modified->date( 'c' ) : null,
+			'date_modified_gmt' => $date_modified ? gmdate( 'c', $date_modified->getTimestamp() ) : null,
                         'images'            => $images,
-                        'attributes'        => $attrs,
-                        'tags'              => $tags,
-                );
+			'attributes'        => $attrs,
+			'tags'              => $tags,
+			'categories'        => $categories,
+		);
         }
 
         public function order_to_payload( $order ) {
@@ -606,10 +666,13 @@ class Vigent_Woo_Core {
                         );
                 }
 
-                $first_name = method_exists( $order, 'get_billing_first_name' ) ? $order->get_billing_first_name() : '';
+		$first_name    = method_exists( $order, 'get_billing_first_name' ) ? $order->get_billing_first_name() : '';
                 $last_name  = method_exists( $order, 'get_billing_last_name' ) ? $order->get_billing_last_name() : '';
                 $phone      = method_exists( $order, 'get_billing_phone' ) ? $order->get_billing_phone() : '';
-                $email      = method_exists( $order, 'get_billing_email' ) ? $order->get_billing_email() : '';
+		$email         = method_exists( $order, 'get_billing_email' ) ? $order->get_billing_email() : '';
+		$date_created  = $order->get_date_created();
+		$date_modified = method_exists( $order, 'get_date_modified' ) ? $order->get_date_modified() : null;
+		$tracking_code = $this->get_order_tracking_code( $order );
 
                 return array(
                         'id'                   => $order->get_id(),
@@ -620,8 +683,11 @@ class Vigent_Woo_Core {
                         'customer_id'          => $order->get_customer_id(),
                         'payment_method'       => $order->get_payment_method(),
                         'payment_method_title' => $order->get_payment_method_title(),
-                        'date_created'         => $order->get_date_created() ? $order->get_date_created()->date( 'c' ) : null,
-                        'date_created_gmt'     => $order->get_date_created() ? $order->get_date_created()->date( 'Y-m-d\TH:i:s' ) : null,
+			'date_created'         => $date_created ? $date_created->date( 'c' ) : null,
+			'date_created_gmt'     => $date_created ? gmdate( 'c', $date_created->getTimestamp() ) : null,
+			'date_modified'        => $date_modified ? $date_modified->date( 'c' ) : null,
+			'date_modified_gmt'    => $date_modified ? gmdate( 'c', $date_modified->getTimestamp() ) : null,
+			'tracking_code'        => $tracking_code,
                         'billing'              => array(
                                 'first_name' => $first_name,
                                 'last_name'  => $last_name,
@@ -630,6 +696,26 @@ class Vigent_Woo_Core {
                         ),
                         'shipping'             => ! empty( $shipping_methods ) ? $shipping_methods[0] : array(),
                         'line_items'           => $line_items,
-                );
+		);
         }
+
+	/** Find a tracking number written by common WooCommerce shipment plugins. */
+	private function get_order_tracking_code( $order ) {
+		foreach ( array( '_tracking_number', '_shipment_tracking_number', 'tracking_number' ) as $key ) {
+			$value = $order->get_meta( $key, true );
+			if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+				return trim( (string) $value );
+			}
+		}
+
+		$items = $order->get_meta( '_wc_shipment_tracking_items', true );
+		if ( is_array( $items ) ) {
+			foreach ( $items as $item ) {
+				if ( is_array( $item ) && ! empty( $item['tracking_number'] ) ) {
+					return trim( (string) $item['tracking_number'] );
+				}
+			}
+		}
+		return '';
+	}
 }

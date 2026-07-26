@@ -5,11 +5,28 @@ import type { ProductEmbedJobData } from '@/lib/products/catalog'
 import type { SummaryJobData } from '@/lib/conversations/summary'
 import type { NotificationJobData } from '@/lib/notifications/notify'
 import type { CampaignJobData } from '@/lib/campaigns/process'
+import crypto from 'node:crypto'
 
 export interface InboundMessageJobData {
   type: string
   token: string
   body: unknown
+}
+
+export interface WooWebhookEvent {
+  eventId: string
+  topic: string
+  data: unknown
+  changedAt?: string
+}
+
+export interface WooWebhookBatchJobData {
+  integrationId: string
+  workspaceId: string
+  storeUrl: string
+  deliveryId: string
+  pluginVersion?: string
+  events: WooWebhookEvent[]
 }
 
 // Lazily-created Queue singletons (bullmq is imported dynamically to keep it
@@ -56,7 +73,36 @@ export async function dispatchProductEmbed(
       attempts: 2,
     })
   } catch (e) {
-    return handleEnqueueFailure('product-embed', e, () => runInlineProductEmbed(data))
+    return handleEnqueueFailure('product-embed', e, () => runInlineProductEmbed(data), true)
+  }
+}
+
+/** Queue an authenticated WooCommerce delivery for durable, retryable processing. */
+export async function dispatchWooWebhook(data: WooWebhookBatchJobData): Promise<void> {
+  if (isQueueDisabled()) return await runInlineWooWebhook(data)
+  try {
+    const q = await getQueue(QUEUE_NAMES.wooWebhook)
+    const idHash = crypto
+      .createHash('sha256')
+      .update(`${data.integrationId}:${data.deliveryId}`)
+      .digest('hex')
+    const jobId = `woo-${idHash}`
+    const existing = await q.getJob(jobId)
+    if (existing) {
+      if ((await existing.getState()) === 'failed') await existing.retry()
+      return
+    }
+    await q.add('sync-batch', data, {
+      jobId,
+      removeOnComplete: 1000,
+      // Retain failed jobs (including their event payload) for inspection and
+      // manual retry. WordPress has already removed locally accepted events.
+      removeOnFail: 1000,
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 2_000 },
+    })
+  } catch (e) {
+    return handleEnqueueFailure('woo-webhook', e, () => runInlineWooWebhook(data), true)
   }
 }
 
@@ -135,6 +181,11 @@ async function runInlineNotification(data: NotificationJobData): Promise<void> {
 async function runInlineCampaign(data: CampaignJobData): Promise<void> {
   const { processCampaign } = await import('@/lib/campaigns/process')
   await processCampaign(data)
+}
+
+async function runInlineWooWebhook(data: WooWebhookBatchJobData): Promise<void> {
+  const { processWooWebhookBatch } = await import('@/lib/integrations/woocommerce')
+  await processWooWebhookBatch(data)
 }
 
 /**

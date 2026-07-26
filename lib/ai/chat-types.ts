@@ -23,6 +23,10 @@ export interface ChatAgent {
         // ─ F3: customer identification
         requireCustomerInfo: boolean
         customerInfoPrompt: string | null
+        /** Whether product catalog retrieval and recommendations are available. */
+        productAccessEnabled: boolean
+        /** Read-only access to identity-scoped synced order status. */
+        orderTrackingEnabled: boolean
 }
 
 export interface StartChatParams {

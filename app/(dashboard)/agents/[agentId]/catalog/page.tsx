@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { CatalogAssign } from '@/components/products/catalog-assign'
+import { StoreAccessSettings } from '@/components/agents/store-access-settings'
 
 export default async function AgentCatalogPage(
   props: {
@@ -11,35 +11,31 @@ export default async function AgentCatalogPage(
   const params = await props.params;
   const user = await requireUser()
 
-  const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: { id: true, name: true },
-  })
-  if (!agent) notFound()
-
-  const [products, assigned] = await Promise.all([
-    prisma.product.findMany({
-      where: { workspaceId: user.workspaceId, active: true },
-      orderBy: { createdAt: 'desc' },
-      include: { category: { select: { name: true } } },
+  const [agent, productCount, orderCount] = await Promise.all([
+    prisma.agent.findFirst({
+      where: { id: params.agentId, workspaceId: user.workspaceId },
+      select: {
+        id: true,
+        productAccessEnabled: true,
+        orderTrackingEnabled: true,
+      },
     }),
-    prisma.agentCatalog.findMany({
-      where: { agentId: agent.id },
-      select: { productId: true },
+    prisma.product.count({
+      where: { workspaceId: user.workspaceId, active: true },
+    }),
+    prisma.storeOrder.count({
+      where: { workspaceId: user.workspaceId },
     }),
   ])
+  if (!agent) notFound()
 
   return (
-    <div className="space-y-6">
-      <CatalogAssign
-        agentId={agent.id}
-        products={products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category?.name ?? null,
-        }))}
-        initialSelected={assigned.map((a) => a.productId)}
-      />
-    </div>
+    <StoreAccessSettings
+      agentId={agent.id}
+      initialProductAccessEnabled={agent.productAccessEnabled}
+      initialOrderTrackingEnabled={agent.orderTrackingEnabled}
+      productCount={productCount}
+      orderCount={orderCount}
+    />
   )
 }

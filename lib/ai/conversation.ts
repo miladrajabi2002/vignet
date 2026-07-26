@@ -157,15 +157,57 @@ export async function loadHistory(conversationId: string): Promise<ChatMessage[]
                 .filter((m) => m.role === 'USER' || m.role === 'ASSISTANT')
                 .map((m) => ({
                         role: m.role === 'USER' ? ('user' as const) : ('assistant' as const),
-                        content: m.content,
+                        // Product markers are presentation metadata, not useful
+                        // conversational context; excluding them saves tokens and
+                        // prevents the model from copying stale cards forward.
+                        content: m.content
+                                .replace(/\[\[product:\{[\s\S]*?\}\]\]/g, '')
+                                .replace(/\n{3,}/g, '\n\n')
+                                .trim(),
                 }))
 }
 
-/** Fetch the products assigned to this agent's catalog. */
-export async function fetchCatalogProducts(agentId: string): Promise<CatalogProduct[]> {
+/** Fetch only the relevant products identified by RAG, preserving its ranking. */
+export async function fetchCatalogProducts(
+        agentId: string,
+        productIds: string[],
+        query = '',
+): Promise<CatalogProduct[]> {
+        const rankedIds = [...new Set(productIds)].slice(0, 5)
+        const productIntent = /(?:محصول|کالا|قیمت|موجود|خرید|پیشنهاد|فروشگاه|چی\s*دارید|product|catalog|price|buy|recommend|shop)/i.test(query)
+        if (!rankedIds.length && !productIntent) return []
+
+        const ignoredTerms = new Set([
+                'محصول', 'کالا', 'قیمت', 'موجود', 'خرید', 'پیشنهاد', 'دارید', 'میخوام',
+                'می‌خوام', 'لطفا', 'لطفاً', 'معرفی', 'کن', 'چه', 'برای', 'product', 'catalog',
+                'فروشگاه', 'چی', 'خوب', 'بهترین', 'پرفروش', 'جدید', 'price', 'buy', 'recommend',
+                'show', 'have', 'best', 'popular', 'new', 'shop', 'the', 'and',
+        ])
+        const terms = query
+                .normalize('NFKC')
+                .split(/[^\p{L}\p{N}_-]+/u)
+                .map((term) => term.trim())
+                .filter((term) => term.length >= 2 && !ignoredTerms.has(term.toLocaleLowerCase()))
+                .slice(0, 5)
+
         const rows = await prisma.agentCatalog.findMany({
-                where: { agentId },
-                take: 20,
+                where: {
+                        agentId,
+                        ...(rankedIds.length
+                                ? { productId: { in: rankedIds } }
+                                : terms.length
+                                        ? {
+                                                product: {
+                                                        active: true,
+                                                        OR: terms.flatMap((term) => [
+                                                                { name: { contains: term, mode: 'insensitive' as const } },
+                                                                { description: { contains: term, mode: 'insensitive' as const } },
+                                                        ]),
+                                                },
+                                        }
+                                        : { product: { active: true } }),
+                },
+                take: rankedIds.length ? undefined : 5,
                 select: {
                         product: {
                                 select: {
@@ -174,13 +216,15 @@ export async function fetchCatalogProducts(agentId: string): Promise<CatalogProd
                                         description: true,
                                         price: true,
                                         stock: true,
+                                        images: true,
+                                        externalUrl: true,
                                         active: true,
                                         category: { select: { name: true } },
                                 },
                         },
                 },
         })
-        return rows
+        const products = rows
                 .filter((r) => r.product.active)
                 .map((r) => ({
                         id: r.product.id,
@@ -189,7 +233,15 @@ export async function fetchCatalogProducts(agentId: string): Promise<CatalogProd
                         price: r.product.price,
                         stock: r.product.stock,
                         category: r.product.category?.name ?? null,
+                        image: r.product.images[0] ?? null,
+                        url: r.product.externalUrl,
                 }))
+        const byId = new Map(products.map((product) => [product.id, product]))
+        if (!rankedIds.length) return products.slice(0, 5)
+        return rankedIds.flatMap((id) => {
+                const product = byId.get(id)
+                return product ? [product] : []
+        })
 }
 
 /** Active services are a shared operational catalog for chat and booking tools. */

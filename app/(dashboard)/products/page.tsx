@@ -13,6 +13,7 @@ import { productsDailyByWorkspace } from '@/lib/dashboard/charts'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { WooSetupCard, type WooIntegrationState } from '@/components/products/woo-setup-card'
+import { CommerceTabs } from '@/components/products/commerce-tabs'
 
 const PAGE_SIZE = 24
 
@@ -41,24 +42,26 @@ export default async function ProductsPage(
           ? { queryCount: 'desc' }
           : { createdAt: 'desc' }
 
+  const productWhere: Prisma.ProductWhereInput = {
+    workspaceId: user.workspaceId,
+    ...(categoryId ? { categoryId } : {}),
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { sku: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+  }
+
   // ── Note: we intentionally do NOT fetch syncLogs / "recent events" here.
   //    The recent-events panel was noisy and duplicated what the WooSetupCard
   //    already shows. Removing it keeps the products page focused on the
   //    catalog itself.
   const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw] = await Promise.all([
     prisma.product.findMany({
-      where: {
-        workspaceId: user.workspaceId,
-        ...(categoryId ? { categoryId } : {}),
-        ...(q
-          ? {
-              OR: [
-                { name: { contains: q, mode: 'insensitive' } },
-                { sku: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+      where: productWhere,
       orderBy,
       include: { category: { select: { name: true } } },
       skip: (page - 1) * PAGE_SIZE,
@@ -69,7 +72,7 @@ export default async function ProductsPage(
       orderBy: { sortOrder: 'asc' },
       select: { id: true, name: true },
     }),
-    prisma.product.count({ where: { workspaceId: user.workspaceId } }),
+    prisma.product.count({ where: productWhere }),
     prisma.product.findMany({
       where: { workspaceId: user.workspaceId, queryCount: { gt: 0 } },
       orderBy: { queryCount: 'desc' },
@@ -159,6 +162,12 @@ export default async function ProductsPage(
             </Link>
           </>
         }
+      />
+
+      <CommerceTabs
+        active="products"
+        productsLabel={t('title')}
+        ordersLabel={t('orders.title')}
       />
 
       <WooSetupCard integration={wooIntegration} />

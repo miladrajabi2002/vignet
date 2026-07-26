@@ -30,7 +30,15 @@ function SendIcon({ className }: { className?: string }) {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type ProductCard = { name: string; price: string; desc: string; badge: string }
+type ProductCard = {
+	id: string
+	name: string
+	price: string
+	desc: string
+	badge: string
+	image: string
+	url: string
+}
 
 type Msg =
 	| { id: string; role: 'user'; text: string }
@@ -56,6 +64,16 @@ type Props = {
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
 
+function safeHttpUrl(value: unknown): string {
+	if (typeof value !== 'string' || !value) return ''
+	try {
+		const url = new URL(value)
+		return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : ''
+	} catch {
+		return ''
+	}
+}
+
 function parseAssistant(
 	raw: string,
 	done: boolean,
@@ -64,12 +82,15 @@ function parseAssistant(
 	let text = raw.replace(PRODUCT_TOKEN, (_m, json: string) => {
 		try {
 			const p = JSON.parse(json)
-			if (p && typeof p.name === 'string' && p.name) {
+			if (done && p && typeof p.name === 'string' && p.name) {
 				cards.push({
+					id: p.id != null ? String(p.id).slice(0, 80) : '',
 					name: String(p.name).slice(0, 80),
 					price: p.price != null ? String(p.price).slice(0, 40) : '',
 					desc: p.desc != null ? String(p.desc).slice(0, 90) : '',
 					badge: p.badge != null ? String(p.badge).slice(0, 20) : '',
+					image: safeHttpUrl(p.image),
+					url: safeHttpUrl(p.url),
 				})
 			}
 		} catch {
@@ -166,11 +187,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 												role: 'user',
 												text: m.content,
 											} as Msg
+										const parsedAssistant = parseAssistant(m.content, true)
 										return {
 											id,
 											role: 'assistant',
-											text: m.content,
-											cards: [],
+											text: parsedAssistant.text,
+											cards: parsedAssistant.cards,
 											done: true,
 											serverId: id,
 										} as Msg
@@ -275,11 +297,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								text: sm.content,
 							})
 						} else {
+							const parsedAssistant = parseAssistant(String(sm.content), true)
 							additions.push({
 								id,
 								role: 'assistant',
-								text: sm.content,
-								cards: [],
+								text: parsedAssistant.text,
+								cards: parsedAssistant.cards,
 								done: true,
 								serverId: id,
 							})
@@ -423,6 +446,10 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								started = true
 								upsertAssistant(false)
 								scrollDown()
+							} else if (evt.type === 'replace' && typeof evt.text === 'string') {
+								raw = evt.text
+								started = true
+								upsertAssistant(true)
 							} else if (evt.type === 'done') {
 								if (evt.messageId && typeof evt.messageId === 'string')
 									serverId = evt.messageId
@@ -946,7 +973,13 @@ function MessageRow({
 			transition={{ duration: 0.3, ease: 'easeOut' }}
 			className={isUser ? 'flex justify-end' : 'flex justify-start'}
 		>
-			<div className={`max-w-[85%] ${isUser ? '' : 'space-y-2'}`}>
+			<div
+				className={
+					isUser
+						? 'max-w-[85%]'
+						: `space-y-2 ${msg.cards.length ? 'w-full max-w-[min(92vw,680px)]' : 'max-w-[85%]'}`
+				}
+			>
 				{(isUser || msg.text) && (
 					<ConversationBubble
 						side={isUser ? 'end' : 'start'}
@@ -961,45 +994,64 @@ function MessageRow({
 						/>
 					</ConversationBubble>
 				)}
-				{!isUser &&
-					msg.cards.map((card, i) => (
-						<div
-							key={`${card.name}-${i}`}
-							className="flex items-center gap-3 rounded-2xl border border-black/[0.07] bg-white p-3 shadow-sm"
-						>
-							<span
-								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold"
-								style={{ backgroundColor: `${accent}14`, color: accent }}
+				{!isUser && msg.cards.length > 0 && (
+					<div
+						dir="rtl"
+						className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+					>
+						{msg.cards.map((card, i) => (
+							<article
+								key={card.id || `${card.name}-${i}`}
+								className="w-[232px] shrink-0 snap-start overflow-hidden rounded-2xl border border-black/[0.07] bg-white shadow-[0_10px_28px_-16px_rgba(0,0,0,0.28)]"
 							>
-								{card.name.charAt(0)}
-							</span>
-							<span className="min-w-0 flex-1 text-start">
-								<span className="flex items-center gap-2">
-									<span className="truncate text-[13px] font-medium text-neutral-900">
-										{card.name}
+								{card.image ? (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img
+										src={card.image}
+										alt={card.name}
+										loading="lazy"
+										className="h-32 w-full bg-neutral-100 object-cover"
+									/>
+								) : (
+									<span
+										className="flex h-24 w-full items-center justify-center text-2xl font-semibold"
+										style={{ backgroundColor: `${accent}12`, color: accent }}
+									>
+										{card.name.charAt(0)}
 									</span>
-									{card.badge && (
-										<span
-											className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
-											style={{ backgroundColor: `${accent}14`, color: accent }}
+								)}
+								<div className="p-3 text-start">
+									<div className="flex items-start gap-2">
+										<h3 className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-neutral-900">
+											{card.name}
+										</h3>
+										{card.badge && (
+											<span
+												className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+												style={{ backgroundColor: `${accent}14`, color: accent }}
+											>
+												{card.badge}
+											</span>
+										)}
+									</div>
+									{card.desc && <p className="mt-1 line-clamp-2 text-xs leading-5 text-neutral-500">{card.desc}</p>}
+									{card.price && <p className="mt-2 text-[13px] font-bold text-neutral-900">{card.price}</p>}
+									{card.url && (
+										<a
+											href={card.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="mt-3 flex min-h-11 items-center justify-center rounded-xl text-xs font-semibold transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+											style={{ backgroundColor: accent, color: onAccent }}
 										>
-											{card.badge}
-										</span>
+											مشاهده محصول
+										</a>
 									)}
-								</span>
-								{card.desc && (
-									<span className="mt-0.5 block truncate text-xs text-neutral-500">
-										{card.desc}
-									</span>
-								)}
-								{card.price && (
-									<span className="mt-1 block text-[13px] font-semibold text-neutral-900">
-										{card.price}
-									</span>
-								)}
-							</span>
-						</div>
-					))}
+								</div>
+							</article>
+						))}
+					</div>
+				)}
 			</div>
 		</motion.div>
 	)

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { agentCreateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
+import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
 
@@ -75,6 +76,8 @@ export async function POST(req: Request) {
       // ─ F3: customer identification
       requireCustomerInfo: data.requireCustomerInfo ?? false,
       customerInfoPrompt: data.customerInfoPrompt ?? undefined,
+      productAccessEnabled: data.productAccessEnabled ?? true,
+      orderTrackingEnabled: data.orderTrackingEnabled ?? false,
     },
   })
 
@@ -89,6 +92,26 @@ export async function POST(req: Request) {
       data: activeProducts.map((p) => ({ agentId: agent.id, productId: p.id })),
       skipDuplicates: true,
     })
+
+    // Product embeddings are agent-scoped. Seed them in bounded queue bursts
+    // so a newly-created agent can search the existing catalog immediately.
+    try {
+      for (let offset = 0; offset < activeProducts.length; offset += 20) {
+        await Promise.all(
+          activeProducts.slice(offset, offset + 20).map((product) =>
+            dispatchProductEmbed({
+              productId: product.id,
+              workspaceId: user.workspaceId,
+              agentIds: [agent.id],
+            }),
+          ),
+        )
+      }
+    } catch (error) {
+      // The relational fallback still exposes at most five matching products;
+      // a later product update will retry the missing semantic embeddings.
+      console.error('[agents] catalog embedding seed failed:', error)
+    }
   }
 
   await syncOnboarding(user.workspaceId)

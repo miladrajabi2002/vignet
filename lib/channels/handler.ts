@@ -27,6 +27,12 @@ import {
 import { readPageToken, normalizeInstagramSettings } from '@/lib/instagram/config'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import { refreshConversationSalesInsight } from '@/lib/ai/sales-intelligence'
+import { sendProductCarousel } from '@/lib/instagram/media'
+import {
+        formatProductFallback,
+        parseProductDirectives,
+        resolveProductShowcases,
+} from '@/lib/products/presentation'
 
 const AGENT_SELECT = {
         id: true,
@@ -48,6 +54,8 @@ const AGENT_SELECT = {
         // ─ F3: customer identification
         requireCustomerInfo: true,
         customerInfoPrompt: true,
+        productAccessEnabled: true,
+        orderTrackingEnabled: true,
 } satisfies Prisma.AgentSelect
 
 interface ResolvedChannel {
@@ -72,6 +80,8 @@ interface ResolvedChannel {
                 roleTemplate: string | null
                 requireCustomerInfo: boolean
                 customerInfoPrompt: string | null
+                productAccessEnabled: boolean
+                orderTrackingEnabled: boolean
         }
         adapter: MessengerAdapter
         settings: { quickReplies: string[] }
@@ -259,6 +269,8 @@ function toChatAgent(agent: ResolvedChannel['agent']): ChatAgent {
                 roleTemplate: agent.roleTemplate,
                 requireCustomerInfo: agent.requireCustomerInfo,
                 customerInfoPrompt: agent.customerInfoPrompt,
+                productAccessEnabled: agent.productAccessEnabled,
+                orderTrackingEnabled: agent.orderTrackingEnabled,
         }
 }
 
@@ -662,13 +674,54 @@ async function processChannelInbound(
                         )
                         if ('error' in result) continue
 
-                        // Attempt the outbound reply. For Instagram DMs with an IG-user token
-                        // (IGAA…) or for messages still in the request folder, this will throw
-                        // — the catch below captures it to /admin/errors so the operator sees
-                        // a clear reason. The inbound is already stored at this point.
-                        await adapter.sendText(msg.chatId, result.reply, {
-                                quickReplies: settings.quickReplies,
-                        })
+                        // Product markers are never trusted as customer-facing data. Resolve
+                        // them against active products assigned to this agent, then choose the
+                        // richest presentation supported by the current channel.
+                        const parsedReply = parseProductDirectives(result.reply)
+                        const showcasedProducts = agent.productAccessEnabled
+                                ? await resolveProductShowcases({
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        directives: parsedReply.directives,
+                                })
+                                : []
+                        const productFallback = formatProductFallback(
+                                showcasedProducts,
+                                agent.language !== 'en',
+                        )
+                        let spokenReply = parsedReply.text
+
+                        const canUseInstagramCarousel =
+                                type === 'INSTAGRAM' &&
+                                showcasedProducts.length > 0 &&
+                                msg.kind !== 'COMMENT' &&
+                                msg.kind !== 'REACTION'
+
+                        if (canUseInstagramCarousel) {
+                                if (parsedReply.text) {
+                                        await adapter.sendText(msg.chatId, parsedReply.text, {
+                                                quickReplies: settings.quickReplies,
+                                        })
+                                }
+                                try {
+                                        await sendProductCarousel(
+                                                resolved.config,
+                                                msg.chatId,
+                                                showcasedProducts,
+                                        )
+                                } catch (carouselError) {
+                                        console.error('[handler] Instagram product carousel failed:', carouselError)
+                                        if (productFallback) await adapter.sendText(msg.chatId, productFallback)
+                                }
+                        } else {
+                                const outboundText = [parsedReply.text, productFallback]
+                                        .filter(Boolean)
+                                        .join('\n\n')
+                                spokenReply = outboundText
+                                await adapter.sendText(msg.chatId, outboundText || result.reply, {
+                                        quickReplies: settings.quickReplies,
+                                })
+                        }
                         if (type === 'INSTAGRAM') {
                                 const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, resolved.config)
                                 const likeEnabled = msg.kind === 'COMMENT'
@@ -682,10 +735,10 @@ async function processChannelInbound(
                         }
 
                         // Optional voice reply when the agent has TTS enabled.
-                        if (agent.voiceEnabled && adapter.sendVoice) {
+                        if (agent.voiceEnabled && adapter.sendVoice && spokenReply) {
                                 try {
                                         const speech = await synthesizeSpeech({
-                                                text: result.reply,
+                                                text: spokenReply || parsedReply.text,
                                                 workspaceId: agent.workspaceId,
                                                 voice: agent.ttsVoice,
                                                 // OpenRouter's dedicated TTS endpoint currently

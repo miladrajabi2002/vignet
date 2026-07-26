@@ -7,7 +7,6 @@ import { corsHeaders, corsOptions } from '@/lib/cors'
 import {
         normalizeWidgetSettings,
         isOriginAllowed,
-        stripProductTokens,
 } from '@/lib/widget/config'
 import { getClientIp } from '@/lib/security/request-ip'
 import {
@@ -88,7 +87,9 @@ export async function GET(req: Request, props: Params) {
                 .map((m) => ({
                         id: m.id,
                         role: m.role === 'USER' ? 'user' : 'assistant',
-                        content: stripProductTokens(m.content),
+                        // Keep product markers for this authenticated public
+                        // conversation so cards survive refresh/polling.
+                        content: m.content,
                 }))
 
         return NextResponse.json({ messages }, { headers: corsHeaders })
@@ -161,6 +162,8 @@ export async function POST(req: Request, props: Params) {
                         // ─ F3: customer identification
                         requireCustomerInfo: true,
                         customerInfoPrompt: true,
+                        productAccessEnabled: true,
+                        orderTrackingEnabled: true,
                         channels: {
                                 where: { type: 'WEB_WIDGET' },
                                 select: { config: true },

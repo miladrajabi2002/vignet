@@ -12,8 +12,11 @@ import {
     AlertCircle,
     X,
     Globe,
+    Package,
+    ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
 
 /**
  * Integrations page — "WordPress/WooCommerce" section.
@@ -118,33 +121,7 @@ export function StoreIntegrationsSection({
                 return
             }
 
-            // Context-aware message — see woo-setup-card.tsx for the full
-            // rationale. Short version: "0 محصول و 0 سفارش هم‌گام شد" is
-            // confusing when nothing was actually synced. Replace it with
-            // a message that explains what happened.
-            const pcount = data.products?.count ?? 0
-            const ocount = data.orders?.count ?? 0
-            const pErrors = data.products?.errors?.length ?? 0
-            const skipped = data.products?.skipped === true || data.orders?.skipped === true
-            const now = new Date()
-            const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
-            const shortUrl = integration.storeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-
-            let msg: string
-            if (skipped) {
-                msg = `بررسی ${shortUrl} در ساعت ${timeStr} انجام شد. این اتصال در حالت webhook-only است — هم‌گام‌سازی کششی فعال نیست، اما افزونه تغییرات را به‌صورت لحظه‌ای از طریق webhook ارسال می‌کند.`
-            } else if (pcount === 0 && ocount === 0 && pErrors === 0) {
-                msg = `بررسی ${shortUrl} در ساعت ${timeStr} انجام شد. هیچ محصول یا سفارش جدیدی برای هم‌گام‌سازی یافت نشد. اگر انتظار دارید محصولاتی وجود دارند، مطمئن شوید در ووکامرس وضعیت «منتشر شده» دارند.`
-            } else {
-                const parts: string[] = []
-                if (pcount > 0) parts.push(`${pcount} محصول`)
-                if (ocount > 0) parts.push(`${ocount} سفارش`)
-                const okMsg = parts.length > 0
-                    ? `${parts.join(' و ')} از ${shortUrl} هم‌گام شد.`
-                    : `هیچ مورد جدیدی از ${shortUrl} برای هم‌گام‌سازی نبود.`
-                msg = `${okMsg} (ساعت ${timeStr}${pErrors > 0 ? ` · ${pErrors} خطا` : ''})`
-            }
-            setNotice({ type: 'ok', msg })
+            setNotice(formatWooSyncResult(data))
             router.refresh()
         } catch {
             setNotice({ type: 'err', msg: 'خطا در ارتباط با سرور.' })
@@ -191,7 +168,10 @@ export function StoreIntegrationsSection({
 
             {/* Notice */}
             {notice && (
-                <div className={cn(
+                <div
+                    role={notice.type === 'err' ? 'alert' : 'status'}
+                    aria-live="polite"
+                    className={cn(
                     'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm',
                     notice.type === 'ok' ? 'border border-[var(--green)]/30 bg-[var(--green)]/5 text-[var(--green)]' : 'border border-danger/30 bg-danger/5 text-danger',
                 )}>
@@ -370,12 +350,12 @@ function IntegrationCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <button
                         type="button"
                         onClick={onSync}
                         disabled={syncing || !integration.active || !isPluginConfigured}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[var(--text-primary)] px-3 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:opacity-40"
                     >
                         {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         بروزرسانی
@@ -383,7 +363,7 @@ function IntegrationCard({
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="inline-flex min-h-9 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                        className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                     >
                         {integration.active ? 'غیرفعال' : 'فعال'}
                     </button>
@@ -391,13 +371,33 @@ function IntegrationCard({
                         type="button"
                         onClick={onDelete}
                         disabled={deleting}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-danger/30 hover:bg-danger/5 hover:text-danger disabled:opacity-50"
                     >
                         {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                         حذف
                     </button>
                 </div>
             </div>
+
+            <nav
+                aria-label="مدیریت اطلاعات فروشگاه"
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"
+            >
+                <Link
+                    href="/products"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                >
+                    <Package className="h-4 w-4" />
+                    مشاهده محصولات
+                </Link>
+                <Link
+                    href="/products/orders"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                >
+                    <ShoppingBag className="h-4 w-4" />
+                    مشاهده سفارش‌ها
+                </Link>
+            </nav>
 
             {/* Pending state */}
             {!isPluginConfigured && integration.active && (

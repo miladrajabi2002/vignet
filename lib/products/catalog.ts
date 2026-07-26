@@ -82,6 +82,13 @@ export async function processProductEmbed(
     for (const agentId of agentIds) {
       await deleteChunksForProduct(agentId, data.productId)
     }
+    // WooCommerce deletions are soft deletes, so mark cleanup completion. If
+    // enqueue/processing fails this remains null and the durable delivery retry
+    // will schedule cleanup again.
+    await prisma.product.updateMany({
+      where: { id: data.productId },
+      data: { embeddingUpdatedAt: new Date() },
+    })
     return
   }
 
@@ -92,11 +99,21 @@ export async function processProductEmbed(
   if (!product) return
 
   const text = buildProductText(product)
+  if (agentIds.length === 0) {
+    await prisma.product.update({
+      where: { id: product.id },
+      data: { embeddingUpdatedAt: new Date() },
+    })
+    return
+  }
+  // The product representation is identical for every assigned agent. Generate
+  // the vector once, then reuse it in each agent-scoped chunk; this avoids one
+  // paid embedding request per agent during large catalog syncs.
+  const embedding = await embedText(text, product.workspaceId)
 
   for (const agentId of agentIds) {
     const kb = await getOrCreateProductKB(agentId, product.workspaceId)
     await deleteChunksForProduct(agentId, product.id)
-    const embedding = await embedText(text, product.workspaceId)
     await insertChunk({
       kbId: kb.id,
       agentId,

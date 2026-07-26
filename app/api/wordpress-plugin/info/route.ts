@@ -45,6 +45,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
     const phpPath = join(process.cwd(), 'wordpress-plugin', 'vigent-woo', 'vigent-woo.php')
+    const readmePath = join(process.cwd(), 'wordpress-plugin', 'vigent-woo', 'readme.txt')
     const changesPath = join(process.cwd(), 'CHANGES.md')
 
     if (!existsSync(phpPath)) {
@@ -66,10 +67,20 @@ export async function GET() {
     const requiresPhp = headerField('Requires PHP') || '7.4'
     const testedUpTo = headerField('Tested up to') || '6.5'
 
-    // Best-effort changelog — read CHANGES.md if present.
+    // Prefer the plugin readme so WordPress shows the 4.2.0 release notes;
+    // repository-wide changes are only a fallback.
     let changelog = ''
     try {
-        if (existsSync(changesPath)) {
+        if (existsSync(readmePath)) {
+            const readme = readFileSync(readmePath, 'utf8')
+            const marker = readme.indexOf('== Changelog ==')
+            if (marker >= 0) {
+                changelog = readme
+                    .slice(marker + '== Changelog =='.length)
+                    .trim()
+                    .slice(0, 8000)
+            }
+        } else if (existsSync(changesPath)) {
             const md = readFileSync(changesPath, 'utf8')
             // Take the most recent ~3 sections (rough heuristic).
             const sections = md.split(/^##\s+/m).slice(0, 4)

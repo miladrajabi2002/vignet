@@ -67,6 +67,14 @@ function appBaseUrl(): string {
         return process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
 }
 
+function normalizeWooStoreUrl(raw: string): string {
+        const url = new URL(raw)
+        url.search = ''
+        url.hash = ''
+        url.pathname = url.pathname.replace(/\/+$/, '')
+        return url.toString().replace(/\/+$/, '')
+}
+
 export async function GET() {
         const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
@@ -123,7 +131,10 @@ export async function POST(req: Request) {
                 )
         }
 
-        const { type, storeUrl, credentials, pollIntervalMinutes } = parsed.data
+        const { type, credentials, pollIntervalMinutes } = parsed.data
+        const storeUrl = type === 'WOOCOMMERCE'
+                ? normalizeWooStoreUrl(parsed.data.storeUrl)
+                : parsed.data.storeUrl
         try {
                 await assertSafeHttpUrl(storeUrl)
         } catch (error) {
@@ -141,13 +152,18 @@ export async function POST(req: Request) {
         // webhookSecret than the one the onboarding wizard is polling for.
         // Returning the same integration from POST on every call keeps both
         // sides in sync.
-        //
-        // We also opportunistically clean up INACTIVE integrations for the
-        // same URL+type so the workspace doesn't accumulate stale rows from
-        // old disconnect/reconnect cycles. Active integrations are NEVER
-        // touched here — only the caller can disconnect/delete them.
+        // Inactive rows are handled below by reconnecting in place; they must
+        // not be deleted because StoreOrder rows intentionally cascade.
+        const matchingStoreUrls = type === 'WOOCOMMERCE'
+                ? [storeUrl, `${storeUrl}/`]
+                : [storeUrl]
         const existing = await prisma.storeIntegration.findFirst({
-                where: { workspaceId: user.workspaceId, type, storeUrl, active: true },
+                where: {
+                        workspaceId: user.workspaceId,
+                        type,
+                        storeUrl: { in: matchingStoreUrls },
+                        active: true,
+                },
                 orderBy: { createdAt: 'desc' },
                 select: {
                         id: true,
@@ -160,18 +176,6 @@ export async function POST(req: Request) {
                 },
         })
         if (existing) {
-                // Cleanup any INACTIVE duplicates for the same URL+type.
-                // (Active ones are left alone — the caller owns them.)
-                await prisma.storeIntegration.deleteMany({
-                        where: {
-                                workspaceId: user.workspaceId,
-                                type,
-                                storeUrl,
-                                active: false,
-                                id: { not: existing.id },
-                        },
-                }).catch(() => { /* best-effort cleanup — ignore errors */ })
-
                 const webhookUrl =
                         type === 'WOOCOMMERCE'
                                 ? `${appBaseUrl()}/api/sync/woocommerce?token=${existing.webhookSecret}`
@@ -194,6 +198,56 @@ export async function POST(req: Request) {
         // In webhook-only mode (no credentials), disable polling by setting interval to 0.
         const hasCredentials = credentials && Object.keys(credentials).length > 0
         const effectivePollInterval = pollIntervalMinutes ?? (hasCredentials ? 30 : 0)
+
+        // Reconnect in place so mirrored orders and stable source identities
+        // remain attached. A fresh random secret invalidates the disconnected
+        // plugin session even when the create request supplied a custom secret.
+        const inactive = await prisma.storeIntegration.findFirst({
+                where: {
+                        workspaceId: user.workspaceId,
+                        type,
+                        storeUrl: { in: matchingStoreUrls },
+                        active: false,
+                },
+                orderBy: { updatedAt: 'desc' },
+                select: { id: true },
+        })
+        if (inactive) {
+                const rotatedSecret = crypto.randomBytes(32).toString('base64url')
+                const integration = await prisma.storeIntegration.update({
+                        where: { id: inactive.id },
+                        data: {
+                                active: true,
+                                storeUrl,
+                                credentials: safeCredentials,
+                                webhookSecret: rotatedSecret,
+                                pollIntervalMinutes: effectivePollInterval,
+                                connectedAt: null,
+                                lastWebhookAt: null,
+                                lastSyncStatus: null,
+                                lastSyncError: null,
+                        },
+                        select: {
+                                id: true,
+                                type: true,
+                                storeUrl: true,
+                                webhookSecret: true,
+                                pollIntervalMinutes: true,
+                                active: true,
+                                createdAt: true,
+                        },
+                })
+                const webhookUrl = type === 'WOOCOMMERCE'
+                        ? `${appBaseUrl()}/api/sync/woocommerce?token=${rotatedSecret}`
+                        : null
+                return NextResponse.json({
+                        integration,
+                        webhookUrl,
+                        webhookSecret: rotatedSecret,
+                        mode: hasCredentials ? 'full' : 'webhook-only',
+                        reconnected: true,
+                })
+        }
 
         const integration = await prisma.storeIntegration.create({
                 data: {

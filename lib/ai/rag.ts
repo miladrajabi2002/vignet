@@ -14,6 +14,8 @@ export interface CatalogProduct {
   price: number | null
   stock: number | null
   category: string | null
+  image: string | null
+  url: string | null
 }
 
 export interface CatalogService {
@@ -22,6 +24,9 @@ export interface CatalogService {
   durationMinutes: number
   location: string | null
 }
+
+const CATALOG_QUERY_INTENT =
+  /(?:محصول|کالا|قیمت|موجود|خرید|پیشنهاد|فروشگاه|چی\s*دارید|product|catalog|price|buy|recommend|shop)/i
 
 /**
  * Neutralize prompt-injection vectors in untrusted text before it enters the
@@ -44,6 +49,9 @@ export async function retrieveContext(params: {
   agentId: string
   query: string
   limit?: number
+  includeProductCatalog?: boolean
+  /** Product details are rendered in a compact catalog block by the chat engine. */
+  excludeProductContentFromText?: boolean
 }): Promise<RagContext> {
   let chunks: RetrievedChunk[] = []
   try {
@@ -54,13 +62,20 @@ export async function retrieveContext(params: {
       queryEmbedding,
       queryText: params.query,
       limit: params.limit ?? 3,
+      includeProductCatalog: params.includeProductCatalog,
     })
   } catch (e) {
     // If embeddings/retrieval fail (e.g. no key yet), answer without context.
     console.error('[rag] retrieval failed:', e)
   }
 
-  const contextText = chunks
+  const contextChunks = params.excludeProductContentFromText
+    ? chunks.filter((chunk) => {
+        const metadata = chunk.metadata
+        return !(metadata && typeof metadata === 'object' && 'productId' in metadata)
+      })
+    : chunks
+  const contextText = contextChunks
     .map((c, i) => `[${i + 1}] ${sanitizeUntrusted(c.content)}`)
     .join('\n\n')
 
@@ -71,11 +86,25 @@ function formatPrice(price: number): string {
   return price.toLocaleString('en-US').replace(/,/g, '،') + ' تومان'
 }
 
-function buildCatalogBlock(products: CatalogProduct[], isFa: boolean): string {
-  if (products.length === 0) {
+function buildCatalogBlock(
+  products: CatalogProduct[],
+  isFa: boolean,
+  catalogAccessEnabled: boolean,
+  userMessage: string,
+): string {
+  if (!catalogAccessEnabled) {
     return isFa
-      ? '\n\nتوجه مهم: هیچ محصولی در کاتالوگ این کسب‌وکار تعریف نشده. هرگز محصول، قیمت یا مشخصاتی اختراع نکن. اگر کاربر درباره محصول یا قیمت پرسید، بگو: "اطلاعات محصولات ما در حال به‌روزرسانی است، لطفاً مستقیماً با ما تماس بگیرید."'
-      : '\n\nImportant: No products are defined in this catalog. Never invent products, prices, or specs. If asked about products or prices, say: "Our product catalog is being updated — please contact us directly."'
+      ? '\n\nدسترسی این ایجنت به کاتالوگ محصولات غیرفعال است. محصول، قیمت، موجودی یا مشخصاتی از کاتالوگ معرفی نکن.'
+      : '\n\nThis agent does not have product-catalog access. Do not recommend or quote catalog products, prices, stock, or specifications.'
+  }
+  if (products.length === 0) {
+    // An empty *relevant* result is different from an empty global catalog.
+    // Keep generic turns lean, but explicitly prevent invention when this turn
+    // asked for a product and retrieval found no matching assigned item.
+    if (!CATALOG_QUERY_INTENT.test(userMessage)) return ''
+    return isFa
+      ? '\n\nمحصول منطبق و قابل‌اعتمادی برای این درخواست پیدا نشد. نام، قیمت، موجودی یا مشخصات محصولی را حدس نزن و کوتاه بگو محصول منطبق در کاتالوگ فعلی پیدا نشد.'
+      : '\n\nNo trusted matching product was found for this request. Do not invent a product, price, stock level, or specifications; briefly say no matching catalog item was found.'
   }
 
   const lines = products.map((p, i) => {
@@ -86,6 +115,9 @@ function buildCatalogBlock(products: CatalogProduct[], isFa: boolean): string {
     if (p.stock != null) {
       parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
     }
+    parts.push(`شناسه: ${p.id}`)
+    if (p.image) parts.push(`تصویر: ${p.image}`)
+    if (p.url) parts.push(`لینک: ${p.url}`)
     return `${i + 1}. ${parts.join(' | ')}`
   })
 
@@ -139,6 +171,8 @@ export function buildMessages(params: {
   catalogServices?: CatalogService[]
   history: ChatMessage[]
   userMessage: string
+  catalogAccessEnabled?: boolean
+  orderContext?: string
   /**
    * When true (web widget only), instruct the model to emit machine-readable
    * `[[product:{…}]]` tokens when recommending catalog products so the widget
@@ -157,7 +191,12 @@ export function buildMessages(params: {
     ? 'لحنت صمیمی، مختصر و انسانی باشد — مثل یک فروشنده خوب، نه ربات. از جملات کوتاه و روشن استفاده کن. در پیام اول فقط خوش‌آمد بگو و بپرس چطور می‌توانی کمک کنی؛ محصول یا قیمت را تا وقتی نیاز کاربر روشن نشده پیشنهاد نده.'
     : "Be warm, concise and human — like a good salesperson, not a robot. Use short, clear sentences. On the first message just greet and ask how you can help; don't pitch a product or price until the user's need is clear."
 
-  const catalogBlock = buildCatalogBlock(params.catalogProducts, isFa)
+  const catalogBlock = buildCatalogBlock(
+    params.catalogProducts,
+    isFa,
+    params.catalogAccessEnabled !== false,
+    params.userMessage,
+  )
   const serviceBlock = buildServiceBlock(params.catalogServices ?? [], isFa)
 
   // Rich product cards (web widget only): teach the model the [[product:{…}]]
@@ -166,8 +205,8 @@ export function buildMessages(params: {
   const cardInstruction =
     params.richCards && params.catalogProducts.length > 0
       ? isFa
-        ? `\n\nنمایش کارت محصول: هرگاه یک یا دو محصول مشخص از کاتالوگ را فعالانه پیشنهاد یا معرفی می‌کنی، بعد از متن پاسخ، برای هر محصول یک خط جداگانه دقیقاً با این قالب اضافه کن:\n[[product:{"name":"نام دقیق محصول","price":"قیمت دقیقاً مطابق کاتالوگ","desc":"خلاصه یک‌خطی حداکثر ۶۰ کاراکتر","badge":"پیشنهاد"}]]\nقوانین: JSON معتبر و تک‌خطی؛ فقط محصولاتی که واقعاً در کاتالوگ هستند؛ حداکثر ۲ کارت در هر پیام؛ badge اختیاری است (مثل «پیشنهاد» یا «پرفروش»)؛ برای سلام‌واحوال‌پرسی یا پاسخ‌های عمومی از این قالب استفاده نکن؛ هرگز این قالب را برای کاربر توضیح نده و نام محصول را در متن قبلش تکرار نکن مگر لازم باشد.`
-        : `\n\nProduct cards: whenever you actively recommend or present one or two specific catalog products, append one line per product after your reply text, exactly in this format:\n[[product:{"name":"exact product name","price":"price exactly as in the catalog","desc":"one-line summary, max 60 chars","badge":"Recommended"}]]\nRules: valid single-line JSON; only products that truly exist in the catalog; max 2 cards per message; badge is optional; do not use this for greetings or generic answers; never explain this format to the user.`
+        ? `\n\nنمایش کارت محصول: هرگاه یک تا پنج محصول مشخص را فعالانه پیشنهاد می‌کنی، بعد از متن پاسخ برای هر محصول یک خط با این قالب اضافه کن:\n[[product:{"id":"شناسه دقیق","name":"نام دقیق","price":"قیمت مطابق کاتالوگ","desc":"خلاصه حداکثر ۶۰ کاراکتر","badge":"پیشنهاد","image":"آدرس دقیق تصویر","url":"لینک دقیق محصول"}]]\nقوانین: JSON معتبر و تک‌خطی؛ id، name، image و url را دقیقاً از کاتالوگ کپی کن؛ فقط محصولات موجود در کاتالوگ؛ حداکثر ۵ کارت؛ برای پاسخ عمومی کارت نساز؛ قالب را برای کاربر توضیح نده.`
+        : `\n\nProduct cards: whenever you actively recommend one to five specific products, append one line per product using:\n[[product:{"id":"exact id","name":"exact name","price":"catalog price","desc":"summary up to 60 chars","badge":"Recommended","image":"exact image URL","url":"exact product URL"}]]\nRules: valid single-line JSON; copy id, name, image and url exactly from the catalog; catalog products only; max 5 cards; no cards for generic replies; never explain this format.`
       : ''
 
   // Instruction hierarchy: retrieved chunks are *data*, never instructions.
@@ -181,7 +220,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${serviceBlock}${cardInstruction}${contextBlock}`,
+    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}`,
   }
 
   return [

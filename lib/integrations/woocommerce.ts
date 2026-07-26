@@ -1,938 +1,979 @@
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
-import { processProductEmbed } from '@/lib/products/catalog'
 import { normalizePhone } from '@/lib/phone'
+import { dispatchProductEmbed } from '@/lib/queue/jobs'
+import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
-
-/**
- * WooCommerce + generic store integration logic (F2).
- *
- * Two flows feed the workspace's `Product` catalog and `StoreOrder` mirror:
- *   1. Poll — `syncWooProducts` / `syncWooOrders` walk the WC REST API and
- *      upsert rows in batches. Driven by the scheduler (`worker/scheduler.ts`)
- *      and the manual "sync now" button (`GET /api/sync/woocommerce`).
- *   2. Push — the WP plugin signs each product/order change with HMAC-SHA256
- *      and POSTs to `/api/sync/woocommerce?token=<webhookSecret>`. We verify
- *      the signature against the raw body, then route by the
- *      `X-WC-Webhook-Topic` header.
- *
- * Credentials live encrypted inside `StoreIntegration.credentials` (AES-256-GCM
- * via `lib/crypto`). This module never sees the ciphertext — callers hand it
- * the decrypted `WooCredentials` (see `resolveWooCredentials`).
- */
 
 export const WOOCOMMERCE_REST_PER_PAGE = 100
 
 export interface WooCredentials {
-        consumerKey: string
-        consumerSecret: string
+  consumerKey: string
+  consumerSecret: string
 }
 
-/** Minimal slice of a StoreIntegration row the sync functions need. */
 export interface StoreIntegrationInput {
-        id: string
-        workspaceId: string
-        storeUrl: string
-        credentials: WooCredentials
+  id: string
+  workspaceId: string
+  storeUrl: string
+  credentials: WooCredentials
 }
 
-/** Per-item shape returned by the WC /products endpoint (subset we use). */
+interface WooCategory {
+  id?: number | string
+  name?: string
+  slug?: string
+  parent?: number | string
+  parent_id?: number | string
+  primary?: boolean
+}
+
 interface WooProduct {
-        id: number
-        name: string
-        sku?: string
-        description?: string
-        short_description?: string
-        price?: string
-        regular_price?: string
-        sale_price?: string
-        stock_quantity?: number | null
-        in_stock?: boolean
-        manage_stock?: boolean
-        status?: string
-        permalink?: string
-        images?: { src?: string }[]
-        tags?: { name?: string }[]
-        attributes?: {
-                name?: string
-                // WooCommerce sometimes sends options as a string, sometimes as an array.
-                // We normalize to string[] in the mapper.
-                options?: string[] | string
-        }[]
+  id: number
+  name: string
+  sku?: string
+  description?: string
+  short_description?: string
+  price?: string
+  regular_price?: string
+  sale_price?: string
+  stock_quantity?: number | null
+  in_stock?: boolean
+  manage_stock?: boolean
+  status?: string
+  permalink?: string
+  date_modified?: string
+  date_modified_gmt?: string
+  images?: { src?: string }[]
+  tags?: { name?: string }[]
+  categories?: WooCategory[]
+  attributes?: {
+    name?: string
+    options?: string[] | string
+  }[]
 }
 
-/** Per-item shape returned by the WC /orders endpoint (subset we use). */
 interface WooOrder {
-        id: number
-        number?: string
-        status?: string
-        currency?: string
-        total?: string
-        payment_method?: string
-        payment_method_title?: string
-        date_created?: string
-        date_created_gmt?: string
-        customer_id?: number
-        billing?: {
-                first_name?: string
-                last_name?: string
-                phone?: string
-                email?: string
-        }
-        shipping?: {
-                method_title?: string
-        }
-        line_items?: {
-                name?: string
-                quantity?: number
-                total?: string
-                sku?: string
-        }[]
+  id: number
+  number?: string
+  status?: string
+  currency?: string
+  total?: string
+  payment_method?: string
+  payment_method_title?: string
+  tracking_code?: string | number
+  date_created?: string
+  date_created_gmt?: string
+  date_modified?: string
+  date_modified_gmt?: string
+  billing?: {
+    first_name?: string
+    last_name?: string
+    phone?: string
+    email?: string
+  }
+  shipping?: { method_title?: string }
+  line_items?: {
+    name?: string
+    quantity?: number
+    total?: string
+    sku?: string
+  }[]
 }
 
-// ─── credentials ────────────────────────────────────────────────────────────
-
-/**
- * Resolve decrypted WooCommerce credentials from a raw JSON value pulled off
- * the StoreIntegration row. Accepts either a plaintext `consumerSecret` (dev)
- * or an encrypted `consumerSecretEnc` payload (production). Throws on missing
- * fields so callers fail loudly instead of silently 401'ing against the WC API.
- *
- * Note: In webhook-only mode (no credentials configured), this throws — the
- * caller is expected to catch and skip polling, since the WP plugin pushes
- * data via signed webhook without needing REST API keys.
- */
 export function resolveWooCredentials(raw: unknown): WooCredentials {
-        if (!raw || typeof raw !== 'object') {
-                throw new Error('Invalid WooCommerce credentials payload')
-        }
-        const obj = raw as Record<string, unknown>
-        const consumerKey = typeof obj.consumerKey === 'string' ? obj.consumerKey : ''
-        let consumerSecret = ''
-        if (typeof obj.consumerSecret === 'string') {
-                consumerSecret = obj.consumerSecret
-        } else if (typeof obj.consumerSecretEnc === 'string') {
-                consumerSecret = decrypt(obj.consumerSecretEnc)
-        }
-        if (!consumerKey || !consumerSecret) {
-                throw new Error('Missing WooCommerce consumerKey/consumerSecret')
-        }
-        return { consumerKey, consumerSecret }
+  if (!raw || typeof raw !== 'object') throw new Error('Invalid WooCommerce credentials payload')
+  const value = raw as Record<string, unknown>
+  const consumerKey = typeof value.consumerKey === 'string' ? value.consumerKey : ''
+  const consumerSecret =
+    typeof value.consumerSecret === 'string'
+      ? value.consumerSecret
+      : typeof value.consumerSecretEnc === 'string'
+        ? decrypt(value.consumerSecretEnc)
+        : ''
+  if (!consumerKey || !consumerSecret) {
+    throw new Error('Missing WooCommerce consumerKey/consumerSecret')
+  }
+  return { consumerKey, consumerSecret }
 }
 
-/**
- * Check whether an integration has REST API credentials configured.
- * Returns false for webhook-only integrations (no consumerKey/consumerSecret).
- * Used by the scheduler and manual sync to skip polling gracefully.
- */
 export function hasWooCredentials(raw: unknown): boolean {
-        try {
-                resolveWooCredentials(raw)
-                return true
-        } catch {
-                return false
-        }
+  try {
+    resolveWooCredentials(raw)
+    return true
+  } catch {
+    return false
+  }
 }
 
-// ─── HMAC webhook signature verification ────────────────────────────────────
-
-/**
- * Verify a WooCommerce webhook signature. WooCommerce signs the raw request
- * body with HMAC-SHA256 using the webhook secret, and sends the hex digest in
- * the `X-WC-Webhook-Signature` header. We compare in constant time to avoid
- * timing-oracle attacks on the secret.
- */
 export function verifyWooWebhookSignature(
-        rawBody: string,
-        signature: string,
-        secret: string,
+  rawBody: string,
+  signature: string,
+  secret: string,
 ): boolean {
-        if (!rawBody || !signature || !secret) return false
-        const expected = crypto
-                .createHmac('sha256', secret)
-                .update(rawBody, 'utf8')
-                .digest('hex')
-        const a = Buffer.from(expected, 'utf8')
-        const b = Buffer.from(signature, 'utf8')
-        if (a.length !== b.length) return false
-        return crypto.timingSafeEqual(a, b)
+  if (!rawBody || !signature || !secret) return false
+  const expected = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex')
+  const expectedBytes = Buffer.from(expected, 'utf8')
+  const actualBytes = Buffer.from(signature.trim(), 'utf8')
+  return expectedBytes.length === actualBytes.length && crypto.timingSafeEqual(expectedBytes, actualBytes)
 }
 
-// ─── contact match helpers ──────────────────────────────────────────────────
-
-/** Find a workspace contact by normalized phone (E.164). Returns null if no match. */
 export async function findContactByPhone(
-        workspaceId: string,
-        phone: string | null | undefined,
+  workspaceId: string,
+  phone: string | null | undefined,
 ) {
-        if (!phone) return null
-        const normalized = normalizePhone(phone)
-        if (!normalized) return null
-        return prisma.contact.findFirst({
-                where: { workspaceId, phone: normalized },
-                select: { id: true },
-        })
+  if (!phone) return null
+  const normalized = normalizePhone(phone)
+  if (!normalized) return null
+  return prisma.contact.findFirst({
+    where: { workspaceId, phone: normalized },
+    select: { id: true },
+  })
 }
 
-/** Find a workspace contact by email (case-insensitive). Returns null if no match. */
 export async function findContactByEmail(
-        workspaceId: string,
-        email: string | null | undefined,
+  workspaceId: string,
+  email: string | null | undefined,
 ) {
-        if (!email) return null
-        const trimmed = email.trim().toLowerCase()
-        if (!trimmed) return null
-        return prisma.contact.findFirst({
-                where: { workspaceId, metadata: { path: ['email'], equals: trimmed } },
-                select: { id: true },
-        })
+  const normalized = email?.trim().toLowerCase()
+  if (!normalized) return null
+  return prisma.contact.findFirst({
+    where: { workspaceId, metadata: { path: ['email'], equals: normalized } },
+    select: { id: true },
+  })
 }
 
-// ─── internal HTTP helpers ──────────────────────────────────────────────────
-
-function authHeader(creds: WooCredentials): string {
-        const token = Buffer.from(`${creds.consumerKey}:${creds.consumerSecret}`).toString(
-                'base64',
-        )
-        return `Basic ${token}`
+function authHeader(credentials: WooCredentials): string {
+  return `Basic ${Buffer.from(`${credentials.consumerKey}:${credentials.consumerSecret}`).toString('base64')}`
 }
 
-/** Strip trailing slash from a store URL so endpoint joining is predictable. */
 function normalizeStoreUrl(storeUrl: string): string {
-        return storeUrl.replace(/\/+$/, '')
+  return storeUrl.replace(/\/+$/, '')
 }
 
-const FETCH_TIMEOUT_MS = 30_000
-
-/** Fetch one JSON page from the WC REST API. Throws on non-2xx. */
 async function fetchWooJson<T>(
-        storeUrl: string,
-        creds: WooCredentials,
-        path: string,
-        params: Record<string, string | number>,
+  storeUrl: string,
+  credentials: WooCredentials,
+  path: string,
+  params: Record<string, string | number>,
 ): Promise<T[]> {
-        const url = new URL(
-                `${normalizeStoreUrl(storeUrl)}/wp-json/wc/v3/${path}`,
-        )
-        for (const [k, v] of Object.entries(params)) {
-                url.searchParams.set(k, String(v))
-        }
-        const res = await safeHttpGet(url.toString(), {
-                headers: {
-                        Authorization: authHeader(creds),
-                        Accept: 'application/json',
-                        'User-Agent': 'VigentSync/1.0',
-                },
-                timeoutMs: FETCH_TIMEOUT_MS,
-                maxBytes: 10 * 1024 * 1024,
-                allowedContentTypes: ['application/json'],
-        })
-        if (res.status < 200 || res.status >= 300) {
-                throw new Error(`WC ${path} HTTP ${res.status}: ${res.body.toString('utf8').slice(0, 200)}`)
-        }
-        const json = JSON.parse(res.body.toString('utf8')) as unknown
-        return Array.isArray(json) ? (json as T[]) : []
+  const url = new URL(`${normalizeStoreUrl(storeUrl)}/wp-json/wc/v3/${path}`)
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value))
+  const response = await safeHttpGet(url.toString(), {
+    headers: {
+      Authorization: authHeader(credentials),
+      Accept: 'application/json',
+      'User-Agent': 'VigentSync/2.0',
+    },
+    timeoutMs: 30_000,
+    maxBytes: 10 * 1024 * 1024,
+    allowedContentTypes: ['application/json'],
+  })
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`WC ${path} HTTP ${response.status}: ${response.body.toString('utf8').slice(0, 200)}`)
+  }
+  const json = JSON.parse(response.body.toString('utf8')) as unknown
+  return Array.isArray(json) ? (json as T[]) : []
 }
 
-/** Iterate every page of a WC collection until a page returns fewer than PER_PAGE. */
 async function fetchAllWoo<T>(
-        storeUrl: string,
-        creds: WooCredentials,
-        path: string,
-        extra: Record<string, string | number> = {},
+  storeUrl: string,
+  credentials: WooCredentials,
+  path: string,
+  extra: Record<string, string | number> = {},
 ): Promise<T[]> {
-        const out: T[] = []
-        let page = 1
-        // Safety cap: 50 pages × 100 = 5 000 items. Stores bigger than that should
-        // rely on webhooks rather than the polling fallback.
-        for (let i = 0; i < 50; i++) {
-                const batch = await fetchWooJson<T>(storeUrl, creds, path, {
-                        ...extra,
-                        per_page: WOOCOMMERCE_REST_PER_PAGE,
-                        page,
-                })
-                out.push(...batch)
-                if (batch.length < WOOCOMMERCE_REST_PER_PAGE) break
-                page++
-        }
-        return out
+  const result: T[] = []
+  for (let page = 1; page <= 50; page++) {
+    const items = await fetchWooJson<T>(storeUrl, credentials, path, {
+      ...extra,
+      per_page: WOOCOMMERCE_REST_PER_PAGE,
+      page,
+    })
+    result.push(...items)
+    if (items.length < WOOCOMMERCE_REST_PER_PAGE) break
+  }
+  return result
 }
 
-// ─── product sync ───────────────────────────────────────────────────────────
-
-/** Convert a WC product payload to our Product field shape. */
-function mapWooProduct(p: WooProduct) {
-        const price = parseFloat(p.price ?? '')
-        const regularPrice = parseFloat(p.regular_price ?? '')
-        const comparePrice = !isNaN(regularPrice) && regularPrice > 0 ? regularPrice : null
-        const effectivePrice = !isNaN(price) && price > 0 ? price : comparePrice
-        const stock =
-                p.manage_stock === true && p.stock_quantity != null ? p.stock_quantity : null
-        const images = (p.images ?? [])
-                .map((i) => i.src)
-                .filter((s): s is string => typeof s === 'string' && s.length > 0)
-        const tags = (p.tags ?? [])
-                .map((t) => t.name)
-                .filter((n): n is string => typeof n === 'string' && n.length > 0)
-        const attrs: Record<string, string> = {}
-        for (const a of p.attributes ?? []) {
-                if (!a.name) continue
-                // WooCommerce sends `options` as string[] sometimes, as string other times.
-                // Normalize: if string, treat it as a single option; if array, join.
-                const raw = a.options
-                let val = ''
-                if (Array.isArray(raw)) {
-                        val = raw.map((x) => String(x)).join(', ')
-                } else if (typeof raw === 'string') {
-                        val = raw
-                } else if (raw != null) {
-                        val = String(raw)
-                }
-                attrs[a.name] = val
-        }
-        return {
-                name: p.name,
-                description: (p.short_description || p.description || '').slice(0, 4000) || null,
-                price: effectivePrice,
-                comparePrice,
-                sku: p.sku || null,
-                stock,
-                images,
-                tags,
-                attributes: attrs,
-                externalUrl: typeof p.permalink === 'string' && p.permalink.trim() ? p.permalink.trim() : null,
-                // Note: `status` is intentionally NOT returned — the Product table has no
-                // `status` column (Prisma would reject it). We use `active` instead, derived
-                // from `status !== 'draft'` at the call site.
-        }
+function parseDate(raw: string | null | undefined, assumeUtc = false): Date | null {
+  if (!raw) return null
+  const value = assumeUtc && !/[zZ]|[+-]\d\d:\d\d$/.test(raw) ? `${raw}Z` : raw
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
-/**
- * Pull every product from the WC REST API and upsert it into the workspace's
- * `Product` table. Each product is re-embedded inline (the embed function is
- * idempotent — it deletes old chunks before inserting new ones). Per-item
- * failures are collected into `errors` so a single bad row doesn't abort the
- * batch. A `StoreSyncLog` row is written with the outcome.
- */
-export async function syncWooProducts(
-        integration: StoreIntegrationInput,
-): Promise<{ count: number; errors: string[] }> {
-        const { id: integrationId, workspaceId, storeUrl, credentials } = integration
-        const errors: string[] = []
-        let count = 0
+function productUpdatedAt(product: WooProduct, fallback?: string): Date | null {
+  return (
+    parseDate(product.date_modified_gmt, true) ??
+    parseDate(product.date_modified) ??
+    parseDate(fallback)
+  )
+}
 
-        let products: WooProduct[]
-        try {
-                products = await fetchAllWoo<WooProduct>(storeUrl, credentials, 'products')
-        } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                await writeSyncLog({
-                        integrationId,
-                        workspaceId,
-                        direction: 'poll',
-                        entity: 'products',
-                        outcome: 'error',
-                        count: 0,
-                        message: msg,
-                })
-                await markSync(integrationId, 'error', msg)
-                return { count: 0, errors: [msg] }
-        }
+function orderUpdatedAt(order: WooOrder): Date | null {
+  return parseDate(order.date_modified_gmt, true) ?? parseDate(order.date_modified)
+}
 
-        // Cache the workspace's agent list ONCE per sync run — it doesn't change
-        // between products in the same batch. Without this we'd do one
-        // `agent.findMany` per product (N queries → 1 query for a 1000-product
-        // catalog), which was the main sync bottleneck on large stores.
-        const agents = await prisma.agent.findMany({
-                where: { workspaceId },
-                select: { id: true },
+function mapWooProduct(product: WooProduct) {
+  const price = Number.parseFloat(product.price ?? '')
+  const regularPrice = Number.parseFloat(product.regular_price ?? '')
+  const effectivePrice = Number.isFinite(price) && price >= 0
+    ? price
+    : Number.isFinite(regularPrice) && regularPrice >= 0
+      ? regularPrice
+      : null
+  const comparePrice =
+    Number.isFinite(regularPrice) && effectivePrice != null && regularPrice > effectivePrice
+      ? regularPrice
+      : null
+  const attributes: Record<string, string> = {}
+  for (const attribute of product.attributes ?? []) {
+    if (!attribute.name) continue
+    attributes[attribute.name] = Array.isArray(attribute.options)
+      ? attribute.options.map(String).join(', ')
+      : attribute.options == null
+        ? ''
+        : String(attribute.options)
+  }
+  return {
+    name: product.name,
+    description: (product.short_description || product.description || '').slice(0, 4000) || null,
+    price: effectivePrice,
+    comparePrice,
+    sku: product.sku?.trim() || null,
+    stock: product.manage_stock === true && product.stock_quantity != null
+      ? product.stock_quantity
+      : product.in_stock === false
+        ? 0
+        : null,
+    images: (product.images ?? [])
+      .map((image) => image.src?.trim())
+      .filter((src): src is string => Boolean(src)),
+    tags: (product.tags ?? [])
+      .map((tag) => tag.name?.trim())
+      .filter((name): name is string => Boolean(name))
+      .sort((a, b) => a.localeCompare(b)),
+    attributes,
+    externalUrl: product.permalink?.trim() || null,
+    active: product.status ? product.status === 'publish' : true,
+  }
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, canonicalize(item)]),
+    )
+  }
+  return value
+}
+
+function sourceHash(value: unknown): string {
+  return crypto.createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex')
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+}
+
+function categoryExternalId(category: WooCategory): string | null {
+  if (category.id == null) return null
+  const value = String(category.id).trim()
+  return value || null
+}
+
+function categorySlug(category: WooCategory, externalId: string): string {
+  const input = (category.slug || category.name || `woo-${externalId}`)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\u0600-\u06ff_-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+  return (input || `woo-${externalId}`).slice(0, 150)
+}
+
+async function availableCategorySlug(
+  integrationId: string,
+  workspaceId: string,
+  category: WooCategory,
+  externalId: string,
+): Promise<string> {
+  const base = categorySlug(category, externalId)
+  const collision = await prisma.productCategory.findUnique({
+    where: { workspaceId_slug: { workspaceId, slug: base } },
+    select: { sourceIntegrationId: true, externalId: true },
+  })
+  if (
+    !collision ||
+    collision.sourceIntegrationId === null ||
+    (collision.sourceIntegrationId === integrationId && collision.externalId === externalId)
+  ) {
+    return base
+  }
+  const suffix = crypto.createHash('sha1').update(`${integrationId}:${externalId}`).digest('hex').slice(0, 8)
+  return `${base.slice(0, 140)}-${suffix}`
+}
+
+async function upsertWooCategory(
+  integration: StoreIntegrationInput,
+  category: WooCategory,
+): Promise<{ id: string; externalId: string } | null> {
+  const externalId = categoryExternalId(category)
+  if (!externalId) return null
+  const { id: integrationId, workspaceId } = integration
+  const key = { sourceIntegrationId_externalId: { sourceIntegrationId: integrationId, externalId } }
+  const existing = await prisma.productCategory.findUnique({ where: key, select: { id: true } })
+  if (existing) {
+    const updated = await prisma.productCategory.update({
+      where: { id: existing.id },
+      data: { name: category.name?.trim() || `WooCommerce ${externalId}` },
+      select: { id: true },
+    })
+    return { ...updated, externalId }
+  }
+
+  const slug = await availableCategorySlug(integrationId, workspaceId, category, externalId)
+  const legacy = await prisma.productCategory.findFirst({
+    where: { workspaceId, slug, sourceIntegrationId: null },
+    select: { id: true },
+  })
+  try {
+    const row = legacy
+      ? await prisma.productCategory.update({
+          where: { id: legacy.id },
+          data: {
+            sourceIntegrationId: integrationId,
+            externalId,
+            name: category.name?.trim() || `WooCommerce ${externalId}`,
+          },
+          select: { id: true },
         })
-        const agentRows = agents.map((a) => ({ agentId: a.id }))
-
-        for (const wp of products) {
-                try {
-                        const data = mapWooProduct(wp)
-                        // ─── Deduplication (uses the shared helper so the poll
-                        // path and the webhook path stay in sync) ───
-                        const existing = await findExistingProduct(workspaceId, data.sku, data.name, wp.id)
-
-                        const product = existing
-                                ? await prisma.product.update({
-                                                where: { id: existing.id },
-                                                data: {
-                                                        ...data,
-                                                        active: wp.status !== 'draft',
-                                                        attributes: data.attributes,
-                                                },
-                                        })
-                                : await prisma.product.create({
-                                                data: {
-                                                        workspaceId,
-                                                        ...data,
-                                                        active: wp.status !== 'draft',
-                                                        attributes: data.attributes,
-                                                },
-                                        })
-
-                        // Auto-assign to every agent in the workspace so the catalog stays in
-                        // sync without a manual visit to each agent's catalog page.
-                        if (agentRows.length > 0) {
-                                await prisma.agentCatalog.createMany({
-                                        data: agentRows.map((a) => ({ ...a, productId: product.id })),
-                                        skipDuplicates: true,
-                                })
-                        }
-
-                        // Re-embed inline (the task calls for this — runs in the API route
-                        // or worker, not via the queue). Failure here is non-fatal.
-                        try {
-                                await processProductEmbed({
-                                        productId: product.id,
-                                        workspaceId,
-                                })
-                        } catch (embedErr) {
-                                errors.push(
-                                        `embed failed for product ${wp.id}: ${embedErr instanceof Error ? embedErr.message : String(embedErr)}`,
-                                )
-                        }
-                        count++
-                } catch (e) {
-                        errors.push(
-                                `product ${wp.id}: ${e instanceof Error ? e.message : String(e)}`,
-                        )
-                }
-        }
-
-        await writeSyncLog({
-                integrationId,
-                workspaceId,
-                direction: 'poll',
-                entity: 'products',
-                outcome: errors.length === 0 ? 'ok' : 'error',
-                count,
-                message: errors.length ? errors.join('\n').slice(0, 1000) : null,
+      : await prisma.productCategory.create({
+          data: {
+            workspaceId,
+            sourceIntegrationId: integrationId,
+            externalId,
+            name: category.name?.trim() || `WooCommerce ${externalId}`,
+            slug,
+          },
+          select: { id: true },
         })
-        await markSync(integrationId, errors.length === 0 ? 'ok' : 'error', errors[0] ?? null)
-        return { count, errors }
+    return { ...row, externalId }
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error
+    const raced = await prisma.productCategory.findUnique({ where: key, select: { id: true } })
+    if (!raced) throw error
+    return { ...raced, externalId }
+  }
 }
 
-// ─── order sync ─────────────────────────────────────────────────────────────
+async function upsertWooCategories(
+  integration: StoreIntegrationInput,
+  categories: WooCategory[],
+): Promise<string | null> {
+  const normalized = categories
+    .filter((category) => categoryExternalId(category) !== null)
+    .sort((a, b) => (categoryExternalId(a) ?? '').localeCompare(categoryExternalId(b) ?? '', undefined, { numeric: true }))
+  if (normalized.length === 0) return null
 
-/** Build a short human-readable line-item summary (Persian). */
-function summarizeItems(
-        items: { name?: string; quantity?: number; total?: string; sku?: string }[],
-): { summary: string; count: number } {
-        if (!items || items.length === 0) return { summary: '', count: 0 }
-        const parts = items
-                .filter((i) => i.name)
-                .slice(0, 10)
-                .map((i) => `${i.quantity ?? 1}× ${i.name}`)
-        const total = items.reduce((acc, i) => acc + (i.quantity ?? 0), 0)
-        return { summary: parts.join('، '), count: total }
+  const rows = new Map<string, string>()
+  for (const category of normalized) {
+    const row = await upsertWooCategory(integration, category)
+    if (row) rows.set(row.externalId, row.id)
+  }
+
+  for (const category of normalized) {
+    const externalId = categoryExternalId(category)
+    const categoryId = externalId ? rows.get(externalId) : null
+    const rawParent = category.parent_id ?? category.parent
+    const parentExternalId = rawParent == null || String(rawParent) === '0' ? null : String(rawParent)
+    if (!categoryId || !parentExternalId) continue
+    const parentId = rows.get(parentExternalId) ?? (
+      await prisma.productCategory.findUnique({
+        where: {
+          sourceIntegrationId_externalId: {
+            sourceIntegrationId: integration.id,
+            externalId: parentExternalId,
+          },
+        },
+        select: { id: true },
+      })
+    )?.id
+    if (parentId && parentId !== categoryId) {
+      await prisma.productCategory.update({ where: { id: categoryId }, data: { parentId } })
+    }
+  }
+
+  const parentIds = new Set(
+    normalized
+      .map((category) => category.parent_id ?? category.parent)
+      .filter((value) => value != null && String(value) !== '0')
+      .map(String),
+  )
+  const primary =
+    normalized.find((category) => category.primary === true) ??
+    normalized.find((category) => !parentIds.has(categoryExternalId(category) ?? '')) ??
+    normalized[0]
+  return rows.get(categoryExternalId(primary) ?? '') ?? null
 }
 
-/**
- * Pull orders from the WC REST API and upsert them into `StoreOrder`. Tries to
- * match each order's customer phone/email to a `Contact` and link via
- * `contactId` so the agent can answer "where is my order?" against the right
- * customer record. A `StoreSyncLog` row is written with the outcome.
- */
-export async function syncWooOrders(
-        integration: StoreIntegrationInput,
-        opts: { sinceDays?: number } = {},
-): Promise<{ count: number }> {
-        const { id: integrationId, workspaceId, storeUrl, credentials } = integration
-        const errors: string[] = []
-        let count = 0
-
-        const params: Record<string, string | number> = {}
-        if (opts.sinceDays && opts.sinceDays > 0) {
-                const after = new Date(Date.now() - opts.sinceDays * 24 * 60 * 60 * 1000)
-                params.after = after.toISOString()
-        }
-
-        let orders: WooOrder[]
-        try {
-                orders = await fetchAllWoo<WooOrder>(storeUrl, credentials, 'orders', params)
-        } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                await writeSyncLog({
-                        integrationId,
-                        workspaceId,
-                        direction: 'poll',
-                        entity: 'orders',
-                        outcome: 'error',
-                        count: 0,
-                        message: msg,
-                })
-                await markSync(integrationId, 'error', msg)
-                return { count: 0 }
-        }
-
-        for (const wo of orders) {
-                try {
-                        const externalOrderId = String(wo.id)
-                        const customerName = [wo.billing?.first_name, wo.billing?.last_name]
-                                .filter(Boolean)
-                                .join(' ')
-                                .trim()
-                        const customerPhone = wo.billing?.phone?.trim() || null
-                        const customerEmail = wo.billing?.email?.trim().toLowerCase() || null
-                        const total = parseFloat(wo.total ?? '0') || 0
-                        const { summary, count: itemCount } = summarizeItems(wo.line_items ?? [])
-
-                        // Try to link the order to an existing Contact (by phone, then email).
-                        let contactId: string | null = null
-                        const byPhone = await findContactByPhone(workspaceId, customerPhone)
-                        if (byPhone) {
-                                contactId = byPhone.id
-                        } else if (customerEmail) {
-                                const byEmail = await findContactByEmail(workspaceId, customerEmail)
-                                if (byEmail) contactId = byEmail.id
-                        }
-
-                        const orderDate = wo.date_created_gmt
-                                ? new Date(wo.date_created_gmt + 'Z')
-                                : wo.date_created
-                                        ? new Date(wo.date_created)
-                                        : null
-
-                        await prisma.storeOrder.upsert({
-                                where: {
-                                        integrationId_externalOrderId: { integrationId, externalOrderId },
-                                },
-                                update: {
-                                        contactId,
-                                        customerName: customerName || null,
-                                        customerPhone,
-                                        customerEmail,
-                                        status: wo.status ?? 'pending',
-                                        total,
-                                        currency: wo.currency ?? 'IRR',
-                                        itemCount: itemCount,
-                                        itemsSummary: summary || null,
-                                        paymentMethod: wo.payment_method_title || wo.payment_method || null,
-                                        shippingMethod: wo.shipping?.method_title || null,
-                                        orderDate,
-                                        updatedAt: new Date(),
-                                },
-                                create: {
-                                        integrationId,
-                                        workspaceId,
-                                        externalOrderId,
-                                        contactId,
-                                        customerName: customerName || null,
-                                        customerPhone,
-                                        customerEmail,
-                                        status: wo.status ?? 'pending',
-                                        total,
-                                        currency: wo.currency ?? 'IRR',
-                                        itemCount: itemCount,
-                                        itemsSummary: summary || null,
-                                        paymentMethod: wo.payment_method_title || wo.payment_method || null,
-                                        shippingMethod: wo.shipping?.method_title || null,
-                                        orderDate,
-                                },
-                        })
-                        count++
-                } catch (e) {
-                        errors.push(`order ${wo.id}: ${e instanceof Error ? e.message : String(e)}`)
-                }
-        }
-
-        await writeSyncLog({
-                integrationId,
-                workspaceId,
-                direction: 'poll',
-                entity: 'orders',
-                outcome: errors.length === 0 ? 'ok' : 'error',
-                count,
-                message: errors.length ? errors.join('\n').slice(0, 1000) : null,
-        })
-        await markSync(integrationId, errors.length === 0 ? 'ok' : 'error', errors[0] ?? null)
-        return { count }
+async function findLegacyProduct(
+  workspaceId: string,
+  sku: string | null,
+  name: string,
+): Promise<{
+  id: string
+  sourceHash: string | null
+  sourceUpdatedAt: Date | null
+  embeddingUpdatedAt: Date | null
+} | null> {
+  if (sku) {
+    const bySku = await prisma.product.findMany({
+      where: { workspaceId, sourceIntegrationId: null, sku },
+      select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+      take: 2,
+    })
+    if (bySku.length === 1) return bySku[0]
+  }
+  if (name) {
+    const byName = await prisma.product.findMany({
+      where: {
+        workspaceId,
+        sourceIntegrationId: null,
+        name: { equals: name, mode: 'insensitive' },
+      },
+      select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+      take: 2,
+    })
+    if (byName.length === 1) return byName[0]
+  }
+  return null
 }
 
-// ─── webhook handler ────────────────────────────────────────────────────────
-
-/**
- * Handle a single inbound webhook event from the WP plugin. Routes by the
- * `X-WC-Webhook-Topic` header (passed in as `topic`):
- *
- *   product.created  → upsert Product + re-embed
- *   product.updated  → upsert Product + re-embed
- *   product.deleted  → soft-delete Product (active=false) + remove chunks
- *   order.created    → upsert StoreOrder
- *   order.updated    → upsert StoreOrder
- *
- * The signature has already been verified by the route handler before this is
- * called. A `StoreSyncLog` row is written per event.
- */
-export async function handleWooWebhook(
-        integration: StoreIntegrationInput,
-        payload: { topic: string; data: unknown },
-): Promise<void> {
-        const { id: integrationId, workspaceId } = integration
-        const topic = payload.topic
-        const data = payload.data
-
-        // Determine the entity type for sync-log rows. Connection events get
-        // their own entity label so they're easy to filter in the admin panel.
-        const entity =
-                topic.startsWith('product.') ? 'product_update'
-                : topic.startsWith('order.') ? 'order_update'
-                : topic.startsWith('connection.') ? 'connection'
-                : 'unknown'
-
-        try {
-                if (topic === 'product.created' || topic === 'product.updated') {
-                        const wp = data as WooProduct
-                        if (wp && wp.id) {
-                                await upsertProductFromWoo(integration, wp)
-                        }
-                } else if (topic === 'product.deleted') {
-                        const wp = data as { id?: number; sku?: string; name?: string }
-                        if (wp && wp.id) {
-                                await deleteProductFromWoo(integration, wp)
-                        }
-                } else if (topic === 'order.created' || topic === 'order.updated') {
-                        const wo = data as WooOrder
-                        if (wo && wo.id) {
-                                await upsertOrderFromWoo(integration, wo)
-                        }
-                } else if (topic === 'connection.disconnected') {
-                        // The WP plugin sends this when the user clicks "قطع اتصال".
-                        // Mark the integration as inactive so the Vigent panel
-                        // shows "قطع شد" and the scheduler stops polling it.
-                        // Products/orders already synced are kept — the user
-                        // might reconnect later.
-                        await markIntegrationDisconnected(integrationId)
-                } else {
-                        // Unknown topic — log and bail. Don't fail the webhook (we still 200
-                        // so the plugin doesn't retry-storm).
-                        await writeSyncLog({
-                                integrationId,
-                                workspaceId,
-                                direction: 'push',
-                                entity,
-                                outcome: 'error',
-                                count: 0,
-                                message: `Unknown webhook topic: ${topic}`,
-                        })
-                        return
-                }
-
-                await writeSyncLog({
-                        integrationId,
-                        workspaceId,
-                        direction: 'push',
-                        entity,
-                        outcome: 'ok',
-                        count: 1,
-                        message: topic,
-                })
-        } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                await writeSyncLog({
-                        integrationId,
-                        workspaceId,
-                        direction: 'push',
-                        entity,
-                        outcome: 'error',
-                        count: 0,
-                        message: `${topic}: ${msg}`.slice(0, 1000),
-                })
-                throw e
-        }
+async function allAgentIds(workspaceId: string): Promise<string[]> {
+  const agents = await prisma.agent.findMany({
+    where: { workspaceId },
+    select: { id: true },
+  })
+  return agents.map((agent) => agent.id)
 }
 
-/**
- * Mark a store integration as disconnected. Called when the WP plugin sends
- * a `connection.disconnected` webhook. Sets `active = false` and records the
- * timestamp so the Vigent panel can show "قطع شد" and the scheduler stops
- * polling this integration. Synced products/orders are preserved so a
- * future reconnect picks up where things left off.
- */
-async function markIntegrationDisconnected(integrationId: string): Promise<void> {
-        try {
-                await prisma.storeIntegration.update({
-                        where: { id: integrationId },
-                        data: {
-                                active: false,
-                                lastSyncAt: new Date(),
-                                lastSyncStatus: 'disconnected',
-                                lastSyncError: null,
-                        },
-                })
-        } catch (e) {
-                console.error('[woocommerce] failed to mark integration disconnected:', e)
-        }
+async function assignProduct(productId: string, agentIds: string[]): Promise<void> {
+  if (agentIds.length === 0) return
+  await prisma.agentCatalog.createMany({
+    data: agentIds.map((agentId) => ({ agentId, productId })),
+    skipDuplicates: true,
+  })
 }
 
-/** Upsert a single product (webhook path) and re-embed inline. */
 async function upsertProductFromWoo(
-        integration: StoreIntegrationInput,
-        wp: WooProduct,
-): Promise<void> {
-        const { workspaceId } = integration
-        const data = mapWooProduct(wp)
+  integration: StoreIntegrationInput,
+  product: WooProduct,
+  options: { agentIds?: string[]; changedAt?: string } = {},
+): Promise<{ productId: string; changed: boolean }> {
+  if (!product?.id || !product.name?.trim()) throw new Error('INVALID_PRODUCT_PAYLOAD')
+  const externalId = String(product.id)
+  const mapped = mapWooProduct(product)
+  const categoryId = await upsertWooCategories(integration, product.categories ?? [])
+  const updatedAt = productUpdatedAt(product, options.changedAt)
+  const hash = sourceHash({
+    ...mapped,
+    categories: (product.categories ?? [])
+      .map((category) => ({
+        id: categoryExternalId(category),
+        name: category.name ?? null,
+        parent: category.parent_id ?? category.parent ?? null,
+        primary: category.primary === true,
+      }))
+      .sort((a, b) => (a.id ?? '').localeCompare(b.id ?? '', undefined, { numeric: true })),
+  })
+  const key = {
+    sourceIntegrationId_externalId: {
+      sourceIntegrationId: integration.id,
+      externalId,
+    },
+  }
+  let existing = await prisma.product.findUnique({
+    where: key,
+    select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+  })
+  if (!existing) existing = await findLegacyProduct(integration.workspaceId, mapped.sku, mapped.name)
 
-        // ─── Deduplication logic (priority order) ───
-        // 1. Match by SKU (most reliable — unique business key from WooCommerce).
-        //    The WP plugin also stores the WC product id in the payload, and
-        //    some stores use the WC id as the SKU. We treat the SKU string
-        //    itself as the source of truth here.
-        // 2. Match by name (fallback for products without SKU). Case-insensitive
-        //    so a re-sync doesn't create a duplicate just because the merchant
-        //    retyped the title.
-        // 3. Match by SKU = WC product ID (some stores use WC id as SKU).
-        const existing = await findExistingProduct(workspaceId, data.sku, data.name, wp.id)
+  if (existing?.sourceUpdatedAt && updatedAt && updatedAt < existing.sourceUpdatedAt) {
+    await assignProduct(existing.id, options.agentIds ?? await allAgentIds(integration.workspaceId))
+    if (!existing.embeddingUpdatedAt) {
+      await dispatchProductEmbed({ productId: existing.id, workspaceId: integration.workspaceId })
+    }
+    return { productId: existing.id, changed: false }
+  }
+  if (existing?.sourceHash === hash) {
+    if (updatedAt && (!existing.sourceUpdatedAt || updatedAt > existing.sourceUpdatedAt)) {
+      await prisma.product.update({ where: { id: existing.id }, data: { sourceUpdatedAt: updatedAt } })
+    }
+    await assignProduct(existing.id, options.agentIds ?? await allAgentIds(integration.workspaceId))
+    if (!existing.embeddingUpdatedAt) {
+      await dispatchProductEmbed({ productId: existing.id, workspaceId: integration.workspaceId })
+    }
+    return { productId: existing.id, changed: false }
+  }
 
-        const product = existing
-                ? await prisma.product.update({
-                                where: { id: existing.id },
-                                data: {
-                                        ...data,
-                                        active: wp.status !== 'draft',
-                                        attributes: data.attributes,
-                                },
-                        })
-                : await prisma.product.create({
-                                data: {
-                                        workspaceId,
-                                        ...data,
-                                        active: wp.status !== 'draft',
-                                        attributes: data.attributes,
-                                },
-                        })
-
-        // Auto-assign to every workspace agent (same as the poll path).
-        // Note: webhooks are per-product events so caching the agent list
-        // across calls doesn't help (each call is a fresh request). The poll
-        // path (`syncWooProducts`) caches this once per full sync.
-        const agents = await prisma.agent.findMany({
-                where: { workspaceId },
-                select: { id: true },
+  const updateData = {
+    ...mapped,
+    categoryId,
+    sourceIntegrationId: integration.id,
+    externalId,
+    sourceUpdatedAt: updatedAt,
+    sourceHash: hash,
+    embeddingUpdatedAt: null,
+    attributes: mapped.attributes,
+  }
+  let saved: { id: string }
+  try {
+    saved = existing
+      ? await prisma.product.update({ where: { id: existing.id }, data: updateData, select: { id: true } })
+      : await prisma.product.create({
+          data: { workspaceId: integration.workspaceId, ...updateData },
+          select: { id: true },
         })
-        if (agents.length > 0) {
-                await prisma.agentCatalog.createMany({
-                        data: agents.map((a) => ({ agentId: a.id, productId: product.id })),
-                        skipDuplicates: true,
-                })
-        }
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error
+    saved = await prisma.product.update({ where: key, data: updateData, select: { id: true } })
+  }
 
-        await processProductEmbed({ productId: product.id, workspaceId })
+  const agentIds = options.agentIds ?? await allAgentIds(integration.workspaceId)
+  await assignProduct(saved.id, agentIds)
+  await dispatchProductEmbed({ productId: saved.id, workspaceId: integration.workspaceId })
+  return { productId: saved.id, changed: true }
 }
 
-/**
- * Find an existing product row for a workspace by SKU, then by name, then by
- * the WooCommerce product id (which the WP plugin sometimes uses as the SKU
- * when the merchant hasn't set one). Returns null if no candidate exists.
- *
- * Centralized here so both the webhook path and the poll path use the same
- * dedup rules — that's what keeps the catalog stable across thousands of
- * sync runs (any mismatch between the two paths would leak duplicates).
- *
- * Performance: uses a single OR query (not 3 separate round-trips) so a
- * 1000-product catalog only costs 1000 SELECTs instead of 3000.
- */
-async function findExistingProduct(
-        workspaceId: string,
-        sku: string | null,
-        name: string,
-        externalId?: number,
-): Promise<{ id: string } | null> {
-        const or: Prisma.ProductWhereInput[] = []
+export async function syncWooProducts(
+  integration: StoreIntegrationInput,
+): Promise<{ count: number; errors: string[] }> {
+  const errors: string[] = []
+  let products: WooProduct[]
+  try {
+    products = await fetchAllWoo<WooProduct>(integration.storeUrl, integration.credentials, 'products')
+  } catch (error) {
+    const message = errorMessage(error)
+    await writeSyncLog({
+      integrationId: integration.id,
+      workspaceId: integration.workspaceId,
+      direction: 'poll',
+      entity: 'products',
+      outcome: 'error',
+      count: 0,
+      message,
+    })
+    await markSync(integration.id, 'error', message)
+    return { count: 0, errors: [message] }
+  }
 
-        // 1. SKU match (exact).
-        if (sku) {
-                or.push({ sku })
-        }
-
-        // 2. External-id-as-SKU match — some stores let WooCommerce auto-fill
-        //    the SKU with the product id. We treat the WC id as a string here
-        //    so a product that was previously synced with id-as-SKU still
-        //    resolves to the same row on subsequent syncs.
-        if (externalId != null) {
-                or.push({ sku: String(externalId) })
-        }
-
-        // 3. Name match (case-insensitive). Without this, every re-sync of a
-        //    product that has no SKU would create a duplicate.
-        if (name) {
-                or.push({ name: { equals: name, mode: 'insensitive' } })
-        }
-
-        if (or.length === 0) return null
-
-        return prisma.product.findFirst({
-                where: { workspaceId, OR: or },
-                select: { id: true },
-        })
+  const agentIds = await allAgentIds(integration.workspaceId)
+  let count = 0
+  for (const product of products) {
+    try {
+      await upsertProductFromWoo(integration, product, { agentIds })
+      count++
+    } catch (error) {
+      errors.push(`product ${product.id}: ${errorMessage(error)}`)
+    }
+  }
+  const outcome = errors.length === 0 ? 'ok' : 'error'
+  await writeSyncLog({
+    integrationId: integration.id,
+    workspaceId: integration.workspaceId,
+    direction: 'poll',
+    entity: 'products',
+    outcome,
+    count,
+    message: errors.length ? errors.join('\n').slice(0, 1000) : null,
+  })
+  await markSync(integration.id, outcome, errors[0] ?? null)
+  return { count, errors }
 }
 
-/**
- * Soft-delete a product (webhook path) and remove its embedded chunks. The WP
- * plugin sends `{ id, sku?, name? }` on the product.deleted topic — we match by
- * SKU first (the stable business key), then by name, and finally by the WC id
- * as a string. If no match is found we no-op (the product may never have been
- * imported, e.g. it was created before the integration was connected).
- */
-async function deleteProductFromWoo(
-        integration: StoreIntegrationInput,
-        payload: { id?: number; sku?: string; name?: string },
-): Promise<void> {
-        const { workspaceId } = integration
-        const externalId = payload.id != null ? String(payload.id) : ''
-        const or: { sku?: string; name?: string }[] = []
-        if (payload.sku) or.push({ sku: payload.sku })
-        if (payload.name) or.push({ name: payload.name })
-        if (externalId) {
-                or.push({ sku: externalId })
-                or.push({ name: externalId })
-        }
-        if (or.length === 0) return
-
-        const candidate = await prisma.product.findFirst({
-                where: { workspaceId, OR: or },
-                select: { id: true },
-        })
-        if (!candidate) return
-
-        const links = await prisma.agentCatalog.findMany({
-                where: { productId: candidate.id },
-                select: { agentId: true },
-        })
-        const agentIds = links.map((l) => l.agentId)
-
-        await prisma.product.delete({ where: { id: candidate.id } })
-
-        await processProductEmbed({
-                productId: candidate.id,
-                workspaceId,
-                agentIds,
-                deleted: true,
-        }).catch(() => {
-                // Best-effort chunk cleanup; the catalog rows already cascaded.
-        })
+function summarizeItems(items: NonNullable<WooOrder['line_items']>) {
+  const summary = items
+    .filter((item) => item.name)
+    .slice(0, 10)
+    .map((item) => `${item.quantity ?? 1}× ${item.name}`)
+    .join('، ')
+  return {
+    summary,
+    count: items.reduce((total, item) => total + (item.quantity ?? 0), 0),
+  }
 }
 
-/** Upsert a single order (webhook path) and try to link it to a Contact. */
 async function upsertOrderFromWoo(
-        integration: StoreIntegrationInput,
-        wo: WooOrder,
+  integration: StoreIntegrationInput,
+  order: WooOrder,
 ): Promise<void> {
-        const { id: integrationId, workspaceId } = integration
-        const externalOrderId = String(wo.id)
-        const customerName = [wo.billing?.first_name, wo.billing?.last_name]
-                .filter(Boolean)
-                .join(' ')
-                .trim()
-        const customerPhone = wo.billing?.phone?.trim() || null
-        const customerEmail = wo.billing?.email?.trim().toLowerCase() || null
-        const total = parseFloat(wo.total ?? '0') || 0
-        const { summary, count: itemCount } = summarizeItems(wo.line_items ?? [])
-
-        let contactId: string | null = null
-        const byPhone = await findContactByPhone(workspaceId, customerPhone)
-        if (byPhone) {
-                contactId = byPhone.id
-        } else if (customerEmail) {
-                const byEmail = await findContactByEmail(workspaceId, customerEmail)
-                if (byEmail) contactId = byEmail.id
-        }
-
-        const orderDate = wo.date_created_gmt
-                ? new Date(wo.date_created_gmt + 'Z')
-                : wo.date_created
-                        ? new Date(wo.date_created)
-                        : null
-
-        await prisma.storeOrder.upsert({
-                where: {
-                        integrationId_externalOrderId: { integrationId, externalOrderId },
-                },
-                update: {
-                        contactId,
-                        customerName: customerName || null,
-                        customerPhone,
-                        customerEmail,
-                        status: wo.status ?? 'pending',
-                        total,
-                        currency: wo.currency ?? 'IRR',
-                        itemCount: itemCount,
-                        itemsSummary: summary || null,
-                        paymentMethod: wo.payment_method_title || wo.payment_method || null,
-                        shippingMethod: wo.shipping?.method_title || null,
-                        orderDate,
-                        updatedAt: new Date(),
-                },
-                create: {
-                        integrationId,
-                        workspaceId,
-                        externalOrderId,
-                        contactId,
-                        customerName: customerName || null,
-                        customerPhone,
-                        customerEmail,
-                        status: wo.status ?? 'pending',
-                        total,
-                        currency: wo.currency ?? 'IRR',
-                        itemCount: itemCount,
-                        itemsSummary: summary || null,
-                        paymentMethod: wo.payment_method_title || wo.payment_method || null,
-                        shippingMethod: wo.shipping?.method_title || null,
-                        orderDate,
-                },
-        })
+  if (!order?.id) throw new Error('INVALID_ORDER_PAYLOAD')
+  const externalOrderId = String(order.id)
+  const incomingUpdatedAt = orderUpdatedAt(order)
+  if (incomingUpdatedAt) {
+    const existing = await prisma.storeOrder.findUnique({
+      where: { integrationId_externalOrderId: { integrationId: integration.id, externalOrderId } },
+      select: { updatedAt: true },
+    })
+    if (existing?.updatedAt && incomingUpdatedAt < existing.updatedAt) return
+  }
+  const customerName = [order.billing?.first_name, order.billing?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+  const rawCustomerPhone = order.billing?.phone?.trim() || null
+  const customerPhone = rawCustomerPhone
+    ? normalizePhone(rawCustomerPhone) ?? rawCustomerPhone
+    : null
+  const customerEmail = order.billing?.email?.trim().toLowerCase() || null
+  const byPhone = await findContactByPhone(integration.workspaceId, customerPhone)
+  const byEmail = byPhone ? null : await findContactByEmail(integration.workspaceId, customerEmail)
+  const { summary, count: itemCount } = summarizeItems(order.line_items ?? [])
+  const orderDate = parseDate(order.date_created_gmt, true) ?? parseDate(order.date_created)
+  const data = {
+    contactId: byPhone?.id ?? byEmail?.id ?? null,
+    customerName: customerName || null,
+    customerPhone,
+    customerEmail,
+    status: order.status ?? 'pending',
+    total: Number.parseFloat(order.total ?? '0') || 0,
+    currency: order.currency ?? 'IRR',
+    itemCount,
+    itemsSummary: summary || null,
+    paymentMethod: order.payment_method_title || order.payment_method || null,
+    shippingMethod: order.shipping?.method_title || null,
+    trackingCode: order.tracking_code == null ? null : String(order.tracking_code).trim() || null,
+    orderDate,
+    updatedAt: incomingUpdatedAt ?? new Date(),
+  }
+  await prisma.storeOrder.upsert({
+    where: { integrationId_externalOrderId: { integrationId: integration.id, externalOrderId } },
+    update: data,
+    create: {
+      integrationId: integration.id,
+      workspaceId: integration.workspaceId,
+      externalOrderId,
+      ...data,
+    },
+  })
 }
 
-// ─── sync-log + status helpers ──────────────────────────────────────────────
+export async function syncWooOrders(
+  integration: StoreIntegrationInput,
+  options: { sinceDays?: number } = {},
+): Promise<{ count: number }> {
+  const params: Record<string, string | number> = {}
+  if (options.sinceDays && options.sinceDays > 0) {
+    params.after = new Date(Date.now() - options.sinceDays * 86_400_000).toISOString()
+  }
+  let orders: WooOrder[]
+  try {
+    orders = await fetchAllWoo<WooOrder>(integration.storeUrl, integration.credentials, 'orders', params)
+  } catch (error) {
+    const message = errorMessage(error)
+    await writeSyncLog({
+      integrationId: integration.id,
+      workspaceId: integration.workspaceId,
+      direction: 'poll',
+      entity: 'orders',
+      outcome: 'error',
+      count: 0,
+      message,
+    })
+    await markSync(integration.id, 'error', message)
+    return { count: 0 }
+  }
+
+  const errors: string[] = []
+  let count = 0
+  for (const order of orders) {
+    try {
+      await upsertOrderFromWoo(integration, order)
+      count++
+    } catch (error) {
+      errors.push(`order ${order.id}: ${errorMessage(error)}`)
+    }
+  }
+  const outcome = errors.length === 0 ? 'ok' : 'error'
+  await writeSyncLog({
+    integrationId: integration.id,
+    workspaceId: integration.workspaceId,
+    direction: 'poll',
+    entity: 'orders',
+    outcome,
+    count,
+    message: errors.length ? errors.join('\n').slice(0, 1000) : null,
+  })
+  await markSync(integration.id, outcome, errors[0] ?? null)
+  return { count }
+}
+
+async function deleteProductFromWoo(
+  integration: StoreIntegrationInput,
+  payload: { id?: number | string; sku?: string; name?: string },
+  changedAt?: string,
+): Promise<boolean> {
+  if (payload.id == null) return false
+  const externalId = String(payload.id)
+  let product = await prisma.product.findUnique({
+    where: {
+      sourceIntegrationId_externalId: {
+        sourceIntegrationId: integration.id,
+        externalId,
+      },
+    },
+    select: { id: true, sourceUpdatedAt: true, embeddingUpdatedAt: true, active: true },
+  })
+  if (!product) {
+    const legacy = await findLegacyProduct(
+      integration.workspaceId,
+      payload.sku?.trim() || null,
+      payload.name?.trim() || '',
+    )
+    if (legacy) product = { ...legacy, active: true }
+  }
+  if (!product) return false
+  const deletedAt = parseDate(changedAt)
+  if (deletedAt && product.sourceUpdatedAt && deletedAt < product.sourceUpdatedAt) return false
+  const links = await prisma.agentCatalog.findMany({
+    where: { productId: product.id },
+    select: { agentId: true },
+  })
+  if (product.active) {
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        sourceIntegrationId: integration.id,
+        externalId,
+        sourceUpdatedAt: deletedAt ?? new Date(),
+        sourceHash: sourceHash({ deleted: true, externalId }),
+        embeddingUpdatedAt: null,
+        active: false,
+      },
+    })
+  } else if (product.embeddingUpdatedAt) {
+    return false
+  }
+  await dispatchProductEmbed({
+    productId: product.id,
+    workspaceId: integration.workspaceId,
+    agentIds: links.map((link) => link.agentId),
+    deleted: true,
+  })
+  return true
+}
+
+async function processWebhookEvent(
+  integration: StoreIntegrationInput,
+  event: WooWebhookEvent,
+  agentIds: string[],
+): Promise<number> {
+  if (event.topic === 'product.created' || event.topic === 'product.updated') {
+    await upsertProductFromWoo(integration, event.data as WooProduct, {
+      agentIds,
+      changedAt: event.changedAt,
+    })
+    return 1
+  }
+  if (event.topic === 'product.deleted') {
+    return await deleteProductFromWoo(
+      integration,
+      event.data as { id?: number | string; sku?: string; name?: string },
+      event.changedAt,
+    ) ? 1 : 0
+  }
+  if (event.topic === 'order.created' || event.topic === 'order.updated') {
+    await upsertOrderFromWoo(integration, event.data as WooOrder)
+    return 1
+  }
+  if (event.topic === 'test.connection' || event.topic === 'connection.test') {
+    const details = event.data && typeof event.data === 'object'
+      ? event.data as Record<string, unknown>
+      : {}
+    const pluginVersion = typeof details.plugin_version === 'string'
+      ? details.plugin_version
+      : typeof details.version === 'string'
+        ? details.version
+        : undefined
+    await prisma.storeIntegration.update({
+      where: { id: integration.id },
+      data: {
+        active: true,
+        connectedAt: new Date(),
+        lastWebhookAt: new Date(),
+        lastSyncAt: new Date(),
+        lastSyncStatus: 'ok',
+        lastSyncError: null,
+        ...(pluginVersion ? { pluginVersion } : {}),
+      },
+    })
+    return 1
+  }
+  if (event.topic === 'connection.disconnected') {
+    await prisma.storeIntegration.update({
+      where: { id: integration.id },
+      data: {
+        active: false,
+        lastWebhookAt: new Date(),
+        lastSyncAt: new Date(),
+        lastSyncStatus: 'disconnected',
+        lastSyncError: null,
+      },
+    })
+    return 1
+  }
+  console.warn(`[woocommerce] ignored unsupported webhook topic: ${event.topic}`)
+  return 0
+}
+
+/** Process an already-authenticated durable delivery. Retrying is safe. */
+export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promise<void> {
+  const delivery = await prisma.storeWebhookDelivery.findUnique({
+    where: {
+      integrationId_deliveryId: {
+        integrationId: job.integrationId,
+        deliveryId: job.deliveryId,
+      },
+    },
+    select: { id: true, status: true },
+  })
+  if (!delivery) throw new Error('WEBHOOK_DELIVERY_NOT_FOUND')
+  if (delivery.status === 'processed') return
+
+  const row = await prisma.storeIntegration.findUnique({
+    where: { id: job.integrationId },
+    select: { id: true, workspaceId: true, storeUrl: true },
+  })
+  if (!row || row.workspaceId !== job.workspaceId) throw new Error('INTEGRATION_NOT_FOUND')
+  const integration: StoreIntegrationInput = {
+    ...row,
+    credentials: { consumerKey: '', consumerSecret: '' },
+  }
+  await prisma.storeWebhookDelivery.update({
+    where: { id: delivery.id },
+    data: { status: 'processing', error: null },
+  })
+
+  try {
+    const agentIds = await allAgentIds(integration.workspaceId)
+    let count = 0
+    for (const event of job.events) count += await processWebhookEvent(integration, event, agentIds)
+    const now = new Date()
+    const disconnected = job.events.some((event) => event.topic === 'connection.disconnected')
+    await prisma.$transaction([
+      prisma.storeWebhookDelivery.update({
+        where: { id: delivery.id },
+        data: { status: 'processed', processedAt: now, error: null },
+      }),
+      prisma.storeIntegration.update({
+        where: { id: integration.id },
+        data: {
+          lastWebhookAt: now,
+          lastSyncAt: now,
+          lastSyncStatus: disconnected ? 'disconnected' : 'ok',
+          lastSyncError: null,
+          ...(job.pluginVersion ? { pluginVersion: job.pluginVersion } : {}),
+        },
+      }),
+    ])
+    await writeSyncLog({
+      integrationId: integration.id,
+      workspaceId: integration.workspaceId,
+      direction: 'push',
+      entity: 'batch',
+      outcome: 'ok',
+      count,
+      message: `${job.events.length} event(s)`,
+    })
+  } catch (error) {
+    const message = errorMessage(error).slice(0, 1000)
+    await Promise.all([
+      prisma.storeWebhookDelivery.update({
+        where: { id: delivery.id },
+        data: { status: 'error', error: message },
+      }).catch(() => undefined),
+      prisma.storeIntegration.update({
+        where: { id: integration.id },
+        data: { lastWebhookAt: new Date(), lastSyncStatus: 'error', lastSyncError: message },
+      }).catch(() => undefined),
+      writeSyncLog({
+        integrationId: integration.id,
+        workspaceId: integration.workspaceId,
+        direction: 'push',
+        entity: 'batch',
+        outcome: 'error',
+        count: 0,
+        message,
+      }),
+    ])
+    throw error
+  }
+}
+
+/** Backward-compatible direct handler; the public route uses the durable batch queue. */
+export async function handleWooWebhook(
+  integration: StoreIntegrationInput,
+  payload: { topic: string; data: unknown },
+): Promise<void> {
+  const event: WooWebhookEvent = {
+    eventId: crypto.randomUUID(),
+    topic: payload.topic,
+    data: payload.data,
+  }
+  const count = await processWebhookEvent(integration, event, await allAgentIds(integration.workspaceId))
+  await writeSyncLog({
+    integrationId: integration.id,
+    workspaceId: integration.workspaceId,
+    direction: 'push',
+    entity: payload.topic.split('.')[0] || 'unknown',
+    outcome: 'ok',
+    count,
+    message: payload.topic,
+  })
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 async function writeSyncLog(input: {
-        integrationId: string
-        workspaceId: string
-        direction: string
-        entity: string
-        outcome: string
-        count: number
-        message: string | null
+  integrationId: string
+  workspaceId: string
+  direction: string
+  entity: string
+  outcome: string
+  count: number
+  message: string | null
 }): Promise<void> {
-        try {
-                await prisma.storeSyncLog.create({
-                        data: {
-                                integrationId: input.integrationId,
-                                workspaceId: input.workspaceId,
-                                direction: input.direction,
-                                entity: input.entity,
-                                outcome: input.outcome,
-                                count: input.count,
-                                message: input.message,
-                        },
-                })
-        } catch (e) {
-                // Logging should never crash a sync — best-effort.
-                console.error('[woocommerce] failed to write sync log:', e)
-        }
+  try {
+    await prisma.storeSyncLog.create({ data: input })
+  } catch (error) {
+    console.error('[woocommerce] failed to write sync log:', error)
+  }
 }
 
 async function markSync(
-        integrationId: string,
-        status: 'ok' | 'error',
-        error: string | null,
+  integrationId: string,
+  status: 'ok' | 'error',
+  error: string | null,
 ): Promise<void> {
-        try {
-                await prisma.storeIntegration.update({
-                        where: { id: integrationId },
-                        data: {
-                                lastSyncAt: new Date(),
-                                lastSyncStatus: status,
-                                lastSyncError: error,
-                        },
-                })
-        } catch (e) {
-                console.error('[woocommerce] failed to mark sync status:', e)
-        }
+  try {
+    await prisma.storeIntegration.update({
+      where: { id: integrationId },
+      data: {
+        lastSyncAt: new Date(),
+        lastSyncStatus: status,
+        lastSyncError: error,
+      },
+    })
+  } catch (updateError) {
+    console.error('[woocommerce] failed to mark sync status:', updateError)
+  }
 }

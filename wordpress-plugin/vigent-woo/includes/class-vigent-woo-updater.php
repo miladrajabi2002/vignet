@@ -55,7 +55,12 @@ class Vigent_Woo_Updater {
          * Full plugin file path relative to wp-content/plugins/.
          * WordPress uses this as the key in $transient->response.
          */
-        const PLUGIN_FILE = 'vigent-woo/vigent-woo.php';
+	const PLUGIN_FILE = 'vigent-woo/vigent-woo.php';
+
+	/** Resolve the installed basename even when the folder was renamed. */
+	public static function plugin_file() {
+		return defined( 'VIGENT_WOO_FILE' ) ? plugin_basename( VIGENT_WOO_FILE ) : self::PLUGIN_FILE;
+	}
 
         public static function instance() {
                 if ( null === self::$instance ) {
@@ -226,25 +231,25 @@ class Vigent_Woo_Updater {
                 if ( version_compare( VIGENT_WOO_VERSION, $info['version'], '>=' ) ) {
                         // Mark as "no update" so WP doesn't keep re-checking.
                         $no_update            = new stdClass();
-                        $no_update->id        = self::PLUGIN_FILE;
+			$no_update->id        = self::plugin_file();
                         $no_update->slug      = self::SLUG;
-                        $no_update->plugin    = self::PLUGIN_FILE;
+			$no_update->plugin    = self::plugin_file();
                         $no_update->new_version = VIGENT_WOO_VERSION;
                         $no_update->url       = isset( $info['homepage'] ) ? $info['homepage'] : 'https://vigent.ir';
                         $no_update->package   = '';
                         $no_update->tested    = isset( $info['tested'] ) ? $info['tested'] : '';
                         $no_update->requires  = isset( $info['requires'] ) ? $info['requires'] : '';
                         $no_update->requires_php = isset( $info['requires_php'] ) ? $info['requires_php'] : '';
-                        $transient->no_update[ self::PLUGIN_FILE ] = $no_update;
+			$transient->no_update[ self::plugin_file() ] = $no_update;
                         return $transient;
                 }
 
                 // Build the update object — these fields are the ones
                 // WP-Core actually reads when rendering the Plugins screen.
                 $obj                  = new stdClass();
-                $obj->id              = self::PLUGIN_FILE;
+		$obj->id              = self::plugin_file();
                 $obj->slug            = self::SLUG;
-                $obj->plugin          = self::PLUGIN_FILE;
+		$obj->plugin          = self::plugin_file();
                 $obj->new_version     = sanitize_text_field( $info['version'] );
                 $obj->url             = isset( $info['homepage'] ) ? esc_url_raw( $info['homepage'] ) : 'https://vigent.ir';
                 $obj->package         = isset( $info['download_url'] ) ? esc_url_raw( $info['download_url'] ) : '';
@@ -255,7 +260,7 @@ class Vigent_Woo_Updater {
                 $obj->banners         = array();
                 $obj->banners_rtl     = array();
 
-                $transient->response[ self::PLUGIN_FILE ] = $obj;
+		$transient->response[ self::plugin_file() ] = $obj;
                 return $transient;
         }
 
@@ -324,7 +329,7 @@ class Vigent_Woo_Updater {
                 if ( empty( $options['plugins'] ) || ! is_array( $options['plugins'] ) ) {
                         return;
                 }
-                if ( ! in_array( self::PLUGIN_FILE, $options['plugins'], true ) ) {
+		if ( ! in_array( self::plugin_file(), $options['plugins'], true ) ) {
                         return;
                 }
                 delete_transient( 'vigent_woo_update_info' );

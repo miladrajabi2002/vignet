@@ -90,11 +90,11 @@ class Vigent_Woo_Admin {
                         .vg-header .last-check { margin: 2px 0 0; font-size: 10px; opacity: .45; color: #fff; }
                         .vg-header .pill { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; }
                         /* Disconnect button in header — red tint, sits next to the status pill */
-                        .vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 34px; }
+			.vg-header .vg-btn-disconnect { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(239,68,68,.15); color: #fca5a5; transition: all .12s; min-height: 44px; }
                         .vg-header .vg-btn-disconnect:hover { background: rgba(239,68,68,.3); color: #fff; border-color: rgba(239,68,68,.5); }
                         .vg-header .vg-btn-disconnect:disabled { opacity: .4; cursor: not-allowed; }
                         /* Update button in header — subtle blue tint, sits next to the disconnect button */
-                        .vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(59,130,246,.15); color: #93c5fd; transition: all .12s; min-height: 34px; }
+			.vg-header .vg-btn-update { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: rgba(59,130,246,.15); color: #93c5fd; transition: all .12s; min-height: 44px; }
                         .vg-header .vg-btn-update:hover { background: rgba(59,130,246,.3); color: #fff; border-color: rgba(59,130,246,.5); }
                         .vg-header .vg-btn-update:disabled { opacity: .4; cursor: not-allowed; }
                         .vg-header .vg-btn-update.has-update { background: rgba(16,185,129,.25); color: #6ee7b7; border-color: rgba(16,185,129,.5); animation: vg-pulse 1.8s ease-in-out infinite; }
@@ -105,17 +105,6 @@ class Vigent_Woo_Admin {
                         .vg-update-banner .text strong { display: block; font-weight: 700; margin-bottom: 2px; color: #1e40af; }
                         .vg-update-banner .vg-btn-install { background: #3b82f6; color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; min-height: 36px; }
                         .vg-update-banner .vg-btn-install:hover { background: #2563eb; color: #fff; }
-                        /* Update-status card — small informational strip below the header.
-                           Always visible (unlike .vg-update-banner which only appears when an
-                           update exists). Shows "آخرین بررسی: ... · بررسی بعدی: ..." so the user
-                           knows the auto-check is running. */
-                        .vg-update-status { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #6b7280; }
-                        .vg-update-status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-                        .vg-update-status-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #374151; }
-                        .vg-update-status-label svg { color: #6b7280; }
-                        .vg-update-status-info { font-variant-numeric: tabular-nums; color: #6b7280; }
-                        .vg-update-status-info .num { color: #111; font-weight: 600; }
-                        .vg-update-status-info .sep { margin: 0 8px; opacity: .4; }
                         .vg-header .pill.ok { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
                         .vg-header .pill.warn { background: rgba(245, 158, 11, .2); color: #fcd34d; }
                         .vg-header .pill.err { background: rgba(239, 68, 68, .2); color: #fca5a5; }
@@ -225,21 +214,25 @@ class Vigent_Woo_Admin {
                         .vg-wizard-step.done .dot { background: #10b981; border-color: #10b981; color: #fff; }
                         .vg-wizard-line { width: 20px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
 
-                        /* ─── Next-sync countdown card ─── */
-                        /* Compact card that sits between the success banner and the stats.
-                           Shows a live countdown ("هم‌گام‌سازی بعدی تا ۱۲:۳۴") + a thin
-                           progress bar that fills up as the next sync approaches. When the
-                           countdown hits zero, the text flips to "در حال همگام‌سازی…" and
-                           the page reloads a few seconds later to refresh the stats. */
-                        .vg-next-sync { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px 22px; margin-bottom: 16px; }
-                        .vg-next-sync-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-                        .vg-next-sync-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; font-weight: 600; }
-                        .vg-next-sync-label svg { color: #10b981; }
-                        .vg-next-sync-time { font-size: 13px; color: #6b7280; font-variant-numeric: tabular-nums; font-weight: 600; }
-                        .vg-next-sync-time .num { color: #111; font-weight: 800; }
-                        .vg-next-sync-bar-wrap { margin-top: 12px; background: #f3f4f6; border-radius: 999px; height: 6px; overflow: hidden; }
-                        .vg-next-sync-bar { height: 100%; background: linear-gradient(90deg, #10b981, #000); border-radius: 999px; transition: width 1s linear; width: 0%; }
-                        .vg-next-sync-hint { margin-top: 8px; font-size: 11px; color: #9ca3af; text-align: center; }
+			.vg-connected-summary { display: flex; align-items: center; gap: 14px; padding: 20px; }
+			.vg-connected-icon { flex: 0 0 auto; display: flex; }
+			.vg-connected-copy { flex: 1; min-width: 180px; }
+			.vg-connected-copy h2 { margin-bottom: 4px; }
+			.vg-connected-copy p { margin: 0; }
+			.vg-sync-note { color: #059669 !important; font-size: 11px !important; margin-top: 4px !important; }
+			.vg-connected-actions { margin: 0; justify-content: flex-end; }
+			.vg-btn:focus-visible, .vg-btn-center:focus-visible, .vg-btn-update:focus-visible, .vg-btn-disconnect:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+			@media (max-width: 680px) {
+				.vg-wrap { padding-inline: 10px; }
+				.vg-header, .vg-connected-summary { flex-wrap: wrap; }
+				.vg-header .vg-btn-disconnect { margin-inline-start: 0; }
+				.vg-connected-actions { width: 100%; justify-content: stretch; }
+				.vg-connected-actions .vg-btn { flex: 1; justify-content: center; }
+				.vg-stats { grid-template-columns: 1fr; }
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.vg-wrap *, .vg-wrap *::before, .vg-wrap *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+			}
                 </style>
                 <?php
         }
@@ -250,19 +243,6 @@ class Vigent_Woo_Admin {
                 $has_wc   = $this->core()->has_wc();
                 $pushed   = (int) get_option( 'vigent_woo_initial_push_done', 0 ) === 1;
 
-                // Compute the next scheduled auto-sync timestamp. WP-Cron stores
-                // the next run as a Unix timestamp (UTC, seconds). We pass it to
-                // JS so the countdown can be computed client-side without an
-                // extra AJAX poll every second.
-                //
-                // If the cron isn't scheduled (e.g. user just connected and
-                // admin_init hasn't run yet), we fall back to "30 min from now"
-                // so the countdown still shows something sensible.
-                $next_sync_ts = wp_next_scheduled( 'vigent_woo_auto_sync' );
-                if ( ! $next_sync_ts ) {
-                        $next_sync_ts = time() + 30 * MINUTE_IN_SECONDS;
-                }
-                $sync_interval_sec = 30 * MINUTE_IN_SECONDS; // matches the cron schedule
                 ?>
                 <script>
                         window.VG = {
@@ -270,8 +250,6 @@ class Vigent_Woo_Admin {
                                 nonce: '<?php echo esc_js( $nonce ); ?>',
                                 hasWc: <?php echo $has_wc ? 'true' : 'false'; ?>,
                                 pushed: <?php echo $pushed ? 'true' : 'false'; ?>,
-                                nextSync: <?php echo (int) $next_sync_ts; ?>,
-                                syncIntervalSec: <?php echo (int) $sync_interval_sec; ?>,
                                 i18n: {
                                         connecting: '<?php echo esc_js( __( 'در حال اتصال…', 'vigent-woo' ) ); ?>',
                                         syncing: '<?php echo esc_js( __( 'در حال ارسال…', 'vigent-woo' ) ); ?>',
@@ -311,9 +289,7 @@ class Vigent_Woo_Admin {
                         }
 
                         // ─── Step 2: Initial push wizard ────────────────────────────
-                        // Sends products (and optionally orders) in small batches so a large
-                        // catalog never hits the server in one shot. Each batch waits 300ms
-                        // before the next to avoid rate-limit / thundering-herd problems.
+                        // Each page contains up to 50 events and becomes one HTTP request.
                         var vgRunning = false;
                         function vgStartPush(btn) {
                                 if (vgRunning) return;
@@ -346,12 +322,14 @@ class Vigent_Woo_Admin {
                                 }
 
                                 // Chain: products → orders → finalize.
-                                vgPushKind('products', 0, 0, 0, function(totalProducts, productErrors) {
+                                vgPushKind('products', 0, 0, 0, function(totalProducts, productErrors, complete) {
+                                        if (!complete) { vgAbortPush(btn, orig); return; }
                                         vgSetStep('products', 'done');
                                         vgSetStepLabel('products', window.VG.i18n.productSent + ' (' + totalProducts + ')');
                                         if (includeOrders) {
                                                 vgSetStep('orders', 'active');
-                                                vgPushKind('orders', 0, 0, 0, function(totalOrders, orderErrors) {
+                                        vgPushKind('orders', 0, 0, 0, function(totalOrders, orderErrors, ordersComplete) {
+                                                if (!ordersComplete) { vgAbortPush(btn, orig); return; }
                                                         vgSetStep('orders', 'done');
                                                         vgSetStepLabel('orders', window.VG.i18n.ordersSent + ' (' + totalOrders + ')');
                                                         vgFinalize(btn, orig, totalProducts, productErrors, totalOrders, orderErrors);
@@ -362,8 +340,7 @@ class Vigent_Woo_Admin {
                                 }, btn, orig);
                         }
 
-                        // Push one kind (products|orders) in batches of 25, with 300ms gap
-                        // between batches to avoid hammering the server.
+                        // Push one kind (products|orders) in batches of 50.
                         function vgPushKind(kind, offset, totalSent, totalErrors, cb, btn, orig) {
                                 var pBar = document.getElementById('vg-pbar');
                                 var pText = document.getElementById('vg-ptext');
@@ -379,27 +356,34 @@ class Vigent_Woo_Admin {
                                         .then(function(r) { return r.json(); })
                                         .then(function(data) {
                                                 if (!data.success) {
-                                                        cb(totalSent, totalErrors);
+                                                        cb(totalSent, totalErrors + 1, false);
                                                         return;
                                                 }
                                                 var d = data.data;
                                                 totalSent += d.sent;
                                                 if (d.errors && d.errors.length) totalErrors += d.errors.length;
-                                                var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 25) / d.total) * 100)) : 0;
+                                                var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 50) / d.total) * 100)) : 100;
                                                 if (pBar) pBar.style.width = pct + '%';
                                                 if (pText) pText.textContent = pct + '%';
                                                 if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + '</span><span>خطا: ' + totalErrors + '</span>';
-                                                if (d.done) {
-                                                        cb(totalSent, totalErrors);
+                                                if (d.errors && d.errors.length) {
+                                                        cb(totalSent, totalErrors, false);
+                                                } else if (d.done) {
+                                                        cb(totalSent, totalErrors, true);
                                                 } else {
-                                                        // 300ms gap between batches → no rate-limit storms even on
-                                                        // stores with thousands of products.
                                                         setTimeout(function() {
-                                                                vgPushKind(kind, offset + 25, totalSent, totalErrors, cb, btn, orig);
-                                                        }, 300);
+                                                                vgPushKind(kind, offset + 50, totalSent, totalErrors, cb, btn, orig);
+                                                        }, 120);
                                                 }
                                         })
-                                        .catch(function() { cb(totalSent, totalErrors); });
+                                        .catch(function() { cb(totalSent, totalErrors + 1, false); });
+                        }
+
+                        function vgAbortPush(btn, orig) {
+                                vgRunning = false;
+                                btn.disabled = false;
+                                btn.innerHTML = orig;
+                                alert('<?php echo esc_js( __( 'ارسال کامل نشد. اتصال را بررسی کنید و دوباره ادامه دهید؛ موارد موفق دوباره‌کاری نمی‌شوند.', 'vigent-woo' ) ); ?>');
                         }
 
                         function vgSetStep(name, state) {
@@ -428,10 +412,12 @@ class Vigent_Woo_Admin {
                                 body.append('action', 'vigent_woo_mark_pushed');
                                 body.append('nonce', window.VG.nonce);
                                 fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
-                                        .finally(function() {
-                                                // Reload to show the success card + management section.
-                                                setTimeout(function() { location.reload(); }, 600);
-                                        });
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                if (!data.success) { vgAbortPush(btn, orig); return; }
+                                                setTimeout(function() { location.reload(); }, 400);
+                                        })
+                                        .catch(function() { vgAbortPush(btn, orig); });
                         }
 
                         // ─── Manual re-sync (management section, after initial push) ───
@@ -468,30 +454,73 @@ class Vigent_Woo_Admin {
                                         fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
                                                 .then(function(r) { return r.json(); })
                                                 .then(function(data) {
-                                                        if (!data.success) { finish(); return; }
+							if (!data.success) {
+								finish(false, data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( 'ارسال ناموفق بود.', 'vigent-woo' ) ); ?>');
+								return;
+							}
                                                         var d = data.data;
                                                         totalSent += d.sent;
                                                         if (d.errors && d.errors.length) allErrors = allErrors.concat(d.errors);
-                                                        var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 25) / d.total) * 100)) : 0;
+                                                        var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 50) / d.total) * 100)) : 100;
                                                         if (pBar) pBar.style.width = pct + '%';
                                                         if (pText) pText.textContent = pct + '%';
                                                         if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + '</span><span>خطا: ' + allErrors.length + '</span>';
-                                                        if (d.done) { finish(); } else { offset += 25; setTimeout(batch, 300); }
+							if (d.errors && d.errors.length) {
+								finish(false, d.errors[0]);
+							} else if (d.done) {
+								finish(true);
+							} else {
+								offset += 50;
+								setTimeout(batch, 120);
+							}
                                                 })
-                                                .catch(function() { finish(); });
+						.catch(function(error) { finish(false, error.message); });
                                 }
 
-                                function finish() {
+				function finish(success, message) {
                                         vgRunning = false;
                                         btn.disabled = false;
                                         btn.innerHTML = orig;
-                                        if (pBar) pBar.style.width = '100%';
-                                        if (pText) pText.textContent = '100%';
-                                        if (pInfo) pInfo.innerHTML = '<span>' + window.VG.i18n.done + ' — ' + totalSent + ' مورد</span><span>خطا: ' + allErrors.length + '</span>';
-                                        setTimeout(function() { location.reload(); }, 1200);
+					if (success) {
+						if (pBar) pBar.style.width = '100%';
+						if (pText) pText.textContent = '100%';
+						if (pInfo) pInfo.innerHTML = '<span>' + window.VG.i18n.done + ' — ' + totalSent + ' مورد</span><span>خطا: 0</span>';
+						var note = document.getElementById('vg-sync-note');
+						if (note) note.textContent = '<?php echo esc_js( __( 'ارسال کامل محصولات با موفقیت انجام شد.', 'vigent-woo' ) ); ?>';
+					} else {
+						if (pText) pText.textContent = '<?php echo esc_js( __( 'خطا', 'vigent-woo' ) ); ?>';
+						alert(message || '<?php echo esc_js( __( 'ارسال کامل نشد؛ دوباره تلاش کنید.', 'vigent-woo' ) ); ?>');
+					}
                                 }
 
                                 batch();
+                        }
+
+                        // Send only coalesced changes since the previous flush.
+                        function vgFlushDelta(btn) {
+                                btn.disabled = true;
+                                var orig = btn.innerHTML;
+                                btn.innerHTML = '<span class="vg-spinner"></span> ' + window.VG.i18n.syncing;
+                                var body = new FormData();
+                                body.append('action', 'vigent_woo_flush_delta');
+                                body.append('nonce', window.VG.nonce);
+                                fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                                var d = data.data || {};
+                                                if (!data.success) throw new Error(d.message || '<?php echo esc_js( __( 'ارسال تغییرات ناموفق بود.', 'vigent-woo' ) ); ?>');
+                                                var count = document.getElementById('vg-queue-count');
+                                                if (count) count.textContent = d.remaining || 0;
+                                                var note = document.getElementById('vg-sync-note');
+                                                if (note) note.textContent = d.message || '<?php echo esc_js( __( 'تغییرات ارسال شد.', 'vigent-woo' ) ); ?>';
+                                                btn.innerHTML = '<?php echo esc_js( __( '✓ انجام شد', 'vigent-woo' ) ); ?>';
+                                                setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 1200);
+                                        })
+                                        .catch(function(error) {
+                                                alert(error.message || '<?php echo esc_js( __( 'خطا در ارتباط.', 'vigent-woo' ) ); ?>');
+                                                btn.innerHTML = orig;
+                                                btn.disabled = false;
+                                        });
                         }
 
                         // ─── Save toggles ───────────────────────────────────────────
@@ -511,8 +540,16 @@ class Vigent_Woo_Admin {
 
                                 fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
                                         .then(function(r) { return r.json(); })
-                                        .then(function() { btn.innerHTML = '<?php echo esc_js( __( "✓ ذخیره شد", "vigent-woo" ) ); ?>'; setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 1500); })
-                                        .catch(function() { btn.innerHTML = orig; btn.disabled = false; });
+					.then(function(data) {
+						if (!data.success) throw new Error(data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( 'ذخیره ناموفق بود.', 'vigent-woo' ) ); ?>');
+						btn.innerHTML = '<?php echo esc_js( __( "✓ ذخیره شد", "vigent-woo" ) ); ?>';
+						setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+					})
+					.catch(function(error) {
+						alert(error.message || '<?php echo esc_js( __( 'ذخیره ناموفق بود.', 'vigent-woo' ) ); ?>');
+						btn.innerHTML = orig;
+						btn.disabled = false;
+					});
                         }
 
                         // ─── Disconnect from Vigent ────────────────────────────────
@@ -724,66 +761,17 @@ class Vigent_Woo_Admin {
                                                 if (lc) {
                                                         lc.textContent = s.last_check ? ('آخرین بررسی: ' + s.last_check) : '';
                                                 }
+						var queueCount = document.getElementById('vg-queue-count');
+						if (queueCount && typeof s.queue_count !== 'undefined') queueCount.textContent = s.queue_count;
+						var syncNote = document.getElementById('vg-sync-note');
+						if (syncNote && s.last_success) syncNote.textContent = '<?php echo esc_js( __( 'آخرین ارسال موفق: ', 'vigent-woo' ) ); ?>' + s.last_success;
                                         })
                                         .catch(function() {});
                         }
-                        setInterval(vgRefreshHeaderStatus, 30000);
+			setInterval(function() {
+				if (!document.hidden) vgRefreshHeaderStatus();
+			}, 60000);
                         document.addEventListener('DOMContentLoaded', vgRefreshHeaderStatus);
-
-                        // ─── Next-sync countdown ──────────────────────────────────
-                        // Live countdown to the next scheduled auto-sync. window.VG.nextSync
-                        // is the Unix timestamp (seconds) of the next cron run, set by PHP
-                        // via wp_next_scheduled(). The bar fills from 0→100% over the
-                        // 30-minute window. When the countdown hits zero we flip the text
-                        // to "در حال همگام‌سازی…" and reload the page after 10s so the
-                        // refreshed stats show the new sync.
-                        function vgFormatCountdown(secs) {
-                                if (secs < 0) secs = 0;
-                                var m = Math.floor(secs / 60);
-                                var s = secs % 60;
-                                // Persian digits — looks more native on the dashboard.
-                                var faDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-                                var pad = function(n) { return (n < 10 ? '۰' : '') + String(n).replace(/\d/g, function(d) { return faDigits[+d]; }); };
-                                return pad(m) + ':' + pad(s);
-                        }
-
-                        function vgUpdateCountdown() {
-                                var wrap = document.getElementById('vg-next-sync');
-                                if (!wrap || !window.VG.nextSync) return;
-                                var bar = document.getElementById('vg-next-sync-bar');
-                                var timeEl = document.getElementById('vg-next-sync-time');
-                                var labelEl = document.getElementById('vg-next-sync-label-text');
-                                var hintEl = document.getElementById('vg-next-sync-hint');
-                                if (!timeEl || !bar) return;
-
-                                var nowSec = Math.floor(Date.now() / 1000);
-                                var remain = window.VG.nextSync - nowSec;
-                                var total = window.VG.syncIntervalSec || 1800; // 30 min default
-
-                                if (remain <= 0) {
-                                        // Countdown finished — sync should be running now.
-                                        if (labelEl) labelEl.textContent = '<?php echo esc_js( __( "در حال همگام‌سازی…", "vigent-woo" ) ); ?>';
-                                        if (timeEl) timeEl.innerHTML = '<span class="num">…</span>';
-                                        if (bar) bar.style.width = '100%';
-                                        if (hintEl) hintEl.textContent = '<?php echo esc_js( __( "لطفاً صبر کنید.", "vigent-woo" ) ); ?>';
-                                        // Reload once after 10s to refresh stats. We guard with a
-                                        // flag so the timer doesn't keep reloading in a loop.
-                                        if (!window.vgReloadScheduled) {
-                                                window.vgReloadScheduled = true;
-                                                setTimeout(function() { location.reload(); }, 10000);
-                                        }
-                                        return;
-                                }
-
-                                // Progress = (total - remain) / total → 0% at start, 100% at end.
-                                var pct = Math.max(0, Math.min(100, Math.round(((total - remain) / total) * 100)));
-                                if (bar) bar.style.width = pct + '%';
-                                if (timeEl) timeEl.innerHTML = '<span class="num">' + vgFormatCountdown(remain) + '</span>';
-                        }
-                        document.addEventListener('DOMContentLoaded', function() {
-                                vgUpdateCountdown();
-                                setInterval(vgUpdateCountdown, 1000);
-                        });
                 </script>
                 <?php
         }
@@ -914,60 +902,15 @@ class Vigent_Woo_Admin {
          * inside our own admin page — that's WP Core's job.
          */
         private function render_update_banner() {
-                // اطلاعات آخرین چک خودکار (روی صفحه نشون می‌دیم تا کاربر بدونه
-                // سیستم هر ۲۴ ساعت خودش چک می‌کنه).
-                $last_check = class_exists( 'Vigent_Woo_Updater' )
-                        ? Vigent_Woo_Updater::instance()->get_last_check()
-                        : false;
-                $next_ts = wp_next_scheduled( 'vigent_woo_daily_update_check' );
                 ?>
-                <!-- Update-status card — always visible, shows last-auto-check + next scheduled check.
-                     This is informational, not an alert. The actual "new version" banner is the
-                     vg-update-banner element below. -->
-                <div class="vg-update-status">
-                        <div class="vg-update-status-row">
-                                <span class="vg-update-status-label">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                                        <?php esc_html_e( 'بررسی خودکار بروزرسانی', 'vigent-woo' ); ?>
-                                </span>
-                                <span class="vg-update-status-info">
-                                        <?php
-                                        if ( $last_check && ! empty( $last_check['checked_at'] ) ) {
-                                                printf(
-                                                        /* translators: %s: datetime */
-                                                        esc_html__( 'آخرین بررسی: %s', 'vigent-woo' ),
-                                                        '<span class="num">' . esc_html( $last_check['checked_at'] ) . '</span>'
-                                                );
-                                        } else {
-                                                echo '<span class="num">' . esc_html__( 'هنوز بررسی نشده', 'vigent-woo' ) . '</span>';
-                                        }
-                                        ?>
-                                        <span class="sep">·</span>
-                                        <?php
-                                        if ( $next_ts ) {
-                                                printf(
-                                                        /* translators: %s: datetime */
-                                                        esc_html__( 'بررسی بعدی: %s', 'vigent-woo' ),
-                                                        '<span class="num" data-next-check="' . (int) $next_ts . '">' . esc_html( date_i18n( 'Y/m/d H:i', (int) $next_ts ) ) . '</span>'
-                                                );
-                                        } else {
-                                                echo '<span class="num">' . esc_html__( 'زمان‌بندی نشده', 'vigent-woo' ) . '</span>';
-                                        }
-                                        ?>
-                                </span>
-                        </div>
-                </div>
-
                 <div class="vg-update-banner" id="vg-update-banner" style="display:none;">
                         <div class="icon">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         </div>
                         <div class="text">
                                 <strong><?php esc_html_e( 'بروزرسانی جدید افزونه ویجنت موجود است', 'vigent-woo' ); ?></strong>
-                                <?php
-                                /* translators: 1: current version, 2: latest version */
-                                printf( esc_html__( 'نسخه فعلی شما %1$s است و نسخه جدید %2$s منتشر شده است.', 'vigent-woo' ), '<span class="current-version">' . esc_html( VIGENT_WOO_VERSION ) . '</span>', '<span class="latest-version">—</span>' );
-                                ?>
+				<?php esc_html_e( 'نسخه فعلی:', 'vigent-woo' ); ?> <span class="current-version"><?php echo esc_html( VIGENT_WOO_VERSION ); ?></span>
+				· <?php esc_html_e( 'نسخه جدید:', 'vigent-woo' ); ?> <span class="latest-version">—</span>
                         </div>
                         <button type="button" class="vg-btn-install" id="vg-btn-install" onclick="vgInstallUpdate(this)">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1031,7 +974,7 @@ class Vigent_Woo_Admin {
                                 <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         </div>
                         <h2 class="vg-center-title"><?php esc_html_e( 'ارسال محصولات به ویجنت', 'vigent-woo' ); ?></h2>
-                        <p class="vg-center-sub"><?php esc_html_e( 'اتصال برقرار شد! حالا محصولات خود را به ویجنت بفرستید تا ایجنت آن‌ها را بشناسد. پس از ارسال، هم‌گام‌سازی خودکار هر ۳۰ دقیقه انجام می‌شود.', 'vigent-woo' ); ?></p>
+			<p class="vg-center-sub"><?php esc_html_e( 'اتصال برقرار شد. محصولات را یک‌بار بفرستید؛ پس از آن فقط تغییرات جدید به‌صورت تجمیعی ارسال می‌شوند.', 'vigent-woo' ); ?></p>
 
                         <?php if ( $has_wc ) : ?>
                                 <!-- Optional: include orders in this initial push -->
@@ -1094,36 +1037,40 @@ class Vigent_Woo_Admin {
         // ─── Connected view — success card + compact management section ─────
 
         private function render_connected_view( $core, $settings, $status, $has_wc ) {
+		$delta        = Vigent_Woo_Sync::instance()->get_delta_status();
+		$last_success = ! empty( $delta['last_success'] ) ? $delta['last_success'] : '';
                 ?>
-                <!-- Success card — centered -->
-                <div class="vg-card vg-center-card">
-                        <div class="vg-center-icon">
-                                <svg viewBox="0 0 24 24" width="56" height="56"><circle cx="12" cy="12" r="10" fill="#10b981"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-                        <h2 class="vg-center-title"><?php esc_html_e( 'با موفقیت وصل شد!', 'vigent-woo' ); ?></h2>
-                        <p class="vg-center-sub"><?php esc_html_e( 'سایت و محصولات شما با موفقیت به ویجنت وصل شد. هم‌گام‌سازی خودکار هر ۳۰ دقیقه فعال است و تغییرات (مثل قیمت یا موجودی) بلافاصله اعمال می‌شوند.', 'vigent-woo' ); ?></p>
-                </div>
+		<div class="vg-card vg-connected-summary">
+			<div class="vg-connected-icon" aria-hidden="true">
+				<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#10b981"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+			</div>
+			<div class="vg-connected-copy">
+				<h2><?php esc_html_e( 'اتصال فعال است', 'vigent-woo' ); ?></h2>
+				<p><?php esc_html_e( 'فقط محصولات و سفارش‌های تغییرکرده تجمیع می‌شوند و حداکثر هر ۵ دقیقه ارسال خواهند شد.', 'vigent-woo' ); ?></p>
+				<p class="vg-sync-note" id="vg-sync-note">
+					<?php
+					if ( $last_success ) {
+						printf( esc_html__( 'آخرین ارسال موفق: %s', 'vigent-woo' ), esc_html( $last_success ) );
+					} else {
+						esc_html_e( 'در انتظار نخستین تغییر.', 'vigent-woo' );
+					}
+					?>
+				</p>
+			</div>
+			<div class="vg-btns vg-connected-actions">
+				<button type="button" class="vg-btn vg-btn-black" onclick="vgFlushDelta(this)" <?php disabled( ! $has_wc ); ?>><?php esc_html_e( 'ارسال تغییرات', 'vigent-woo' ); ?></button>
+				<button type="button" class="vg-btn vg-btn-white" onclick="vgSync('products', this)" <?php disabled( ! $has_wc ); ?>><?php esc_html_e( 'ارسال کامل محصولات', 'vigent-woo' ); ?></button>
+			</div>
+		</div>
 
-                <!-- Next-sync countdown — only shown when WooCommerce is active
-                     (otherwise there's nothing to sync). The bar + time are
-                     updated live by vgUpdateCountdown() in output_inline_scripts. -->
-                <?php if ( $has_wc ) : ?>
-                        <div class="vg-next-sync" id="vg-next-sync">
-                                <div class="vg-next-sync-row">
-                                        <span class="vg-next-sync-label">
-                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                <span id="vg-next-sync-label-text"><?php esc_html_e( 'هم‌گام‌سازی بعدی تا', 'vigent-woo' ); ?></span>
-                                        </span>
-                                        <span class="vg-next-sync-time" id="vg-next-sync-time"><span class="num">—</span></span>
-                                </div>
-                                <div class="vg-next-sync-bar-wrap">
-                                        <div class="vg-next-sync-bar" id="vg-next-sync-bar"></div>
-                                </div>
-                                <p class="vg-next-sync-hint" id="vg-next-sync-hint"><?php esc_html_e( 'محصولات و سفارش‌ها به‌صورت خودکار همگام می‌شوند.', 'vigent-woo' ); ?></p>
-                        </div>
-                <?php endif; ?>
+		<div id="vg-progress" class="vg-progress vg-card" style="display:none;">
+			<div class="vg-progress-bar-wrap">
+				<div id="vg-pbar" class="vg-progress-bar"></div>
+				<div id="vg-ptext" class="vg-progress-text">0%</div>
+			</div>
+			<div id="vg-pinfo" class="vg-progress-info"><span></span><span></span></div>
+		</div>
 
-                <!-- Stats — compact -->
                 <div class="vg-stats">
                         <div class="vg-stat">
                                 <div class="num"><?php echo $has_wc ? esc_html( $this->count_products() ) : '—'; ?></div>
@@ -1134,29 +1081,28 @@ class Vigent_Woo_Admin {
                                 <div class="lbl"><?php esc_html_e( 'سفارش‌ها', 'vigent-woo' ); ?></div>
                         </div>
                         <div class="vg-stat">
-                                <div class="num"><?php echo esc_html( count( $core->get_retry_queue() ) ); ?></div>
-                                <div class="lbl"><?php esc_html_e( 'در صف تلاش مجدد', 'vigent-woo' ); ?></div>
+				<div class="num" id="vg-queue-count"><?php echo esc_html( (int) $delta['queue_count'] ); ?></div>
+				<div class="lbl"><?php esc_html_e( 'تغییر در صف', 'vigent-woo' ); ?></div>
                         </div>
                 </div>
 
-                <!-- Settings -->
                 <div class="vg-card">
                         <h2><?php esc_html_e( 'تنظیمات هم‌گام‌سازی', 'vigent-woo' ); ?></h2>
-                        <p><?php esc_html_e( 'هم‌گام‌سازی خودکار هر ۳۰ دقیقه انجام می‌شود و تغییرات لحظه‌ای (قیمت، موجودی، حذف) بلافاصله اعمال می‌شوند.', 'vigent-woo' ); ?></p>
+			<p><?php esc_html_e( 'داده‌ها برای معرفی محصول و پیگیری سفارش در اختیار ویجنت قرار می‌گیرند. ثبت یا فروش سفارش توسط ایجنت از این افزونه فعال نمی‌شود.', 'vigent-woo' ); ?></p>
 
                         <label class="vg-toggle <?php echo $has_wc ? '' : 'off'; ?>">
                                 <input type="checkbox" id="sync_products" <?php checked( $settings['sync_products'], '1' ); ?> <?php disabled( ! $has_wc ); ?> />
                                 <div>
-                                        <div class="label"><?php esc_html_e( 'هم‌گام‌سازی محصولات', 'vigent-woo' ); ?></div>
-                                        <div class="sub"><?php esc_html_e( 'محصولات هر ۳۰ دقیقه و هنگام تغییر به‌صورت لحظه‌ای ارسال می‌شوند.', 'vigent-woo' ); ?></div>
+					<div class="label"><?php esc_html_e( 'ارسال تغییرات محصولات', 'vigent-woo' ); ?></div>
+					<div class="sub"><?php esc_html_e( 'ساخت، ویرایش و حذف محصول همراه دسته‌بندی در صف تجمیعی قرار می‌گیرد.', 'vigent-woo' ); ?></div>
                                 </div>
                         </label>
 
                         <label class="vg-toggle <?php echo $has_wc ? '' : 'off'; ?>">
                                 <input type="checkbox" id="sync_orders" <?php checked( $settings['sync_orders'], '1' ); ?> <?php disabled( ! $has_wc ); ?> />
                                 <div>
-                                        <div class="label"><?php esc_html_e( 'هم‌گام‌سازی سفارش‌ها (برای پیگیری)', 'vigent-woo' ); ?></div>
-                                        <div class="sub"><?php esc_html_e( 'سفارش‌ها برای پیگیری و پشتیبانی به ویجنت ارسال می‌شوند.', 'vigent-woo' ); ?></div>
+					<div class="label"><?php esc_html_e( 'ارسال سفارش‌ها برای پیگیری', 'vigent-woo' ); ?></div>
+					<div class="sub"><?php esc_html_e( 'ایجاد و تغییر وضعیت سفارش برای پشتیبانی ارسال می‌شود؛ امکان ثبت سفارش ایجاد نمی‌کند.', 'vigent-woo' ); ?></div>
                                 </div>
                         </label>
 
@@ -1168,14 +1114,18 @@ class Vigent_Woo_Admin {
         }
 
         private function count_products() {
-                if ( ! $this->core()->has_wc() ) return 0;
-                $ids = wc_get_products( array( 'limit' => -1, 'return' => 'ids', 'status' => 'publish' ) );
-                return is_array( $ids ) ? count( $ids ) : 0;
+		if ( ! $this->core()->has_wc() ) {
+			return 0;
+		}
+		$counts = wp_count_posts( 'product' );
+		return isset( $counts->publish ) ? (int) $counts->publish : 0;
         }
 
         private function count_orders_safe() {
-                if ( ! $this->core()->has_wc() ) return 0;
-                $ids = wc_get_orders( array( 'limit' => -1, 'return' => 'ids' ) );
-                return is_array( $ids ) ? count( $ids ) : 0;
+		if ( ! $this->core()->has_wc() ) {
+			return 0;
+		}
+		$result = wc_get_orders( array( 'limit' => 1, 'page' => 1, 'paginate' => true, 'return' => 'ids' ) );
+		return is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
         }
 }

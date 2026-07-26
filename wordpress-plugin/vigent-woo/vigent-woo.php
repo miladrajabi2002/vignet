@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند و محصولات و سفارش‌ها را همگام می‌سازد.
- * Version:           4.1.2
+ * Version:           4.2.0
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '4.1.2' );
+define( 'VIGENT_WOO_VERSION', '4.2.0' );
+define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
 
@@ -28,7 +29,8 @@ define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
 
 $vg_includes = array(
         __DIR__ . '/includes/class-vigent-woo-core.php',
-        __DIR__ . '/includes/class-vigent-woo-sync.php',
+	__DIR__ . '/includes/class-vigent-woo-sync.php',
+	__DIR__ . '/includes/class-vigent-woo-rest.php',
         __DIR__ . '/includes/class-vigent-woo-admin.php',
         __DIR__ . '/includes/class-vigent-woo-ajax.php',
         __DIR__ . '/includes/class-vigent-woo-updater.php',
@@ -62,13 +64,20 @@ function vigent_woo_activate() {
         }
 
         // صف retry.
-        if ( false === get_option( 'vigent_woo_retry_queue' ) ) {
-                add_option( 'vigent_woo_retry_queue', array() );
-        }
+	if ( false === get_option( 'vigent_woo_retry_queue' ) ) {
+		add_option( 'vigent_woo_retry_queue', array(), '', 'no' );
+	}
+
+	// صف تجمیعی تغییرات؛ autoload خاموش است تا روی همه درخواست‌های سایت بار نشود.
+	if ( false === get_option( 'vigent_woo_delta_queue' ) ) {
+		add_option( 'vigent_woo_delta_queue', array(), '', 'no' );
+	}
 
         // پاک‌سازی cron‌های قدیمی (از نسخه‌های قبلی).
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
-        wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+	wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+	wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+	wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
@@ -79,7 +88,9 @@ register_activation_hook( __FILE__, 'vigent_woo_activate' );
  */
 function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
-        wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+	wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+	wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
+	wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
@@ -101,10 +112,6 @@ function vigent_woo_cron_schedules( $schedules ) {
                 'interval' => 300,
                 'display'  => __( 'هر ۵ دقیقه', 'vigent-woo' ),
         );
-        $schedules['thirty_minutes'] = array(
-                'interval' => 1800,
-                'display'  => __( 'هر ۳۰ دقیقه', 'vigent-woo' ),
-        );
         $schedules['twenty_four_hours'] = array(
                 'interval' => DAY_IN_SECONDS, // 86400 ثانیه = ۲۴ ساعت
                 'display'  => __( 'هر ۲۴ ساعت', 'vigent-woo' ),
@@ -118,12 +125,15 @@ add_filter( 'cron_schedules', 'vigent_woo_cron_schedules' );
  * این تابع در اولین بار مراجعه کاربر به admin اجرا می‌شود و cron‌ها را می‌سازد.
  */
 function vigent_woo_setup_cron() {
-        if ( ! wp_next_scheduled( 'vigent_woo_retry_cron' ) ) {
-                wp_schedule_event( time() + 300, 'five_minutes', 'vigent_woo_retry_cron' );
-        }
-        if ( ! wp_next_scheduled( 'vigent_woo_auto_sync' ) ) {
-                wp_schedule_event( time() + 1800, 'thirty_minutes', 'vigent_woo_auto_sync' );
-        }
+	$configured = class_exists( 'Vigent_Woo_Core' ) && Vigent_Woo_Core::instance()->is_configured();
+	if ( $configured ) {
+		if ( ! wp_next_scheduled( 'vigent_woo_retry_cron' ) ) {
+			wp_schedule_event( time() + 300, 'five_minutes', 'vigent_woo_retry_cron' );
+		}
+		if ( ! wp_next_scheduled( 'vigent_woo_delta_flush' ) ) {
+			wp_schedule_event( time() + 300, 'five_minutes', 'vigent_woo_delta_flush' );
+		}
+	}
         // بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
         // این cron فایل info رو از سرور ویجنت می‌خونه و در صورت وجود نسخه جدید،
         // آن را در transient بروزرسانی‌ها ثبت می‌کنه تا وردپرس بنر آپدیت رو نشون بده.
@@ -182,6 +192,33 @@ function vigent_woo_migrate_existing_users() {
 }
 add_action( 'admin_init', 'vigent_woo_migrate_existing_users' );
 
+/** Upgrade storage and schedules for the 4.2 delta-sync protocol. */
+function vigent_woo_migrate_4_2_0() {
+	if ( get_option( 'vigent_woo_migrated_4_2_0', false ) ) {
+		return;
+	}
+
+	if ( false === get_option( 'vigent_woo_delta_queue', false ) ) {
+		add_option( 'vigent_woo_delta_queue', array(), '', 'no' );
+	}
+	if ( false === get_option( 'vigent_woo_sync_state', false ) ) {
+		add_option( 'vigent_woo_sync_state', array(), '', 'no' );
+	}
+
+	// Full catalogue polling is intentionally retired. Product/order hooks now
+	// populate the compact queue and this queue is flushed every five minutes.
+	wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
+	if ( class_exists( 'Vigent_Woo_Core' ) && Vigent_Woo_Core::instance()->is_configured() && ! wp_next_scheduled( 'vigent_woo_delta_flush' ) ) {
+		wp_schedule_event( time() + 60, 'five_minutes', 'vigent_woo_delta_flush' );
+	}
+
+	if ( class_exists( 'Vigent_Woo_Sync' ) ) {
+		Vigent_Woo_Sync::instance()->migrate_legacy_retry_queue();
+	}
+	update_option( 'vigent_woo_migrated_4_2_0', 1, false );
+}
+add_action( 'admin_init', 'vigent_woo_migrate_4_2_0' );
+
 // ─── راه‌اندازی کلاس‌ها (با چک امنیتی) ─────────────────────────────────────
 
 if ( class_exists( 'Vigent_Woo_Core' ) ) {
@@ -189,10 +226,14 @@ if ( class_exists( 'Vigent_Woo_Core' ) ) {
 }
 
 if ( class_exists( 'Vigent_Woo_Sync' ) ) {
-        Vigent_Woo_Sync::instance();
-        // Cron hooks.
-        add_action( 'vigent_woo_retry_cron', array( Vigent_Woo_Sync::instance(), 'process_retry_queue' ) );
-        add_action( 'vigent_woo_auto_sync', array( Vigent_Woo_Sync::instance(), 'run_auto_sync' ) );
+	Vigent_Woo_Sync::instance();
+	// Cron hooks.
+	add_action( 'vigent_woo_retry_cron', array( Vigent_Woo_Sync::instance(), 'process_retry_queue' ) );
+	add_action( 'vigent_woo_delta_flush', array( Vigent_Woo_Sync::instance(), 'flush_delta_queue' ) );
+}
+
+if ( class_exists( 'Vigent_Woo_REST' ) ) {
+	Vigent_Woo_REST::instance();
 }
 
 if ( class_exists( 'Vigent_Woo_Admin' ) ) {

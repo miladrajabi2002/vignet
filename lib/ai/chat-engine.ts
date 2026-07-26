@@ -40,6 +40,8 @@ import {
 } from '@/lib/conversations/activity'
 import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
+import { buildOrderContext } from '@/lib/ai/order-context'
+import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products/presentation'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -229,12 +231,14 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         // Hydrate {customer_name} placeholder if the contact name is known.
         let resolvedContactName = params.contactName ?? null
-        if (!resolvedContactName && contactId) {
+        let resolvedContactPhone = extracted.phone ?? params.contactPhone ?? null
+        if ((!resolvedContactName || !resolvedContactPhone) && contactId) {
                 const c = await prisma.contact.findUnique({
                         where: { id: contactId },
-                        select: { name: true },
+                        select: { name: true, phone: true },
                 })
-                resolvedContactName = c?.name ?? null
+                if (!resolvedContactName) resolvedContactName = c?.name ?? null
+                if (!resolvedContactPhone) resolvedContactPhone = c?.phone ?? null
         }
         // If we just extracted a name, prefer it for this turn's greeting.
         if (extracted.name) resolvedContactName = extracted.name
@@ -265,9 +269,8 @@ async function prepareTurn(params: StartChatParams): Promise<
         const reservation = reserved.reservation
 
         try {
-                const [history, catalogProducts, catalogServices] = await Promise.all([
+                const [history, catalogServices] = await Promise.all([
                         loadHistory(conversationId),
-                        fetchCatalogProducts(agent.id),
                         fetchCatalogServices(workspaceId),
                 ])
 
@@ -290,8 +293,34 @@ async function prepareTurn(params: StartChatParams): Promise<
                         workspaceId,
                         agentId: agent.id,
                         query: message,
+                        limit: agent.productAccessEnabled ? 5 : 3,
+                        includeProductCatalog: agent.productAccessEnabled,
+                        excludeProductContentFromText: true,
                 })
                 bumpProductQueries(workspaceId, chunks)
+
+                const productIds = chunks
+                        .map((chunk) => {
+                                const metadata = chunk.metadata
+                                return metadata && typeof metadata === 'object' && 'productId' in metadata
+                                        ? String((metadata as Record<string, unknown>).productId)
+                                        : null
+                        })
+                        .filter((id): id is string => !!id)
+
+                const [catalogProducts, orderContext] = await Promise.all([
+                        agent.productAccessEnabled
+                                ? fetchCatalogProducts(agent.id, productIds, message)
+                                : Promise.resolve([]),
+                        buildOrderContext({
+                                workspaceId,
+                                contactId,
+                                contactPhone: resolvedContactPhone,
+                                message,
+                                enabled: agent.orderTrackingEnabled,
+                                language: agent.language,
+                        }),
+                ])
 
                 const messages = buildMessages({
                         systemPrompt: finalSystemPrompt,
@@ -301,9 +330,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                         catalogServices,
                         history,
                         userMessage: message,
-                // Rich [[product:{…}]] cards are renderable by the web widget AND the
-                // standalone chat-link page (both parse the same token format).
-                        richCards: params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK',
+                        catalogAccessEnabled: agent.productAccessEnabled,
+                        orderContext,
+                        // Web surfaces render cards directly; messenger channels
+                        // resolve markers against trusted DB rows before sending.
+                        richCards: agent.productAccessEnabled && params.channel !== 'API',
                 })
 
                 return {
@@ -313,7 +344,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         conversationId,
                         contactId,
                         contactName: resolvedContactName,
-                        contactPhone: extracted.phone,
+                        contactPhone: resolvedContactPhone,
                         messages,
                         retrievedChunks: chunks,
                 }
@@ -544,6 +575,32 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 full = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
                                 send({ type: 'delta', text: full })
                                 send({ type: 'error', error: 'EMPTY_RESPONSE' })
+                        }
+
+                        if (
+                                !providerFailed &&
+                                agent.productAccessEnabled &&
+                                (params.channel === 'WEB_WIDGET' || params.channel === 'CHAT_LINK')
+                        ) {
+                                try {
+                                        const trustedReply = await buildTrustedProductReply({
+                                                raw: full,
+                                                workspaceId,
+                                                agentId: agent.id,
+                                                isFa: agent.language !== 'en',
+                                        })
+                                        if (trustedReply !== full) {
+                                                full = trustedReply
+                                                send({ type: 'replace', text: full })
+                                        }
+                                } catch (error) {
+                                        console.error('[chat-engine] product-card hydration failed:', error)
+                                        const cleanReply = parseProductDirectives(full).text
+                                        if (cleanReply !== full) {
+                                                full = cleanReply
+                                                send({ type: 'replace', text: full })
+                                        }
+                                }
                         }
 
 			if (providerFailed) {
