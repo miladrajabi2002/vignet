@@ -48,24 +48,28 @@ export const { handlers, auth, signOut } = NextAuth({
           if (!name) return null
           const commercialConfig = await getPlatformCommercialConfig()
           const platformRole = isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER'
-          const workspace = await prisma.workspace.create({
-            data: {
-              name: name || 'کسب‌وکار من',
-              slug: generateSlug(),
-              // One full month to experience the platform. The starter reply
-              // credit remains unchanged; only successful AI replies consume it.
-              trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              aiCreditBalanceIRR: commercialConfig.trialCreditIRR,
-              excludeFromAdminReports: platformRole === 'ADMIN',
-            },
-          })
-          user = await prisma.user.create({
-            data: {
-              phone,
-              name,
-              workspaceId: workspace.id,
-              platformRole,
-            },
+          // One transaction: a failed user.create must not leave an ownerless
+          // workspace row holding trial credit.
+          user = await prisma.$transaction(async (tx) => {
+            const workspace = await tx.workspace.create({
+              data: {
+                name: name || 'کسب‌وکار من',
+                slug: generateSlug(),
+                // One full month to experience the platform. The starter reply
+                // credit remains unchanged; only successful AI replies consume it.
+                trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                aiCreditBalanceIRR: commercialConfig.trialCreditIRR,
+                excludeFromAdminReports: platformRole === 'ADMIN',
+              },
+            })
+            return tx.user.create({
+              data: {
+                phone,
+                name,
+                workspaceId: workspace.id,
+                platformRole,
+              },
+            })
           })
           await sendWelcomeSms(phone, { name })
         } else if ((name && !user.name) || user.platformRole !== (isPlatformOwnerPhone(phone) ? 'ADMIN' : 'USER')) {

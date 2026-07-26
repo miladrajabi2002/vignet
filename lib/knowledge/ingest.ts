@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { chunkText } from '@/lib/knowledge/chunker'
 import { embedTexts } from '@/lib/ai/embeddings'
@@ -71,19 +72,30 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
     data: { status: 'PROCESSING', errorMsg: null },
   })
 
+  // Shadow-generation ingest: new chunks are inserted ALONGSIDE the old ones,
+  // tagged with a fresh generation id; the previous generation is deleted only
+  // after every embed+insert succeeded. The old delete-first flow meant one
+  // transient provider failure mid-ingest left the KB with zero (or partial)
+  // knowledge until the next successful run — with this swap, the previous
+  // knowledge keeps serving and retrieval never observes a half-ingested
+  // window. It also makes two racing ingests converge on the last winner
+  // instead of interleaving deletes and inserts.
+  const generation = crypto.randomUUID()
+
   try {
     const raw = await resolveText(kb, data.text)
     const chunks = chunkText(raw)
     if (chunks.length === 0) {
+      // Genuinely empty source: retire the previous generation too, so the
+      // dashboard (READY, 0 chunks) and retrieval agree instead of silently
+      // serving stale chunks that the UI claims don't exist.
+      await prisma.knowledgeChunk.deleteMany({ where: { kbId: kb.id } })
       await prisma.knowledgeBase.update({
         where: { id: kb.id },
         data: { status: 'READY', chunkCount: 0 },
       })
       return
     }
-
-    // Remove any previous chunks for this KB before re-ingesting.
-    await prisma.knowledgeChunk.deleteMany({ where: { kbId: kb.id } })
 
     let stored = 0
     for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
@@ -104,6 +116,7 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
             kbId: kb.id,
             name: kb.name,
             contextualized: true,
+            generation,
           },
           embedding: vectors[j],
         })
@@ -111,11 +124,29 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
       }
     }
 
+    // Swap: retire every chunk that is not part of this generation (previous
+    // generations and legacy chunks without a generation tag).
+    await prisma.knowledgeChunk.deleteMany({
+      where: {
+        kbId: kb.id,
+        NOT: { metadata: { path: ['generation'], equals: generation } },
+      },
+    })
+
     await prisma.knowledgeBase.update({
       where: { id: kb.id },
       data: { status: 'READY', chunkCount: stored },
     })
   } catch (e) {
+    // Roll back the partial new generation; the previous knowledge stays live.
+    await prisma.knowledgeChunk
+      .deleteMany({
+        where: {
+          kbId: kb.id,
+          metadata: { path: ['generation'], equals: generation },
+        },
+      })
+      .catch(() => {})
     const message = e instanceof Error ? e.message : 'Ingestion failed'
     await prisma.knowledgeBase.update({
       where: { id: kb.id },

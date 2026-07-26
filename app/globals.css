@@ -197,6 +197,19 @@
                 line-height: var(--leading-body);
         }
 
+        /*
+         * iOS Safari zooms the whole page when a focused field's font-size is
+         * under 16px, and this project's type scale redefines even the base size
+         * as 15px — so nearly every input triggered a zoom jump on iPhone (the
+         * login phone field, the operator reply box, admin forms). Force 16px on
+         * touch devices only, leaving the desktop type scale untouched.
+         */
+        @media (hover: none) and (pointer: coarse) {
+                :where(input, textarea, select):not([type='checkbox']):not([type='radio']) {
+                        font-size: 16px;
+                }
+        }
+
         html[lang='fa'] body,
         html[lang='fa'] body *,
         html[dir='rtl'] body,

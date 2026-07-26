@@ -16,11 +16,11 @@ import {
         Plus,
         X,
         Palette,
-        Send,
         User,
         Phone,
         ChevronDown,
 } from 'lucide-react'
+import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
 import {
         normalizeChatLinkSettings,
         normalizeSlug,
@@ -546,6 +546,9 @@ export function ChatLinkChannel({
 // ─── Mini phone preview ──────────────────────────────────────────────────────
 
 function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkSettings }) {
+        // The send label is the only translated string in this mock (the public page
+        // it mirrors is Persian-only); reuse the shared one instead of a new key.
+        const tConv = useTranslations('conversations')
         const accent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(settings.primaryColor)
                 ? settings.primaryColor
                 : '#0F0F10'
@@ -654,16 +657,28 @@ function ChatLinkPreview({ name, settings }: { name: string; settings: ChatLinkS
                                                                 </div>
                                                         </div>
                                                 ) : (
-                                                        <div className="flex items-center gap-2">
-                                                                <div className="flex-1 rounded-full border border-black/10 bg-white px-3 py-2 text-[11px] text-neutral-400">
-                                                                        پیام خود را بنویسید…
-                                                                </div>
+                                                        /* Same pill as the shared composer: dir=ltr so the send button is
+                                                           on the visual right, radius/min-height from COMPOSER_GEOMETRY. */
+                                                        <div
+                                                                dir="ltr"
+                                                                className="flex items-end gap-2 border border-black/[0.09] bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(17,17,17,0.04)]"
+                                                                style={{ borderRadius: COMPOSER_GEOMETRY.pillRadius }}
+                                                        >
                                                                 <span
-                                                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                                                                        style={{ backgroundColor: accent, color: onAccent }}
+                                                                        dir="rtl"
+                                                                        className="flex flex-1 items-center px-2 text-[11px] text-neutral-400"
+                                                                        style={{ minHeight: COMPOSER_GEOMETRY.textareaMinHeight }}
                                                                 >
-                                                                        <Send className="h-3.5 w-3.5" />
+                                                                        پیام خود را بنویسید…
                                                                 </span>
+                                                                {/* Inert by design — a preview has nothing to send. The opacity
+                                                                    override keeps the brand color readable while disabled. */}
+                                                                <SendButton
+                                                                        disabled
+                                                                        label={tConv('send')}
+                                                                        className="disabled:cursor-default disabled:opacity-100"
+                                                                        style={{ backgroundColor: accent, color: onAccent }}
+                                                                />
                                                         </div>
                                                 )}
                                         </div>

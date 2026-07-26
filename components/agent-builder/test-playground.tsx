@@ -1,18 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
-import { Bot, Send, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { SpeakButton } from '@/components/voice/audio-player'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
 // detail route so text chat becomes interactive before voice tooling arrives.
+// The placeholder matches the real button's 40px box so the composer pill keeps
+// its height while the chunk loads.
 const VoiceRecorder = dynamic(
         () => import('@/components/voice/voice-recorder').then((module) => module.VoiceRecorder),
-        { ssr: false, loading: () => <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-[var(--bg-base)]" /> },
+        { ssr: false, loading: () => <span className="h-10 w-10 shrink-0 animate-pulse rounded-xl bg-[var(--bg-muted)]" /> },
 )
 
 interface Msg {
@@ -41,11 +44,27 @@ export function TestPlayground({
         const [error, setError] = useState<string | null>(null)
         const conversationId = useRef<string | undefined>(undefined)
         const scrollRef = useRef<HTMLDivElement>(null)
-        const inputRef = useRef<HTMLTextAreaElement>(null)
+        const inputRef = useRef<ChatComposerHandle>(null)
+        const isAtBottomRef = useRef(true)
+
+        // Track whether the owner is parked at the bottom. When they scroll up to
+        // re-read an answer, streaming deltas must NOT yank them back down.
+        // Same rule as the operator inbox thread.
+        function handleScroll() {
+                const el = scrollRef.current
+                if (!el) return
+                isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+        }
+
+        const scrollToBottom = useCallback(() => {
+                const el = scrollRef.current
+                if (!el) return
+                el.scrollTo({ top: el.scrollHeight })
+        }, [])
 
         useEffect(() => {
-                scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-        }, [messages])
+                if (isAtBottomRef.current) scrollToBottom()
+        }, [messages, scrollToBottom])
 
         async function send() {
                 const text = input.trim()
@@ -57,6 +76,8 @@ export function TestPlayground({
                         { role: 'user', content: text },
                         { role: 'assistant', content: '' },
                 ])
+                // Sending is always worth following, even if they had scrolled up.
+                isAtBottomRef.current = true
                 setStreaming(true)
 
                 try {
@@ -194,7 +215,15 @@ export function TestPlayground({
                                 </button>
                         </div>
 
-                        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+                        {/* dir=ltr pins the tester's own bubbles to the visual RIGHT in every
+                            dashboard locale, which is what a visitor sees on the widget and
+                            the chat link. Message text keeps its own dir via ConversationText. */}
+                        <div
+                                ref={scrollRef}
+                                onScroll={handleScroll}
+                                dir="ltr"
+                                className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5"
+                        >
                                 {messages.length === 0 ? (
                                         <div className="flex h-full flex-col items-center justify-center text-center">
                                                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-muted)] shadow-sm">
@@ -296,52 +325,26 @@ export function TestPlayground({
                                 </div>
                         )}
 
-                        <form
-                                onSubmit={(event) => {
-                                        event.preventDefault()
-                                        void send()
-                                }}
-                                className="flex items-end gap-2 bg-[var(--bg-base)] p-3"
-                        >
-                                <button
-                                        type="submit"
-                                        disabled={streaming || !input.trim()}
-                                        className="order-last inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 active:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 rtl:order-first"
-                                >
-                                        {streaming ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                                <Send className="h-4 w-4" />
-                                        )}
-                                        <span>{streaming ? t('sending') : t('send')}</span>
-                                </button>
-                                <div className="min-w-0 flex-1 rounded-xl border border-[var(--border-default)] bg-[var(--bg-muted)] px-3.5 py-2 focus-within:border-[var(--border-strong)] focus-within:ring-2 focus-within:ring-black/5">
-                                        <textarea
-                                                ref={inputRef}
-                                                value={input}
-                                                onChange={(e) => setInput(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                                                e.preventDefault()
-                                                                void send()
-                                                        }
-                                                }}
-                                                rows={1}
-                                                placeholder={t('placeholder')}
-                                                aria-label={t('placeholder')}
-                                                className="block min-h-7 max-h-24 w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-[var(--text-muted)]"
-                                        />
-                                </div>
-                                <div className="order-first shrink-0 rtl:order-last">
-                                        <VoiceRecorder
-                                                vad
-                                                disabled={streaming}
-                                                label={t('record')}
-                                                onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
-                                                onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
-                                        />
-                                </div>
-                        </form>
+                        <div className="bg-[var(--bg-base)] p-3">
+                                <ChatComposer
+                                        ref={inputRef}
+                                        value={input}
+                                        onChange={setInput}
+                                        onSend={() => void send()}
+                                        placeholder={t('placeholder')}
+                                        busy={streaming}
+                                        sendLabel={streaming ? t('sending') : t('send')}
+                                        leading={
+                                                <VoiceRecorder
+                                                        vad
+                                                        disabled={streaming}
+                                                        label={t('record')}
+                                                        onTranscript={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
+                                                        onError={(code) => setError(code === 'NO_CREDIT' ? t('noKey') : t('error'))}
+                                                />
+                                        }
+                                />
+                        </div>
                 </div>
         )
 }

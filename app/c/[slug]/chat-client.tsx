@@ -7,31 +7,20 @@
  * 16px inputs (no iOS zoom), streaming replies with product cards.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import { RotateCcw, Sparkles, User, Phone } from 'lucide-react'
 import { contrastOn } from '@/lib/widget/config'
 import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
+import { ChatComposer } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import {
 	parseProductShowcaseContent,
 	ProductShowcaseRail,
 	type ShowcaseProduct,
 } from '@/components/products/product-showcase'
-
-// ─── Refined send icon ──────────────────────────────────────────────────────
-// A clean, modern paper-plane — more balanced than the raw Telegram glyph and
-// more polished than the Lucide "Send" outline. Single solid path so it reads
-// crisply at 16-24px. Points up-right (the natural "send" direction).
-function SendIcon({ className }: { className?: string }) {
-	return (
-		<svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-			<path d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z" />
-		</svg>
-	)
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -108,7 +97,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 	const leadRef = useRef<{ name: string; phone: string } | null>(null)
 	const rootRef = useRef<HTMLDivElement>(null)
 	const scrollerRef = useRef<HTMLDivElement>(null)
-	const inputRef = useRef<HTMLTextAreaElement>(null)
 
 	// Restore conversation + transcript + lead across reloads.
 	// Messages are now stored in localStorage (not sessionStorage) so the
@@ -269,7 +257,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						}
 					}
 					if (additions.length === 0) return prev
-					scrollDown()
+					scrollDown(true, false)
 					return [...prev, ...additions]
 				})
 			} catch {
@@ -314,7 +302,6 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 			const message = text.trim()
 			if (!message || streaming) return
 			setInput('')
-			if (inputRef.current) inputRef.current.style.height = 'auto'
 			setStreaming(true)
 
 			const isFirst = !convIdRef.current
@@ -405,7 +392,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								raw += evt.text
 								started = true
 								upsertAssistant(false)
-								scrollDown()
+								scrollDown(true, false)
 							} else if (evt.type === 'replace' && typeof evt.text === 'string') {
 								raw = evt.text
 								started = true
@@ -430,7 +417,9 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				setMessages((m) => [...m, { id: nextId(), role: 'error', text: errorText() }])
 			} finally {
 				setStreaming(false)
-				scrollDown()
+				// Respect a reader who scrolled up mid-stream: don't yank them to the
+				// bottom just because the reply finished.
+				scrollDown(true, false)
 			}
 		},
 		[slug, streaming, convKey, scrollDown],
@@ -460,15 +449,18 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 		} catch {}
 	}, [convKey, msgsKey])
 
-	const autoGrow = useCallback(() => {
-		const el = inputRef.current
-		if (!el) return
-		el.style.height = 'auto'
-		el.style.height = `${Math.min(el.scrollHeight, 120)}px`
-	}, [])
-
 	const empty = messages.length === 0
 	const monogram = useMemo(() => (name || '؟').trim().charAt(0), [name])
+
+	// The shared composer paints its send button from --accent-strong, so feeding
+	// the owner's accent through that variable keeps this page's branding without
+	// forking the component. --vgt-on-accent carries the computed contrast colour
+	// for the icon and hover state, which the shared button's `text-white` /
+	// `hover:bg-black` pair would get wrong on a light accent.
+	const composerAccent = {
+		'--accent-strong': accent,
+		'--vgt-on-accent': onAccent,
+	} as CSSProperties
 
 	return (
 		<div
@@ -562,111 +554,75 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 							</p>
 						</div>
 					) : (
-						<>
-							<form
-								onSubmit={(e) => {
-									e.preventDefault()
-									void send(input)
-								}}
-								className="flex items-end gap-2"
-							>
-								<div
-									dir="ltr"
-									className="relative flex min-w-0 flex-1 items-end rounded-[1.35rem] border border-black/10 bg-white pr-1.5 pl-1 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.07)] transition-[border-color,box-shadow] duration-200 focus-within:border-[var(--vgt-accent)] focus-within:[box-shadow:0_0_0_3px_color-mix(in_srgb,var(--vgt-accent)_16%,transparent),0_12px_30px_rgba(0,0,0,0.08)]"
-								>
-									<textarea
-										dir="rtl"
-										ref={inputRef}
-										rows={1}
-										value={input}
-										disabled={leadPending || !hydrated}
-										onChange={(e) => {
-											setInput(e.target.value)
-											autoGrow()
-										}}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter' && !e.shiftKey) {
-												e.preventDefault()
-												void send(input)
-											}
-										}}
-										placeholder={
-											leadPending
-												? 'اول معرفی کوتاه را کامل کنید…'
-												: 'پیام خود را بنویسید…'
-										}
-										className="max-h-[120px] min-h-[44px] w-full resize-none bg-transparent px-4 py-2.5 text-[16px] leading-6 outline-none placeholder:text-neutral-400 disabled:opacity-60"
-									/>
-									<button
-										type="submit"
-										disabled={!input.trim() || streaming || leadPending || !hydrated}
-										aria-label="ارسال"
-										className="flex h-[38px] w-[38px] shrink-0 items-center justify-center self-center rounded-full shadow-sm transition-[transform,opacity] duration-150 active:scale-[0.94] disabled:opacity-30"
-										style={{ backgroundColor: accent, color: onAccent }}
-									>
-										{streaming ? (
-											<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-										) : (
-											<SendIcon className="h-[18px] w-[18px]" />
-										)}
-									</button>
-								</div>
-							</form>
-							<p dir="ltr" className="mt-2 text-center text-[10px] text-neutral-400">
-								Powered by{' '}
-								<Link
-									href="/"
-									className="inline-flex items-center align-middle font-medium text-neutral-500 transition-colors hover:text-neutral-800"
-								>
-									<svg
-										viewBox="174 298 692 126"
-										height="11"
-										className="inline-block fill-current"
-										xmlns="http://www.w3.org/2000/svg"
-									aria-label="Vigento AI by Vigent"
-									>
-										<g transform="matrix(2.4635 0 0 2.4635 512 360.934)">
-											<g transform="translate(-111.996 0)">
-												<path
-													transform="translate(-100 -95.9747)"
-													d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"
-												/>
-											</g>
-											<g transform="translate(-76.644 0)">
-												<path
-													transform="translate(-100 -95.9747)"
-													d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"
-												/>
-											</g>
-											<g transform="translate(-40.14 0)">
-												<path
-													transform="translate(-98.236 -95.9747)"
-													d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"
-												/>
-											</g>
-											<g transform="translate(14.364 0)">
-												<path
-													transform="translate(-101.008 -95.9747)"
-													d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"
-												/>
-											</g>
-											<g transform="translate(66.744 0)">
-												<path
-													transform="translate(-100 -95.9747)"
-													d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"
-												/>
-											</g>
-											<g transform="translate(116.316 0)">
-												<path
-													transform="translate(-100 -95.9747)"
-													d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"
-												/>
-											</g>
-										</g>
-									</svg>
-								</Link>
-							</p>
-						</>
+						<div style={composerAccent}>
+							<ChatComposer
+								value={input}
+								onChange={setInput}
+								onSend={() => void send(input)}
+								busy={streaming}
+								disabled={leadPending || !hydrated}
+								dir="rtl"
+								sendLabel="ارسال"
+								placeholder="پیام خود را بنویسید…"
+								className="[&_button]:!text-[color:var(--vgt-on-accent)] [&_button:hover:enabled]:!bg-[color:color-mix(in_srgb,var(--accent-strong)_86%,black)]"
+								footer={
+									<p dir="ltr" className="mt-2 text-center text-[10px] text-neutral-400">
+										Powered by{' '}
+										<Link
+											href="/"
+											className="inline-flex items-center align-middle font-medium text-neutral-500 transition-colors hover:text-neutral-800"
+										>
+											<svg
+												viewBox="174 298 692 126"
+												height="11"
+												className="inline-block fill-current"
+												xmlns="http://www.w3.org/2000/svg"
+											aria-label="Vigento AI by Vigent"
+											>
+												<g transform="matrix(2.4635 0 0 2.4635 512 360.934)">
+													<g transform="translate(-111.996 0)">
+														<path
+															transform="translate(-100 -95.9747)"
+															d="M 120.484 70.7747 L 104.14 107.2787 L 106.156 111.3827 L 124.3 70.7747 Z M 100.108 116.4227 L 99.1 114.3347 L 96.364 108.0707 L 79.732 70.7747 L 75.7 70.7747 L 98.164 121.1747 L 102.196 121.1747 L 102.052 120.8147 Z"
+														/>
+													</g>
+													<g transform="translate(-76.644 0)">
+														<path
+															transform="translate(-100 -95.9747)"
+															d="M 101.836 78.5507 L 101.836 70.7747 L 98.164 70.7747 L 98.164 78.5507 Z M 101.836 121.1747 L 101.836 86.7587 L 98.164 86.7587 L 98.164 121.1747 Z"
+														/>
+													</g>
+													<g transform="translate(-40.14 0)">
+														<path
+															transform="translate(-98.236 -95.9747)"
+															d="M 116.776 117.7187 C 118.072 116.9987 119.224 116.0627 120.304 115.0547 L 120.304 96.1907 L 116.776 96.1907 Z M 90.784 76.6787 C 94.24 74.7347 98.128 73.7987 102.448 73.7987 C 105.616 73.7987 108.496 74.3027 111.16 75.2387 C 113.752 76.1747 116.128 77.6867 118.216 79.7747 L 120.52 77.3267 C 118.288 75.0947 115.624 73.3667 112.6 72.2147 C 109.504 70.9907 106.048 70.4147 102.376 70.4147 C 97.336 70.4147 92.8 71.4947 88.84 73.7267 C 84.808 75.9587 81.64 78.9827 79.408 82.8707 C 77.104 86.7587 75.952 91.1507 75.952 95.9747 C 75.952 100.7987 77.104 105.1907 79.408 109.0787 C 81.64 112.9667 84.808 115.9907 88.84 118.2227 C 92.8 120.4547 97.336 121.5347 102.304 121.5347 C 104.68 121.5347 106.912 121.1747 109.072 120.6707 L 109.072 117.2867 C 107.056 117.8627 104.824 118.1507 102.448 118.1507 C 98.128 118.1507 94.24 117.2147 90.784 115.2707 C 87.328 113.3267 84.592 110.6627 82.648 107.2787 C 80.632 103.8947 79.624 100.0787 79.624 95.9747 C 79.624 91.7987 80.632 88.0547 82.576 84.6707 C 84.52 81.2147 87.256 78.6227 90.784 76.6787 Z"
+														/>
+													</g>
+													<g transform="translate(14.364 0)">
+														<path
+															transform="translate(-101.008 -95.9747)"
+															d="M 117.316 74.0867 L 117.316 70.7747 L 84.7 70.7747 L 84.7 74.0867 Z M 117.316 121.1747 L 117.316 117.8627 L 84.7 117.8627 L 84.7 121.1747 Z M 117.316 97.1987 L 117.316 93.9587 L 95.5 93.9587 L 95.5 97.1987 Z M 88.084 81.2147 L 84.7 81.2147 L 84.7 109.9427 L 88.084 109.9427 Z"
+														/>
+													</g>
+													<g transform="translate(66.744 0)">
+														<path
+															transform="translate(-100 -95.9747)"
+															d="M 79.48 121.1747 L 83.152 121.1747 L 83.152 86.1827 L 79.48 81.2147 Z M 116.848 70.7747 L 116.848 114.5507 L 82.576 70.7747 L 79.48 70.7747 L 79.48 72.5027 L 83.152 77.3987 L 117.496 121.1747 L 120.52 121.1747 L 120.52 70.7747 Z"
+														/>
+													</g>
+													<g transform="translate(116.316 0)">
+														<path
+															transform="translate(-100 -95.9747)"
+															d="M 80.02 70.7747 L 80.02 74.0867 L 119.98 74.0867 L 119.98 70.7747 Z M 101.836 121.1747 L 101.836 81.1427 L 98.164 81.1427 L 98.164 121.1747 Z"
+														/>
+													</g>
+												</g>
+											</svg>
+										</Link>
+									</p>
+								}
+							/>
+						</div>
 					)}
 				</div>
 			</div>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Send, Loader2, CircleCheck, TriangleAlert } from 'lucide-react'
+import { CircleCheck, TriangleAlert } from 'lucide-react'
+import { ChatComposer } from '@/components/chat/chat-composer'
 import type { ThreadMessage } from './conversation-thread'
 
 type DeliveryFeedback = {
@@ -23,10 +24,9 @@ type DeliveryFeedback = {
  * `router.refresh()` still runs silently in the background to sync the
  * conversation status and handoff panel, but the user never waits for it.
  *
- * Layout: textarea fills the row, send button is a compact icon-only circle on
- * the RIGHT (matching Instagram/Telegram DM). The textarea auto-grows but the
- * button stays vertically centered so the row never "jumps up" when typing or
- * after sending.
+ * Input handling (Enter to send, auto-grow, send button, busy state) belongs to
+ * the shared <ChatComposer>; this component only owns the send request and the
+ * delivery feedback rendered in the composer's footer slot.
  */
 export function OperatorReply({
   conversationId,
@@ -44,22 +44,6 @@ export function OperatorReply({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   const [delivery, setDelivery] = useState<DeliveryFeedback | null>(null)
-  const taRef = useRef<HTMLTextAreaElement>(null)
-
-  // Auto-grow the textarea to fit content (capped at ~6 lines), then shrink
-  // back when text is cleared. Uses `field-sizing: content` where supported
-  // (Chrome 123+) as a no-JS fallback; the JS height override handles the
-  // rest. Crucially, the textarea NEVER shows an internal scrollbar — it just
-  // grows taller (up to max-h) so the composer stays readable.
-  useEffect(() => {
-    const ta = taRef.current
-    if (!ta) return
-    // Reset to auto first so scrollHeight measures the content, not the
-    // current capped height.
-    ta.style.height = 'auto'
-    const next = Math.min(ta.scrollHeight, 160)
-    ta.style.height = `${next}px`
-  }, [text])
 
   async function send() {
     const body = text.trim()
@@ -106,64 +90,41 @@ export function OperatorReply({
     }
   }
 
+  const feedback = error ? (
+    <p className="mt-1.5 text-xs text-[var(--red)]" role="alert">{t('replyFailed')}</p>
+  ) : delivery?.status === 'failed' || (delivery?.status === 'unavailable' && canDeliver) ? (
+    <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
+      <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+      {locale === 'fa' ? 'پیام ذخیره شد، اما به کانال نرسید. اتصال کانال را بررسی و دوباره تلاش کنید.' : 'Saved, but not delivered. Check the channel connection and try again.'}
+    </p>
+  ) : delivery?.status === 'sent' ? (
+    <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
+      <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+      {locale === 'fa' ? 'پیام با موفقیت به کانال رسید.' : 'Delivered to the channel.'}
+    </p>
+  ) : (
+    <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
+  )
+
   return (
     <div>
       {!canDeliver && (
         <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          ارسال زنده برای این گفتگو در دسترس نیست؛ پیام در تاریخچه ذخیره می‌شود. برای کانال‌های پیام‌رسان، اتصال و دسترسی کانال را بررسی کنید.
+          {locale === 'fa'
+            ? 'ارسال زنده برای این گفتگو در دسترس نیست؛ پیام در تاریخچه ذخیره می‌شود. برای کانال‌های پیام‌رسان، اتصال و دسترسی کانال را بررسی کنید.'
+            : 'Live delivery is unavailable for this conversation; the message is still saved in the history. For messenger channels, check the channel connection and permissions.'}
         </p>
       )}
-      {/* dir="ltr" so the send button is reliably on the RIGHT (visual right)
-          regardless of the page's RTL direction. The textarea itself is
-          dir="auto" so Persian/English text renders correctly inside it. */}
-      <div dir="ltr" className="flex items-end gap-2">
-        <textarea
-          ref={taRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send()
-            }
-          }}
-          rows={1}
-          dir={locale === 'fa' ? 'rtl' : 'ltr'}
-          placeholder={t('replyPlaceholder')}
-          // No internal scrollbar: `scrollbar-width: none` (Firefox) +
-          // `::-webkit-scrollbar { display: none }` (Chrome/Safari). The
-          // textarea grows with content up to max-h, so a scrollbar never
-          // appears — matching the chat input UX of Telegram/WhatsApp web.
-          className="max-h-[160px] min-h-[40px] flex-1 resize-none overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] px-3.5 py-2.5 text-start text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-start placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)] focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        />
-        <button
-          onClick={send}
-          disabled={busy || !text.trim()}
-          aria-label={t('send')}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--white)] text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          {busy ? (
-            <Loader2 className="h-4.5 w-4.5 animate-spin" />
-          ) : (
-            <Send className="h-5 w-5" />
-          )}
-        </button>
-      </div>
-      {error ? (
-        <p className="mt-1.5 text-xs text-[var(--red)]" role="alert">{t('replyFailed')}</p>
-      ) : delivery?.status === 'failed' || (delivery?.status === 'unavailable' && canDeliver) ? (
-        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
-          <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-          {locale === 'fa' ? 'پیام ذخیره شد، اما به کانال نرسید. اتصال کانال را بررسی و دوباره تلاش کنید.' : 'Saved, but not delivered. Check the channel connection and try again.'}
-        </p>
-      ) : delivery?.status === 'sent' ? (
-        <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
-          <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          {locale === 'fa' ? 'پیام با موفقیت به کانال رسید.' : 'Delivered to the channel.'}
-        </p>
-      ) : (
-        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
-      )}
+      <ChatComposer
+        value={text}
+        onChange={setText}
+        onSend={send}
+        busy={busy}
+        placeholder={t('replyPlaceholder')}
+        dir={locale === 'fa' ? 'rtl' : 'ltr'}
+        sendLabel={t('send')}
+        footer={feedback}
+      />
     </div>
   )
 }

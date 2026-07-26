@@ -93,12 +93,13 @@ export function extractIdentity(text: string): ExtractedIdentity {
 		const words = remainder.split(' ').filter(Boolean)
 		if (
 			words.length >= 1 &&
-			words.length <= 4 &&
+			words.length <= 3 &&
 			remainder.length >= 2 &&
 			remainder.length <= 40
 		) {
-			// Only accept if it looks like a name (starts with a letter, no digits).
-			if (/^[\p{L}]/u.test(remainder)) {
+			// Only accept if it looks like a name (starts with a letter, no
+			// digits, no purchase-intent words).
+			if (/^[\p{L}]/u.test(remainder) && looksLikePersonName(remainder)) {
 				name = remainder
 			}
 		}
@@ -107,9 +108,36 @@ export function extractIdentity(text: string): ExtractedIdentity {
 	return { name, phone }
 }
 
+// Words that signal a "name" candidate is actually a request/intent phrase,
+// not a person's name. Without this filter, everyday Persian openers like
+// «من دنبال یه گوشی هستم» became CRM contacts named «دنبال یه گوشی» — junk
+// contacts, a corrupted {customer_name} greeting, and a prematurely
+// 'collected' identification state.
+const NAME_STOPWORDS = new Set(
+	[
+		'دنبال', 'لازم', 'میخوام', 'میخواهم', 'میخام', 'خواهم', 'بخوام',
+		'قیمت', 'محصول', 'سفارش', 'خرید', 'بخرم', 'فروش', 'موجود', 'موجودی',
+		'سوال', 'سؤال', 'مشکل', 'کمک', 'راهنمایی', 'اطلاعات', 'درباره',
+		'لطفا', 'لطفاً', 'هزینه', 'تخفیف', 'ارسال', 'میشه', 'چطور', 'چطوری',
+		'چنده', 'چقدر', 'کدوم', 'کدام', 'یه', 'یک', 'این', 'اون', 'چند',
+		'want', 'looking', 'need', 'price', 'buy', 'order', 'help', 'question',
+		'interested', 'searching',
+	].map((w) => w.replace(/‌/g, '')),
+)
+
+/** A candidate looks like a real person's name: 1–3 words, none of them intent words. */
+function looksLikePersonName(candidate: string): boolean {
+	const words = candidate.split(/\s+/).filter(Boolean)
+	if (!words.length || words.length > 3) return false
+	return !words.some((w) =>
+		NAME_STOPWORDS.has(w.toLowerCase().replace(/‌/g, '')),
+	)
+}
+
 /**
  * Persian name extraction — covers a wide range of real-world phrasings.
- * Returns the first match that yields a 2–30 char name.
+ * Returns the first match that yields a 2–30 char name that also passes the
+ * intent-stopword filter (so purchase requests never become names).
  */
 function extractPersianName(text: string): string | null {
 	// Common Persian cue words that precede a name.
@@ -118,9 +146,10 @@ function extractPersianName(text: string): string | null {
 		/(?:من\s+هستم\s+|این\s+|من\s+،\s*)/u,
 	]
 
-	// Verb suffixes that often follow the name.
+	// Verb suffixes that follow a SELF-INTRODUCTION. Want-verbs (می‌خوام،
+	// می‌خواهم) deliberately excluded: «من X می‌خوام» is a purchase request.
 	const verbs = [
-		/(?:هستم|است|می‌باشم|می‌باشم|هست|صحبت\s+می‌کنم|تحدث\s+می‌کنم|می‌خوام|می‌خواهم)/u,
+		/(?:هستم|است|می‌باشم|هست|صحبت\s+می‌کنم)/u,
 	]
 
 	// Pattern 1: "اسمم X هستم" / "نام من X است" / "من X می‌باشم"
@@ -133,23 +162,34 @@ function extractPersianName(text: string): string | null {
 			const m = text.match(re)
 			if (m && m[1]) {
 				const candidate = m[1].trim().replace(/\s+/g, ' ')
-				if (candidate.length >= 2 && candidate.length <= 30) return candidate
+				if (
+					candidate.length >= 2 &&
+					candidate.length <= 30 &&
+					looksLikePersonName(candidate)
+				)
+					return candidate
 			}
 		}
 	}
 
-	// Pattern 2: "اسم X" / "نام X" / "من X" followed by end, comma, period, or newline.
-	// This is the most common real-world form — no verb needed.
+	// Pattern 2: "اسم X" / "نام X" followed by end, comma, period, or newline.
+	// The bare «من X» / «بنده X» forms are intentionally NOT matched — they
+	// capture arbitrary sentence remainders far more often than names (the
+	// self-introduction case is already covered by pattern 1's verb forms).
 	const barePatterns = [
 		/(?:اسمم|اسمی|اسم|نامم|نام)\s+(?:من\s+)?([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
-		/(?:بنده|من)\s+([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
-		/(?:من\s+هستم\s+|این\s+|اینجا\s+)([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
+		/(?:من\s+هستم\s+|اینجا\s+)([\p{L}][\p{L}\s]{1,29}?)(?=$|[،.,\n؛!؟])/u,
 	]
 	for (const re of barePatterns) {
 		const m = text.match(re)
 		if (m && m[1]) {
 			const candidate = m[1].trim().replace(/\s+/g, ' ')
-			if (candidate.length >= 2 && candidate.length <= 30) return candidate
+			if (
+				candidate.length >= 2 &&
+				candidate.length <= 30 &&
+				looksLikePersonName(candidate)
+			)
+				return candidate
 		}
 	}
 
@@ -168,7 +208,12 @@ function extractEnglishName(text: string): string | null {
 		const m = text.match(re)
 		if (m && m[1]) {
 			const candidate = m[1].trim().replace(/\s+/g, ' ')
-			if (candidate.length >= 2 && candidate.length <= 30) return candidate
+			if (
+				candidate.length >= 2 &&
+				candidate.length <= 30 &&
+				looksLikePersonName(candidate)
+			)
+				return candidate
 		}
 	}
 	return null

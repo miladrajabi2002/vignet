@@ -11,6 +11,8 @@ import {
         type MessengerType,
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
+import { claimInboundEvent, releaseInboundEvent } from '@/lib/channels/idempotency'
+import { withConversationTurnLock } from '@/lib/channels/conversation-lock'
 import { inboundMessageMetadata } from '@/lib/conversations/source'
 import { captureError } from '@/lib/errors/capture'
 import {
@@ -396,10 +398,34 @@ async function processChannelInbound(
         const chatAgent = toChatAgent(agent)
 
         const messages = adapter.parseUpdate(body)
+        // Per-message failures were only captured, never rethrown, so the BullMQ
+        // job always "succeeded" and its configured retries were dead code: a
+        // transient Prisma pool timeout or Postgres blip silently discarded the
+        // customer's message (the webhook was already ACKed, so no redelivery).
+        // Collect failures, finish the batch, then throw so the job retries.
+        // Re-runs are safe because succeeded messages keep their idempotency
+        // claim and are skipped, while a failed message released its claim.
+        let deferredError: unknown = null
         for (const msg of messages) {
+                // Idempotency: platforms redeliver webhooks and BullMQ re-runs
+                // stalled jobs. Claim the platform message id before any work so a
+                // redelivery can never double-persist or double-reply. The kind is
+                // part of the key because Instagram reactions carry the mid of the
+                // message they react to.
+                const eventKey = msg.platformMessageId
+                        ? `${msg.kind ?? 'DM'}:${msg.platformMessageId}`
+                        : null
+                if (eventKey && !(await claimInboundEvent(channelId, eventKey))) {
+                        continue
+                }
                 try {
+                        // Serialize turns per conversation: rapid consecutive messages
+                        // arrive as independent webhooks/jobs and would otherwise race —
+                        // each loading history without the other, producing two replies
+                        // that can land out of order and without shared context.
+                        await withConversationTurnLock(`${channelId}:${msg.chatId}`, async () => {
                         const text = await resolveText(agent.workspaceId, adapter, msg)
-                        if (!text) continue
+                        if (!text) return
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
 
@@ -430,7 +456,7 @@ async function processChannelInbound(
                                 const confirmation = optOutConfirmation(text)
                                 await adapter.sendText(msg.chatId, confirmation)
                                 await persistFixedAssistantReply(conversationId, confirmation)
-                                continue
+                                return
                         }
 
                         // Best-effort backfill of the sender's profile (name, username, avatar).
@@ -537,7 +563,7 @@ async function processChannelInbound(
                                                                 ? instagramPolicy.likeStoryReactionAfterReply
                                                                 : instagramPolicy.likeDmAfterReply
 											await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
-											continue
+											return
                                         }
                                 }
                                 const auto = await runInstagramAutomation({
@@ -577,7 +603,7 @@ async function processChannelInbound(
 												channel: type,
 												metadata: inboundMetadata,
 											})
-											continue
+											return
 										}
                                 }
 								if (reactionClassInput) {
@@ -590,7 +616,7 @@ async function processChannelInbound(
 										channel: type,
 										metadata: inboundMetadata,
 										})
-										continue
+										return
 								}
                         }
 
@@ -641,7 +667,7 @@ async function processChannelInbound(
                                         } catch (e) {
                                                 console.error('[handler] instagram inbound-only persist failed:', e)
                                         }
-                                        continue
+                                        return
                                 }
                         }
 
@@ -672,7 +698,7 @@ async function processChannelInbound(
                                                 : undefined,
                                 },
                         )
-                        if ('error' in result) continue
+                        if ('error' in result) return
 
                         // Product markers are never trusted as customer-facing data. Resolve
                         // them against active products assigned to this agent, then choose the
@@ -751,13 +777,20 @@ async function processChannelInbound(
                                         console.error('[handler] voice reply failed:', e)
                                 }
                         }
+                        })
                 } catch (e) {
+                        // Release the idempotency claim so a queue retry can still
+                        // process this message after a transient failure.
+                        if (eventKey) await releaseInboundEvent(channelId, eventKey)
                         captureError(`webhook:${type}`, e, {
                                 workspaceId: agent.workspaceId,
                                 metadata: { agentId: agent.id, channelId },
                         })
+                        deferredError ??= e
                 }
         }
+        // Surface the failure to the queue so the job is retried.
+        if (deferredError) throw deferredError
 }
 
 /**
@@ -794,160 +827,197 @@ export async function handleInbound(
  *     account appears as `changes[].value.to.id` or `entry[].id`.
  *   - Story mention events: similar to comments.
  *
- * To handle ALL cases, we extract EVERY id we can find in the payload
- * (entry[].id, recipient.id, sender.id where it matches entry[].id, changes
- * value.to.id/from.id) and try to resolve ANY of them. The first channel that
- * matches any of these ids handles the whole batch.
+ * Routing is PER ENTRY, not per batch: Meta aggregates events for multiple
+ * subscribed accounts (= multiple tenants) into one POST, so each entry[] is
+ * resolved to its own channel from owner-side ids only (entry.id,
+ * messaging[].recipient.id, changes[].value.to/recipient.id). Sender-side ids
+ * (messaging[].sender.id, changes[].value.from.id) are NEVER used — those
+ * identify the customer/commenter and would route a tenant's traffic into
+ * another tenant's workspace if that person is also a connected account.
  */
-export async function handleInstagramGlobalInbound(body: unknown): Promise<void> {
-        const entries = (
-                body as {
-                        entry?: Array<{
-                                id?: string | number
-                                messaging?: Array<{
-                                        recipient?: { id?: string | number }
-                                        sender?: { id?: string | number }
-                                }>
-                                changes?: Array<{
-                                        value?: {
-                                                to?: { id?: string | number }
-                                                from?: { id?: string | number }
-                                                recipient?: { id?: string | number }
-                                                sender?: { id?: string | number }
-                                        }
-                                }>
-                        }>
+type IgWebhookEntry = {
+        id?: string | number
+        messaging?: Array<{
+                recipient?: { id?: string | number }
+                sender?: { id?: string | number }
+        }>
+        changes?: Array<{
+                value?: {
+                        to?: { id?: string | number }
+                        from?: { id?: string | number }
+                        recipient?: { id?: string | number }
+                        sender?: { id?: string | number }
                 }
-        )?.entry
+        }>
+}
+
+/** Owner-side candidate ids for one webhook entry (never sender/commenter ids). */
+function entryOwnerIds(e: IgWebhookEntry): string[] {
+        const ids = new Set<string>()
+        const addId = (v: string | number | undefined | null) => {
+                if (v !== undefined && v !== null) ids.add(String(v))
+        }
+        addId(e.id)
+        for (const m of e.messaging ?? []) {
+                addId(m.recipient?.id)
+                // NOTE: do NOT add sender.id — that's the customer who messaged us.
+        }
+        for (const c of e.changes ?? []) {
+                addId(c.value?.to?.id)
+                addId(c.value?.recipient?.id)
+                // NOTE: do NOT add from.id — that's the commenter, not our account.
+        }
+        return Array.from(ids)
+}
+
+export async function handleInstagramGlobalInbound(body: unknown): Promise<void> {
+        const entries = (body as { entry?: IgWebhookEntry[] })?.entry
         if (!entries?.length) return
 
-        // Collect EVERY id mentioned in the payload — entry.id, recipient.id,
-        // sender.id, changes.to.id, changes.from.id. Any of these might match our
-        // stored igUserId. We try all of them.
-        const allIds = new Set<string>()
-        const addId = (v: string | number | undefined | null) => {
-                if (v !== undefined && v !== null) allIds.add(String(v))
-        }
-        for (const e of entries) {
-                addId(e.id)
-                for (const m of e.messaging ?? []) {
-                        addId(m.recipient?.id)
-                        // NOTE: do NOT add sender.id here — that's the customer who messaged
-                        // us, not our account. Adding it would route to the wrong channel.
-                }
-                for (const c of e.changes ?? []) {
-                        addId(c.value?.to?.id)
-                        addId(c.value?.from?.id)
-                        addId(c.value?.recipient?.id)
-                }
-        }
-        if (!allIds.size) return
-
-        // Try each id until one resolves to a channel. The first match handles the
-        // whole batch (the batch is for one account).
-        let resolved: ResolvedChannel | null = null
-        let matchedId: string | null = null
-        for (const entityId of Array.from(allIds)) {
+        // Resolve each entry to its owning channel. Cache lookups per id so a
+        // multi-entry batch for the same account costs one resolution.
+        const resolutionCache = new Map<string, ResolvedChannel | null>()
+        const resolveCached = async (entityId: string): Promise<ResolvedChannel | null> => {
+                if (resolutionCache.has(entityId)) return resolutionCache.get(entityId) ?? null
                 const r = await resolveInstagramChannelById(entityId)
-                if (r) {
-                        resolved = r
-                        matchedId = entityId
-                        break
+                resolutionCache.set(entityId, r)
+                return r
+        }
+
+        const groups = new Map<string, { resolved: ResolvedChannel; matchedId: string; entries: IgWebhookEntry[] }>()
+        const unresolvedEntries: Array<{ entry: IgWebhookEntry; ids: string[] }> = []
+
+        for (const entry of entries) {
+                const ids = entryOwnerIds(entry)
+                if (!ids.length) continue
+                let resolved: ResolvedChannel | null = null
+                let matchedId: string | null = null
+                for (const entityId of ids) {
+                        const r = await resolveCached(entityId)
+                        if (r) {
+                                resolved = r
+                                matchedId = entityId
+                                break
+                        }
+                }
+                if (resolved && matchedId) {
+                        const g = groups.get(resolved.channelId)
+                        if (g) g.entries.push(entry)
+                        else groups.set(resolved.channelId, { resolved, matchedId, entries: [entry] })
+                } else {
+                        unresolvedEntries.push({ entry, ids })
                 }
         }
 
-        if (!resolved) {
-                // No channel matched ANY id in the payload. This happens with Instagram
-                // API with Instagram Login because the id returned by `GET /me` (what
-                // we store as igUserId) can DIFFER from the id Meta sends in webhook
-                // payloads (entry[].id / recipient.id). This is a known Meta behavior.
+        if (unresolvedEntries.length) {
+                // No channel matched an entry's owner-side ids. This happens with
+                // Instagram API with Instagram Login because the id returned by
+                // `GET /me` (what we store as igUserId) can DIFFER from the id Meta
+                // sends in webhook payloads (entry[].id / recipient.id).
                 //
-                // FALLBACK: if there is exactly ONE active Instagram channel, assume
-                // this payload is for it. This is safe for the common case (one IG
-                // account per platform) and self-heals: we also persist the webhook
+                // FALLBACK: if there is exactly ONE Instagram channel in the entire
+                // database, assume the unmatched entries are for it. This is safe for
+                // the single-tenant case and self-heals: we persist the webhook
                 // recipient.id into the channel config so future lookups match
                 // directly via the indexed query.
-                const allIgChannels = await prisma.agentChannel.findMany({
-                        where: { type: 'INSTAGRAM', active: true, agent: { active: true } },
-                        select: {
-                                id: true,
-                                config: true,
-                                agent: { select: { ...AGENT_SELECT, workspaceId: true } },
-                        },
+                //
+                // The count deliberately spans ALL Instagram channels — including
+                // inactive ones, ones whose agent is paused, and ones whose token no
+                // longer decrypts. Those are exactly the states that make a legitimate
+                // owner unroutable, and counting only *active* channels would then
+                // hand that owner's customer DMs to whichever workspace happened to be
+                // the only active one.
+                const totalIgChannels = await prisma.agentChannel.count({
+                        where: { type: 'INSTAGRAM' },
                 })
+                const allIgChannels =
+                        totalIgChannels === 1
+                                ? await prisma.agentChannel.findMany({
+                                                where: { type: 'INSTAGRAM', active: true, agent: { active: true } },
+                                                select: {
+                                                        id: true,
+                                                        config: true,
+                                                        agent: { select: { ...AGENT_SELECT, workspaceId: true } },
+                                                },
+                                        })
+                                : []
 
-                // Meta may keep delivering events for an account after its local
-                // channel was disconnected. With no routable Instagram channel,
-                // there is no application failure to persist: the signed payload
-                // is retained in the webhook debug buffer and safely ignored.
-                if (allIgChannels.length === 0) return
-
-                if (allIgChannels.length === 1) {
+                if (totalIgChannels === 1 && allIgChannels.length === 1) {
                         const only = allIgChannels[0]
                         const onlyConfig = (only.config as Record<string, unknown> | null) ?? {}
                         const ignoredWebhookIds = Array.isArray(onlyConfig.ignoredWebhookIds)
                                 ? onlyConfig.ignoredWebhookIds.map(String)
                                 : []
-                        if (Array.from(allIds).some((id) => ignoredWebhookIds.includes(id))) {
-                                return
-                        }
                         const token = readPageToken(only.config)
-                        if (token) {
-                                resolved = {
+                        for (const { entry, ids } of unresolvedEntries) {
+                                // Events for a previously-connected account on this channel are
+                                // intentionally ignored (account switch leftovers).
+                                if (ids.some((id) => ignoredWebhookIds.includes(id))) continue
+                                if (!token) continue
+                                const resolved: ResolvedChannel = {
                                         channelId: only.id,
                                         config: only.config,
                                         agent: only.agent,
                                         adapter: getAdapter('INSTAGRAM', token),
                                         settings: normalizeInstagramSettings(only.config),
                                 }
-                                matchedId = '(single-channel-fallback)'
-                                // Self-heal: persist the webhook recipient.id as an alias so the
-                                // indexed query matches next time. We store it under
-                                // `webhookIgId` (don't overwrite igUserId — keep both).
-                                const recipientId = entries[0]?.messaging?.[0]?.recipient?.id
-                                const entryId = entries[0]?.id
-                                const alias = recipientId ? String(recipientId) : entryId ? String(entryId) : null
-                                if (alias) {
-                                        const cfg = onlyConfig
-                                        if (cfg.webhookIgId !== alias) {
-                                                await prisma.agentChannel
-                                                        .update({
-                                                                where: { id: only.id },
-                                                                data: {
-                                                                        config: { ...cfg, webhookIgId: alias } as Prisma.InputJsonValue,
-                                                                },
-                                                        })
-                                                        .catch((e) =>
-                                                                console.error('[handler] self-heal webhookIgId persist failed:', e),
-                                                        )
-                                        }
-                                }
+                                const g = groups.get(only.id)
+                                if (g) g.entries.push(entry)
+                                else groups.set(only.id, { resolved, matchedId: '(single-channel-fallback)', entries: [entry] })
                         }
-                }
-
-                if (!resolved) {
+                        // Self-heal: persist the webhook recipient.id as an alias so the
+                        // indexed query matches next time. We store it under `webhookIgId`
+                        // (don't overwrite igUserId — keep both).
+                        const first = unresolvedEntries[0]?.entry
+                        const recipientId = first?.messaging?.[0]?.recipient?.id
+                        const entryId = first?.id
+                        const alias = recipientId ? String(recipientId) : entryId ? String(entryId) : null
+                        if (alias && token && onlyConfig.webhookIgId !== alias) {
+                                await prisma.agentChannel
+                                        .update({
+                                                where: { id: only.id },
+                                                data: {
+                                                        config: { ...onlyConfig, webhookIgId: alias } as Prisma.InputJsonValue,
+                                                },
+                                        })
+                                        .catch((e) =>
+                                                console.error('[handler] self-heal webhookIgId persist failed:', e),
+                                        )
+                        }
+                } else if (totalIgChannels > 1) {
+                        const triedIds = Array.from(new Set(unresolvedEntries.flatMap((u) => u.ids)))
                         captureError(
                                 'webhook:INSTAGRAM:no-channel',
                                 new Error(
-                                        `No Instagram channel found for any of the ids in this payload: ${JSON.stringify(
-                                                Array.from(allIds),
-                                        )}. ` +
-                                                'Tried single-channel fallback but found ' +
-                                                allIgChannels.length +
-                                                ' routable IG channels. ' +
+                                        `No Instagram channel found for the owner ids of ${unresolvedEntries.length} webhook entr${
+                                                unresolvedEntries.length === 1 ? 'y' : 'ies'
+                                        }: ${JSON.stringify(triedIds)}. ` +
+                                                'Single-channel fallback not applicable: found ' +
+                                                totalIgChannels +
+                                                ' IG channels. ' +
                                                 'Check /api/agents/{agentId}/channels/instagram-diagnostics to compare.',
                                 ),
-                                { metadata: { triedIds: Array.from(allIds) } },
+                                { metadata: { triedIds } },
                         )
-                        return
                 }
+                // 0 routable channels: Meta may keep delivering events for an account
+                // after its local channel was disconnected. Nothing to do — the signed
+                // payload is retained in the webhook debug buffer and safely ignored.
         }
 
-        try {
-                await processChannelInbound('INSTAGRAM', resolved, body)
-        } catch (e) {
-                captureError('webhook:INSTAGRAM:global', e, {
-                        metadata: { matchedId },
-                })
+        // Process each tenant's slice of the batch independently so one tenant's
+        // failure never blocks another tenant's messages.
+        for (const { resolved, matchedId, entries: groupEntries } of Array.from(groups.values())) {
+                try {
+                        const scopedBody = {
+                                ...((body as Record<string, unknown>) ?? {}),
+                                entry: groupEntries,
+                        }
+                        await processChannelInbound('INSTAGRAM', resolved, scopedBody)
+                } catch (e) {
+                        captureError('webhook:INSTAGRAM:global', e, {
+                                metadata: { matchedId },
+                        })
+                }
         }
 }

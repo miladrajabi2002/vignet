@@ -5,7 +5,8 @@ import { processIngestion } from '@/lib/knowledge/ingest'
 import { processProductEmbed } from '@/lib/products/catalog'
 import { processSummary } from '@/lib/conversations/summary'
 import { processNotification } from '@/lib/notifications/notify'
-import { handleInbound } from '@/lib/channels/handler'
+import { handleInbound, handleInstagramGlobalInbound } from '@/lib/channels/handler'
+import { handleWhatsappGlobalInbound } from '@/lib/whatsapp/webhook'
 import { processCampaign } from '@/lib/campaigns/process'
 import { processWooWebhookBatch } from '@/lib/integrations/woocommerce'
 import { startScheduler } from '@/worker/scheduler'
@@ -58,12 +59,21 @@ const inboundWorker = new Worker(
   QUEUE_NAMES.inboundMessage,
   async (job) => {
     console.log(`[worker] inbound-message job ${job.id}`)
-    const { type, token, body } = job.data as {
-      type: Parameters<typeof handleInbound>[0]
-      token: string
+    const data = job.data as {
+      global?: 'INSTAGRAM' | 'WHATSAPP'
+      type?: Parameters<typeof handleInbound>[0]
+      token?: string
       body: unknown
     }
-    await handleInbound(type, token, body)
+    // Global Meta webhooks (signature already verified at the route) carry no
+    // per-channel token — they demux to the owning tenant inside the handler.
+    if (data.global === 'INSTAGRAM') {
+      await handleInstagramGlobalInbound(data.body)
+    } else if (data.global === 'WHATSAPP') {
+      await handleWhatsappGlobalInbound(data.body)
+    } else if (data.type && data.token) {
+      await handleInbound(data.type, data.token, data.body)
+    }
   },
   // Each job may hold an LLM round-trip — allow real parallelism.
   { connection, concurrency: 8 },

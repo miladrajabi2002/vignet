@@ -4,6 +4,7 @@ import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
 import { captureError } from '@/lib/errors/capture'
+import { instagramPrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
         sendImage,
         sendAudio,
@@ -131,6 +132,18 @@ const VALID_REPLY_MODES: ReplyMode[] = [
 
 function isReplyMode(v: unknown): v is ReplyMode {
   return typeof v === 'string' && (VALID_REPLY_MODES as string[]).includes(v)
+}
+
+/**
+ * DM target for a comment→DM funnel. A commenter who has never DMed the
+ * account is unreachable via `recipient.id` (Meta error #100) — the one-time
+ * Private Reply addressed by the comment id is the only delivery path, so the
+ * majority of funnel entrants (new audiences) depend on it.
+ */
+function commentDmTarget(msg: InboundMessage): string {
+  return msg.commentId
+    ? instagramPrivateReplyTarget(msg.commentId, msg.senderId)
+    : msg.senderId
 }
 
 interface AutomationRow {
@@ -460,7 +473,7 @@ async function executeAction(
         ? [{ type: 'TEXT', text: action.contentText || action.replyText || '' }]
         : []
     const gateButtonType = action.gateButtonType ?? 'button'
-    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
 
     // ── STEP 1: Check if the user already follows the account ──
     if (channelConfig) {
@@ -570,7 +583,7 @@ async function executeAction(
     const entry = action.messages[
       Math.floor(Math.random() * action.messages.length)
     ]
-    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
     await sendRichEntry(
       channelConfig ?? null,
       target,
@@ -602,7 +615,7 @@ async function executeAction(
   // DM/STORY STATIC" — previously only `replyText` was sent and `messages[]`
   // was silently ignored.
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
-    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
     for (const entry of action.messages) {
       // QUICK_REPLY entries carry `buttons`. The `buttonType` field controls
       // how they're rendered:
@@ -673,7 +686,7 @@ async function executeAction(
     !action.messages?.length &&
     channelConfig
   ) {
-    const target = isComment && action.dmOnComment ? msg.senderId : msg.chatId
+    const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
     if (action.mediaType === 'IMAGE' && action.mediaUrl) {
       await sendImage(channelConfig, target, action.mediaUrl, action.replyText || undefined)
     } else if (action.mediaType === 'AUDIO' && action.mediaUrl) {
@@ -699,7 +712,7 @@ async function executeAction(
     if (isComment && action.dmOnComment) {
       // Public acknowledgment + private DM with the real content.
       await adapter.sendText(msg.chatId, action.replyText)
-      await adapter.sendText(msg.senderId, action.contentText || action.replyText, {
+      await adapter.sendText(commentDmTarget(msg), action.contentText || action.replyText, {
         quickReplies,
       })
       scheduleFollowUp(ctx, action, msg.senderId)
@@ -733,7 +746,7 @@ async function executeAction(
   // ─── Fallback: static contentText (used after gateless comment→DM) ───
   if (action.contentText) {
     await adapter.sendText(
-      isComment ? msg.senderId : msg.chatId,
+      isComment ? commentDmTarget(msg) : msg.chatId,
       action.contentText,
       { quickReplies: isComment ? undefined : quickReplies },
     )

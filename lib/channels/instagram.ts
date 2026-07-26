@@ -1,6 +1,10 @@
 import type { InboundMessage, MessengerAdapter, OutboundVoice, SendOptions } from '@/lib/channels/types'
 import { GRAPH_BASE } from '@/lib/channels/whatsapp'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
+import {
+        PRIVATE_REPLY_PREFIX,
+        parsePrivateReplyTarget,
+} from '@/lib/instagram/private-reply'
 
 /**
  * Instagram Messaging adapter (Meta Graph APIs).
@@ -383,6 +387,12 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // Quick replies (tappable suggestion chips) are supported on IG DMs;
                         // tapping one sends its title as a normal message. Platform limits:
                         // max 13 replies, titles ≤20 chars.
+                        //
+                        // Private replies (comment→DM funnels): a commenter with no prior
+                        // thread is only reachable via recipient.comment_id — allowed ONCE
+                        // per comment. The first chunk claims it; later chunks fall back to
+                        // a normal DM by IGSID when known (works once a thread exists).
+                        const privateReply = parsePrivateReplyTarget(chatId)
                         const chunks = splitInstagramText(text)
                         for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
                                 const message: Record<string, unknown> = { text: chunks[chunkIndex] }
@@ -394,18 +404,49 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 payload: `qr_${i}`,
                                         }))
                                 }
-                                const res = await fetch(`${h.base}/me/messages`, {
+                                let recipient: Record<string, string>
+                                if (privateReply) {
+                                        if (chunkIndex === 0) {
+                                                recipient = { comment_id: privateReply.commentId }
+                                        } else if (privateReply.userId) {
+                                                recipient = { id: privateReply.userId }
+                                        } else {
+                                                // One private reply per comment and no IGSID to continue
+                                                // the thread with — the remainder cannot be delivered.
+                                                break
+                                        }
+                                } else {
+                                        recipient = { id: chatId }
+                                }
+                                let res = await fetch(`${h.base}/me/messages`, {
                                         method: 'POST',
                                         headers: {
                                                 'Content-Type': 'application/json',
                                                 Authorization: `Bearer ${token}`,
                                         },
                                         body: JSON.stringify({
-                                                recipient: { id: chatId },
+                                                recipient,
                                                 message,
                                                 messaging_type: 'RESPONSE',
                                         }),
                                 })
+                                // The comment's single private reply may already be spent (e.g.
+                                // an earlier automation message claimed it). If we know the
+                                // IGSID, retry as a normal DM — succeeds when a thread exists.
+                                if (!res.ok && privateReply?.userId && recipient.comment_id) {
+                                        res = await fetch(`${h.base}/me/messages`, {
+                                                method: 'POST',
+                                                headers: {
+                                                        'Content-Type': 'application/json',
+                                                        Authorization: `Bearer ${token}`,
+                                                },
+                                                body: JSON.stringify({
+                                                        recipient: { id: privateReply.userId },
+                                                        message,
+                                                        messaging_type: 'RESPONSE',
+                                                }),
+                                        })
+                                }
                                 if (res.ok) continue
 
                                 const detail = await res.text().catch(() => '')
@@ -467,7 +508,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // Comments have no typing state. The typing_on sender action works
                         // on both graph.facebook.com (Messenger Platform) and
                         // graph.instagram.com (Instagram Messaging API).
-                        if (!token || chatId.startsWith(COMMENT_PREFIX)) return
+                        if (!token || chatId.startsWith(COMMENT_PREFIX) || chatId.startsWith(PRIVATE_REPLY_PREFIX)) return
                         const h = await host()
                         if (!h) return
                         await fetch(`${h.base}/me/messages`, {
@@ -490,7 +531,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // sendAudio envelope (upload the raw bytes to S3 via the caller, then
                         // send the URL as an audio attachment). The caller (handler.ts) is
                         // responsible for producing an HTTPS URL Meta can fetch.
-                        if (_chatId.startsWith(COMMENT_PREFIX)) return
+                        if (_chatId.startsWith(COMMENT_PREFIX) || _chatId.startsWith(PRIVATE_REPLY_PREFIX)) return
                         const h = await host()
                         if (!h) return
                         // Convert the raw audio buffer to a data URL is NOT viable (Meta
@@ -510,7 +551,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // with an Instagram-Login user token (graph.instagram.com) it may be
                         // restricted to the connected account. We probe the resolved host and
                         // return null on any failure — avatars are a CRM nicety, not critical.
-                        if (!userId || userId.startsWith(COMMENT_PREFIX)) return null
+                        if (!userId || userId.startsWith(COMMENT_PREFIX) || userId.startsWith(PRIVATE_REPLY_PREFIX)) return null
                         try {
                                 const h = await host()
                                 if (!h) return null
@@ -535,7 +576,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         // We can't pass channelConfig here (the adapter doesn't see it),
                         // so we fall back to the single resolved token on graph.facebook.com
                         // — the host Meta uses for fetching OTHER users' profiles.
-                        if (!userId || userId.startsWith(COMMENT_PREFIX)) return null
+                        if (!userId || userId.startsWith(COMMENT_PREFIX) || userId.startsWith(PRIVATE_REPLY_PREFIX)) return null
                         // Try graph.facebook.com first (the only host that can fetch
                         // other users' profiles with a Page token).
                         const fieldSets = [

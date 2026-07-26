@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { handleWhatsappGlobalInbound } from '@/lib/whatsapp/webhook'
+import { dispatchGlobalInbound } from '@/lib/queue/jobs'
 import { metaVerifyToken } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
 import { verifyMetaWebhookSignature } from '@/lib/security/meta-webhook'
@@ -81,11 +81,15 @@ export async function POST(req: Request) {
   }
   if (!body) return NextResponse.json({ ok: true })
 
-  // Process without blocking the response — Meta retries aggressively on slow
-  // webhooks. Inline fire-and-forget is fine here (no per-token queue key).
-  void handleWhatsappGlobalInbound(body).catch((e) =>
-    captureError('webhook:WHATSAPP:global:process', e),
-  )
+  // Enqueue for durable processing in the worker (fast — no LLM work here).
+  // Fire-and-forget inline processing lost messages on every deploy/restart
+  // after the 200 ACK. When the queue is down we answer 503 so Meta redelivers.
+  try {
+    await dispatchGlobalInbound({ global: 'WHATSAPP', body })
+  } catch (e) {
+    captureError('webhook:WHATSAPP:global:enqueue', e)
+    return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
+  }
 
   return NextResponse.json({ ok: true })
 }

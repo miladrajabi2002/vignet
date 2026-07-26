@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Check, LogIn } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { Logo } from '@/components/ui/logo'
+import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
 const SECTION_IDS = ['product', 'demo', 'businesses', 'pricing'] as const
@@ -22,6 +23,8 @@ const COPY = {
 		signedIn: 'وارد شده‌اید',
 		dashboardAria: 'رفتن به داشبورد',
 		primaryNav: 'ناوبری اصلی',
+		openMenu: 'باز کردن منو',
+		closeMenu: 'بستن منو',
 	},
 	en: {
 		home: 'Home',
@@ -33,6 +36,8 @@ const COPY = {
 		signedIn: 'Signed in',
 		dashboardAria: 'Go to dashboard',
 		primaryNav: 'Primary navigation',
+		openMenu: 'Open menu',
+		closeMenu: 'Close menu',
 	},
 } as const
 
@@ -101,6 +106,19 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 						: 'border-black/[0.07] bg-white/72 shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-lg',
 				)}
 			>
+				{/* Mobile entry point — the desktop nav below is hidden under lg. */}
+				<div className="col-start-1 flex items-center justify-start lg:hidden">
+					<MarketingMobileMenu
+						links={links}
+						ctaHref="/login?next=/onboarding"
+						ctaLabel={copy.start}
+						openLabel={copy.openMenu}
+						closeLabel={copy.closeMenu}
+						navLabel={copy.primaryNav}
+						authenticated={authenticated}
+					/>
+				</div>
+
 				<div className="hidden items-center gap-1 lg:flex">
 					{links.map((link) => {
 						const active = link.id === 'home'

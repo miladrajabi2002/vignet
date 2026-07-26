@@ -66,6 +66,12 @@ export function createTelegramLikeAdapter(opts: {
           // was dropped whenever first/last names were present.
           senderUsername: from?.username || undefined,
           text: msg.text ?? msg.caption ?? '',
+          // message_id is only unique per chat — scope it so the shared
+          // idempotency claim can't collide across chats.
+          platformMessageId:
+            msg.message_id !== undefined
+              ? `${msg.chat.id}:${msg.message_id}`
+              : undefined,
           voiceFileId: msg.voice?.file_id ?? msg.audio?.file_id,
           // Telegram reply_to_message → quote link (best-effort, stringified id).
           replyToMessageId: msg.reply_to_message?.message_id
@@ -171,6 +177,7 @@ interface TgUser {
 }
 
 interface TgMessage {
+  message_id?: number | string
   chat: { id: number | string }
   from?: TgUser
   text?: string

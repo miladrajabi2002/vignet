@@ -40,7 +40,13 @@ export function getRedis(): Redis {
     lastConnectionErrorAt = 0
   })
 
-  if (process.env.NODE_ENV !== 'production') globalForRedis.redis = client
+  // Cache unconditionally. One shared multiplexed connection per process is
+  // exactly what ioredis is designed for. Skipping the cache in production
+  // meant every rate-limit check, embedding-cache hit, entitlement check and
+  // health ping opened a brand-new TCP connection that was never quit() —
+  // hundreds of sockets per minute on a busy account until Redis hit
+  // maxclients and every dependent path (fail-closed rate limits, OTP) broke.
+  globalForRedis.redis = client
   return client
 }
 

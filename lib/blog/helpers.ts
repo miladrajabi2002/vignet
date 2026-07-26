@@ -207,11 +207,17 @@ export function renderMarkdown(markdown: string): string {
 			(_m, alt, url) => `<img src="${url}" alt="${alt}" loading="lazy" decoding="async" />`,
 		)
 		// links
-		t = t.replace(
-			/\[([^\]]+)\]\(([^)\s]+)\)/g,
-			(_m, text, url) =>
-				`<a href="${url}" rel="noopener nofollow" target="_blank">${text}</a>`,
-		)
+		// Internal links must keep their link equity and normal navigation:
+		// nofollow + target=_blank on every link meant the platform's own SEO
+		// articles passed no signal to /pricing, /solutions/* or /docs and opened
+		// them in new tabs. Only external hosts get nofollow/_blank.
+		t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, text, url) => {
+			const isInternal =
+				/^[/#]/.test(url) || /^https?:\/\/(www\.)?vigent\.ir(\/|$)/i.test(url)
+			return isInternal
+				? `<a href="${url}">${text}</a>`
+				: `<a href="${url}" rel="noopener nofollow" target="_blank">${text}</a>`
+		})
 		// bold
 		t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
 		// italic

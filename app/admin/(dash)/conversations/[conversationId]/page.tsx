@@ -4,6 +4,7 @@ import { ArrowRight, Bot, MessageSquare, UserRound } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
+import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import {
   parseProductShowcaseContent,
   ProductShowcaseRail,
@@ -52,24 +53,31 @@ export default async function AdminConversationDetailPage({ params }: { params: 
             <Badge tone="muted">{STATUS_LABEL[conversation.status] ?? conversation.status}</Badge>
           </div>
 
-          <div className="max-h-[68vh] min-h-[460px] space-y-4 overflow-y-auto bg-white p-4 sm:p-6">
+          {/* dir=ltr pins the customer to the visual RIGHT and the agent to the LEFT
+              regardless of the RTL admin shell, matching every customer-facing
+              surface. Each piece of Persian copy inside keeps its own dir=auto. */}
+          <div dir="ltr" className="max-h-[68vh] min-h-[460px] space-y-4 overflow-y-auto bg-white p-4 sm:p-6">
             {conversation.messages.length ? conversation.messages.map((message) => {
-              if (message.role === 'SYSTEM') return <div key={message.id} className="mx-auto max-w-xl rounded-xl bg-zinc-100 px-3 py-2 text-center text-[11px] leading-6 text-zinc-500">{message.content}</div>
+              if (message.role === 'SYSTEM') return <div key={message.id} dir="auto" className="mx-auto max-w-xl break-words rounded-xl bg-zinc-100 px-3 py-2 text-center text-[11px] leading-6 text-zinc-500">{message.content}</div>
               const isUser = message.role === 'USER'
               const showcase = isUser
                 ? { text: message.content, products: [] }
                 : parseProductShowcaseContent(message.content)
               const hasShowcase = showcase.products.length > 0
               return (
-                <div key={message.id} className={`flex items-end gap-2 ${isUser ? 'justify-start' : 'justify-end'}`}>
-                  {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}
+                <div key={message.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                  {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-black text-white"><Bot className="h-3.5 w-3.5" /></div>}
                   <div className={hasShowcase && !isUser ? 'w-full max-w-[46rem]' : 'max-w-[82%]'}>
                     {(showcase.text || message.audioUrl) && (
-                      <div className={`rounded-2xl px-4 py-3 ${isUser ? 'rounded-br-md border border-zinc-150 bg-white text-zinc-800 shadow-sm' : 'rounded-bl-md bg-black text-white'}`}>
-                        {showcase.text && <p className="whitespace-pre-wrap text-xs leading-6">{showcase.text}</p>}
+                      <ConversationBubble
+                        side={isUser ? 'end' : 'start'}
+                        tone={isUser ? 'light' : 'accent'}
+                        className={`px-4 py-3 text-xs ${isUser ? 'text-zinc-800' : 'bg-black text-white'}`}
+                      >
+                        {showcase.text && <ConversationText text={showcase.text} className="block" />}
                         {message.audioUrl && <audio controls src={message.audioUrl} className="mt-2 max-w-full" />}
-                        <time className={`mt-2 block text-[9px] ${isUser ? 'text-zinc-400' : 'text-white/45'}`}>{fmtDate(message.createdAt)}</time>
-                      </div>
+                        <time dir="auto" className={`mt-2 block text-[9px] ${isUser ? 'text-zinc-400' : 'text-white/45'}`}>{fmtDate(message.createdAt)}</time>
+                      </ConversationBubble>
                     )}
                     {!isUser && hasShowcase && (
                       <ProductShowcaseRail
@@ -80,13 +88,13 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                       />
                     )}
                     {!isUser && hasShowcase && !showcase.text && !message.audioUrl && (
-                      <time className="mt-0.5 block px-1 text-[9px] text-zinc-400">{fmtDate(message.createdAt)}</time>
+                      <time dir="auto" className="mt-0.5 block px-1 text-[9px] text-zinc-400">{fmtDate(message.createdAt)}</time>
                     )}
                   </div>
-                  {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-black text-white"><Bot className="h-3.5 w-3.5" /></div>}
+                  {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}
                 </div>
               )
-            }) : <div className="grid min-h-[420px] place-items-center text-xs text-zinc-400">متنی برای این گفتگو ثبت نشده است</div>}
+            }) : <div dir="auto" className="grid min-h-[420px] place-items-center text-xs text-zinc-400">متنی برای این گفتگو ثبت نشده است</div>}
           </div>
         </Card>
 

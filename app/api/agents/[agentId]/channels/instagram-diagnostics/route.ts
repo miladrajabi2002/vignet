@@ -8,9 +8,12 @@ import {
 	getIgUserWebhookSubscription,
 	getInstagramProfile,
 } from '@/lib/instagram/oauth'
-import { getWebhookPayloads } from '@/lib/channels/webhook-debug'
+import { getScopedWebhookPayloads } from '@/lib/channels/webhook-debug'
 
 export const dynamic = 'force-dynamic'
+
+/** How many recent (owned or unclaimed) webhook payloads the screen shows. */
+const MAX_DIAGNOSTIC_PAYLOADS = 5
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -69,36 +72,12 @@ export async function GET(_req: Request, props: Params) {
 		String(cfg.webhookIgId ?? ''),
 	].filter(Boolean)
 
-	const recentPayloads = getWebhookPayloads('INSTAGRAM', 5).map((p) => {
-		const body = p.body as {
-			entry?: Array<{
-				id?: string | number
-				messaging?: Array<{
-					recipient?: { id?: string | number }
-				}>
-			}>
-		} | null
-		const entryIds: string[] = []
-		const recipientIds: string[] = []
-		for (const e of body?.entry ?? []) {
-			if (e?.id !== undefined && e?.id !== null) entryIds.push(String(e.id))
-			for (const m of e?.messaging ?? []) {
-				if (m?.recipient?.id !== undefined && m?.recipient?.id !== null) {
-					recipientIds.push(String(m.recipient.id))
-				}
-			}
-		}
-		const allSentIds = Array.from(new Set([...entryIds, ...recipientIds]))
-		return {
-			ts: p.ts,
-			eventType: p.eventType,
-			parsedCount: p.parsedCount,
-			entryIds,
-			recipientIds,
-			allSentIds,
-			tokenHint: p.tokenHint,
-		}
-	})
+	// The debug buffer is process-global (every workspace's payloads). Scope it:
+	// this workspace only ever sees its OWN payloads plus ids claimed by no
+	// channel at all — the Meta id-mismatch case this screen exists to debug.
+	// Customer message text and webhook-token hints are never returned here.
+	const { payloads: recentPayloads, otherTenantPayloadCount } =
+		getScopedWebhookPayloads('INSTAGRAM', storedIds, await allClaimedInstagramIds(), 5)
 
 	// Check: do any of the recent payloads have ANY id that matches ANY stored id?
 	const matchFound = recentPayloads.some((p) =>
@@ -119,7 +98,9 @@ export async function GET(_req: Request, props: Params) {
 		entryIdMatches: matchFound,
 		diagnosis:
 			recentPayloads.length === 0
-				? 'هیچ وب‌هوکی دریافت نشده. در Meta dashboard → Webhooks مطمئن شوید Callback URL ثبت شده و Subscribe فیلدها فعال است.'
+				? otherTenantPayloadCount > 0
+					? 'وب‌هوک روی سرور دریافت می‌شود، ولی هیچ رویدادی مربوط به اکانت شما نبوده. در Meta dashboard مطمئن شوید همین اکانت Subscribe شده است.'
+					: 'هیچ وب‌هوکی دریافت نشده. در Meta dashboard → Webhooks مطمئن شوید Callback URL ثبت شده و Subscribe فیلدها فعال است.'
 				: matchFound
 					? subscription === null || subscription.length === 0
 						? 'وب‌هوک میاد و id مطابقت داره، ولی subscription فعال نیست. روی دکمه «فعال‌سازی مجدد» بزنید.'
@@ -128,8 +109,29 @@ export async function GET(_req: Request, props: Params) {
 							recentPayloads.flatMap((p) => p.allSentIds),
 						)}. id‌های ذخیره‌شده: ${JSON.stringify(storedIds)}. ` +
 						'این یک رفتار شناخته‌شده‌ی متاست (id رابط کاربری با id وب‌هوک متفاوته). ' +
-						'سیستم با single-channel fallback خودکار این رو حل می‌کنه — اگه بازم کار نکرد، یک پیام تست بفرستید.',
+						'با دکمه «اصلاح id» می‌توانید id دریافتی را ثبت کنید.',
 	})
+}
+
+/**
+ * Every Instagram routing id currently claimed by ANY channel. Used to decide
+ * whether a buffered payload is "orphan" (safe to show/claim) or belongs to
+ * another workspace (must stay hidden and unclaimable).
+ */
+async function allClaimedInstagramIds(): Promise<string[]> {
+	const channels = await prisma.agentChannel.findMany({
+		where: { type: 'INSTAGRAM' },
+		select: { config: true },
+	})
+	const ids: string[] = []
+	for (const c of channels) {
+		const cfg = (c.config as Record<string, unknown> | null) ?? {}
+		for (const field of ['igUserId', 'pageId', 'igBusinessAccountId', 'webhookIgId']) {
+			const v = cfg[field]
+			if (v !== undefined && v !== null && String(v)) ids.push(String(v))
+		}
+	}
+	return ids
 }
 
 /** Re-subscribe the IG user to webhook fields. */
@@ -177,9 +179,12 @@ export async function POST(_req: Request, props: Params) {
  * `recipient.id` in webhook payloads. This is a known Meta behavior. When that
  * happens, the demux can't find the channel and messages are silently dropped.
  *
- * This endpoint takes a `recipientId` (extracted from a webhook payload's
- * `entry[].messaging[].recipient.id`) and updates the channel config to use it
- * as the primary `igUserId`. After this, the demux will match.
+ * SECURITY: this value IS the global webhook's routing key, so an unvalidated
+ * write let one workspace claim another workspace's Instagram id and receive
+ * their DMs. A submitted id is therefore accepted only when it is provably
+ * ours — it matches the Meta-verified profile for our own token, or it arrived
+ * as an owner-side id in a recent webhook payload that no other channel claims
+ * — and never when another channel already claims it.
  *
  * Body: `{ recipientId: string }` — the id Meta sent as recipient.id.
  */
@@ -211,8 +216,66 @@ export async function PUT(req: Request, props: Params) {
 		)
 	}
 
-	// Merge the new igUserId into the existing config.
 	const config = (channel.config as Record<string, unknown> | null) ?? {}
+	const ownStoredIds = ['igUserId', 'pageId', 'igBusinessAccountId', 'webhookIgId']
+		.map((f) => (config[f] === undefined || config[f] === null ? '' : String(config[f])))
+		.filter(Boolean)
+
+	// Already ours — nothing to prove, nothing to change.
+	if (!ownStoredIds.includes(newId)) {
+		// 1) Refuse ids another workspace's channel already routes on.
+		const claimedElsewhere = await prisma.agentChannel.findFirst({
+			where: {
+				type: 'INSTAGRAM',
+				id: { not: channel.id },
+				OR: [
+					{ config: { path: ['igUserId'], equals: newId } },
+					{ config: { path: ['pageId'], equals: newId } },
+					{ config: { path: ['igBusinessAccountId'], equals: newId } },
+					{ config: { path: ['webhookIgId'], equals: newId } },
+				],
+			},
+			select: { id: true },
+		})
+		if (claimedElsewhere) {
+			return NextResponse.json(
+				{
+					error: 'ID_ALREADY_CLAIMED',
+					hint: 'این شناسه به کانال دیگری تعلق دارد و قابل ثبت نیست.',
+				},
+				{ status: 409 },
+			)
+		}
+
+		// 2) Prove ownership: the Meta-verified profile of OUR token, or an
+		//    owner-side id from a recent unclaimed webhook payload.
+		const token = readPageToken(channel.config)
+		const profile = token ? await getInstagramProfile(token).catch(() => null) : null
+		let verified = profile?.igUserId === newId
+
+		if (!verified) {
+			const { payloads } = getScopedWebhookPayloads(
+				'INSTAGRAM',
+				ownStoredIds,
+				await allClaimedInstagramIds(),
+				MAX_DIAGNOSTIC_PAYLOADS,
+			)
+			verified = payloads.some((p) => p.allSentIds.includes(newId))
+		}
+
+		if (!verified) {
+			return NextResponse.json(
+				{
+					error: 'ID_NOT_VERIFIED',
+					hint:
+						'این شناسه نه با پروفایل متصل‌شده مطابقت دارد و نه در وب‌هوک‌های اخیر این اکانت دیده شده است. ' +
+						'ابتدا یک پیام تست به اکانت خود بفرستید و سپس دوباره تلاش کنید.',
+				},
+				{ status: 422 },
+			)
+		}
+	}
+
 	const updated: Record<string, unknown> = {
 		...config,
 		igUserId: newId,

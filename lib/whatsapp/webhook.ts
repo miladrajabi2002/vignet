@@ -27,38 +27,43 @@ import { captureError } from '@/lib/errors/capture'
  * All three are set by `buildWhatsappOAuthConfig`, so this works out of the
  * box for any OAuth-connected WhatsApp channel.
  */
+type WaGlobalEntry = {
+  id?: string
+  changes?: Array<{
+    value?: { metadata?: { phone_number_id?: string } }
+  }>
+}
+
 export async function handleWhatsappGlobalInbound(
   body: unknown,
 ): Promise<void> {
-  const entries = (
-    body as {
-      entry?: Array<{
-        id?: string
-        changes?: Array<{
-          value?: { metadata?: { phone_number_id?: string } }
-        }>
-      }>
-    }
-  )?.entry
+  const entries = (body as { entry?: WaGlobalEntry[] })?.entry
   if (!entries?.length) return
 
-  // Collect the distinct phone number ids mentioned in this batch. WhatsApp
-  // webhook entries are scoped by WABA (entry.id is the WABA id); each change
-  // carries the actual receiving phone number id in its metadata. Multiple
-  // messages from the same number land in one entry under value.messages[].
-  const phoneNumberIds = new Set<string>()
+  // Group the batch PER phone number id. WhatsApp webhook entries are scoped
+  // by WABA (entry.id is the WABA id); each change carries the receiving phone
+  // number id in its metadata. One batch can mix numbers belonging to
+  // DIFFERENT workspaces, so each channel must only ever see its own slice —
+  // handing the full body to every matching channel would both leak another
+  // tenant's messages into this workspace and (because the adapter parses per
+  // change) drop the rest of the batch.
+  const byPhoneNumberId = new Map<string, WaGlobalEntry[]>()
   for (const e of entries) {
     for (const c of e.changes ?? []) {
       const pid = c.value?.metadata?.phone_number_id
-      if (pid) phoneNumberIds.add(pid)
+      if (!pid) continue
+      const g = byPhoneNumberId.get(pid)
+      const scopedEntry: WaGlobalEntry = { id: e.id, changes: [c] }
+      if (g) g.push(scopedEntry)
+      else byPhoneNumberId.set(pid, [scopedEntry])
     }
   }
-  if (!phoneNumberIds.size) return
+  if (!byPhoneNumberId.size) return
 
-  // Resolve each phone number to its channel and process. Multiple numbers in
-  // one batch (rare) are handled independently.
+  // Resolve each phone number to its channel and process ONLY that number's
+  // changes. Multiple numbers in one batch are handled independently.
   await Promise.all(
-    Array.from(phoneNumberIds).map(async (phoneNumberId) => {
+    Array.from(byPhoneNumberId.entries()).map(async ([phoneNumberId, scopedEntries]) => {
       try {
         const channel = await prisma.agentChannel.findFirst({
           where: {
@@ -78,7 +83,11 @@ export async function handleWhatsappGlobalInbound(
         // channel by webhookToken → `readBotToken` returns the packed
         // `accessToken|phoneNumberId` string → `whatsappAdapter` parses it →
         // the message is processed exactly like a legacy per-token webhook.
-        await handleInbound('WHATSAPP', webhookToken, body)
+        const scopedBody = {
+          ...((body as Record<string, unknown>) ?? {}),
+          entry: scopedEntries,
+        }
+        await handleInbound('WHATSAPP', webhookToken, scopedBody)
       } catch (e) {
         captureError('webhook:WHATSAPP:global', e, {
           metadata: { phoneNumberId },

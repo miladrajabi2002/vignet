@@ -1,5 +1,6 @@
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
+import { AGENT_MODELS } from '@/lib/ai/models'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
@@ -47,16 +48,30 @@ function appHeaders(): Record<string, string> {
   }
 }
 
+// Providers charging above the catalog reference rate × this margin are
+// filtered out by OpenRouter. Derived from AGENT_MODELS so a model rotation
+// can never leave a stale hardcoded cap that silently filters out EVERY
+// provider for a tier (the old substring check on 'qwen3.5' did exactly that
+// after the catalog moved to qwen3.6/3.7 — those tiers were capped below
+// their own listed rates).
+const MAX_PRICE_MARGIN = 3
+const DEFAULT_MAX_PRICE = { prompt: 1.5, completion: 3 }
+
+function maxPriceFor(model: string): { prompt: number; completion: number } {
+  const catalog = AGENT_MODELS.find((m) => m.providerId === model)
+  if (!catalog) return DEFAULT_MAX_PRICE
+  return {
+    prompt: catalog.inputUsdPerMillion * MAX_PRICE_MARGIN,
+    completion: catalog.outputUsdPerMillion * MAX_PRICE_MARGIN,
+  }
+}
+
 function requestBody(
   opts: ChatOptions,
   stream: boolean,
   runtime: Pick<PlatformCommercialConfig, 'providerSort' | 'zeroDataRetention'>,
 ): Record<string, unknown> {
-  const maxPrice = opts.model.includes('v4-pro')
-    ? { prompt: 1.2, completion: 2.4 }
-    : opts.model.includes('qwen3.5')
-      ? { prompt: 0.2, completion: 1.2 }
-      : { prompt: 0.12, completion: 0.24 }
+  const maxPrice = maxPriceFor(opts.model)
   return {
     model: opts.model,
     messages: opts.messages,

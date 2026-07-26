@@ -28,6 +28,11 @@ module.exports = {
       max_memory_restart: "512M",
       instances: 1,
       autorestart: true,
+      // An inbound job holds a 5-30s LLM round trip. PM2's 1.6s default
+      // SIGKILLed the worker mid-job on every deploy, and BullMQ then re-ran
+      // the stalled job — resending replies the customer already received.
+      // Give worker.close() room to drain active jobs first.
+      kill_timeout: 60000,
     },
     {
       name: "vignet-whatsapp-bridge",

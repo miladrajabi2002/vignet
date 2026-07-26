@@ -19,6 +19,7 @@ import {
         type WidgetSettings,
         type WidgetIcon,
 } from '@/lib/widget/config'
+import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
 
 export const WIDGET_ICON_COMPONENTS: Record<WidgetIcon, LucideIcon> = {
         chat: MessageCircle,
@@ -301,7 +302,11 @@ export function WidgetPreview({
                                                         )}
                                                 </div>
                                         ) : (
-                                                <div className="flex flex-1 flex-col gap-2 overflow-hidden p-3">
+                                                /* dir=ltr — the real widget forces direction:ltr on its message
+                                                   list (.vgt-body in loader.js) so the visitor bubble is always
+                                                   on the visual RIGHT, even in Persian. Bubble text keeps
+                                                   unicode-bidi:plaintext so Persian still reads RTL inside. */
+                                                <div dir="ltr" className="flex flex-1 flex-col gap-2 overflow-hidden p-3">
                                                         {/* user bubble */}
                                                         <div
                                                                 className="max-w-[84%] self-end px-3 py-2 text-[12px] leading-relaxed"
@@ -309,8 +314,10 @@ export function WidgetPreview({
                                                                         background: gradient,
                                                                         color: onAccent,
                                                                         borderRadius: radii.bubble,
-                                                                                        borderBottomRightRadius: 5,
-                                                                                        boxShadow: `0 4px 12px -4px ${hexToRgba(accent, 0.4)}`,
+                                                                        borderBottomRightRadius: 5,
+                                                                        boxShadow: `0 4px 12px -4px ${hexToRgba(accent, 0.4)}`,
+                                                                        unicodeBidi: 'plaintext',
+                                                                        textAlign: 'start',
                                                                 }}
                                                         >
                                                                 {demo.user}
@@ -332,8 +339,10 @@ export function WidgetPreview({
                                                                         background: c.surface,
                                                                         color: c.text,
                                                                         borderRadius: radii.bubble,
-                                                                                        borderBottomLeftRadius: 5,
-                                                                                }}
+                                                                        borderBottomLeftRadius: 5,
+                                                                        unicodeBidi: 'plaintext',
+                                                                        textAlign: 'start',
+                                                                }}
                                                         >
                                                                 {demo.bot}
                                                         </div>
@@ -404,31 +413,34 @@ export function WidgetPreview({
                                                 </div>
                                         )}
 
-                                        {/* input */}
+                                        {/* input — same pill geometry as the shared composer, except the
+                                            radius, which stays the owner's configured input radius. */}
                                         <div className="p-2.5" style={{ borderTop: `1px solid ${c.border}` }}>
+                                                {/* dir=ltr keeps the send button on the visual right in both locales. */}
                                                 <div
-                                                        className="flex items-center gap-2 px-3 py-1.5"
+                                                        dir="ltr"
+                                                        className="flex items-end gap-2 px-2 py-1.5"
                                                         style={{
                                                                 background: c.surface,
-                                                                border: `1px solid ${c.border}`,
+                                                                border: `1.5px solid ${c.border}`,
                                                                 borderRadius: radii.input,
                                                         }}
                                                 >
-                                                        <span className="flex-1 text-[12px]" style={{ color: c.muted }}>
+                                                        <span
+                                                                dir={isRtl ? 'rtl' : 'ltr'}
+                                                                className="flex flex-1 items-center px-2 text-[12px]"
+                                                                style={{ color: c.muted, minHeight: COMPOSER_GEOMETRY.textareaMinHeight }}
+                                                        >
                                                                 {isRtl ? 'پیام خود را بنویسید…' : 'Type a message…'}
                                                         </span>
-                                                        <button
-                                                                type="button"
-                                                                aria-label="send"
-                                                                className="flex h-7 w-7 items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-90"
-                                                                style={{
-                                                                        background: gradient,
-                                                                        color: onAccent,
-                                                                        boxShadow: `0 4px 12px -3px ${hexToRgba(accent, 0.5)}`,
-                                                                }}
-                                                        >
-                                                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden><path d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z" /></svg>
-                                                        </button>
+                                                        {/* Inert by design — a preview has nothing to send. The opacity
+                                                            override keeps the brand color readable while disabled. */}
+                                                        <SendButton
+                                                                disabled
+                                                                label={isRtl ? 'ارسال' : 'Send'}
+                                                                className="disabled:cursor-default disabled:opacity-100"
+                                                                style={{ background: gradient, color: onAccent }}
+                                                        />
                                                 </div>
                                         </div>
                                 </div>

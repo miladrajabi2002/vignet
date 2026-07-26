@@ -18,7 +18,10 @@ const SESSION_TTL_SECONDS = 12 * 60 * 60
 function secret(): string {
         const s = process.env.ADMIN_SESSION_SECRET || process.env.AUTH_SECRET
         if (!s) throw new Error('ADMIN_SESSION_SECRET (or AUTH_SECRET) is not set')
-        return s
+        // Mix in ADMIN_PASS: admin session cookies are stateless (no server-side
+        // record), so rotating the admin password is the operator's revocation
+        // lever — it must immediately invalidate every outstanding session.
+        return `${s}:${process.env.ADMIN_PASS ?? ''}`
 }
 
 function sign(payload: string): string {
@@ -38,17 +41,9 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * 🔍 نتیجه‌ی تشخیصی لاگین ادمین — به‌جای boolean، جزئیات برمی‌گرداند
- * تا فرم لاگین و لاگ سرور دقیقاً بگویند کدام گام شکست خورده.
- *
- * reason:
- *   - 'MISSING_ENV'      → یکی از متغیرهای env اصلاً موجود نیست (احتمالاً سرور env قدیمی دارد)
- *   - 'PHONE_INVALID'    → شماره‌ای که کاربر وارد کرده نرمالایز نمی‌شود
- *   - 'PHONE_MISMATCH'   → شماره کاربر با ADMIN_OWNER_PHONE برابر نیست
- *   - 'PASSWORD_MISMATCH'→ شماره درست بود ولی رمز عبور فرق دارد
- *   - 'TOTP_MISSING'     → TOTP فعال است ولی کد وارد نشده
- *   - 'TOTP_INVALID'     → کد TOTP اشتباه است
- *   - 'TOTP_OK'          → موفقیت
+ * نتیجه‌ی لاگین ادمین با کد دلیل داخلی. کدها فقط سمت سرور مصرف می‌شوند —
+ * کلاینت ناشناس همیشه یک پیام عمومی می‌گیرد تا مرحله‌ی شکست (شماره درست بود؟
+ * رمز درست بود؟) به مهاجم لو نرود.
  */
 export type AdminLoginResult =
         | { ok: true; reason: 'TOTP_OK' }
@@ -64,118 +59,47 @@ export type AdminLoginResult =
           }
 
 /**
- * نسخه‌ی تشخیصی verifyAdminCredentials — همان منطق قدیمی را دارد ولی
- * دقیقاً می‌گوید کدام گام شکست خورده. بدون لو رفتن مقادیر مخفی.
+ * Verify the admin phone + password (+ TOTP when configured) and report which
+ * step failed via an internal reason code.
+ *
+ * SECURITY: this function must never log credential material. A previous
+ * "diagnostic" version printed the raw username, the normalized admin phone
+ * and — worst — the ADMIN_TOTP_SECRET seed into server logs on every failed
+ * attempt, permanently downgrading admin 2FA for anyone with log access.
+ * Only the bare reason code may be logged.
  */
 export function verifyAdminCredentialsDetailed(
         username: string,
         password: string,
         otp?: string,
 ): AdminLoginResult {
-        // مقادیر از env و ماژول owner خوانده می‌شوند
         const p = process.env.ADMIN_PASS
         const phone = normalizePhone(username)
         const ownerPhone = ADMIN_OWNER_PHONE // از lib/admin/owner.ts — در زمان لود ماژول نرمالایز شده
 
-        // ─── لاگ تشخیصی (بدون لو رفتن رمز/secret) ───────────────────────────────
-        // این لاگ‌ها در pm2 logs یا خروجی استاندارد سرور دیده می‌شوند.
-        console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        console.error(
-                `[ADMIN-AUTH-DEBUG] username ورودی (خام):        ${JSON.stringify(username)}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] normalizePhone(username):     ${phone ?? 'null (نامعتبر!)'}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] ADMIN_OWNER_PHONE (ماژول):    ${ownerPhone ?? 'null (در زمان لود خالی بوده!)'}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] ADMIN_OWNER_PHONE در env:     ${JSON.stringify(process.env.ADMIN_OWNER_PHONE ?? '(تعریف‌نشده)')}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] ADMIN_PASS موجود؟             ${p ? `بله (${p.length} کاراکتر)` : '❌ خیر'}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] ADMIN_TOTP_SECRET موجود؟      ${process.env.ADMIN_TOTP_SECRET ? `بله (${process.env.ADMIN_TOTP_SECRET.length} کاراکتر)` : 'خیر (TOTP غیرفعال)'}`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] رمز ورودی طول:                ${password.length} کاراکتر`,
-        )
-        console.error(
-                `[ADMIN-AUTH-DEBUG] otp ورودی:                    ${otp ? `${otp.length} رقم` : '(خالی)'}`,
-        )
-
-        // ─── گام ۱: آیا هر سه متغیر لازم موجود است؟ ───────────────────────────────
-        // نکته مهم: اگر ADMIN_OWNER_PHONE در زمان لود ماژول خالی بوده (سرور قبل از
-        // تنظیم .env استارت شده)، اینجا null خواهد بود و همیشه لاگین شکست می‌خورد
-        // حتی اگر فایل .env الان درست باشد. راه‌حل: ری‌استارت سرور.
-        if (!ownerPhone || !phone || !p) {
-                const missing: string[] = []
-                if (!ownerPhone)
-                        missing.push('ADMIN_OWNER_PHONE (یا سرور env قدیمی دارد — ری‌استارت کنید!)')
-                if (!phone) missing.push('شماره ورودی نامعتبر')
-                if (!p) missing.push('ADMIN_PASS')
-                console.error(`[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۱ (MISSING_ENV): ${missing.join('، ')}`)
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: false, reason: 'MISSING_ENV' }
+        const fail = (reason: Exclude<AdminLoginResult['reason'], 'TOTP_OK'>): AdminLoginResult => {
+                // Reason code only — no phone numbers, no lengths, no secrets.
+                console.warn(`[admin-auth] login failed (${reason})`)
+                return { ok: false, reason }
         }
-        console.error('[ADMIN-AUTH-DEBUG] ✅ گام ۱: همه متغیرها موجودند')
 
-        // ─── گام ۲: مقایسه شماره ──────────────────────────────────────────────────
-        const phoneMatch = safeEqual(phone, ownerPhone)
-        if (!phoneMatch) {
-                console.error(
-                        `[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۲ (PHONE_MISMATCH): ورودی=${phone} ≠ env=${ownerPhone}`,
-                )
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: false, reason: 'PHONE_MISMATCH' }
-        }
-        console.error('[ADMIN-AUTH-DEBUG] ✅ گام ۲: شماره موبایل درست است')
+        // اگر ADMIN_OWNER_PHONE در زمان لود ماژول خالی بوده (سرور قبل از تنظیم
+        // .env استارت شده)، اینجا null است و لاگین همیشه شکست می‌خورد — راه‌حل:
+        // ری‌استارت سرور.
+        if (!ownerPhone || !phone || !p) return fail('MISSING_ENV')
 
-        // ─── گام ۳: مقایسه رمز عبور ───────────────────────────────────────────────
-        const passMatch = safeEqual(password, p)
-        if (!passMatch) {
-                console.error(
-                        `[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۳ (PASSWORD_MISMATCH): طول ورودی=${password.length} ≠ طول env=${p.length}`,
-                )
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: false, reason: 'PASSWORD_MISMATCH' }
-        }
-        console.error('[ADMIN-AUTH-DEBUG] ✅ گام ۳: رمز عبور درست است')
+        if (!safeEqual(phone, ownerPhone)) return fail('PHONE_MISMATCH')
 
-        // ─── گام ۴: TOTP (اگر فعال است) ───────────────────────────────────────────
+        if (!safeEqual(password, p)) return fail('PASSWORD_MISMATCH')
+
         const totpConfigured = process.env.ADMIN_TOTP_SECRET?.trim()
-        if (!totpConfigured) {
-                // TOTP فعال نیست → لاگین موفق
-                console.error('[ADMIN-AUTH-DEBUG] ✅ گام ۴: TOTP غیرفعال است — لاگین موفق')
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: true, reason: 'TOTP_OK' }
-        }
+        if (!totpConfigured) return { ok: true, reason: 'TOTP_OK' }
 
         const candidate = otp?.trim() ?? ''
-        if (!/^\d{6}$/.test(candidate)) {
-                console.error(`[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۴ (TOTP_MISSING): کد ۶ رقمی وارد نشده`)
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: false, reason: 'TOTP_MISSING' }
-        }
+        if (!/^\d{6}$/.test(candidate)) return fail('TOTP_MISSING')
 
-        const totpOk = verifyTotpIfConfigured(otp)
-        if (!totpOk) {
-                console.error(
-                        `[ADMIN-AUTH-DEBUG] ❌ FAIL گام ۴ (TOTP_INVALID): کد وارد شده هم‌خوانی ندارد`,
-                )
-                console.error(
-                        `[ADMIN-AUTH-DEBUG]    کدی که سرور الان تولید می‌کند: ${totpConfigured} (با اپ گوشی مقایسه کنید)`,
-                )
-                console.error(
-                        `[ADMIN-AUTH-DEBUG]    اگه کد اپ فرق دارد، secret را دوباره در اپ وارد کنید`,
-                )
-                console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-                return { ok: false, reason: 'TOTP_INVALID' }
-        }
+        if (!verifyTotpIfConfigured(otp)) return fail('TOTP_INVALID')
 
-        console.error('[ADMIN-AUTH-DEBUG] ✅ گام ۴: کد TOTP درست است — لاگین موفق')
-        console.error('[ADMIN-AUTH-DEBUG] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         return { ok: true, reason: 'TOTP_OK' }
 }
 

@@ -17,7 +17,10 @@ const COPY = {
 		solutionsTitle: 'راهکارها',
 		resourcesTitle: 'یادگیری',
 		productLinks: ['اتصال‌ها', 'دموی زنده', 'Vigento AI', 'تعرفه‌ها'],
-		solutionLinks: ['اینستاگرام', 'فروشگاه آنلاین', 'خدمات و رزرو', 'پشتیبانی مشتری', 'ووکامرس'],
+		// Order must track solutionHrefs below — these labels previously pointed at
+		// the wrong pages ("خدمات و رزرو" opened the support page, "پشتیبانی مشتری"
+		// opened the chatbot page).
+		solutionLinks: ['اینستاگرام', 'فروشگاه آنلاین', 'پشتیبانی مشتری', 'چت‌بات فارسی', 'ووکامرس'],
 		resourceLinks: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
 		status: 'همه سرویس‌ها فعال',
 		made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
@@ -32,7 +35,7 @@ const COPY = {
 		solutionsTitle: 'Solutions',
 		resourcesTitle: 'Learn',
 		productLinks: ['Connections', 'Live demo', 'Vigento AI', 'Pricing'],
-		solutionLinks: ['Instagram', 'Online stores', 'Services and booking', 'Customer support', 'WooCommerce'],
+		solutionLinks: ['Instagram', 'Online stores', 'Customer support', 'Persian AI chatbot', 'WooCommerce'],
 		resourceLinks: ['Documentation', 'Blog', 'Service status'],
 		status: 'All services operational',
 		made: 'Built for Iranian businesses',

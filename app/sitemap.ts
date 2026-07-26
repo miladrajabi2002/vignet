@@ -3,25 +3,16 @@ import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { SOLUTIONS } from '@/lib/marketing/solutions'
 import { DOCS_NAV } from '@/lib/docs/nav'
+import { getMainWorkspaceId } from '@/lib/blog/workspace'
 
 // Stays dynamic (a static sitemap would need the DB at build time), but the
 // DB reads below are cached for an hour — crawlers hit sitemaps aggressively.
 export const dynamic = 'force-dynamic'
 
-/**
- * The platform's own blog workspace. Explicit via PLATFORM_WORKSPACE_ID; the
- * oldest workspace is only a fallback for single-tenant installs (relying on
- * it alone would index a random tenant's posts once tenants publish blogs).
- */
-async function getWorkspaceId(): Promise<string | null> {
-	const explicit = process.env.PLATFORM_WORKSPACE_ID
-	if (explicit) return explicit
-	const ws = await prisma.workspace.findFirst({
-		orderBy: { createdAt: 'asc' },
-		select: { id: true },
-	})
-	return ws?.id ?? null
-}
+// The platform's own blog workspace. Shared with every blog page and the admin
+// blog API via lib/blog/workspace — a second local copy here is what let the
+// sitemap advertise posts the pages could not find.
+const getWorkspaceId = getMainWorkspaceId
 
 const getBlogEntries = unstable_cache(
 	async () => {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { handleInstagramGlobalInbound } from '@/lib/channels/handler'
+import { dispatchGlobalInbound } from '@/lib/queue/jobs'
 import { metaVerifyToken } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
 import { logWebhookPayload } from '@/lib/channels/webhook-debug'
@@ -86,11 +86,15 @@ export async function POST(req: Request) {
     logWebhookPayload('INSTAGRAM', 'global', body, -1)
   }
 
-  // Process without blocking the response — Meta retries aggressively on slow
-  // webhooks. Inline fire-and-forget is fine here (no per-token queue key).
-  void handleInstagramGlobalInbound(body).catch((e) =>
-    captureError('webhook:INSTAGRAM:global:process', e),
-  )
+  // Enqueue for durable processing in the worker (fast — no LLM work here).
+  // Fire-and-forget inline processing lost messages on every deploy/restart
+  // after the 200 ACK. When the queue is down we answer 503 so Meta redelivers.
+  try {
+    await dispatchGlobalInbound({ global: 'INSTAGRAM', body })
+  } catch (e) {
+    captureError('webhook:INSTAGRAM:global:enqueue', e)
+    return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
+  }
 
   return NextResponse.json({ ok: true })
 }

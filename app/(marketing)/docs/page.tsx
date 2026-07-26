@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { DocContent } from '@/components/docs/doc-content'
 import { getDoc, type Locale } from '@/lib/docs/content'
 import { DOCS_NAV } from '@/lib/docs/nav'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 export const metadata: Metadata = {
   title: 'راهنمای ویجنت — ساخت ایجنت، اتصال کانال و مدیریت هزینه',
@@ -31,7 +32,7 @@ export default async function DocsHomePage() {
   }
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <DocContent page={page} locale={locale} />
     </>
   )

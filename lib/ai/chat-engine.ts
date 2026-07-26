@@ -228,17 +228,55 @@ async function prepareTurn(params: StartChatParams): Promise<
                 return { error: 'OPERATOR_ACTIVE', conversationId }
         }
 
+        // A customer message must NEVER vanish just because the workspace can't
+        // get an AI reply right now (expired plan, empty wallet, missing platform
+        // key). Persist it for the inbox before returning any gate error — the
+        // webhook has already ACKed, so the platform will not redeliver it.
+        const persistGatedInbound = async () => {
+                try {
+                        await prisma.$transaction([
+                                prisma.message.create({
+                                        data: {
+                                                conversationId,
+                                                role: 'USER',
+                                                content: message,
+                                                metadata: params.inboundMetadata,
+                                        },
+                                }),
+                                prisma.conversation.update({
+                                        where: { id: conversationId },
+                                        data: {
+                                                messageCount: { increment: 1 },
+                                                lastMessageAt: new Date(),
+                                        },
+                                }),
+                        ])
+                        bumpContactActivity(conversationId)
+                } catch (error) {
+                        console.error('[chat-engine] gated inbound persist failed:', error)
+                }
+        }
+
         // Plan gate: expired trial/subscription or exhausted monthly quota.
         const gate = await checkChatAllowed(workspaceId)
-        if (!gate.allowed) return { error: 'PLAN_BLOCKED', reason: gate.reason }
+        if (!gate.allowed) {
+                await persistGatedInbound()
+                return { error: 'PLAN_BLOCKED', reason: gate.reason }
+        }
 
-        if (!getPlatformOpenRouterKey()) return { error: 'AI_UNAVAILABLE' }
+        if (!getPlatformOpenRouterKey()) {
+                await persistGatedInbound()
+                return { error: 'AI_UNAVAILABLE' }
+        }
 
         const platformConfig = await getPlatformAiConfig()
         const requestedAlias = resolveModelAlias(agent.model || platformConfig.defaultModel || DEFAULT_MODEL)
         const modelAlias = applyPlatformModelPolicy(requestedAlias, platformConfig, gate.plan)
         const model = resolveModelId(modelAlias, platformConfig.providerModels)
-        if (!(await hasPlatformAiBudget(platformConfig))) return { error: 'AI_UNAVAILABLE' }
+        if (!(await hasPlatformAiBudget(platformConfig))) {
+                await persistGatedInbound()
+                return { error: 'AI_UNAVAILABLE' }
+        }
 
         // F3: best-effort identity extraction from the inbound user message,
         // merged with structured identity from the widget's pre-chat lead form.
@@ -278,8 +316,11 @@ async function prepareTurn(params: StartChatParams): Promise<
                 if (!resolvedContactName) resolvedContactName = c?.name ?? null
                 if (!resolvedContactPhone) resolvedContactPhone = c?.phone ?? null
         }
-        // If we just extracted a name, prefer it for this turn's greeting.
-        if (extracted.name) resolvedContactName = extracted.name
+        // An explicit lead-form name always wins over a heuristic in-message
+        // extraction; only fall back to the extracted name when no form name exists.
+        if (extracted.name && !params.contactName?.trim()) {
+                resolvedContactName = extracted.name
+        }
 
         // Re-read the (possibly updated) identification state.
         const freshState = extracted.name || extracted.phone
@@ -303,7 +344,10 @@ async function prepareTurn(params: StartChatParams): Promise<
                 providerModel: model,
                 idempotencyKey: `chat:${conversationId}:${crypto.randomUUID()}`,
         })
-        if (!reserved.ok) return { error: 'NO_CREDIT' }
+        if (!reserved.ok) {
+                await persistGatedInbound()
+                return { error: 'NO_CREDIT' }
+        }
         const reservation = reserved.reservation
 
         try {
@@ -528,8 +572,29 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
                 async start(controller) {
-                        const send = (obj: unknown) =>
-                                controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+                        // Once the consumer cancels (visitor closed the tab, lost network),
+                        // every enqueue throws per the Streams spec. Swallow that: the turn
+                        // must still finish so the generated reply is persisted for the
+                        // inbox and the credit is settled correctly. An unguarded enqueue
+                        // used to reject start() and skip capture + persistAssistantTurn
+                        // entirely, leaving the customer's question unanswered in the DB.
+                        let clientGone = false
+                        const send = (obj: unknown) => {
+                                if (clientGone) return
+                                try {
+                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+                                } catch {
+                                        clientGone = true
+                                }
+                        }
+                        const closeStream = () => {
+                                if (clientGone) return
+                                try {
+                                        closeStream()
+                                } catch {
+                                        clientGone = true
+                                }
+                        }
 
                         send({ type: 'meta', conversationId })
 
@@ -545,7 +610,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         metadata: { agentId: agent.id, conversationId },
                                 })
                                 send({ type: 'error', error: 'PREPARATION_FAILED' })
-                                controller.close()
+                                closeStream()
                                 return
                         }
                         if (handoffCheck.handoff) {
@@ -564,7 +629,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         replyText: handoffText,
                                 })
                                 send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
-                                controller.close()
+                                closeStream()
                                 return
                         }
 
@@ -598,7 +663,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                 console.error('[chat-engine] deterministic persist failed:', error)
                                                 send({ type: 'done' })
                                         }
-                                        controller.close()
+                                        closeStream()
                                         return
                                 }
                         } catch (error) {
@@ -658,6 +723,10 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 }
                                 send({ type: 'error', error: 'STREAM_FAILED' })
                         }
+
+                        // A disconnect is not a provider failure: the reply was generated
+                        // and must still be captured and persisted for the inbox.
+                        if (clientGone && full.trim()) providerFailed = false
 
                         // A 2xx provider response with no content is not a
                         // successful reply and must not consume reply credit.
@@ -722,7 +791,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 send({ type: 'done' })
                         }
 
-                        controller.close()
+                        closeStream()
                 },
                 cancel() {
                         // Idempotent: if capture/release already happened this is a no-op.

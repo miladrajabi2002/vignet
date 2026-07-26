@@ -1,16 +1,16 @@
 'use client'
 
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Check,
   Loader2,
   Plus,
   RotateCcw,
-  Send,
   ShieldCheck,
   Sparkles,
   X,
 } from 'lucide-react'
+import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { ConversationText } from '@/components/chat/conversation-bubble'
 import { cn } from '@/lib/utils'
 
@@ -48,7 +48,7 @@ export function VigentoAdminConsole({
   const [mode, setMode] = useState<'chat' | 'work'>('chat')
   const [showPrompts, setShowPrompts] = useState(false)
   const messagesRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const composerRef = useRef<ChatComposerHandle>(null)
 
   useEffect(() => {
     let active = true
@@ -106,13 +106,8 @@ export function VigentoAdminConsole({
       ])
     } finally {
       setLoading(false)
-      requestAnimationFrame(() => textareaRef.current?.focus())
+      requestAnimationFrame(() => composerRef.current?.focus())
     }
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    void ask(input)
   }
 
   async function resetChat() {
@@ -133,7 +128,7 @@ export function VigentoAdminConsole({
       ])
     } finally {
       setResetting(false)
-      requestAnimationFrame(() => textareaRef.current?.focus())
+      requestAnimationFrame(() => composerRef.current?.focus())
     }
   }
 
@@ -248,32 +243,26 @@ export function VigentoAdminConsole({
               ))}
             </div>
           )}
-          <form dir="ltr" onSubmit={submit} className="flex items-end gap-1.5 rounded-[1.65rem] border border-black/[0.09] bg-white p-1.5 shadow-[0_16px_42px_-24px_rgba(0,0,0,.3)] transition-[border-color,box-shadow] focus-within:border-black/20 focus-within:shadow-[0_18px_46px_-22px_rgba(0,0,0,.34)]">
-            <button type="button" onClick={() => setShowPrompts((value) => !value)} className="spatial-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-black/65 hover:bg-zinc-100" aria-label="نمایش عملیات پیشنهادی" aria-expanded={showPrompts}><Plus className={cn('h-5 w-5 transition-transform duration-150', showPrompts && 'rotate-45')} /></button>
-            <textarea
-              ref={textareaRef}
-              dir="rtl"
-              rows={1}
-              maxLength={1800}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  void ask(input)
-                }
-              }}
-              placeholder={mode === 'work' ? 'عملیات مدیریتی موردنظر را بنویسید…' : 'از ویجنتو بپرسید…'}
-              className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-right text-[13px] leading-5 text-zinc-900 outline-none placeholder:text-black/30"
-              aria-label="پیام به ویجنتو"
-            />
-            <span dir="rtl" className="mb-1 hidden h-9 max-w-36 items-center truncate rounded-full bg-zinc-100 px-3 text-[9px] font-medium text-black/45 sm:inline-flex" title={providerId}>{modelLabel}</span>
-            <button type="button" onClick={() => void resetChat()} disabled={resetting || loading || (!hasConversation && messages.length === 1)} className="spatial-press mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/45 hover:bg-zinc-100 hover:text-black disabled:opacity-25" aria-label="گفتگوی جدید" title="گفتگوی جدید">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}</button>
-            <button type="submit" disabled={!input.trim() || loading} aria-label="ارسال پیام" className="spatial-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black text-white disabled:cursor-not-allowed disabled:opacity-25">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 rtl:-scale-x-100" />}
-            </button>
-          </form>
-          <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[9px] text-black/30"><ShieldCheck className="h-3 w-3" /> تغییرات حساس فقط پس از تأیید شما اجرا می‌شوند</p>
+          <ChatComposer
+            ref={composerRef}
+            value={input}
+            onChange={setInput}
+            onSend={() => void ask(input)}
+            busy={loading}
+            maxLength={1800}
+            dir="rtl"
+            sendLabel="ارسال پیام"
+            inputLabel="پیام به ویجنتو"
+            placeholder={mode === 'work' ? 'عملیات مدیریتی موردنظر را بنویسید…' : 'از ویجنتو بپرسید…'}
+            leading={
+              <>
+                <button type="button" onClick={() => setShowPrompts((value) => !value)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/65 hover:bg-zinc-100" aria-label="نمایش عملیات پیشنهادی" aria-expanded={showPrompts}><Plus className={cn('h-5 w-5 transition-transform duration-150', showPrompts && 'rotate-45')} /></button>
+                <span dir="rtl" className="mb-0.5 hidden h-9 max-w-36 items-center truncate rounded-full bg-zinc-100 px-3 text-[9px] font-medium text-black/45 sm:inline-flex" title={providerId}>{modelLabel}</span>
+                <button type="button" onClick={() => void resetChat()} disabled={resetting || loading || (!hasConversation && messages.length === 1)} className="spatial-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/45 hover:bg-zinc-100 hover:text-black disabled:opacity-25" aria-label="گفتگوی جدید" title="گفتگوی جدید">{resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}</button>
+              </>
+            }
+            footer={<p className="mt-1.5 flex items-center justify-center gap-1.5 text-[9px] text-black/30"><ShieldCheck className="h-3 w-3" /> تغییرات حساس فقط پس از تأیید شما اجرا می‌شوند</p>}
+          />
         </div>
       </footer>
     </section>

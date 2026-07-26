@@ -13,6 +13,16 @@ export interface InboundMessageJobData {
   body: unknown
 }
 
+/**
+ * A signature-verified payload from one of the GLOBAL Meta webhooks
+ * (`/api/webhook/instagram`, `/api/webhook/whatsapp`). Routed to the matching
+ * per-tenant channel inside the worker (`handle*GlobalInbound`).
+ */
+export interface GlobalInboundJobData {
+  global: 'INSTAGRAM' | 'WHATSAPP'
+  body: unknown
+}
+
 export interface WooWebhookEvent {
   eventId: string
   topic: string
@@ -37,7 +47,9 @@ async function getQueue(name: string): Promise<Queue> {
   const existing = queues.get(name)
   if (existing) return existing
   const { Queue } = await import('bullmq')
-  const q = new Queue(name, { connection: createQueueConnection() })
+  // Producer connection: fail fast when Redis is down so callers can fall
+  // back (inline in dev) or surface 503 to webhook platforms for redelivery.
+  const q = new Queue(name, { connection: createQueueConnection({ failFast: true }) })
   queues.set(name, q)
   return q
 }
@@ -53,7 +65,10 @@ export async function dispatchIngestion(data: IngestionJobData): Promise<void> {
     await q.add('ingest', data, {
       removeOnComplete: true,
       removeOnFail: 50,
-      attempts: 2,
+      // Embedding-provider blips (429/5xx) are the dominant failure mode —
+      // immediate same-second retries just fail again; back off instead.
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5_000 },
     })
   } catch (e) {
     return handleEnqueueFailure('ingestion', e, () => runInlineIngestion(data))
@@ -199,9 +214,16 @@ export async function dispatchInbound(data: InboundMessageJobData): Promise<void
   try {
     const q = await getQueue(QUEUE_NAMES.inboundMessage)
     await q.add('inbound', data, {
+      // Retain failed inbound jobs for inspection and manual retry: the
+      // platform already ACKed, so this record is the only remaining copy of
+      // the customer's message.
       removeOnComplete: true,
-      removeOnFail: 50,
-      attempts: 2,
+      removeOnFail: 500,
+      // Retries are safe now that per-message idempotency claims skip the
+      // messages that already succeeded. Back off so a DB/provider blip has
+      // time to clear instead of burning both attempts in the same second.
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 3_000 },
     })
   } catch (e) {
     return handleEnqueueFailure('inbound', e, () => runInlineInbound(data), true)
@@ -215,6 +237,66 @@ async function runInlineInbound(data: InboundMessageJobData): Promise<void> {
     data.token,
     data.body,
   )
+}
+
+/**
+ * Enqueue a GLOBAL Meta webhook payload (Instagram / WhatsApp OAuth) for
+ * durable processing in the worker. Previously these payloads were processed
+ * fire-and-forget inside the web process after the 200 ACK: a deploy/restart
+ * or transient DB/LLM failure silently lost the customer's message with no
+ * retry. The queue gives the same durability the per-token webhooks have.
+ *
+ * The jobId is a content hash, so a Meta redelivery of the identical payload
+ * dedupes against the still-retained job record instead of double-processing.
+ * Throws in production when the queue is unavailable — the webhook route
+ * answers 503 so Meta redelivers later.
+ */
+export async function dispatchGlobalInbound(data: GlobalInboundJobData): Promise<void> {
+  if (isQueueDisabled()) {
+    // Dev without a worker: keep the fast ACK, process fire-and-forget.
+    void runInlineGlobalInbound(data).catch((e) =>
+      console.error(`[queue] inline ${data.global} global inbound failed:`, e),
+    )
+    return
+  }
+  try {
+    const q = await getQueue(QUEUE_NAMES.inboundMessage)
+    const idHash = crypto
+      .createHash('sha256')
+      .update(`${data.global}:${JSON.stringify(data.body)}`)
+      .digest('hex')
+    const jobId = `global-${idHash}`
+    const existing = await q.getJob(jobId)
+    if (existing) {
+      if ((await existing.getState()) === 'failed') await existing.retry()
+      return
+    }
+    await q.add('inbound-global', data, {
+      jobId,
+      // Keep recent completed records so redeliveries dedupe via jobId.
+      removeOnComplete: 500,
+      removeOnFail: 100,
+      attempts: 2,
+      backoff: { type: 'exponential', delay: 2_000 },
+    })
+  } catch (e) {
+    return handleEnqueueFailure(
+      'inbound-global',
+      e,
+      () => runInlineGlobalInbound(data),
+      true,
+    )
+  }
+}
+
+async function runInlineGlobalInbound(data: GlobalInboundJobData): Promise<void> {
+  if (data.global === 'INSTAGRAM') {
+    const { handleInstagramGlobalInbound } = await import('@/lib/channels/handler')
+    await handleInstagramGlobalInbound(data.body)
+  } else {
+    const { handleWhatsappGlobalInbound } = await import('@/lib/whatsapp/webhook')
+    await handleWhatsappGlobalInbound(data.body)
+  }
 }
 
 async function handleEnqueueFailure(

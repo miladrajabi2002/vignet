@@ -20,7 +20,26 @@ interface CapturedPayload {
         size: number // body byte length
         body: unknown // the parsed JSON body
         parsedCount: number // how many InboundMessages the adapter extracted
-        eventType: string // human-readable categorization of what this payload is
+        /**
+         * Human-readable categorization. MAY EMBED A MESSAGE-TEXT PREVIEW, so it
+         * is admin-only — never return it on a tenant-facing surface.
+         */
+        eventType: string
+        /** Same categorization WITHOUT any customer text — safe for tenants. */
+        eventKind: string
+}
+
+/**
+ * A tenant-safe view of a captured payload: routing ids only, no customer
+ * message text, no webhook-token hint, no raw body.
+ */
+export interface RedactedWebhookPayload {
+        ts: number
+        eventKind: string
+        parsedCount: number
+        entryIds: string[]
+        recipientIds: string[]
+        allSentIds: string[]
 }
 
 const MAX_PER_TYPE = 50
@@ -88,6 +107,16 @@ function categorizePayload(body: unknown): string {
         return 'unknown'
 }
 
+/**
+ * Strip any quoted message preview that categorizePayload embedded, so the
+ * label can be shown to a tenant without leaking another workspace's customer
+ * text. `message (پیام جدید: "سلام…")` → `message`.
+ */
+function redactEventLabel(eventType: string): string {
+        const head = eventType.split(' (')[0]
+        return head || 'unknown'
+}
+
 /** Record a raw inbound webhook body for later inspection. */
 export function logWebhookPayload(
         type: MessengerType | string,
@@ -96,6 +125,7 @@ export function logWebhookPayload(
         parsedCount: number,
 ): void {
         const arr = buffer.get(key(type)) ?? []
+        const eventType = categorizePayload(body)
         arr.unshift({
                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 ts: Date.now(),
@@ -104,10 +134,88 @@ export function logWebhookPayload(
                 size: JSON.stringify(body ?? '').length,
                 body,
                 parsedCount,
-                eventType: categorizePayload(body),
+                eventType,
+                eventKind: redactEventLabel(eventType),
         })
         if (arr.length > MAX_PER_TYPE) arr.length = MAX_PER_TYPE
         buffer.set(key(type), arr)
+}
+
+/** Owner-side ids in a Meta payload (never sender/commenter ids). */
+function payloadOwnerIds(body: unknown): { entryIds: string[]; recipientIds: string[] } {
+        const parsed = body as {
+                entry?: Array<{
+                        id?: string | number
+                        messaging?: Array<{ recipient?: { id?: string | number } }>
+                        changes?: Array<{
+                                value?: {
+                                        to?: { id?: string | number }
+                                        recipient?: { id?: string | number }
+                                }
+                        }>
+                }>
+        } | null
+        const entryIds: string[] = []
+        const recipientIds: string[] = []
+        const push = (list: string[], v: string | number | undefined | null) => {
+                if (v !== undefined && v !== null) list.push(String(v))
+        }
+        for (const e of parsed?.entry ?? []) {
+                push(entryIds, e?.id)
+                for (const m of e?.messaging ?? []) push(recipientIds, m?.recipient?.id)
+                for (const c of e?.changes ?? []) {
+                        push(recipientIds, c?.value?.to?.id)
+                        push(recipientIds, c?.value?.recipient?.id)
+                }
+        }
+        return { entryIds, recipientIds }
+}
+
+/**
+ * Tenant-safe webhook diagnostics.
+ *
+ * The buffer is process-global and holds payloads for EVERY workspace, so a
+ * tenant surface must never see it raw (that leaked other tenants' customer DM
+ * text, Instagram account ids and webhook-token prefixes). A payload is
+ * visible to this caller only when it is:
+ *   - theirs   → an owner id matches one of `ownedIds`, or
+ *   - orphan   → none of its owner ids is claimed by ANY channel
+ *                (`claimedIds`), which is exactly the Meta id-mismatch case
+ *                this diagnostics screen exists to debug.
+ * Payloads owned by another workspace are counted, never described.
+ */
+export function getScopedWebhookPayloads(
+        type: string,
+        ownedIds: string[],
+        claimedIds: string[],
+        limit = 5,
+): { payloads: RedactedWebhookPayload[]; otherTenantPayloadCount: number } {
+        const owned = new Set(ownedIds)
+        const claimed = new Set(claimedIds)
+        const all = buffer.get(key(type)) ?? []
+        const payloads: RedactedWebhookPayload[] = []
+        let otherTenantPayloadCount = 0
+
+        for (const p of all) {
+                const { entryIds, recipientIds } = payloadOwnerIds(p.body)
+                const allSentIds = Array.from(new Set([...entryIds, ...recipientIds]))
+                const isMine = allSentIds.some((id) => owned.has(id))
+                const isOrphan = allSentIds.every((id) => !claimed.has(id))
+                if (!isMine && !isOrphan) {
+                        otherTenantPayloadCount++
+                        continue
+                }
+                if (payloads.length >= limit) continue
+                payloads.push({
+                        ts: p.ts,
+                        eventKind: p.eventKind,
+                        parsedCount: p.parsedCount,
+                        entryIds,
+                        recipientIds,
+                        allSentIds,
+                })
+        }
+        return { payloads, otherTenantPayloadCount }
 }
 
 /** Return the most recent captured payloads for a channel type (or all). */

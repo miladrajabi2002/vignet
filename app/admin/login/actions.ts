@@ -15,27 +15,15 @@ import { normalizePhone } from '@/lib/phone'
 export type AdminLoginState = { error?: string }
 
 /**
- * 🔍 نسخه‌ی تشخیصی adminLogin — به‌جای یک پیام خطای کلی، دقیقاً می‌گوید
- * کدام گام شکست خورده. این فقط برای دیباگ است؛ بعد از حل مشکل می‌توانید
- * به نسخه‌ی اصلی برگردید.
- *
- * پیام‌های خطا (موقت برای دیباگ):
- *   - شماره موبایل اشتباه است
- *   - رمز عبور اشتباه است
- *   - کد یک‌بارمصرف اشتباه است
- *   - کد یک‌بارمصرف وارد نشده است
- *   - خطای پیکربندی سرور (env قدیمی — سرور را ری‌استارت کنید)
+ * پیام خطای کلاینت عمداً عمومی است: گفتن اینکه «کدام مرحله» شکست خورد
+ * (شماره درست بود؟ رمز درست بود؟ فقط TOTP مانده؟) به مهاجم ناشناس یک
+ * Oracle مرحله‌به‌مرحله می‌دهد. فقط خطای پیکربندی سرور — که ربطی به
+ * صحت اطلاعات ورودی ندارد — جدا اعلام می‌شود؛ کد دلیل دقیق در لاگ سرور
+ * (بدون هیچ مقدار حساس) ثبت می‌شود.
  */
-const REASON_MESSAGES_FA: Record<string, string> = {
-        MISSING_ENV:
-                'خطای پیکربندی سرور: یکی از متغیرهای محیطی موجود نیست. احتمالاً سرور env قدیمی دارد — سرور را ری‌استارت کنید (pm2 restart all / systemctl restart vignet / docker compose restart)',
-        PHONE_INVALID: 'شماره موبایل وارد شده نامعتبر است. فرمت درست: 09123456789',
-        PHONE_MISMATCH: 'شماره موبایل اشتباه است (با شماره مدیر پلتفرم برابر نیست)',
-        PASSWORD_MISMATCH: 'شماره موبایل درست بود، ولی رمز عبور اشتباه است',
-        TOTP_MISSING: 'کد یک‌بارمصرف امنیتی وارد نشده است',
-        TOTP_INVALID:
-                'شماره و رمز درست بودند، ولی کد یک‌بارمصرف اشتباه است (با اپ احراز هویت چک کنید)',
-}
+const GENERIC_LOGIN_ERROR_FA = 'اطلاعات ورود نادرست است.'
+const MISSING_ENV_ERROR_FA =
+        'خطای پیکربندی سرور: متغیرهای محیطی ادمین کامل نیست. سرور را بررسی و ری‌استارت کنید.'
 
 export async function adminLogin(
         _prev: AdminLoginState,
@@ -56,14 +44,14 @@ export async function adminLogin(
                 }
         }
 
-        // 🔍 نسخه‌ی تشخیصی: به‌جای boolean، دلیل دقیق شکست را می‌گیریم
         const result = verifyAdminCredentialsDetailed(username, password, otp)
 
         if (!result.ok) {
-                // پیام مشخص بر اساس دلیل
-                const specificMessage = REASON_MESSAGES_FA[result.reason] || 'خطای ناشناخته'
                 return {
-                        error: `❌ ${specificMessage} (کد: ${result.reason})`,
+                        error:
+                                result.reason === 'MISSING_ENV'
+                                        ? MISSING_ENV_ERROR_FA
+                                        : GENERIC_LOGIN_ERROR_FA,
                 }
         }
 

@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { getMainWorkspaceId as getWorkspaceId } from '@/lib/blog/workspace'
 import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
@@ -13,6 +14,7 @@ import { Calendar, Clock, ArrowLeft, ArrowRight } from 'lucide-react'
 import { relativeTime } from '@/lib/format'
 import { SocialLinks } from '@/components/marketing/social-links'
 import { TrendSpark } from '@/components/blog/trend-spark'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,13 +23,6 @@ interface Props {
 	params: Promise<{ slug: string }>
 }
 
-async function getWorkspaceId(): Promise<string | null> {
-	const ws = await prisma.workspace.findFirst({
-		orderBy: { createdAt: 'asc' },
-		select: { id: true },
-	})
-	return ws?.id ?? null
-}
 
 export async function generateMetadata(props: Props) {
     const params = await props.params;
@@ -168,11 +163,11 @@ export default async function PublicBlogPostPage(props: Props) {
         <article className="marketing-page-shell mx-auto min-h-screen max-w-6xl px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
             <script
 				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+				dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
 			/>
             <script
 				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+				dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
 			/>
             {/* Header */}
 			<header className="marketing-page-hero marketing-grid-dark mb-10 px-6 py-10 sm:px-9 sm:py-14">

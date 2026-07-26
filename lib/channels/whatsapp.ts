@@ -44,27 +44,38 @@ export function whatsappAdapter(token: string): MessengerAdapter {
     channel: 'WHATSAPP',
 
     parseUpdate(body: unknown): InboundMessage[] {
-      const value = (body as WaWebhook)?.entry?.[0]?.changes?.[0]?.value
-      const messages = value?.messages
-      if (!messages?.length) return []
-      const profileName = value?.contacts?.[0]?.profile?.name
+      // Meta batches events: a payload can carry MULTIPLE entries and each
+      // entry multiple changes. Iterate them all — reading only
+      // entry[0].changes[0] silently drops every other message in the batch.
+      const entries = (body as WaWebhook)?.entry
+      if (!entries?.length) return []
       const out: InboundMessage[] = []
-      for (const m of messages) {
-        if (!m.from) continue
-        out.push({
-          chatId: m.from,
-          senderId: m.from,
-          senderName: profileName,
-          senderPhone: m.from,
-          // Plain text, template button tap, or interactive reply-button tap.
-          text:
-            m.text?.body ??
-            m.button?.text ??
-            m.interactive?.button_reply?.title ??
-            '',
-          // Voice is intentionally unsupported: WA media needs an authed
-          // two-step fetch the shared downloader can't perform.
-        })
+      for (const e of entries) {
+        for (const c of e.changes ?? []) {
+          const value = c.value
+          const messages = value?.messages
+          if (!messages?.length) continue
+          const profileName = value?.contacts?.[0]?.profile?.name
+          for (const m of messages) {
+            if (!m.from) continue
+            out.push({
+              chatId: m.from,
+              senderId: m.from,
+              senderName: profileName,
+              senderPhone: m.from,
+              // wamid — globally unique; drives the shared idempotency claim.
+              platformMessageId: m.id,
+              // Plain text, template button tap, or interactive reply-button tap.
+              text:
+                m.text?.body ??
+                m.button?.text ??
+                m.interactive?.button_reply?.title ??
+                '',
+              // Voice is intentionally unsupported: WA media needs an authed
+              // two-step fetch the shared downloader can't perform.
+            })
+          }
+        }
       }
       return out
     },
@@ -216,6 +227,7 @@ interface WaWebhook {
       value?: {
         contacts?: { profile?: { name?: string } }[]
         messages?: {
+          id?: string
           from?: string
           text?: { body?: string }
           button?: { text?: string }

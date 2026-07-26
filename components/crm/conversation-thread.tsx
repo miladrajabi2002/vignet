@@ -213,7 +213,11 @@ export function ConversationThread({
         return (
                 <div className="spatial-surface flex min-h-[36rem] min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem]">
                         <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3"><div><p className="text-xs font-bold text-black/75">{locale === 'fa' ? 'گفتگوی زنده' : 'Live conversation'}</p><p className="mt-0.5 text-[11px] text-black/35">{locale === 'fa' ? 'پیام‌های تازه خودکار نمایش داده می‌شوند' : 'New messages appear automatically'}</p></div><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{locale === 'fa' ? 'آنلاین' : 'Online'}</span></div>
-                        <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                        {/* dir="ltr" pins the bubble sides: the CUSTOMER is always on the
+                            visual RIGHT and the agent/operator on the LEFT, identically in
+                            every locale — the same pin the chat-link page and the web widget
+                            use. Bubble text keeps dir="auto" so Persian still reads RTL. */}
+                        <div ref={scrollRef} onScroll={handleScroll} dir="ltr" className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                                 <AnimatePresence initial={false}>
                                 {messages.map((m) => {
                                         const isUser = m.role === 'USER'
@@ -226,6 +230,9 @@ export function ConversationThread({
                                                                 initial={isLiveMessage ? arrivalInitial : false}
                                                                 animate={{ opacity: 1, transform: 'translate3d(0,0,0) scale(1)' }}
                                                                 transition={arrivalTransition}
+                                                                // Timeline rows are centered, so they take the page direction
+                                                                // back from the LTR-pinned list to align their own copy.
+                                                                dir={locale === 'fa' ? 'rtl' : 'ltr'}
                                                         >
                                                         <ConversationTimelineActivity
                                                                 metadata={m.metadata}
@@ -279,12 +286,12 @@ export function ConversationThread({
                                                                         className="relative z-[1] max-w-full py-2"
                                                                 >
                                                                         {isOperator && (
-                                                                                <span className="mb-0.5 block text-[11px] font-medium opacity-60">
+                                                                                <span dir="auto" className="mb-0.5 block text-[11px] font-medium opacity-60">
                                                                                         {t('operatorBadge')}
                                                                                 </span>
                                                                         )}
                                                                         {sourceLabel && (
-                                                                                <span className="mb-1 block text-[10px] font-semibold text-[var(--text-secondary)] opacity-75">
+                                                                                <span dir="auto" className="mb-1 block text-[10px] font-semibold text-[var(--text-secondary)] opacity-75">
                                                                                         {sourceLabel}
                                                                                 </span>
                                                                         )}
@@ -292,9 +299,12 @@ export function ConversationThread({
                                                                                 text={showcase.text}
                                                                                 markdown={!isUser}
                                                                         />
+                                                                        {/* text-end resolves against the LTR-pinned list, so the
+                                                                            timestamp sits in the bubble's trailing corner in both
+                                                                            locales instead of following the page direction. */}
                                                                         <span
                                                                                 className={cn(
-                                                                                        'mt-1 block text-[11px]',
+                                                                                        'mt-1 block text-end text-[11px]',
                                                                                         isUser
                                                                                                 ? 'text-[var(--text-muted)]'
                                                                                                 : 'text-[var(--bg-base)] opacity-40',
@@ -336,13 +346,14 @@ export function ConversationThread({
                                 )}
                                 {hasNewMessages && messages.length > 0 && (
                                         <button
+                                                dir="auto"
                                                 onClick={() => {
                                                         setHasNewMessages(false)
                                                         scrollToBottom()
                                                 }}
                                                 className="sticky bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--bg-base)] px-4 py-1.5 text-xs font-medium text-[var(--text-primary)] shadow-lg ring-1 ring-[var(--border-default)] transition-[transform,box-shadow] duration-200 hover:scale-[1.03] motion-reduce:transform-none"
                                         >
-                                                پیام‌های جدید ↓
+                                                {locale === 'fa' ? 'پیام‌های جدید ↓' : 'New messages ↓'}
                                         </button>
                                 )}
                         </div>

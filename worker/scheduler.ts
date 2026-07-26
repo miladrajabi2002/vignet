@@ -1,9 +1,12 @@
-import type { ChannelType } from '@prisma/client'
+import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
 import { dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
+import { encrypt, decrypt } from '@/lib/crypto'
+import { refreshLongLivedToken as refreshInstagramLongLivedToken } from '@/lib/instagram/oauth'
+import { refreshLongLivedToken as refreshWhatsappLongLivedToken } from '@/lib/whatsapp/oauth'
 import {
         sendActivationCompleteSms,
         sendActivationReminderSms,
@@ -518,6 +521,136 @@ async function runAdminCommercialSmsOutbox(): Promise<void> {
         }
 }
 
+// ─── OAuth token refresh (Instagram + WhatsApp) ─────────────────────────────
+
+const TOKEN_REFRESH_INTERVAL_MS = 12 * HOUR_MS
+// Refresh well before the ~60-day expiry so a few failed attempts still leave
+// plenty of runway before the channel actually dies.
+const TOKEN_REFRESH_WINDOW_MS = 10 * 24 * HOUR_MS
+
+/**
+ * Meta long-lived tokens (Instagram Login user tokens and WhatsApp Embedded
+ * Signup user tokens) expire after ~60 days. Without a refresh sweep every
+ * OAuth-connected channel silently dies: inbound keeps arriving but every send
+ * fails with OAuthException until the operator manually reconnects. Refresh
+ * every channel whose token expires inside the window; on failure near expiry,
+ * tell the workspace to reconnect BEFORE the channel breaks.
+ */
+async function refreshOauthTokens(): Promise<void> {
+        const channels = await prisma.agentChannel.findMany({
+                where: { active: true, type: { in: ['INSTAGRAM', 'WHATSAPP'] } },
+                select: {
+                        id: true,
+                        type: true,
+                        config: true,
+                        agent: { select: { name: true, workspaceId: true } },
+                },
+                take: 500,
+        })
+        const cutoff = Date.now() + TOKEN_REFRESH_WINDOW_MS
+
+        for (const ch of channels) {
+                const cfg = (ch.config as Record<string, unknown> | null) ?? {}
+                // Only Instagram-Login / Embedded-Signup channels hold a refreshable
+                // user token. Legacy FB-Login page tokens are effectively permanent.
+                if (cfg.mode !== 'OAUTH' || typeof cfg.userTokenEnc !== 'string') continue
+                const expiresAtMs =
+                        typeof cfg.userTokenExpiresAt === 'string'
+                                ? Date.parse(cfg.userTokenExpiresAt)
+                                : NaN
+                // Unknown expiry (pre-tracking rows) counts as due now.
+                if (Number.isFinite(expiresAtMs) && expiresAtMs > cutoff) continue
+
+                let token: string
+                try {
+                        token = decrypt(cfg.userTokenEnc)
+                } catch {
+                        continue
+                }
+
+                try {
+                        if (ch.type === 'INSTAGRAM') {
+                                const fresh = await refreshInstagramLongLivedToken(token)
+                                await prisma.agentChannel.update({
+                                        where: { id: ch.id },
+                                        data: {
+                                                config: {
+                                                        ...cfg,
+                                                        userTokenEnc: encrypt(fresh.token),
+                                                        userTokenExpiresAt: fresh.expiresAt.toISOString(),
+                                                } as Prisma.InputJsonValue,
+                                        },
+                                })
+                        } else {
+                                const fresh = await refreshWhatsappLongLivedToken(token)
+                                const phoneNumberId =
+                                        typeof cfg.phoneNumberId === 'string' ? cfg.phoneNumberId : null
+                                await prisma.agentChannel.update({
+                                        where: { id: ch.id },
+                                        data: {
+                                                config: {
+                                                        ...cfg,
+                                                        userTokenEnc: encrypt(fresh.token),
+                                                        userTokenExpiresAt: fresh.expiresAt.toISOString(),
+                                                        // The user token doubles as the send token — keep the
+                                                        // derived fields in lockstep (see buildWhatsappOAuthConfig).
+                                                        phoneNumberEnc: encrypt(fresh.token),
+                                                        ...(phoneNumberId
+                                                                ? { botTokenEnc: encrypt(`${fresh.token}|${phoneNumberId}`) }
+                                                                : {}),
+                                                } as Prisma.InputJsonValue,
+                                        },
+                                })
+                        }
+                        console.log(`[scheduler] refreshed ${ch.type} OAuth token for channel ${ch.id}`)
+                } catch (error) {
+                        captureError('scheduler:oauth-token-refresh', error, {
+                                metadata: { channelId: ch.id, type: ch.type },
+                        })
+                        // Near-expiry failure → the operator must reconnect. Dedup the
+                        // alert per channel per week so retries don't spam.
+                        const daysLeft = Number.isFinite(expiresAtMs)
+                                ? expiresAtMs - Date.now()
+                                : 0
+                        if (daysLeft < 7 * 24 * HOUR_MS) {
+                                try {
+                                        const redis = getRedis()
+                                        const acquired = await redis.set(
+                                                `oauth_refresh_alert:${ch.id}`,
+                                                '1',
+                                                'EX',
+                                                7 * 24 * 3600,
+                                                'NX',
+                                        )
+                                        if (acquired) {
+                                                await notifyWorkspace({
+                                                        workspaceId: ch.agent.workspaceId,
+                                                        type: 'CHANNEL_DOWN',
+                                                        title:
+                                                                ch.type === 'INSTAGRAM'
+                                                                        ? 'اتصال اینستاگرام نیاز به اتصال مجدد دارد'
+                                                                        : 'اتصال واتساپ نیاز به اتصال مجدد دارد',
+                                                        body: `تمدید خودکار دسترسی کانال «${ch.agent.name}» ناموفق بود و اعتبار آن به‌زودی تمام می‌شود. لطفاً از بخش کانال‌ها دوباره متصل شوید.`,
+                                                        link: '/integrations',
+                                                        sms: true,
+                                                })
+                                        }
+                                } catch (notifyError) {
+                                        console.error('[scheduler] oauth refresh alert failed:', notifyError)
+                                }
+                        }
+                }
+        }
+}
+
+async function runOauthTokenRefresh(): Promise<void> {
+        try {
+                await refreshOauthTokens()
+        } catch (e) {
+                console.error('[scheduler] oauth token refresh sweep failed:', e)
+        }
+}
+
 // ─── scheduler entry point ──────────────────────────────────────────────────
 
 /** Start periodic tasks. Returns a function that stops them. */
@@ -565,6 +698,12 @@ export function startScheduler(): () => void {
                 ADMIN_COMMERCIAL_SMS_SWEEP_INTERVAL_MS,
         )
 
+        const initialTokenRefresh = setTimeout(runOauthTokenRefresh, 3 * 60_000)
+        const tokenRefreshInterval = setInterval(
+                runOauthTokenRefresh,
+                TOKEN_REFRESH_INTERVAL_MS,
+        )
+
         return () => {
                 clearTimeout(initialSweep)
                 clearInterval(sweepInterval)
@@ -584,5 +723,7 @@ export function startScheduler(): () => void {
                 clearInterval(trialLifecycleInterval)
                 clearTimeout(initialCommercialSms)
                 clearInterval(commercialSmsInterval)
+                clearTimeout(initialTokenRefresh)
+                clearInterval(tokenRefreshInterval)
         }
 }

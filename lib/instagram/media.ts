@@ -4,6 +4,7 @@ import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { cleanDescriptionForChat } from '@/lib/products/description'
+import { igRecipient } from '@/lib/instagram/private-reply'
 
 /**
  * Rich-media send helpers for the Instagram Messaging API.
@@ -310,7 +311,7 @@ async function sendMediaTwoStep(
                                 Authorization: `Bearer ${token}`,
                         },
                         body: JSON.stringify({
-                                recipient: { id: chatId },
+                                recipient: igRecipient(chatId),
                                 message,
                                 messaging_type: MESSAGING_TYPE_RESPONSE,
                         }),
@@ -342,7 +343,7 @@ async function sendMediaTwoStep(
                         Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                        recipient: { id: chatId },
+                        recipient: igRecipient(chatId),
                         message,
                         messaging_type: MESSAGING_TYPE_RESPONSE,
                 }),
@@ -466,7 +467,7 @@ export async function sendProductCard(
                         Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                        recipient: { id: chatId },
+                        recipient: igRecipient(chatId),
                         message: {
                                 attachment: {
                                         type: 'template',
@@ -560,7 +561,7 @@ export async function sendProductCarousel(
                         Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                        recipient: { id: chatId },
+                        recipient: igRecipient(chatId),
                         message: {
                                 attachment: {
                                         type: 'template',
@@ -616,7 +617,7 @@ export async function sendButtonMessage(
                         Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                        recipient: { id: chatId },
+                        recipient: igRecipient(chatId),
                         message: {
                                 attachment: {
                                         type: 'template',

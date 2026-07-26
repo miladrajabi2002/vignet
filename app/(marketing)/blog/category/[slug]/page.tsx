@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { PublicPostCard } from '@/components/blog/public-post-card'
+import { getMainWorkspaceId } from '@/lib/blog/workspace'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -11,13 +12,7 @@ interface Props {
 	params: Promise<{ slug: string }>
 }
 
-async function getWorkspaceId(): Promise<string | null> {
-	const ws = await prisma.workspace.findFirst({
-		orderBy: { createdAt: 'asc' },
-		select: { id: true },
-	})
-	return ws?.id ?? null
-}
+const getWorkspaceId = getMainWorkspaceId
 
 export async function generateMetadata(props: Props) {
     const params = await props.params;
@@ -27,9 +22,19 @@ export async function generateMetadata(props: Props) {
 		where: { workspaceId: wsId, slug: params.slug },
 	})
     if (!cat) return {}
+    const description = cat.description ?? cat.name
     return {
 		title: cat.name,
-		description: cat.description ?? cat.name,
+		description,
+		// The sitemap lists category pages, so they need a canonical and OG tags
+		// like every other indexable route.
+		alternates: { canonical: `/blog/category/${cat.slug}` },
+		openGraph: {
+			title: cat.name,
+			description,
+			type: 'website',
+			url: `/blog/category/${cat.slug}`,
+		},
 	}
 }
 

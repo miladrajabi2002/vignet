@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
-import { handleInbound } from '@/lib/channels/handler'
+import { dispatchInbound } from '@/lib/queue/jobs'
 import { captureError } from '@/lib/errors/capture'
 import { prisma } from '@/lib/prisma'
 import {
@@ -119,13 +119,18 @@ export async function POST(req: Request) {
   // leaving extra keys is harmless.
   void readBridgeSessionId // (referenced for the import; not used here)
 
-  // Hand off to the shared inbound pipeline. Fire-and-forget so the bridge
-  // gets an immediate 200 (it doesn't retry-storm WhatsApp's servers).
-  void handleInbound('WHATSAPP', webhookToken, body).catch((e) =>
-    captureError('webhook:WHATSAPP-QR:process', e, {
+  // Hand off to the shared DURABLE inbound queue — the same path the
+  // per-token webhooks use. Inline fire-and-forget lost messages whenever the
+  // web process restarted after the 200 ACK. On enqueue failure answer 503 so
+  // the bridge can retry the forward.
+  try {
+    await dispatchInbound({ type: 'WHATSAPP', token: webhookToken, body })
+  } catch (e) {
+    captureError('webhook:WHATSAPP-QR:enqueue', e, {
       metadata: { sessionId },
-    }),
-  )
+    })
+    return NextResponse.json({ error: 'QUEUE_UNAVAILABLE' }, { status: 503 })
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { MapPin, Sparkles, UtensilsCrossed } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -67,7 +68,7 @@ export default async function PublicMenuPage({ params }: Props) {
 
   return (
     <main dir="rtl" className="min-h-dvh bg-[var(--bg-base)] px-3 py-5 text-[var(--text-primary)] sm:px-6 sm:py-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <div className="mx-auto max-w-5xl">
         <header className="dashboard-intro relative overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] p-6 shadow-[var(--shadow-card)] sm:p-9">
           <div className="relative flex items-center justify-between">

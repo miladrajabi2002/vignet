@@ -86,7 +86,6 @@
         // Identity from the pre-chat lead form; sent with the first message.
         var visitorName = null
         var visitorPhone = null
-        var visitorSent = false
         var config = {
                 name: 'Vigent',
                 welcomeMessage: '',
@@ -188,13 +187,12 @@
                 bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
                 help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
                 close: '<path d="M18 6 6 18M6 6l12 12"/>',
-                send: '<path fill="currentColor" stroke="none" d="M3.4 20.4 21 12 3.4 3.6 3 10l12 2-12 2z"/>',
-                // Refined send icon: a clean, modern paper-plane — more balanced
-                // than the raw Telegram glyph and more polished than the Lucide
-                // outline. Single solid path, reads crisply at 16-24px, points
-                // up-right (the natural "send" direction).
-                telegramSend:
-                        '<path fill="currentColor" stroke="none" d="M22 3 2.6 11.2c-.7.3-.6 1.3.1 1.5l4.5 1.4 1.7 5.2c.2.6 1 .8 1.5.3l2.3-2.1 4.4 3.2c.5.4 1.3.1 1.4-.6L23 4c.2-.8-.5-1.4-1-1z"/>',
+                // Send icon — the up-arrow of the shared React composer (lucide
+                // arrow-up). Stroke-only so svg()'s currentColor stroke applies; the
+                // 2.5 weight comes from the .vgt-send svg rule.
+                arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+                // Streaming spinner (lucide loader-2), rotated by CSS.
+                spinner: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
                 phone:
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
@@ -456,51 +454,46 @@
                         '.vgt-typing span:nth-child(2){animation-delay:.18s;}.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
                         // input
                         '.vgt-foot{padding:10px 12px 8px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
-                        // Telegram-style input: the send button sits INSIDE the
-                        // input field, flush with the inner edge. The input has
-                        // extra right padding (in RTL) to make room for the button.
-                        // This is the pattern Telegram, WhatsApp and iMessage all
-                        // use — the button feels embedded, not floating beside.
-                        '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;background:var(--vgt-surface);border:1.5px solid var(--vgt-border);' +
-                        'border-radius:var(--vgt-r-input);padding:6px 6px 6px 14px;transition:border-color .18s,box-shadow .18s,background .18s;}' +
+                        // Composer pill. The geometry MUST stay in sync with
+                        // COMPOSER_GEOMETRY in components/chat/chat-composer.tsx — the
+                        // React composer every in-app surface uses. This file can't
+                        // import it (vanilla JS, zero deps), so the numbers are mirrored
+                        // by hand: 40px send button, 40/132px textarea, 1.5rem radius,
+                        // 8px gap between the textarea and the button.
+                        '.vgt-inputwrap{position:relative;display:flex;align-items:flex-end;gap:8px;background:var(--vgt-surface);' +
+                        'border:1.5px solid var(--vgt-border);border-radius:var(--vgt-r-pill);padding:6px 8px;' +
+                        'transition:border-color .18s,box-shadow .18s,background .18s;}' +
                         '.vgt-inputwrap:focus-within{border-color:var(--vgt-accent);box-shadow:0 0 0 4px var(--vgt-accent-soft);background:var(--vgt-bg);}' +
-                        // RTL: send button on the RIGHT, inside the field. The
-                        // right padding is 7px — small enough that the button
-                        // sits close to the right edge (visually "stuck" to the
-                        // right) but not flush against the border (there's a
-                        // visible 7px gutter so it doesn't look cramped).
-                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;padding:6px 7px 6px 14px;}' +
+                        // row-reverse inside the RTL panel lays the children out
+                        // left-to-right, which keeps the send button on the visual RIGHT
+                        // in every language — the same guarantee the React composer gets
+                        // from pinning its control row to dir="ltr".
+                        '.vgt-root.vgt-rtl .vgt-inputwrap{flex-direction:row-reverse;}' +
                         // font-size:16px — see .vgt-lead-input (iOS auto-zoom guard).
-                        // The right padding (54px in RTL) reserves space so long
-                        // text doesn't run under the send button.
+                        // 16px text on a 24px line + 8px padding = the 40px min height,
+                        // so the pill never jumps between empty and one line of text.
                         '.vgt-input{flex:1;background:transparent;border:none;outline:none;resize:none;color:var(--vgt-text);font-family:inherit;' +
-                        'font-size:16px;line-height:1.55;max-height:110px;min-height:32px;padding:8px 0;margin:0;}' +
-                        '.vgt-root.vgt-rtl .vgt-input{padding:8px 54px 8px 0;}' +
+                        'font-size:16px;line-height:1.5;max-height:132px;min-height:40px;padding:8px;margin:0;}' +
                         '.vgt-input::placeholder{color:var(--vgt-muted);opacity:1;}' +
-                        // Telegram-style send button: a solid circle INSIDE the
-                        // input field, vertically centered with the text. 38px
-                        // matches the input's min-height (32px) + padding (8px*2)
-                        // so the button is flush with the field height. Position
-                        // is handled by flexbox (flex-shrink:0 keeps it from
-                        // squishing). No box-shadow — Telegram buttons are flat.
-                        '.vgt-send{flex:0 0 38px;width:38px;height:38px;min-width:38px;border:none;cursor:pointer;border-radius:50%;' +
+                        // Send button: a flat 40px circle sitting inside the pill,
+                        // bottom-aligned with the textarea once it grows. flex-shrink:0
+                        // keeps it from squishing. No box-shadow.
+                        '.vgt-send{flex:0 0 40px;width:40px;height:40px;min-width:40px;border:none;cursor:pointer;border-radius:50%;' +
                         'background:var(--vgt-accent);' +
                         'color:var(--vgt-on-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;' +
-                        'transition:transform .15s ease,opacity .15s,background .15s;' +
-                        'align-self:center;margin-bottom:0;}' +
-                        '.vgt-send:hover{background:var(--vgt-accent-deep);}' +
-                        '.vgt-send:active{transform:scale(.9);}' +
-                        '.vgt-send:disabled{opacity:.3;cursor:default;transform:none;background:var(--vgt-border);}' +
-                        // Telegram's paper-plane icon: 20px. The SVG path's
-                        // bounding box (x:2.5–21.9, y:3.4–22.0) is slightly off-
-                        // center relative to the 24×24 viewBox (center 12,12):
-                        //   path center x = 12.2 (0.2px right of viewBox center)
-                        //   path center y = 12.7 (0.7px below viewBox center)
-                        // This makes the icon look ~0.7px too low and slightly
-                        // right-heavy. We compensate with a tiny translate so
-                        // the icon appears perfectly centered (optical centering).
-                        '.vgt-send svg{width:20px;height:20px;transform:translate(-0.3px,-0.6px);}' +
-                        '.vgt-send:hover svg{transform:translate(-0.3px,-0.6px) scale(1.05);}' +
+                        'transition:transform .15s ease,opacity .15s,background .15s;}' +
+                        '.vgt-send:hover:not(:disabled){background:var(--vgt-accent-deep);}' +
+                        '.vgt-send:active:not(:disabled){transform:scale(.94);}' +
+                        '.vgt-send:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        // Disabled covers both "nothing typed yet" and "reply streaming".
+                        '.vgt-send:disabled{opacity:.3;cursor:not-allowed;transform:none;}' +
+                        // stroke-width here overrides the 2 that svg() writes as an
+                        // attribute, matching the shared button's 2.5 arrow.
+                        '.vgt-send svg{width:18px;height:18px;stroke-width:2.5;}' +
+                        // While streaming, the arrow is swapped for a spinner.
+                        '.vgt-send .vgt-send-spin{display:none;animation:vgt-spin .9s linear infinite;}' +
+                        '.vgt-send.vgt-busy .vgt-send-arrow{display:none;}' +
+                        '.vgt-send.vgt-busy .vgt-send-spin{display:block;}' +
                         // direction:ltr forces "Powered by Vigent" left-to-right even
                         // on RTL (Persian) pages, so the brand reads naturally instead
                         // of appearing as "Vigent by Powered".
@@ -527,6 +520,7 @@
                         '@keyframes vgt-ping{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}' +
                         '@keyframes vgt-pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.3);}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1);}}' +
                         '@keyframes vgt-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}' +
+                        '@keyframes vgt-spin{to{transform:rotate(360deg);}}' +
                         // ---- Reply-to (quote) UI ----
                         // Bubble wrapper holds the optional quote block + bubble + reply button.
                         '.vgt-bubble-wrap{position:relative;display:flex;flex-direction:column;gap:3px;max-width:84%;animation:vgt-in .28s cubic-bezier(.2,.7,.3,1) both;}' +
@@ -663,7 +657,13 @@
         // Mobile keyboards: label the return key "send" — matches the existing
         // Enter-to-send behavior in the keydown handler below.
         input.setAttribute('enterkeyhint', 'send')
-        var sendBtn = el('button', 'vgt-send', svg('telegramSend'))
+        // Both icons ship in the button; CSS shows the arrow or the spinner
+        // depending on the .vgt-busy class (see updateSendState).
+        var sendBtn = el(
+                'button',
+                'vgt-send',
+                svg('arrowUp', 'vgt-send-arrow') + svg('spinner', 'vgt-send-spin'),
+        )
         sendBtn.setAttribute('aria-label', 'send')
         inputWrap.appendChild(input)
         inputWrap.appendChild(sendBtn)
@@ -743,6 +743,12 @@
                 s.setProperty('--vgt-r-panel', r[0])
                 s.setProperty('--vgt-r-bubble', r[1])
                 s.setProperty('--vgt-r-input', r[2])
+                // The composer pill keeps the shared composer's 1.5rem radius
+                // (COMPOSER_GEOMETRY.pillRadius) by default; once the owner picks
+                // their own corner style it follows the theme like every other
+                // rounded surface.
+                var ownCorners = config.cornerRadius > 0 || config.corners !== 'soft'
+                s.setProperty('--vgt-r-pill', ownCorners ? r[2] : '1.5rem')
 
                 root.classList.toggle('vgt-right', config.position !== 'left')
                 root.classList.toggle('vgt-left', config.position === 'left')
@@ -1118,7 +1124,14 @@
         }
         function setStreaming(on) {
                 streaming = on
-                sendBtn.disabled = on
+                updateSendState()
+        }
+        // Mirrors the shared composer's send button: it is disabled whenever there
+        // is nothing to send (empty/whitespace input) as well as while a reply is
+        // still streaming, and carries the spinner only in the streaming case.
+        function updateSendState() {
+                sendBtn.disabled = streaming || !input.value.trim()
+                sendBtn.classList.toggle('vgt-busy', streaming)
         }
 
         // ---- Product cards ([[product:{…}]] tokens in the AI reply) ----
@@ -1407,11 +1420,29 @@
         }
 
         function errorText(code) {
-                if (code === 'NO_KEY')
-                        return t(
-                                '⚠️ این دستیار هنوز پیکربندی نشده است. لطفاً با مدیر سایت تماس بگیرید.',
-                                '⚠️ This assistant is not configured yet. Please contact the site owner.',
-                        )
+		// OPERATOR_ACTIVE means the message WAS delivered — a human took over.
+		// Showing "failed, try again" made visitors resend, filling the
+		// operator inbox with duplicates of the same question.
+		if (code === 'OPERATOR_ACTIVE')
+			return t(
+				'پیام شما ثبت شد و همکار ما به‌زودی پاسخ می‌دهد.',
+				'Your message was received — a team member will reply shortly.',
+			)
+		if (code === 'WIDGET_DISABLED')
+			return t(
+				'گفتگوی آنلاین این سایت در حال حاضر غیرفعال است.',
+				'Live chat is currently disabled for this site.',
+			)
+		if (code === 'LEAD_REQUIRED')
+			return t(
+				'برای شروع گفتگو لطفاً نام و شماره تماس خود را وارد کنید.',
+				'Please enter your name and phone number to start the chat.',
+			)
+		if (code === 'PLAN_BLOCKED')
+			return t(
+				'گفتگوی آنلاین این سایت موقتاً در دسترس نیست.',
+				'Live chat is temporarily unavailable for this site.',
+			)
                 if (code === 'RATE_LIMIT')
                         return t(
                                 'پیام‌های زیادی ارسال شد. لطفاً چند لحظه صبر کنید.',
@@ -1458,12 +1489,18 @@
                         payload.conversationId = conversationId
                         payload.conversationToken = conversationToken
                 }
-                // Attach the lead-form identity to the first message so the server can
-                // create/attach the CRM contact and greet the visitor by name.
-                if (!visitorSent && (visitorName || visitorPhone)) {
+                // Attach the lead-form identity until a conversation exists, so the
+                // server can create/attach the CRM contact and greet by name.
+                //
+                // Keyed on conversationId, NOT on a flag latched at request time: a
+                // first message that failed transiently (429, network blip, 5xx) left
+                // the old `visitorSent` flag true with no conversation created, so
+                // every retry arrived with neither conversationId nor lead fields and
+                // the server answered LEAD_REQUIRED forever — an unrecoverable
+                // deadlock until a full page reload.
+                if (!conversationId && (visitorName || visitorPhone)) {
                         if (visitorName) payload.visitorName = visitorName
                         if (visitorPhone) payload.visitorPhone = visitorPhone
-                        visitorSent = true
                 }
                 fetch(base + '/api/widget/' + agentId + '/chat', {
                         method: 'POST',
@@ -1540,9 +1577,10 @@
                         })
         }
 
+        // 132px = COMPOSER_GEOMETRY.textareaMaxHeight; past it the textarea scrolls.
         function autoGrow() {
                 input.style.height = 'auto'
-                input.style.height = Math.min(input.scrollHeight, 110) + 'px'
+                input.style.height = Math.min(input.scrollHeight, 132) + 'px'
         }
 
         // ---- Teaser (auto-greet) ----
@@ -1831,7 +1869,10 @@
         sendBtn.addEventListener('click', function () {
                 send()
         })
-        input.addEventListener('input', autoGrow)
+        input.addEventListener('input', function () {
+                autoGrow()
+                updateSendState()
+        })
         input.addEventListener('keydown', function (e) {
                 // Don't send mid-IME-composition (emoji/CJK keyboards).
                 if (e.isComposing) return
@@ -1840,6 +1881,8 @@
                         send()
                 }
         })
+        // The input starts empty, so the button starts disabled.
+        updateSendState()
         launcher.addEventListener('click', function () {
                 toggle()
         })

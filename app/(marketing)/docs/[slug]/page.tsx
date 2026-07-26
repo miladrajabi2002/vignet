@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getLocale } from 'next-intl/server'
 import { DocContent } from '@/components/docs/doc-content'
 import { DOCS, getDoc, type Locale } from '@/lib/docs/content'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 export function generateStaticParams() {
   return DOCS.filter((d) => d.slug !== 'introduction').map((d) => ({
@@ -22,7 +23,9 @@ export async function generateMetadata(
   const title = locale === 'fa' ? page.title.fa : page.title.en
   const description = locale === 'fa' ? page.description.fa : page.description.en
   return {
-    title: `${title} — Vigent Docs`,
+    // `absolute` bypasses the root layout's '%s — Vigent' template, which was
+    // producing '… — Vigent Docs — Vigent' on all 17 doc pages.
+    title: { absolute: `${title} — Vigent Docs` },
     description,
     alternates: { canonical: `/docs/${page.slug}` },
     openGraph: { title, description, type: 'article', url: `/docs/${page.slug}` },
@@ -65,7 +68,7 @@ export default async function DocPageRoute(
   }
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <DocContent page={page} locale={locale} />
     </>
   )

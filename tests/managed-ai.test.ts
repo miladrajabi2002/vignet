@@ -80,7 +80,10 @@ describe('OpenRouter platform wrapper', () => {
       sort: 'price',
       data_collection: 'deny',
       zdr: true,
-      max_price: { prompt: 0.12, completion: 0.24 },
+      // Derived from the AGENT_MODELS catalog reference rates × safety margin
+      // (deepseek-v4-flash: 0.09/0.18 per M × 3) — a model rotation updates
+      // the cap automatically instead of leaving a stale hardcoded value.
+      max_price: { prompt: 0.27, completion: 0.54 },
     })
     expect(result.usage).toMatchObject({
       promptTokens: 4000,

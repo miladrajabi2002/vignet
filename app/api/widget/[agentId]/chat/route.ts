@@ -166,7 +166,7 @@ export async function POST(req: Request, props: Params) {
                         orderTrackingEnabled: true,
                         channels: {
                                 where: { type: 'WEB_WIDGET' },
-                                select: { config: true },
+                                select: { config: true, active: true },
                                 take: 1,
                         },
                 },
@@ -178,9 +178,23 @@ export async function POST(req: Request, props: Params) {
                 )
         }
 
+        // The widget channel must exist AND be active. Disabling the widget in the
+        // dashboard deletes/deactivates this row — without this check the endpoint
+        // kept answering (draining AI credit) for anyone holding the public
+        // agentId, and normalizeWidgetSettings(undefined) silently reverted to
+        // defaults: an EMPTY domain allowlist (= allow every origin) and lead
+        // capture off. Turning the widget off must close the door, not open it.
+        const widgetChannel = agent.channels[0]
+        if (!widgetChannel || widgetChannel.active === false) {
+                return NextResponse.json(
+                        { error: 'WIDGET_DISABLED' },
+                        { status: 404, headers: corsHeaders },
+                )
+        }
+
         // Anti-abuse: if the owner configured an allowlist, only embed-able from those
         // domains. Empty allowlist = open (the dashboard warns it is unprotected).
-        const settings = normalizeWidgetSettings(agent.channels[0]?.config)
+        const settings = normalizeWidgetSettings(widgetChannel.config)
         if (
                 !isOriginAllowed(
                         req.headers.get('origin'),

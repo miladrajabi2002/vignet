@@ -1,20 +1,21 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useReducedMotion } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
   Loader2,
   MessagesSquare,
-  Send,
   ShieldCheck,
   Sparkles,
   Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
+import { ChatComposer } from '@/components/chat/chat-composer'
 import { ConversationText } from '@/components/chat/conversation-bubble'
 
 type ChatMessage = { role: 'assistant' | 'user'; content: string }
@@ -34,6 +35,7 @@ const CAPABILITIES: Array<{ fa: string; en: string; icon: LucideIcon }> = [
 export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerName?: string | null }) {
   const fa = locale === 'fa'
   const Arrow = fa ? ArrowLeft : ArrowRight
+  const reduceMotion = useReducedMotion()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([{
@@ -42,10 +44,27 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
       ? `سلام${ownerName ? ` ${ownerName}` : ''}؛ من ویجنتو هستم. آمار فضای کاری، گفتگوها، مشتری‌ها، رزروها و هزینه پاسخ‌های AI را از داده زنده بررسی می‌کنم.`
       : `Hi${ownerName ? ` ${ownerName}` : ''}; I am Vigento. I can inspect live workspace metrics, conversations, customers, bookings and AI reply cost.`,
   }])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isAtBottomRef = useRef(true)
 
   const prompts = fa
     ? ['امروز چه چیزی نیاز به توجه دارد؟', 'پرتعامل‌ترین مشتری‌های امروز کدام‌اند؟', 'هزینه پاسخ‌های AI امروز چقدر بود؟']
     : ['What needs attention today?', 'Who were today’s most active customers?', 'What did AI replies cost today?']
+
+  // Auto-scroll only while the reader sits at the bottom, so scrolling up to
+  // re-read an earlier answer is never yanked back down — same rule as the
+  // operator inbox thread.
+  function handleScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' })
+  }, [reduceMotion])
 
   async function ask(value: string) {
     const message = value.trim()
@@ -72,8 +91,12 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
     }
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault()
+  // `loading` is a dependency so the "inspecting live data" row scrolls in too.
+  useEffect(() => {
+    if (isAtBottomRef.current) scrollToBottom()
+  }, [messages.length, loading, scrollToBottom])
+
+  function submit() {
     void ask(input)
   }
 
@@ -126,13 +149,22 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
           })}
         </div>
 
-        {/* ── Chat messages ── */}
-        <div className="min-h-[29rem] space-y-4 p-4 sm:p-6">
+        {/* ── Chat messages — dir=ltr pins the sides in every locale so the
+             owner's own messages sit on the visual RIGHT, like every other
+             chat surface. Bubble text keeps its own direction (ConversationText
+             renders dir="auto"). Fixed height + overflow keeps the composer
+             on screen no matter how long the thread gets. ── */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          dir="ltr"
+          className="h-[29rem] space-y-4 overflow-y-auto p-4 sm:p-6"
+        >
           {messages.map((message, index) => (
-            <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'flex justify-start' : 'flex justify-end'}>
+            <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
               <div className={message.role === 'user'
-                ? 'max-w-[86%] rounded-[1.25rem] rounded-es-md bg-black px-4 py-3 text-[13px] leading-7 text-white shadow-[var(--shadow-control)]'
-                : 'spatial-inset max-w-[92%] rounded-[1.25rem] rounded-ee-md px-4 py-3 text-[13px] leading-7 text-[var(--text-secondary)]'}>
+                ? 'max-w-[86%] rounded-[1.25rem] rounded-br-md bg-black px-4 py-3 text-[13px] leading-7 text-white shadow-[var(--shadow-control)]'
+                : 'spatial-inset max-w-[92%] rounded-[1.25rem] rounded-bl-md px-4 py-3 text-[13px] leading-7 text-[var(--text-secondary)]'}>
                 <ConversationText
                   text={message.content}
                   markdown={message.role === 'assistant'}
@@ -141,7 +173,7 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
             </div>
           ))}
           {loading && (
-            <div className="flex justify-end">
+            <div className="flex justify-start">
               <div className="spatial-inset inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-xs text-[var(--text-muted)]">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {fa ? 'در حال بررسی داده زنده…' : 'Inspecting live data…'}
@@ -150,7 +182,7 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
           )}
         </div>
 
-        {/* ── Input form — send button on the RIGHT side ── */}
+        {/* ── Prompt chips + the shared composer ── */}
         <div className="border-t border-[var(--border-subtle)] p-3 sm:p-4">
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {prompts.map((prompt) => (
@@ -164,37 +196,16 @@ export function VigentoWorkspace({ locale, ownerName }: { locale: Locale; ownerN
               </button>
             ))}
           </div>
-          {/* Input row: textarea first, send button second (last). In LTR,
-              `flex` (row) places the textarea on the left and the button on
-              the right. In RTL we add `rtl:flex-row-reverse` so the button
-              stays on the visual RIGHT as well — flex direction follows the
-              writing direction, so without the reverse the button would end
-              up on the left in Persian. */}
-          <form onSubmit={submit} className="spatial-control flex rtl:flex-row-reverse items-end gap-2 rounded-[1.4rem] p-2 pe-2 ps-4">
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              rows={1}
-              maxLength={1000}
-              placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'}
-              className="min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-hint)]"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              aria-label={fa ? 'ارسال' : 'Send'}
-              className="spatial-press grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black text-white shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              {/* In RTL (fa) the Send icon points the wrong way by default;
-                  rotate it 180° so it visually points toward the outgoing
-                  direction. We use an inline style instead of Tailwind's
-                  `rotate-180` utility because the button's `spatial-press`
-                  class sets its own `transform` (scale) which can interfere
-                  with Tailwind's CSS-variable-based transform on the child.
-                  Inline `transform` on the icon itself is 100% reliable. */}
-              <Send className="h-4 w-4" style={fa ? { transform: 'rotate(180deg)' } : undefined} />
-            </button>
-          </form>
+          <ChatComposer
+            value={input}
+            onChange={setInput}
+            onSend={submit}
+            busy={loading}
+            maxLength={1000}
+            dir={fa ? 'rtl' : 'ltr'}
+            placeholder={fa ? 'از ویجنتو درباره کسب‌وکارتان بپرسید…' : 'Ask Vigento about your business…'}
+            sendLabel={fa ? 'ارسال' : 'Send'}
+          />
         </div>
       </section>
 
