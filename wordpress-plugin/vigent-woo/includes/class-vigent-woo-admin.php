@@ -114,6 +114,9 @@ class Vigent_Woo_Admin {
                         .vg-card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: #111; }
                         .vg-card p { margin: 0 0 8px; color: #6b7280; font-size: 13px; line-height: 1.6; }
                         .vg-card p:last-child { margin-bottom: 0; }
+                        /* Card variant for a change that had to be dropped from the queue. */
+                        .vg-card.vg-warn { background: #fffbeb; border-color: #fde68a; }
+                        .vg-card.vg-warn p { color: #92400e; }
 
                         /* Live status banner */
                         .vg-live { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid; }
@@ -1037,8 +1040,9 @@ class Vigent_Woo_Admin {
         // ─── Connected view — success card + compact management section ─────
 
         private function render_connected_view( $core, $settings, $status, $has_wc ) {
-		$delta        = Vigent_Woo_Sync::instance()->get_delta_status();
-		$last_success = ! empty( $delta['last_success'] ) ? $delta['last_success'] : '';
+		$delta         = Vigent_Woo_Sync::instance()->get_delta_status();
+		$last_success  = ! empty( $delta['last_success'] ) ? $delta['last_success'] : '';
+		$dropped_total = isset( $delta['dropped_total'] ) ? (int) $delta['dropped_total'] : 0;
                 ?>
 		<div class="vg-card vg-connected-summary">
 			<div class="vg-connected-icon" aria-hidden="true">
@@ -1062,6 +1066,24 @@ class Vigent_Woo_Admin {
 				<button type="button" class="vg-btn vg-btn-white" onclick="vgSync('products', this)" <?php disabled( ! $has_wc ); ?>><?php esc_html_e( 'ارسال کامل محصولات', 'vigent-woo' ); ?></button>
 			</div>
 		</div>
+
+		<?php if ( $dropped_total > 0 ) : ?>
+			<?php // A change the server kept rejecting was dropped so the rest of the queue could move. ?>
+			<div class="vg-card vg-warn">
+				<p>
+					<?php
+					printf(
+						/* translators: %s: number of dropped changes */
+						esc_html__( '%s تغییر پس از تلاش‌های مکرر ارسال نشد و از صف حذف شد تا بقیه تغییرات ارسال شوند. یک‌بار «ارسال کامل محصولات» را بزنید تا کاتالوگ دوباره هم‌تراز شود.', 'vigent-woo' ),
+						esc_html( number_format_i18n( $dropped_total ) )
+					);
+					?>
+				</p>
+				<?php if ( ! empty( $delta['last_dropped_error'] ) ) : ?>
+					<p class="vg-sync-note"><?php echo esc_html( $delta['last_dropped_error'] ); ?></p>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
 
 		<div id="vg-progress" class="vg-progress vg-card" style="display:none;">
 			<div class="vg-progress-bar-wrap">

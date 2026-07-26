@@ -1580,8 +1580,8 @@
     "semantic_hash": ""
   },
   "lib/ai/chat-engine.ts": {
-    "mtime": 1785029673.3808012,
-    "ast_hash": "521ac0c0c653566cc021a2471caa8832",
+    "mtime": 1785030171.9281209,
+    "ast_hash": "f02f600e5e839f5611f60382725b174d",
     "semantic_hash": ""
   },
   "lib/ai/chat-types.ts": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "lib/ai/conversation.ts": {
-    "mtime": 1785029917.9219081,
-    "ast_hash": "30c2f50d30e536af562177a6d7ae2b7a",
+    "mtime": 1785030411.9065776,
+    "ast_hash": "912271c5dbde29cfd86bdd392db93fdc",
     "semantic_hash": ""
   },
   "lib/ai/customer-identification.ts": {
@@ -3340,8 +3340,8 @@
     "semantic_hash": ""
   },
   "lib/products/presentation.ts": {
-    "mtime": 1785029500.1715813,
-    "ast_hash": "cc72013feb6573618e333fe3cbae0837",
+    "mtime": 1785030451.9180484,
+    "ast_hash": "3292cad6d0884fb41c6b60c7ae98eeab",
     "semantic_hash": ""
   },
   "prisma/migrations/20260726100000_woocommerce_delta_sync/migration.sql": {
@@ -3355,8 +3355,8 @@
     "semantic_hash": ""
   },
   "tests/product-request-plan.test.ts": {
-    "mtime": 1785029909.1943805,
-    "ast_hash": "ee1d8719614776248d83178fa19c8b6f",
+    "mtime": 1785030411.907738,
+    "ast_hash": "645566109d8e0a43acf88e54659e91d9",
     "semantic_hash": ""
   }
 }

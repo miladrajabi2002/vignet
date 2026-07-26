@@ -197,6 +197,14 @@
                         '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
                 box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
                 arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+                // Product-rail navigation (lucide chevron-left / chevron-right) and
+                // the layout toggle icons (grid-2x2 / rows-3).
+                chevronL: '<path d="m15 18-6-6 6-6"/>',
+                chevronR: '<path d="m9 18 6-6-6-6"/>',
+                grid:
+                        '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>' +
+                        '<rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+                rows: '<rect width="18" height="7" x="3" y="3" rx="1"/><rect width="18" height="7" x="3" y="14" rx="1"/>',
         }
         function svg(name, extraClass) {
                 return (
@@ -371,8 +379,41 @@
                         'animation:vgt-in .3s ease both;}' +
                         '.vgt-source svg{width:12px;height:12px;}' +
                         // product card
-                        '.vgt-card-rail{display:flex;gap:12px;width:min(660px,calc(100vw - 88px));max-width:100%;overflow-x:auto;' +
+                        // A bare horizontal scroller hid every card past the second one:
+                        // desktop mice have no horizontal wheel and the thin scrollbar
+                        // reads as decoration. The shell adds prev/next buttons, a scroll
+                        // progress bar and a "see all" grid toggle. Mirrors
+                        // components/products/product-showcase-rail.tsx.
+                        '.vgt-rail-shell{display:flex;flex-direction:column;gap:6px;width:min(660px,calc(100vw - 88px));max-width:100%;}' +
+                        '.vgt-rail-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:0 2px;}' +
+                        // The label truncates so the controls survive a 320px screen.
+                        '.vgt-rail-count{display:inline-flex;align-items:center;gap:5px;min-width:0;color:var(--vgt-muted);font-size:11px;font-weight:600;' +
+                        'overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}' +
+                        '.vgt-rail-count svg{width:12px;height:12px;flex:0 0 auto;}' +
+                        '.vgt-rail-nav{display:flex;align-items:center;gap:4px;margin-inline-start:auto;}' +
+                        '.vgt-rail-btn{display:grid;place-items:center;width:34px;height:34px;flex:0 0 auto;padding:0;cursor:pointer;' +
+                        'border:1px solid var(--vgt-border);border-radius:999px;background:var(--vgt-bg);color:var(--vgt-text);' +
+                        'font-family:inherit;transition:border-color .18s,opacity .18s;}' +
+                        '.vgt-rail-btn svg{width:16px;height:16px;}' +
+                        '.vgt-rail-btn:hover:not(:disabled){border-color:var(--vgt-accent);color:var(--vgt-accent-ink);}' +
+                        '.vgt-rail-btn:disabled{opacity:.32;cursor:default;}' +
+                        '.vgt-rail-btn:focus-visible,.vgt-rail-toggle:focus-visible{outline:2px solid var(--vgt-accent);outline-offset:2px;}' +
+                        '.vgt-rail-toggle{display:inline-flex;align-items:center;gap:5px;min-height:34px;flex:0 0 auto;padding:0 11px;cursor:pointer;' +
+                        'border:1px solid var(--vgt-border);border-radius:999px;background:var(--vgt-bg);color:var(--vgt-text);' +
+                        'font-family:inherit;font-size:11px;font-weight:700;transition:border-color .18s,background .18s;}' +
+                        '.vgt-rail-toggle:hover{border-color:var(--vgt-accent);color:var(--vgt-accent-ink);background:var(--vgt-accent-soft);}' +
+                        '.vgt-rail-toggle svg{width:13px;height:13px;flex:0 0 auto;}' +
+                        '.vgt-rail-progress{height:4px;margin:0 2px;border-radius:999px;background:rgba(0,0,0,.07);overflow:hidden;}' +
+                        // No transition: the thumb tracks the live scroll offset and easing
+                        // it would visibly lag behind a finger swipe.
+                        '.vgt-rail-thumb{height:100%;border-radius:999px;background:var(--vgt-accent);opacity:.7;}' +
+                        '.vgt-card-rail{display:flex;gap:12px;max-width:100%;overflow-x:auto;' +
                         'padding:2px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.16) transparent;overscroll-behavior-inline:contain;}' +
+                        // "See all" layout: the same cards reflow into a fluid grid, so
+                        // every product is reachable without any horizontal gesture.
+                        '.vgt-card-rail.vgt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));' +
+                        'overflow:visible;scroll-snap-type:none;padding-bottom:2px;}' +
+                        '.vgt-card-rail.vgt-grid .vgt-card{width:auto!important;flex-basis:auto!important;min-width:0;}' +
                         '.vgt-card{width:min(250px,78vw);flex:0 0 min(250px,78vw);display:flex;flex-direction:column;overflow:hidden;scroll-snap-align:start;border-radius:var(--vgt-r-bubble);border:1px solid var(--vgt-border);' +
                         'background:var(--vgt-bg);box-shadow:0 12px 32px -20px rgba(0,0,0,.34);animation:vgt-card-in .4s cubic-bezier(.2,.8,.3,1) both;' +
                         'transition:transform .2s ease,box-shadow .2s ease;}' +
@@ -577,6 +618,10 @@
                         '.vgt-root.vgt-open .vgt-backdrop{display:block!important;}' +
                         // Slightly larger touch targets for action chips on mobile.
                         '.vgt-action{padding:12px 18px!important;font-size:13px!important;}' +
+                        // Product-rail controls follow the same touch-target rule.
+                        '.vgt-rail-btn{width:40px!important;height:40px!important;}' +
+                        '.vgt-rail-toggle{min-height:40px!important;padding:0 13px!important;font-size:12px!important;}' +
+                        '.vgt-rail-shell{width:100%!important;}' +
                         // Messages use a bit more screen width on mobile.
                         '.vgt-msg,.vgt-bubble-wrap,.vgt-group .vgt-msg{max-width:88%!important;}' +
                         // Cards can stretch wider on narrow screens.
@@ -1314,6 +1359,177 @@
                 return card
         }
 
+        /** ASCII digits → Persian, so the card count matches the rest of the RTL UI. */
+        function faDigits(value) {
+                return String(value).replace(/[0-9]/g, function (digit) {
+                        return '۰۱۲۳۴۵۶۷۸۹'.charAt(Number(digit))
+                })
+        }
+
+        function prefersReducedMotion() {
+                return !!(
+                        window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches
+                )
+        }
+
+        /**
+         * Build the product-rail shell: a control bar (count + prev/next + "see all"
+         * grid toggle), the snapping scroller itself and a scroll progress bar.
+         *
+         * Controls stay hidden while every card already fits, so a single-product
+         * reply looks exactly as before. `shell.vgtSync` is the remeasure hook the
+         * card rebuild and the shared resize listener call.
+         */
+        function createRailShell() {
+                var rtl = isRtl()
+                var shell = el('div', 'vgt-rail-shell')
+                var bar = el('div', 'vgt-rail-bar')
+                var count = el('span', 'vgt-rail-count', svg('box') + '<span></span>')
+                var countLabel = count.querySelector('span')
+                var nav = el('div', 'vgt-rail-nav')
+                var prev = el('button', 'vgt-rail-btn', svg(rtl ? 'chevronR' : 'chevronL'))
+                prev.type = 'button'
+                prev.setAttribute('aria-label', t('محصول قبلی', 'Previous product'))
+                prev.title = prev.getAttribute('aria-label')
+                var next = el('button', 'vgt-rail-btn', svg(rtl ? 'chevronL' : 'chevronR'))
+                next.type = 'button'
+                next.setAttribute('aria-label', t('محصول بعدی', 'Next product'))
+                next.title = next.getAttribute('aria-label')
+                var toggle = el('button', 'vgt-rail-toggle')
+                toggle.type = 'button'
+                nav.appendChild(prev)
+                nav.appendChild(next)
+                bar.appendChild(count)
+                bar.appendChild(nav)
+                bar.appendChild(toggle)
+
+                var rail = el('div', 'vgt-card-rail')
+                rail.tabIndex = 0
+                rail.setAttribute('role', 'region')
+                rail.setAttribute('aria-label', t('ویترین محصولات پیشنهادی', 'Recommended products'))
+
+                var track = el('div', 'vgt-rail-progress')
+                track.setAttribute('aria-hidden', 'true')
+                var thumb = el('div', 'vgt-rail-thumb')
+                track.appendChild(thumb)
+
+                shell.appendChild(bar)
+                shell.appendChild(rail)
+                shell.appendChild(track)
+
+                var expanded = false
+
+                function paintToggle() {
+                        toggle.innerHTML = expanded ? svg('rows') : svg('grid')
+                        var span = document.createElement('span')
+                        span.textContent = expanded
+                                ? t('نمایش کشویی', 'Carousel')
+                                : t('همه محصولات', 'See all')
+                        toggle.appendChild(span)
+                        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+                }
+
+                function sync() {
+                        var total = rail.children.length
+                        countLabel.textContent = total
+                                ? t(
+                                          faDigits(total) + ' محصول',
+                                          total + (total === 1 ? ' product' : ' products'),
+                                  )
+                                : ''
+                        // In grid mode every card is already visible, so only the way back
+                        // to the carousel stays on screen.
+                        var max = Math.max(0, rail.scrollWidth - rail.clientWidth)
+                        var pos = Math.min(Math.abs(rail.scrollLeft), max)
+                        var overflowing = !expanded && max > 4
+                        nav.style.display = overflowing ? '' : 'none'
+                        track.style.display = overflowing ? '' : 'none'
+                        // Once expanded the toggle is the only way back, so it never hides.
+                        toggle.style.display = expanded || max > 4 ? '' : 'none'
+                        if (!overflowing) return
+                        prev.disabled = pos <= 4
+                        next.disabled = max - pos <= 4
+                        var ratio = rail.scrollWidth > 0 ? Math.min(1, rail.clientWidth / rail.scrollWidth) : 1
+                        var width = Math.max(18, Math.round(ratio * 100))
+                        var offset = (pos / max) * (100 - width)
+                        thumb.style.width = width + '%'
+                        // margin-inline-start by hand: keeps old WebKit in RTL correct.
+                        thumb.style.marginLeft = isRtl() ? '' : offset + '%'
+                        thumb.style.marginRight = isRtl() ? offset + '%' : ''
+                }
+
+                function step(towardEnd) {
+                        var card = rail.firstElementChild
+                        var amount = Math.min(
+                                (card ? card.offsetWidth : rail.clientWidth * 0.8) + 12,
+                                Math.max(rail.clientWidth, 1),
+                        )
+                        var delta = amount * (towardEnd ? 1 : -1) * (isRtl() ? -1 : 1)
+                        // Older Safari ignores the options form of scrollBy() instead of
+                        // throwing, so feature-detect smooth scrolling and step directly
+                        // when it is missing.
+                        var smooth =
+                                !prefersReducedMotion() &&
+                                document.documentElement &&
+                                'scrollBehavior' in document.documentElement.style
+                        if (smooth) {
+                                rail.scrollBy({ left: delta, behavior: 'smooth' })
+                        } else {
+                                rail.scrollLeft += delta
+                        }
+                }
+
+                // `sync` reads layout, and touch scrolling fires far more often than a
+                // frame, so coalesce scroll-driven remeasurement into one frame.
+                var pending = null
+                function scheduleSync() {
+                        if (pending !== null) return
+                        if (!window.requestAnimationFrame) {
+                                sync()
+                                return
+                        }
+                        pending = window.requestAnimationFrame(function () {
+                                pending = null
+                                sync()
+                        })
+                }
+
+                prev.addEventListener('click', function () {
+                        step(false)
+                })
+                next.addEventListener('click', function () {
+                        step(true)
+                })
+                toggle.addEventListener('click', function () {
+                        expanded = !expanded
+                        // Assigning className avoids classList.toggle()'s two-argument form,
+                        // which older mobile browsers do not implement.
+                        rail.className = expanded ? 'vgt-card-rail vgt-grid' : 'vgt-card-rail'
+                        if (!expanded) rail.scrollLeft = 0
+                        paintToggle()
+                        sync()
+                })
+                rail.addEventListener('scroll', scheduleSync)
+
+                paintToggle()
+                shell.vgtSync = sync
+                return shell
+        }
+
+        // One shared resize listener for every rail on screen — a per-message
+        // listener would leak for the lifetime of a long conversation.
+        var railResizeBound = false
+        function bindRailResize() {
+                if (railResizeBound) return
+                railResizeBound = true
+                window.addEventListener('resize', function () {
+                        var shells = root.querySelectorAll('.vgt-rail-shell')
+                        for (var i = 0; i < shells.length; i++) {
+                                if (shells[i].vgtSync) shells[i].vgtSync()
+                        }
+                })
+        }
+
         function actionChip(label, message) {
                 var btn = el('button', 'vgt-action', svg('arrow'))
                 btn.type = 'button'
@@ -1366,14 +1582,13 @@
                 // Cards are rebuilt only when their trusted identity changes.
                 // This keeps SSE replacement deterministic without doing DOM work
                 // for every text delta.
-                var rail = group.querySelector('.vgt-card-rail')
-                if (parsed.cards.length > 0 && !rail) {
-                        rail = el('div', 'vgt-card-rail')
-                        rail.tabIndex = 0
-                        rail.setAttribute('role', 'region')
-                        rail.setAttribute('aria-label', t('ویترین محصولات پیشنهادی', 'Recommended products'))
-                        group.appendChild(rail)
+                var shell = group.querySelector('.vgt-rail-shell')
+                if (parsed.cards.length > 0 && !shell) {
+                        shell = createRailShell()
+                        group.appendChild(shell)
+                        bindRailResize()
                 }
+                var rail = shell ? shell.querySelector('.vgt-card-rail') : null
                 var signature = parsed.cards.map(function (card) {
                         return card.id || card.name
                 }).join('|')
@@ -1383,6 +1598,12 @@
                                 rail.appendChild(renderCard(parsed.cards[i]))
                         }
                         group.setAttribute('data-card-signature', signature)
+                        // Cards land asynchronously (images still loading), so measure once
+                        // now for the button state and again after layout settles.
+                        if (shell.vgtSync) {
+                                shell.vgtSync()
+                                setTimeout(shell.vgtSync, 60)
+                        }
                 }
 
                 // action chips — once, after streaming finished, for the first card

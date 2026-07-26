@@ -31,10 +31,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
-import {
-        parseProductShowcaseContent,
-        ProductShowcaseRail,
-} from '@/components/products/product-showcase'
+import { parseProductShowcaseContent } from '@/components/products/product-showcase'
+import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { OperatorReply } from './operator-reply'
 import {
         ConversationTimelineActivity,

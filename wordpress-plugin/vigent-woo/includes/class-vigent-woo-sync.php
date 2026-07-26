@@ -17,6 +17,20 @@ class Vigent_Woo_Sync {
 	const FLUSH_LOCK_OPTION  = 'vigent_woo_delta_flush_lock';
 	const MAX_QUEUE_SIZE     = 5000;
 	const MAX_BATCH_SIZE     = 50;
+	/**
+	 * Vigent answers a body larger than 4MB with HTTP 413. Fifty products with
+	 * long descriptions can pass that, and the old code retried the very same
+	 * oversized batch every five minutes forever, so the queue never drained.
+	 * Batches are now split to stay well under the server limit.
+	 */
+	const MAX_BATCH_BYTES    = 2097152;
+	/**
+	 * A change that the server keeps rejecting (permanent 4xx, conflicting
+	 * delivery, oversized single product) used to sit at the head of the queue
+	 * and block every later change. After this many failed flushes it is
+	 * dead-lettered and reported on the settings screen; a full push recovers it.
+	 */
+	const MAX_DELTA_ATTEMPTS = 12;
 
 	private static $instance = null;
 
@@ -199,10 +213,13 @@ class Vigent_Woo_Sync {
 		}
 		return array_merge(
 			array(
-				'queue_count'  => count( $this->get_delta_queue() ),
-				'last_attempt' => null,
-				'last_success' => null,
-				'last_error'   => '',
+				'queue_count'        => count( $this->get_delta_queue() ),
+				'last_attempt'       => null,
+				'last_success'       => null,
+				'last_error'         => '',
+				'dropped_total'      => 0,
+				'last_dropped'       => null,
+				'last_dropped_error' => '',
 			),
 			$state
 		);
@@ -228,38 +245,63 @@ class Vigent_Woo_Sync {
 		}
 
 		$events = array();
+		$stale  = array();
 		foreach ( $slice as $key => $entry ) {
 			$event = $this->materialize_delta( $entry );
 			if ( $event ) {
 				$events[ $key ] = $event;
+			} else {
+				// Nothing left to send (sync switched off, order deleted): these
+				// leave the queue immediately instead of riding along with a batch.
+				$stale[ $key ] = $entry;
 			}
+		}
+		if ( ! empty( $stale ) ) {
+			$this->remove_unchanged_entries( $stale );
 		}
 
 		if ( empty( $events ) ) {
-			$this->remove_unchanged_entries( $slice );
 			$this->release_lock( self::FLUSH_LOCK_OPTION );
 			return array( 'success' => true, 'sent' => 0, 'remaining' => count( $this->get_delta_queue() ), 'message' => __( 'مورد معتبری برای ارسال نبود.', 'vigent-woo' ) );
 		}
 
-		$result = $this->core()->send_batch_events( array_values( $events ), false );
-		$state  = array(
+		// Send only as much as fits the server body limit; the rest keeps its place
+		// in the queue and goes out on the next flush.
+		$chunks = $this->chunk_events_by_budget( $events );
+		$events = empty( $chunks ) ? array() : $chunks[0];
+		$slice  = array_intersect_key( $slice, $events );
+
+		$result   = $this->core()->send_batch_events( array_values( $events ), false );
+		$previous = get_option( self::SYNC_STATE_OPTION, array() );
+		if ( ! is_array( $previous ) ) {
+			$previous = array();
+		}
+		$state = array(
 			'last_attempt' => current_time( 'mysql' ),
 			'last_success' => null,
 			'last_error'   => '',
+			// Dead-letter counters survive both outcomes so the settings screen can
+			// keep warning until a full push clears the backlog.
+			'dropped_total'      => isset( $previous['dropped_total'] ) ? (int) $previous['dropped_total'] : 0,
+			'last_dropped'       => isset( $previous['last_dropped'] ) ? $previous['last_dropped'] : null,
+			'last_dropped_error' => isset( $previous['last_dropped_error'] ) ? (string) $previous['last_dropped_error'] : '',
 		);
 
 		if ( ! empty( $result['success'] ) ) {
 			$this->remove_unchanged_entries( $slice );
-			$previous              = get_option( self::SYNC_STATE_OPTION, array() );
 			$state['last_success'] = current_time( 'mysql' );
-			if ( is_array( $previous ) && ! empty( $previous['last_success'] ) ) {
+			if ( ! empty( $previous['last_success'] ) ) {
 				$state['previous_success'] = $previous['last_success'];
 			}
 		} else {
 			$state['last_error'] = isset( $result['body'] ) ? wp_strip_all_tags( (string) $result['body'] ) : __( 'خطای نامشخص', 'vigent-woo' );
-			$this->mark_failed_entries( $slice, $state['last_error'] );
-			$previous = get_option( self::SYNC_STATE_OPTION, array() );
-			if ( is_array( $previous ) && ! empty( $previous['last_success'] ) ) {
+			$dropped             = $this->mark_failed_entries( $slice, $state['last_error'] );
+			if ( $dropped > 0 ) {
+				$state['dropped_total']     += $dropped;
+				$state['last_dropped']       = current_time( 'mysql' );
+				$state['last_dropped_error'] = substr( $state['last_error'], 0, 500 );
+			}
+			if ( ! empty( $previous['last_success'] ) ) {
 				$state['last_success'] = $previous['last_success'];
 			}
 		}
@@ -331,20 +373,65 @@ class Vigent_Woo_Sync {
 		return true;
 	}
 
+	/**
+	 * Count a failed attempt against each entry and dead-letter the ones that can
+	 * never succeed, so one poisoned change cannot block the whole queue.
+	 *
+	 * @return int Number of entries removed from the queue.
+	 */
 	private function mark_failed_entries( $failed_entries, $error ) {
 		if ( ! $this->acquire_lock( self::QUEUE_LOCK_OPTION, 5 ) ) {
-			return false;
+			return 0;
 		}
-		$queue = $this->get_delta_queue();
+		$queue   = $this->get_delta_queue();
+		$dropped = 0;
 		foreach ( $failed_entries as $key => $failed ) {
-			if ( isset( $queue[ $key ]['event_id'], $failed['event_id'] ) && hash_equals( (string) $queue[ $key ]['event_id'], (string) $failed['event_id'] ) ) {
-				$queue[ $key ]['attempts']   = isset( $queue[ $key ]['attempts'] ) ? (int) $queue[ $key ]['attempts'] + 1 : 1;
-				$queue[ $key ]['last_error'] = substr( (string) $error, 0, 500 );
+			if ( ! isset( $queue[ $key ]['event_id'], $failed['event_id'] ) ) {
+				continue;
 			}
+			if ( ! hash_equals( (string) $queue[ $key ]['event_id'], (string) $failed['event_id'] ) ) {
+				continue;
+			}
+			$attempts = isset( $queue[ $key ]['attempts'] ) ? (int) $queue[ $key ]['attempts'] + 1 : 1;
+			if ( $attempts >= self::MAX_DELTA_ATTEMPTS ) {
+				unset( $queue[ $key ] );
+				$dropped++;
+				continue;
+			}
+			$queue[ $key ]['attempts']   = $attempts;
+			$queue[ $key ]['last_error'] = substr( (string) $error, 0, 500 );
 		}
 		$this->save_delta_queue( $queue );
 		$this->release_lock( self::QUEUE_LOCK_OPTION );
-		return true;
+		return $dropped;
+	}
+
+	/**
+	 * Split events into request-sized groups, preserving keys.
+	 *
+	 * A single event bigger than the budget is still returned on its own — the
+	 * server decides, and repeated rejections dead-letter it rather than stalling
+	 * every other change behind it.
+	 */
+	private function chunk_events_by_budget( $events ) {
+		$chunks  = array();
+		$current = array();
+		$bytes   = 0;
+		foreach ( $events as $key => $event ) {
+			$encoded = wp_json_encode( $event, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+			$size    = false === $encoded ? 0 : strlen( $encoded );
+			if ( ! empty( $current ) && ( $bytes + $size ) > self::MAX_BATCH_BYTES ) {
+				$chunks[] = $current;
+				$current  = array();
+				$bytes    = 0;
+			}
+			$current[ $key ] = $event;
+			$bytes          += $size;
+		}
+		if ( ! empty( $current ) ) {
+			$chunks[] = $current;
+		}
+		return $chunks;
 	}
 
 	private function acquire_lock( $option, $ttl ) {
@@ -444,10 +531,23 @@ class Vigent_Woo_Sync {
 		if ( empty( $events ) ) {
 			return array( 'sent' => 0, 'errors' => array(), 'total' => $total, 'done' => $done );
 		}
-		$result = $this->core()->send_batch_events( $events, true );
+
+		// One page can exceed the server body limit on stores with long product
+		// descriptions. Every group is sent (failures land in the retry queue), so
+		// an oversized page no longer fails the whole page.
+		$sent   = 0;
+		$errors = array();
+		foreach ( $this->chunk_events_by_budget( $events ) as $chunk ) {
+			$result = $this->core()->send_batch_events( array_values( $chunk ), true );
+			if ( ! empty( $result['success'] ) ) {
+				$sent += count( $chunk );
+			} else {
+				$errors[] = isset( $result['body'] ) ? $result['body'] : __( 'ارسال ناموفق بود.', 'vigent-woo' );
+			}
+		}
 		return array(
-			'sent'   => ! empty( $result['success'] ) ? count( $events ) : 0,
-			'errors' => ! empty( $result['success'] ) ? array() : array( isset( $result['body'] ) ? $result['body'] : __( 'ارسال ناموفق بود.', 'vigent-woo' ) ),
+			'sent'   => $sent,
+			'errors' => $errors,
 			'total'  => $total,
 			'done'   => $done,
 		);

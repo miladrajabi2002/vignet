@@ -5,10 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
-import {
-  parseProductShowcaseContent,
-  ProductShowcaseRail,
-} from '@/components/products/product-showcase'
+import { parseProductShowcaseContent } from '@/components/products/product-showcase'
+import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 
 export const dynamic = 'force-dynamic'
 

@@ -18,9 +18,9 @@ import { ChatComposer } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import {
 	parseProductShowcaseContent,
-	ProductShowcaseRail,
 	type ShowcaseProduct,
 } from '@/components/products/product-showcase'
+import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

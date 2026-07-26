@@ -343,6 +343,10 @@ class Vigent_Woo_Core {
                                         'Content-Type'           => 'application/json; charset=utf-8',
                                         'X-WC-Webhook-Topic'     => $topic,
                                         'X-WC-Webhook-Signature' => $signature,
+                                        // Vigent records the plugin version per delivery. Without this
+                                        // header it only learned the version from a manual connection
+                                        // test, so an auto-updated site kept reporting its old version.
+                                        'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
                                 ),
                                 'body'        => $body,
                         )
@@ -497,6 +501,7 @@ class Vigent_Woo_Core {
                                                 'Content-Type'           => 'application/json; charset=utf-8',
                                                 'X-WC-Webhook-Topic'     => $item['topic'],
                                                 'X-WC-Webhook-Signature' => $signature,
+                                                'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
                                         ),
                                         'body'    => $item['body'],
                                 )
@@ -528,6 +533,24 @@ class Vigent_Woo_Core {
 
         // ─── Payloads ────────────────────────────────────────────────────────
 
+        /**
+         * Pick a display-sized image instead of the original upload.
+         *
+         * Vigent renders the first image inside chat product cards at roughly
+         * 320×240, so a 3–5MB original made every card a slow, expensive download
+         * on mobile. `wp_get_attachment_image_url()` already falls back to the full
+         * size when a registered size is missing, so this is safe on any site.
+         */
+        private function product_image_src( $attachment_id ) {
+                foreach ( array( 'woocommerce_single', 'large', 'full' ) as $size ) {
+                        $src = wp_get_attachment_image_url( $attachment_id, $size );
+                        if ( $src ) {
+                                return $src;
+                        }
+                }
+                return '';
+        }
+
         public function product_to_payload( $product ) {
                 if ( ! $product ) {
                         return array();
@@ -535,14 +558,14 @@ class Vigent_Woo_Core {
 
                 $images = array();
                 foreach ( $product->get_gallery_image_ids() as $id ) {
-                        $src = wp_get_attachment_image_url( $id, 'full' );
+                        $src = $this->product_image_src( $id );
                         if ( $src ) {
                                 $images[] = array( 'src' => $src );
                         }
                 }
                 $thumb = $product->get_image_id();
                 if ( $thumb ) {
-                        $src = wp_get_attachment_image_url( $thumb, 'full' );
+                        $src = $this->product_image_src( $thumb );
                         if ( $src ) {
                                 array_unshift( $images, array( 'src' => $src ) );
                         }
