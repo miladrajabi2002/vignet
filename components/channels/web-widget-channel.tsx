@@ -83,31 +83,47 @@ export function WebWidgetChannel({
         async function enable() {
                 setBusy(true)
                 setError(null)
-                const res = await fetch(`/api/agents/${agentId}/channels`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'WEB_WIDGET' }),
-                })
-                setBusy(false)
-                if (!res.ok) {
-                        const data = await res.json().catch(() => ({}))
-                        setError(data.error === 'CHANNEL_LIMIT' ? t('channelLimitError') : t('connectError'))
-                        return
+                try {
+                        const res = await fetch(`/api/agents/${agentId}/channels`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ type: 'WEB_WIDGET' }),
+                        })
+                        if (!res.ok) {
+                                const data = await res.json().catch(() => ({}))
+                                setError(data.error === 'CHANNEL_LIMIT' ? t('channelLimitError') : t('connectError'))
+                                return
+                        }
+                        router.refresh()
+                } catch {
+                        setError(t('connectError'))
+                } finally {
+                        setBusy(false)
                 }
-                router.refresh()
         }
 
         async function disable() {
                 if (!channelId) return
                 setBusy(true)
-                await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
-                setBusy(false)
-                router.refresh()
+                setError(null)
+                try {
+                        const res = await fetch(`/api/agents/${agentId}/channels/${channelId}`, { method: 'DELETE' })
+                        if (!res.ok) {
+                                setError(t('saveError'))
+                                return
+                        }
+                        router.refresh()
+                } catch {
+                        setError(t('saveError'))
+                } finally {
+                        setBusy(false)
+                }
         }
 
         async function save() {
                 setSaving(true)
                 setSaved(false)
+                setError(null)
                 const domains = normalizeDomains(domainsText)
                 try {
                         const res = await fetch(`/api/agents/${agentId}/channels`, {
@@ -124,7 +140,7 @@ export function WebWidgetChannel({
                         // Cache invalidation happens server-side in the POST /channels route.
                         router.refresh()
                 } catch {
-                        alert(t('saveError'))
+                        setError(t('saveError'))
                 } finally {
                         setSaving(false)
                 }

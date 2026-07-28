@@ -21,6 +21,8 @@ import {
         ChevronDown,
 } from 'lucide-react'
 import { COMPOSER_GEOMETRY, SendButton } from '@/components/chat/chat-composer'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
         normalizeChatLinkSettings,
         normalizeSlug,
@@ -57,6 +59,7 @@ export function ChatLinkChannel({
 }) {
         const t = useTranslations('chatLink')
         const tc = useTranslations('channels')
+        const common = useTranslations('common')
         const router = useRouter()
 
         const [link, setLink] = useState<LinkState | null>(initialLink)
@@ -71,6 +74,7 @@ export function ChatLinkChannel({
         const [error, setError] = useState<string | null>(null)
         const [qr, setQr] = useState<string | null>(null)
         const [showQr, setShowQr] = useState(false)
+        const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
 
         const publicUrl = useMemo(
                 () => `${appUrl.replace(/\/+$/, '')}/c/${slug}`,
@@ -123,13 +127,20 @@ export function ChatLinkChannel({
         }, [agentId, slug, slugValid, settings, t, tc, router])
 
         const remove = useCallback(async () => {
-                if (!confirm(t('confirmRemove'))) return
+                setError(null)
                 setSaving(true)
                 try {
-                        await fetch(`/api/agents/${agentId}/chat-link`, { method: 'DELETE' })
+                        const res = await fetch(`/api/agents/${agentId}/chat-link`, { method: 'DELETE' })
+                        if (!res.ok) {
+                                setError(t('saveError'))
+                                return
+                        }
                         setLink(null)
                         setShowSettings(false)
+                        setRemoveConfirmOpen(false)
                         router.refresh()
+                } catch {
+                        setError(t('saveError'))
                 } finally {
                         setSaving(false)
                 }
@@ -189,14 +200,18 @@ export function ChatLinkChannel({
                                 </div>
                                 {link ? (
                                         <div className="ms-auto flex w-full items-center justify-end gap-2 sm:w-auto">
-                                                <button
+                                                <Button
                                                         type="button"
-                                                        onClick={remove}
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                                setError(null)
+                                                                setRemoveConfirmOpen(true)
+                                                        }}
                                                         disabled={saving}
-                                                        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)] hover:text-danger disabled:opacity-50"
+                                                        className="hover:text-danger"
                                                 >
                                                         {t('remove')}
-                                                </button>
+                                                </Button>
                                                 <button
                                                         type="button"
                                                         onClick={() => setShowSettings((value) => !value)}
@@ -209,16 +224,16 @@ export function ChatLinkChannel({
                                                 </button>
                                         </div>
                                 ) : (
-                                        <button
+                                        <Button
                                                 type="button"
                                                 onClick={() => setShowSettings((value) => !value)}
                                                 aria-expanded={showSettings}
                                                 aria-controls="chat-link-details"
-                                                className="ms-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-black px-4 text-sm font-semibold text-white"
+                                                className="ms-auto"
                                         >
                                                 {t('create')}
                                                 <ChevronDown className={`h-4 w-4 transition-transform duration-200 motion-reduce:transition-none ${showSettings ? 'rotate-180' : ''}`} />
-                                        </button>
+                                        </Button>
                                 )}
                         </div>
 
@@ -504,14 +519,13 @@ export function ChatLinkChannel({
 
                                                 {/* Save */}
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                        <button
+                                                        <Button
                                                                 onClick={save}
                                                                 disabled={saving || !slugValid}
-                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--white)] px-4 py-2 text-sm font-medium text-[var(--bg-base)] disabled:opacity-50"
+                                                                loading={saving}
                                                         >
-                                                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                                                 {saving ? t('saving') : link ? t('save') : t('publish')}
-                                                        </button>
+                                                        </Button>
                                                         {saved && (
                                                                 <span className="inline-flex items-center gap-1 text-sm text-success">
                                                                         <Check className="h-4 w-4" />
@@ -539,6 +553,19 @@ export function ChatLinkChannel({
                                         </div>
                                 </div>
                         )}
+                        <ConfirmDialog
+                                open={removeConfirmOpen}
+                                title={t('remove')}
+                                description={t('confirmRemove')}
+                                confirmLabel={t('remove')}
+                                cancelLabel={common('cancel')}
+                                busy={saving}
+                                error={error}
+                                onConfirm={() => void remove()}
+                                onClose={() => {
+                                        if (!saving) setRemoveConfirmOpen(false)
+                                }}
+                        />
                 </div>
         )
 }

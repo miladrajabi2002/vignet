@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { Bot, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
+import { parseProductShowcaseContent } from '@/components/products/product-showcase'
+import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { SpeakButton } from '@/components/voice/audio-player'
 
 // The VAD recorder pulls a sizeable ONNX/WASM runtime. Split it from the agent
@@ -35,6 +37,7 @@ export function TestPlayground({
         suggestedPrompts?: string[]
 }) {
         const t = useTranslations('agents.playground')
+        const locale = useLocale() === 'en' ? 'en' : 'fa'
 
         const [messages, setMessages] = useState<Msg[]>(
                 welcomeMessage ? [{ role: 'assistant', content: welcomeMessage }] : [],
@@ -235,65 +238,92 @@ export function TestPlayground({
                                                 </p>
                                         </div>
                                 ) : (
-                                        messages.map((m, i) => (
-                                                <div
-                                                        key={i}
-                                                        className={cn(
-                                                                'flex items-end gap-1.5',
-                                                                m.role === 'user' ? 'justify-end' : 'justify-start',
-                                                        )}
-                                                >
-                                                        <div className="flex flex-col gap-1">
-                                                                <ConversationBubble
-                                                                        side={m.role === 'user' ? 'end' : 'start'}
-                                                                        tone={m.role === 'user' ? 'inverse' : 'surface'}
-                                                                        className="max-w-[80%] px-4"
-                                                                >
-                                                                        {m.content ? (
-                                                                                <ConversationText
-                                                                                        text={m.content}
-                                                                                        markdown={m.role === 'assistant'}
-                                                                                />
-                                                                        ) : (
-                                                                                <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
+                                        messages.map((m, i) => {
+                                                const isUser = m.role === 'user'
+                                                // Same rule as the chat link and widget: strip [[product:{…}]]
+                                                // markers into real cards, and hold a partial marker back while
+                                                // the last message is still streaming so machine syntax never
+                                                // flashes on screen.
+                                                const showcase = isUser
+                                                        ? { text: m.content, products: [] }
+                                                        : parseProductShowcaseContent(m.content, !streaming || i !== messages.length - 1)
+                                                const hasShowcase = showcase.products.length > 0
+                                                return (
+                                                        <div
+                                                                key={i}
+                                                                className={cn(
+                                                                        'flex items-end gap-1.5',
+                                                                        isUser ? 'justify-end' : 'justify-start',
+                                                                )}
+                                                        >
+                                                                <div
+                                                                        className={cn(
+                                                                                'flex flex-col gap-1',
+                                                                                isUser ? 'items-end' : 'items-start',
+                                                                                hasShowcase ? 'w-full max-w-[46rem]' : 'max-w-[82%]',
                                                                         )}
-                                                                </ConversationBubble>
-                                                                {m.role === 'assistant' && m.id && m.content && (
-                                                                        <div className="flex items-center gap-1 ps-1">
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() => rate(m.id!, 1, i)}
-                                                                                        className={cn(
-                                                                                                'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
-                                                                                                m.rating === 1
-                                                                                                        ? 'text-success'
-                                                                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-                                                                                        )}
-                                                                                        title={t('rateGood')}
+                                                                >
+                                                                        {(showcase.text || !hasShowcase) && (
+                                                                                <ConversationBubble
+                                                                                        side={isUser ? 'end' : 'start'}
+                                                                                        tone={isUser ? 'inverse' : 'surface'}
+                                                                                        className="max-w-full px-4"
                                                                                 >
-                                                                                        <ThumbsUp className="h-3.5 w-3.5" />
-                                                                                </button>
-                                                                                <button
-                                                                                        type="button"
-                                                                                        onClick={() => rate(m.id!, -1, i)}
-                                                                                        className={cn(
-                                                                                                'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
-                                                                                                m.rating === -1
-                                                                                                        ? 'text-danger'
-                                                                                                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                                                                                        {showcase.text ? (
+                                                                                                <ConversationText
+                                                                                                        text={showcase.text}
+                                                                                                        markdown={m.role === 'assistant'}
+                                                                                                />
+                                                                                        ) : (
+                                                                                                <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
                                                                                         )}
-                                                                                        title={t('rateBad')}
-                                                                                >
-                                                                                        <ThumbsDown className="h-3.5 w-3.5" />
-                                                                                </button>
-                                                                        </div>
+                                                                                </ConversationBubble>
+                                                                        )}
+                                                                        {m.role === 'assistant' && hasShowcase && (
+                                                                                <ProductShowcaseRail
+                                                                                        products={showcase.products}
+                                                                                        locale={locale}
+                                                                                        compact
+                                                                                        className="mt-1 w-full"
+                                                                                />
+                                                                        )}
+                                                                        {m.role === 'assistant' && m.id && m.content && (
+                                                                                <div className="flex items-center gap-1 ps-1">
+                                                                                        <button
+                                                                                                type="button"
+                                                                                                onClick={() => rate(m.id!, 1, i)}
+                                                                                                className={cn(
+                                                                                                        'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
+                                                                                                        m.rating === 1
+                                                                                                                ? 'text-success'
+                                                                                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                                                                                                )}
+                                                                                                title={t('rateGood')}
+                                                                                        >
+                                                                                                <ThumbsUp className="h-3.5 w-3.5" />
+                                                                                        </button>
+                                                                                        <button
+                                                                                                type="button"
+                                                                                                onClick={() => rate(m.id!, -1, i)}
+                                                                                                className={cn(
+                                                                                                        'inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
+                                                                                                        m.rating === -1
+                                                                                                                ? 'text-danger'
+                                                                                                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                                                                                                )}
+                                                                                                title={t('rateBad')}
+                                                                                        >
+                                                                                                <ThumbsDown className="h-3.5 w-3.5" />
+                                                                                        </button>
+                                                                                </div>
+                                                                        )}
+                                                                </div>
+                                                                {m.role === 'assistant' && m.content && (
+                                                                        <SpeakButton text={m.content} label={t('speak')} />
                                                                 )}
                                                         </div>
-                                                        {m.role === 'assistant' && m.content && (
-                                                                <SpeakButton text={m.content} label={t('speak')} />
-                                                        )}
-                                                </div>
-                                        ))
+                                                )
+                                        })
                                 )}
                         </div>
 

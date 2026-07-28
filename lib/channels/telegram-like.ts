@@ -5,6 +5,17 @@ import type {
   OutboundVoice,
   SendOptions,
 } from '@/lib/channels/types'
+import { splitOutboundText } from '@/lib/channels/text-chunks'
+
+class BotApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'BotApiError'
+  }
+}
 
 /** Convert the small Markdown subset our agents use into Telegram-safe HTML. */
 export function telegramMarkdownToHtml(value: string): string {
@@ -30,15 +41,29 @@ export function createTelegramLikeAdapter(opts: {
   const { channel, baseUrl, token } = opts
   const api = `${baseUrl}/bot${token}`
 
-  async function call(method: string, payload: unknown): Promise<unknown> {
+  // Node's fetch has no overall request timeout: a hung connection to the Bot
+  // API would hold a BullMQ worker slot open indefinitely. Abort instead and
+  // let the caller's normal failure path (retry/backoff) take over.
+  const CALL_TIMEOUT_MS = 20_000
+  const NICETY_TIMEOUT_MS = 10_000 // typing indicator, avatars — best-effort
+  const UPLOAD_TIMEOUT_MS = 30_000 // voice uploads carry a real payload
+  const TEXT_CHUNK_LIMIT = 4_000 // platform cap is 4096; leave markup headroom
+
+  async function call(
+    method: string,
+    payload: unknown,
+    timeoutMs = CALL_TIMEOUT_MS,
+  ): Promise<unknown> {
     const res = await fetch(`${api}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok || (json as { ok?: boolean }).ok === false) {
-      throw new Error(
+      throw new BotApiError(
+        res.status,
         `${channel} ${method} failed (${res.status}): ${JSON.stringify(json)}`,
       )
     }
@@ -82,40 +107,50 @@ export function createTelegramLikeAdapter(opts: {
     },
 
     async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
-      const payload: Record<string, unknown> = {
-        chat_id: chatId,
-        text: channel === 'TELEGRAM' ? telegramMarkdownToHtml(text) : text,
-      }
-      if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
-      // Quick replies → a one-time reply keyboard: tapping a button sends its
-      // text as a regular message, so no callback_query handling is needed.
-      if (opts?.quickReplies?.length) {
-        const rows: { text: string }[][] = []
-        for (let i = 0; i < opts.quickReplies.length; i += 2) {
-          rows.push(opts.quickReplies.slice(i, i + 2).map((q) => ({ text: q })))
+      const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex]
+        const payload: Record<string, unknown> = {
+          chat_id: chatId,
+          text: channel === 'TELEGRAM' ? telegramMarkdownToHtml(chunk) : chunk,
         }
-        payload.reply_markup = {
-          keyboard: rows,
-          resize_keyboard: true,
-          one_time_keyboard: true,
+        if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
+        // Quick replies belong only to the final part, after the full answer.
+        if (chunkIndex === chunks.length - 1 && opts?.quickReplies?.length) {
+          const rows: { text: string }[][] = []
+          for (let i = 0; i < opts.quickReplies.length; i += 2) {
+            rows.push(opts.quickReplies.slice(i, i + 2).map((q) => ({ text: q })))
+          }
+          payload.reply_markup = {
+            keyboard: rows,
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          }
         }
-      }
-      try {
-        await call('sendMessage', payload)
-      } catch (error) {
-        // A malformed model fragment must not make the whole reply disappear.
-        // Telegram accepts the escaped markup in normal cases; retrying without
-        // parse_mode is a truthful plain-text fallback for edge cases.
-        if (channel !== 'TELEGRAM') throw error
-        const fallback: Record<string, unknown> = { ...payload, text }
-        delete fallback.parse_mode
-        await call('sendMessage', fallback)
+        try {
+          await call('sendMessage', payload)
+        } catch (error) {
+          // Telegram rejects malformed HTML with a deterministic 400 before
+          // accepting the message, so a plain-text fallback is safe there.
+          // Never retry an ambiguous timeout/network/5xx failure here: the API
+          // may already have delivered it, and retrying would duplicate text.
+          if (
+            channel !== 'TELEGRAM' ||
+            !(error instanceof BotApiError) ||
+            error.status !== 400
+          ) {
+            throw error
+          }
+          const fallback: Record<string, unknown> = { ...payload, text: chunk }
+          delete fallback.parse_mode
+          await call('sendMessage', fallback)
+        }
       }
     },
 
     async sendTyping(chatId: string): Promise<void> {
       // Shows "typing…" for ~5s in the client. Best-effort.
-      await call('sendChatAction', { chat_id: chatId, action: 'typing' })
+      await call('sendChatAction', { chat_id: chatId, action: 'typing' }, NICETY_TIMEOUT_MS)
     },
 
     async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {
@@ -129,7 +164,11 @@ export function createTelegramLikeAdapter(opts: {
         isVoiceNote ? 'reply.ogg' : 'reply.mp3',
       )
       const method = isVoiceNote ? 'sendVoice' : 'sendAudio'
-      const res = await fetch(`${api}/${method}`, { method: 'POST', body: form })
+      const res = await fetch(`${api}/${method}`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+      })
       if (!res.ok) {
         // Fall back to nothing — caller will have already sent text.
         console.error(`[${channel}] sendVoice failed:`, res.status)
@@ -154,10 +193,11 @@ export function createTelegramLikeAdapter(opts: {
       // Best-effort: returns null when the user has no photo or the API refuses
       // (e.g. privacy settings). Never throws — avatar is a nice-to-have.
       try {
-        const result = (await call('getUserProfilePhotos', {
-          user_id: userId,
-          limit: 1,
-        })) as { photos?: { file_id: string }[][] } | null
+        const result = (await call(
+          'getUserProfilePhotos',
+          { user_id: userId, limit: 1 },
+          NICETY_TIMEOUT_MS,
+        )) as { photos?: { file_id: string }[][] } | null
         const photo = result?.photos?.[0]?.slice(-1)?.[0]
         if (!photo?.file_id) return null
         return await this.getVoiceUrl!(photo.file_id)

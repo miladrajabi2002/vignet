@@ -1,9 +1,33 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import { normalizePersian, buildLexicalQuery } from '@/lib/knowledge/normalize'
+import { rankRetrievedChunks } from '@/lib/knowledge/ranking'
 
 /** Format a number[] as a pgvector literal: [0.1,0.2,...] */
 function toVectorLiteral(embedding: number[]): string {
   return `[${embedding.join(',')}]`
+}
+
+/**
+ * pgvector 0.8+ supports iterative HNSW scans: the index keeps scanning until
+ * the post-filter LIMIT is satisfied instead of stopping at ef_search global
+ * neighbors. Without it, a small tenant's chunks must appear among the top-120
+ * GLOBAL nearest neighbors to be seen at all — a guarantee that erodes as the
+ * shared chunk table grows. Detected once per process; older pgvector would
+ * reject the unknown GUC and abort the whole retrieval transaction.
+ */
+let iterativeScanSupport: Promise<boolean> | null = null
+function supportsIterativeScan(): Promise<boolean> {
+  iterativeScanSupport ??= prisma
+    .$queryRaw<Array<{ extversion: string }>>`SELECT extversion FROM pg_extension WHERE extname = 'vector'`
+    .then((rows) => {
+      const version = rows[0]?.extversion
+      if (!version) return false
+      const [major = 0, minor = 0] = version.split('.').map(Number)
+      return major > 0 || (major === 0 && minor >= 8)
+    })
+    .catch(() => false)
+  return iterativeScanSupport
 }
 
 export interface InsertChunkInput {
@@ -26,7 +50,10 @@ export async function insertChunk(input: InsertChunkInput): Promise<string> {
       kbId: input.kbId,
       agentId: input.agentId,
       workspaceId: input.workspaceId,
-      content: input.content,
+      // Store normalized content so the GIN tsvector index and the normalized
+      // lexical query (buildLexicalQuery) agree on Arabic/Persian letter
+      // variants, half-spaces and digit systems.
+      content: normalizePersian(input.content),
       metadata: input.metadata,
     },
     select: { id: true },
@@ -46,18 +73,23 @@ export interface RetrievedChunk {
   /** F4: when the chunk's parent KB was last refreshed (null for non-URL). */
   kbLastIngestedAt?: Date | null
   hybridScore?: number
+  /** Position in the exact-term (tsquery) ranking; null = no lexical match. */
+  lexicalRank?: number | null
 }
 
 /**
- * Cosine-similarity retrieval over an agent's knowledge chunks.
+ * Hybrid (vector + lexical RRF) retrieval over an agent's knowledge chunks.
  * Always scoped by workspaceId AND agentId for tenant isolation.
  *
- * F4 — recency boost: for URL-type knowledge bases that declare a refresh
- * interval, chunks from a recently-refreshed KB get a small similarity bump so
- * fresh information wins ties against stale entries. The boost decays linearly
- * over a 7-day window (newest = +0.05, 7 days old = +0). Product-catalog and
- * non-URL chunks receive no boost (their freshness is tracked separately via
- * `Product.embeddingUpdatedAt`).
+ * Relevance gate: candidates that neither reach MIN_VECTOR_SIMILARITY nor
+ * have an exact-term match are dropped entirely, so smalltalk («سلام»,
+ * «ممنون») injects zero chunks into the prompt instead of the K nearest
+ * irrelevant ones.
+ *
+ * F4 — recency/curation boosts (see lib/knowledge/ranking.ts): both are
+ * scaled below one RRF rank step, so they only break near-ties — a recently
+ * re-crawled page can no longer systematically outrank the owner's curated
+ * FAQ/manual knowledge.
  */
 export async function retrieveChunks(params: {
   workspaceId: string
@@ -74,15 +106,23 @@ export async function retrieveChunks(params: {
 
   // Pull a slightly larger candidate set so the recency re-rank has headroom.
   const candidateLimit = Math.max(limit * 3, limit + 5)
-  const queryText = params.queryText?.replace(/\s+/g, ' ').trim().slice(0, 500) ?? ''
+  // Content-bearing terms only, OR-joined: websearch AND semantics over the
+  // raw message («سلام ببخشید میخواستم …») virtually never matched a chunk,
+  // silently degrading hybrid retrieval to vector-only.
+  const queryText = buildLexicalQuery(params.queryText ?? '')
   const includeProductCatalog = params.includeProductCatalog !== false
+  const iterativeScan = await supportsIterativeScan()
 
   // The workspace/agent WHERE filter is applied *after* the HNSW scan, so for
   // small tenants the default ef_search (40) can return too few (or zero)
   // rows even when matches exist. Raise it for this query only (SET LOCAL is
-  // transaction-scoped).
+  // transaction-scoped) and, on pgvector 0.8+, let the scan iterate past
+  // ef_search until the tenant-filtered LIMIT is satisfied.
   const rows = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SET LOCAL hnsw.ef_search = 120`
+    if (iterativeScan) {
+      await tx.$executeRaw`SET LOCAL hnsw.iterative_scan = relaxed_order`
+    }
     return tx.$queryRaw<RetrievedChunk[]>`
       WITH vector_ranked AS (
         SELECT kc.id,
@@ -131,6 +171,7 @@ export async function retrieveChunks(params: {
                  CASE WHEN l.lexical_rank IS NULL THEN 0 ELSE 1.0 / (60 + l.lexical_rank) END
                )
              )::double precision AS "hybridScore",
+             l.lexical_rank::int AS "lexicalRank",
              kb."lastIngestedAt" AS "kbLastIngestedAt"
       FROM candidate_ids candidates
       JOIN "KnowledgeChunk" kc ON kc.id = candidates.id
@@ -142,24 +183,8 @@ export async function retrieveChunks(params: {
     `
   })
 
-  // Re-rank with a recency boost for URL KBs.
-  const RECENT_BOOST_MAX = 0.05
-  const DECAY_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-  const now = Date.now()
-
-  const scored = rows.map((r) => {
-    let boost = 0
-    if (r.kbLastIngestedAt) {
-      const ageMs = now - new Date(r.kbLastIngestedAt).getTime()
-      if (ageMs >= 0 && ageMs < DECAY_MS) {
-        boost = RECENT_BOOST_MAX * (1 - ageMs / DECAY_MS)
-      }
-    }
-    return { ...r, score: (r.hybridScore ?? r.similarity) + boost }
-  })
-
-  scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, limit)
+  // Relevance gate + tie-break boosts (pure logic, see lib/knowledge/ranking.ts).
+  return rankRetrievedChunks(rows, limit)
 }
 
 /** Delete all chunks for a given product (used when a product changes/deletes). */

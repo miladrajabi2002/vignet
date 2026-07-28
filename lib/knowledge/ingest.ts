@@ -1,9 +1,9 @@
 import crypto from 'node:crypto'
 import { prisma } from '@/lib/prisma'
-import { chunkText } from '@/lib/knowledge/chunker'
+import { chunkFaq, chunkText } from '@/lib/knowledge/chunker'
 import { embedTexts } from '@/lib/ai/embeddings'
 import { insertChunk } from '@/lib/knowledge/vector-store'
-import { parsePdf, parseCsv, parseUrl } from '@/lib/knowledge/parsers'
+import { parsePdfPages, parseCsv, parseUrl } from '@/lib/knowledge/parsers'
 import { downloadFile, BUCKETS } from '@/lib/storage'
 import { dispatchNotification } from '@/lib/queue/jobs'
 
@@ -17,45 +17,57 @@ const EMBED_BATCH = 32
 
 function contextualChunk(
   content: string,
-  source: { name: string; type: string; sourceUrl: string | null; fileName: string | null },
+  source: {
+    name: string
+    type: string
+    sourceUrl: string | null
+    fileName: string | null
+  },
+  page?: number,
 ): string {
   const reference = source.sourceUrl ?? source.fileName
   const header = [
     `Source: ${source.name}`,
     `Type: ${source.type}`,
     ...(reference ? [`Reference: ${reference}`] : []),
+    ...(page ? [`Page: ${page}`] : []),
   ].join(' | ')
   return `[${header}]\n${content}`
 }
 
-/** Resolve the raw text for a knowledge base from its source. */
-async function resolveText(
+interface ResolvedSection {
+  text: string
+  page?: number
+}
+
+/** Resolve source text while retaining traceable boundaries such as PDF pages. */
+async function resolveSections(
   kb: {
     type: string
     sourceUrl: string | null
     fileKey: string | null
   },
   inlineText?: string,
-): Promise<string> {
+): Promise<ResolvedSection[]> {
   switch (kb.type) {
     case 'TEXT':
     case 'FAQ':
-      return (inlineText ?? '').trim()
+      return [{ text: (inlineText ?? '').trim() }]
     case 'URL':
       if (!kb.sourceUrl) throw new Error('Missing sourceUrl')
-      return parseUrl(kb.sourceUrl)
+      return [{ text: await parseUrl(kb.sourceUrl) }]
     case 'PDF': {
       if (!kb.fileKey) throw new Error('Missing fileKey')
       const buf = await downloadFile(BUCKETS.knowledge, kb.fileKey)
-      return parsePdf(buf)
+      return (await parsePdfPages(buf)).map(({ page, text }) => ({ page, text }))
     }
     case 'CSV': {
       if (!kb.fileKey) throw new Error('Missing fileKey')
       const buf = await downloadFile(BUCKETS.knowledge, kb.fileKey)
-      return parseCsv(buf.toString('utf8'))
+      return [{ text: parseCsv(buf.toString('utf8')) }]
     }
     default:
-      return (inlineText ?? '').trim()
+      return [{ text: (inlineText ?? '').trim() }]
   }
 }
 
@@ -83,8 +95,13 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
   const generation = crypto.randomUUID()
 
   try {
-    const raw = await resolveText(kb, data.text)
-    const chunks = chunkText(raw)
+    const sections = await resolveSections(kb, data.text)
+    const chunks = sections.flatMap((section) => {
+      const pieces = kb.type === 'FAQ'
+        ? chunkFaq(section.text)
+        : chunkText(section.text)
+      return pieces.map((content) => ({ content, page: section.page }))
+    })
     if (chunks.length === 0) {
       // Genuinely empty source: retire the previous generation too, so the
       // dashboard (READY, 0 chunks) and retrieval agree instead of silently
@@ -103,18 +120,25 @@ export async function processIngestion(data: IngestionJobData): Promise<void> {
       // chunks without paying for a second LLM pass during ingestion.
       const batch = chunks
         .slice(i, i + EMBED_BATCH)
-        .map((chunk) => contextualChunk(chunk, kb))
-      const vectors = await embedTexts(batch, kb.workspaceId)
+        .map((chunk) => ({
+          ...chunk,
+          contextualized: contextualChunk(chunk.content, kb, chunk.page),
+        }))
+      const vectors = await embedTexts(
+        batch.map((chunk) => chunk.contextualized),
+        kb.workspaceId,
+      )
       for (let j = 0; j < batch.length; j++) {
         await insertChunk({
           kbId: kb.id,
           agentId: kb.agentId,
           workspaceId: kb.workspaceId,
-          content: batch[j],
+          content: batch[j].contextualized,
           metadata: {
             source: kb.type,
             kbId: kb.id,
             name: kb.name,
+            ...(batch[j].page ? { page: batch[j].page } : {}),
             contextualized: true,
             generation,
           },

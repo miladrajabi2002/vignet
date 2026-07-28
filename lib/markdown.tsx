@@ -5,42 +5,80 @@
  *   - **bold** and __bold__
  *   - *italic* and _italic_
  *   - `inline code`
+ *   - [text](https://…) links and bare http(s) URLs (http/https only —
+ *     anything else stays literal text, so `javascript:` can never become
+ *     a clickable href)
  *   - # / ## / ### headings (rendered as bold paragraphs to avoid layout shift)
  *   - - / * unordered lists
- *   - 1. ordered lists
+ *   - 1. ordered lists (Persian/Arabic digits accepted)
  *   - line breaks (preserved via the container's whitespace-pre-wrap OR <br>)
  *
  * Everything is returned as React nodes — never uses dangerouslySetInnerHTML,
  * so it is XSS-safe by construction (the browser treats all text as literal).
  */
 import React from 'react'
+import { safeLinkHref } from '@/lib/markdown-links'
+
+/** Trailing punctuation that belongs to the sentence, not to a bare URL. */
+const TRAILING_PUNCT = /[.,;:!?،؛»«"')\]]+$/
+
+function linkNode(href: string, label: string, key: string): React.ReactNode {
+	return (
+		<a
+			key={key}
+			href={href}
+			target="_blank"
+			rel="noopener noreferrer nofollow"
+			className="font-medium underline underline-offset-2 [overflow-wrap:anywhere]"
+		>
+			{label}
+		</a>
+	)
+}
 
 /** Convert a single line of inline markdown into an array of React nodes. */
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
 	const nodes: React.ReactNode[] = []
-	// Regex captures: **bold** | __bold__ | *italic* | _italic_ | `code`
-	const re = /(\*\*([^*]+?)\*\*|__([^_]+?)__|\*([^*]+?)\*|_([^_]+?)_|`([^`]+?)`)/g
+	// Regex captures: [text](url) | bare URL | **bold** | __bold__ | *italic* | _italic_ | `code`
+	const re =
+		/(\[([^\]]+?)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"']+)|\*\*([^*]+?)\*\*|__([^_]+?)__|\*([^*]+?)\*|_([^_]+?)_|`([^`]+?)`)/g
 	let last = 0
 	let m: RegExpExecArray | null
 	let i = 0
 	while ((m = re.exec(text)) !== null) {
 		if (m.index > last) nodes.push(text.slice(last, m.index))
 		const k = `${keyPrefix}-${i++}`
-		if (m[2] !== undefined) {
-			nodes.push(<strong key={k} className="font-bold">{m[2]}</strong>)
-		} else if (m[3] !== undefined) {
-			nodes.push(<strong key={k} className="font-bold">{m[3]}</strong>)
+		if (m[2] !== undefined && m[3] !== undefined) {
+			// [text](url) — render as an anchor only when the URL is http(s).
+			const href = safeLinkHref(m[3])
+			if (href) nodes.push(linkNode(href, m[2], k))
+			else nodes.push(m[0])
 		} else if (m[4] !== undefined) {
-			nodes.push(<em key={k}>{m[4]}</em>)
+			// Bare URL — split off trailing sentence punctuation first.
+			const trail = m[4].match(TRAILING_PUNCT)?.[0] ?? ''
+			const urlText = trail ? m[4].slice(0, -trail.length) : m[4]
+			const href = safeLinkHref(urlText)
+			if (href) {
+				nodes.push(linkNode(href, urlText, k))
+				if (trail) nodes.push(trail)
+			} else {
+				nodes.push(m[4])
+			}
 		} else if (m[5] !== undefined) {
-			nodes.push(<em key={k}>{m[5]}</em>)
+			nodes.push(<strong key={k} className="font-bold">{m[5]}</strong>)
 		} else if (m[6] !== undefined) {
+			nodes.push(<strong key={k} className="font-bold">{m[6]}</strong>)
+		} else if (m[7] !== undefined) {
+			nodes.push(<em key={k}>{m[7]}</em>)
+		} else if (m[8] !== undefined) {
+			nodes.push(<em key={k}>{m[8]}</em>)
+		} else if (m[9] !== undefined) {
 			nodes.push(
 				<code
 					key={k}
 					className="rounded bg-black/10 px-1 py-0.5 text-[0.85em] font-mono"
 				>
-					{m[6]}
+					{m[9]}
 				</code>,
 			)
 		}
@@ -120,8 +158,9 @@ export function Markdown({ children }: { children: string }) {
 			continue
 		}
 
-		// Ordered list item: 1. / 2. / ...
-		const ol = trimmed.match(/^\d+[.)]\s+(.+)$/)
+		// Ordered list item: 1. / 2. / … — Persian (۱.) and Arabic (١.) digits
+		// count too, since the model often numbers Persian steps natively.
+		const ol = trimmed.match(/^[\d۰-۹٠-٩]+[.)]\s+(.+)$/)
 		if (ol) {
 			if (listType && listType !== 'ol') flushList()
 			listType = 'ol'

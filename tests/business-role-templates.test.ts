@@ -41,4 +41,18 @@ describe('business-specific role templates', () => {
     expect(getRoleTemplate('food_booking_host')?.key).toBe('food_recommended')
     expect(getRoleTemplate('education_student_support')?.key).toBe('education_recommended')
   })
+
+  it('uses vertical-specific guardrails and examples instead of commerce examples', () => {
+    const food = getRoleTemplatesForBusiness('FOOD')[0]!.config
+    const appointments = getRoleTemplatesForBusiness('APPOINTMENTS')[0]!.config
+
+    expect(food.dontSay.join(' ')).toContain('آلرژن')
+    expect(food.qaPairs.map((pair) => pair.question).join(' ')).toContain('منوتون')
+    expect(food.qaPairs.map((pair) => pair.question).join(' ')).not.toContain('محصولات موجود')
+
+    expect(appointments.dontSay.join(' ')).toContain('تشخیص پزشکی')
+    expect(appointments.dontSay.join(' ')).toContain('تأیید نهایی')
+    expect(appointments.qaPairs.map((pair) => pair.question).join(' ')).toContain('نوبت')
+    expect(appointments.qaPairs.map((pair) => pair.question).join(' ')).not.toContain('کیف')
+  })
 })

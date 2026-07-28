@@ -18,28 +18,53 @@
 
         var base = script.getAttribute('data-base-url') || new URL(script.src).origin
 
-        // ---- Ensure a proper mobile viewport. Many host sites omit the
-        //      <meta name="viewport"> tag, which makes phones render at a
-        //      virtual 980px width and breaks our mobile breakpoint. Without
-        //      this, the @media (max-width:768px) rule never matches and the
-        //      widget appears as a tiny desktop-style popup on phones. ----
-        ;(function ensureViewport() {
-                var needed = 'width=device-width, initial-scale=1, viewport-fit=cover'
-                var existing = document.querySelector('meta[name="viewport"]')
-                if (existing) {
-                        // Patch only if the existing tag doesn't already opt into
-                        // device-width (e.g. a legacy "width=980" tag).
-                        if (!/width\s*=\s*device-width/i.test(existing.content)) {
-                                existing.setAttribute('content', needed)
-                        }
+        // ---- Mobile viewport (scoped, never at load time) ----
+        // We used to rewrite the host page's <meta name="viewport"> the moment
+        // the script loaded. That silently reflowed legacy fixed-width sites
+        // (e.g. a deliberate width=980 layout) even if the visitor never
+        // touched the chat — an unacceptable side effect for an embed script.
+        // Now the host page is left completely untouched while the widget is
+        // idle; only while the full-screen mobile sheet is open (and covering
+        // the whole screen anyway) do we swap in a device-width viewport so
+        // the mobile breakpoint and keyboard math work, restoring the exact
+        // previous state the moment the sheet closes.
+        var WIDGET_VIEWPORT = 'width=device-width, initial-scale=1, viewport-fit=cover'
+        var viewportSwap = null // { meta, prevContent, injected }
+        function isPhoneScreen() {
+                // Physical-screen check (independent of the layout viewport, which
+                // is 980px on legacy sites — the very thing we may need to swap).
+                var w = window.screen && window.screen.width ? window.screen.width : window.innerWidth
+                var h = window.screen && window.screen.height ? window.screen.height : window.innerHeight
+                return Math.min(w, h) <= 768
+        }
+        function applyWidgetViewport() {
+                if (viewportSwap) return
+                var meta = document.querySelector('meta[name="viewport"]')
+                if (meta && /width\s*=\s*device-width/i.test(meta.content || '')) return
+                if (meta) {
+                        viewportSwap = { meta: meta, prevContent: meta.getAttribute('content'), injected: false }
+                        meta.setAttribute('content', WIDGET_VIEWPORT)
                 } else {
-                        var meta = document.createElement('meta')
-                        meta.setAttribute('name', 'viewport')
-                        meta.setAttribute('content', needed)
                         var head = document.head || document.getElementsByTagName('head')[0]
-                        if (head) head.appendChild(meta)
+                        if (!head) return
+                        var created = document.createElement('meta')
+                        created.setAttribute('name', 'viewport')
+                        created.setAttribute('content', WIDGET_VIEWPORT)
+                        head.appendChild(created)
+                        viewportSwap = { meta: created, prevContent: null, injected: true }
                 }
-        })()
+        }
+        function restoreHostViewport() {
+                if (!viewportSwap) return
+                if (viewportSwap.injected) {
+                        if (viewportSwap.meta.parentNode) viewportSwap.meta.parentNode.removeChild(viewportSwap.meta)
+                } else if (viewportSwap.prevContent == null) {
+                        viewportSwap.meta.removeAttribute('content')
+                } else {
+                        viewportSwap.meta.setAttribute('content', viewportSwap.prevContent)
+                }
+                viewportSwap = null
+        }
 
         // ---- Persisted conversation id — survives page refresh so visitors don't
         //      get a brand-new empty thread on every navigation/refresh. ----
@@ -365,7 +390,9 @@
                         // matching the chat link's clean bg-white border-black/[0.07] shadow-sm.
                         '.vgt-msg.vgt-bot{align-self:flex-start;background:var(--vgt-bg);color:var(--vgt-text);' +
                         'border:1px solid var(--vgt-border);border-bottom-left-radius:6px;box-shadow:0 1px 3px 0 rgba(0,0,0,.05);}' +
-                        '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;}' +
+                        '.vgt-msg.vgt-err{background:rgba(239,68,68,.12);color:#b91c1c;border:1px solid rgba(239,68,68,.3);align-self:stretch;max-width:100%;text-align:center;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}' +
+                        '.vgt-retry{min-height:36px;border:1px solid rgba(185,28,28,.22);border-radius:12px;background:var(--vgt-surface);color:#b91c1c;padding:6px 10px;font:inherit;font-weight:700;cursor:pointer;}' +
+                        '.vgt-retry:focus-visible{outline:2px solid #b91c1c;outline-offset:2px;}' +
                         // assistant group (chip + bubble + cards + actions)
                         // width:fit-content + max-width:100% lets the group size to content
                         // (same fix as .vgt-bubble-wrap — prevents mid-word breaks).
@@ -1084,6 +1111,17 @@
                 }
                 // Error banners are full-width stretch toasts — no wrapper.
                 if (role === 'error') {
+                        if (opts.retryText) {
+                                var retry = el('button', 'vgt-retry')
+                                retry.type = 'button'
+                                retry.textContent = t('تلاش مجدد', 'Retry')
+                                retry.addEventListener('click', function () {
+                                        if (streaming) return
+                                        if (b.parentNode) b.remove()
+                                        send(opts.retryText, true)
+                                })
+                                b.appendChild(retry)
+                        }
                         body.appendChild(b)
                         scrollDown(true)
                         return b
@@ -1680,7 +1718,12 @@
                 )
         }
 
-        function send(preset) {
+        function isRetryableError(code) {
+                return ['OPERATOR_ACTIVE', 'WIDGET_DISABLED', 'LEAD_REQUIRED', 'PLAN_BLOCKED', 'FORBIDDEN_ORIGIN']
+                        .indexOf(code || '') === -1
+        }
+
+        function send(preset, retrying) {
                 var text = (preset != null ? preset : input.value).trim()
                 if (!text || streaming) return
                 // Block sending until the lead-capture form is filled (when required).
@@ -1690,7 +1733,7 @@
                         autoGrow()
                 }
                 clearIntro()
-                bubble('user', text)
+                if (!retrying) bubble('user', text)
                 setStreaming(true)
                 var typing = showTyping()
                 var group = null
@@ -1737,7 +1780,10 @@
                                                 })
                                                 .then(function (d) {
                                                         if (typing.parentNode) typing.remove()
-                                                        bubble('error', errorText(d && d.error))
+                                                        var code = d && d.error
+                                                        bubble('error', errorText(code), {
+                                                                retryText: isRetryableError(code) ? text : null,
+                                                        })
                                                         setStreaming(false)
                                                 })
                                 }
@@ -1782,7 +1828,9 @@
                                                                         }
                                                                 } else if (evt.type === 'error' && !group) {
                                                                         if (typing.parentNode) typing.remove()
-                                                                        bubble('error', errorText(evt.error))
+                                                                        bubble('error', errorText(evt.error), {
+                                                                                retryText: isRetryableError(evt.error) ? text : null,
+                                                                        })
                                                                 }
                                                         } catch (e) {}
                                                 })
@@ -1793,7 +1841,7 @@
                         })
                         .catch(function () {
                                 if (typing.parentNode) typing.remove()
-                                bubble('error', errorText())
+                                bubble('error', errorText(), { retryText: text })
                                 setStreaming(false)
                         })
         }
@@ -2039,6 +2087,10 @@
                 )
                 launcher.setAttribute('aria-expanded', isOpen ? 'true' : 'false')
                 if (isOpen) {
+                        // Phones first get a device-width viewport (host pages without
+                        // one render at a virtual 980px, so the mobile breakpoint would
+                        // never match). Scoped to the open sheet; restored on close.
+                        if (isPhoneScreen()) applyWidgetViewport()
                         // Lock body scroll on mobile so the host page can't scroll/peek
                         // behind the full-screen chat (iOS needs position:fixed — see
                         // lockBodyScroll). Also arm the Android Back-button close.
@@ -2078,6 +2130,8 @@
                         // Restore body scroll when the panel closes.
                         unlockBodyScroll()
                         popCloseHistory()
+                        // Give the host page its own viewport back (see applyWidgetViewport).
+                        restoreHostViewport()
                         // Drop any inline height set by the visualViewport handler so
                         // the CSS-defined size takes over again next time the panel opens.
                         panel.style.height = ''

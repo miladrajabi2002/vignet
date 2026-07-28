@@ -1,6 +1,6 @@
 # گزارش آمادگی انتشار Vigent (Release Readiness Report)
 
-آخرین به‌روزرسانی: 2026-07-26 · Branch: `main` · خط مبنا: Commit `d819d72`
+آخرین به‌روزرسانی: 2026-07-28 · Branch: `main` · خط مبنا: Commit `d819d72`
 
 ---
 
@@ -33,7 +33,15 @@
 - Job **تمدید خودکار توکن** OAuth با اعلان اتصال مجدد
 
 ### ریسک‌های باقی‌مانده
-هیچ آسیب‌پذیری Critical شناخته‌شده‌ای باقی نمانده. ریسک‌های اصلی: **عدم امکان تست واقعی کانال‌ها** (نیاز به Credential زنده متا/واتساپ)، **نبود تست بصری مرورگر** (Playwright در دسترس نبود)، و **پوشش صفر تست برای مسیر RAG**. جزئیات در بخش ۹.
+هیچ آسیب‌پذیری Critical شناخته‌شده‌ای باقی نمانده. ریسک‌های اصلی: **عدم امکان تست واقعی کانال‌ها** (نیاز به Credential زنده متا/واتساپ)، **نبود تست بصری مرورگر** (Playwright در دسترس نبود)، و **نبود تست Integration واقعی RAG با PostgreSQL/pgvector و Provider زنده**. جزئیات در بخش ۹.
+
+### تکمیل موج Launch-critical در ۲۸ ژوئیه
+- قواعد صنفی واقعی برای تمپلیت‌های غذا، نوبت/درمان، خدمات، آموزش و سایر Verticalها به Prompt توصیه‌شده وصل شد؛ مثال‌های فروشگاهی نامرتبط در صنف‌های غیرتجاری حذف شدند.
+- RAG با نرمال‌سازی فارسی، Hybrid Retrieval برداری/لغوی، Relevance gate، اولویت دانش دست‌نویس، اسکن تکرارشوندهٔ HNSW در pgvector 0.8+، Chunk اختصاصی FAQ و حفظ شماره صفحه PDF تقویت شد.
+- پیام بلند تلگرام، بله و هر دو حالت واتساپ در مرز خوانا Split می‌شود؛ Timeout شبکه به Worker اجازه Retry می‌دهد و fallback تلگرام فقط برای خطای قطعی 400 اجرا می‌شود تا پیام تکراری نسازد.
+- ویجت و چت‌لینک Retry قابل‌فهم، Markdown و لینک امن، مدیریت بهتر viewport موبایل و نمایش محصول در تست ایجنت دریافت کردند.
+- صفحه تعرفه FAQ واقعی، Metadata شبکه‌های اجتماعی و JSON-LDهای `SoftwareApplication`، `Offer`، `FAQPage` و `BreadcrumbList` دریافت کرد.
+- تست‌های Deterministic برای Chunking/Ranking/Normalization دانش، Split پیام، لینک امن و تفاوت واقعی تمپلیت‌های صنفی اضافه شد. تست زنده کانال و Retrieval دیتابیسی همچنان به Staging و Credential نیاز دارد.
 
 ---
 
@@ -173,22 +181,28 @@
 
 | تست | نتیجهٔ واقعی |
 |---|---|
-| **Type Check** (`tsc --noEmit`) | ✅ صفر خطا — پس از تمام ۵۱ فایل تغییریافته |
-| **Lint** (`next lint`) | ✅ صفر خطا و Warning |
-| **Build** (`next build`) | ✅ موفق — First Load JS مشترک ۱۰۳kB (بدون تغییر)، Middleware ۸۷.۳kB |
-| **Unit + Integration** (`vitest run`) | ✅ **۶۳ فایل / ۳۲۸ تست** — همه پاس (خط مبنا: ۶۱/۳۱۳؛ **+۱۵ تست جدید**) |
-| **Syntax ویجت** (`node --check`) | ✅ `public/widget/loader.js` سالم |
+| **Type Check** (`tsc --noEmit`) | ✅ صفر خطا — اجرای نهایی 2026-07-28 |
+| **Lint** (`next lint`) | ✅ صفر خطا و Warning — اجرای نهایی 2026-07-28 |
+| **Build** (`next build`) | ✅ در موج قبلی موفق (First Load JS مشترک ۱۰۳kB)؛ در موج متمرکز فعلی برای پرهیز از اجرای غیرضروری تکرار نشد |
+| **Unit + Integration** (`vitest run`) | ✅ **۶۸ فایل / ۳۵۰ تست** — همه پاس (خط مبنای موج فعلی: ۳۴۲؛ **+۸ تست جدید**) |
+| **Syntax ویجت** (`node --check`) | ✅ `public/widget/loader.js` سالم — اجرای نهایی 2026-07-28 |
 | **End-to-End** | ❌ **اجرا نشد** — این پروژه Runner E2E ندارد (Playwright/Cypress نصب نیست) |
 | **Mobile (بصری)** | ❌ **اجرا نشد** — مرورگر و Automation در دسترس نبود؛ همهٔ یافته‌های موبایل مبتنی بر کد است |
 | **Security (فعال)** | ❌ Scan فعال اجرا نشد — ممیزی، مبتنی بر خواندن کد و بازتولید منطقی بود |
 | **Performance (Core Web Vitals)** | ❌ **اندازه‌گیری نشد** — نیاز به مرورگر واقعی/Lighthouse |
 | **Load Test** | ❌ **اجرا نشد** — نیاز به محیط Staging با ردیس/دیتابیس واقعی |
 
-### تست‌های جدید اضافه‌شده (۱۵ مورد)
+### تست‌های جدید اضافه‌شده در ممیزی اولیه (۱۵ مورد)
 - `tests/customer-identification.test.ts` (۷) — رگرسیون استخراج نام فارسی، شامل چهار جملهٔ خریدی که قبلاً نام می‌شدند
 - `tests/json-ld-escaping.test.ts` (۴) — Escape شدن `</script>`، هر دو Angle bracket، U+2028/9، و صحت JSON نهایی
 - `tests/instagram-global-routing.test.ts` (۳ جدید) — Batch چند‌اکانتی، رد مسیریابی با آیدی کامنت‌گذار، رد Fallback وقتی کانال غیرفعال دیگری وجود دارد
 - `tests/meta-webhook-security.test.ts` (۱ جدید + بازنویسی) — پاسخ ۵۰۳ هنگام قطع صف
+
+### تست‌های جدید موج تکمیلی (۸ مورد)
+- `tests/knowledge-pipeline.test.ts` (۴) — سقف Chunk، حفظ Q/A، نرمال‌سازی فارسی و Relevance/Curated ranking
+- `tests/outbound-text-chunks.test.ts` (۲) — حفظ متن زیر سقف پلتفرم و عدم شکستن Emoji surrogate pair
+- `tests/markdown-links.test.ts` (۱) — Allowlist مطلق HTTP(S) و رد `javascript:`/`data:`/URL نسبی
+- `tests/business-role-templates.test.ts` (۱) — قواعد واقعی غذا و نوبت/درمان و حذف مثال‌های Commerce نامرتبط
 
 > **صداقت روی ادعاها:** هیچ بخشی را «سالم» اعلام نکردم مگر با ارجاع به کد یا تست. مواردی که قابل تأیید نبودند صریحاً در بخش ۹ آمده‌اند.
 
@@ -215,7 +229,7 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 - امنیت آپلود: Allowlist پسوند، Magic bytes برای PDF، اعتبارسنجی UTF-8، سقف ۲۰MB در جریان Body، Budget روزانهٔ Fail-closed، SSRF مهارشده با DNS Pinning
 
 **بهبود اعمال‌شده:** ورودی نسل‌بندی‌شده (Shadow generation) با Swap اتمی — یک قطعی Provider دیگر KB را خالی نمی‌کند.
-**محدودیت باقی‌مانده:** آستانهٔ شباهت و Dedup نزدیک‌به‌تکراری وجود ندارد؛ **پوشش تست صفر** برای کل مسیر RAG.
+**بهبود موج تکمیلی:** Relevance gate برداری/لغوی، نرمال‌سازی فارسی، اولویت دانش دست‌نویس، Chunk اختصاصی FAQ و تست‌های Deterministic اضافه شد. **محدودیت باقی‌مانده:** Dedup نزدیک‌به‌تکراری و تست Integration با PostgreSQL/pgvector و Provider واقعی هنوز وجود ندارد.
 
 ### مدیریت حافظه و Context
 `HISTORY_LIMIT = 12` پیام ثابت، **بدون خلاصه‌سازی** و بدون Budget توکن. مکالمات طولانی (Threadهای چسبندهٔ پیام‌رسان‌ها) هر چیزی قدیمی‌تر از ۱۲ پیام را از دست می‌دهند: بودجهٔ اعلام‌شده، سایز، انتخاب‌های توافق‌شده. **ثبت شد به‌عنوان Improvement** — نیاز به خلاصهٔ غلتان روی ردیف Conversation.
@@ -223,7 +237,7 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 **Tenant Isolation در ساخت Context تأیید شد:** مکالمه با `(workspaceId, agentId)`، History با `conversationId`، کاتالوگ با انتساب `agentId`، سفارش‌ها با `workspaceId` + هویت مخاطب. هیچ مسیر نشت بین‌مستاجری یا بین‌مخاطبی پیدا نشد. Cache امبدینگ ردیس Input-pure است (Hash مدل+متن).
 
 ### تست‌های انجام‌شده روی AI
-مجموعهٔ تست استاندارد **ساخته نشد** — ساختن آن به فراخوانی واقعی Provider (هزینه + Credential) نیاز دارد. در عوض، باگ استخراج نام با **اجرای واقعی Regexها** در یک اسکریپت بازتولید اثبات شد و ۷ تست رگرسیون Deterministic برایش نوشته شد. تست‌های موجود `prompt-naturalness`، `business-role-templates`، `sales-intelligence` و `product-request-plan` پاس هستند.
+مجموعهٔ ارزیابی کیفی زندهٔ مدل ساخته نشد، چون به فراخوانی واقعی Provider، هزینه و Credential نیاز دارد. در عوض، تست‌های Deterministic برای استخراج نام، رفتار صنفی Prompt، Chunking/Ranking/Normalization دانش و برنامه‌ریزی درخواست محصول اضافه شده‌اند. نتیجهٔ نهایی کل Suite در بخش ۴ ثبت می‌شود.
 
 ---
 
@@ -234,9 +248,9 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 | کانال | اتصال | دریافت | ارسال | Media | Retry | Rate Limit | امنیت | وضعیت |
 |---|---|---|---|---|---|---|---|---|
 | **Instagram** | OAuth سراسری (Instagram Login) + Legacy | ✅ صف پایدار (اصلاح‌شده) | ✅ Split در ۱۹۰۰ کاراکتر، Probe دو Host | ⚠️ تصویر/ویدیو/کاروسل ✅ — **ورودی Media بی‌صدا Drop می‌شود** | ✅ ۳ تلاش + Backoff (اصلاح‌شده) | ⚠️ Per-provider ندارد | ✅ HMAC + State امضاشده | **رفع‌شده، تست‌نشده** |
-| **WhatsApp Cloud** | OAuth (Embedded Signup) + Legacy | ✅ صف پایدار (اصلاح‌شده) | ⚠️ متن ✅ — **Split پیام بلند ندارد** | ❌ عمداً پشتیبانی نمی‌شود | ✅ (اصلاح‌شده) | ⚠️ | ✅ HMAC | **رفع‌شده، تست‌نشده** |
+| **WhatsApp Cloud** | OAuth (Embedded Signup) + Legacy | ✅ صف پایدار (اصلاح‌شده) | ✅ متن + Split پیام بلند + Quick reply روی بخش نهایی | ❌ عمداً پشتیبانی نمی‌شود | ✅ (اصلاح‌شده) | ⚠️ | ✅ HMAC | **رفع‌شده، تست زنده نشده** |
 | **WhatsApp QR** | Bridge Baileys (`mini-services`) | ✅ صف پایدار (اصلاح‌شده) | ✅ متن + Quick reply شماره‌دار | ❌ | ⚠️ Bridge خودش Retry ندارد | ⚠️ | ✅ Secret اشتراکی Timing-safe | **رفع‌شده، ریسک Bridge** |
-| **Telegram** | Bot token | ✅ صف پایدار (از قبل) | ⚠️ **Split پیام بلند ندارد** (سقف ۴۰۹۶) | ✅ صوت دوطرفه | ✅ | ⚠️ ۱۲۰/دقیقه per-token | ✅ Token تصادفی ۲۴ بایتی | **کامل‌ترین کانال** |
+| **Telegram** | Bot token | ✅ صف پایدار (از قبل) | ✅ Split خوانای زیر سقف ۴۰۹۶ + fallback امن HTML | ✅ صوت دوطرفه | ✅ + Timeout | ⚠️ ۱۲۰/دقیقه per-token | ✅ Token تصادفی ۲۴ بایتی | **کامل‌ترین کانال** |
 | **Bale** | Bot token | ✅ صف پایدار | ⚠️ **Markdown خام `**` نمایش می‌دهد** | ✅ صوت | ✅ | ⚠️ | ✅ | تقریباً کامل |
 | **Rubika** | Bot token (API غیررسمی) | ✅ صف پایدار | ⚠️ فقط متن | ❌ **پیام صوتی Parse می‌شود ولی بی‌صدا Drop** | ⚠️ خطای داخل Body 200 تشخیص نمی‌شود | ⚠️ | ✅ | **Stub — باید به مالکان اعلام شود** |
 | **Website Widget** | Public + Token HMAC | ✅ SSE | ✅ Streaming | ✅ کارت محصول | ✅ | ✅ Fail-closed | ✅ + گیت کانال (اصلاح‌شده) | **رفع‌شده** |
@@ -294,10 +308,9 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 |---|---|---|
 | هیچ کانالی با Credential زنده تست نشد | **بالا** | همهٔ اصلاحات کانال از Build/Test/بازبینی کد عبور کرده‌اند، ولی مسیر واقعی متا/واتساپ تأیید نشده. **قبل از تبلیغات، یک تست دستی end-to-end روی هر کانال الزامی است** |
 | نبود تست بصری موبایل | متوسط | Playwright در دسترس نبود؛ همهٔ یافته‌های موبایل مبتنی بر کد است. اصلاحات Composer و منوی موبایل نیاز به تأیید چشمی روی دستگاه واقعی دارند |
-| پوشش صفر تست RAG | متوسط | Chunker، Parser، Retrieval و State machine ورودی هیچ تستی ندارند؛ چند یافته دقیقاً Edge case همین State machine بودند |
+| نبود تست Integration زنده RAG | متوسط | Primitiveهای Chunking، Normalization و Ranking تست دارند، اما SQL واقعی pgvector، PDFهای فارسی دشوار و Provider امبدینگ فقط در Staging قابل تأییدند |
 | Context ثابت ۱۲ پیام بدون خلاصه‌سازی | متوسط | مکالمات طولانی اطلاعات قبلی را از دست می‌دهند |
 | ورودی Media اینستاگرام Drop می‌شود | متوسط | مشتری عکس محصول می‌فرستد → سکوت کامل و اپراتور هم نمی‌بیند |
-| نبود Split پیام بلند در تلگرام/واتساپ | متوسط | پاسخ بالای ۴۰۹۶ کاراکتر پس از ذخیره و کسر اعتبار، تحویل نمی‌شود |
 | Locale کوکی‌محور بدون hreflang | متوسط | کل بومی‌سازی EN برای خزنده‌ها نامرئی است — تصمیم محصولی لازم است |
 | Rubika در سطح Stub | پایین | باید در UI به مالکان به‌عنوان «فقط متن» اعلام شود |
 | Scheduler درون‌پروسه بدون قفل | پایین | با بیش از یک Worker، Sweepها هم‌پوشانی می‌کنند (قفل ردیس فقط برای یادآور نوبت وجود دارد) |
@@ -310,7 +323,7 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 
 ### قبل از Deploy
 - [ ] `git status` پاک باشد و روی `main` باشید
-- [ ] **این تغییرات Commit شوند** (در حال حاضر ۵۱ فایل تغییریافته + ۹ فایل جدید، Commit نشده‌اند)
+- [ ] **کامیت موج Launch-critical این گزارش Deploy شود** و hash آن در Release ثبت شود
 - [ ] `npx tsc --noEmit` ✅ · `npm run lint` ✅ · `npm test` ✅ · `npm run build` ✅ (همه تأیید شدند)
 - [ ] `npm run check:production-env` روی سرور اجرا شود
 - [ ] `.env` سرور شامل: `REDIS_URL`، `DATABASE_URL`، `OPENROUTER_API_KEY`، `META_APP_SECRET`، `META_APP_VERIFY_TOKEN`، `INSTAGRAM_APP_SECRET`، `ADMIN_OWNER_PHONE`، `ADMIN_PASS`، `ADMIN_TOTP_SECRET`، `ADMIN_SESSION_SECRET`، `AUTH_SECRET`، `TRUST_PROXY_HEADERS=1`، `WHATSAPP_BRIDGE_SECRET` (≥۳۲ کاراکتر)
@@ -400,4 +413,4 @@ pm2 start vignet-web vignet-worker
 ۳. ۴۸ ساعت `redis-cli info clients` و `/admin/errors` را رصد کنید
 ۴. سپس با اطمینان کاربر واقعی جذب کنید
 
-**پیشنهاد اولویت بعدی (پس از انتشار):** پوشش تست RAG · ورودی Media اینستاگرام · Split پیام بلند تلگرام/واتساپ · خلاصهٔ غلتان Context · تصمیم درباره Locale مسیرمحور برای SEO انگلیسی.
+**پیشنهاد اولویت بعدی (پس از انتشار):** تست Integration زنده RAG · ورودی Media اینستاگرام · خلاصهٔ غلتان Context · تصمیم درباره Locale مسیرمحور برای SEO انگلیسی · قفل توزیع‌شده Scheduler.

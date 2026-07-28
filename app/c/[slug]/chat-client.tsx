@@ -36,7 +36,7 @@ type Msg =
 			done: boolean
 			serverId?: string
 	  }
-	| { id: string; role: 'error'; text: string }
+	| { id: string; role: 'error'; text: string; retryText?: string }
 
 type Props = {
 	slug: string
@@ -67,6 +67,12 @@ function errorText(code?: string): string {
 		default:
 			return 'ارسال پیام ناموفق بود. دوباره تلاش کنید.'
 	}
+}
+
+function isRetryableError(code?: string): boolean {
+	return !['PLAN_BLOCKED', 'OPERATOR_ACTIVE', 'LEAD_REQUIRED', 'WIDGET_DISABLED'].includes(
+		code ?? '',
+	)
 }
 
 let idCounter = 0
@@ -298,22 +304,37 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 
 	// ── Send flow ──
 	const send = useCallback(
-		async (text: string) => {
+		async (
+			text: string,
+			options: { appendUser?: boolean; removeErrorId?: string } = {},
+		) => {
 			const message = text.trim()
 			if (!message || streaming) return
+			if (options.removeErrorId) {
+				setMessages((current) => current.filter((item) => item.id !== options.removeErrorId))
+			}
 			setInput('')
 			setStreaming(true)
 
 			const isFirst = !convIdRef.current
-			setMessages((m) => [
-				...m,
-				{
-					id: nextId(),
-					role: 'user',
-					text: message,
-				},
-			])
+			if (options.appendUser !== false) {
+				setMessages((m) => [
+					...m,
+					{ id: nextId(), role: 'user', text: message },
+				])
+			}
 			scrollDown()
+			const appendError = (code?: string) => {
+				setMessages((current) => [
+					...current,
+					{
+						id: nextId(),
+						role: 'error',
+						text: errorText(code),
+						...(isRetryableError(code) ? { retryText: message } : {}),
+					},
+				])
+			}
 
 			const assistantId = nextId()
 			let raw = ''
@@ -357,10 +378,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 
 				if (!res.ok || !res.body) {
 					const err = await res.json().catch(() => null)
-					setMessages((m) => [
-						...m,
-						{ id: nextId(), role: 'error', text: errorText(err?.error) },
-					])
+					appendError(err?.error)
 					return
 				}
 				const issuedToken = res.headers.get('x-vigent-conversation-token')
@@ -402,10 +420,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 									serverId = evt.messageId
 								upsertAssistant(true)
 							} else if (evt.type === 'error' && !started) {
-								setMessages((m) => [
-									...m,
-									{ id: nextId(), role: 'error', text: errorText(evt.error) },
-								])
+								appendError(evt.error)
 							}
 						} catch {
 							/* partial frame — ignored */
@@ -414,7 +429,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 				}
 				if (started) upsertAssistant(true)
 			} catch {
-				setMessages((m) => [...m, { id: nextId(), role: 'error', text: errorText() }])
+				appendError()
 			} finally {
 				setStreaming(false)
 				// Respect a reader who scrolled up mid-stream: don't yank them to the
@@ -536,7 +551,17 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 					) : (
 						<div dir="ltr" className="flex flex-col gap-2.5 pb-2">
 							{messages.map((m) => (
-								<MessageRow key={m.id} msg={m} accent={accent} onAccent={onAccent} />
+								<MessageRow
+									key={m.id}
+									msg={m}
+									accent={accent}
+									onAccent={onAccent}
+									onRetry={
+										m.role === 'error' && m.retryText
+											? () => void send(m.retryText!, { appendUser: false, removeErrorId: m.id })
+											: undefined
+									}
+								/>
 							))}
 							{streaming && messages[messages.length - 1]?.role === 'user' && (
 								<TypingDots accent={accent} />
@@ -864,19 +889,31 @@ function MessageRow({
 	msg,
 	accent,
 	onAccent,
+	onRetry,
 }: {
 	msg: Msg
 	accent: string
 	onAccent: string
+	onRetry?: () => void
 }) {
 	if (msg.role === 'error') {
 		return (
 			<motion.div
 				initial={{ opacity: 0, y: 8 }}
 				animate={{ opacity: 1, y: 0 }}
-				className="mx-auto rounded-full border border-red-100 bg-red-50 px-4 py-1.5 text-xs text-red-600"
+				className="mx-auto flex max-w-[92%] items-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700"
 			>
-				{msg.text}
+				<span>{msg.text}</span>
+				{onRetry && (
+					<button
+						type="button"
+						onClick={onRetry}
+						className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-red-200 bg-white px-3 font-semibold text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+					>
+						<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+						تلاش مجدد
+					</button>
+				)}
 			</motion.div>
 		)
 	}

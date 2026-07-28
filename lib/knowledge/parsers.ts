@@ -1,12 +1,29 @@
 import { PDFParse } from 'pdf-parse'
 import { safeHttpGet } from '@/lib/security/safe-http'
 
-/** Extract text from a PDF buffer. */
-export async function parsePdf(buffer: Buffer): Promise<string> {
+export interface PdfPage {
+  page: number
+  text: string
+}
+
+/**
+ * Extract text from a PDF buffer, page by page. Keeping the page structure
+ * lets ingestion chunk on natural page boundaries and store the page number
+ * in chunk metadata (`{source, page, …}` as reserved in the schema), so a
+ * wrong bot answer can be traced back to the exact page of the uploaded
+ * price list / policy document.
+ */
+export async function parsePdfPages(buffer: Buffer): Promise<PdfPage[]> {
   const parser = new PDFParse({ data: new Uint8Array(buffer) })
   try {
     const result = await parser.getText()
-    return (result.text ?? '').trim()
+    const pages = (result.pages ?? [])
+      .map((p) => ({ page: p.num, text: (p.text ?? '').trim() }))
+      .filter((p) => p.text.length > 0)
+    if (pages.length > 0) return pages
+    // Defensive fallback for documents where per-page extraction is empty.
+    const text = (result.text ?? '').trim()
+    return text ? [{ page: 1, text }] : []
   } finally {
     await parser.destroy().catch(() => {})
   }

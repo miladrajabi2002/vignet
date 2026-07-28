@@ -4,6 +4,7 @@ import {
   bridgeHeaders,
   parseQrToken,
 } from '@/lib/whatsapp/qr-config'
+import { splitOutboundText } from '@/lib/channels/text-chunks'
 
 /**
  * WhatsApp adapter — covers THREE connection models through one interface:
@@ -24,6 +25,9 @@ import {
  * runs unchanged. Only `sendText` branches on the `qr:` prefix.
  */
 export const GRAPH_BASE = 'https://graph.facebook.com/v21.0'
+const REQUEST_TIMEOUT_MS = 20_000
+const NICETY_TIMEOUT_MS = 8_000
+const TEXT_CHUNK_LIMIT = 4_000
 
 interface WaCreds {
   accessToken: string
@@ -87,7 +91,11 @@ export function whatsappAdapter(token: string): MessengerAdapter {
       try {
         await fetch(
           `${bridgeBaseUrl()}/typing?sessionId=${encodeURIComponent(qrSessionId)}&jid=${encodeURIComponent(chatId)}`,
-          { method: 'POST', headers: bridgeHeaders() },
+          {
+            method: 'POST',
+            headers: bridgeHeaders(),
+            signal: AbortSignal.timeout(NICETY_TIMEOUT_MS),
+          },
         )
       } catch {
         /* ignore — typing is best-effort */
@@ -107,29 +115,23 @@ export function whatsappAdapter(token: string): MessengerAdapter {
         // list at the end of the message body — visible to the customer as
         // plain text, and tapping reply sends the number/text back as a normal
         // message which the AI can interpret.
-        let body = text
+        const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
         const buttons = (opts?.quickReplies ?? []).slice(0, 3)
-        if (buttons.length && text.length + 200 < 4096) {
-          body =
-            text +
-            '\n\n' +
-            buttons.map((q, i) => `${i + 1}. ${q.slice(0, 40)}`).join('\n')
-        }
-        const url = `${bridgeBaseUrl()}/send-text`
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: bridgeHeaders(),
-          body: JSON.stringify({
-            sessionId: qrSessionId,
-            jid: chatId,
-            text: body,
-          }),
-        })
-        if (!res.ok) {
-          const detail = await res.text().catch(() => '')
-          throw new Error(
-            `WHATSAPP(QR) sendText failed (${res.status}): ${detail}`,
-          )
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+          let body = chunks[chunkIndex]
+          if (chunkIndex === chunks.length - 1 && buttons.length && body.length + 200 < 4096) {
+            body += '\n\n' + buttons.map((q, i) => `${i + 1}. ${q.slice(0, 40)}`).join('\n')
+          }
+          const res = await fetch(`${bridgeBaseUrl()}/send-text`, {
+            method: 'POST',
+            headers: bridgeHeaders(),
+            body: JSON.stringify({ sessionId: qrSessionId, jid: chatId, text: body }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          })
+          if (!res.ok) {
+            const detail = await res.text().catch(() => '')
+            throw new Error(`WHATSAPP(QR) sendText failed (${res.status}): ${detail}`)
+          }
         }
         return
       }
@@ -150,6 +152,7 @@ export function whatsappAdapter(token: string): MessengerAdapter {
             to: chatId,
             ...payload,
           }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
       }
 
@@ -157,34 +160,39 @@ export function whatsappAdapter(token: string): MessengerAdapter {
       // buttons, titles ≤20 chars, body ≤1024 chars). Falls back to plain text
       // on any rejection so the reply is never lost.
       const buttons = (opts?.quickReplies ?? []).slice(0, 3)
-      if (buttons.length && text.length <= 1024) {
-        const res = await post({
-          type: 'interactive',
-          interactive: {
-            type: 'button',
-            body: { text },
-            action: {
-              buttons: buttons.map((q, i) => ({
-                type: 'reply',
-                reply: { id: `qr_${i}`, title: q.slice(0, 20) },
-              })),
+      const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex]
+        const isLast = chunkIndex === chunks.length - 1
+        if (isLast && buttons.length && chunk.length <= 1024) {
+          const interactive = await post({
+            type: 'interactive',
+            interactive: {
+              type: 'button',
+              body: { text: chunk },
+              action: {
+                buttons: buttons.map((q, i) => ({
+                  type: 'reply',
+                  reply: { id: `qr_${i}`, title: q.slice(0, 20) },
+                })),
+              },
             },
-          },
-        })
-        if (res.ok) return
-        console.error(
-          '[whatsapp] interactive send rejected, falling back to text:',
-          await res.text().catch(() => ''),
-        )
-      }
+          })
+          if (interactive.ok) continue
+          console.error(
+            '[whatsapp] interactive send rejected, falling back to text:',
+            await interactive.text().catch(() => ''),
+          )
+        }
 
-      const res = await post({
-        type: 'text',
-        text: { body: text, preview_url: false },
-      })
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '')
-        throw new Error(`WHATSAPP sendText failed (${res.status}): ${detail}`)
+        const res = await post({
+          type: 'text',
+          text: { body: chunk, preview_url: false },
+        })
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          throw new Error(`WHATSAPP sendText failed (${res.status}): ${detail}`)
+        }
       }
     },
   }
@@ -199,7 +207,10 @@ export async function getWhatsappInfo(
   try {
     const res = await fetch(
       `${GRAPH_BASE}/${creds.phoneNumberId}?fields=display_phone_number,verified_name`,
-      { headers: { Authorization: `Bearer ${creds.accessToken}` } },
+      {
+        headers: { Authorization: `Bearer ${creds.accessToken}` },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
     )
     if (!res.ok) return null
     const json = (await res.json()) as {
