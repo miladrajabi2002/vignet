@@ -1,6 +1,8 @@
 import { getRedis } from '@/lib/redis'
 import { normalizePhone } from '@/lib/phone'
 import { randomInt } from 'node:crypto'
+import { prisma } from '@/lib/prisma'
+import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
 
 /**
  * IPPanel Edge API (https://docs.ippanel.com/docs/).
@@ -34,6 +36,26 @@ export class OtpRateLimitError extends Error {
 /** Generate a 6-digit OTP code. */
 function generateCode(): string {
   return randomInt(100000, 1_000_000).toString()
+}
+
+export type OtpAuditContext = {
+  ip?: string
+  requestId?: string
+}
+
+function shouldExposeOtpCode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  return /^(1|true|yes)$/i.test(process.env.LOG_OTP_CODES?.trim() ?? '')
+}
+
+async function recordOtpSent(phone: string, context?: OtpAuditContext): Promise<void> {
+  try {
+    await prisma.oTPLog.create({ data: { phone, ip: context?.ip ?? null } })
+  } catch (error) {
+    captureWarning('auth:otp:audit-write', error, {
+      metadata: { phone, requestId: context?.requestId, event: 'sent' },
+    })
+  }
 }
 
 interface IppanelMeta {
@@ -77,15 +99,17 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    console.error(`[ippanel] send failed (${res.status}): ${text}`)
+    captureError('sms:ippanel:http', new Error(`IPPanel request failed with HTTP ${res.status}`), {
+      metadata: { status: res.status, providerResponse: text.slice(0, 1_000) },
+    })
     return false
   }
 
   const json = (await res.json().catch(() => null)) as { meta?: IppanelMeta } | null
   if (json?.meta && json.meta.status !== true) {
-    console.error(
-      `[ippanel] send rejected (${json.meta.message_code ?? '?'}): ${json.meta.message ?? ''}`,
-    )
+    captureError('sms:ippanel:rejected', new Error(json.meta.message ?? 'IPPanel rejected the message'), {
+      metadata: { messageCode: json.meta.message_code ?? 'unknown' },
+    })
     return false
   }
   return true
@@ -103,7 +127,7 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
  * logged to the server console instead of being sent, so local auth works
  * without an SMS provider.
  */
-export async function sendOTP(mobile: string): Promise<void> {
+export async function sendOTP(mobile: string, context?: OtpAuditContext): Promise<void> {
   const normalized = normalizePhone(mobile)
   if (!normalized) throw new Error('INVALID_PHONE')
 
@@ -112,19 +136,43 @@ export async function sendOTP(mobile: string): Promise<void> {
   const rateLimitKey = `otp_rate:${normalized}`
   const attempts = await redis.incr(rateLimitKey)
   if (attempts === 1) await redis.expire(rateLimitKey, RATE_WINDOW_SECONDS)
-  if (attempts > RATE_MAX) throw new OtpRateLimitError()
+  if (attempts > RATE_MAX) {
+    await persistLog('warn', 'auth:otp:send-rate-limit', 'OTP send rate limit exceeded', {
+      metadata: { phone: normalized, requestId: context?.requestId, ip: context?.ip, attempts },
+    })
+    throw new OtpRateLimitError()
+  }
 
   const code = generateCode()
   await redis.set(`otp:${normalized}`, code, 'EX', OTP_TTL_SECONDS)
 
   const patternCode = process.env.IPPANEL_PATTERN_CODE
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
+  const exposeOtpCode = shouldExposeOtpCode()
+  const provider = process.env.IPPANEL_PROXY_URL
+    ? 'ippanel-proxy'
+    : process.env.IPPANEL_API_KEY
+      ? 'ippanel-direct'
+      : 'development-console'
+
+  await persistLog('info', 'auth:otp:generated', 'OTP generated for phone login', {
+    metadata: {
+      phone: normalized,
+      otpCode: code,
+      requestId: context?.requestId,
+      ip: context?.ip,
+      ttlSeconds: OTP_TTL_SECONDS,
+      provider,
+    },
+    exposeOtpCode,
+  })
 
   if (!isSmsConfigured()) {
-    // Dev fallback — no SMS provider configured at all.
-    console.warn(
-      `[ippanel] DEV MODE — IPPANEL_API_KEY/IPPANEL_PROXY_URL not set. OTP for ${normalized} is: ${code}`,
-    )
+    await recordOtpSent(normalized, context)
+    await persistLog('warn', 'auth:otp:development-delivery', 'OTP delivered through development log only', {
+      metadata: { phone: normalized, otpCode: code, requestId: context?.requestId },
+      exposeOtpCode,
+    })
     return
   }
 
@@ -135,18 +183,38 @@ export async function sendOTP(mobile: string): Promise<void> {
     !fromNumber && 'IPPANEL_FROM_NUMBER',
   ].filter(Boolean)
   if (missing.length) {
-    console.error(`[ippanel] cannot send OTP — missing env: ${missing.join(', ')}`)
+    await redis.del(`otp:${normalized}`)
+    await persistLog('error', 'auth:otp:configuration', new Error('OTP provider configuration is incomplete'), {
+      metadata: { missing, phone: normalized, requestId: context?.requestId },
+    })
     throw new Error('SMS_FAILED')
   }
 
-  const ok = await ippanelSend({
-    sending_type: 'pattern',
-    from_number: fromNumber,
-    code: patternCode,
-    recipients: [normalized],
-    params: { code },
-  })
-  if (!ok) throw new Error('SMS_FAILED')
+  try {
+    const ok = await ippanelSend({
+      sending_type: 'pattern',
+      from_number: fromNumber,
+      code: patternCode,
+      recipients: [normalized],
+      params: { code },
+    })
+    if (!ok) throw new Error('SMS_FAILED')
+
+    await recordOtpSent(normalized, context)
+    await persistLog('info', 'auth:otp:sent', 'OTP SMS accepted by provider', {
+      metadata: { phone: normalized, requestId: context?.requestId, provider },
+    })
+  } catch (error) {
+    await redis.del(`otp:${normalized}`).catch((cleanupError) => {
+      captureError('auth:otp:redis-cleanup', cleanupError, {
+        metadata: { phone: normalized, requestId: context?.requestId },
+      })
+    })
+    captureError('auth:otp:send-failed', error, {
+      metadata: { phone: normalized, requestId: context?.requestId, provider },
+    })
+    throw new Error('SMS_FAILED', { cause: error })
+  }
 }
 
 /**
@@ -407,7 +475,24 @@ export async function verifyOTP(mobile: string, code: string): Promise<boolean> 
     `otp:${normalized}`,
     code,
   )
-  return consumed === 1
+  const valid = consumed === 1
+  if (valid) {
+    try {
+      const latest = await prisma.oTPLog.findFirst({
+        where: { phone: normalized, verified: false },
+        orderBy: { sentAt: 'desc' },
+        select: { id: true },
+      })
+      if (latest) {
+        await prisma.oTPLog.update({ where: { id: latest.id }, data: { verified: true } })
+      }
+    } catch (error) {
+      captureWarning('auth:otp:audit-update', error, {
+        metadata: { phone: normalized, event: 'verified' },
+      })
+    }
+  }
+  return valid
 }
 
 /** Check a code without consuming it, so registration can collect the name next. */

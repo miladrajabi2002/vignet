@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { reportClientError } from '@/lib/observability/client-error'
 
 /**
  * Dashboard error boundary.
@@ -27,6 +28,7 @@ export default function DashboardError({
 
   useEffect(() => {
     console.error('[dashboard] render error:', error)
+    reportClientError('dashboard-render', error)
     if (retried.current) {
       setAutoRetrying(false)
       return

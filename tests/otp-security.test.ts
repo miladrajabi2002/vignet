@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   eval: vi.fn(),
   rateLimit: vi.fn(),
+  findFirst: vi.fn(),
+  update: vi.fn(),
 }))
 
 vi.mock('@/lib/redis', () => ({
@@ -11,6 +13,14 @@ vi.mock('@/lib/redis', () => ({
 vi.mock('@/lib/ratelimit', () => ({
   rateLimit: mocks.rateLimit,
 }))
+vi.mock('@/lib/prisma', () => ({
+  prisma: { oTPLog: { findFirst: mocks.findFirst, update: mocks.update } },
+}))
+vi.mock('@/lib/errors/capture', () => ({
+  captureError: vi.fn(),
+  captureWarning: vi.fn(),
+  persistLog: vi.fn(),
+}))
 
 import { isOTPValid, verifyOTP } from '@/lib/sms/ippanel'
 import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
@@ -18,11 +28,15 @@ import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
 beforeEach(() => {
   mocks.eval.mockReset()
   mocks.rateLimit.mockReset()
+  mocks.findFirst.mockReset()
+  mocks.update.mockReset()
 })
 
 describe('OTP verification security', () => {
   it('atomically consumes a matching OTP', async () => {
     mocks.eval.mockResolvedValue(1)
+    mocks.findFirst.mockResolvedValue({ id: 'otp-log-1' })
+    mocks.update.mockResolvedValue({})
 
     await expect(verifyOTP('09123456789', '123456')).resolves.toBe(true)
     expect(mocks.eval).toHaveBeenCalledOnce()
@@ -30,6 +44,10 @@ describe('OTP verification security', () => {
     expect(script).toContain("redis.call('GET', KEYS[1])")
     expect(script).toContain("redis.call('DEL', KEYS[1])")
     expect([keyCount, key, value]).toEqual([1, 'otp:+989123456789', '123456'])
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id: 'otp-log-1' },
+      data: { verified: true },
+    })
   })
 
   it('does not accept an OTP that Redis did not consume', async () => {

@@ -10,6 +10,8 @@ import { handleWhatsappGlobalInbound } from '@/lib/whatsapp/webhook'
 import { processCampaign } from '@/lib/campaigns/process'
 import { processWooWebhookBatch } from '@/lib/integrations/woocommerce'
 import { startScheduler } from '@/worker/scheduler'
+import { captureError } from '@/lib/errors/capture'
+import { installProcessErrorObservers } from '@/lib/observability/process-errors'
 
 /**
  * Standalone BullMQ worker. Run with: npm run worker
@@ -18,6 +20,7 @@ import { startScheduler } from '@/worker/scheduler'
  */
 
 const connection = createQueueConnection()
+installProcessErrorObservers('worker')
 
 const ingestionWorker = new Worker(
   QUEUE_NAMES.ingestion,
@@ -108,9 +111,14 @@ for (const [name, w] of [
   ['campaigns', campaignWorker],
   ['woo-webhook', wooWebhookWorker],
 ] as const) {
-  w.on('failed', (job, err) =>
-    console.error(`[worker:${name}] job ${job?.id} failed:`, err.message),
-  )
+  w.on('failed', (job, err) => {
+    captureError(`worker:${name}:job-failed`, err, {
+      metadata: { jobId: job?.id, attemptsMade: job?.attemptsMade },
+    })
+  })
+  w.on('error', (error) => {
+    captureError(`worker:${name}:runtime`, error)
+  })
 }
 
 const stopScheduler = startScheduler()

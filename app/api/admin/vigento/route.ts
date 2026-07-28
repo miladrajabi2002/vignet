@@ -63,7 +63,7 @@ async function platformSummary(days: number) {
     prisma.message.count({ where: { conversation: ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'RESOLVED', createdAt: { gte: since } } }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'HANDED_OFF' } }),
-    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since } }] } }),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since }, level: 'error' }] } }),
     prisma.usageLog.aggregate({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'CAPTURED', date: { gte: since } }, _sum: { chargedIRR: true, cost: true }, _count: { _all: true } }),
     prisma.conversation.groupBy({ by: ['workspaceId'], where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since } }, _sum: { messageCount: true }, _count: { _all: true }, orderBy: { _sum: { messageCount: 'desc' } }, take: 5 }),
   ])

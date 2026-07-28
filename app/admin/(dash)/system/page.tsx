@@ -7,7 +7,7 @@ import { SystemErrorsPanel } from '@/components/admin/system-errors-panel'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminSystemPage(props: {
-  searchParams: Promise<{ errorLevel?: string; errorPage?: string }>
+  searchParams: Promise<{ errorLevel?: string; errorPage?: string; errorQuery?: string }>
 }) {
   const searchParams = await props.searchParams
   return (
@@ -20,7 +20,7 @@ export default async function AdminSystemPage(props: {
       />
       <ServiceHealthPanel />
       <ServerStatsWidget />
-      <SystemErrorsPanel level={searchParams.errorLevel} page={searchParams.errorPage} />
+      <SystemErrorsPanel level={searchParams.errorLevel} page={searchParams.errorPage} query={searchParams.errorQuery} />
     </div>
   )
 }

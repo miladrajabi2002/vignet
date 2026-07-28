@@ -182,7 +182,7 @@ export async function GET() {
       _count: { _all: true },
       _max: { lastInboundAt: true },
     }).catch(() => []),
-    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h } }] } }).catch(() => -1),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h }, level: 'error' }] } }).catch(() => -1),
     prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'FAILED', createdAt: { gte: since24h } } }).catch(() => -1),
   ])
 

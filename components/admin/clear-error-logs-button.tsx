@@ -10,7 +10,7 @@ export function ClearErrorLogsButton({ disabled = false }: { disabled?: boolean 
   const [message, setMessage] = useState('')
 
   async function clearLogs() {
-    if (!window.confirm('تمام لاگ‌های خطا و هشدار برای همیشه حذف می‌شوند. ادامه می‌دهید؟')) {
+    if (!window.confirm('تمام رخدادهای سیستم (خطا، هشدار و اطلاعات) برای همیشه حذف می‌شوند. ادامه می‌دهید؟')) {
       return
     }
 
@@ -26,7 +26,7 @@ export function ClearErrorLogsButton({ disabled = false }: { disabled?: boolean 
 
       const cleared = Number(data.cleared ?? 0).toLocaleString('fa-IR')
       setStatus('success')
-      setMessage(`${cleared} لاگ پاک شد`)
+      setMessage(`${cleared} رخداد پاک شد`)
       router.refresh()
     } catch {
       setStatus('error')
@@ -47,7 +47,7 @@ export function ClearErrorLogsButton({ disabled = false }: { disabled?: boolean 
         ) : (
           <Trash2 className="h-4 w-4" aria-hidden="true" />
         )}
-        {status === 'loading' ? 'در حال پاک‌سازی…' : 'پاک‌سازی لاگ‌ها'}
+        {status === 'loading' ? 'در حال پاک‌سازی…' : 'پاک‌سازی رخدادها'}
       </button>
       {message ? (
         <span

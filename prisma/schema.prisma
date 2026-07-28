@@ -122,6 +122,8 @@ model OTPLog {
   ip       String?
 
   @@index([phone])
+  @@index([phone, sentAt])
+  @@index([verified, sentAt])
 }
 
 // ─── AGENT ────────────────────────────────────────────────────────
@@ -969,6 +971,9 @@ model ErrorLog {
 
   @@index([createdAt])
   @@index([level])
+  @@index([level, createdAt])
+  @@index([source, createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 // ─── BLOG (SEO content marketing) ────────────────────────────────────

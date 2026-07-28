@@ -1,4 +1,4 @@
-import { Activity, AlertOctagon, AlertTriangle, Radar } from 'lucide-react'
+import { Activity, AlertOctagon, AlertTriangle, Radar, Search } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -19,16 +19,29 @@ import { ClearErrorLogsButton } from '@/components/admin/clear-error-logs-button
 
 const PAGE_SIZE = 50
 
-export async function SystemErrorsPanel({ level, page }: { level?: string; page?: string }) {
-  const activeLevel = level === 'warn' || level === 'error' ? level : undefined
+export async function SystemErrorsPanel({ level, page, query }: { level?: string; page?: string; query?: string }) {
+  const activeLevel = ['debug', 'info', 'warn', 'error'].includes(level ?? '') ? level : undefined
+  const activeQuery = query?.trim().slice(0, 200) ?? ''
   const activePage = Math.max(1, Number(page) || 1)
   const hiddenWorkspaceIds = await getAdminHiddenWorkspaceIds()
   const reportingScope: Prisma.ErrorLogWhereInput = hiddenWorkspaceIds.length
     ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: hiddenWorkspaceIds } }] }
     : {}
-  const where: Prisma.ErrorLogWhereInput = activeLevel
-    ? { AND: [reportingScope, { level: activeLevel }] }
-    : reportingScope
+  const filters: Prisma.ErrorLogWhereInput[] = [reportingScope]
+  if (activeLevel) filters.push({ level: activeLevel })
+  if (activeQuery) {
+    filters.push({
+      OR: [
+        { source: { contains: activeQuery, mode: 'insensitive' } },
+        { message: { contains: activeQuery, mode: 'insensitive' } },
+        { workspaceId: { contains: activeQuery, mode: 'insensitive' } },
+        { metadata: { path: ['requestId'], string_contains: activeQuery } },
+        { metadata: { path: ['phone'], string_contains: activeQuery } },
+        { metadata: { path: ['otpCode'], string_contains: activeQuery } },
+      ],
+    })
+  }
+  const where: Prisma.ErrorLogWhereInput = { AND: filters }
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
   const [errors, totalCount, allLogCount, errors24h, errTrend7, errTrend30, errorTrend7, sourceSparks] = await Promise.all([
@@ -37,7 +50,7 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
       orderBy: { createdAt: 'desc' },
       skip: (activePage - 1) * PAGE_SIZE,
       take: PAGE_SIZE + 1,
-      select: { id: true, level: true, source: true, message: true, stack: true, workspaceId: true, createdAt: true },
+      select: { id: true, level: true, source: true, message: true, stack: true, workspaceId: true, metadata: true, createdAt: true },
     }),
     prisma.errorLog.count({ where }),
     prisma.errorLog.count({ where: reportingScope }),
@@ -56,9 +69,17 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
   const makeHref = (nextPage: number) => {
     const params = new URLSearchParams()
     if (activeLevel) params.set('errorLevel', activeLevel)
+    if (activeQuery) params.set('errorQuery', activeQuery)
     if (nextPage > 1) params.set('errorPage', String(nextPage))
     const query = params.toString()
     return `${query ? `/admin/system?${query}` : '/admin/system'}#errors`
+  }
+  const filterHref = (nextLevel?: string) => {
+    const params = new URLSearchParams()
+    if (nextLevel) params.set('errorLevel', nextLevel)
+    if (activeQuery) params.set('errorQuery', activeQuery)
+    const value = params.toString()
+    return `${value ? `/admin/system?${value}` : '/admin/system'}#errors`
   }
 
   return (
@@ -69,11 +90,35 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
           <p className="mt-1 text-xs leading-5 text-zinc-500">بررسی رخدادها، منبع خطا و stack برای دیباگ مستقیم</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <form action="/admin/system" method="get" className="flex min-w-0 flex-1 items-end gap-2 sm:flex-initial">
+            <div className="min-w-0 flex-1 sm:w-72">
+              <label htmlFor="error-log-search" className="mb-1 block text-[11px] font-medium text-zinc-600">
+                جست‌وجو در پیام، منبع یا workspace
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+                <input
+                  id="error-log-search"
+                  name="errorQuery"
+                  defaultValue={activeQuery}
+                  maxLength={200}
+                  placeholder="مثلاً auth:otp یا request id"
+                  className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white pe-3 ps-9 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                />
+              </div>
+            </div>
+            {activeLevel ? <input type="hidden" name="errorLevel" value={activeLevel} /> : null}
+            <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2">
+              جست‌وجو
+            </button>
+          </form>
           <div className="overflow-x-auto">
             <FilterPills options={[
-              { label: 'همه', href: '/admin/system#errors', active: !activeLevel },
-              { label: 'خطا', href: '/admin/system?errorLevel=error#errors', active: activeLevel === 'error' },
-              { label: 'هشدار', href: '/admin/system?errorLevel=warn#errors', active: activeLevel === 'warn' },
+              { label: 'همه', href: filterHref(), active: !activeLevel },
+              { label: 'خطا', href: filterHref('error'), active: activeLevel === 'error' },
+              { label: 'هشدار', href: filterHref('warn'), active: activeLevel === 'warn' },
+              { label: 'اطلاعات', href: filterHref('info'), active: activeLevel === 'info' },
+              { label: 'دیباگ', href: filterHref('debug'), active: activeLevel === 'debug' },
             ]} />
           </div>
           <ClearErrorLogsButton disabled={allLogCount === 0} />
@@ -107,7 +152,19 @@ export async function SystemErrorsPanel({ level, page }: { level?: string; page?
                   <span className="ms-auto text-[11px] text-zinc-400">{fmtDate(error.createdAt)}</span>
                 </summary>
                 <p className="mt-2 text-sm text-zinc-700">{error.message}</p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-zinc-500" dir="ltr">
+                  <span>event: {error.id}</span>
+                  <time dateTime={error.createdAt.toISOString()}>{error.createdAt.toISOString()}</time>
+                </div>
                 {error.workspaceId && <p className="mt-1 text-xs text-zinc-400">workspace: {error.workspaceId}</p>}
+                {error.metadata && (
+                  <div className="mt-2">
+                    <p className="mb-1 text-[11px] font-semibold text-zinc-500">متادیتای رخداد</p>
+                    <pre dir="ltr" className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700">
+                      {JSON.stringify(error.metadata, null, 2)}
+                    </pre>
+                  </div>
+                )}
                 {error.stack && <pre className="mt-2 max-h-60 overflow-auto rounded-xl bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-600">{error.stack}</pre>}
               </details>
             )

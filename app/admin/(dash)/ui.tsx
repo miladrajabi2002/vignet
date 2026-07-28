@@ -227,11 +227,10 @@ export function Badge({
 
 /** Severity badge for an ErrorLog level. */
 export function LevelBadge({ level }: { level: string }) {
-  return level === 'error' ? (
-    <Badge tone="danger">خطا</Badge>
-  ) : (
-    <Badge tone="warning">هشدار</Badge>
-  )
+  if (level === 'error') return <Badge tone="danger">خطا</Badge>
+  if (level === 'warn') return <Badge tone="warning">هشدار</Badge>
+  if (level === 'info') return <Badge tone="info">اطلاعات</Badge>
+  return <Badge tone="muted">دیباگ</Badge>
 }
 
 // ─── TABLE HELPERS ────────────────────────────────────────────────

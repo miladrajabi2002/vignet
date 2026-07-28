@@ -34,7 +34,7 @@ import type { TrendPoint } from '@/components/dashboard/charts/conversation-char
 import { RangeSwitch, type RangeKind } from '@/components/admin/range-switch'
 import {
   conversationsDaily,
-  errorsDaily,
+  errorsDailyByLevel,
   newUsersDaily,
   revenueIRRDaily,
   paymentsDaily,
@@ -116,7 +116,7 @@ export default async function AdminOverviewPage(
     prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
     prisma.user.count({ where: ADMIN_VISIBLE_USER_WHERE }),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: startToday } } }),
-    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h } }] } }),
+    prisma.errorLog.count({ where: { AND: [visibleErrorWhere, { createdAt: { gte: since24h }, level: 'error' }] } }),
     planDistribution(),
     rangeSeriesPromise,
     // ─ 7-day series for KPI card sparklines (always 7d, regardless of the
@@ -125,7 +125,7 @@ export default async function AdminOverviewPage(
       revenueIRRDaily(7),
       conversationsDaily(7),
       newUsersDaily(7),
-      errorsDaily(7),
+      errorsDailyByLevel('error', 7),
       paymentsDaily(7),
       usageChargesDaily(7),
     ]).then(([rev, conv, users, err, pays, ai]) => ({
