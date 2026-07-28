@@ -1,12 +1,12 @@
 /**
- * ZarinPay (zarinpay.me) rial payment gateway.
+ * ZarinPay (zarinmee.ir) rial payment gateway.
  * Docs: https://github.com/miladrajabi2002/zarinpay-doc
  *
  * Auth: `Authorization: Bearer ZARINPAY_ACCESS_TOKEN` on every call.
  * Amounts are in Iranian Rials. Payment links are valid for 30 minutes.
  */
 
-const BASE_URL = process.env.ZARINPAY_BASE_URL || 'https://zarinpay.me/api'
+const BASE_URL = process.env.ZARINPAY_BASE_URL || 'https://zarinmee.ir/api'
 
 function getToken(): string {
   const t = process.env.ZARINPAY_ACCESS_TOKEN
