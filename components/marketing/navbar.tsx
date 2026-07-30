@@ -10,18 +10,19 @@ import { Logo } from '@/components/ui/logo'
 import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
-const SECTION_IDS = ['product', 'demo', 'businesses', 'pricing'] as const
+const SECTION_IDS = ['product', 'demo', 'solutions', 'pricing'] as const
 
 const COPY = {
 	fa: {
 		home: 'صفحه اصلی',
 		product: 'محصول',
 		demo: 'دموی زنده',
-		businesses: 'راهکارها',
+		solutions: 'راهکارها',
 		start: 'شروع رایگان — یک ماه',
 		dashboard: 'داشبورد من',
 		signedIn: 'وارد شده‌اید',
 		dashboardAria: 'رفتن به داشبورد',
+		login: 'ورود',
 		primaryNav: 'ناوبری اصلی',
 		openMenu: 'باز کردن منو',
 		closeMenu: 'بستن منو',
@@ -30,11 +31,12 @@ const COPY = {
 		home: 'Home',
 		product: 'Product',
 		demo: 'Live demo',
-		businesses: 'Solutions',
+		solutions: 'Solutions',
 		start: 'Start free — one month',
 		dashboard: 'My dashboard',
 		signedIn: 'Signed in',
 		dashboardAria: 'Go to dashboard',
+		login: 'Log in',
 		primaryNav: 'Primary navigation',
 		openMenu: 'Open menu',
 		closeMenu: 'Close menu',
@@ -89,11 +91,12 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 		{ href: '/', id: 'home', label: copy.home },
 		{ href: '/#product', id: 'product', label: copy.product },
 		{ href: '/#demo', id: 'demo', label: copy.demo },
-		{ href: '/#businesses', id: 'businesses', label: copy.businesses },
+		{ href: '/#solutions', id: 'solutions', label: copy.solutions },
 		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
 		{ href: '/blog', id: 'blog', label: t('blog') },
 		{ href: '/docs', id: 'docs', label: t('docs') },
 	]
+	const mobileLinks = links.filter((link) => link.id !== 'home')
 
 	return (
 		<header className="fixed inset-x-0 top-0 z-50 px-3 pt-2 sm:px-5 sm:pt-3">
@@ -109,13 +112,16 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				{/* Mobile entry point — the desktop nav below is hidden under lg. */}
 				<div className="col-start-1 flex items-center justify-start lg:hidden">
 					<MarketingMobileMenu
-						links={links}
+						links={mobileLinks}
 						ctaHref="/login?next=/onboarding"
 						ctaLabel={copy.start}
+						loginLabel={copy.login}
+						dashboardLabel={copy.dashboard}
 						openLabel={copy.openMenu}
 						closeLabel={copy.closeMenu}
 						navLabel={copy.primaryNav}
 						authenticated={authenticated}
+						activeSection={activeSection}
 					/>
 				</div>
 
@@ -143,13 +149,13 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 
 				<Link
 					href="/"
-					aria-label="Vigent home"
+					aria-label={locale === 'fa' ? 'صفحه اصلی ویجنت' : 'Vigent home'}
 					className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black lg:absolute lg:left-1/2 lg:-translate-x-1/2"
 				>
 					<Logo priority className="h-8 w-[7.25rem] sm:w-32" />
 				</Link>
 
-				<div className="col-start-3 flex items-center justify-end gap-2 lg:ms-auto">
+				<div className="col-start-3 hidden items-center justify-end gap-2 lg:ms-auto lg:flex">
 					<LanguageSwitcher className="hidden lg:inline-flex" />
 					{authenticated ? (
 						<Link

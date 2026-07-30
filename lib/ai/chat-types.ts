@@ -44,4 +44,8 @@ export interface StartChatParams {
         contactPhone?: string | null
         /** Channel-native origin (DM/comment/story/reaction) persisted on the USER message. */
         inboundMetadata?: Prisma.InputJsonValue
+        /** Durable channel event that owns this turn (messenger workers only). */
+        inboundEventId?: string
+        /** The channel handler already persisted/counted the USER message. */
+        inboundAlreadyPersisted?: boolean
 }

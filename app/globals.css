@@ -813,6 +813,37 @@
                 transform: scale(0.97);
         }
 
+        .marketing-mobile-dialog {
+                width: 100%;
+                height: 100vh;
+                height: 100dvh;
+                overscroll-behavior: contain;
+        }
+
+        .marketing-mobile-dialog[open] {
+                transform-origin: top left;
+                animation: marketing-mobile-menu-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        html[dir='rtl'] .marketing-mobile-dialog[open] {
+                transform-origin: top right;
+        }
+
+        .marketing-mobile-dialog::backdrop {
+                background: rgba(0, 0, 0, 0.28);
+                animation: marketing-mobile-backdrop-in 180ms ease-out;
+        }
+
+        @keyframes marketing-mobile-menu-in {
+                from { opacity: 0.65; transform: scale(0.985); }
+                to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes marketing-mobile-backdrop-in {
+                from { opacity: 0; }
+                to { opacity: 1; }
+        }
+
         .marketing-page-hero {
                 position: relative;
                 overflow: hidden;
@@ -886,7 +917,9 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-                .material-select-menu { animation: none; }
+                .material-select-menu,
+                .marketing-mobile-dialog[open],
+                .marketing-mobile-dialog::backdrop { animation: none; }
         }
         .marketing-eyebrow {
                 display: inline-flex;

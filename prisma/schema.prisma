@@ -33,7 +33,7 @@ model Workspace {
   // Additive profile data (currently businessName + service labels). Keeping
   // this flexible lets onboarding evolve without another migration per answer.
   businessProfile               Json?
-  onboardingStep                Int          @default(0) // 0-4, tracks activation checklist
+  onboardingStep                Int          @default(0) // 0-3, tracks contiguous agent/knowledge/channel checks
   onboardingCompleted           Boolean      @default(false)
   onboardingKnowledgeSkipped    Boolean      @default(false)
   onboardingChannelSkipped      Boolean      @default(false)
@@ -67,6 +67,8 @@ model Workspace {
   campaigns                Campaign[]
   services                 Service[]
   appointments             Appointment[]
+  inboundEvents            InboundEvent[]
+  conversationTurnLeases   ConversationTurnLease[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -128,42 +130,42 @@ model OTPLog {
 
 // ─── AGENT ────────────────────────────────────────────────────────
 model Agent {
-  id                  String   @id @default(cuid())
-  workspaceId         String
-  name                String
-  description         String?
-  systemPrompt        String   @db.Text
-  model               String?
-  temperature         Float    @default(0.7)
-  maxTokens           Int      @default(1000)
-  language            String   @default("fa")
-  voiceEnabled        Boolean  @default(false)
-  ttsVoice            String   @default("alloy")
-  avatar              String?
-  welcomeMessage      String?
-  fallbackMessage     String?
-  handoffEnabled      Boolean  @default(false)
-  handoffMessage      String?
-  handoffKeywords     String[] @default([])
-  active              Boolean  @default(true)
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  name                 String
+  description          String?
+  systemPrompt         String   @db.Text
+  model                String?
+  temperature          Float    @default(0.7)
+  maxTokens            Int      @default(1000)
+  language             String   @default("fa")
+  voiceEnabled         Boolean  @default(false)
+  ttsVoice             String   @default("alloy")
+  avatar               String?
+  welcomeMessage       String?
+  fallbackMessage      String?
+  handoffEnabled       Boolean  @default(false)
+  handoffMessage       String?
+  handoffKeywords      String[] @default([])
+  active               Boolean  @default(true)
   // ─ 6-LAYER PROMPT ENGINE (F1) ─────────────────────────────────────────
   //   Structured prompt configuration that replaces the single-line systemPrompt
   //   with six composable layers: personality, tone, scope, fallback behavior,
   //   response format, and curated Q&A pairs. When promptConfig is set it takes
   //   precedence over systemPrompt; the legacy field is kept for backward-compat
   //   and as a free-form fallback.
-  promptConfig        Json?
+  promptConfig         Json?
   //   Role template key used to seed promptConfig (e.g. 'sales_consult',
   //   'post_sale_support', 'pre_sales', 'follow_up', 'general_support').
-  roleTemplate        String?
+  roleTemplate         String?
   // ─ Customer identification (F3): require name + phone at conversation start
   //   before the agent proceeds. Drives the collect-info flow at thread open.
-  requireCustomerInfo Boolean  @default(false)
-  customerInfoPrompt  String?  @db.Text
-  productAccessEnabled Boolean @default(true)
-  orderTrackingEnabled Boolean @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  requireCustomerInfo  Boolean  @default(false)
+  customerInfoPrompt   String?  @db.Text
+  productAccessEnabled Boolean  @default(true)
+  orderTrackingEnabled Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   workspace                   Workspace                    @relation(fields: [workspaceId], references: [id])
   channels                    AgentChannel[]
@@ -236,7 +238,9 @@ model AgentChannel {
   healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
   createdAt       DateTime    @default(now())
 
-  agent Agent @relation(fields: [agentId], references: [id])
+  agent                  Agent                   @relation(fields: [agentId], references: [id])
+  inboundEvents          InboundEvent[]
+  conversationTurnLeases ConversationTurnLease[]
 
   @@unique([agentId, type])
   @@index([agentId])
@@ -253,6 +257,84 @@ enum ChannelType {
   API
 }
 
+// Durable inbox ledger for the at-least-once webhook/queue boundary. A row is
+// never deleted during normal processing: COMPLETED is the durable dedupe
+// marker, while an expired PROCESSING lease can be atomically reclaimed after
+// a worker crash. leaseToken is a fencing token; stale workers cannot commit a
+// result after a newer owner has reclaimed the event.
+model InboundEvent {
+  id                  String            @id @default(cuid())
+  workspaceId         String
+  channelId           String
+  externalEventId     String
+  conversationKey     String
+  eventType           String
+  payloadHash         String
+  payload             Json?
+  state               InboundEventState @default(RECEIVED)
+  leaseOwner          String?
+  leaseToken          Int               @default(0)
+  leaseExpiresAt      DateTime?
+  attempts            Int               @default(0)
+  conversationId      String?
+  inboundMessageId    String?
+  resultMessageId     String?
+  result              Json?
+  lastError           String?           @db.Text
+  processingStartedAt DateTime?
+  effectsCommittedAt  DateTime?
+  // Channel APIs generally lack an idempotency key. This marker is written
+  // before the first provider send (at-most-once policy): a crash retry will
+  // not duplicate a reply whose delivery outcome is ambiguous.
+  deliveryStartedAt   DateTime?
+  deliveryCompletedAt DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel        AgentChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  inboundMessage Message?     @relation("InboundEventInboundMessage")
+  resultMessage  Message?     @relation("InboundEventResultMessage")
+
+  @@unique([workspaceId, channelId, externalEventId])
+  @@index([state, leaseExpiresAt])
+  @@index([workspaceId, createdAt])
+  @@index([channelId, conversationKey])
+}
+
+enum InboundEventState {
+  RECEIVED
+  PROCESSING
+  EFFECTS_COMMITTED
+  COMPLETED
+  DELIVERY_UNCERTAIN
+  FAILED
+}
+
+// Database-backed per-thread lease. Unlike the old Redis mutex, waiters never
+// proceed unlocked on timeout. fencingToken increases on every acquisition so
+// an expired owner cannot release or finalize work owned by its successor.
+model ConversationTurnLease {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  channelId       String
+  conversationKey String
+  leaseOwner      String?
+  fencingToken    Int       @default(0)
+  leaseExpiresAt  DateTime?
+  eventId         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel   AgentChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, channelId, conversationKey])
+  @@index([leaseExpiresAt])
+  @@index([eventId])
+}
+
 // ─── PRODUCT CATALOG ──────────────────────────────────────────────
 model ProductCategory {
   id                  String   @id @default(cuid())
@@ -265,11 +347,11 @@ model ProductCategory {
   sortOrder           Int      @default(0)
   createdAt           DateTime @default(now())
 
-  workspace        Workspace         @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
-  parent           ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children         ProductCategory[] @relation("CategoryTree")
-  products         Product[]
+  parent            ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children          ProductCategory[] @relation("CategoryTree")
+  products          Product[]
 
   @@unique([workspaceId, slug])
   @@unique([sourceIntegrationId, externalId])
@@ -278,28 +360,28 @@ model ProductCategory {
 }
 
 model Product {
-  id                 String    @id @default(cuid())
-  workspaceId        String
+  id                  String    @id @default(cuid())
+  workspaceId         String
   sourceIntegrationId String?
-  externalId         String?
-  sourceUpdatedAt    DateTime?
-  sourceHash         String?
-  categoryId         String?
-  name               String
-  description        String?   @db.Text
-  price              Float?
-  comparePrice       Float? // original price (for showing discount)
-  sku                String?
-  stock              Int? // null = unlimited
-  images             String[] // Supabase Storage URLs
-  attributes         Json? // {"color": "blue", "size": "XL"}
-  tags               String[]
-  externalUrl        String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
-  active             Boolean   @default(true)
-  embeddingUpdatedAt DateTime? // track when last embedded into vector store
-  queryCount         Int       @default(0) // how many times AI retrieved this product
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  externalId          String?
+  sourceUpdatedAt     DateTime?
+  sourceHash          String?
+  categoryId          String?
+  name                String
+  description         String?   @db.Text
+  price               Float?
+  comparePrice        Float? // original price (for showing discount)
+  sku                 String?
+  stock               Int? // null = unlimited
+  images              String[] // Supabase Storage URLs
+  attributes          Json? // {"color": "blue", "size": "XL"}
+  tags                String[]
+  externalUrl         String? // canonical product URL on the source store (WooCommerce permalink, etc.) — used for the "View product" button in Instagram product cards
+  active              Boolean   @default(true)
+  embeddingUpdatedAt  DateTime? // track when last embedded into vector store
+  queryCount          Int       @default(0) // how many times AI retrieved this product
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   workspace         Workspace         @relation(fields: [workspaceId], references: [id])
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
@@ -577,24 +659,31 @@ enum SalesUrgency {
 }
 
 model Message {
-  id             String      @id @default(cuid())
-  conversationId String
-  role           MessageRole
-  content        String      @db.Text
-  contentType    ContentType @default(TEXT)
-  audioUrl       String?
-  metadata       Json?
-  rating         Int?
-  unanswered     Boolean     @default(false)
-  createdAt      DateTime    @default(now())
+  id                      String      @id @default(cuid())
+  conversationId          String
+  role                    MessageRole
+  content                 String      @db.Text
+  contentType             ContentType @default(TEXT)
+  audioUrl                String?
+  metadata                Json?
+  rating                  Int?
+  unanswered              Boolean     @default(false)
+  createdAt               DateTime    @default(now())
   // ─ Reply-to (quote) support. When a visitor replies to a specific message
   //   (web widget / chat link), this points at the quoted message. The dashboard
   //   thread renders a small quote block above the bubble when set.
-  parentId       String?
+  parentId                String?
+  // Exactly-once anchors for durable inbound retries. PostgreSQL permits
+  // multiple NULLs in unique indexes, so ordinary widget/API messages are
+  // unaffected while one ledger event can create at most one USER/result row.
+  inboundEventId          String?     @unique
+  resultForInboundEventId String?     @unique
 
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-  parent       Message?     @relation("MessageReplies", fields: [parentId], references: [id])
-  replies      Message[]    @relation("MessageReplies")
+  conversation          Conversation  @relation(fields: [conversationId], references: [id])
+  parent                Message?      @relation("MessageReplies", fields: [parentId], references: [id])
+  replies               Message[]     @relation("MessageReplies")
+  inboundEvent          InboundEvent? @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
+  resultForInboundEvent InboundEvent? @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
 
   @@index([conversationId])
   @@index([parentId])
@@ -1117,11 +1206,11 @@ model StoreIntegration {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  orders    StoreOrder[]
-  syncLogs  StoreSyncLog[]
-  products  Product[]
-  categories ProductCategory[]
+  workspace         Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orders            StoreOrder[]
+  syncLogs          StoreSyncLog[]
+  products          Product[]
+  categories        ProductCategory[]
   webhookDeliveries StoreWebhookDelivery[]
 
   @@index([workspaceId])

@@ -30,7 +30,18 @@ export async function POST(req: Request, props: Params) {
 
   const existing = await prisma.conversation.findFirst({
     where: { id: params.conversationId, workspaceId: user.workspaceId },
-    select: { id: true, metadata: true },
+    select: {
+      id: true,
+      metadata: true,
+      status: true,
+      handedOff: true,
+      workspaceId: true,
+      agentId: true,
+      channel: true,
+      summary: true,
+      contact: { select: { name: true, phone: true } },
+      agent: { select: { name: true, language: true } },
+    },
   })
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -44,26 +55,116 @@ export async function POST(req: Request, props: Params) {
   // For AI mode, strip the `aiPaused` / `pausedAt` keys from metadata so the
   // agent resumes replying. We shallow-merge to preserve any other metadata.
   const prevMeta =
-    existing.metadata && typeof existing.metadata === 'object'
+    existing.metadata &&
+    typeof existing.metadata === 'object' &&
+    !Array.isArray(existing.metadata)
       ? (existing.metadata as Record<string, unknown>)
       : {}
-  const { aiPaused: _p, pausedAt: _t, ...restMeta } = prevMeta
+  const {
+    aiPaused: _p,
+    pausedAt: _t,
+    pausedBy: _b,
+    controlMode: _m,
+    controlChangedAt: _c,
+    controlChangedBy: _u,
+    ...restMeta
+  } = prevMeta
   void _p
   void _t
+  void _b
+  void _m
+  void _c
+  void _u
 
-  const data: Prisma.ConversationUpdateInput =
-    mode === 'AI'
-      ? {
+  const changedAt = new Date()
+  const controlMetadata: Prisma.InputJsonValue = mode === 'AI'
+    ? {
+        ...restMeta,
+        controlMode: 'AI',
+        controlChangedAt: changedAt.toISOString(),
+        controlChangedBy: user.id,
+      }
+    : {
+        ...prevMeta,
+        aiPaused: true,
+        pausedAt: changedAt.toISOString(),
+        pausedBy: user.id,
+        controlMode: 'OPERATOR',
+        controlChangedAt: changedAt.toISOString(),
+        controlChangedBy: user.id,
+      }
+
+  const conversation = await prisma.$transaction(async (tx) => {
+    if (mode === 'AI') {
+      const resumed = await tx.conversation.update({
+        where: { id: existing.id },
+        data: {
           status: 'OPEN',
           handedOff: false,
-          metadata: restMeta as Prisma.InputJsonValue,
-        }
-      : { status: 'HANDED_OFF', handedOff: true }
+          metadata: controlMetadata,
+        },
+        select: { id: true, status: true, handedOff: true, metadata: true },
+      })
+      await tx.handoffAlert.updateMany({
+        where: {
+          conversationId: existing.id,
+          state: { in: ['open', 'claimed'] },
+        },
+        data: { state: 'resolved', resolvedAt: changedAt },
+      })
+      return resumed
+    }
 
-  const conversation = await prisma.conversation.update({
-    where: { id: params.conversationId },
-    data,
-    select: { id: true, status: true, handedOff: true, metadata: true },
+    // The conditional update is the idempotency gate: concurrent/retried
+    // operator switches cannot create duplicate alerts or notifications.
+    const claimed = await tx.conversation.updateMany({
+      where: {
+        id: existing.id,
+        OR: [{ status: { not: 'HANDED_OFF' } }, { handedOff: false }],
+      },
+      data: {
+        status: 'HANDED_OFF',
+        handedOff: true,
+        metadata: controlMetadata,
+      },
+    })
+
+    if (claimed.count === 1) {
+      const english = existing.agent.language.toLowerCase().startsWith('en')
+      const reason = english
+        ? 'Manually switched to operator-only mode'
+        : 'تغییر دستی گفتگو به حالت فقط اپراتور'
+      await tx.handoffAlert.create({
+        data: {
+          workspaceId: existing.workspaceId,
+          conversationId: existing.id,
+          agentId: existing.agentId,
+          contactName: existing.contact?.name ?? null,
+          contactPhone: existing.contact?.phone ?? null,
+          channel: existing.channel,
+          reason,
+          summary: existing.summary,
+          state: 'claimed',
+          claimedBy: user.id,
+        },
+      })
+      await tx.notification.create({
+        data: {
+          workspaceId: existing.workspaceId,
+          type: 'HANDOFF',
+          title: english ? 'Operator-only mode enabled' : 'حالت فقط اپراتور فعال شد',
+          body: english
+            ? `${existing.agent.name} has stepped aside for this conversation.`
+            : `${existing.agent.name} در این گفتگو دیگر پاسخ خودکار نمی‌دهد.`,
+          link: `/conversations/${existing.id}`,
+        },
+      })
+    }
+
+    return tx.conversation.findUniqueOrThrow({
+      where: { id: existing.id },
+      select: { id: true, status: true, handedOff: true, metadata: true },
+    })
   })
 
   return NextResponse.json({ conversation })

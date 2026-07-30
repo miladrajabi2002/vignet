@@ -71,42 +71,57 @@ function ConnectionBoard() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
 	const reduce = useReducedMotion()
+	const sideY = [109, 179, 249, 319]
+	const hubY = [135, 195, 255, 315]
+	const incomingPaths = sideY.map(
+		(y, index) => `M 180 ${y} C 232 ${y}, 258 ${hubY[index]}, 310 ${hubY[index]}`,
+	)
+	const outgoingPaths = sideY.map(
+		(y, index) => `M 690 ${hubY[index]} C 742 ${hubY[index]}, 768 ${y}, 820 ${y}`,
+	)
+	const connectorPaths = [...incomingPaths, ...outgoingPaths]
 
 	return (
-		<div className="relative mx-auto mt-10 max-w-6xl overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 sm:p-7 lg:min-h-[500px] lg:p-9">
-			<svg aria-hidden viewBox="0 0 1000 460" className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block" preserveAspectRatio="none">
-				{[72, 176, 284, 388].map((y, index) => (
-					<path key={`in-${y}`} d={`M 168 ${y} C 260 ${y}, 274 ${118 + index * 70}, 355 ${118 + index * 70} S 414 230, 450 230`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.2" />
-				))}
-				{[72, 176, 284, 388].map((y, index) => (
-					<path key={`out-${y}`} d={`M 550 230 C 586 230, 588 ${118 + index * 70}, 645 ${118 + index * 70} S 740 ${y}, 832 ${y}`} fill="none" stroke="rgba(0,0,0,.14)" strokeWidth="1.2" />
-				))}
-				{[118, 188, 258, 328].map((y) => (
-					<g key={`neuron-${y}`}>
-						<circle cx="355" cy={y} r="5" fill="#f7f7f8" stroke="rgba(0,0,0,.3)" strokeWidth="1.2" />
-						<circle cx="645" cy={y} r="5" fill="#f7f7f8" stroke="rgba(0,0,0,.3)" strokeWidth="1.2" />
-					</g>
-				))}
-				{!reduce && (
-					<>
-						<circle r="3.2" fill="#111">
-							<animateMotion dur="3.2s" repeatCount="indefinite" path="M 168 176 C 260 176, 274 188, 355 188 S 414 230, 450 230" />
-						</circle>
-						<circle r="3.2" fill="#111">
-							<animateMotion dur="3.7s" begin=".75s" repeatCount="indefinite" path="M 550 230 C 586 230, 588 258, 645 258 S 740 284, 832 284" />
-						</circle>
-						<circle r="3.2" fill="#111">
-							<animateMotion dur="4s" begin="1.45s" repeatCount="indefinite" path="M 168 388 C 260 388, 274 328, 355 328 S 414 230, 450 230" />
-						</circle>
-					</>
-				)}
-			</svg>
+		<div className="relative mx-auto mt-10 max-w-6xl overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-7 lg:p-9">
+			<div className="relative mx-auto h-[428px] max-w-[1040px]">
+				<svg aria-hidden viewBox="0 0 1000 428" className="pointer-events-none absolute inset-0 h-full w-full" preserveAspectRatio="none">
+					{connectorPaths.map((path, index) => (
+						<m.path
+							key={path}
+							d={path}
+							fill="none"
+							stroke="rgba(0,0,0,.2)"
+							strokeWidth="1.35"
+							strokeLinecap="round"
+							initial={reduce ? false : { pathLength: 0, opacity: 0.18 }}
+							whileInView={{ pathLength: 1, opacity: 1 }}
+							viewport={{ once: true, margin: '-80px' }}
+							transition={reduce ? { duration: 0 } : { duration: 0.48, delay: (index % 4) * 0.045, ease: [0.16, 1, 0.3, 1] }}
+						/>
+					))}
 
-			<div className="relative grid gap-4 lg:grid-cols-[1fr_1.08fr_1fr] lg:items-center lg:gap-5">
-				<div className="order-3 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-4">
+					{sideY.map((y, index) => (
+						<g key={`connector-nodes-${y}`}>
+							<circle cx="180" cy={y} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
+							<circle cx="310" cy={hubY[index]} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
+							<circle cx="690" cy={hubY[index]} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
+							<circle cx="820" cy={y} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
+						</g>
+					))}
+
+					{!reduce && [incomingPaths[0], incomingPaths[2], outgoingPaths[1], outgoingPaths[3]].map((path, index) => (
+						<circle key={`signal-${path}`} r="3.1" fill="#111" opacity="0.82">
+							<animateMotion dur={`${2.7 + index * 0.22}s`} begin={`${index * 0.48}s`} repeatCount="indefinite" path={path} />
+							<animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.12;0.82;1" dur={`${2.7 + index * 0.22}s`} begin={`${index * 0.48}s`} repeatCount="indefinite" />
+						</circle>
+					))}
+				</svg>
+
+				<div className="absolute inset-0 grid grid-cols-[18%_38%_18%] items-center justify-between">
+				<div className="grid gap-[18px]">
 					{copy.channels.slice(0, 4).map((label, index) => {
 						const Icon = CHANNEL_ICONS[index]
-						return <ChannelNode key={label} label={label} Icon={Icon} delay={index * 0.08} />
+						return <ChannelNode key={label} label={label} Icon={Icon} delay={index * 0.055} side="left" />
 					})}
 				</div>
 
@@ -115,63 +130,58 @@ function ConnectionBoard() {
 					whileInView={{ opacity: 1, scale: 1 }}
 					viewport={{ once: true, margin: '-80px' }}
 					transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-					className="relative z-10 order-1 rounded-[1.4rem] border border-[var(--border-default)] bg-white p-5 text-[var(--text-primary)] sm:p-6 lg:order-none"
+					className="relative z-10 rounded-[1.4rem] border border-[var(--border-default)] bg-white p-5 text-[var(--text-primary)] sm:p-6"
 					style={{ boxShadow: 'var(--shadow-card)' }}
 				>
 					<div className="flex items-center justify-between">
 						<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]">
 							<Bot className="h-5 w-5" />
 						</span>
-						<span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white px-2.5 py-1 text-[10px] text-[var(--text-secondary)]">
+						<span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">
 							<span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
 							{copy.connected}
 						</span>
 					</div>
 					<h3 className="mt-6 text-xl font-medium">{copy.hubTitle}</h3>
-					<p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{copy.hubDesc}</p>
+					<p className="mt-1 text-[13px] leading-5 text-[var(--text-muted)]">{copy.hubDesc}</p>
 					<div className="mt-5 space-y-2.5 rounded-2xl bg-[var(--bg-surface)] p-3">
-						<div className="ms-auto max-w-[88%] rounded-xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2 text-[11px] leading-5 text-white">{copy.customer}</div>
-						<div className="max-w-[92%] rounded-xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2 text-[11px] leading-5 text-[var(--text-secondary)]">{copy.reply}</div>
+						<div className="ms-auto max-w-[88%] rounded-xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2 text-xs leading-5 text-white">{copy.customer}</div>
+						<div className="max-w-[92%] rounded-xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">{copy.reply}</div>
 					</div>
-					<p className="mt-4 flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+					<p className="mt-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
 						<Sparkles className="h-3 w-3" aria-hidden />
 						{copy.inbox}
 					</p>
 				</m.div>
 
-				<div aria-hidden className="relative order-2 mx-auto h-12 w-4/5 lg:hidden">
-					<span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 bg-[var(--border-hover)]" />
-					<span className="absolute inset-x-0 top-6 h-px bg-[var(--border-default)]" />
-					{[18, 38, 62, 82].map((left) => <span key={left} className="absolute top-[21px] h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)]" style={{ left: `${left}%` }} />)}
-				</div>
-
-				<div className="order-4 grid grid-cols-2 gap-2 lg:order-none lg:grid-cols-1 lg:gap-4">
+				<div className="grid gap-[18px]">
 					{copy.channels.slice(4).map((label, index) => {
 						const Icon = CHANNEL_ICONS[index + 4]
-						return <ChannelNode key={label} label={label} Icon={Icon} delay={(index + 4) * 0.08} />
+						return <ChannelNode key={label} label={label} Icon={Icon} delay={(index + 4) * 0.055} side="right" />
 					})}
+				</div>
 				</div>
 			</div>
 		</div>
 	)
 }
 
-function ChannelNode({ label, Icon, delay }: { label: string; Icon: ComponentType<{ className?: string }>; delay: number }) {
+function ChannelNode({ label, Icon, delay, side }: { label: string; Icon: ComponentType<{ className?: string }>; delay: number; side: 'left' | 'right' }) {
 	const reduce = useReducedMotion()
 	return (
 		<m.div
-			initial={reduce ? false : { opacity: 0, y: 10 }}
-			whileInView={{ opacity: 1, y: 0 }}
+			initial={reduce ? false : { opacity: 0, x: side === 'left' ? -8 : 8 }}
+			whileInView={{ opacity: 1, x: 0 }}
 			viewport={{ once: true, margin: '-40px' }}
-			transition={reduce ? { duration: 0 } : { duration: 0.45, delay }}
-			className="relative z-10 flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white p-2.5 sm:gap-2.5 sm:px-3.5"
+			transition={reduce ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.36, delay }}
+			className="relative z-10 flex min-h-[52px] min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-2.5 py-2"
 			style={{ boxShadow: 'var(--shadow-sm)' }}
 		>
 			<span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)]">
-				<Icon className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+				<Icon className="h-4 w-4 text-[var(--text-secondary)]" />
 			</span>
-			<span className="min-w-0 text-[10px] font-medium leading-4 text-[var(--text-secondary)] sm:text-[11px]">{label}</span>
-			<span className="ms-auto hidden h-1.5 w-1.5 rounded-full bg-[var(--accent)] sm:block" />
+			<span className="min-w-0 truncate text-[11px] font-medium leading-4 text-[var(--text-secondary)] xl:text-xs">{label}</span>
+			<span className="ms-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
 		</m.div>
 	)
 }
@@ -246,19 +256,50 @@ function MobileChannelExplorer() {
 		{ id: 'chat', label: locale === 'fa' ? 'چت سایت' : 'Site chat', Icon: Globe2 },
 		{ id: 'store', label: locale === 'fa' ? 'فروشگاه' : 'Store', Icon: ShoppingBag },
 	]
+	const channelPairs = [0, 2, 4, 6].map((start) =>
+		copy.channels.slice(start, start + 2).map((label, offset) => ({
+			label,
+			Icon: CHANNEL_ICONS[start + offset],
+		})),
+	)
 
 	return (
 		<div className="mt-8 lg:hidden">
-			<div className="grid grid-cols-4 gap-2" aria-label={locale === 'fa' ? 'کانال‌های قابل اتصال' : 'Available channels'}>
-				{copy.channels.map((label, index) => {
-					const Icon = CHANNEL_ICONS[index]
-					return (
-						<div key={label} className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-white px-1.5 py-2.5 text-center">
-							<Icon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-							<span className="min-w-0 text-[9px] font-medium leading-4 text-[var(--text-secondary)]">{label}</span>
+			<div className="rounded-[1.4rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+				<div className="relative z-10 mx-auto flex min-h-14 max-w-[15rem] items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white px-3.5" style={{ boxShadow: 'var(--shadow-sm)' }}>
+					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span>
+					<div className="min-w-0 flex-1">
+						<p className="text-sm font-semibold text-[var(--text-primary)]">{copy.hubTitle}</p>
+						<p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">{copy.inbox}</p>
+					</div>
+					<span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
+				</div>
+
+				<div aria-hidden className="relative mx-auto h-7 w-px bg-[var(--border-hover)]">
+					{!reduce && (
+						<m.span
+							className="absolute left-1/2 top-0 -ml-1 h-2 w-2 rounded-full bg-black"
+							animate={{ y: [0, 20], opacity: [0, 0.8, 0] }}
+							transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.8, ease: [0.4, 0, 0.2, 1] }}
+						/>
+					)}
+				</div>
+
+				<div className="relative space-y-2" role="list" aria-label={locale === 'fa' ? 'کانال‌های متصل به ایجنت' : 'Channels connected to the agent'}>
+					<span aria-hidden className="absolute bottom-[22px] left-1/2 top-0 w-px -translate-x-1/2 bg-[var(--border-default)]" />
+					{channelPairs.map((pair, row) => (
+						<div key={row} className="relative grid grid-cols-2 gap-7">
+							<span aria-hidden className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[var(--border-default)]" />
+							<span aria-hidden className="absolute left-1/2 top-1/2 z-[1] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)]" />
+							{pair.map(({ label, Icon }) => (
+								<div key={label} role="listitem" className="relative z-10 flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-2.5">
+									<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)]"><Icon className="h-3.5 w-3.5 text-[var(--text-secondary)]" /></span>
+									<span className="min-w-0 truncate text-[10px] font-medium text-[var(--text-secondary)] min-[375px]:text-[11px]">{label}</span>
+								</div>
+							))}
 						</div>
-					)
-				})}
+					))}
+				</div>
 			</div>
 
 			<div role="tablist" aria-label={locale === 'fa' ? 'جزئیات اتصال‌ها' : 'Connection details'} className="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-[var(--bg-surface)] p-1">
@@ -329,7 +370,7 @@ export function ChannelsSection() {
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
 	return (
-		<section id="product" className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
+		<section id="product" className="marketing-story-section scroll-mt-24 bg-white py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="mx-auto max-w-4xl border-t border-[var(--border-default)] pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>

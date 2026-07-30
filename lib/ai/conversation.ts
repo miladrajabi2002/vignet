@@ -447,9 +447,21 @@ export async function resolveConversation(
 }
 
 /** Load recent conversation history as model-ready chat messages. */
-export async function loadHistory(conversationId: string): Promise<ChatMessage[]> {
+export async function loadHistory(
+        conversationId: string,
+        excludeInboundEventId?: string,
+): Promise<ChatMessage[]> {
         const past = await prisma.message.findMany({
-                where: { conversationId },
+                where: {
+                        conversationId,
+                        // On a crash retry the durable channel handler may already have
+                        // stored this USER row. It is appended below as the current turn,
+                        // so exclude the event anchor from history to avoid prompting the
+                        // model with the same customer message twice.
+                        ...(excludeInboundEventId
+                                ? { NOT: { inboundEventId: excludeInboundEventId } }
+                                : {}),
+                },
                 orderBy: { createdAt: 'desc' },
                 take: HISTORY_LIMIT,
                 select: { role: true, content: true },

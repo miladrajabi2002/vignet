@@ -50,7 +50,7 @@ export async function PricingSection() {
 	const mobilePlans = [...planViews].sort((a, b) => (a.plan === 'PRO' ? -1 : b.plan === 'PRO' ? 1 : 0))
 
         return (
-                <section id="pricing" className="marketing-story-section bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
+				<section id="pricing" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
                         <div className="mx-auto max-w-7xl px-5 sm:px-8">
                                 <div className="mx-auto max-w-2xl text-center">
                                         <span className="marketing-eyebrow">
@@ -71,8 +71,8 @@ export async function PricingSection() {
 					</div>
 				</div>
 
-				<div className="mx-auto mt-4 flex max-w-3xl flex-col items-start gap-4 rounded-[1.35rem] bg-black p-5 text-white shadow-[0_20px_55px_rgba(0,0,0,0.13)] sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="flex items-start gap-3">
+				<div className="mx-auto mt-4 flex max-w-3xl flex-col items-center gap-4 rounded-[1.35rem] bg-black p-5 text-center text-white shadow-[0_20px_55px_rgba(0,0,0,0.13)] sm:flex-row sm:justify-between sm:text-start">
+										<div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
 								<span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black">
 								<MessageSquareText className="h-4 w-4" />
                                                 </span>
@@ -81,7 +81,7 @@ export async function PricingSection() {
 								<p className="mt-1 text-xs leading-5 text-white/45">{t('trialNote', { count: number.format(commercialConfig.trialCreditIRR / 10) })}</p>
                                                 </div>
                                         </div>
-						<Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black">
+						<Link href="/login?next=/onboarding" className="marketing-pressable inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black sm:w-auto">
                                                 {t('trialCta')}
                                         </Link>
                                 </div>

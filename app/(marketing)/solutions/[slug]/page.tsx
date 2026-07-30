@@ -141,7 +141,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				'@id': `${canonical}#breadcrumb`,
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: copy.brand, item: SITE_URL },
-					{ '@type': 'ListItem', position: 2, name: copy.solutions, item: `${SITE_URL}/#businesses` },
+					{ '@type': 'ListItem', position: 2, name: copy.solutions, item: `${SITE_URL}/#solutions` },
 					{ '@type': 'ListItem', position: 3, name: solution.title, item: canonical },
 				],
 			},
@@ -161,7 +161,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				<Spotlight />
 				<div className="relative mx-auto max-w-7xl px-5 sm:px-8">
 					<nav aria-label={copy.breadcrumb} className="mb-8 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs text-black/45 sm:mb-10">
-						<Link href="/" className="transition-colors hover:text-black">{copy.brand}</Link><span>/</span><Link href="/#businesses" className="transition-colors hover:text-black">{copy.solutions}</Link><span>/</span><span className="text-black/60">{meta.channel}</span>
+						<Link href="/" className="transition-colors hover:text-black">{copy.brand}</Link><span>/</span><Link href="/#solutions" className="transition-colors hover:text-black">{copy.solutions}</Link><span>/</span><span className="text-black/60">{meta.channel}</span>
 					</nav>
 
 					<div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.88fr)] lg:items-start lg:gap-14 xl:gap-20">
@@ -235,7 +235,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 							<p className="text-[11px] font-medium text-black/40">{copy.related}</p>
 							<h2 id="related-solutions-title" className="mt-3 text-2xl font-semibold leading-[1.4] tracking-[-0.025em] text-black rtl:tracking-normal sm:text-3xl">{copy.relatedTitle}</h2>
 						</div>
-						<Link href="/#businesses" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black/60 transition-colors hover:text-black">{copy.all}<DirectionArrow className="h-4 w-4" /></Link>
+						<Link href="/#solutions" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-black/60 transition-colors hover:text-black">{copy.all}<DirectionArrow className="h-4 w-4" /></Link>
 					</div>
 					<div className="mt-8 grid gap-3 md:grid-cols-3">
 						{relatedSolutions.map((item) => (

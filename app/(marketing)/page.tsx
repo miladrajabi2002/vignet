@@ -28,13 +28,13 @@ const PricingSection = dynamicImport(() =>
 const FaqSection = dynamicImport(() =>
 	import('@/components/marketing/faq-section').then((m) => m.FaqSection),
 )
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/+$/, '')
 
 const HOME_METADATA_COPY = {
 	fa: {
 		title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
 		description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، واتساپ، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
-		keywords: ['ایجنت هوش مصنوعی فارسی', 'اتوماسیون اینستاگرام', 'چت بات فارسی', 'CRM چندکاناله', 'پاسخگویی خودکار مشتری', 'رزرو هوشمند'],
+		keywords: ['ایجنت هوش مصنوعی فارسی', 'پشتیبانی هوشمند مشتری', 'اتوماسیون اینستاگرام', 'چت‌بات فارسی', 'CRM چندکاناله', 'دستیار فروش هوشمند'],
 		openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
 		openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
 		twitterDescription: 'فروش، پشتیبانی، رزرو و CRM چندکاناله با هوش مصنوعی فارسی.',
@@ -42,7 +42,7 @@ const HOME_METADATA_COPY = {
 	en: {
 		title: 'Vigent | AI Sales, Support and Omnichannel CRM',
 		description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, WhatsApp, Telegram, Bale, Rubika and your website.',
-		keywords: ['AI sales agent', 'AI customer support', 'Instagram automation', 'omnichannel CRM', 'AI chatbot', 'booking automation'],
+		keywords: ['AI sales agent', 'AI customer support', 'Instagram automation', 'omnichannel CRM', 'Persian AI chatbot', 'AI booking assistant'],
 		openGraphTitle: 'Vigent | Intelligent Business Operations',
 		openGraphDescription: 'Run sales, support, booking, CRM and customer conversations across every channel with one AI agent and one dashboard.',
 		twitterDescription: 'AI-powered sales, support, booking and omnichannel CRM in one workspace.',
@@ -54,20 +54,35 @@ export async function generateMetadata(): Promise<Metadata> {
 	const copy = HOME_METADATA_COPY[locale]
 
 	return {
-		title: copy.title,
+		title: { absolute: copy.title },
 		description: copy.description,
 		keywords: [...copy.keywords],
+		applicationName: 'Vigent',
+		category: 'business software',
 		alternates: { canonical: SITE_URL },
 		openGraph: {
 			type: 'website',
 			url: SITE_URL,
+			siteName: 'Vigent',
+			locale: locale === 'fa' ? 'fa_IR' : 'en_US',
+			alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
 			title: copy.openGraphTitle,
 			description: copy.openGraphDescription,
+			images: [{
+				url: `${SITE_URL}/android-chrome-512x512.png`,
+				width: 512,
+				height: 512,
+				alt: locale === 'fa' ? 'نشان ویجنت' : 'Vigent logo',
+			}],
 		},
 		twitter: {
-			card: 'summary_large_image',
+			card: 'summary',
 			title: copy.openGraphTitle,
 			description: copy.twitterDescription,
+			images: [`${SITE_URL}/android-chrome-512x512.png`],
+		},
+		other: {
+			'content-language': locale === 'fa' ? 'fa-IR' : 'en-US',
 		},
 	}
 }
@@ -121,31 +136,39 @@ export default async function HomePage() {
 		{
 			'@context': 'https://schema.org',
 			'@type': 'Organization',
+			'@id': `${SITE_URL}/#organization`,
 			name: 'Vigent',
 			alternateName: structuredDataCopy.alternateName,
 			url: SITE_URL,
-			logo: `${SITE_URL}/icon.png`,
+			logo: `${SITE_URL}/android-chrome-512x512.png`,
 		},
 		{
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
+			'@id': `${SITE_URL}/#website`,
 			name: 'Vigent',
 			alternateName: structuredDataCopy.alternateName,
 			url: SITE_URL,
 			inLanguage: locale === 'fa' ? 'fa-IR' : 'en',
+			publisher: { '@id': `${SITE_URL}/#organization` },
 		},
 		{
 			'@context': 'https://schema.org',
 			'@type': 'SoftwareApplication',
+			'@id': `${SITE_URL}/#software`,
 			name: 'Vigent',
+			url: SITE_URL,
 			applicationCategory: 'BusinessApplication',
 			operatingSystem: 'Web',
+			inLanguage: locale === 'fa' ? 'fa-IR' : 'en-US',
+			provider: { '@id': `${SITE_URL}/#organization` },
 			description: structuredDataCopy.description,
 			featureList: structuredDataCopy.features,
 			offers: {
 				'@type': 'Offer',
 				price: '0',
 				priceCurrency: 'IRR',
+				url: `${SITE_URL}/login?next=/onboarding`,
 				description: structuredDataCopy.offer,
 			},
 		},

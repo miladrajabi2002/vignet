@@ -350,13 +350,13 @@
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/[userId]/page.tsx": {
-    "mtime": 1785416253.6608171,
-    "ast_hash": "336ca7144d20fec5bf22215eb420e438",
+    "mtime": 1785415606.5234807,
+    "ast_hash": "ffb313442852d5f7522ee7146ec34406",
     "semantic_hash": ""
   },
   "app/admin/(dash)/users/page.tsx": {
-    "mtime": 1785416134.05265,
-    "ast_hash": "f563480ff7700af5644fcc1adc43230c",
+    "mtime": 1784678354.812187,
+    "ast_hash": "e334c59bb5ee432e19749dc31a0700df",
     "semantic_hash": ""
   },
   "app/admin/(dash)/vigento/page.tsx": {
@@ -1415,8 +1415,8 @@
     "semantic_hash": ""
   },
   "components/onboarding/onboarding-flow.tsx": {
-    "mtime": 1785415984.6871483,
-    "ast_hash": "e438de72ed228050654e9f4b89750659",
+    "mtime": 1704054600.0,
+    "ast_hash": "84f7003f5258a34ae15264691e01fe68",
     "semantic_hash": ""
   },
   "components/onboarding/onboarding-shell.tsx": {
@@ -3542,11 +3542,6 @@
   "tests/notification-live-state.test.ts": {
     "mtime": 1785415051.151389,
     "ast_hash": "e2fb9f11f10ca227d9ec673f7660b789",
-    "semantic_hash": ""
-  },
-  "tests/onboarding-progress.test.ts": {
-    "mtime": 1785416000.46027,
-    "ast_hash": "5407a77028073f4bb1e5debe2e2a91bc",
     "semantic_hash": ""
   }
 }

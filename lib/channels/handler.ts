@@ -11,7 +11,18 @@ import {
         type MessengerType,
 } from '@/lib/channels/registry'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
-import { claimInboundEvent, releaseInboundEvent } from '@/lib/channels/idempotency'
+import {
+        claimInboundEvent,
+        beginInboundEventDispatch,
+        completeInboundEvent,
+        failInboundEvent,
+        inboundExternalEventId,
+        markInboundEventEffectsCommitted,
+        markInboundEventDeliveryCompleted,
+        markInboundEventDeliveryUncertain,
+        withInboundEventLease,
+        InboundEventLeaseBusyError,
+} from '@/lib/channels/idempotency'
 import { withConversationTurnLock } from '@/lib/channels/conversation-lock'
 import { inboundMessageMetadata } from '@/lib/conversations/source'
 import { captureError } from '@/lib/errors/capture'
@@ -285,8 +296,14 @@ async function persistInboundOnly(args: {
         text: string
         channel: MessengerType
         metadata?: Prisma.InputJsonValue
-}): Promise<string> {
-        const conversationId = await prisma.$transaction(async (tx) => {
+        inboundEventId?: string
+}): Promise<{
+        conversationId: string
+        messageId: string
+        humanOwned: boolean
+        created: boolean
+}> {
+        const persisted = await prisma.$transaction(async (tx) => {
                 const conversation = await tx.conversation.upsert({
                         where: {
                                 agentId_channel_externalId: {
@@ -304,40 +321,107 @@ async function persistInboundOnly(args: {
                                 customerInfoState: 'skipped',
                         },
                         update: { contactId: args.contactId },
-                        select: { id: true },
+                        select: { id: true, status: true, handedOff: true },
                 })
-                await tx.message.create({
-                        data: {
-                                conversationId: conversation.id,
-                                role: 'USER',
-                                content: args.text,
-                                metadata: args.metadata,
-                        },
-                })
-                await tx.conversation.update({
-                        where: { id: conversation.id },
-                        data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
-                })
-				return conversation.id
+                let created = true
+                let messageId: string
+                if (args.inboundEventId) {
+                        const inserted = await tx.message.createMany({
+                                data: [{
+                                        conversationId: conversation.id,
+                                        role: 'USER',
+                                        content: args.text,
+                                        metadata: args.metadata,
+                                        inboundEventId: args.inboundEventId,
+                                }],
+                                skipDuplicates: true,
+                        })
+                        created = inserted.count === 1
+                        const message = await tx.message.findUniqueOrThrow({
+                                where: { inboundEventId: args.inboundEventId },
+                                select: { id: true, conversationId: true },
+                        })
+                        if (message.conversationId !== conversation.id) {
+                                throw new Error('Inbound event is linked to a different conversation')
+                        }
+                        messageId = message.id
+                } else {
+                        const message = await tx.message.create({
+                                data: {
+                                        conversationId: conversation.id,
+                                        role: 'USER',
+                                        content: args.text,
+                                        metadata: args.metadata,
+                                },
+                                select: { id: true },
+                        })
+                        messageId = message.id
+                }
+                if (created) {
+                        await tx.conversation.update({
+                                where: { id: conversation.id },
+                                data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+                        })
+                }
+				return {
+                        conversationId: conversation.id,
+                        messageId,
+                        humanOwned: conversation.handedOff || conversation.status === 'HANDED_OFF',
+                        created,
+                }
         })
         // Automation-only, opt-out and paused-AI paths bypass shouldHandoff,
         // but their customer intent must still stay current in the CRM.
-        await refreshConversationSalesInsight(conversationId).catch((error) =>
-                console.error('[handler] inbound-only sales insight refresh failed:', error),
-        )
-        return conversationId
+        if (persisted.created) {
+                await refreshConversationSalesInsight(persisted.conversationId).catch((error) =>
+                        console.error('[handler] inbound-only sales insight refresh failed:', error),
+                )
+        }
+        return persisted
 }
 
-async function persistFixedAssistantReply(conversationId: string, text: string): Promise<void> {
-		await prisma.$transaction([
-			prisma.message.create({
-				data: { conversationId, role: 'ASSISTANT', content: text },
-			}),
-			prisma.conversation.update({
-				where: { id: conversationId },
-				data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
-			}),
-		])
+async function persistFixedAssistantReply(
+        conversationId: string,
+        text: string,
+        inboundEventId?: string,
+): Promise<string> {
+		return prisma.$transaction(async (tx) => {
+                let created = true
+                let messageId: string
+                if (inboundEventId) {
+                        const inserted = await tx.message.createMany({
+                                data: [{
+                                        conversationId,
+                                        role: 'ASSISTANT',
+                                        content: text,
+                                        resultForInboundEventId: inboundEventId,
+                                }],
+                                skipDuplicates: true,
+                        })
+                        created = inserted.count === 1
+                        const row = await tx.message.findUniqueOrThrow({
+                                where: { resultForInboundEventId: inboundEventId },
+                                select: { id: true, conversationId: true },
+                        })
+                        if (row.conversationId !== conversationId) {
+                                throw new Error('Inbound event result is linked to a different conversation')
+                        }
+                        messageId = row.id
+                } else {
+                        const row = await tx.message.create({
+                                data: { conversationId, role: 'ASSISTANT', content: text },
+                                select: { id: true },
+                        })
+                        messageId = row.id
+                }
+                if (created) {
+                        await tx.conversation.update({
+                                where: { id: conversationId },
+                                data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+                        })
+                }
+                return messageId
+		})
 }
 
 async function reactAfterInstagramReply(
@@ -412,18 +496,103 @@ async function processChannelInbound(
                 // redelivery can never double-persist or double-reply. The kind is
                 // part of the key because Instagram reactions carry the mid of the
                 // message they react to.
-                const eventKey = msg.platformMessageId
-                        ? `${msg.kind ?? 'DM'}:${msg.platformMessageId}`
-                        : null
-                if (eventKey && !(await claimInboundEvent(channelId, eventKey))) {
+                const externalEventId = inboundExternalEventId(msg)
+                let claim: Awaited<ReturnType<typeof claimInboundEvent>>
+                try {
+                        claim = await claimInboundEvent({
+                                workspaceId: agent.workspaceId,
+                                channelId,
+                                externalEventId,
+                                conversationKey: msg.chatId,
+                                eventType: msg.kind ?? 'DM',
+                                payload: msg,
+                        })
+                } catch (error) {
+                        deferredError ??= error
+                        captureError(`webhook:${type}:ledger-claim`, error, {
+                                workspaceId: agent.workspaceId,
+                                metadata: { agentId: agent.id, channelId, externalEventId },
+                        })
                         continue
                 }
+                if (claim.status === 'completed') {
+                        if (claim.payloadConflict) {
+                                captureError(
+                                        `webhook:${type}:event-id-conflict`,
+                                        new Error('Completed inbound event id was reused with a different payload'),
+                                        {
+                                                workspaceId: agent.workspaceId,
+                                                metadata: { channelId, externalEventId, eventId: claim.eventId },
+                                        },
+                                )
+                        }
+                        continue
+                }
+                if (claim.status === 'busy') {
+                        deferredError ??= new InboundEventLeaseBusyError(claim.eventId)
+                        continue
+                }
+                const eventLease = claim.lease
                 try {
                         // Serialize turns per conversation: rapid consecutive messages
                         // arrive as independent webhooks/jobs and would otherwise race —
                         // each loading history without the other, producing two replies
                         // that can land out of order and without shared context.
-                        await withConversationTurnLock(`${channelId}:${msg.chatId}`, async () => {
+                        await withInboundEventLease(eventLease, async (eventGuard) => {
+                        await withConversationTurnLock(
+                                {
+                                        workspaceId: agent.workspaceId,
+                                        channelId,
+                                        conversationKey: msg.chatId,
+                                        eventId: eventLease.id,
+                                },
+                                async (conversationGuard) => {
+                        let committedConversationId: string | null = null
+                        let inboundMessageId: string | null = null
+                        let resultMessageId: string | null = null
+                        let outcome = 'IGNORED'
+                        let deliveryStartedThisAttempt = false
+                        let deliveryUncertain = false
+                        const ensureDispatchStarted = async () => {
+                                if (deliveryStartedThisAttempt) return
+                                const maySend = await beginInboundEventDispatch(eventLease)
+                                if (!maySend) {
+                                        throw new Error('Inbound event delivery was already started by an earlier attempt')
+                                }
+                                deliveryStartedThisAttempt = true
+                        }
+                        const deliveryAdapter: MessengerAdapter = {
+                                ...adapter,
+                                async sendText(chatId, outboundText, opts) {
+                                        await ensureDispatchStarted()
+                                        await adapter.sendText(chatId, outboundText, opts)
+                                },
+                                ...(adapter.sendVoice
+                                        ? {
+                                                async sendVoice(chatId: string, voice: Parameters<NonNullable<MessengerAdapter['sendVoice']>>[1]) {
+                                                        await ensureDispatchStarted()
+                                                        await adapter.sendVoice!(chatId, voice)
+                                                },
+                                        }
+                                        : {}),
+                                ...(adapter.reactToMessage
+                                        ? {
+                                                async reactToMessage(messageId: string, recipientId: string) {
+                                                        await ensureDispatchStarted()
+                                                        await adapter.reactToMessage!(messageId, recipientId)
+                                                },
+                                        }
+                                        : {}),
+                                ...(adapter.likeComment
+                                        ? {
+                                                async likeComment(commentId: string) {
+                                                        await ensureDispatchStarted()
+                                                        await adapter.likeComment!(commentId)
+                                                },
+                                        }
+                                        : {}),
+                        }
+                        await (async () => {
                         const text = await resolveText(agent.workspaceId, adapter, msg)
                         if (!text) return
 
@@ -440,22 +609,65 @@ async function processChannelInbound(
                         })
                         const contactName = await getContactName(contactId)
 
+                        // Persist and count the USER row before any automation,
+                        // typing indicator or provider send. The unique event link
+                        // makes this safe after a crash. The upsert also gives us
+                        // the sticky operator-ownership state atomically.
+                        const persistedInbound = await persistInboundOnly({
+                                workspaceId: agent.workspaceId,
+                                agentId: agent.id,
+                                contactId,
+                                externalId: msg.chatId,
+                                text,
+                                channel: type,
+                                metadata: inboundMetadata,
+                                inboundEventId: eventLease.id,
+                        })
+                        committedConversationId = persistedInbound.conversationId
+                        inboundMessageId = persistedInbound.messageId
+                        outcome = 'INBOUND_PERSISTED'
+
+                        // Human ownership is the earliest reply-policy gate. In
+                        // particular, Instagram scenarios used to run before
+                        // generateReply noticed HANDED_OFF and could still type or
+                        // auto-reply. Opt-out state is still honored, but no bot ack
+                        // is sent while an operator owns the thread.
+                        if (persistedInbound.humanOwned) {
+                                if (isMarketingOptOutMessage(text)) await optOutContact(contactId)
+                                outcome = 'OPERATOR_OWNED'
+                                return
+                        }
+
                         // Universal campaign opt-out. It runs before Instagram
                         // automations or AI so STOP can never trigger a sales reply.
                         if (isMarketingOptOutMessage(text)) {
                                 await optOutContact(contactId)
-                                const conversationId = await persistInboundOnly({
-                                        workspaceId: agent.workspaceId,
-                                        agentId: agent.id,
-                                        contactId,
-                                        externalId: msg.chatId,
-                                        text,
-                                        channel: type,
-                                        metadata: inboundMetadata,
-                                })
                                 const confirmation = optOutConfirmation(text)
-                                await adapter.sendText(msg.chatId, confirmation)
-                                await persistFixedAssistantReply(conversationId, confirmation)
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        confirmation,
+                                        eventLease.id,
+                                )
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, confirmation)
+                                outcome = 'OPT_OUT_CONFIRMED'
+                                return
+                        }
+
+                        // A prior attempt crossed the provider boundary. Without a
+                        // provider idempotency key we must not auto-resend: either
+                        // finish a known acknowledged send or surface ambiguity.
+                        if (eventLease.deliveryStartedAt) {
+                                deliveryUncertain = !eventLease.deliveryCompletedAt
+                                outcome = deliveryUncertain
+                                        ? 'DELIVERY_UNCERTAIN'
+                                        : 'DELIVERY_ALREADY_COMPLETED'
                                 return
                         }
 
@@ -544,25 +756,21 @@ async function processChannelInbound(
                                                         ? instagramPolicy.commentEmojiReplyText
                                                         : null
                                         if (fixedReply) {
-											const conversationId = await persistInboundOnly({
-												workspaceId: agent.workspaceId,
-												agentId: agent.id,
-												contactId,
-												externalId: msg.chatId,
-								text,
-								channel: type,
-								metadata: inboundMetadata,
-							})
-                                                await adapter.sendText(msg.chatId, fixedReply, {
+                                                resultMessageId = await persistFixedAssistantReply(
+                                                        persistedInbound.conversationId,
+                                                        fixedReply,
+                                                        eventLease.id,
+                                                )
+                                                await deliveryAdapter.sendText(msg.chatId, fixedReply, {
                                                         quickReplies: msg.kind === 'COMMENT' ? undefined : settings.quickReplies,
                                                 })
-											await persistFixedAssistantReply(conversationId, fixedReply)
                                                 const likeEnabled = msg.kind === 'COMMENT'
                                                         ? instagramPolicy.likeCommentAfterReply
                                                         : msg.kind === 'STORY_REACTION'
                                                                 ? instagramPolicy.likeStoryReactionAfterReply
                                                                 : instagramPolicy.likeDmAfterReply
-											await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+											await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
+											outcome = 'FIXED_REPLY_SENT'
 											return
                                         }
                                 }
@@ -575,8 +783,18 @@ async function processChannelInbound(
                                         contactId,
                                         contactName,
                                         quickReplies: settings.quickReplies,
+                                        conversationId: persistedInbound.conversationId,
+                                        inboundEventId: eventLease.id,
+                                        beforeDispatch: ensureDispatchStarted,
                                 })
                                 scenarioHandled = auto.handled
+                                if (scenarioHandled) {
+                                        const persistedResult = await prisma.message.findUnique({
+                                                where: { resultForInboundEventId: eventLease.id },
+                                                select: { id: true },
+                                        })
+                                        resultMessageId = persistedResult?.id ?? resultMessageId
+                                }
                                 if (scenarioHandled) {
                                         if (auto.replied) {
                                                 const likeEnabled = msg.kind === 'COMMENT'
@@ -586,7 +804,7 @@ async function processChannelInbound(
                                                                 : msg.kind === 'STORY_REACTION'
                                                                         ? instagramPolicy.likeStoryReactionAfterReply
                                                                         : instagramPolicy.likeDmAfterReply
-											await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+											await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
                                         }
 										const effectivePolicy = msg.kind === 'COMMENT'
 											? instagramPolicy.commentReplyPolicy
@@ -602,7 +820,9 @@ async function processChannelInbound(
 												text,
 												channel: type,
 												metadata: inboundMetadata,
+												inboundEventId: eventLease.id,
 											})
+											outcome = auto.replied ? 'AUTOMATION_REPLIED' : 'AUTOMATION_HANDLED'
 											return
 										}
                                 }
@@ -615,7 +835,9 @@ async function processChannelInbound(
 										text,
 										channel: type,
 										metadata: inboundMetadata,
+										inboundEventId: eventLease.id,
 										})
+										outcome = 'REACTION_RECORDED'
 										return
 								}
                         }
@@ -663,10 +885,12 @@ async function processChannelInbound(
                                                         text,
                                                         channel: type,
                                                         metadata: inboundMetadata,
+                                                        inboundEventId: eventLease.id,
                                                 })
                                         } catch (e) {
                                                 console.error('[handler] instagram inbound-only persist failed:', e)
                                         }
+                                        outcome = 'AI_POLICY_SUPPRESSED'
                                         return
                                 }
                         }
@@ -685,8 +909,11 @@ async function processChannelInbound(
                                         channel: type,
                                         contactId,
                                         contactName,
+                                        conversationId: persistedInbound.conversationId,
                                         externalId: msg.chatId,
                                         inboundMetadata,
+                                        inboundEventId: eventLease.id,
+                                        inboundAlreadyPersisted: true,
                                 },
                                 {
                                         // The engine invokes this only after operator ownership,
@@ -698,7 +925,12 @@ async function processChannelInbound(
                                                 : undefined,
                                 },
                         )
-                        if ('error' in result) return
+                        if ('error' in result) {
+                                outcome = `AI_${result.error}`
+                                return
+                        }
+                        committedConversationId = result.conversationId
+                        resultMessageId = result.messageId ?? null
 
                         // Product markers are never trusted as customer-facing data. Resolve
                         // them against active products assigned to this agent, then choose the
@@ -725,11 +957,12 @@ async function processChannelInbound(
 
                         if (canUseInstagramCarousel) {
                                 if (parsedReply.text) {
-                                        await adapter.sendText(msg.chatId, parsedReply.text, {
+                                        await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
                                                 quickReplies: settings.quickReplies,
                                         })
                                 }
                                 try {
+                                        await ensureDispatchStarted()
                                         await sendProductCarousel(
                                                 resolved.config,
                                                 msg.chatId,
@@ -737,14 +970,14 @@ async function processChannelInbound(
                                         )
                                 } catch (carouselError) {
                                         console.error('[handler] Instagram product carousel failed:', carouselError)
-                                        if (productFallback) await adapter.sendText(msg.chatId, productFallback)
+                                        if (productFallback) await deliveryAdapter.sendText(msg.chatId, productFallback)
                                 }
                         } else {
                                 const outboundText = [parsedReply.text, productFallback]
                                         .filter(Boolean)
                                         .join('\n\n')
                                 spokenReply = outboundText
-                                await adapter.sendText(msg.chatId, outboundText || result.reply, {
+                                await deliveryAdapter.sendText(msg.chatId, outboundText || result.reply, {
                                         quickReplies: settings.quickReplies,
                                 })
                         }
@@ -757,11 +990,11 @@ async function processChannelInbound(
                                                 : msg.kind === 'STORY_REACTION'
                                                         ? policy.likeStoryReactionAfterReply
                                                         : policy.likeDmAfterReply
-								await reactAfterInstagramReply(adapter, msg, likeEnabled, agent.workspaceId)
+								await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
                         }
 
                         // Optional voice reply when the agent has TTS enabled.
-                        if (agent.voiceEnabled && adapter.sendVoice && spokenReply) {
+                        if (agent.voiceEnabled && deliveryAdapter.sendVoice && spokenReply) {
                                 try {
                                         const speech = await synthesizeSpeech({
                                                 text: spokenReply || parsedReply.text,
@@ -772,16 +1005,38 @@ async function processChannelInbound(
                                                 // MP3 as an audio attachment rather than a voice note.
                                                 format: 'mp3',
                                         })
-                                        await adapter.sendVoice(msg.chatId, speech)
+                                        await deliveryAdapter.sendVoice(msg.chatId, speech)
                                 } catch (e) {
                                         console.error('[handler] voice reply failed:', e)
                                 }
                         }
+                        outcome = result.replayed ? 'AI_REPLY_RESUMED' : 'AI_REPLY_SENT'
+                        })()
+                        await eventGuard.assertActive()
+                        await conversationGuard.assertActive()
+                        await markInboundEventEffectsCommitted(eventLease, {
+                                conversationId: committedConversationId,
+                                inboundMessageId,
+                                resultMessageId,
+                                result: { outcome },
+                        })
+                        if (deliveryUncertain) {
+                                await markInboundEventDeliveryUncertain(
+                                        eventLease,
+                                        conversationGuard.lease,
+                                        committedConversationId,
+                                )
+                                return
+                        }
+                        if (deliveryStartedThisAttempt) {
+                                await markInboundEventDeliveryCompleted(eventLease)
+                        }
+                        await completeInboundEvent(eventLease, conversationGuard.lease)
+                        },
+                        )
                         })
                 } catch (e) {
-                        // Release the idempotency claim so a queue retry can still
-                        // process this message after a transient failure.
-                        if (eventKey) await releaseInboundEvent(channelId, eventKey)
+                        await failInboundEvent(eventLease, e).catch(() => {})
                         captureError(`webhook:${type}`, e, {
                                 workspaceId: agent.workspaceId,
                                 metadata: { agentId: agent.id, channelId },

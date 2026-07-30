@@ -66,6 +66,27 @@ export interface HandoffPolicyInput {
         customKeyword?: string | null
 }
 
+/**
+ * Signals that must always respect the customer's safety/agency, even when an
+ * older agent has proactive handoff disabled. Less urgent recommendations
+ * (negotiation, repeated friction, long chats) still follow the agent setting.
+ */
+const REQUIRED_HANDOFF_REASONS = new Set<HandoffReasonCode>([
+        'EXPLICIT_REQUEST',
+        'HIGH_RISK',
+        'DISTRESS',
+        'UNANSWERED',
+])
+
+export function shouldActivateHandoff(
+        decision: Pick<HandoffDecision, 'recommended' | 'reasonCodes'>,
+        proactiveHandoffEnabled: boolean,
+): boolean {
+        if (!decision.recommended) return false
+        return proactiveHandoffEnabled ||
+                decision.reasonCodes.some((code) => REQUIRED_HANDOFF_REASONS.has(code))
+}
+
 function handoffThreshold(businessType: BusinessType): number {
         if (businessType === 'SUPPORT' || businessType === 'APPOINTMENTS' || businessType === 'FOOD') {
                 return 4
@@ -249,9 +270,10 @@ export async function shouldHandoff(
 
         return {
                 ...candidate,
-                // Owners retain the explicit agent-level master switch; inboxes can
-                // still surface the persisted recommendation for manual triage.
-                handoff: agent.handoffEnabled && candidate.recommended,
+                // Customer-requested, safety-critical and repeatedly-unanswered
+                // turns always transfer. The setting controls proactive/soft
+                // recommendations, not the customer's right to reach a human.
+                handoff: shouldActivateHandoff(candidate, agent.handoffEnabled),
         }
 }
 

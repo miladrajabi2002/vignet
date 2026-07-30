@@ -24,7 +24,13 @@
                 "title": "Notifications",
                 "empty": "No notifications",
                 "markAllRead": "Mark all as read",
-                "viewAll": "View all"
+                "viewAll": "View all",
+                "close": "Close notifications",
+                "unreadCount": "{count, plural, one {# unread notification} other {# unread notifications}}",
+                "caughtUp": "You are all caught up",
+                "enableBrowser": "Enable browser notifications",
+                "browserEnabled": "Browser notifications are enabled",
+                "newNotification": "New notification"
         },
         "versions": {
                 "title": "Saved versions",
@@ -666,7 +672,12 @@
                 "deleteCancel": "Cancel",
                 "deleteConfirm": "Delete permanently",
                 "deleting": "Deleting…",
-                "deleteFailed": "The conversation could not be deleted. Please try again."
+                "deleteFailed": "The conversation could not be deleted. Please try again.",
+                "aiControlTitle": "Reply control",
+                "aiControlAutomatic": "The agent replies and hands off automatically at the right time",
+                "aiControlOperatorOnly": "Only the operator replies; agent output and typing are paused",
+                "aiControlHint": "On: smart automatic replies — Off: operator-only mode",
+                "aiControlError": "The reply mode could not be changed. Please try again."
         },
         "operatorChannel": {
                 "title": "Operator Telegram bot",

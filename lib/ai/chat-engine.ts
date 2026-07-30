@@ -166,6 +166,60 @@ async function buildDeterministicTurnReply(params: {
 }
 
 /**
+ * Create the USER side of a turn exactly once when a durable channel event is
+ * present. createMany(skipDuplicates) maps to ON CONFLICT DO NOTHING, so a
+ * retry can safely reuse the row committed by a worker that crashed later.
+ */
+async function persistInboundTurnMessage(
+        params: StartChatParams,
+        conversationId: string,
+        incrementConversation: boolean,
+): Promise<boolean> {
+        return prisma.$transaction(async (tx) => {
+                let created = true
+                if (params.inboundEventId) {
+                        const result = await tx.message.createMany({
+                                data: [{
+                                        conversationId,
+                                        role: 'USER',
+                                        content: params.message,
+                                        metadata: params.inboundMetadata,
+                                        inboundEventId: params.inboundEventId,
+                                }],
+                                skipDuplicates: true,
+                        })
+                        created = result.count === 1
+                        if (!created) {
+                                const existing = await tx.message.findUnique({
+                                        where: { inboundEventId: params.inboundEventId },
+                                        select: { conversationId: true },
+                                })
+                                if (!existing || existing.conversationId !== conversationId) {
+                                        throw new Error('Inbound event is linked to a different conversation')
+                                }
+                        }
+                } else {
+                        await tx.message.create({
+                                data: {
+                                        conversationId,
+                                        role: 'USER',
+                                        content: params.message,
+                                        metadata: params.inboundMetadata,
+                                },
+                        })
+                }
+
+                if (created && incrementConversation) {
+                        await tx.conversation.update({
+                                where: { id: conversationId },
+                                data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+                        })
+                }
+                return created
+        })
+}
+
+/**
  * Shared per-turn setup for both engines: plan gate, key lookup, conversation
  * resolution, identity extraction, prompt/history/RAG assembly and persisting
  * the inbound user message.
@@ -201,25 +255,11 @@ async function prepareTurn(params: StartChatParams): Promise<
         // message for the inbox, but never reserve credit or call a model until
         // the operator explicitly returns the conversation to the agent.
         if (isHumanOwnedConversation(conversation)) {
-                await prisma.$transaction([
-                        prisma.message.create({
-                                data: {
-                                        conversationId,
-                                        role: 'USER',
-                                        content: message,
-                                        metadata: params.inboundMetadata,
-                                },
-                        }),
-                        prisma.conversation.update({
-                                where: { id: conversationId },
-                                data: {
-                                        status: 'HANDED_OFF',
-                                        handedOff: true,
-                                        messageCount: { increment: 1 },
-                                        lastMessageAt: new Date(),
-                                },
-                        }),
-                ])
+                await persistInboundTurnMessage(params, conversationId, true)
+                await prisma.conversation.update({
+                        where: { id: conversationId },
+                        data: { status: 'HANDED_OFF', handedOff: true },
+                })
                 bumpContactActivity(conversationId)
                 // Human ownership stays sticky, but new customer messages still
                 // refresh the sales/urgency snapshot for operator triage.
@@ -235,23 +275,7 @@ async function prepareTurn(params: StartChatParams): Promise<
         // webhook has already ACKed, so the platform will not redeliver it.
         const persistGatedInbound = async () => {
                 try {
-                        await prisma.$transaction([
-                                prisma.message.create({
-                                        data: {
-                                                conversationId,
-                                                role: 'USER',
-                                                content: message,
-                                                metadata: params.inboundMetadata,
-                                        },
-                                }),
-                                prisma.conversation.update({
-                                        where: { id: conversationId },
-                                        data: {
-                                                messageCount: { increment: 1 },
-                                                lastMessageAt: new Date(),
-                                        },
-                                }),
-                        ])
+                        await persistInboundTurnMessage(params, conversationId, true)
                         bumpContactActivity(conversationId)
                 } catch (error) {
                         console.error('[chat-engine] gated inbound persist failed:', error)
@@ -343,7 +367,9 @@ async function prepareTurn(params: StartChatParams): Promise<
                 conversationId,
                 model: modelAlias,
                 providerModel: model,
-                idempotencyKey: `chat:${conversationId}:${crypto.randomUUID()}`,
+                idempotencyKey: params.inboundEventId
+                        ? `chat:event:${params.inboundEventId}`
+                        : `chat:${conversationId}:${crypto.randomUUID()}`,
         })
         if (!reserved.ok) {
                 await persistGatedInbound()
@@ -353,19 +379,13 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         try {
                 const [history, catalogServices] = await Promise.all([
-                        loadHistory(conversationId),
+                        loadHistory(conversationId, params.inboundEventId),
                         fetchCatalogServices(workspaceId),
                 ])
 
-        // Persist the incoming user message.
-                await prisma.message.create({
-                        data: {
-                                conversationId,
-                                role: 'USER',
-                                content: message,
-                                metadata: params.inboundMetadata,
-                        },
-                })
+        // Persist the incoming user message (or reuse the event-anchored row
+        // that the durable channel handler committed before automation).
+                await persistInboundTurnMessage(params, conversationId, false)
         // Every inbound turn (widget, chat-link, and messengers) keeps the
         // contact's denormalized last-activity fresh. Messenger inbound is also
         // bumped in upsertContact; the duplicate is harmless.
@@ -464,23 +484,59 @@ async function persistHandoff(params: {
         contactPhone: string | null
         reason: string
         replyText: string
+        inboundEventId?: string
+        inboundAlreadyPersisted?: boolean
 }): Promise<{ messageId: string } | null> {
         try {
-                const savedMsg = await prisma.message.create({
-                        data: {
-                                conversationId: params.conversationId,
-                                role: 'ASSISTANT',
-                                content: params.replyText,
-                        },
-                })
-                await prisma.conversation.update({
-                        where: { id: params.conversationId },
-                        data: {
-                                status: 'HANDED_OFF',
-                                handedOff: true,
-                                messageCount: { increment: 2 },
-                                lastMessageAt: new Date(),
-                        },
+                const saved = await prisma.$transaction(async (tx) => {
+                        let created = true
+                        let messageId: string
+                        if (params.inboundEventId) {
+                                const inserted = await tx.message.createMany({
+                                        data: [{
+                                                conversationId: params.conversationId,
+                                                role: 'ASSISTANT',
+                                                content: params.replyText,
+                                                resultForInboundEventId: params.inboundEventId,
+                                        }],
+                                        skipDuplicates: true,
+                                })
+                                created = inserted.count === 1
+                                const row = await tx.message.findUniqueOrThrow({
+                                        where: { resultForInboundEventId: params.inboundEventId },
+                                        select: { id: true, conversationId: true },
+                                })
+                                if (row.conversationId !== params.conversationId) {
+                                        throw new Error('Inbound event result is linked to a different conversation')
+                                }
+                                messageId = row.id
+                        } else {
+                                const row = await tx.message.create({
+                                        data: {
+                                                conversationId: params.conversationId,
+                                                role: 'ASSISTANT',
+                                                content: params.replyText,
+                                        },
+                                        select: { id: true },
+                                })
+                                messageId = row.id
+                        }
+                        await tx.conversation.update({
+                                where: { id: params.conversationId },
+                                data: {
+                                        status: 'HANDED_OFF',
+                                        handedOff: true,
+                                        ...(created
+                                                ? {
+                                                        messageCount: {
+                                                                increment: params.inboundAlreadyPersisted ? 1 : 2,
+                                                        },
+                                                        lastMessageAt: new Date(),
+                                                }
+                                                : {}),
+                                },
+                        })
+                        return { messageId, created }
                 })
                 // Keep the contact's denormalized last-activity fresh for the CRM list.
                 bumpContactActivity(params.conversationId)
@@ -500,9 +556,10 @@ async function persistHandoff(params: {
                         contactPhone: params.contactPhone,
                         reason: params.reason,
                 })
-                return { messageId: savedMsg.id }
+                return { messageId: saved.messageId }
         } catch (e) {
                 console.error('[chat-engine] handoff persist error:', e)
+                if (params.inboundEventId) throw e
                 return null
         }
 }
@@ -517,6 +574,8 @@ async function persistAssistantTurn(params: {
         reply: string
         retrievedChunks: Array<{ metadata: unknown }>
         extraReceipts?: ConversationReceipt[]
+        inboundEventId?: string
+        inboundAlreadyPersisted?: boolean
 }): Promise<{ messageId: string }> {
         const unanswered = detectUnanswered(params.reply, params.agent.fallbackMessage)
         const receipts = buildTurnReceipts({
@@ -527,26 +586,64 @@ async function persistAssistantTurn(params: {
         for (const receipt of params.extraReceipts ?? []) {
                 if (!receipts.some((item) => item.kind === receipt.kind)) receipts.push(receipt)
         }
-        const savedMsg = await prisma.message.create({
-                data: {
-                        conversationId: params.conversationId,
-                        role: 'ASSISTANT',
-                        content: params.reply,
-                        unanswered,
-                        metadata: metadataWithReceipts(
-                                receipts,
-                                unanswered ? { question: params.userMessage } : undefined,
-                        ),
-                },
-        })
-        await prisma.conversation.update({
-                where: { id: params.conversationId },
-                data: { messageCount: { increment: 2 }, lastMessageAt: new Date() },
+        const saved = await prisma.$transaction(async (tx) => {
+                const metadata = metadataWithReceipts(
+                        receipts,
+                        unanswered ? { question: params.userMessage } : undefined,
+                )
+                let created = true
+                let messageId: string
+                if (params.inboundEventId) {
+                        const inserted = await tx.message.createMany({
+                                data: [{
+                                        conversationId: params.conversationId,
+                                        role: 'ASSISTANT',
+                                        content: params.reply,
+                                        unanswered,
+                                        metadata,
+                                        resultForInboundEventId: params.inboundEventId,
+                                }],
+                                skipDuplicates: true,
+                        })
+                        created = inserted.count === 1
+                        const row = await tx.message.findUniqueOrThrow({
+                                where: { resultForInboundEventId: params.inboundEventId },
+                                select: { id: true, conversationId: true },
+                        })
+                        if (row.conversationId !== params.conversationId) {
+                                throw new Error('Inbound event result is linked to a different conversation')
+                        }
+                        messageId = row.id
+                } else {
+                        const row = await tx.message.create({
+                                data: {
+                                        conversationId: params.conversationId,
+                                        role: 'ASSISTANT',
+                                        content: params.reply,
+                                        unanswered,
+                                        metadata,
+                                },
+                                select: { id: true },
+                        })
+                        messageId = row.id
+                }
+                if (created) {
+                        await tx.conversation.update({
+                                where: { id: params.conversationId },
+                                data: {
+                                        messageCount: {
+                                                increment: params.inboundAlreadyPersisted ? 1 : 2,
+                                        },
+                                        lastMessageAt: new Date(),
+                                },
+                        })
+                }
+                return { messageId, created }
         })
         // Keep the contact's denormalized last-activity fresh for the CRM list.
         bumpContactActivity(params.conversationId)
-        await syncOnboarding(params.workspaceId)
-        return { messageId: savedMsg.id }
+        if (saved.created) await syncOnboarding(params.workspaceId)
+        return { messageId: saved.messageId }
 }
 
 export type StartChatResult =
@@ -633,6 +730,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         contactPhone,
                                         reason: handoffCheck.reason,
                                         replyText: handoffText,
+                                        inboundEventId: params.inboundEventId,
+                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
                                 send(persisted ? { type: 'done', messageId: persisted.messageId } : { type: 'done' })
                                 closeStream()
@@ -663,6 +762,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                                         reply: deterministicReply,
                                                         retrievedChunks,
                                                         extraReceipts: [],
+                                                        inboundEventId: params.inboundEventId,
+                                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                                 })
                                                 send({ type: 'done', messageId })
                                         } catch (error) {
@@ -790,6 +891,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         reply: full,
                                         retrievedChunks,
                                         extraReceipts,
+                                        inboundEventId: params.inboundEventId,
+                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
                                 send({ type: 'done', messageId })
                         } catch (e) {
@@ -813,7 +916,7 @@ export type GenerateReplyResult =
         | { error: 'NO_CREDIT' }
         | { error: 'OPERATOR_ACTIVE'; conversationId: string }
         | { error: 'PLAN_BLOCKED'; reason: BlockReason }
-        | { conversationId: string; reply: string }
+        | { conversationId: string; reply: string; messageId?: string; replayed?: boolean }
 
 export interface GenerateReplyOptions {
         /** Runs only after ownership and handoff gates confirm that AI will generate. */
@@ -830,6 +933,24 @@ export async function generateReply(
         options: GenerateReplyOptions = {},
 ): Promise<GenerateReplyResult> {
         const { workspaceId, agent, message } = params
+
+        // A previous worker may have committed the assistant row and crashed
+        // before it could finish the ledger. Reuse that durable result without
+        // another model call, credit reservation, or message/counter mutation.
+        if (params.inboundEventId) {
+                const committed = await prisma.message.findUnique({
+                        where: { resultForInboundEventId: params.inboundEventId },
+                        select: { id: true, conversationId: true, content: true },
+                })
+                if (committed) {
+                        return {
+                                conversationId: committed.conversationId,
+                                reply: committed.content,
+                                messageId: committed.id,
+                                replayed: true,
+                        }
+                }
+        }
 
         const prep = await prepareTurn(params)
         if ('error' in prep) return prep
@@ -858,7 +979,7 @@ export async function generateReply(
         if (handoffCheck.handoff) {
 		await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                 const reply = handoffReplyText(handoffCheck, agent)
-                await persistHandoff({
+                const persisted = await persistHandoff({
                         workspaceId,
                         agent,
                         conversationId,
@@ -868,8 +989,10 @@ export async function generateReply(
                         contactPhone,
                         reason: handoffCheck.reason,
                         replyText: reply,
+                        inboundEventId: params.inboundEventId,
+                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                 })
-                return { conversationId, reply }
+                return { conversationId, reply, messageId: persisted?.messageId }
         }
 
         try {
@@ -885,7 +1008,7 @@ export async function generateReply(
                         await options.onGenerationStart?.()
                         await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
                         try {
-                                await persistAssistantTurn({
+                                const persisted = await persistAssistantTurn({
                                         workspaceId,
                                         agent,
                                         conversationId,
@@ -894,9 +1017,17 @@ export async function generateReply(
                                         reply: deterministicReply,
                                         retrievedChunks,
                                         extraReceipts: [],
+                                        inboundEventId: params.inboundEventId,
+                                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                                 })
+                                return {
+                                        conversationId,
+                                        reply: deterministicReply,
+                                        messageId: persisted.messageId,
+                                }
                         } catch (error) {
                                 console.error('[chat-engine] deterministic persist failed:', error)
+                                if (params.inboundEventId) throw error
                         }
                         return { conversationId, reply: deterministicReply }
                 }
@@ -987,8 +1118,9 @@ export async function generateReply(
 		)
 	}
 
+        let persistedMessageId: string | undefined
         try {
-                await persistAssistantTurn({
+                const persisted = await persistAssistantTurn({
                         workspaceId,
                         agent,
                         conversationId,
@@ -997,10 +1129,14 @@ export async function generateReply(
                         reply,
                         retrievedChunks,
                         extraReceipts,
+                        inboundEventId: params.inboundEventId,
+                        inboundAlreadyPersisted: params.inboundAlreadyPersisted,
                 })
+                persistedMessageId = persisted.messageId
         } catch (e) {
                 console.error('[chat-engine] persist error:', e)
+                if (params.inboundEventId) throw e
         }
 
-        return { conversationId, reply }
+        return { conversationId, reply, messageId: persistedMessageId }
 }

@@ -278,16 +278,16 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							<Bot className="h-4 w-4" />
 						</span>
 						<div className="min-w-0">
-							<p className="whitespace-nowrap text-[10px] font-semibold text-white sm:text-xs">
+							<p className="whitespace-nowrap text-[11px] font-semibold text-white sm:text-xs">
 								{copy.stageTitle}
 							</p>
-							<p className="mt-0.5 whitespace-nowrap text-[8px] text-white/40 sm:text-[10px]">
+							<p className="mt-0.5 whitespace-nowrap text-[9.5px] text-white/45 sm:text-[10px]">
 								{copy.connected}
 							</p>
 						</div>
 					</div>
 
-					<span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[8px] font-medium text-emerald-200 sm:text-[10px]">
+					<span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[9.5px] font-medium text-emerald-200 sm:text-[10px]">
 						<span className="relative flex h-1.5 w-1.5">
 							<span className="absolute h-full w-full animate-ping rounded-full bg-emerald-300 opacity-50 motion-reduce:animate-none" />
 							<span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300" />
@@ -297,7 +297,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 				</header>
 
 				<div className="relative px-3.5 pt-3.5 sm:px-5">
-					<p className="mb-2 whitespace-nowrap text-[8px] font-medium text-white/[0.38] sm:text-[9px]">
+					<p className="mb-2 whitespace-nowrap text-[10px] font-medium text-white/[0.48]">
 						{copy.verticalLabel}
 					</p>
 
@@ -336,7 +336,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 										<Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 									</span>
 
-									<span className="relative mt-1.5 block truncate px-0.5 text-[7px] font-medium sm:text-[9px]">
+									<span className="relative mt-1.5 block truncate px-0.5 text-[9px] font-medium sm:text-[10px]">
 										{business.name}
 									</span>
 
@@ -394,7 +394,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							>
 								<Check className="h-2.5 w-2.5" />
 							</m.span>
-							<span className="whitespace-nowrap text-[9px] text-white/[0.48]">
+							<span className="whitespace-nowrap text-[10px] text-white/[0.58] sm:text-[11px]">
 								{step}
 							</span>
 						</m.div>
@@ -476,7 +476,7 @@ export function Hero() {
 						{copy.promises.map((promise, index) => (
 							<span
 								key={promise}
-								className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[10px] font-medium text-black/[0.55] shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
+								className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-medium text-black/[0.58] shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
 							>
 								{index === 0 ? <Gift className="h-3 w-3" /> : <Check className="h-3 w-3" />}
 								{promise}

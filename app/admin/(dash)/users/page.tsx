@@ -18,6 +18,8 @@ import {
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
 import { toEnglishDigits } from '@/lib/phone'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
 import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 
@@ -94,7 +96,7 @@ export default async function AdminUsersPage(
       prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
       prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, createdAt: { lt: stalledSince } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, updatedAt: { lt: stalledSince } } }),
       prisma.user.findMany({
         where,
         include: {
@@ -104,8 +106,16 @@ export default async function AdminUsersPage(
               name: true,
               plan: true,
               onboardingCompleted: true,
-              createdAt: true,
-              _count: { select: { agents: true, conversations: true, payments: true } },
+              onboardingKnowledgeSkipped: true,
+              onboardingChannelSkipped: true,
+              businessProfile: true,
+              updatedAt: true,
+              agents: {
+                select: {
+                  _count: { select: { knowledgeBases: true, channels: true } },
+                },
+              },
+              _count: { select: { agents: true, conversations: true, payments: true, products: true } },
             },
           },
         },
@@ -247,6 +257,21 @@ export default async function AdminUsersPage(
               const ws = u.workspace
               const plan = ws ? (PLAN_LABEL[ws.plan] ?? { label: ws.plan, tone: 'muted' as BadgeTone }) : null
               const spark = ws ? sparks.get(ws.id) : undefined
+              const onboarding = ws
+                ? getOnboardingProgress({
+                    completed: ws.onboardingCompleted,
+                    hasProfile: Boolean(readBusinessProfile(ws.businessProfile)),
+                    hasAgent: ws._count.agents > 0,
+                    hasKnowledge: ws._count.products > 0
+                      || ws.onboardingKnowledgeSkipped
+                      || ws.agents.some((agent) => agent._count.knowledgeBases > 0),
+                    hasChannel: ws.onboardingChannelSkipped
+                      || ws.agents.some((agent) => agent._count.channels > 0),
+                  })
+                : null
+              const onboardingStalled = Boolean(
+                ws && !ws.onboardingCompleted && ws.updatedAt < stalledSince,
+              )
               return (
                 <tr key={u.id} className="hover:bg-zinc-50">
                   <Td>
@@ -276,9 +301,13 @@ export default async function AdminUsersPage(
                           {ws.name}
                         </Link>
                         <Badge
-                          tone={ws.onboardingCompleted ? 'success' : (ws.createdAt < stalledSince ? 'warning' : 'info')}
+                          tone={ws.onboardingCompleted ? 'success' : (onboardingStalled ? 'warning' : 'info')}
                         >
-                          {ws.onboardingCompleted ? 'فعال‌شده' : (ws.createdAt < stalledSince ? 'متوقف در راه‌اندازی' : 'در حال راه‌اندازی')}
+                          {ws.onboardingCompleted
+                            ? 'فعال‌شده'
+                            : onboarding?.readyToFinish
+                              ? 'آماده تأیید نهایی'
+                              : `${onboardingStalled ? 'احتمال توقف' : 'در حال راه‌اندازی'} · ${onboarding?.labelFa}`}
                         </Badge>
                       </div>
                     ) : (

@@ -41,6 +41,7 @@ export function ConversationActions({
   const [hover, setHover] = useState<number | null>(null)
   const [aiMode, setAiMode] = useState<boolean>(initialStatus !== 'HANDED_OFF')
   const [togglingAi, setTogglingAi] = useState(false)
+  const [modeError, setModeError] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -51,6 +52,11 @@ export function ConversationActions({
   const reduceMotion = useReducedMotion()
 
   deletingRef.current = deleting
+
+  useEffect(() => {
+    setStatus(initialStatus)
+    setAiMode(initialStatus !== 'HANDED_OFF')
+  }, [initialStatus])
 
   useEffect(() => {
     if (!showDeleteDialog) return
@@ -116,6 +122,7 @@ export function ConversationActions({
   async function toggleAi(next: boolean) {
     if (togglingAi) return
     setTogglingAi(true)
+    setModeError(false)
     const prev = aiMode
     setAiMode(next)
     try {
@@ -131,9 +138,11 @@ export function ConversationActions({
         router.refresh()
       } else {
         setAiMode(prev)
+        setModeError(true)
       }
     } catch {
       setAiMode(prev)
+      setModeError(true)
     } finally {
       setTogglingAi(false)
     }
@@ -172,11 +181,12 @@ export function ConversationActions({
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
+                type="button"
                 disabled={busy}
                 onClick={() => patch({ rating: n })}
                 onMouseEnter={() => setHover(n)}
                 onMouseLeave={() => setHover(null)}
-                className="p-0.5 disabled:opacity-50"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50"
                 aria-label={`${n}`}
               >
                 <Star
@@ -194,10 +204,11 @@ export function ConversationActions({
 
         {/* Resolve / Reopen */}
         <button
+          type="button"
           disabled={busy}
           onClick={() => patch({ status: resolved ? 'OPEN' : 'RESOLVED' })}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium disabled:opacity-50',
+            'inline-flex min-h-11 items-center gap-1.5 rounded-xl px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black disabled:opacity-50',
             resolved
               ? 'border border-[var(--border-default)] text-[var(--text-secondary)]'
               : 'bg-[var(--white)] text-[var(--bg-base)]',
@@ -216,37 +227,52 @@ export function ConversationActions({
 
       {/* Smart-reply switch + Delete button */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-3">
-        <label
-          className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--text-primary)]"
-          title="روشن: هوش مصنوعی پاسخ می‌دهد — خاموش: فقط اپراتور"
+        <div
+          className={cn(
+            'flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl border px-3 py-2 transition-[background-color,border-color] duration-200',
+            aiMode
+              ? 'border-emerald-500/15 bg-emerald-500/[0.055]'
+              : 'border-amber-500/20 bg-amber-500/[0.07]',
+          )}
+          title={t('aiControlHint')}
         >
           <Switch
             checked={aiMode}
             onChange={toggleAi}
             disabled={togglingAi}
-            aria-label="پاسخ هوشمند"
+            aria-label={t('aiControlTitle')}
           />
-          <span className="flex items-center gap-1.5">
-            {aiMode ? (
-              <Bot className="h-4 w-4 text-[var(--green)]" />
-            ) : (
-              <Headset className="h-4 w-4 text-[var(--amber)]" />
-            )}
-            <span className="font-medium">پاسخ هوشمند</span>
-            <span className="text-xs text-[var(--text-muted)]">
-              {aiMode ? '(هوش مصنوعی)' : '(اپراتور)'}
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+                aiMode
+                  ? 'bg-emerald-500/10 text-emerald-700'
+                  : 'bg-amber-500/12 text-amber-700',
+              )}
+            >
+              {aiMode ? <Bot className="h-4 w-4" /> : <Headset className="h-4 w-4" />}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
+                {t('aiControlTitle')}
+              </span>
+              <span className="block text-xs leading-5 text-[var(--text-muted)]">
+                {aiMode ? t('aiControlAutomatic') : t('aiControlOperatorOnly')}
+              </span>
             </span>
           </span>
-        </label>
+        </div>
 
         <button
+          type="button"
           ref={deleteTriggerRef}
           onClick={() => {
             setDeleteError(null)
             setShowDeleteDialog(true)
           }}
           disabled={deleting}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:border-danger hover:text-danger disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-muted)] transition-colors hover:border-danger hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:opacity-50"
         >
           {deleting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -256,6 +282,11 @@ export function ConversationActions({
           {t('delete')}
         </button>
       </div>
+      {modeError && (
+        <p role="alert" className="text-xs text-red-600">
+          {t('aiControlError')}
+        </p>
+      )}
 
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>

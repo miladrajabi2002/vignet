@@ -187,7 +187,7 @@ export function DemoSection() {
 	}, [copy.scenarios.length, playing, reduce])
 
 	return (
-		<section id="demo" className="marketing-story-section bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
+		<section id="demo" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-16 sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="mx-auto max-w-4xl border-t border-[var(--border-default)] pt-6 text-center">
 					<p className="marketing-eyebrow">{copy.eyebrow}</p>

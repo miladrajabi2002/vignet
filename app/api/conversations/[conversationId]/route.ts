@@ -38,13 +38,23 @@ export async function PATCH(req: Request, props: Params) {
   if (parsed.data.resumeAi) {
     if (existing.channel === 'INSTAGRAM' && existing.externalId) {
       await resumeAiForConversation(existing.agentId, existing.externalId).catch(() => undefined)
-    } else {
-      // Non-Instagram: just flip status back to OPEN so the AI takes over again.
-      await prisma.conversation.update({
-        where: { id: existing.id },
-        data: { status: 'OPEN' },
-      })
     }
+    // Keep the channel-specific pause flag and the universal ownership state in
+    // sync. `handedOff` is itself a hard AI gate, so changing only `status`
+    // would leave the conversation permanently operator-owned.
+    await prisma.$transaction([
+      prisma.conversation.update({
+        where: { id: existing.id },
+        data: { status: 'OPEN', handedOff: false },
+      }),
+      prisma.handoffAlert.updateMany({
+        where: {
+          conversationId: existing.id,
+          state: { in: ['open', 'claimed'] },
+        },
+        data: { state: 'resolved', resolvedAt: new Date() },
+      }),
+    ])
     return NextResponse.json({ conversation: { id: existing.id, status: 'OPEN' } })
   }
 

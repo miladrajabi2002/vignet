@@ -20,6 +20,7 @@ import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
+import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
@@ -97,7 +98,8 @@ export default async function AdminUserDetailPage(
           reportEmail: true,
           trialEndsAt: true,
           onboardingCompleted: true,
-          onboardingStep: true,
+          onboardingKnowledgeSkipped: true,
+          onboardingChannelSkipped: true,
           businessType: true,
           businessProfile: true,
           createdAt: true,
@@ -183,6 +185,20 @@ export default async function AdminUserDetailPage(
   const planDef = (await getEffectivePlanDefs())[ws.plan]
   const businessProfile = readBusinessProfile(ws.businessProfile)
   const vertical = getVerticalPack(ws.businessType)
+  const hasProfile = Boolean(businessProfile)
+  const hasAgent = Boolean(journeySignals.agent)
+  const hasKnowledge = Boolean(journeySignals.knowledge)
+    || ws._count.products > 0
+    || ws.onboardingKnowledgeSkipped
+  const hasChannel = Boolean(journeySignals.channel)
+    || ws.onboardingChannelSkipped
+  const onboardingProgress = getOnboardingProgress({
+    completed: ws.onboardingCompleted,
+    hasProfile,
+    hasAgent,
+    hasKnowledge,
+    hasChannel,
+  })
   const serviceNames = Array.from(new Set([
     ...(businessProfile?.services ?? []),
     ...ws.services.map((service) => service.name),
@@ -207,20 +223,35 @@ export default async function AdminUserDetailPage(
 
   const userName = user.name ?? user.phone
   const memberSince = fmtDay(user.createdAt)
+  const knowledgeDetail = journeySignals.knowledge
+    ? `${journeySignals.knowledge.name} · ${journeySignals.knowledge.status}`
+    : ws._count.products > 0
+      ? `${fa(ws._count.products)} محصول ثبت شده`
+      : ws.onboardingKnowledgeSkipped
+        ? 'برای بعد گذاشته شده'
+        : 'منبع دانشی یا محصولی ثبت نشده'
+  const channelDetail = journeySignals.channel
+    ? `${CHANNEL_LABEL[journeySignals.channel.type] ?? journeySignals.channel.type}${journeySignals.channel.active ? ' · فعال' : ' · غیرفعال'}`
+    : ws.onboardingChannelSkipped
+      ? 'اتصال کانال برای بعد گذاشته شده'
+      : 'کانالی ثبت نشده'
   const journeySteps = [
     { label: 'ساخت حساب', detail: 'ثبت‌نام و ایجاد فضای کاری', done: true, at: user.createdAt, icon: UserRoundCheck },
-    { label: 'تکمیل راه‌اندازی', detail: ws.onboardingCompleted ? 'پروفایل کسب‌وکار تکمیل شده' : `متوقف در گام ${fa(ws.onboardingStep)} از ۴`, done: ws.onboardingCompleted, at: ws.onboardingCompleted ? ws.createdAt : null, icon: Check },
+    { label: 'اطلاعات کسب‌وکار', detail: businessProfile ? `${businessProfile.businessName} · ${vertical.titleFa}` : 'پروفایل کسب‌وکار ثبت نشده', done: hasProfile, at: null, icon: Settings },
     { label: 'ساخت ایجنت', detail: journeySignals.agent ? journeySignals.agent.name : 'هنوز ایجنتی ساخته نشده', done: Boolean(journeySignals.agent), at: journeySignals.agent?.createdAt ?? null, icon: Bot },
-    { label: 'آماده‌سازی دانش', detail: journeySignals.knowledge ? `${journeySignals.knowledge.name} · ${journeySignals.knowledge.status}` : 'منبع دانشی ثبت نشده', done: journeySignals.knowledge?.status === 'READY', at: journeySignals.knowledge?.createdAt ?? null, icon: Database },
-    { label: 'اتصال کانال', detail: journeySignals.channel ? `${CHANNEL_LABEL[journeySignals.channel.type] ?? journeySignals.channel.type}${journeySignals.channel.active ? ' · فعال' : ' · غیرفعال'}` : 'کانالی متصل نشده', done: Boolean(journeySignals.channel?.active), at: journeySignals.channel?.createdAt ?? null, icon: Cable },
+    { label: 'دانش و محصولات', detail: knowledgeDetail, done: hasKnowledge, at: journeySignals.knowledge?.createdAt ?? null, icon: Database },
+    { label: 'اتصال کانال', detail: channelDetail, done: hasChannel, at: journeySignals.channel?.createdAt ?? null, icon: Cable },
+    { label: 'تأیید راه‌اندازی', detail: ws.onboardingCompleted ? 'راه‌اندازی نهایی شده' : onboardingProgress.readyToFinish ? 'فقط تأیید نهایی کاربر باقی مانده' : 'پیش‌نیازهای راه‌اندازی هنوز کامل نیست', done: ws.onboardingCompleted, at: null, icon: Check },
     { label: 'اولین گفتگو', detail: journeySignals.conversation ? 'ورود به فاز استفاده واقعی' : 'هنوز گفتگویی دریافت نشده', done: Boolean(journeySignals.conversation), at: journeySignals.conversation?.createdAt ?? null, icon: MessageSquare },
     { label: 'مصرف موفق AI', detail: journeySignals.firstUsage ? `${fmtIRR(journeySignals.firstUsage.chargedIRR)} کسر اعتبار` : 'درخواست موفق ثبت نشده', done: Boolean(journeySignals.firstUsage), at: journeySignals.firstUsage?.date ?? null, icon: Sparkles },
     { label: 'تبدیل به مشتری', detail: journeySignals.payment ? (journeySignals.payment.currency === 'IRR' ? fmtIRR(journeySignals.payment.amount) : fmtUSD(journeySignals.payment.amount)) : 'پرداخت موفق ثبت نشده', done: Boolean(journeySignals.payment), at: journeySignals.payment?.paidAt ?? journeySignals.payment?.createdAt ?? null, icon: CreditCard },
   ]
-  const firstIncomplete = journeySteps.findIndex((step) => !step.done)
+  const currentStepIndex = ws.onboardingCompleted
+    ? journeySteps.findIndex((step, index) => index > 5 && !step.done)
+    : journeySteps.findIndex((step) => !step.done)
   const completedSteps = journeySteps.filter((step) => step.done).length
   const journeyProgress = Math.round((completedSteps / journeySteps.length) * 100)
-  const currentStage = firstIncomplete === -1 ? 'کاربر فعال و پرداختی' : journeySteps[firstIncomplete].label
+  const currentStage = currentStepIndex === -1 ? 'کاربر فعال و پرداختی' : journeySteps[currentStepIndex].label
   const latestActivityAt = [
     user.createdAt,
     journeySignals.agent?.updatedAt,
@@ -251,14 +282,14 @@ export default async function AdminUserDetailPage(
             <h2 id="user-journey-title" className="mt-2 text-xl font-black">گزارش مسیر کاربر</h2>
             <p className="mt-2 text-xs leading-6 text-white/45">مرحله فعلی، نقاط توقف و رویدادهای مهم از داده واقعی همین کسب‌وکار استخراج شده‌اند.</p>
             <div className="mt-6 rounded-2xl border border-white/[0.08] bg-white/[0.055] p-4">
-              <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] text-white/40">مرحله فعلی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-black tabular-nums">{fa(journeyProgress)}٪</span></div>
+              <div className="flex items-end justify-between gap-3"><div><p className="text-[10px] text-white/40">اقدام بعدی پیشنهادی</p><p className="mt-1 text-sm font-bold">{currentStage}</p></div><span className="text-2xl font-black tabular-nums">{fa(journeyProgress)}٪</span></div>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${journeyProgress}%` }} /></div>
               <div className="mt-4 flex items-center justify-between text-[10px] text-white/38"><span>{fa(completedSteps)} از {fa(journeySteps.length)} مرحله</span><span>{latestActivityAt ? `آخرین فعالیت ${fmtDate(latestActivityAt)}` : 'بدون فعالیت'}</span></div>
             </div>
-            {firstIncomplete !== -1 && (
+            {currentStepIndex !== -1 && (
               <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] p-3.5">
-                <p className="text-[10px] font-bold text-amber-200">احتمال گیرکردن کاربر</p>
-                <p className="mt-1 text-xs leading-5 text-white/60">مرحله «{journeySteps[firstIncomplete].label}» هنوز کامل نشده: {journeySteps[firstIncomplete].detail}</p>
+                <p className="text-[10px] font-bold text-amber-200">نیازمند پیگیری</p>
+                <p className="mt-1 text-xs leading-5 text-white/60">اولین مرحله ناقص «{journeySteps[currentStepIndex].label}» است: {journeySteps[currentStepIndex].detail}</p>
               </div>
             )}
           </div>
@@ -266,9 +297,9 @@ export default async function AdminUserDetailPage(
             {journeySteps.map((step, index) => {
               const Icon = step.icon
               return (
-                <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-[1.15rem] border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === firstIncomplete ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
-                  <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === firstIncomplete ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-                  <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === firstIncomplete && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-bold text-zinc-700">مرحله فعلی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 text-[10px] text-black/35">{step.at ? fmtDate(step.at) : '—'}</p></div>
+                <div key={step.label} className={cn('flex min-h-[6.5rem] gap-3 rounded-[1.15rem] border p-3.5', step.done ? 'border-emerald-200/70 bg-emerald-50/35' : index === currentStepIndex ? 'border-amber-200 bg-amber-50/50' : 'border-black/[0.06] bg-black/[0.018]')}>
+                  <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', step.done ? 'bg-emerald-600 text-white' : index === currentStepIndex ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-400')}>{step.done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
+                  <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-xs font-black text-black">{fa(index + 1)}. {step.label}</p>{!step.done && index === currentStepIndex && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-bold text-zinc-700">اقدام بعدی</span>}</div><p className="mt-1 line-clamp-2 text-[10px] leading-5 text-black/45">{step.detail}</p><p className="mt-1 text-[10px] text-black/35">{step.at ? fmtDate(step.at) : '—'}</p></div>
                 </div>
               )
             })}
@@ -328,7 +359,9 @@ export default async function AdminUserDetailPage(
                   <KV label="پلن"><Badge tone={plan.tone}>{plan.label}</Badge></KV>
                   <KV label="ایمیل گزارش">{ws.reportEmail ? <span dir="ltr">{ws.reportEmail}</span> : <span className="text-zinc-400">—</span>}</KV>
                   <KV label="وضعیت راه‌اندازی">
-                    {ws.onboardingCompleted ? <Badge tone="success">فعال‌شده</Badge> : <Badge tone="warning">در حال راه‌اندازی · گام {fa(ws.onboardingStep)}</Badge>}
+                    {ws.onboardingCompleted
+                      ? <Badge tone="success">فعال‌شده</Badge>
+                      : <Badge tone={onboardingProgress.readyToFinish ? 'info' : 'warning'}>{onboardingProgress.labelFa}</Badge>}
                   </KV>
                 </div>
               </div>

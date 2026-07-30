@@ -264,7 +264,7 @@ function TypeStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۱ از ۴
+          شروع راه‌اندازی
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           کسب‌وکار شما چیست؟
@@ -394,7 +394,7 @@ function DetailsStep({
     <motion.div variants={staggerParent} initial="hidden" animate="show">
       <motion.div variants={staggerChild} className="text-center">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          مرحله ۲ از ۴
+          مرحله ۱ از ۴
         </p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           اطلاعات کسب‌وکار

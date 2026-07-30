@@ -67,7 +67,9 @@ export async function POST(req: Request) {
       ttsVoice: data.ttsVoice,
       welcomeMessage: data.welcomeMessage,
       fallbackMessage: data.fallbackMessage,
-      handoffEnabled: data.handoffEnabled ?? false,
+      // Smart handoff is a safety/default capability. Clients may still
+      // explicitly disable proactive escalation for an individual agent.
+      handoffEnabled: data.handoffEnabled ?? true,
       handoffMessage: data.handoffMessage,
       handoffKeywords: data.handoffKeywords ?? [],
       // ─ F1: layered prompt

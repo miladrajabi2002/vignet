@@ -225,10 +225,10 @@ function MessageCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[218px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
+			className="flex h-[232px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
 		>
 			<div className="flex items-center justify-between gap-2 px-0.5">
-				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-medium text-white/[0.55]">
+				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-white/[0.62]">
 					<MessageCircleMore className="h-3.5 w-3.5 shrink-0" />
 					{label}
 				</p>
@@ -246,22 +246,22 @@ function MessageCard({
 							duration: reduce ? 0 : 0.3,
 							ease: [0.23, 1, 0.32, 1],
 						}}
-						className="h-[88px] rounded-[1.05rem] border border-white/[0.14] bg-white/[0.065] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+						className="h-[92px] rounded-[1.05rem] border border-white/[0.14] bg-white/[0.065] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
 					>
 						<div className="flex items-center gap-2.5">
 							<MainChannelBadge activeIndex={activeIndex} />
 
 							<div className="min-w-0 flex-1">
-								<p className="truncate text-[10px] font-semibold text-white">
+								<p className="truncate text-[11px] font-semibold text-white">
 									{scenario.person} · {scenario.channel}
 								</p>
-								<p className="mt-0.5 whitespace-nowrap text-[7.5px] text-white/[0.35]">
+								<p className="mt-0.5 whitespace-nowrap text-[9px] text-white/[0.42]">
 									{scenario.time}
 								</p>
 							</div>
 						</div>
 
-						<p className="mt-2.5 line-clamp-2 text-[9.5px] font-medium leading-[1.7] text-white/[0.82]">
+						<p className="mt-2.5 line-clamp-2 text-[10.5px] font-medium leading-[1.65] text-white/[0.84]">
 							{scenario.text}
 						</p>
 					</m.div>
@@ -270,19 +270,19 @@ function MessageCard({
 				{secondaryMessages.map((message) => (
 					<div
 						key={message.channel}
-						className="flex h-[36px] items-center gap-2 rounded-xl border border-white/[0.085] bg-white/[0.028] px-2.5 py-1.5"
+						className="flex h-[40px] items-center gap-2 rounded-xl border border-white/[0.085] bg-white/[0.028] px-2.5 py-1.5"
 					>
 						<SecondaryChannelBadge kind={message.kind} />
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center justify-between gap-2">
-								<p className="truncate text-[8px] font-medium text-white/[0.62]">
+								<p className="truncate text-[9px] font-medium text-white/[0.66]">
 									{message.channel}
 								</p>
-								<p className="shrink-0 whitespace-nowrap text-[6.5px] text-white/[0.28]">
+								<p className="shrink-0 whitespace-nowrap text-[9px] text-white/[0.4]">
 									{message.time}
 								</p>
 							</div>
-							<p className="mt-0.5 truncate text-[7.5px] text-white/[0.42]">{message.text}</p>
+							<p className="mt-0.5 truncate text-[9px] text-white/[0.48]">{message.text}</p>
 						</div>
 					</div>
 				))}
@@ -309,14 +309,14 @@ function ResultCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[246px] flex-col rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
+			className="flex h-[264px] flex-col rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
 		>
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
 						<Sparkles className="h-4 w-4" />
 					</span>
-					<p className="whitespace-nowrap text-[10px] font-semibold sm:text-[11px]">{label}</p>
+					<p className="whitespace-nowrap text-[11px] font-semibold sm:text-xs">{label}</p>
 				</div>
 
 				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
@@ -333,7 +333,7 @@ function ResultCard({
 						ease: [0.23, 1, 0.32, 1],
 					}}
 				>
-					<p className="mt-2.5 h-[50px] overflow-hidden text-[9.5px] leading-[1.85] text-black/[0.68] sm:text-[10px]">
+					<p className="mt-2.5 h-[52px] overflow-hidden text-[11px] leading-[1.75] text-black/[0.7]">
 						{scenario.reply}
 					</p>
 
@@ -343,15 +343,15 @@ function ResultCard({
 						{scenario.quickActions.slice(0, 4).map((action) => (
 							<span
 								key={action}
-								className="flex h-[34px] items-center justify-center truncate rounded-lg border border-black/[0.08] bg-black/[0.025] px-1.5 text-center text-[7px] font-medium text-black/[0.54]"
+								className="flex h-[34px] items-center justify-center truncate rounded-lg border border-black/[0.08] bg-black/[0.025] px-1.5 text-center text-[9px] font-medium text-black/[0.58]"
 							>
 								{action}
 							</span>
 						))}
 					</div>
 
-					<div className="mt-2.5 rounded-xl border border-black/[0.07] bg-black/[0.025] px-2.5 py-2">
-						<div className="flex items-center justify-between gap-2 text-[7px] text-black/[0.42]">
+					<div className="mt-2.5 rounded-xl border border-black/[0.07] bg-black/[0.025] px-2.5 py-1.5">
+						<div className="flex items-center justify-between gap-2 text-[9px] text-black/[0.48]">
 							<span className="flex min-w-0 items-center gap-1.5">
 								<PackageSearch className="h-3.5 w-3.5 shrink-0" />
 								<span className="truncate">
@@ -368,7 +368,7 @@ function ResultCard({
 							<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
 								<Check className="h-3 w-3" />
 							</span>
-							<span className="whitespace-nowrap text-[clamp(6.2px,0.9vw,8px)] font-semibold tracking-[-0.025em]">
+							<span className="line-clamp-2 text-[9px] font-semibold leading-4 tracking-[-0.015em] rtl:tracking-normal">
 								{scenario.result}
 							</span>
 						</p>
@@ -416,7 +416,7 @@ function Core({
 					<Sparkles className="h-[18px] w-[18px]" />
 				</span>
 				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">{core}</p>
-				<p className="mt-0.5 max-w-[84px] truncate text-[7.5px] text-white/[0.36]">{coreHint}</p>
+				<p className="mt-0.5 max-w-[88px] truncate text-[9px] text-white/[0.46]">{coreHint}</p>
 			</div>
 		</m.div>
 	)
@@ -447,7 +447,7 @@ function NetworkLabel({
 	return (
 		<div
 			aria-hidden
-			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[7px] text-white/[0.5] backdrop-blur ${className}`}
+			className={`absolute z-20 flex items-center gap-1 rounded-full border border-white/10 bg-black/[0.86] px-2 py-1 text-[9px] text-white/[0.62] backdrop-blur ${className}`}
 		>
 			{connector ? (
 				<span className={`absolute border-dashed border-emerald-300/35 ${connector}`} />
@@ -469,7 +469,7 @@ function CrmChip({ locale }: { locale: 'fa' | 'en' }) {
 				aria-hidden
 				className="absolute -top-[3px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]"
 			/>
-			<div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-black/80 px-2.5 py-1.5 text-[8px] text-white/[0.62] backdrop-blur">
+			<div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-black/80 px-2.5 py-1.5 text-[9px] text-white/[0.68] backdrop-blur">
 				<UsersRound className="h-3.5 w-3.5" />
 				{LABELS[locale].crm}
 				<span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />

@@ -106,13 +106,13 @@ export function FeaturesSection() {
 	const reduce = useReducedMotion()
 
 	return (
-		<section id="features" className="marketing-story-section bg-white py-16 text-[var(--text-primary)] sm:py-20 lg:py-24">
+		<section id="solutions" className="marketing-story-section scroll-mt-24 bg-white py-16 text-[var(--text-primary)] sm:py-20 lg:py-24">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<div className="grid gap-8 lg:grid-cols-[0.76fr_1.24fr] lg:items-end lg:gap-14">
-					<div>
+					<div className="text-center lg:text-start">
 						<p className="marketing-eyebrow">{copy.eyebrow}</p>
-						<h2 className="marketing-heading mt-4 max-w-2xl">{copy.title}</h2>
-						<p className="marketing-subtitle mt-4 max-w-xl">{copy.subtitle}</p>
+						<h2 className="marketing-heading mx-auto mt-4 max-w-2xl lg:mx-0">{copy.title}</h2>
+						<p className="marketing-subtitle mx-auto mt-4 max-w-xl lg:mx-0">{copy.subtitle}</p>
 					</div>
 					<AgentControl locale={locale} />
 				</div>

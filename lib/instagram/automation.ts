@@ -325,6 +325,11 @@ export interface AutomationContext {
   contactId: string | null
   contactName: string | null
   quickReplies: string[]
+  /** Durable inbound turn already persisted by the channel handler. */
+  conversationId?: string
+  inboundEventId?: string
+  /** Write-ahead provider-delivery marker; called immediately before a send. */
+  beforeDispatch?: () => Promise<void>
 }
 
 /**
@@ -396,14 +401,18 @@ export async function runInstagramAutomation(
     // ─── Matched. Execute the action. ───
     try {
       let sent = false
+      const beforeDispatch = async () => {
+        await ctx.beforeDispatch?.()
+        sent = true
+      }
       const trackingAdapter: MessengerAdapter = {
         ...ctx.adapter,
         async sendText(chatId, text, opts) {
+          await beforeDispatch()
           await ctx.adapter.sendText(chatId, text, opts)
-          sent = true
         },
       }
-      await executeAction({ ...ctx, adapter: trackingAdapter }, row, action)
+      await executeAction({ ...ctx, adapter: trackingAdapter, beforeDispatch }, row, action)
       return { handled: true, replied: sent }
     } catch (e) {
       captureError(`instagram:automation:${row.id}`, e, {
@@ -489,6 +498,7 @@ async function executeAction(
               const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
               const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
 
+              await ctx.beforeDispatch?.()
               if (entryType === 'IMAGE' && entryMediaUrl) {
                 await sendImage(channelConfig, target, entryMediaUrl, entryText || undefined)
               } else if (entryType === 'AUDIO' && entryMediaUrl) {
@@ -529,6 +539,7 @@ async function executeAction(
     // For comments with dmOnComment, target is the sender's DM — so Button
     // Template works. For public comment replies (no dmOnComment), only text.
     const isDM = !isComment || action.dmOnComment
+    await ctx.beforeDispatch?.()
     if (!isDM) {
       // Public comment reply — no buttons (Button Template is DM-only).
       await adapter.sendText(target, gatePrompt)
@@ -584,6 +595,7 @@ async function executeAction(
       Math.floor(Math.random() * action.messages.length)
     ]
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    await ctx.beforeDispatch?.()
     await sendRichEntry(
       channelConfig ?? null,
       target,
@@ -627,6 +639,7 @@ async function executeAction(
             ? { title: b }
             : { title: b.title, url: b.url },
         )
+        await ctx.beforeDispatch?.()
         try {
           if (entry.buttonType === 'quick_reply') {
             // Quick Reply chips — sent as quick_replies with the text message.
@@ -649,6 +662,7 @@ async function executeAction(
         }
         continue
       }
+      await ctx.beforeDispatch?.()
       await sendRichEntry(
         channelConfig ?? null,
         target,
@@ -687,6 +701,7 @@ async function executeAction(
     channelConfig
   ) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    await ctx.beforeDispatch?.()
     if (action.mediaType === 'IMAGE' && action.mediaUrl) {
       await sendImage(channelConfig, target, action.mediaUrl, action.replyText || undefined)
     } else if (action.mediaType === 'AUDIO' && action.mediaUrl) {
@@ -734,7 +749,10 @@ async function executeAction(
       channel: 'INSTAGRAM',
       contactId: contactId ?? undefined,
       contactName: contactName ?? undefined,
+      conversationId: ctx.conversationId,
       externalId: msg.chatId,
+      inboundEventId: ctx.inboundEventId,
+      inboundAlreadyPersisted: !!ctx.inboundEventId,
     })
     if ('error' in result) return
     await adapter.sendText(msg.chatId, result.reply, {
@@ -888,6 +906,7 @@ async function tryFulfillFollowGate(
       const gateButtonType = typeof payload.gateButtonType === 'string'
         ? payload.gateButtonType
         : 'button'
+      await ctx.beforeDispatch?.()
       try {
         if (gateButtonType === 'quick_reply') {
           await adapter.sendText(gate.chatId, gatePrompt, {
@@ -930,6 +949,7 @@ async function tryFulfillFollowGate(
         const entryMediaUrl = typeof entry.mediaUrl === 'string' ? entry.mediaUrl : ''
         const entryButtons = Array.isArray(entry.buttons) ? entry.buttons : []
 
+        await ctx.beforeDispatch?.()
         if (entryType === 'IMAGE' && entryMediaUrl) {
           await sendImage(channelConfig, gate.chatId, entryMediaUrl, entryText || undefined)
         } else if (entryType === 'AUDIO' && entryMediaUrl) {
@@ -991,6 +1011,7 @@ async function tryFulfillGateByMention(
 
   if (contentText) {
     try {
+      await ctx.beforeDispatch?.()
       await adapter.sendText(gate.chatId, contentText, { quickReplies })
     } catch (e) {
       captureError('instagram:gate:deliver', e, {
@@ -1223,6 +1244,7 @@ export async function resumeAiForConversation(
     data: {
       metadata: next as Prisma.InputJsonValue,
       status: 'OPEN',
+      handedOff: false,
     },
   })
   return true
