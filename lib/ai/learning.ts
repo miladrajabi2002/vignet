@@ -7,6 +7,10 @@ import { retrieveContext } from '@/lib/ai/rag'
 import { resolveModelId } from '@/lib/ai/models'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { prisma } from '@/lib/prisma'
+import {
+  resolveSystemPrompt,
+  type PromptConfig,
+} from '@/lib/ai/prompt-builder'
 
 /**
  * Name prefix for FAQ knowledge bases created through the learning center, so we
@@ -20,6 +24,8 @@ export interface DraftAgent {
   language: string
   model: string | null
   temperature: number
+  promptConfig: unknown
+  roleTemplate: string | null
 }
 
 export type DraftResult =
@@ -64,8 +70,20 @@ export async function draftAnswer(
       : `\n\nExisting knowledge base context:\n${contextText}`
     : ''
 
+  const effectiveAgentPrompt = resolveSystemPrompt({
+    promptConfig:
+      agent.promptConfig &&
+      typeof agent.promptConfig === 'object' &&
+      !Array.isArray(agent.promptConfig)
+        ? agent.promptConfig as PromptConfig
+        : null,
+    roleTemplate: agent.roleTemplate,
+    legacySystemPrompt: agent.systemPrompt,
+    language: agent.language,
+  })
+
   const messages: ChatMessage[] = [
-    { role: 'system', content: `${agent.systemPrompt}\n\n${instruction}${contextBlock}` },
+    { role: 'system', content: `${effectiveAgentPrompt}\n\n${instruction}${contextBlock}` },
     { role: 'user', content: question },
   ]
 

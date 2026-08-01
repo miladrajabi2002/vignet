@@ -21,7 +21,15 @@ export async function POST(req: Request, props: Params) {
 
   const agent = await prisma.agent.findFirst({
     where: { id: params.agentId, workspaceId: user.workspaceId },
-    select: { id: true, systemPrompt: true, language: true, model: true, temperature: true },
+    select: {
+      id: true,
+      systemPrompt: true,
+      promptConfig: true,
+      roleTemplate: true,
+      language: true,
+      model: true,
+      temperature: true,
+    },
   })
   if (!agent) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 

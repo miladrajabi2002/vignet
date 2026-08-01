@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { LEARNED_PREFIX } from '@/lib/ai/learning'
 import { LearningCenter, type LearningItem } from '@/components/agent-builder/learning-center'
+import { isEligibleOperatorLearningMetadata } from '@/lib/ai/learning-policy'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,10 +44,19 @@ export default async function AgentLearningPage(
   const items: LearningItem[] = rows
     .map((m) => {
       const meta = m.metadata as Record<string, unknown> | null
+      const operatorAuthored = meta?.operator === true
       const question = meta && typeof meta.question === 'string' ? meta.question : ''
       const operatorAnswer =
         meta && typeof meta.operatorAnswer === 'string' ? meta.operatorAnswer : undefined
-      return { id: m.id, question, conversationId: m.conversationId, operatorAnswer }
+      return {
+        id: m.id,
+        question:
+          operatorAuthored && !isEligibleOperatorLearningMetadata(meta)
+            ? ''
+            : question,
+        conversationId: m.conversationId,
+        operatorAnswer,
+      }
     })
     .filter((m) => m.question.length > 0)
 

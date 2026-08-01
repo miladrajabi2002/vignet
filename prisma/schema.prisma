@@ -69,6 +69,7 @@ model Workspace {
   appointments             Appointment[]
   inboundEvents            InboundEvent[]
   conversationTurnLeases   ConversationTurnLease[]
+  knowledgeApprovals       KnowledgeApproval[]
 
   @@index([slug])
   @@index([excludeFromAdminReports])
@@ -103,7 +104,8 @@ model User {
   language     String       @default("fa")
   createdAt    DateTime     @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workspace                  Workspace           @relation(fields: [workspaceId], references: [id])
+  knowledgeApprovalsVerified KnowledgeApproval[] @relation("KnowledgeApprovalVerifier")
 
   @@unique([workspaceId])
   @@index([phone])
@@ -179,6 +181,7 @@ model Agent {
   instagramAutomations        InstagramAutomation[]
   instagramFollowGates        InstagramFollowGate[]
   instagramAutomationSettings InstagramAutomationSettings?
+  knowledgeApprovals          KnowledgeApproval[]
 
   @@index([workspaceId])
 }
@@ -436,11 +439,55 @@ model KnowledgeBase {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  agent  Agent            @relation(fields: [agentId], references: [id])
-  chunks KnowledgeChunk[]
+  agent    Agent              @relation(fields: [agentId], references: [id])
+  chunks   KnowledgeChunk[]
+  approval KnowledgeApproval?
 
   @@index([agentId])
   @@index([workspaceId])
+}
+
+enum LearningSource {
+  AI_UNANSWERED
+  OPERATOR_REPLY
+}
+
+/**
+ * Human approval ledger for Q&A promoted from a conversation into reusable
+ * knowledge. Permanent reference fields retain provenance even if the source
+ * conversation or approving user is later removed.
+ */
+model KnowledgeApproval {
+  id                   String         @id @default(cuid())
+  workspaceId          String
+  agentId              String
+  knowledgeBaseId      String         @unique
+  sourceMessageId      String?        @unique
+  sourceMessageRef     String         @unique
+  sourceConversationId String
+  source               LearningSource
+  question             String         @db.Text
+  answer               String         @db.Text
+  contentHash          String
+  verifiedByUserId     String?
+  verifiedByUserRef    String
+  verifiedAt           DateTime       @default(now())
+  validFrom            DateTime       @default(now())
+  validUntil           DateTime?
+  knowledgeVersion     Int            @default(1)
+  policyVersion        String
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent         Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  sourceMessage Message?      @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  verifiedBy    User?         @relation("KnowledgeApprovalVerifier", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, verifiedAt])
+  @@index([agentId, validUntil])
+  @@index([verifiedByUserRef])
 }
 
 enum KBType {
@@ -679,11 +726,12 @@ model Message {
   inboundEventId          String?     @unique
   resultForInboundEventId String?     @unique
 
-  conversation          Conversation  @relation(fields: [conversationId], references: [id])
-  parent                Message?      @relation("MessageReplies", fields: [parentId], references: [id])
-  replies               Message[]     @relation("MessageReplies")
-  inboundEvent          InboundEvent? @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
-  resultForInboundEvent InboundEvent? @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
+  conversation          Conversation       @relation(fields: [conversationId], references: [id])
+  parent                Message?           @relation("MessageReplies", fields: [parentId], references: [id])
+  replies               Message[]          @relation("MessageReplies")
+  inboundEvent          InboundEvent?      @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
+  resultForInboundEvent InboundEvent?      @relation("InboundEventResultMessage", fields: [resultForInboundEventId], references: [id], onDelete: SetNull)
+  learningApproval      KnowledgeApproval?
 
   @@index([conversationId])
   @@index([parentId])

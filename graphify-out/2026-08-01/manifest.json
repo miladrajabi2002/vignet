@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/learning/page.tsx": {
-    "mtime": 1785590670.38606,
-    "ast_hash": "4376f1555cafc0bee8775d7f6107e32e",
+    "mtime": 1784424985.7583401,
+    "ast_hash": "eeb1d495a4beda76524e037552945695",
     "semantic_hash": ""
   },
   "app/(dashboard)/agents/[agentId]/page.tsx": {
@@ -535,18 +535,18 @@
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/learning/approve/route.ts": {
-    "mtime": 1785590791.128827,
-    "ast_hash": "be6a09d1fd72b4aed39e06f54ee6d0ab",
+    "mtime": 1783037259.608533,
+    "ast_hash": "754db77a7f906e68ff6436f8ce2b1ef8",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/learning/route.ts": {
-    "mtime": 1785590670.3850508,
-    "ast_hash": "13876e2904b0069d89c200306d58fd39",
+    "mtime": 1783037259.5265667,
+    "ast_hash": "e889a44bccb6bdca5ed8bac2688ae257",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/learning/suggest/route.ts": {
-    "mtime": 1785590683.1828988,
-    "ast_hash": "93fd6019b33897332fb8e678df4092c8",
+    "mtime": 1783037259.6127555,
+    "ast_hash": "10edb3f163e07e66f51346746da6a30a",
     "semantic_hash": ""
   },
   "app/api/agents/[agentId]/route.ts": {
@@ -680,8 +680,8 @@
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/reply/route.ts": {
-    "mtime": 1785590908.2903707,
-    "ast_hash": "ee9eb963a1357dabbc897b479ffafab9",
+    "mtime": 1784722088.9899466,
+    "ast_hash": "1bb377c9df73a74e99e78a6788be3633",
     "semantic_hash": ""
   },
   "app/api/conversations/[conversationId]/reset/route.ts": {
@@ -1580,8 +1580,8 @@
     "semantic_hash": ""
   },
   "lib/ai/chat-engine.ts": {
-    "mtime": 1785590561.4088755,
-    "ast_hash": "0ab30ebea467219f58a90fd847ed0a52",
+    "mtime": 1785415152.9739172,
+    "ast_hash": "1d375ae4301211716c24c0ccd111f886",
     "semantic_hash": ""
   },
   "lib/ai/chat-types.ts": {
@@ -1610,8 +1610,8 @@
     "semantic_hash": ""
   },
   "lib/ai/learning.ts": {
-    "mtime": 1785590791.1278248,
-    "ast_hash": "6d9be4a4b277e2806b12386fb4615435",
+    "mtime": 1783761026.9362302,
+    "ast_hash": "d2b07469a42eef44186d29106fc34903",
     "semantic_hash": ""
   },
   "lib/ai/models.ts": {
@@ -3380,8 +3380,8 @@
     "semantic_hash": ""
   },
   "lib/channels/idempotency.ts": {
-    "mtime": 1785590505.6842961,
-    "ast_hash": "707393306e3f851667ef0e7a494f056b",
+    "mtime": 1785415522.3975334,
+    "ast_hash": "e9f214878601871dc6a56cd31fd2c8ab",
     "semantic_hash": ""
   },
   "lib/instagram/private-reply.ts": {
@@ -3547,26 +3547,6 @@
   "tests/onboarding-progress.test.ts": {
     "mtime": 1785416000.46027,
     "ast_hash": "5407a77028073f4bb1e5debe2e2a91bc",
-    "semantic_hash": ""
-  },
-  "lib/ai/learning-policy.ts": {
-    "mtime": 1785590652.3033116,
-    "ast_hash": "6734eb0069468e4eeb2a1b24352ff46f",
-    "semantic_hash": ""
-  },
-  "prisma/migrations/20260801090000_learning_approval_provenance/migration.sql": {
-    "mtime": 1785590718.136886,
-    "ast_hash": "d6e85af3fb0a4a54bad6b9d86760eb55",
-    "semantic_hash": ""
-  },
-  "tests/learning-approval.test.ts": {
-    "mtime": 1785591103.1485753,
-    "ast_hash": "8a0b8d932791a3a711d6c8a0a3b3ca05",
-    "semantic_hash": ""
-  },
-  "tests/learning-policy.test.ts": {
-    "mtime": 1785590802.6403537,
-    "ast_hash": "7bb59b114dd27c1c82104ca398686853",
     "semantic_hash": ""
   }
 }

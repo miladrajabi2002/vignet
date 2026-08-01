@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { isEligibleOperatorLearningMetadata } from '@/lib/ai/learning-policy'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,12 +37,19 @@ export async function GET(_req: Request, props: Params) {
   const items = rows
     .map((m) => {
       const meta = m.metadata as Record<string, unknown> | null
+      const operatorAuthored = meta?.operator === true
       const question = meta && typeof meta.question === 'string' ? meta.question : ''
+      const operatorAnswer =
+        meta && typeof meta.operatorAnswer === 'string' ? meta.operatorAnswer : undefined
       return {
         id: m.id,
-        question,
+        question:
+          operatorAuthored && !isEligibleOperatorLearningMetadata(meta)
+            ? ''
+            : question,
         conversationId: m.conversationId,
         createdAt: m.createdAt,
+        operatorAnswer,
       }
     })
     .filter((m) => m.question.length > 0)

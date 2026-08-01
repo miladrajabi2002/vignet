@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -7,6 +8,7 @@ import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { recordConversationActivity } from '@/lib/conversations/activity'
+import { evaluateLearningEligibility } from '@/lib/ai/learning-policy'
 
 type Params = { params: Promise<{ conversationId: string }> }
 
@@ -71,6 +73,25 @@ export async function POST(req: Request, props: Params) {
     select: { content: true },
   })
   const question = lastUserMessage?.content?.trim() ?? ''
+  const learningCandidate = question
+    ? evaluateLearningEligibility(question, text)
+    : null
+  const messageMetadata: Prisma.InputJsonValue = question && learningCandidate
+    ? {
+        operator: true,
+        question,
+        operatorAnswer: text,
+        learningCandidate: {
+          eligible: learningCandidate.eligible,
+          reasonCodes: learningCandidate.reasonCodes,
+          policyVersion: learningCandidate.policyVersion,
+        },
+        delivery: { status: delivery.status, reason: delivery.reason ?? null },
+      }
+    : {
+        operator: true,
+        delivery: { status: delivery.status, reason: delivery.reason ?? null },
+      }
 
   const message = await prisma.message.create({
     data: {
@@ -79,12 +100,8 @@ export async function POST(req: Request, props: Params) {
       content: text,
       // `unanswered` surfaces this pair in the learning center as a suggestion;
       // approving it adds the Q&A to the knowledge base, dismissing clears it.
-      unanswered: question.length > 0,
-      metadata: {
-        operator: true,
-        ...(question.length > 0 ? { question, operatorAnswer: text } : {}),
-        delivery: { status: delivery.status, reason: delivery.reason },
-      },
+      unanswered: question.length > 0 && learningCandidate?.eligible === true,
+      metadata: messageMetadata,
     },
     select: { id: true, content: true, createdAt: true, role: true },
   })

@@ -692,11 +692,10 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         }
                         const closeStream = () => {
                                 if (clientGone) return
+                                clientGone = true
                                 try {
-                                        closeStream()
-                                } catch {
-                                        clientGone = true
-                                }
+                                        controller.close()
+                                } catch {}
                         }
 
                         send({ type: 'meta', conversationId })

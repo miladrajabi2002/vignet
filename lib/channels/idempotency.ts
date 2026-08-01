@@ -52,7 +52,13 @@ export interface InboundEventLease {
 export type ClaimInboundEventResult =
   | { status: 'acquired'; lease: InboundEventLease }
   | {
-      status: 'completed' | 'busy'
+      status: 'completed'
+      eventId: string
+      state: InboundEventState
+      payloadConflict: boolean
+    }
+  | {
+      status: 'busy'
       eventId: string
       state: InboundEventState
       payloadConflict: boolean
