@@ -35,6 +35,28 @@ module.exports = {
       kill_timeout: 60000,
     },
     {
+      name: "vignet-studio",
+      // Studio is never exposed directly. nginx terminates TLS on :8443 and
+      // validates the existing admin_session cookie before proxying here.
+      script: require.resolve("prisma/build/index.js", { paths: [appRoot] }),
+      args: [
+        "studio",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "5555",
+        "--browser",
+        "none",
+      ],
+      cwd: appRoot,
+      env: { NODE_ENV: "production", BROWSER: "none" },
+      max_memory_restart: "512M",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      kill_timeout: 10000,
+    },
+    {
       name: "vignet-whatsapp-bridge",
       script: require.resolve("tsx/cli", { paths: [whatsappRoot] }),
       args: ["index.ts"],

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
 import { ChatLinkClient } from './chat-client'
+import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
 
 // Always fresh: the owner may toggle/link-edit at any moment, and we count views.
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,14 @@ async function loadLink(slug: string) {
 			enabled: true,
 			settings: true,
 			agent: {
-				select: { name: true, avatar: true, welcomeMessage: true, active: true },
+				select: {
+					name: true,
+					avatar: true,
+					welcomeMessage: true,
+					active: true,
+					requireCustomerInfo: true,
+					customerInfoPrompt: true,
+				},
 			},
 		},
 	})
@@ -49,7 +57,10 @@ export default async function ChatLinkPage(props: Props) {
 		.update({ where: { id: link.id }, data: { views: { increment: 1 } } })
 		.catch(() => {})
 
-	const settings = normalizeChatLinkSettings(link.settings)
+	const settings = resolveCustomerIdentificationPolicy(
+		normalizeChatLinkSettings(link.settings),
+		link.agent,
+	)
 
 	return (
 		<ChatLinkClient

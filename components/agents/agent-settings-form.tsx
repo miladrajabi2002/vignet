@@ -56,8 +56,6 @@ export interface AgentSettingsData {
         description: string | null
         systemPrompt: string
         model: string | null
-        temperature: number
-        maxTokens: number
         language: string
         welcomeMessage: string | null
         fallbackMessage: string | null
@@ -104,8 +102,6 @@ export function AgentSettingsForm({
                 description: agent.description ?? '',
                 systemPrompt: agent.systemPrompt,
                 model: agent.model ?? '',
-                temperature: agent.temperature,
-                maxTokens: agent.maxTokens,
                 language: agent.language as 'fa' | 'en',
                 welcomeMessage: agent.welcomeMessage ?? '',
                 fallbackMessage: agent.fallbackMessage ?? '',
@@ -193,7 +189,7 @@ export function AgentSettingsForm({
                                 roleTemplate: activeRole?.key ?? null,
                                 // ─ F3: customer identification
                                 requireCustomerInfo,
-                                customerInfoPrompt: customerInfoPrompt || undefined,
+                                customerInfoPrompt: customerInfoPrompt.trim() || null,
                         }),
                 })
                 if (res.ok) {
@@ -221,6 +217,15 @@ export function AgentSettingsForm({
                 window.addEventListener('keydown', onKey)
                 return () => window.removeEventListener('keydown', onKey)
         }, [deleteOpen])
+
+        useEffect(() => {
+                if (!showPreview) return
+                function onKey(e: globalThis.KeyboardEvent) {
+                        if (e.key === 'Escape') setShowPreview(false)
+                }
+                window.addEventListener('keydown', onKey)
+                return () => window.removeEventListener('keydown', onKey)
+        }, [showPreview])
 
         async function remove() {
                 setDeleting(true)
@@ -264,6 +269,17 @@ export function AgentSettingsForm({
                                         />
                                 </Field>
 
+                                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
+                                        <Toggle
+                                                label={tf('agentActive')}
+                                                checked={form.active}
+                                                onChange={(v) => set('active', v)}
+                                        />
+                                        <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                                                {tf('agentActiveHint')}
+                                        </p>
+                                </div>
+
                                 <Field label={tw('model')}>
                                         <ModelSelect
                                                 value={form.model}
@@ -275,52 +291,14 @@ export function AgentSettingsForm({
                                                 replyPricesIRR={modelPolicy.replyPricesIRR}
                                         />
                                 </Field>
-                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                        <Field label={tw('language')}>
-                                                <MaterialSelect
-                                                        value={form.language}
-                                                        onValueChange={(value) => set('language', value as 'fa' | 'en')}
-                                                        ariaLabel={tw('language')}
-                                                        options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
-                                                />
-                                        </Field>
-                                        <Field label={`${tw('temperature')}: ${form.temperature.toFixed(1)}`}>
-                                                <div className="w-full">
-                                                        {/* Force LTR so the slider fills left→right (increasing = more fill
-                  = "more intensity"), matching the numeric label. Without this,
-                  the RTL parent reverses the native fill direction, making the
-                  bar feel "backwards". */}
-                                                        <div dir="ltr" className="w-full">
-                                                                <input
-                                                                        type="range"
-                                                                        min={0}
-                                                                        max={2}
-                                                                        step={0.1}
-                                                                        value={form.temperature}
-                                                                        onChange={(e) => set('temperature', Number(e.target.value))}
-                                                                        className="h-2 w-full cursor-pointer appearance-none rounded-full outline-none [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
-                                                                        style={{
-                                                                                background: `linear-gradient(to right, #a855f7 0%, #ec4899 ${(form.temperature / 2) * 100}%, rgba(255,255,255,0.12) ${(form.temperature / 2) * 100}%, rgba(255,255,255,0.12) 100%)`,
-                                                                        }}
-                                                                />
-                                                        </div>
-                                                        <div className="mt-1.5 flex justify-between text-[10px] text-[var(--text-muted)]">
-                                                                <span>{locale === 'fa' ? 'دقیق' : 'Precise'}</span>
-                                                                <span>{locale === 'fa' ? 'خلاقانه' : 'Creative'}</span>
-                                                        </div>
-                                                </div>
-                                        </Field>
-                                        <Field label={tw('maxTokens')}>
-                                                <input
-                                                        type="number"
-                                                        min={1}
-                                                        max={8000}
-                                                        value={form.maxTokens}
-                                                        onChange={(e) => set('maxTokens', Number(e.target.value))}
-                                                        className="input"
-                                                />
-                                        </Field>
-                                </div>
+                                <Field label={tw('language')}>
+                                        <MaterialSelect
+                                                value={form.language}
+                                                onValueChange={(value) => set('language', value as 'fa' | 'en')}
+                                                ariaLabel={tw('language')}
+                                                options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
+                                        />
+                                </Field>
                                 <Field label={tw('welcomeMessage')}>
                                         <input
                                                 value={form.welcomeMessage}
@@ -350,7 +328,7 @@ export function AgentSettingsForm({
                                         </div>
                                         <button
                                                 type="button"
-                                                onClick={() => setShowPreview((v) => !v)}
+                                                onClick={() => setShowPreview(true)}
                                                 className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
                                         >
                                                 <Eye className="h-3.5 w-3.5" />
@@ -431,17 +409,6 @@ export function AgentSettingsForm({
                                         t={tf}
                                 />
 
-                                {/* Live preview */}
-                                {showPreview && (
-                                        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
-                                                <p className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                                                        {tf('assembledPrompt')}
-                                                </p>
-                                                <pre className="max-h-80 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                                                        {previewPrompt || tf('emptyPrompt')}
-                                                </pre>
-                                        </div>
-                                )}
                         </div>
 
                         {/* ─ CUSTOMER IDENTIFICATION (F3) ──────────────────────────── */}
@@ -477,6 +444,14 @@ export function AgentSettingsForm({
 
                         {/* ─ Handoff ─────────────────────────────────────────────────── */}
                         <div className="spatial-surface space-y-4 rounded-[1.75rem] p-5 sm:p-6">
+                                <div>
+                                        <h3 className="text-base font-medium text-[var(--text-primary)]">
+                                                {tf('handoffTitle')}
+                                        </h3>
+                                        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+                                                {tf('handoffDesc')}
+                                        </p>
+                                </div>
                                 <Toggle
                                         label={tf('handoffEnabled')}
                                         checked={form.handoffEnabled}
@@ -508,12 +483,6 @@ export function AgentSettingsForm({
                                                 </p>
                                         </>
                                 )}
-                                <Toggle
-                                        label={t('active')}
-                                        checked={form.active}
-                                        onChange={(v) => set('active', v)}
-                                />
-
                                 <div className="flex items-center gap-3 pt-2">
                                         <button
                                                 onClick={save}
@@ -556,6 +525,51 @@ export function AgentSettingsForm({
                                         </button>
                                 </div>
                         </div>
+
+                        {typeof document !== 'undefined' && createPortal(
+                                <AnimatePresence>
+                                        {showPreview && (
+                                                <motion.div
+                                                        className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4 backdrop-blur-md"
+                                                        initial={reduceMotion ? false : { opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        onMouseDown={(event) => {
+                                                                if (event.target === event.currentTarget) setShowPreview(false)
+                                                        }}
+                                                >
+                                                        <motion.div
+                                                                role="dialog"
+                                                                aria-modal="true"
+                                                                aria-label={tf('previewPrompt')}
+                                                                className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+                                                                initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 10 }}
+                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                exit={{ opacity: 0, scale: 0.98, y: 6 }}
+                                                        >
+                                                                <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
+                                                                        <div>
+                                                                                <h3 className="text-base font-semibold text-neutral-900">{tf('previewPrompt')}</h3>
+                                                                                <p className="mt-1 text-xs text-neutral-500">{tf('assembledPrompt')}</p>
+                                                                        </div>
+                                                                        <button
+                                                                                type="button"
+                                                                                onClick={() => setShowPreview(false)}
+                                                                                aria-label={tf('close')}
+                                                                                className="grid h-10 w-10 place-items-center rounded-xl text-neutral-500 transition-colors hover:bg-black/5 hover:text-neutral-900"
+                                                                        >
+                                                                                <X className="h-5 w-5" />
+                                                                        </button>
+                                                                </div>
+                                                                <pre dir={form.language === 'fa' ? 'rtl' : 'ltr'} className="overflow-y-auto whitespace-pre-wrap p-5 text-start font-mono text-xs leading-7 text-neutral-700">
+                                                                        {previewPrompt || tf('emptyPrompt')}
+                                                                </pre>
+                                                        </motion.div>
+                                                </motion.div>
+                                        )}
+                                </AnimatePresence>,
+                                document.body,
+                        )}
 
                         {/* Delete confirmation modal — uses the same portal + motion + backdrop-blur
                             pattern as the product/conversation delete dialogs so the visual layering

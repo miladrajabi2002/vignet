@@ -219,8 +219,8 @@ export const DOCS: DocPage[] = [
                                                 en: 'Persona: the system prompt that defines its behaviour',
                                         },
                                         {
-                                                fa: 'پیکربندی: مدل، زبان، خلاقیت و طول پاسخ',
-                                                en: 'Config: model, language, creativity and response length',
+                                                fa: 'پیکربندی: مدل، زبان و سبک پاسخ‌گویی',
+                                                en: 'Config: model, language and response style',
                                         },
                                 ],
                         },
@@ -244,12 +244,8 @@ export const DOCS: DocPage[] = [
                                                 en: 'AI mode: Fast, Balanced or Premium; leave it unchanged to use the workspace default',
                                         },
                                         {
-                                                fa: 'خلاقیت (Temperature): مقدار کمتر = پاسخ‌های دقیق‌تر و قابل‌پیش‌بینی‌تر',
-                                                en: 'Creativity (temperature): lower = more precise, predictable answers',
-                                        },
-                                        {
-                                                fa: 'حداکثر طول پاسخ: سقف تعداد توکن‌های هر پاسخ',
-                                                en: 'Max response length: the token ceiling per reply',
+                                                fa: 'خلاقیت و سقف پاسخ به‌صورت بهینه و یکپارچه توسط ویجنت مدیریت می‌شود',
+                                                en: 'Creativity and reply limits are optimized and managed consistently by Vigent',
                                         },
                                 ],
                         },

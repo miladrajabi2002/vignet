@@ -50,12 +50,16 @@ export function ChatLinkChannel({
         appUrl,
         initialLink,
         suggestedSlug,
+        customerIdentificationRequired,
+        customerIdentificationMessage,
 }: {
         agentId: string
         agentName: string
         appUrl: string
         initialLink: LinkState | null
         suggestedSlug: string
+        customerIdentificationRequired: boolean
+        customerIdentificationMessage: string | null
 }) {
         const t = useTranslations('chatLink')
         const tc = useTranslations('channels')
@@ -85,6 +89,15 @@ export function ChatLinkChannel({
         function patch(p: Partial<ChatLinkSettings>) {
                 setSettings((s) => ({ ...s, ...p }))
                 setSaved(false)
+        }
+
+        const effectiveSettings: ChatLinkSettings = {
+                ...settings,
+                leadCapture: customerIdentificationRequired || settings.leadCapture,
+                leadCaptureRequired: customerIdentificationRequired || settings.leadCaptureRequired,
+                leadCaptureMessage: customerIdentificationRequired && customerIdentificationMessage?.trim()
+                        ? customerIdentificationMessage.trim().slice(0, 200)
+                        : settings.leadCaptureMessage,
         }
 
         const save = useCallback(async () => {
@@ -490,28 +503,31 @@ export function ChatLinkChannel({
 
                                                         <Toggle
                                                                 label={t('leadCapture')}
-                                                                hint={t('leadCaptureHint')}
-                                                                checked={settings.leadCapture}
+                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureHint')}
+                                                                checked={effectiveSettings.leadCapture}
                                                                 onChange={(v) => patch({ leadCapture: v })}
+                                                                disabled={customerIdentificationRequired}
                                                         />
-                                                        {settings.leadCapture && (
+                                                        {effectiveSettings.leadCapture && (
                                                                 <>
                                                                         <Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
                                                                                 <textarea
                                                                                         rows={2}
-                                                                                        value={settings.leadCaptureMessage ?? ''}
+                                                                                        value={effectiveSettings.leadCaptureMessage ?? ''}
                                                                                         placeholder={t('leadCaptureMessagePh')}
+                                                                                        disabled={customerIdentificationRequired}
                                                                                         onChange={(e) =>
                                                                                                 patch({ leadCaptureMessage: e.target.value || null })
                                                                                         }
-                                                                                        className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                        className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none disabled:cursor-not-allowed disabled:opacity-70"
                                                                                 />
                                                                         </Field>
                                                                         <Toggle
                                                                                 label={t('leadCaptureRequired')}
-                                                                                hint={t('leadCaptureRequiredHint')}
-                                                                                checked={settings.leadCaptureRequired}
+                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureRequiredHint')}
+                                                                                checked={effectiveSettings.leadCaptureRequired}
                                                                                 onChange={(v) => patch({ leadCaptureRequired: v })}
+                                                                                disabled={customerIdentificationRequired}
                                                                         />
                                                                 </>
                                                         )}
@@ -548,7 +564,7 @@ export function ChatLinkChannel({
                                                 </span>
                                                 <ChatLinkPreview
                                                         name={settings.displayName || agentName}
-                                                        settings={settings}
+                                                        settings={effectiveSettings}
                                                 />
                                         </div>
                                 </div>
@@ -731,17 +747,20 @@ function Toggle({
         hint,
         checked,
         onChange,
+        disabled = false,
 }: {
         label: string
         hint: string
         checked: boolean
         onChange: (v: boolean) => void
+        disabled?: boolean
 }) {
         return (
                 <button
                         type="button"
                         onClick={() => onChange(!checked)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start"
+                        disabled={disabled}
+                        className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start disabled:cursor-not-allowed disabled:opacity-70"
                 >
                         <div className="flex-1">
                                 <div className="text-sm text-[var(--text-primary)]">{label}</div>

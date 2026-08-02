@@ -176,7 +176,6 @@ echo "==> Applying checked-in database migrations"
 npx prisma migrate deploy
 
 echo "==> Restarting services"
-pm2 delete vignet-studio >/dev/null 2>&1 || true
 
 # PM2 restart/startOrRestart does not replace pm_exec_path for an existing app.
 # Detect the one-time migration from the old npm wrappers before stopping them.
@@ -188,6 +187,7 @@ fi
 # Stop port-owning services before changing their PM2 command. This also
 # self-heals the orphaned Next.js/npm state created by older deployments.
 stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
+stop_service_and_release_port "vignet-studio" 5555 "${APP_ROOT}"
 stop_service_and_release_port \
   "vignet-whatsapp-bridge" \
   3040 \
@@ -195,7 +195,7 @@ stop_service_and_release_port \
 
 if [ "${recreate_pm2_apps}" -eq 1 ]; then
   echo "==> Re-registering PM2 services with direct executables"
-  pm2 delete vignet-web vignet-worker vignet-whatsapp-bridge >/dev/null 2>&1 || true
+  pm2 delete vignet-web vignet-worker vignet-studio vignet-whatsapp-bridge >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.js
 else
   pm2 restart deploy/ecosystem.config.js --update-env
@@ -237,6 +237,28 @@ if [ "${healthy}" -ne 1 ]; then
   echo "ERROR: deployment restarted but the PM2-owned web process did not become stable" >&2
   pm2 status
   pm2 logs vignet-web --lines 50 --nostream || true
+  exit 1
+fi
+
+echo "==> Waiting for Prisma Studio health"
+studio_healthy=0
+for _ in $(seq 1 30); do
+  snapshot="$(pm2_process_snapshot vignet-studio || true)"
+  status="${snapshot%%:*}"
+  pid="${snapshot##*:}"
+
+  if [ "${status}" = "online" ] \
+    && [ "${pid}" -gt 0 ] 2>/dev/null \
+    && curl --fail --silent --show-error --max-time 3 http://127.0.0.1:5555/ >/dev/null; then
+    studio_healthy=1
+    break
+  fi
+  sleep 2
+done
+
+if [ "${studio_healthy}" -ne 1 ]; then
+  echo "ERROR: Prisma Studio did not become healthy on loopback port 5555" >&2
+  pm2 logs vignet-studio --lines 50 --nostream || true
   exit 1
 fi
 

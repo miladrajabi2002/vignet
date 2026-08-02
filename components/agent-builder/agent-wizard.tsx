@@ -46,7 +46,6 @@ interface FormState {
         fallbackMessage: string
         model: string
         language: 'fa' | 'en'
-        maxTokens: number
         handoffEnabled: boolean
         handoffMessage: string
         handoffKeywords: string
@@ -258,7 +257,6 @@ export function AgentWizard({
                 fallbackMessage: '',
                 model: '',
                 language: 'fa',
-                maxTokens: 1000,
                 handoffEnabled: true,
                 handoffMessage: '',
                 handoffKeywords: locale === 'fa' ? 'اپراتور، انسان، شکایت' : 'operator, human, complaint',
@@ -338,7 +336,6 @@ export function AgentWizard({
                                         fallbackMessage: form.fallbackMessage || undefined,
                                         model: form.model || undefined,
                                         language: form.language,
-                                        maxTokens: form.maxTokens,
                                         handoffEnabled: form.handoffEnabled,
                                         handoffMessage: form.handoffMessage || undefined,
                                         handoffKeywords: form.handoffKeywords
@@ -679,7 +676,10 @@ export function AgentWizard({
                                                                                 </div>
                                                                         </div>
                                                                         <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                                                                                <span>{locale === 'fa' ? 'تحویل به اپراتور فعال باشد' : 'Enable human handoff'}</span>
+                                                                                <span>
+                                                                                        <span className="block">{locale === 'fa' ? 'انتقال خودکار در موقعیت‌های پیشنهادی' : 'Proactive human handoff'}</span>
+                                                                                        <span className="mt-0.5 block text-[10px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'برای اصطکاک، مذاکره یا طولانی‌شدن گفتگو؛ درخواست مستقیم و موارد پرخطر همیشه منتقل می‌شوند' : 'For friction, negotiation, or long chats; direct requests and high-risk cases always transfer'}</span>
+                                                                                </span>
                                                                                 <input type="checkbox" checked={form.handoffEnabled} onChange={(e) => set('handoffEnabled', e.target.checked)} className="h-4 w-4 accent-violet-500" />
                                                                         </label>
                                                                         {form.handoffEnabled && (
@@ -689,10 +689,13 @@ export function AgentWizard({
                                                                                 </div>
                                                                         )}
                                                                         <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                                                                                <span>{locale === 'fa' ? 'برای پیگیری، اطلاعات مشتری گرفته شود' : 'Collect customer details for follow-up'}</span>
+                                                                                <span>
+                                                                                        <span className="block">{locale === 'fa' ? 'نام و شماره موبایل قبل از چت اجباری باشد' : 'Require name and mobile before chat'}</span>
+                                                                                        <span className="mt-0.5 block text-[10px] leading-4 text-[var(--text-muted)]">{locale === 'fa' ? 'در ویجت وب و چت‌لینک یک فرم یکپارچه نمایش داده می‌شود' : 'Shows one consistent form in the web widget and chat link'}</span>
+                                                                                </span>
                                                                                 <input type="checkbox" checked={form.requireCustomerInfo} onChange={(e) => set('requireCustomerInfo', e.target.checked)} className="h-4 w-4 accent-violet-500" />
                                                                         </label>
-                                                                        {form.requireCustomerInfo && <div className="mt-3"><Field label={locale === 'fa' ? 'نحوه درخواست اطلاعات' : 'Information request policy'}><textarea value={form.customerInfoPrompt} onChange={(e) => set('customerInfoPrompt', e.target.value)} rows={3} className="input resize-none" /></Field></div>}
+                                                                        {form.requireCustomerInfo && <div className="mt-3"><Field label={locale === 'fa' ? 'متن معرفی فرم (اختیاری)' : 'Pre-chat form message (optional)'}><textarea value={form.customerInfoPrompt} onChange={(e) => set('customerInfoPrompt', e.target.value)} rows={3} placeholder={locale === 'fa' ? 'برای اینکه بهتر راهنمایی‌تان کنیم، لطفاً نام و شماره موبایل خود را وارد کنید.' : 'To help you better, please enter your name and mobile number.'} className="input resize-none" /></Field></div>}
                                                                 </section>
 
                                                                 <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
@@ -747,16 +750,6 @@ export function AgentWizard({
                                                                                 options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]}
                                                                         />
                                                                 </Field>
-                                                                <Field label={t('maxTokens')}>
-                                                                        <input
-                                                                                type="number"
-                                                                                min={1}
-                                                                                max={1200}
-                                                                                value={form.maxTokens}
-                                                                                onChange={(e) => set('maxTokens', Number(e.target.value))}
-                                                                                className="input"
-                                                                        />
-                                                        </Field>
                                                 </>
                                         )}
 
@@ -899,7 +892,7 @@ function ReviewCard({
                                 </div>
                                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
                                         <p className="text-[11px] text-[var(--text-muted)]">{isFa ? 'پیکربندی' : 'Configuration'}</p>
-                                        <dl className="mt-2 space-y-2 text-xs"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'نقش' : 'Role'}</dt><dd className="text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'مدل' : 'Model'}</dt><dd className="text-[var(--text-primary)]">{form.model || (isFa ? 'پیش‌فرض امن' : 'Safe default')}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'تحویل اپراتور' : 'Handoff'}</dt><dd className="text-[var(--text-primary)]">{form.handoffEnabled ? (isFa ? 'فعال' : 'Enabled') : (isFa ? 'خاموش' : 'Off')}</dd></div></dl>
+                                        <dl className="mt-2 space-y-2 text-xs"><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'نقش' : 'Role'}</dt><dd className="text-[var(--text-primary)]">{isFa ? role.nameFa : role.nameEn}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'مدل' : 'Model'}</dt><dd className="text-[var(--text-primary)]">{form.model || (isFa ? 'پیش‌فرض امن' : 'Safe default')}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--text-muted)]">{isFa ? 'انتقال پیشنهادی' : 'Proactive handoff'}</dt><dd className="text-[var(--text-primary)]">{form.handoffEnabled ? (isFa ? 'فعال' : 'Enabled') : (isFa ? 'خاموش' : 'Off')}</dd></div></dl>
                                 </div>
                         </div>
                         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">

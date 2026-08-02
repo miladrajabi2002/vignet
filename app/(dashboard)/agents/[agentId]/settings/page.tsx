@@ -45,8 +45,6 @@ export default async function AgentSettingsPage(
           description: agent.description,
           systemPrompt: agent.systemPrompt,
           model: agent.model,
-          temperature: agent.temperature,
-          maxTokens: agent.maxTokens,
           language: agent.language,
           welcomeMessage: agent.welcomeMessage,
           fallbackMessage: agent.fallbackMessage,

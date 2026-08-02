@@ -58,11 +58,11 @@ npm run worker
 
 3. **بک‌آپ شبانه‌ی دیتابیس** به‌صورت خودکار توسط `setup-server.sh` روی cron تنظیم می‌شود (هر شب ساعت ۳، اسکریپت [`deploy/backup.sh`](deploy/backup.sh)).
 
-4. **دسترسی وب به دیتابیس (اختیاری)** — اگر می‌خواهی مثل phpMyAdmin از مرورگر به دیتابیس production دسترسی داشته باشی، یک‌بار روی سرور:
+4. **Prisma Studio امن برای مالک پلتفرم** — بعد از اولین deploy، یک‌بار روی سرور اجرا کنید:
    ```bash
    bash deploy/setup-db-studio.sh
    ```
-   یک رمز جدا (مستقل از پنل ادمین) می‌سازد و اسنیپت nginx لازم را چاپ می‌کند. لینک نتیجه از داخل پنل ادمین («دیتابیس (Studio)») در دسترس است. این مرحله اختیاری است و در راه‌اندازی اصلی نقشی ندارد.
+   Studio فقط روی loopback اجرا می‌شود و Nginx آن را روی `https://YOUR_DOMAIN:8443` ارائه می‌کند. دسترسی با همان session امن `/admin` کنترل می‌شود؛ رمز دوم لازم نیست. با کلیک روی «دیتابیس Prisma Studio» در پنل، Studio در تب جدید باز می‌شود. اگر گواهی TLS مسیر سفارشی دارد، متغیرهای `PRISMA_STUDIO_TLS_CERT_PATH` و `PRISMA_STUDIO_TLS_KEY_PATH` را در `.env` تنظیم کنید.
 
 پیامک OTP از طریق پروکسی PHP روی هاست ایرانی ارسال می‌شود چون IPPanel فقط IP ایران را می‌پذیرد — جزئیات در [`deploy/ippanel-proxy/`](deploy/ippanel-proxy/) و کامنت‌های `.env.example`.
 

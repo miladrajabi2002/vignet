@@ -32,12 +32,14 @@ interface CachedWidgetPayload {
 		language: string
 		avatar: string | null
 		active: boolean
+		requireCustomerInfo: boolean
+		customerInfoPrompt: string | null
 	}
 	settings: WidgetSettings
 }
 
 function widgetCacheKey(agentId: string): string {
-	return `widget:cfg:${agentId}`
+	return `widget:cfg:v2:${agentId}`
 }
 
 /**
@@ -73,6 +75,8 @@ export async function getCachedWidgetConfig(
 			language: true,
 			avatar: true,
 			active: true,
+			requireCustomerInfo: true,
+			customerInfoPrompt: true,
 			channels: {
 				where: { type: 'WEB_WIDGET' },
 				select: { config: true },

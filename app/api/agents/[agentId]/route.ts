@@ -5,6 +5,11 @@ import { prisma } from '@/lib/prisma'
 import { agentUpdateSchema } from '@/lib/validations/agent'
 import { syncOnboarding } from '@/lib/onboarding'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import { invalidateWidgetConfig } from '@/lib/widget/cache'
+import {
+  AGENT_MAX_RESPONSE_TOKENS,
+  AGENT_RESPONSE_TEMPERATURE,
+} from '@/lib/ai/agent-runtime'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -68,6 +73,10 @@ export async function PATCH(req: Request, props: Params) {
   // Prisma requires JsonNull (not JS null) when explicitly clearing a nullable
   // JSON column. Convert null/undefined promptConfig to the proper sentinel.
   const data: Record<string, unknown> = { ...parsed.data }
+  // Generation controls are platform-managed and deliberately absent from the
+  // public form/API contract. Also normalize legacy rows on every edit.
+  data.temperature = AGENT_RESPONSE_TEMPERATURE
+  data.maxTokens = AGENT_MAX_RESPONSE_TOKENS
   if (data.promptConfig === null) {
     data.promptConfig = Prisma.JsonNull
   }
@@ -76,6 +85,7 @@ export async function PATCH(req: Request, props: Params) {
     where: { id: params.agentId },
     data: data as Prisma.Args<typeof prisma.agent, 'update'>['data'],
   })
+  await invalidateWidgetConfig(agent.id)
   return NextResponse.json({ agent })
 }
 

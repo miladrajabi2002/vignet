@@ -3,6 +3,10 @@ import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import {
+  AGENT_MAX_RESPONSE_TOKENS,
+  AGENT_RESPONSE_TEMPERATURE,
+} from '@/lib/ai/agent-runtime'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -15,8 +19,6 @@ async function ownAgent(workspaceId: string, agentId: string) {
       promptConfig: true,
       roleTemplate: true,
       model: true,
-      temperature: true,
-      maxTokens: true,
       language: true,
     },
   })
@@ -69,8 +71,8 @@ export async function POST(req: Request, props: Params) {
       promptConfig: agent.promptConfig === null ? Prisma.JsonNull : agent.promptConfig,
       roleTemplate: agent.roleTemplate,
       model: agent.model,
-      temperature: agent.temperature,
-      maxTokens: agent.maxTokens,
+      temperature: AGENT_RESPONSE_TEMPERATURE,
+      maxTokens: AGENT_MAX_RESPONSE_TOKENS,
       note: parsed.data.note ?? null,
     },
     select: { id: true, label: true, createdAt: true },

@@ -6,6 +6,10 @@ import { syncOnboarding } from '@/lib/onboarding'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
+import {
+  AGENT_MAX_RESPONSE_TOKENS,
+  AGENT_RESPONSE_TEMPERATURE,
+} from '@/lib/ai/agent-runtime'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -60,8 +64,8 @@ export async function POST(req: Request) {
       description: data.description,
       systemPrompt: data.systemPrompt,
       model: data.model,
-      temperature: data.temperature,
-      maxTokens: data.maxTokens,
+      temperature: AGENT_RESPONSE_TEMPERATURE,
+      maxTokens: AGENT_MAX_RESPONSE_TOKENS,
       language: data.language ?? 'fa',
       voiceEnabled: data.voiceEnabled ?? false,
       ttsVoice: data.ttsVoice,

@@ -305,8 +305,6 @@
                         "model": "AI model",
                         "modelHint": "Leave blank to use the workspace default model",
                         "language": "Language",
-                        "temperature": "Creativity (temperature)",
-                        "maxTokens": "Max response length",
                         "successTitle": "Your agent is ready!",
                         "successProducts": "{{count}} products were automatically added to the agent",
                         "successNoProducts": "No products added yet — you can add them later",
@@ -332,7 +330,11 @@
                         "deleteError": "The agent could not be deleted. Please try again.",
                         "cancel": "Cancel",
                         "close": "Close",
-                        "handoffEnabled": "Hand off to a human operator",
+                        "agentActive": "Agent is active and can reply",
+                        "agentActiveHint": "This controls the whole agent and all of its channels. It is separate from human handoff.",
+                        "handoffEnabled": "Proactive handoff in suggested situations",
+                        "handoffTitle": "Human operator handoff",
+                        "handoffDesc": "Direct customer requests, high-risk or distressed cases, and unanswered questions always transfer. This option only controls proactive handoff for friction, negotiation, or long chats, and is separate from the agent's active status.",
                         "handoffMessage": "Handoff message",
                         "handoffMessagePlaceholder": "e.g. Connecting you to a human agent, please wait...",
                         "handoffKeywords": "Handoff trigger keywords",
@@ -376,11 +378,11 @@
                         "qaAnswerPlaceholder": "Ideal agent answer...",
                         "qaAdd": "Add example",
                         "customerIdentificationTitle": "Customer identification",
-                        "customerIdentificationDesc": "Ask for the customer's name and phone before answering substantive questions. Recommended for web widget; messenger channels already have identities.",
-                        "requireCustomerInfo": "Require customer identification before substantive answers",
-                        "customerInfoPrompt": "Custom identification instruction (optional)",
-                        "customerInfoPromptPlaceholder": "e.g. First ask the customer's name and phone, then go into details...",
-                        "customerInfoPromptHint": "If left empty, the default instruction is used."
+                        "customerIdentificationDesc": "When enabled, full name and mobile are required before chat starts in both the web widget and chat link, and the visitor is saved to CRM.",
+                        "requireCustomerInfo": "Require full name and mobile before chat",
+                        "customerInfoPrompt": "Pre-chat introduction and request (optional)",
+                        "customerInfoPromptPlaceholder": "e.g. To help you better, please enter your name and mobile number.",
+                        "customerInfoPromptHint": "This appears in the pre-chat form. A polished default is used when left empty."
                 },
                 "naturalConversation": {
                         "title": "Natural conversation style",
@@ -518,6 +520,7 @@
                 "autoGreetDelayLabel": "Teaser delay",
                 "leadCaptureLabel": "Pre-chat form (name & phone)",
                 "leadCaptureHint": "The assistant introduces itself and asks for the visitor's name and mobile number before the chat starts; the visitor is saved to your CRM automatically.",
+                "customerIdentificationManaged": "Enabled in agent settings; name and mobile are required on this channel.",
                 "leadCaptureMessage": "Intro & request message",
                 "leadCaptureMessagePh": "e.g. Hi! I'm the AI assistant here. Please introduce yourself to get started.",
                 "connect": "Connect",
@@ -1513,7 +1516,8 @@
                 "livePreview": "Live preview",
                 "views": "{count} views",
                 "leadCaptureRequired": "Make the lead form mandatory",
-                "leadCaptureRequiredHint": "When on, the \"skip\" button is hidden and the visitor must fill the form (name + phone) to start chatting. When off, they can skip and the agent will try to extract name/phone from the conversation itself."
+                "leadCaptureRequiredHint": "When on, the \"skip\" button is hidden and the visitor must fill the form (name + phone) to start chatting. When off, they can skip and the agent will try to extract name/phone from the conversation itself.",
+                "customerIdentificationManaged": "Enabled in agent settings; name and mobile are required on the chat link."
         },
         "instagram": {
                 "types": {

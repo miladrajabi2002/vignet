@@ -109,8 +109,6 @@ export const agentCreateSchema = z.object({
     .optional()
     .default('تو یک دستیار هوشمند و مفید برای این کسب‌وکار هستی.'),
   model: z.enum(MODEL_ALIASES).nullable().optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(1).max(1200).optional(),
   language: z.enum(['fa', 'en']).optional(),
   voiceEnabled: z.boolean().optional(),
   ttsVoice: z.string().max(40).optional(),
@@ -124,7 +122,7 @@ export const agentCreateSchema = z.object({
   roleTemplate: z.enum(roleTemplateKeys).optional(),
   // ─ F3: customer identification
   requireCustomerInfo: z.boolean().optional(),
-  customerInfoPrompt: z.string().max(1000).optional(),
+  customerInfoPrompt: z.string().max(1000).nullable().optional(),
   productAccessEnabled: z.boolean().optional(),
   orderTrackingEnabled: z.boolean().optional(),
 })

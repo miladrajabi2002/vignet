@@ -21,7 +21,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
     where: { ...ADMIN_VISIBLE_RELATED_WHERE, id: agentId },
     select: {
       id: true, name: true, description: true, active: true, model: true, language: true,
-      temperature: true, maxTokens: true, handoffEnabled: true, updatedAt: true,
+      handoffEnabled: true, updatedAt: true,
       workspace: { select: { name: true, plan: true } },
       channels: { select: { id: true, type: true, active: true, lastInboundAt: true } },
       knowledgeBases: { select: { id: true, name: true, status: true, updatedAt: true } },
@@ -62,7 +62,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="relative grid h-16 w-16 place-items-center rounded-3xl border border-white/15 bg-white/10"><Bot className="h-8 w-8" /><span className="absolute inset-0 rounded-3xl border border-white/10 motion-safe:animate-ping" /></div>
           <div className="flex-1"><div className="flex items-center gap-2"><h2 className="text-xl font-black">{agent.name}</h2><span className="rounded-full border border-white/20 px-2 py-1 text-[10px]">{agent.active ? 'فعال' : 'غیرفعال'}</span></div><p className="mt-2 max-w-2xl text-sm leading-7 text-white/60">{agent.description || 'توضیحی برای این ایجنت ثبت نشده است.'}</p></div>
-          <div className="grid grid-cols-2 gap-2 text-xs text-white/65"><span>مدل: {agent.model || 'پیش‌فرض'}</span><span>زبان: {agent.language}</span><span>دمـا: {fa(agent.temperature)}</span><span>حد پاسخ: {fa(agent.maxTokens)}</span></div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-white/65"><span>مدل: {agent.model || 'پیش‌فرض'}</span><span>زبان: {agent.language}</span></div>
         </div>
       </div>
 

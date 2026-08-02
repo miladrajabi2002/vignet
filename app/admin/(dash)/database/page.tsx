@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Database, LockKeyhole, RefreshCw } from 'lucide-react'
+import { Database, ExternalLink, LockKeyhole, RefreshCw } from 'lucide-react'
 import { DATABASE_MODELS, readDatabaseModel } from '@/lib/admin/database-explorer'
 import { cn } from '@/lib/utils'
 import { Badge, EmptyState, PageHeader, fa } from '../ui'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export default async function AdminDatabasePage({
   searchParams,
 }: {
-  searchParams: Promise<{ model?: string; page?: string }>
+  searchParams: Promise<{ model?: string; page?: string; studio?: string }>
 }) {
   const params = await searchParams
   const currentPage = Math.max(1, Number(params.page) || 1)
@@ -31,8 +31,26 @@ export default async function AdminDatabasePage({
         title="دیتابیس Prisma"
         subtitle="مرور مستقیم و فقط‌خواندنی داده‌های PostgreSQL از طریق Prisma؛ فیلدهای حساس به‌صورت خودکار مخفی می‌شوند."
         icon={Database}
-        action={result ? <Badge tone="success">متصل · {result.database}</Badge> : <Badge tone="danger">قطع</Badge>}
+        action={(
+          <>
+            {result ? <Badge tone="success">متصل · {result.database}</Badge> : <Badge tone="danger">قطع</Badge>}
+            <Link
+              href="/admin/database/studio"
+              target="_blank"
+              rel="noreferrer"
+              className="admin-toolbar-button bg-black text-white hover:bg-zinc-800 hover:text-white"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> بازکردن Prisma Studio
+            </Link>
+          </>
+        )}
       />
+
+      {params.studio === 'unavailable' && (
+        <div className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
+          آدرس امن Prisma Studio تنظیم نشده است. روی سرور یک‌بار دستور <code dir="ltr">bash deploy/setup-db-studio.sh</code> را اجرا کنید.
+        </div>
+      )}
 
       <div className="grid min-h-[36rem] gap-4 lg:grid-cols-[13rem_minmax(0,1fr)]">
         <aside className="spatial-surface overflow-hidden rounded-[1.5rem] p-2.5">

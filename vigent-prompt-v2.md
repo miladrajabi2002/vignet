@@ -340,8 +340,8 @@ model Agent {
   description     String?
   systemPrompt    String      @db.Text
   model           String?
-  temperature     Float       @default(0.7)
-  maxTokens       Int         @default(1000)
+  temperature     Float       @default(0.55)
+  maxTokens       Int         @default(600)
   language        String      @default("fa")
   voiceEnabled    Boolean     @default(false)
   ttsVoice        String      @default("alloy")

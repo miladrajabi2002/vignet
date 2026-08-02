@@ -11,7 +11,7 @@
  *      the conversation is marked customerInfoState='pending'.
  *   2. While 'pending', an extra system instruction is injected telling the LLM
  *      to first politely ask for name + phone, and to not answer substantive
- *      questions until it has at least a name.
+ *      questions until both required fields are available.
  *   3. A lightweight extractor scans each incoming user message for an Iranian
  *      phone pattern + a likely-name; when found, the contact row is updated
  *      and the conversation is marked 'collected'.
@@ -28,6 +28,10 @@ import { applyContactIdentity } from '@/lib/crm/contact-identity'
 export interface ExtractedIdentity {
 	name: string | null
 	phone: string | null
+}
+
+export function hasCompleteCustomerIdentity(identity: ExtractedIdentity): boolean {
+	return Boolean(identity.name?.trim() && identity.phone?.trim())
 }
 
 // ── Phone extraction ──────────────────────────────────────────────
@@ -221,12 +225,9 @@ function extractEnglishName(text: string): string | null {
 
 /**
  * Persist extracted identity onto the contact + flip the conversation state to
- * 'collected' when we have at least a name OR a phone. Fire-and-forget safe.
- *
- * Note: we now flip to 'collected' as soon as we have EITHER a name OR a phone
- * (previously required a name). This prevents the agent from re-asking for
- * info when the user has already provided their phone, and lets the smart
- * extractor do its job even when only one field is captured.
+ * 'collected' only after the resulting CRM contact has BOTH name and phone.
+ * The two fields may arrive in separate messages, so completion is checked on
+ * the merged contact rather than only on the current message.
  */
 export async function applyExtractedIdentity(params: {
 	workspaceId: string
@@ -245,8 +246,15 @@ export async function applyExtractedIdentity(params: {
 		phone: extracted.phone,
 	})
 
-	// Mark conversation as collected once we have a name OR a phone.
-	if (extracted.name || extracted.phone) {
+	const completeIdentity = resolvedContactId
+		? await prisma.contact.findFirst({
+			where: { id: resolvedContactId, workspaceId },
+			select: { name: true, phone: true },
+		})
+		: null
+
+	// The enabled setting is a real gate: both fields are required.
+	if (completeIdentity && hasCompleteCustomerIdentity(completeIdentity)) {
 		const transition = await prisma.conversation
 			.updateMany({
 				where: { id: conversationId, customerInfoState: { not: 'collected' } },
@@ -255,14 +263,11 @@ export async function applyExtractedIdentity(params: {
 			.catch(() => ({ count: 0 }))
 
 		// Emit once, only when the state actually transitions. The activity stores
-		// field names, not the customer's name/phone value.
+		// field names, never the customer's personal values.
 		if (transition.count > 0) {
 			await recordConversationActivity(prisma, conversationId, {
 				kind: 'customer_identified',
-				fields: [
-					...(extracted.name ? (['name'] as const) : []),
-					...(extracted.phone ? (['phone'] as const) : []),
-				],
+				fields: ['name', 'phone'],
 				source: 'agent',
 			}).catch(() => {})
 		}
@@ -286,11 +291,11 @@ export function identificationInstruction(
 	isFa: boolean,
 	customPrompt?: string | null,
 ): string {
-	if (customPrompt && customPrompt.trim()) {
-		return isFa
-			? `\n\n### مهم: شناسایی مشتری (الزامی)\n${customPrompt.trim()}`
-			: `\n\n### Required: customer identification\n${customPrompt.trim()}`
-	}
+	const preferredWording = customPrompt?.trim()
+		? isFa
+			? `\nمتن ترجیحی برای درخواست اطلاعات: «${customPrompt.trim()}»`
+			: `\nPreferred wording for the request: “${customPrompt.trim()}”`
+		: ''
 	return isFa
 		? `\n\n### مهم: شناسایی مشتری (الزامی قبل از پاسخ اصلی)
 در ابتدای گفتگو، قبل از هر چیز، مودبانه نام و شماره تماس مشتری را بپرس.
@@ -299,9 +304,9 @@ export function identificationInstruction(
 • اگر مشتری مستقیم سؤال فنی پرسید، اول تأیید کن که به زودی پاسخ می‌دهی، بعد نامش را بپرس.
 • اگر مشتری همه‌چیز را یک‌جا فرستاد (مثلاً «میلاد رجبی 09123456789»)، نام و شماره را از همان پیام استخراج کن و دوباره نپرس.
 • اگر مشتری فقط شماره داد و نام نگفت، فقط نام را بپرس («ممنون! اسم شما چیه؟»). اگر فقط نام داد، فقط شماره را بپرس.
-• تا وقتی حداقل نام را نداری، وارد بحث جزئیات محصول/قیمت نشو.
+• تا وقتی هم نام و هم شماره معتبر را نداری، وارد بحث جزئیات محصول/قیمت نشو.
 • وقتی نام + شماره را گرفتی، تشکر کن و بعد کامل پاسخ بده.
-• اگر مشتری از دادن شماره امتناع کرد، فقط نام کافی است — اصرار نکن.`
+• اگر مشتری یکی از موارد را وارد نکرد، کوتاه و محترمانه فقط همان مورد ناقص را دوباره درخواست کن.${preferredWording}`
 		: `\n\n### Required: customer identification (before substantive answers)
 At the very start of the conversation, politely ask for the customer's name and phone.
 Rules:
@@ -309,7 +314,7 @@ Rules:
 • If they ask a technical question right away, acknowledge you'll answer, then ask their name.
 • If they send everything at once (e.g. "John Doe 09123456789"), extract the name and phone from that message — do not ask again.
 • If they gave only a phone, ask only for the name ("Thanks! What's your name?"). If they gave only a name, ask only for the phone.
-• Don't dive into product/price details until you have at least their name.
+• Don't dive into product/price details until you have both a valid name and phone.
 • Once you have name + phone, thank them and answer fully.
-• If they refuse the phone, name alone is enough — don't push.`
+• If one field is missing, briefly and politely ask only for that missing field again.${preferredWording}`
 }

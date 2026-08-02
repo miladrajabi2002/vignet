@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { invalidateWidgetConfig } from '@/lib/widget/cache'
+import {
+  AGENT_MAX_RESPONSE_TOKENS,
+  AGENT_RESPONSE_TEMPERATURE,
+} from '@/lib/ai/agent-runtime'
 
 type Params = { params: Promise<{ agentId: string; versionId: string }> }
 
@@ -27,8 +32,6 @@ export async function POST(_req: Request, props: Params) {
       promptConfig: true,
       roleTemplate: true,
       model: true,
-      temperature: true,
-      maxTokens: true,
     },
   })
   if (!version) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
@@ -40,10 +43,11 @@ export async function POST(_req: Request, props: Params) {
       promptConfig: version.promptConfig === null ? Prisma.JsonNull : version.promptConfig,
       roleTemplate: version.roleTemplate,
       model: version.model,
-      temperature: version.temperature,
-      maxTokens: version.maxTokens,
+      temperature: AGENT_RESPONSE_TEMPERATURE,
+      maxTokens: AGENT_MAX_RESPONSE_TOKENS,
     },
   })
+  await invalidateWidgetConfig(params.agentId)
 
   return NextResponse.json({ ok: true })
 }

@@ -48,6 +48,8 @@ export function WebWidgetChannel({
         enabled,
         channelId,
         config,
+        customerIdentificationRequired,
+        customerIdentificationMessage,
 }: {
         agentId: string
         agentName: string
@@ -55,6 +57,8 @@ export function WebWidgetChannel({
         enabled: boolean
         channelId: string | null
         config: Record<string, unknown> | null
+        customerIdentificationRequired: boolean
+        customerIdentificationMessage: string | null
 }) {
         const t = useTranslations('channels')
         const locale = useLocale()
@@ -152,8 +156,15 @@ export function WebWidgetChannel({
                 setTimeout(() => setCopied(false), 2000)
         }
 
+        const effectiveLeadCapture = customerIdentificationRequired || settings.leadCapture
+        const effectiveLeadCaptureRequired = customerIdentificationRequired || settings.leadCaptureRequired
         const liveSettings: WidgetSettings = {
                 ...settings,
+                leadCapture: effectiveLeadCapture,
+                leadCaptureRequired: effectiveLeadCaptureRequired,
+                leadCaptureMessage: customerIdentificationRequired && customerIdentificationMessage?.trim()
+                        ? customerIdentificationMessage.trim().slice(0, 200)
+                        : settings.leadCaptureMessage,
                 allowedDomains: normalizeDomains(domainsText),
         }
         const unprotected = liveSettings.allowedDomains.length === 0
@@ -562,28 +573,31 @@ export function WebWidgetChannel({
                                                                         {/* Lead capture */}
                                                                         <Toggle
                                                                                 label={t('leadCaptureLabel')}
-                                                                                hint={t('leadCaptureHint')}
-                                                                                checked={settings.leadCapture}
+                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureHint')}
+                                                                                checked={effectiveLeadCapture}
                                                                                 onChange={(v) => patch({ leadCapture: v })}
+                                                                                disabled={customerIdentificationRequired}
                                                                         />
-                                                                        {settings.leadCapture && (
+                                                                        {effectiveLeadCapture && (
                                                                                 <>
                                                                                         <Field label={`${t('leadCaptureMessage')} · ${t('optional')}`}>
                                                                                                 <textarea
                                                                                                 rows={2}
-                                                                                                value={settings.leadCaptureMessage ?? ''}
+                                                                                                value={liveSettings.leadCaptureMessage ?? ''}
                                                                                                 placeholder={t('leadCaptureMessagePh')}
+                                                                                                disabled={customerIdentificationRequired}
                                                                                                 onChange={(e) =>
                                                                                                         patch({ leadCaptureMessage: e.target.value || null })
                                                                                                 }
-                                                                                                className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none"
+                                                                                                className="w-full resize-none rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none disabled:cursor-not-allowed disabled:opacity-70"
                                                                                                 />
                                                                                         </Field>
                                                                                         <Toggle
                                                                                                 label={t('leadCaptureRequiredLabel')}
-                                                                                                hint={t('leadCaptureRequiredHint')}
-                                                                                                checked={settings.leadCaptureRequired}
+                                                                                                hint={customerIdentificationRequired ? t('customerIdentificationManaged') : t('leadCaptureRequiredHint')}
+                                                                                                checked={effectiveLeadCaptureRequired}
                                                                                                 onChange={(v) => patch({ leadCaptureRequired: v })}
+                                                                                                disabled={customerIdentificationRequired}
                                                                                         />
                                                                                 </>
                                                                         )}
@@ -676,17 +690,20 @@ function Toggle({
         hint,
         checked,
         onChange,
+        disabled = false,
 }: {
         label: string
         hint: string
         checked: boolean
         onChange: (v: boolean) => void
+        disabled?: boolean
 }) {
         return (
                 <button
                         type="button"
                         onClick={() => onChange(!checked)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start"
+                        disabled={disabled}
+                        className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-3 text-start disabled:cursor-not-allowed disabled:opacity-70"
                 >
                         <div className="flex-1">
                                 <div className="text-sm text-[var(--text-primary)]">{label}</div>

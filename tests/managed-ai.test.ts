@@ -25,7 +25,7 @@ describe('managed model policy', () => {
     expect(resolveModelId('fast')).toBe('vendor/safe-fast')
   })
 
-  it('rejects raw model slugs and oversized completions at validation', () => {
+  it('rejects raw model slugs and strips legacy client completion controls', () => {
     const rawModel = agentCreateSchema.safeParse({
       name: 'Support',
       model: 'provider/arbitrary-model',
@@ -36,7 +36,8 @@ describe('managed model policy', () => {
       maxTokens: 8000,
     })
     expect(rawModel.success).toBe(false)
-    expect(oversized.success).toBe(false)
+    expect(oversized.success).toBe(true)
+    if (oversized.success) expect(oversized.data).not.toHaveProperty('maxTokens')
   })
 
   it('uses the configured fixed reply prices', () => {

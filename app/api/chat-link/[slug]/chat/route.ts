@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/ratelimit'
 import { startChat } from '@/lib/ai/chat-engine'
 import { normalizeChatLinkSettings } from '@/lib/chat-link/config'
+import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
+import { toEnglishDigits } from '@/lib/phone'
 import { getClientIp } from '@/lib/security/request-ip'
 import {
         createPublicConversationToken,
@@ -165,6 +167,7 @@ export async function POST(req: Request, props: Params) {
 
         // Only trust the lead fields when the owner actually enabled the form.
         const settings = normalizeChatLinkSettings(link.settings)
+        const identificationPolicy = resolveCustomerIdentificationPolicy(settings, agent)
 
         // ── Server-side lead-capture enforcement (FIRST MESSAGE ONLY) ─────────
         // When the workspace has turned on "require name + phone", the FIRST
@@ -176,13 +179,13 @@ export async function POST(req: Request, props: Params) {
         // LEAD_REQUIRED (which was the bug: message 2+ failed because the
         // client only sends lead fields on the first message).
         if (
-                settings.leadCapture &&
-                settings.leadCaptureRequired &&
+                identificationPolicy.leadCapture &&
+                identificationPolicy.leadCaptureRequired &&
                 !authorizedConversationId
         ) {
                 const vName = (parsed.data.visitorName ?? '').trim()
                 const vPhone = (parsed.data.visitorPhone ?? '').trim()
-                const phoneDigits = vPhone.replace(/\D/g, '')
+                const phoneDigits = toEnglishDigits(vPhone).replace(/\D/g, '')
                 if (vName.length < 2 || phoneDigits.length < 10) {
                         return NextResponse.json({ error: 'LEAD_REQUIRED' }, { status: 400 })
                 }
@@ -199,10 +202,10 @@ export async function POST(req: Request, props: Params) {
                 message: parsed.data.message,
                 conversationId: authorizedConversationId,
                 channel: 'CHAT_LINK',
-                contactName: settings.leadCapture
+                contactName: identificationPolicy.leadCapture
                         ? (parsed.data.visitorName ?? undefined)
                         : undefined,
-                contactPhone: settings.leadCapture
+                contactPhone: identificationPolicy.leadCapture
                         ? (parsed.data.visitorPhone ?? undefined)
                         : undefined,
         })

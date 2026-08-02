@@ -56,6 +56,8 @@ export default async function AgentChannelsPage(
       select: {
         id: true,
         name: true,
+        requireCustomerInfo: true,
+        customerInfoPrompt: true,
         channels: {
           select: { id: true, type: true, config: true, lastInboundAt: true },
         },
@@ -291,6 +293,8 @@ export default async function AgentChannelsPage(
         enabled={!!widget}
         channelId={widget?.id ?? null}
         config={(widget?.config as Record<string, unknown> | null) ?? null}
+        customerIdentificationRequired={agent.requireCustomerInfo}
+        customerIdentificationMessage={agent.customerInfoPrompt}
       />
 
       <ChatLinkChannel
@@ -299,6 +303,8 @@ export default async function AgentChannelsPage(
         appUrl={appUrl}
         initialLink={chatLink}
         suggestedSlug={suggestedSlug}
+        customerIdentificationRequired={agent.requireCustomerInfo}
+        customerIdentificationMessage={agent.customerInfoPrompt}
       />
 
       {messengers.map((m) => {

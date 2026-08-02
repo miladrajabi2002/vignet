@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { corsHeaders, corsOptions } from '@/lib/cors'
 import { getCachedWidgetConfig } from '@/lib/widget/cache'
+import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
 
 type Params = { params: Promise<{ agentId: string }> }
 
@@ -21,6 +22,7 @@ export async function GET(_req: Request, props: Params) {
         }
     // Cache hit returns the same shape as a fresh fetch.
     const { agent, settings } = cached
+    const effectiveSettings = resolveCustomerIdentificationPolicy(settings, agent)
 
     return NextResponse.json(
                 {
@@ -43,9 +45,9 @@ export async function GET(_req: Request, props: Params) {
                         cornerRadius: settings.cornerRadius,
                         autoGreet: settings.autoGreet,
                         autoGreetDelayMs: settings.autoGreetDelayMs,
-                        leadCapture: settings.leadCapture,
-                        leadCaptureRequired: settings.leadCaptureRequired,
-                        leadCaptureMessage: settings.leadCaptureMessage,
+                        leadCapture: effectiveSettings.leadCapture,
+                        leadCaptureRequired: effectiveSettings.leadCaptureRequired,
+                        leadCaptureMessage: effectiveSettings.leadCaptureMessage,
                 },
                 { headers: corsHeaders },
         )

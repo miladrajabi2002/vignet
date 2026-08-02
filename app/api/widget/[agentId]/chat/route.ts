@@ -9,6 +9,8 @@ import {
         isOriginAllowed,
 } from '@/lib/widget/config'
 import { getClientIp } from '@/lib/security/request-ip'
+import { resolveCustomerIdentificationPolicy } from '@/lib/customer-identification-policy'
+import { toEnglishDigits } from '@/lib/phone'
 import {
         createPublicConversationToken,
         verifyPublicConversationToken,
@@ -195,6 +197,7 @@ export async function POST(req: Request, props: Params) {
         // Anti-abuse: if the owner configured an allowlist, only embed-able from those
         // domains. Empty allowlist = open (the dashboard warns it is unprotected).
         const settings = normalizeWidgetSettings(widgetChannel.config)
+        const identificationPolicy = resolveCustomerIdentificationPolicy(settings, agent)
         if (
                 !isOriginAllowed(
                         req.headers.get('origin'),
@@ -218,13 +221,13 @@ export async function POST(req: Request, props: Params) {
         // LEAD_REQUIRED (which was the bug: message 2+ failed because the
         // client only sends lead fields on the first message).
         if (
-                settings.leadCapture &&
-                settings.leadCaptureRequired &&
+                identificationPolicy.leadCapture &&
+                identificationPolicy.leadCaptureRequired &&
                 !authorizedConversationId
         ) {
                 const vName = (parsed.data.visitorName ?? '').trim()
                 const vPhone = (parsed.data.visitorPhone ?? '').trim()
-                const phoneDigits = vPhone.replace(/\D/g, '')
+                const phoneDigits = toEnglishDigits(vPhone).replace(/\D/g, '')
                 if (vName.length < 2 || phoneDigits.length < 10) {
                         return NextResponse.json(
                                 { error: 'LEAD_REQUIRED' },
@@ -244,8 +247,12 @@ export async function POST(req: Request, props: Params) {
                 message: parsed.data.message,
                 conversationId: authorizedConversationId,
                 channel: 'WEB_WIDGET',
-                contactName: parsed.data.visitorName ?? undefined,
-                contactPhone: parsed.data.visitorPhone ?? undefined,
+                contactName: identificationPolicy.leadCapture
+                        ? (parsed.data.visitorName ?? undefined)
+                        : undefined,
+                contactPhone: identificationPolicy.leadCapture
+                        ? (parsed.data.visitorPhone ?? undefined)
+                        : undefined,
         })
 
         if ('error' in result) {

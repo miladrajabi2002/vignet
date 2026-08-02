@@ -47,6 +47,10 @@ import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
 import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products/presentation'
+import {
+        AGENT_MAX_RESPONSE_TOKENS,
+        AGENT_RESPONSE_TEMPERATURE,
+} from '@/lib/ai/agent-runtime'
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
@@ -347,13 +351,12 @@ async function prepareTurn(params: StartChatParams): Promise<
                 resolvedContactName = extracted.name
         }
 
-        // Re-read the (possibly updated) identification state.
-        const freshState = extracted.name || extracted.phone
-                ? 'collected'
-                : (await prisma.conversation.findUnique({
-                          where: { id: conversationId },
-                          select: { customerInfoState: true },
-                  }))?.customerInfoState ?? conversation.customerInfoState
+        // Re-read the authoritative state. Supplying only one field must not
+        // bypass an agent that requires both name and phone.
+        const freshState = (await prisma.conversation.findUnique({
+                where: { id: conversationId },
+                select: { customerInfoState: true },
+        }))?.customerInfoState ?? conversation.customerInfoState
 
         const finalSystemPrompt = buildSystemPrompt({
                 agent,
@@ -795,8 +798,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         contactId,
                                         model,
                                         messages,
-                                        temperature: agent.temperature,
-                                        maxTokens: agent.maxTokens,
+                                        temperature: AGENT_RESPONSE_TEMPERATURE,
+                                        maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                                 })
                                 if (bookingTurn) {
                                         full = bookingTurn.content
@@ -807,8 +810,8 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         for await (const delta of streamChat({
                                                 model,
                                                 messages,
-                                                temperature: agent.temperature,
-                                                maxTokens: agent.maxTokens,
+                                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                                                 onUsage: (u) => {
                                                         usage = u
                                                 },
@@ -1056,8 +1059,8 @@ export async function generateReply(
                         contactId,
                         model,
                         messages,
-                        temperature: agent.temperature,
-                        maxTokens: agent.maxTokens,
+                        temperature: AGENT_RESPONSE_TEMPERATURE,
+                        maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                 })
                 if (bookingTurn) {
                         reply = bookingTurn.content.trim()
@@ -1067,8 +1070,8 @@ export async function generateReply(
                         const result = await chatCompletion({
                                 model,
                                 messages,
-                                temperature: agent.temperature,
-                                maxTokens: agent.maxTokens,
+                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
                         })
                         reply = result.content.trim()
                         usage = result.usage
