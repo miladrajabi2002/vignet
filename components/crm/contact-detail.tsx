@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, Loader2 } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
-import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 
 const STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
 type Stage = (typeof STAGES)[number]
@@ -155,12 +154,6 @@ export function ContactDetailEditor({
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-md text-xs leading-5 text-[var(--text-muted)]">
-          {t('deleteHint')}
-        </p>
-        <ContactDeleteAction contactId={contactId} />
-      </div>
     </div>
   )
 }

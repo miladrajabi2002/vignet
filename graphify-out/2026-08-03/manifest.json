@@ -990,8 +990,8 @@
     "semantic_hash": ""
   },
   "components/agent-builder/agent-wizard.tsx": {
-    "mtime": 1785711719.4734793,
-    "ast_hash": "94c59ebfbe10fa88e552a8aa79491e33",
+    "mtime": 1785712369.0707617,
+    "ast_hash": "c5e9f4223727d8c024bb1ed070da1023",
     "semantic_hash": ""
   },
   "components/agent-builder/learning-center.tsx": {
@@ -1520,8 +1520,8 @@
     "semantic_hash": ""
   },
   "deploy/setup-db-studio.sh": {
-    "mtime": 1785711884.0248876,
-    "ast_hash": "a804b7725e248f5fb2ce987fd729aef2",
+    "mtime": 1785712258.63923,
+    "ast_hash": "401d5268564aecad60bb3f72fa0f00b5",
     "semantic_hash": ""
   },
   "deploy/setup-server.sh": {
@@ -2135,13 +2135,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1785711719.489766,
-    "ast_hash": "a03e34d22df0f5cdf5921f117b520453",
+    "mtime": 1785712369.0863464,
+    "ast_hash": "07edc0b17e0460fcf5ce6a9aa4c79f7e",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1785711719.4734793,
-    "ast_hash": "92f7378fc1a1015e61d3d85cff1cc874",
+    "mtime": 1785712369.0863464,
+    "ast_hash": "4d2b84bfb171545615b3f681323aca55",
     "semantic_hash": ""
   },
   "middleware.ts": {

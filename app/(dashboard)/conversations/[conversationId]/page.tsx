@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { ChannelBadge } from '@/components/crm/channel-badge'
 import { ConversationActions } from '@/components/crm/conversation-actions'
+import { ConversationDeleteAction } from '@/components/crm/conversation-delete-action'
 import { BackButton } from '@/components/dashboard/back-button'
 import {
         ConversationThread,
@@ -197,35 +198,38 @@ export default async function ConversationThreadPage(props: {
                 <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
                         <BackButton href="/conversations" label={t('title')} className="w-fit self-start shrink-0" />
 
-                        <div className="spatial-surface flex shrink-0 items-center gap-3 rounded-[1.5rem] p-4 sm:p-5">
-                                <ContactAvatar
-                                        src={contactAvatarSource}
-                                        alt={who}
-                                        size="md"
-                                        loading="eager"
-                                />
-                                <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2">
-                                                {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">{who}</span>}
-                                                 <ChannelBadge type={conversation.channel} />
-                                                 <SalesInsightBadge insight={displayedSalesInsight} locale={locale} compactOnMobile />
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                                                <span>{conversation.agent.name}</span>
-                                                {contactHandle && (
-                                                        <span dir="ltr" className="inline-flex items-center gap-1">
-                                                                @
-                                                                {contactHandle}
-                                                        </span>
-                                                )}
-                                                {conversation.contact?.phone && (
-                                                        <span dir="ltr" className="inline-flex items-center gap-1">
-                                                                <Phone className="h-3 w-3" />
-                                                                {conversation.contact.phone}
-                                                        </span>
-                                                )}
+                        <div className="spatial-surface flex shrink-0 flex-col gap-4 rounded-[1.5rem] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                                <div className="flex min-w-0 items-center gap-3">
+                                        <ContactAvatar
+                                                src={contactAvatarSource}
+                                                alt={who}
+                                                size="md"
+                                                loading="eager"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                        {conversation.contact?.id ? <Link href={`/contacts/${conversation.contact.id}`} className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)] hover:underline">{who}</Link> : <span className="truncate text-xl font-bold tracking-tight text-[var(--text-primary)]">{who}</span>}
+                                                        <ChannelBadge type={conversation.channel} />
+                                                        <SalesInsightBadge insight={displayedSalesInsight} locale={locale} compactOnMobile />
+                                                </div>
+                                                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                                                        <span>{conversation.agent.name}</span>
+                                                        {contactHandle && (
+                                                                <span dir="ltr" className="inline-flex items-center gap-1">
+                                                                        @
+                                                                        {contactHandle}
+                                                                </span>
+                                                        )}
+                                                        {conversation.contact?.phone && (
+                                                                <span dir="ltr" className="inline-flex items-center gap-1">
+                                                                        <Phone className="h-3 w-3" />
+                                                                        {conversation.contact.phone}
+                                                                </span>
+                                                        )}
+                                                </div>
                                         </div>
                                 </div>
+                                <ConversationDeleteAction conversationId={conversation.id} />
                         </div>
 
                         <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
@@ -237,6 +241,12 @@ export default async function ConversationThreadPage(props: {
                                 locale={locale}
                           />
                           <aside className="space-y-3">
+                        <ConversationActions
+                                conversationId={conversation.id}
+                                status={conversation.status}
+                                rating={conversation.rating}
+                        />
+
                         <SalesInsightCard insight={displayedSalesInsight} locale={locale} />
                         {showPanel && (
                                 <ConversationPanel
@@ -251,12 +261,6 @@ export default async function ConversationThreadPage(props: {
                                         locale={locale}
                                 />
                         )}
-
-                        <ConversationActions
-                                conversationId={conversation.id}
-                                status={conversation.status}
-                                rating={conversation.rating}
-                        />
 
                         {conversation.summary && (
                                 <div className="spatial-surface shrink-0 rounded-[1.5rem] p-4">

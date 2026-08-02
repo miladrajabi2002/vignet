@@ -12,6 +12,7 @@ import { BackButton } from '@/components/dashboard/back-button'
 import { relativeTime } from '@/lib/format'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
 
 export default async function ContactDetailPage(
   props: {
@@ -138,39 +139,41 @@ export default async function ContactDetailPage(
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      {/* Header card — avatar + name + channels + phone + back link */}
+      <BackButton href="/contacts" label={t('title')} />
+
+      {/* Header card — avatar + name + channels + phone + delete action */}
       <div className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <div className="mb-4">
-          <BackButton href="/contacts" label={t('title')} />
-        </div>
-        <div className="flex items-center gap-4">
-          <ContactAvatar
-            src={avatarUrl}
-            fallbackSrc={avatarFallbackUrl}
-            alt={who}
-            size="lg"
-            loading="eager"
-            className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {who}
-              </h1>
-              {channels.map((ch) => (
-                <ChannelBadge key={ch} type={ch} />
-              ))}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <ContactAvatar
+              src={avatarUrl}
+              fallbackSrc={avatarFallbackUrl}
+              alt={who}
+              size="lg"
+              loading="eager"
+              className="bg-[var(--text-primary)]/5 text-[var(--text-primary)]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+                  {who}
+                </h1>
+                {channels.map((ch) => (
+                  <ChannelBadge key={ch} type={ch} />
+                ))}
+              </div>
+              {contact.phone && (
+                <p
+                  dir="ltr"
+                  className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {contact.phone}
+                </p>
+              )}
             </div>
-            {contact.phone && (
-              <p
-                dir="ltr"
-                className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                {contact.phone}
-              </p>
-            )}
           </div>
+          <ContactDeleteAction contactId={contact.id} />
         </div>
       </div>
 

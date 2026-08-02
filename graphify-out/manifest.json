@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/contacts/[contactId]/page.tsx": {
-    "mtime": 1784724621.6876173,
-    "ast_hash": "c5cf0c810a63f863ac880b7925256943",
+    "mtime": 1785712897.9265873,
+    "ast_hash": "6899972239fb02032584cc0789ff7467",
     "semantic_hash": ""
   },
   "app/(dashboard)/contacts/page.tsx": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/conversations/[conversationId]/page.tsx": {
-    "mtime": 1784725537.900867,
-    "ast_hash": "3b2bd12442b14bdffb8cbc584c6a33f7",
+    "mtime": 1785712867.3193152,
+    "ast_hash": "c81af1c346a5524f258f4ffea820df69",
     "semantic_hash": ""
   },
   "app/(dashboard)/conversations/page.tsx": {
@@ -1105,8 +1105,8 @@
     "semantic_hash": ""
   },
   "components/crm/contact-detail.tsx": {
-    "mtime": 1784723977.4678402,
-    "ast_hash": "08a988a5bd24f7204c9dd2ec4f75c96b",
+    "mtime": 1785712897.9275923,
+    "ast_hash": "2cff6e7de19975de51b6453cffb6e650",
     "semantic_hash": ""
   },
   "components/crm/contacts-view.tsx": {
@@ -1115,8 +1115,8 @@
     "semantic_hash": ""
   },
   "components/crm/conversation-actions.tsx": {
-    "mtime": 1785415781.8915184,
-    "ast_hash": "caa4b010ca44c9de9869203cdadbe360",
+    "mtime": 1785712775.363257,
+    "ast_hash": "80e74f3687c03b124d24bbe080411141",
     "semantic_hash": ""
   },
   "components/crm/conversation-activity.tsx": {
@@ -2135,13 +2135,13 @@
     "semantic_hash": ""
   },
   "messages/en.json": {
-    "mtime": 1785712369.0863464,
-    "ast_hash": "07edc0b17e0460fcf5ce6a9aa4c79f7e",
+    "mtime": 1785712923.0906765,
+    "ast_hash": "a73629996b27ee10a3f35175cbd5acda",
     "semantic_hash": ""
   },
   "messages/fa.json": {
-    "mtime": 1785712369.0863464,
-    "ast_hash": "4d2b84bfb171545615b3f681323aca55",
+    "mtime": 1785712923.087677,
+    "ast_hash": "c7bd84043d4166cf280270fc08e5c8f4",
     "semantic_hash": ""
   },
   "middleware.ts": {
@@ -3607,6 +3607,11 @@
   "tests/prisma-studio-admin.test.ts": {
     "mtime": 1785711856.7219584,
     "ast_hash": "3699595df5bb68f991efb6e9cc52905e",
+    "semantic_hash": ""
+  },
+  "components/crm/conversation-delete-action.tsx": {
+    "mtime": 1785712775.3642738,
+    "ast_hash": "20854703bad7e622a91e5286aa3f548a",
     "semantic_hash": ""
   }
 }
