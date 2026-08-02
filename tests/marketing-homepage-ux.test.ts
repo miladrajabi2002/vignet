@@ -49,6 +49,27 @@ describe('marketing homepage UX contracts', () => {
 		expect(pixelSizes).toEqual([])
 	})
 
+	it('keeps the hero demo concise and the product journey connector centered', () => {
+		const hero = read('components/marketing/hero.tsx')
+		const graph = read('components/marketing/neural-operation-graph.tsx')
+		const demo = read('components/marketing/demo-section.tsx')
+
+		expect(hero).not.toContain('یک ایجنت، یک پاسخ دقیق')
+		expect(hero).not.toContain('پیام دریافت شد')
+		expect(hero).not.toContain('دانش پیدا شد')
+		expect(hero).not.toContain('پاسخ و اقدام ثبت شد')
+		expect(graph).not.toContain('sharedBrain')
+		expect(demo).toContain('top-[42px]')
+		expect(demo).not.toContain('top-[34px]')
+	})
+
+	it('renders final geometry before native hash navigation aligns a homepage target', () => {
+		const styles = read('app/globals.css')
+
+		expect(styles).toContain('html:has(.marketing-story-section:target) .marketing-story-section')
+		expect(styles).toContain('html.marketing-motion-ready .marketing-story-section:target')
+	})
+
 	it('keeps both desktop and mobile channel maps visibly connected', () => {
 		const channels = read('components/marketing/channels-section.tsx')
 

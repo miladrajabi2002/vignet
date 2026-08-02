@@ -41,7 +41,6 @@ type NeuralOperationGraphProps = {
 	allMessages: string
 	core: string
 	coreHint: string
-	sharedBrain: string
 }
 
 const LABELS = {
@@ -294,13 +293,11 @@ function MessageCard({
 function ResultCard({
 	locale,
 	scenario,
-	label,
 	activeIndex,
 	reduce,
 }: {
 	locale: 'fa' | 'en'
 	scenario: Scenario
-	label: string
 	activeIndex: number
 	reduce: boolean | null
 }) {
@@ -311,15 +308,11 @@ function ResultCard({
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
 			className="flex h-[264px] flex-col rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
 		>
-			<div className="flex items-center justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-2.5">
-					<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
-						<Sparkles className="h-4 w-4" />
-					</span>
-					<p className="whitespace-nowrap text-[11px] font-semibold sm:text-xs">{label}</p>
-				</div>
-
-				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+			<div className="flex items-center justify-between" aria-hidden>
+				<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
+					<Sparkles className="h-4 w-4" />
+				</span>
+				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.09)]" />
 			</div>
 
 			<AnimatePresence mode="wait" initial={false}>
@@ -394,7 +387,7 @@ function Core({
 				reduce
 					? undefined
 					: {
-							scale: [1, 1.025, 1],
+							scale: [1, 1.012, 1],
 							boxShadow: [
 								'0 0 34px rgba(52,211,153,0.10)',
 								'0 0 58px rgba(52,211,153,0.23)',
@@ -402,7 +395,7 @@ function Core({
 							],
 						}
 			}
-			transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+			transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
 			className="relative grid h-[112px] w-[112px] place-items-center rounded-[1.8rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
 		>
 			<span aria-hidden className="absolute inset-2 rounded-[1.35rem] border border-white/10" />
@@ -486,7 +479,6 @@ function DesktopOperationFlow({
 	allMessages,
 	core,
 	coreHint,
-	sharedBrain,
 }: NeuralOperationGraphProps) {
 	const labels = LABELS[locale]
 
@@ -580,7 +572,6 @@ function DesktopOperationFlow({
 				<ResultCard
 					locale={locale}
 					scenario={scenario}
-					label={sharedBrain}
 					activeIndex={activeIndex}
 					reduce={reduce}
 				/>
@@ -614,7 +605,6 @@ function MobileOperationFlow({
 	allMessages,
 	core,
 	coreHint,
-	sharedBrain,
 }: NeuralOperationGraphProps) {
 	const labels = LABELS[locale]
 	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
@@ -728,7 +718,6 @@ function MobileOperationFlow({
 				<ResultCard
 					locale={locale}
 					scenario={scenario}
-					label={sharedBrain}
 					activeIndex={activeIndex}
 					reduce={reduce}
 				/>

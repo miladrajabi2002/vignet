@@ -90,15 +90,15 @@ function PhoneConversation({ scenario, copy }: { scenario: Scenario; copy: typeo
 					<span className="ms-auto max-w-[42%] truncate text-[10px] text-[var(--text-muted)]">{scenario.channel}</span>
 				</div>
 				<div className="flex-1 space-y-3 overflow-hidden bg-[var(--bg-surface)] px-3.5 py-5">
-					<m.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4 }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</m.div>
-					<m.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.45, delay: 0.3 }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2.5 text-[11px] leading-5 text-[var(--text-secondary)]">
+					<m.div key={`${scenario.key}-q`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2.5 text-[11px] leading-5 text-white">{scenario.question}</m.div>
+					<m.div key={`${scenario.key}-a`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.3, delay: 0.16, ease: [0.16, 1, 0.3, 1] }} className="max-w-[92%] rounded-2xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2.5 text-[11px] leading-5 text-[var(--text-secondary)]">
 						{scenario.answer}
 						<span className="mt-2 flex w-fit max-w-full items-center gap-1 rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[10px] text-[var(--text-muted)]"><Database className="h-2.5 w-2.5 shrink-0" />{scenario.source}</span>
 					</m.div>
-					<m.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.65 }} className="rounded-xl border border-[var(--success)]/20 bg-green-50 p-2.5">
+					<m.div key={`${scenario.key}-action`} initial={reduce ? false : { opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.28, delay: 0.38, ease: [0.16, 1, 0.3, 1] }} className="rounded-xl border border-[var(--success)]/20 bg-green-50 p-2.5">
 						<div className="flex items-start gap-2"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white"><Check className="h-3 w-3" /></span><p className="text-[10px] leading-4 text-[var(--success)]">{scenario.action}</p></div>
 					</m.div>
-					<m.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35, delay: 0.85 }} className="rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white lg:hidden">
+					<m.div key={`${scenario.key}-result`} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.26, delay: 0.56, ease: [0.16, 1, 0.3, 1] }} className="rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white lg:hidden">
 						<p className="text-[10px] text-white/60">{copy.result}</p>
 						<p className="mt-1 flex items-start gap-1.5 text-[10px] leading-4 text-white/80"><Check className="mt-0.5 h-3 w-3 shrink-0 text-[var(--success)]" />{scenario.result}</p>
 					</m.div>
@@ -146,13 +146,20 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 
 	return (
 		<div className="relative mt-5 grid grid-cols-2 gap-2 rounded-[1.25rem] border border-[var(--border-default)] bg-white p-2 sm:grid-cols-4 sm:gap-0 sm:p-3" aria-label={`${copy.incoming}، ${copy.knowledge}، ${copy.action}، ${copy.result}`}>
-			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[34px] hidden h-px bg-[var(--border-default)] sm:block" />
+			<span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[42px] hidden h-px bg-[var(--border-default)] sm:block" />
+			<m.span
+				aria-hidden
+				className="absolute left-[12.5%] right-[12.5%] top-[42px] hidden h-px origin-right bg-[var(--text-primary)] sm:block ltr:origin-left"
+				initial={reduce ? false : { scaleX: 0, opacity: 0.25 }}
+				animate={{ scaleX: 1, opacity: 0.55 }}
+				transition={reduce ? { duration: 0 } : { duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+			/>
 			{steps.map(({ label, value, Icon }, index) => (
 				<m.div
 					key={label}
 					initial={reduce ? false : { opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={reduce ? { duration: 0 } : { duration: 0.32, delay: index * 0.22, ease: [0.16, 1, 0.3, 1] }}
+					transition={reduce ? { duration: 0 } : { duration: 0.28, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
 					className="relative min-w-0 rounded-xl bg-[var(--bg-surface)] p-3 sm:bg-transparent sm:px-4 sm:text-center"
 				>
 					<span className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-white sm:mx-auto ${index === steps.length - 1 ? 'text-[var(--success)]' : 'text-[var(--text-secondary)]'}`} style={{ boxShadow: 'var(--shadow-sm)' }}>
@@ -198,7 +205,7 @@ export function DemoSection() {
 				<div className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="group" aria-label={copy.eyebrow}>
 					{copy.scenarios.map((item, index) => {
 						const Icon = item.icon
-						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white' : 'border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
+						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`marketing-pressable flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-[transform,color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white shadow-[0_10px_28px_rgba(0,0,0,0.11)]' : 'border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
 					})}
 				</div>
 				<AnimatePresence mode="wait" initial={false}>
@@ -207,7 +214,7 @@ export function DemoSection() {
 
 				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white p-3 sm:p-6 lg:p-8" style={{ boxShadow: 'var(--shadow-card)' }}>
 					<AnimatePresence mode="wait" initial={false}>
-						<m.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={reduce ? { duration: 0 } : { duration: 0.35 }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
+						<m.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -4 }} transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
 							<PhoneConversation scenario={scenario} copy={copy} />
 							<div className="hidden h-full lg:block"><TracePanel scenario={scenario} copy={copy} /></div>
 						</m.div>
@@ -215,10 +222,10 @@ export function DemoSection() {
 
 					<div className="mt-7 flex flex-col gap-4 border-t border-[var(--border-default)] pt-5 sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex items-center gap-2">
-							<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
-							<button type="button" onClick={() => setSelected(0)} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-muted)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
+							<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="marketing-pressable inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-[11px] font-medium text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
+							<button type="button" onClick={() => setSelected(0)} className="marketing-pressable flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
 						</div>
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-[var(--text-muted)]">{copy.noCode}</span><Link href="/login?next=/onboarding" className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 text-xs font-medium text-white transition-colors hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-[var(--text-muted)]">{copy.noCode}</span><Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 text-xs font-medium text-white hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
 					</div>
 				</div>
 			</div>

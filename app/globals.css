@@ -945,6 +945,12 @@
                 content-visibility: auto;
                 contain-intrinsic-size: auto 48rem;
         }
+        /* Hash navigation needs final section geometry before the browser can
+           align the target. Rendering those sections once prevents lower-page
+           anchors from drifting as intrinsic placeholders are replaced. */
+        html:has(.marketing-story-section:target) .marketing-story-section {
+                content-visibility: visible;
+        }
         /* One quiet scroll rhythm across the homepage. The controller adds the
            readiness class only when IntersectionObserver is available, so SSR and
            no-JS rendering never hide content. */
@@ -957,6 +963,13 @@
                 will-change: opacity, transform;
         }
         html.marketing-motion-ready .marketing-story-section.is-visible {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+                will-change: auto;
+        }
+        /* A hash target must never wait for IntersectionObserver. This also
+           survives hydration replacing an imperatively-added class. */
+        html.marketing-motion-ready .marketing-story-section:target {
                 opacity: 1;
                 transform: translate3d(0, 0, 0);
                 will-change: auto;

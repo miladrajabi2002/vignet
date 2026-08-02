@@ -1,16 +1,16 @@
-# Graph Report - vignet  (2026-08-02)
+# Graph Report - vignet  (2026-08-01)
 
 ## Corpus Check
-- 706 files · ~536,702 words
+- 706 files · ~536,735 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4242 nodes · 9858 edges · 275 communities (248 shown, 27 thin omitted)
+- 4242 nodes · 9858 edges · 274 communities (247 shown, 27 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a3e40f8a`
+- Built from commit: `6aea4990`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -270,7 +270,6 @@
 - readBotToken
 - @ricky0123/vad-web
 - tailwind-merge
-- route.ts
 
 ## God Nodes (most connected - your core abstractions)
 1. `getCurrentUser()` - 184 edges
@@ -299,7 +298,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (275 total, 27 thin omitted)
+## Communities (274 total, 27 thin omitted)
 
 ### Community 0 - "automation.ts"
 Cohesion: 0.10
@@ -318,8 +317,8 @@ Cohesion: 0.09
 Nodes (55): actionChip(), applyConfig(), applyViewportHeight(), applyWidgetViewport(), autoGrow(), bindRailResize(), bubble(), clearIntro() (+47 more)
 
 ### Community 4 - "prisma.ts"
-Cohesion: 0.07
-Nodes (32): GET(), ownAgent(), Params, POST(), saveSchema, DELETE(), ownAgent(), Params (+24 more)
+Cohesion: 0.06
+Nodes (36): DELETE(), ownAgent(), Params, POST(), feedbackSchema, Params, POST(), DELETE() (+28 more)
 
 ### Community 5 - "chat-engine.ts"
 Cohesion: 0.08
@@ -366,8 +365,8 @@ Cohesion: 0.10
 Nodes (21): Props, Props, PublicBlogPostPage(), PublicPost, PublicPostCard(), TrendSpark(), ConversationPanel(), HandoffAlertProp (+13 more)
 
 ### Community 16 - "session.ts"
-Cohesion: 0.08
-Nodes (22): CapabilityOptions(), Locale, OPTION_META, optionLabel(), EASE, ICONS, OnboardingFlow(), Phase (+14 more)
+Cohesion: 0.09
+Nodes (17): EASE, ICONS, OnboardingFlow(), Phase, Props, skipSetupStep(), staggerChild, staggerParent (+9 more)
 
 ### Community 17 - "page.tsx"
 Cohesion: 0.17
@@ -439,7 +438,7 @@ Nodes (22): express, dependencies, express, pino, @whiskeysockets/baileys, descr
 
 ### Community 34 - "registry.ts"
 Cohesion: 0.15
-Nodes (25): appUrl(), connectNumber(), GET(), POST(), consumeOAuthState(), createOAuthState(), OAuthProvider, OAuthStateBinding (+17 more)
+Nodes (26): appUrl(), connectNumber(), GET(), POST(), checkChannelConnectAllowed(), consumeOAuthState(), createOAuthState(), OAuthProvider (+18 more)
 
 ### Community 35 - "auth.ts"
 Cohesion: 0.20
@@ -471,7 +470,7 @@ Nodes (19): STAGE_LABELS_EN, STAGE_LABELS_FA, ProductsPage(), ContactRow, Contac
 
 ### Community 42 - "route.ts"
 Cohesion: 0.16
-Nodes (23): appUrl(), GET(), POST(), checkChannelConnectAllowed(), buildInstagramOAuthConfig(), buildInstagramAuthUrl(), exchangeCodeForUserToken(), exchangeForLongLivedToken() (+15 more)
+Nodes (22): appUrl(), GET(), POST(), buildInstagramOAuthConfig(), buildInstagramAuthUrl(), exchangeCodeForUserToken(), exchangeForLongLivedToken(), INSTAGRAM_OAUTH_SCOPES (+14 more)
 
 ### Community 43 - "jobs.ts"
 Cohesion: 0.13
@@ -506,8 +505,8 @@ Cohesion: 0.19
 Nodes (15): batchSchema, digest(), eventSchema, loadManualIntegration(), normalizeSiteUrl(), parseDelivery(), pluginVersionFromHeaders(), POST() (+7 more)
 
 ### Community 51 - "page.tsx"
-Cohesion: 0.18
-Nodes (18): logout(), AgentBuilderEntry(), BuildMode, Props, MobileNav(), getDashboardNavForProfile(), getDashboardNavFromModules(), Sidebar() (+10 more)
+Cohesion: 0.24
+Nodes (14): logout(), MobileNav(), getDashboardNavForProfile(), getDashboardNavFromModules(), Sidebar(), BUSINESS_SERVICE_OPTIONS, CapabilityPackKey, collapseDashboardNavigationModules() (+6 more)
 
 ### Community 52 - "social-links.tsx"
 Cohesion: 0.09
@@ -566,8 +565,8 @@ Cohesion: 0.18
 Nodes (11): setLocale(), geistMono, geistSans, ROOT_METADATA_COPY, RootLayout(), Providers(), LanguageSwitcher(), dirForLocale() (+3 more)
 
 ### Community 66 - "contacts-view.tsx"
-Cohesion: 0.27
-Nodes (9): Params, POST(), buildWhatsappOAuthConfig(), WhatsappOAuthConfig, subscribeWabaToWebhook(), isNonEmptyString(), openPendingWhatsappOAuth(), PendingWhatsappNumber (+1 more)
+Cohesion: 0.17
+Nodes (12): AgentBuilderEntry(), BuildMode, Props, ICONS, Props, SubStep, CapabilityOptions(), Locale (+4 more)
 
 ### Community 67 - "chat-orchestrator.ts"
 Cohesion: 0.11
@@ -702,8 +701,8 @@ Cohesion: 0.20
 Nodes (8): BUSINESS_ICONS, BusinessScene, COPY, Hero(), HeroCopy, Locale, NeuralOperationGraph(), Spotlight()
 
 ### Community 102 - "logo.tsx"
-Cohesion: 0.21
-Nodes (13): Header(), ChangeDetail, MODULES, VerticalChangeNotice(), BusinessProfileStep(), ICONS, Props, SubStep (+5 more)
+Cohesion: 0.27
+Nodes (10): Header(), ChangeDetail, MODULES, VerticalChangeNotice(), BusinessProfileStep(), DetailsStep(), getBusinessServiceOptions(), getDashboardModules() (+2 more)
 
 ### Community 103 - "conversation.ts"
 Cohesion: 0.40
@@ -811,7 +810,7 @@ Nodes (11): asReceipt(), ConversationTimelineActivity(), getTimelineActivity(), 
 
 ### Community 132 - "embeddings.ts"
 Cohesion: 0.15
-Nodes (16): DELETE(), Params, settingsSchema, buildMessengerConfig(), MessengerConfig, MessengerSettings, newWebhookToken(), buffer (+8 more)
+Nodes (19): Params, POST(), buildMessengerConfig(), MessengerConfig, MessengerSettings, newWebhookToken(), buffer, decrypt() (+11 more)
 
 ### Community 133 - "route.ts"
 Cohesion: 0.18
@@ -1074,8 +1073,8 @@ Cohesion: 0.15
 Nodes (14): acquireConversationTurnLease(), ConversationTurnLease, ConversationTurnLeaseBusyError, ConversationTurnLeaseGuard, ConversationTurnLeaseInput, ConversationTurnLeaseLostError, ConversationTurnLeaseOptions, currentLease() (+6 more)
 
 ### Community 219 - "MessengerAdapter"
-Cohesion: 0.35
-Nodes (11): allClaimedInstagramIds(), GET(), Params, POST(), PUT(), getScopedWebhookPayloads(), payloadOwnerIds(), readIgUserId() (+3 more)
+Cohesion: 0.19
+Nodes (17): DELETE(), Params, settingsSchema, allClaimedInstagramIds(), GET(), Params, POST(), PUT() (+9 more)
 
 ### Community 223 - "ecosystem.config.js"
 Cohesion: 0.50
@@ -1190,8 +1189,8 @@ Cohesion: 0.33
 Nodes (6): defaultSettings(), GET(), Params, PATCH(), patchSchema, REPLY_POLICIES
 
 ### Community 266 - "media-uploader.tsx"
-Cohesion: 0.33
-Nodes (6): DELETE(), GET(), ownedService(), PATCH(), Props, serviceUpdateSchema
+Cohesion: 0.47
+Nodes (5): GET(), ownAgent(), Params, POST(), saveSchema
 
 ### Community 267 - "webhook-debug.ts"
 Cohesion: 0.47
@@ -1213,10 +1212,6 @@ Nodes (3): IntelligenceCoreProps, IntelligenceCoreLazy(), LazyIntelligenceCore
 Cohesion: 0.67
 Nodes (3): تست‌های جدید اضافه‌شده در ممیزی اولیه (۱۵ مورد), تست‌های جدید موج تکمیلی (۸ مورد), ۴. گزارش تست‌ها
 
-### Community 274 - "route.ts"
-Cohesion: 0.50
-Nodes (3): GET(), Params, mocks
-
 ## Knowledge Gaps
 - **1309 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1304 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -1233,9 +1228,9 @@ Nodes (3): GET(), Params, mocks
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `auth.config.ts` to `order-context.ts`, `page-header.tsx`, `page.tsx`, `route.ts`, `captureError`, `syncOnboarding`, `session.ts`, `page.tsx`, `registry.ts`, `route.ts`, `commercial-config.ts`, `route.ts`, `layout.tsx`, `trend-chart.tsx`, `page.tsx`, `route.ts`, `social-links.tsx`, `iphone-preview.tsx`, `helpers.ts`, `page.tsx`, `route.ts`, `chat-orchestrator.ts`, `ingest.ts`, `page.tsx`, `page.tsx`, `charts.ts`, `instagram.ts`, `automation-manager.tsx`, `scheduler.ts`, `page.tsx`, `logo.tsx`, `react-dom`, `actions.ts`, `embeddings.ts`, `woo-connect-wizard.tsx`, `page.tsx`, `automation-card.tsx`, `neural-network-primitives.tsx`, `page.tsx`, `automation-card.tsx`, `intelligence-core-lazy.tsx`?**
+- **Why does `cn()` connect `auth.config.ts` to `order-context.ts`, `page-header.tsx`, `page.tsx`, `route.ts`, `captureError`, `syncOnboarding`, `session.ts`, `page.tsx`, `registry.ts`, `route.ts`, `commercial-config.ts`, `route.ts`, `layout.tsx`, `trend-chart.tsx`, `page.tsx`, `route.ts`, `social-links.tsx`, `iphone-preview.tsx`, `helpers.ts`, `page.tsx`, `route.ts`, `contacts-view.tsx`, `chat-orchestrator.ts`, `ingest.ts`, `page.tsx`, `page.tsx`, `charts.ts`, `instagram.ts`, `automation-manager.tsx`, `scheduler.ts`, `page.tsx`, `logo.tsx`, `react-dom`, `actions.ts`, `embeddings.ts`, `woo-connect-wizard.tsx`, `page.tsx`, `automation-card.tsx`, `neural-network-primitives.tsx`, `page.tsx`, `automation-card.tsx`, `intelligence-core-lazy.tsx`?**
   _High betweenness centrality (0.074) - this node is a cross-community bridge._
-- **Why does `getCurrentUser()` connect `prisma.ts` to `cn`, `ui.tsx`, `wp-content.ts`, `embeddings.ts`, `server-stats-widget.tsx`, `react-dom`, `campaign-composer.tsx`, `route.ts`, `media-uploader.tsx`, `models.ts`, `webhook-debug.ts`, `chat-types.ts`, `page.tsx`, `activity.ts`, `route.ts`, `route.ts`, `commercial-config.ts`, `woocommerce.ts`, `registry.ts`, `auth.ts`, `route.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `route.ts`, `layout.tsx`, `route.ts`, `low-credit-alert.ts`, `iphone-preview.tsx`, `global-error.tsx`, `contacts-view.tsx`, `dispatchProductEmbed`, `conversation-thread.tsx`, `automation-manager.tsx`, `checkWorkspaceActive`, `MessengerAdapter`, `service.ts`, `route.ts`, `route.ts`, `media-uploader.tsx`, `route.ts`, `route.ts`, `route.ts`, `vigento-actions.ts`, `normalizeChatLinkSettings`, `admin-broadcast-form.tsx`?**
+- **Why does `getCurrentUser()` connect `prisma.ts` to `cn`, `ui.tsx`, `wp-content.ts`, `embeddings.ts`, `server-stats-widget.tsx`, `react-dom`, `campaign-composer.tsx`, `route.ts`, `media-uploader.tsx`, `models.ts`, `webhook-debug.ts`, `chat-types.ts`, `page.tsx`, `activity.ts`, `route.ts`, `commercial-config.ts`, `woocommerce.ts`, `registry.ts`, `auth.ts`, `route.ts`, `route.ts`, `jobs.ts`, `getVerticalPack`, `route.ts`, `layout.tsx`, `route.ts`, `low-credit-alert.ts`, `iphone-preview.tsx`, `global-error.tsx`, `dispatchProductEmbed`, `conversation-thread.tsx`, `automation-manager.tsx`, `checkWorkspaceActive`, `MessengerAdapter`, `service.ts`, `route.ts`, `route.ts`, `media-uploader.tsx`, `route.ts`, `route.ts`, `route.ts`, `vigento-actions.ts`, `normalizeChatLinkSettings`, `admin-broadcast-form.tsx`?**
   _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **Why does `buffer` connect `embeddings.ts` to `automation.ts`, `cn`, `registry.ts`, `vigento-actions.ts`, `material-select.tsx`, `route.ts`, `automation-card.tsx`, `conversation-thread.tsx`, `getVerticalPack`, `vigent-woo.php`, `route.ts`, `activity.ts`, `route.ts`, `commercial-config.ts`, `sitemap.ts`, `route.ts`, `readBotToken`, `woocommerce.ts`?**
   _High betweenness centrality (0.018) - this node is a cross-community bridge._

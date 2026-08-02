@@ -1335,8 +1335,8 @@
     "semantic_hash": ""
   },
   "components/marketing/demo-section.tsx": {
-    "mtime": 1785674156.810442,
-    "ast_hash": "973ceacc819f6aa77f6d634cefa81766",
+    "mtime": 1785415353.5299828,
+    "ast_hash": "1815f2c309cbc6cd41bdca86228b4073",
     "semantic_hash": ""
   },
   "components/marketing/faq-section.tsx": {
@@ -1355,8 +1355,8 @@
     "semantic_hash": ""
   },
   "components/marketing/hero.tsx": {
-    "mtime": 1785673785.4049504,
-    "ast_hash": "2e7c8b07bd53b63f412679fb5b752ede",
+    "mtime": 1785415140.154796,
+    "ast_hash": "d1f35ad7ae7ea6604e0593d234fdae7c",
     "semantic_hash": ""
   },
   "components/marketing/navbar.tsx": {
@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
-    "mtime": 1785673798.306595,
-    "ast_hash": "ec1462c753ec4af4f6cf752c89aed8c4",
+    "mtime": 1785415172.9162593,
+    "ast_hash": "ea650fbd043758e9cdf5b284a2b62faf",
     "semantic_hash": ""
   },
   "components/marketing/popular-posts.tsx": {
@@ -1380,7 +1380,7 @@
     "semantic_hash": ""
   },
   "components/marketing/section-reveal.tsx": {
-    "mtime": 1785674427.8410082,
+    "mtime": 1783786742.7494214,
     "ast_hash": "aff000841e0f7c3385ff43d6562d889c",
     "semantic_hash": ""
   },
@@ -3535,8 +3535,8 @@
     "semantic_hash": ""
   },
   "tests/marketing-homepage-ux.test.ts": {
-    "mtime": 1785674427.9749107,
-    "ast_hash": "a4c191ff0fd9454f68ed6424bbfb7ae5",
+    "mtime": 1785415819.6387427,
+    "ast_hash": "6cdec4479d2daea90d8161a8a7877550",
     "semantic_hash": ""
   },
   "tests/notification-live-state.test.ts": {

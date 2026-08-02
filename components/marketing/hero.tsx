@@ -48,9 +48,7 @@ type HeroCopy = {
 	core: string
 	coreHint: string
 	allMessages: string
-	sharedBrain: string
 	promises: readonly string[]
-	flow: readonly string[]
 	scenes: readonly BusinessScene[]
 }
 
@@ -68,8 +66,6 @@ const COPY: Record<Locale, HeroCopy> = {
 		core: 'Vigento AI',
 		coreHint: 'هوش مصنوعی ویجنتو',
 		allMessages: 'پیام‌های تازه از همه‌جا',
-		sharedBrain: 'یک ایجنت، یک پاسخ دقیق',
-		flow: ['پیام دریافت شد', 'دانش پیدا شد', 'پاسخ و اقدام ثبت شد'],
 		promises: [
 			'یک ماه رایگان',
 			'اتوماسیون اینستاگرام رایگان',
@@ -151,8 +147,6 @@ const COPY: Record<Locale, HeroCopy> = {
 		core: 'Vigento AI',
 		coreHint: 'Vigent business intelligence',
 		allMessages: 'New messages from everywhere',
-		sharedBrain: 'One agent, one precise answer',
-		flow: ['Message received', 'Knowledge found', 'Reply and action logged'],
 		promises: [
 			'One month free',
 			'Free Instagram automation',
@@ -313,7 +307,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									aria-label={business.name}
 									aria-pressed={active}
 									onClick={() => setActiveIndex(index)}
-									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2 ${
+									className={`group relative z-10 min-w-0 rounded-xl border px-0.5 py-2 text-center outline-none transition-[transform,color,background-color,border-color] duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:rounded-2xl sm:px-1 sm:py-2 ${
 										active
 											? 'border-white/35 text-black'
 											: 'border-white/10 bg-white/[0.045] text-white/[0.48] hover:bg-white/[0.07] hover:text-white/70'
@@ -366,40 +360,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					allMessages={copy.allMessages}
 					core={copy.core}
 					coreHint={copy.coreHint}
-					sharedBrain={copy.sharedBrain}
 				/>
-
-				<div className="relative grid grid-cols-1 overflow-hidden border-t border-white/10 bg-black/20 sm:grid-cols-3">
-					{copy.flow.map((step, index) => (
-						<m.div
-							key={`${activeIndex}-${step}`}
-							initial={reduce ? false : { opacity: 0.32 }}
-							animate={{ opacity: 1 }}
-							transition={
-								reduce
-									? { duration: 0 }
-									: { duration: 0.34, delay: 0.35 + index * 0.28 }
-							}
-							className="flex min-w-0 items-center justify-center gap-1.5 border-b border-white/10 px-2 py-2.5 text-center last:border-b-0 sm:border-b-0 sm:border-e sm:px-1 sm:py-3 sm:last:border-e-0"
-						>
-							<m.span
-								initial={reduce ? false : { scale: 0.7, opacity: 0.3 }}
-								animate={{ scale: 1, opacity: 1 }}
-								transition={
-									reduce
-										? { duration: 0 }
-										: { delay: 0.35 + index * 0.28, duration: 0.3 }
-								}
-								className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-400/20 text-emerald-300"
-							>
-								<Check className="h-2.5 w-2.5" />
-							</m.span>
-							<span className="whitespace-nowrap text-[10px] text-white/[0.58] sm:text-[11px]">
-								{step}
-							</span>
-						</m.div>
-					))}
-				</div>
 			</div>
 		</m.div>
 	)

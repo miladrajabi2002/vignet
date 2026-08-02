@@ -272,6 +272,5 @@
   "270": "chat-types.ts",
   "271": "readBotToken",
   "272": "@ricky0123/vad-web",
-  "273": "tailwind-merge",
-  "274": "route.ts"
+  "273": "tailwind-merge"
 }
