@@ -18,6 +18,7 @@ import {
 } from '../ui'
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
+import { displayPhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -227,7 +228,7 @@ export default async function AdminPaymentsPage(
                 <Td>
                   {user ? (
                     <Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-900 hover:underline">
-                      {user.name || user.phone}
+                      {user.name || displayPhone(user.phone)}
                     </Link>
                   ) : (
                     <span className="text-zinc-400">—</span>

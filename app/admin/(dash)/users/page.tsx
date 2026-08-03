@@ -17,7 +17,7 @@ import {
 } from '../ui'
 import { Sparkline } from '@/components/admin/sparkline'
 import { conversationsDailyByWorkspace } from '@/lib/admin/charts'
-import { toEnglishDigits } from '@/lib/phone'
+import { displayPhone } from '@/lib/phone'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
@@ -50,14 +50,6 @@ function startOfToday(): Date {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   return d
-}
-
-function displayPhone(value: string): string {
-  const phone = toEnglishDigits(value).replace(/[\s()-]/g, '')
-  if (phone.startsWith('+98')) return `0${phone.slice(3)}`
-  if (phone.startsWith('0098')) return `0${phone.slice(4)}`
-  if (phone.startsWith('98') && phone.length === 12) return `0${phone.slice(2)}`
-  return phone
 }
 
 export default async function AdminUsersPage(

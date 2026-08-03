@@ -18,6 +18,7 @@ import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 import { cn } from '@/lib/utils'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
+import { displayPhone } from '@/lib/phone'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getVerticalPack } from '@/lib/verticals/registry'
 import { getOnboardingProgress } from '@/lib/onboarding-progress'
@@ -221,7 +222,7 @@ export default async function AdminUserDetailPage(
     return { day: dayFmt.format(d), value }
   })
 
-  const userName = user.name ?? user.phone
+  const userName = user.name ?? displayPhone(user.phone) ?? user.phone
   const memberSince = fmtDay(user.createdAt)
   const knowledgeDetail = journeySignals.knowledge
     ? `${journeySignals.knowledge.name} · ${journeySignals.knowledge.status}`
@@ -338,7 +339,7 @@ export default async function AdminUserDetailPage(
                 <SectionLabel>اطلاعات کاربر</SectionLabel>
                 <div className="divide-y divide-zinc-100">
                   <KV label="نام">{user.name ?? '—'}</KV>
-                  <KV label="تلفن" mono><span dir="ltr">{user.phone}</span></KV>
+                  <KV label="تلفن" mono><span dir="ltr">{displayPhone(user.phone)}</span></KV>
                   <KV label="دسترسی">
                     <Badge tone={user.platformRole === 'ADMIN' ? 'danger' : 'muted'}>
                       {user.platformRole === 'ADMIN' ? 'مدیر اصلی ویجنتو' : 'کاربر'}

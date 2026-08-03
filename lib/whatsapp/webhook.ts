@@ -73,11 +73,25 @@ export async function handleWhatsappGlobalInbound(
           },
           select: { id: true, config: true },
         })
-        if (!channel) return
+        if (!channel) {
+          captureError(
+            'webhook:WHATSAPP:no-channel',
+            new Error('No active WhatsApp channel matches the webhook phone-number id'),
+            { level: 'warn', metadata: { phoneNumberId } },
+          )
+          return
+        }
 
         const cfg = channel.config as { webhookToken?: string } | null
         const webhookToken = cfg?.webhookToken
-        if (!webhookToken) return
+        if (!webhookToken) {
+          captureError(
+            'webhook:WHATSAPP:missing-webhook-token',
+            new Error('Matched WhatsApp channel has no webhook token'),
+            { level: 'warn', metadata: { channelId: channel.id, phoneNumberId } },
+          )
+          return
+        }
 
         // Hand off to the shared inbound pipeline. `handleInbound` resolves the
         // channel by webhookToken → `readBotToken` returns the packed

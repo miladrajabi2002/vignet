@@ -6,6 +6,7 @@ import { rateLimit } from '@/lib/ratelimit'
 import { chatCompletion, getPlatformOpenRouterKey } from '@/lib/ai/openrouter'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { resolveModelId } from '@/lib/ai/models'
+import { displayPhone } from '@/lib/phone'
 
 const inputSchema = z.object({
   message: z.string().trim().min(2).max(1000),
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     creditToman: Math.round(workspace.aiCreditBalanceIRR / 10),
     today: { conversations, messages, newContacts: contacts, resolved, aiCostToman: Math.round((spend._sum.chargedIRR ?? 0) / 10) },
     attention: { handoffs, openConversations: open, upcomingAppointments: appointments },
-    mostRecentlyActiveContacts: activeContacts.map((contact) => ({ identity: contact.name || contact.instagramUsername || contact.phone || 'unknown', conversationCount: contact._count.conversations })),
+    mostRecentlyActiveContacts: activeContacts.map((contact) => ({ identity: contact.name || contact.instagramUsername || displayPhone(contact.phone) || 'unknown', conversationCount: contact._count.conversations })),
     recentCases: recent,
     unavailableData: ['sales/orders are not modeled unless a store integration supplies them'],
   }

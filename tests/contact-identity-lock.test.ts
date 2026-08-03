@@ -39,14 +39,14 @@ describe('withContactIdentityLock', () => {
 
     await withContactIdentityLocks(
       'workspace-1',
-      ['phone:+989128352271', 'TELEGRAM:42', 'phone:+989128352271'],
+      ['phone:09128352271', 'TELEGRAM:42', 'phone:09128352271'],
       operation,
     )
 
     expect(mocks.executeRaw).toHaveBeenCalledTimes(2)
     expect(mocks.executeRaw.mock.calls.map((call) => call[1])).toEqual([
       'contact:workspace-1:TELEGRAM:42',
-      'contact:workspace-1:phone:+989128352271',
+      'contact:workspace-1:phone:09128352271',
     ])
     expect(operation).toHaveBeenCalledOnce()
   })

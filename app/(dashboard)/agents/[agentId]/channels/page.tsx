@@ -29,6 +29,7 @@ import {
 import { openPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /** Public webhook path segment per messenger type. */
 const WEBHOOK_PATH: Record<MessengerKind, string> = {
@@ -326,7 +327,12 @@ export default async function AgentChannelsPage(
         // back to the legacy `botUsername` field.
         const waDisplay =
           m.type === 'WHATSAPP' && (waIsOAuth || waIsQr)
-            ? String(config?.verifiedName ?? config?.displayPhoneNumber ?? '')
+            ? String(
+                config?.verifiedName
+                ?? normalizeIranianMobile(String(config?.displayPhoneNumber ?? ''))
+                ?? config?.displayPhoneNumber
+                ?? '',
+              )
             : ''
         const botUsername =
           (config ? String(config.botUsername ?? '') : '') || waDisplay

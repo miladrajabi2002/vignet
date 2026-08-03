@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { GRAPH_BASE } from '@/lib/channels/whatsapp'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * WhatsApp Cloud API OAuth (Facebook Login with WhatsApp Embedded Signup) —
@@ -323,7 +324,8 @@ export async function listWhatsappBusinessAccounts(
         out.push({
           wabaId,
           phoneNumberId: ph.id,
-          displayPhoneNumber: ph.display_phone_number,
+          displayPhoneNumber:
+            normalizeIranianMobile(ph.display_phone_number) ?? ph.display_phone_number?.trim(),
           verifiedName: ph.verified_name,
           accessToken: userToken,
         })

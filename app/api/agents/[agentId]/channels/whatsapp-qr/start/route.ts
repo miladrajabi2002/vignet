@@ -10,6 +10,7 @@ import {
   newBridgeSessionId,
 } from '@/lib/whatsapp/qr-config'
 import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -173,7 +174,9 @@ export async function PUT(req: Request, props: Params) {
   }
 
   // Normalize the phone to E.164 (Baileys returns the bare number).
-  const displayPhoneNumber = phone ? `+${phone}` : undefined
+  const displayPhoneNumber = phone
+    ? normalizeIranianMobile(phone) ?? `+${phone}`
+    : undefined
 
   const config = buildWhatsappQrConfig({
     bridgeSessionId: body.sessionId,

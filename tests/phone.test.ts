@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizePhone, toEnglishDigits, phoneSchema } from '@/lib/phone'
+import { displayPhone, normalizeIranianMobile, normalizePhone, toEnglishDigits, phoneSchema } from '@/lib/phone'
 
 describe('toEnglishDigits', () => {
   it('converts Persian digits to ASCII', () => {
@@ -36,6 +36,30 @@ describe('normalizePhone', () => {
     ['091234567890'], // too long
   ])('rejects invalid input %s', (input) => {
     expect(normalizePhone(input)).toBeNull()
+  })
+})
+
+describe('normalizeIranianMobile', () => {
+  it.each([
+    ['09128352271', '09128352271'],
+    ['9128352271', '09128352271'],
+    ['+989128352271', '09128352271'],
+    ['00989128352271', '09128352271'],
+    ['989128352271', '09128352271'],
+  ])('normalizes %s -> %s', (input, expected) => {
+    expect(normalizeIranianMobile(input)).toBe(expected)
+  })
+
+  it('does not mistake a Meta phone-number id for a mobile number', () => {
+    expect(normalizeIranianMobile('181316641398869')).toBeNull()
+  })
+})
+
+describe('displayPhone', () => {
+  it('renders legacy Iranian spellings as 09 without changing explicit foreign E.164', () => {
+    expect(displayPhone('+989128352271')).toBe('09128352271')
+    expect(displayPhone('989128352271')).toBe('09128352271')
+    expect(displayPhone('+12025550100')).toBe('+12025550100')
   })
 })
 

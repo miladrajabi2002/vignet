@@ -14,6 +14,7 @@ import {
   fmtDate,
 } from '../ui'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
+import { displayPhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -143,7 +144,7 @@ export default async function AdminConversationsPage(
                   <Td>
                     {user ? (
                       <Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-900 hover:underline">
-                        {user.name || user.phone}
+                        {user.name || displayPhone(user.phone)}
                       </Link>
                     ) : (
                       <span className="text-zinc-400">—</span>
@@ -151,7 +152,7 @@ export default async function AdminConversationsPage(
                   </Td>
                   <Td>{c.agent.name}</Td>
                   <Td className="text-zinc-600">
-                    {c.contact?.name || c.contact?.phone || '—'}
+                    {c.contact?.name || displayPhone(c.contact?.phone) || '—'}
                   </Td>
                   <Td>
                     <Badge tone="muted">

@@ -424,6 +424,41 @@ async function persistFixedAssistantReply(
 		})
 }
 
+/** Attach the provider acceptance/failure result to the already-persisted AI
+ * message, preserving retrieval and product receipts already in metadata. */
+async function markAssistantDelivery(
+        messageId: string | null,
+        status: 'sent' | 'failed',
+): Promise<void> {
+        if (!messageId) return
+        try {
+                const row = await prisma.message.findUnique({
+                        where: { id: messageId },
+                        select: { metadata: true },
+                })
+                const metadata = row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+                        ? row.metadata as Prisma.JsonObject
+                        : {}
+                await prisma.message.update({
+                        where: { id: messageId },
+                        data: {
+                                metadata: {
+                                        ...metadata,
+                                        delivery: {
+                                                status,
+                                                ...(status === 'failed' ? { reason: 'provider_error' } : {}),
+                                        },
+                                } as Prisma.InputJsonObject,
+                        },
+                })
+        } catch (error) {
+                // Reporting must not turn an accepted provider send into a
+                // failed queue job. The original delivery error is handled by
+                // the caller and still reaches structured logging.
+                console.error('[handler] assistant delivery metadata update failed:', error)
+        }
+}
+
 async function reactAfterInstagramReply(
         adapter: MessengerAdapter,
         msg: InboundMessage,
@@ -955,32 +990,38 @@ async function processChannelInbound(
                                 msg.kind !== 'COMMENT' &&
                                 msg.kind !== 'REACTION'
 
-                        if (canUseInstagramCarousel) {
-                                if (parsedReply.text) {
-                                        await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
+                        try {
+                                if (canUseInstagramCarousel) {
+                                        if (parsedReply.text) {
+                                                await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
+                                                        quickReplies: settings.quickReplies,
+                                                })
+                                        }
+                                        try {
+                                                await ensureDispatchStarted()
+                                                await sendProductCarousel(
+                                                        resolved.config,
+                                                        msg.chatId,
+                                                        showcasedProducts,
+                                                )
+                                        } catch (carouselError) {
+                                                console.error('[handler] Instagram product carousel failed:', carouselError)
+                                                if (productFallback) await deliveryAdapter.sendText(msg.chatId, productFallback)
+                                        }
+                                } else {
+                                        const outboundText = [parsedReply.text, productFallback]
+                                                .filter(Boolean)
+                                                .join('\n\n')
+                                        spokenReply = outboundText
+                                        await deliveryAdapter.sendText(msg.chatId, outboundText || result.reply, {
                                                 quickReplies: settings.quickReplies,
                                         })
                                 }
-                                try {
-                                        await ensureDispatchStarted()
-                                        await sendProductCarousel(
-                                                resolved.config,
-                                                msg.chatId,
-                                                showcasedProducts,
-                                        )
-                                } catch (carouselError) {
-                                        console.error('[handler] Instagram product carousel failed:', carouselError)
-                                        if (productFallback) await deliveryAdapter.sendText(msg.chatId, productFallback)
-                                }
-                        } else {
-                                const outboundText = [parsedReply.text, productFallback]
-                                        .filter(Boolean)
-                                        .join('\n\n')
-                                spokenReply = outboundText
-                                await deliveryAdapter.sendText(msg.chatId, outboundText || result.reply, {
-                                        quickReplies: settings.quickReplies,
-                                })
+                        } catch (deliveryError) {
+                                await markAssistantDelivery(resultMessageId, 'failed')
+                                throw deliveryError
                         }
+                        await markAssistantDelivery(resultMessageId, 'sent')
                         if (type === 'INSTAGRAM') {
                                 const policy = instagramPolicy ?? await loadAutomationPolicy(agent.id, resolved.config)
                                 const likeEnabled = msg.kind === 'COMMENT'

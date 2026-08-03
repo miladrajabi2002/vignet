@@ -112,7 +112,8 @@ export async function POST(req: Request, props: Params) {
 
   const res = NextResponse.json({
     ok: true,
-    username: num.verifiedName ?? num.displayPhoneNumber ?? num.phoneNumberId,
+    // phoneNumberId is an internal Meta asset id, never a phone-number label.
+    username: num.verifiedName ?? num.displayPhoneNumber ?? 'WhatsApp Business',
   })
   res.cookies.set('wa_oauth_pending', '', {
     httpOnly: true,

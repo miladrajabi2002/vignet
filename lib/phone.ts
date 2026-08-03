@@ -33,16 +33,36 @@ export function normalizePhone(input: string): string | null {
 }
 
 /**
+ * Normalize an Iranian mobile number for first-party storage and display.
+ *
+ * Provider APIs and older rows may use E.164, but the product-facing canonical
+ * form is the familiar national spelling: `09XXXXXXXXX`.
+ */
+export function normalizeIranianMobile(
+  input: string | null | undefined,
+): string | null {
+  if (!input) return null
+  const e164 = normalizePhone(input)
+  return e164 ? `0${e164.slice(3)}` : null
+}
+
+/** Format a phone for product UI without changing non-Iranian E.164 values. */
+export function displayPhone(input: string | null | undefined): string | null {
+  if (!input?.trim()) return null
+  return normalizeIranianMobile(input) ?? toEnglishDigits(input).trim()
+}
+
+/**
  * Canonical phone value used by CRM identity matching.
  *
- * Iranian mobile numbers are always stored as E.164 (`+989XXXXXXXXX`) so
+ * Iranian mobile numbers are stored in national form (`09XXXXXXXXX`) so
  * `0912...`, `98912...`, and `+98912...` resolve to the same customer. For
  * other international numbers we keep a conservative E.164 representation
  * when a country code is explicitly present.
  */
 export function normalizeContactPhone(input: string | null | undefined): string | null {
   if (!input?.trim()) return null
-  const iranian = normalizePhone(input)
+  const iranian = normalizeIranianMobile(input)
   if (iranian) return iranian
 
   let value = toEnglishDigits(input).trim().replace(/[\s\-().]/g, '')
@@ -62,14 +82,14 @@ export function contactPhoneLookupVariants(
   const canonical = normalizeContactPhone(input)
   if (!canonical) return []
 
-  if (canonical.startsWith('+98') && canonical.length === 13) {
-    const national = canonical.slice(3)
+  if (canonical.startsWith('09') && canonical.length === 11) {
+    const subscriber = canonical.slice(1)
     return [...new Set([
       canonical,
-      canonical.slice(1),
-      `0${national}`,
-      national,
-      `0098${national}`,
+      `+98${subscriber}`,
+      `98${subscriber}`,
+      subscriber,
+      `0098${subscriber}`,
     ])]
   }
 

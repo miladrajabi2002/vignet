@@ -1,5 +1,6 @@
 import { encrypt } from '@/lib/crypto'
 import { newWebhookToken } from '@/lib/channels/config'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * WhatsApp Cloud API OAuth connection config — stored encrypted in
@@ -85,7 +86,8 @@ export function buildWhatsappOAuthConfig(input: {
     wabaId: input.wabaId,
     phoneNumberId: input.phoneNumberId,
     phoneNumberEnc: encrypt(input.userToken),
-    displayPhoneNumber: input.displayPhoneNumber,
+    displayPhoneNumber:
+      normalizeIranianMobile(input.displayPhoneNumber) ?? input.displayPhoneNumber?.trim(),
     verifiedName: input.verifiedName,
     // Keep the legacy `readBotToken` pipeline working: it returns this packed
     // string, the whatsappAdapter parses it as `accessToken|phoneNumberId`, and

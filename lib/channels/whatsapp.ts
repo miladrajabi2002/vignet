@@ -5,6 +5,7 @@ import {
   parseQrToken,
 } from '@/lib/whatsapp/qr-config'
 import { splitOutboundText } from '@/lib/channels/text-chunks'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * WhatsApp adapter — covers THREE connection models through one interface:
@@ -59,14 +60,19 @@ export function whatsappAdapter(token: string): MessengerAdapter {
           const value = c.value
           const messages = value?.messages
           if (!messages?.length) continue
-          const profileName = value?.contacts?.[0]?.profile?.name
           for (const m of messages) {
             if (!m.from) continue
+            // The business phone-number id belongs only in the Graph API path.
+            // Customer identity comes from messages[].from / contacts[].wa_id.
+            const contact = value?.contacts?.find((item) => item.wa_id === m.from)
+              ?? value?.contacts?.[0]
+            const customerId = m.from.trim()
+            const customerPhone = normalizeIranianMobile(contact?.wa_id ?? customerId)
             out.push({
-              chatId: m.from,
-              senderId: m.from,
-              senderName: profileName,
-              senderPhone: m.from,
+              chatId: customerId,
+              senderId: customerId,
+              senderName: contact?.profile?.name,
+              senderPhone: customerPhone ?? undefined,
               // wamid — globally unique; drives the shared idempotency claim.
               platformMessageId: m.id,
               // Plain text, template button tap, or interactive reply-button tap.
@@ -138,6 +144,13 @@ export function whatsappAdapter(token: string): MessengerAdapter {
 
       // ── LEGACY / OAUTH mode: Graph API as before ─────────────────────────
       if (!creds) throw new Error('WHATSAPP invalid credentials')
+      if (chatId.trim() === creds.phoneNumberId) {
+        throw new Error('WHATSAPP invalid recipient: business phone-number id')
+      }
+      const nationalRecipient = normalizeIranianMobile(chatId)
+      const recipient = nationalRecipient
+        ? `98${nationalRecipient.slice(1)}`
+        : chatId.trim()
 
       async function post(payload: Record<string, unknown>): Promise<Response> {
         return fetch(`${GRAPH_BASE}/${creds!.phoneNumberId}/messages`, {
@@ -149,7 +162,7 @@ export function whatsappAdapter(token: string): MessengerAdapter {
           body: JSON.stringify({
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
-            to: chatId,
+            to: recipient,
             ...payload,
           }),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -236,7 +249,7 @@ interface WaWebhook {
   entry?: {
     changes?: {
       value?: {
-        contacts?: { profile?: { name?: string } }[]
+        contacts?: { wa_id?: string; profile?: { name?: string } }[]
         messages?: {
           id?: string
           from?: string

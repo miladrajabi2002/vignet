@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Zap,
 } from 'lucide-react'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * WhatsApp QR-bridge connection flow.
@@ -761,15 +762,17 @@ export function WhatsAppNumberPicker({
 
       <ul className="mt-4 space-y-2">
         {numbers.map((num) => {
+          const displayPhone = normalizeIranianMobile(num.displayPhoneNumber)
+            ?? num.displayPhoneNumber?.trim()
           const label =
             num.verifiedName?.trim() ||
-            num.displayPhoneNumber ||
-            num.phoneNumberId
-          const sub = num.displayPhoneNumber
+            displayPhone ||
+            'واتساپ Business'
+          const sub = displayPhone
             ? num.verifiedName
-              ? num.displayPhoneNumber
+              ? displayPhone
               : 'واتساپ Business'
-            : `ID: ${num.phoneNumberId}`
+            : 'شمارهٔ نمایشی از متا دریافت نشد'
           const isBusy = busyId === num.phoneNumberId
           return (
             <li

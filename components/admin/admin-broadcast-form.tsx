@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Bell, CheckCircle2, Send, Smartphone, X } from 'lucide-react'
+import { displayPhone } from '@/lib/phone'
 
 type UserOption = { id: string; name: string; phone: string; workspace: string; plan: string }
 
@@ -131,7 +132,7 @@ export function AdminBroadcastForm({ users }: { users: UserOption[] }) {
       <div className="space-y-5 p-5 sm:p-6">
         <div>
           <label className="mb-2 block text-xs font-bold text-zinc-800">مخاطب</label>
-          {mode === 'single' ? <select required value={userId} onChange={(e) => setUserId(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="">انتخاب کاربر</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} · {user.phone} · {user.workspace}</option>)}</select> : <select value={audience} onChange={(e) => setAudience(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="all">تمام کسب‌وکارها</option><option value="paid">پلن‌های پولی</option><option value="trial">کاربران آزمایشی</option><option value="onboarding">تکمیل‌نکرده‌های راه‌اندازی</option><option value="plan:STARTER">فقط پلن شروع</option><option value="plan:PRO">فقط پلن حرفه‌ای</option><option value="plan:BUSINESS">فقط پلن سازمانی</option></select>}
+          {mode === 'single' ? <select required value={userId} onChange={(e) => setUserId(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="">انتخاب کاربر</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name} · {displayPhone(user.phone)} · {user.workspace}</option>)}</select> : <select value={audience} onChange={(e) => setAudience(e.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs outline-none focus:border-black"><option value="all">تمام کسب‌وکارها</option><option value="paid">پلن‌های پولی</option><option value="trial">کاربران آزمایشی</option><option value="onboarding">تکمیل‌نکرده‌های راه‌اندازی</option><option value="plan:STARTER">فقط پلن شروع</option><option value="plan:PRO">فقط پلن حرفه‌ای</option><option value="plan:BUSINESS">فقط پلن سازمانی</option></select>}
         </div>
         <div>
           <label className="mb-2 block text-xs font-bold text-zinc-800">روش ارسال</label>

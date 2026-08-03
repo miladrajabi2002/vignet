@@ -161,7 +161,7 @@ export function MessageActivityReceipts({
       {deliveryStatus === 'sent' && (
         <span role="listitem" className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/[0.07] px-2.5 py-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300">
           <CircleCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {locale === 'fa' ? 'تحویل‌شده به کانال' : 'Delivered to channel'}
+          {locale === 'fa' ? 'پذیرفته‌شده برای ارسال' : 'Accepted by channel'}
         </span>
       )}
       {(deliveryStatus === 'failed' || deliveryStatus === 'unavailable') && (

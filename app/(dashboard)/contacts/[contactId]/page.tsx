@@ -13,6 +13,7 @@ import { relativeTime } from '@/lib/format'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { ContactDeleteAction } from '@/components/crm/contact-delete-action'
+import { displayPhone } from '@/lib/phone'
 
 export default async function ContactDetailPage(
   props: {
@@ -168,7 +169,7 @@ export default async function ContactDetailPage(
                   className="mt-0.5 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)]"
                 >
                   <Phone className="h-3.5 w-3.5" />
-                  {contact.phone}
+                  {displayPhone(contact.phone)}
                 </p>
               )}
             </div>

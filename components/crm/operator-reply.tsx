@@ -100,7 +100,7 @@ export function OperatorReply({
   ) : delivery?.status === 'sent' ? (
     <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
       <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-      {locale === 'fa' ? 'پیام با موفقیت به کانال رسید.' : 'Delivered to the channel.'}
+      {locale === 'fa' ? 'پیام برای ارسال توسط کانال پذیرفته شد.' : 'Accepted by the channel for delivery.'}
     </p>
   ) : (
     <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>

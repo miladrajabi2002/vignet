@@ -9,7 +9,7 @@ import { chatCompletion, getPlatformOpenRouterKey, type ChatMessage, type ChatTo
 import { getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { resolveModelId } from '@/lib/ai/models'
 import { createAdminActionToken } from '@/lib/admin/vigento-actions'
-import { normalizePhone } from '@/lib/phone'
+import { displayPhone, normalizePhone } from '@/lib/phone'
 import { ADMIN_VISIBLE_RELATED_WHERE, ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE, getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 
 const inputSchema = z.object({ message: z.string().trim().min(2).max(1800) })
@@ -275,8 +275,9 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
     if (matches.length !== 1) return { result: { error: 'AMBIGUOUS_USER', matches } }
     const user = matches[0]
     if (user.platformRole === 'ADMIN') return { result: { error: 'PROTECTED_USER' } }
-    const token = createAdminActionToken({ kind: 'DELETE_USER_ACCOUNT', userId: user.id, workspaceId: user.workspace.id, label: user.name || user.phone, reason: input.reason })
-    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف حساب کاربر', description: `${user.name || user.phone} از «${user.workspace.name}» حذف می‌شود. داده‌های کسب‌وکار برای سوابق حفظ می‌شوند و این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
+    const userLabel = user.name || displayPhone(user.phone) || user.phone
+    const token = createAdminActionToken({ kind: 'DELETE_USER_ACCOUNT', userId: user.id, workspaceId: user.workspace.id, label: userLabel, reason: input.reason })
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف حساب کاربر', description: `${userLabel} از «${user.workspace.name}» حذف می‌شود. داده‌های کسب‌وکار برای سوابق حفظ می‌شوند و این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
   }
   return { result: { error: 'UNKNOWN_TOOL' } }
 }

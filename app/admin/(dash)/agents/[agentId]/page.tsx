@@ -6,6 +6,7 @@ import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { TrendChart } from '@/components/admin/trend-chart'
 import { PageHeader, StatCard, Card, Badge, fa, fmtDate } from '../../ui'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { displayPhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,7 +79,7 @@ export default async function AdminAgentDetailPage({ params }: { params: Promise
         <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">اتصال‌ها و دانش</h2><div className="space-y-2">{agent.channels.map((channel) => <div key={channel.id} className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2 text-xs"><span>{CHANNEL_LABEL[channel.type] ?? channel.type}</span><Badge tone="muted">{channel.active ? 'فعال' : 'غیرفعال'}</Badge></div>)}{agent.knowledgeBases.map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2 text-xs"><span className="truncate">{item.name}</span><Badge tone="muted">{item.status}</Badge></div>)}</div></Card>
       </div>
 
-      <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">آخرین گفتگوهای این ایجنت</h2><div className="divide-y divide-zinc-100">{agent.conversations.length ? agent.conversations.map((conversation) => <Link key={conversation.id} href={`/admin/conversations/${conversation.id}`} className="flex min-h-14 items-center gap-3 rounded-xl px-2 text-xs transition-colors hover:bg-zinc-50"><MessageSquare className="h-4 w-4 text-zinc-400" /><div className="min-w-0 flex-1"><div className="truncate font-semibold text-zinc-800">{conversation.contact?.name || conversation.contact?.phone || 'مخاطب ناشناس'}</div><div className="mt-1 text-zinc-400">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel} · {fa(conversation.messageCount)} پیام</div></div><span className="text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span></Link>) : <p className="py-8 text-center text-xs text-zinc-400">گفتگویی ثبت نشده است</p>}</div></Card>
+      <Card><h2 className="mb-4 text-sm font-bold text-zinc-900">آخرین گفتگوهای این ایجنت</h2><div className="divide-y divide-zinc-100">{agent.conversations.length ? agent.conversations.map((conversation) => <Link key={conversation.id} href={`/admin/conversations/${conversation.id}`} className="flex min-h-14 items-center gap-3 rounded-xl px-2 text-xs transition-colors hover:bg-zinc-50"><MessageSquare className="h-4 w-4 text-zinc-400" /><div className="min-w-0 flex-1"><div className="truncate font-semibold text-zinc-800">{conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'}</div><div className="mt-1 text-zinc-400">{CHANNEL_LABEL[conversation.channel] ?? conversation.channel} · {fa(conversation.messageCount)} پیام</div></div><span className="text-zinc-400">{fmtDate(conversation.lastMessageAt ?? conversation.createdAt)}</span></Link>) : <p className="py-8 text-center text-xs text-zinc-400">گفتگویی ثبت نشده است</p>}</div></Card>
     </div>
   )
 }

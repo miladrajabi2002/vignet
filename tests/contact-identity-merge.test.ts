@@ -81,7 +81,7 @@ describe('cross-channel contact identity merge', () => {
     const newest = contact('contact-new', '2026-02-01T00:00:00.000Z', '989128352271', {
       whatsappId: '989128352271',
     })
-    const merged = { ...oldest, phone: '+989128352271', whatsappId: '989128352271' }
+    const merged = { ...oldest, phone: '09128352271', whatsappId: '989128352271' }
 
     mocks.tx.contact.findMany
       .mockResolvedValueOnce([{ id: oldest.id }, { id: newest.id }])
@@ -99,7 +99,7 @@ describe('cross-channel contact identity merge', () => {
     expect(id).toBe('contact-old')
     expect(mocks.withLocks).toHaveBeenCalledWith(
       'workspace-1',
-      ['WHATSAPP:989128352271', 'phone:+989128352271'],
+      ['WHATSAPP:989128352271', 'phone:09128352271'],
       expect.any(Function),
     )
     expect(mocks.tx.conversation.updateMany).toHaveBeenCalledWith({
@@ -112,7 +112,7 @@ describe('cross-channel contact identity merge', () => {
     expect(mocks.tx.contact.update).toHaveBeenLastCalledWith(expect.objectContaining({
       where: { id: 'contact-old' },
       data: expect.objectContaining({
-        phone: '+989128352271',
+        phone: '09128352271',
         whatsappId: '989128352271',
       }),
     }))

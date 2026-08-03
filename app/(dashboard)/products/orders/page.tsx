@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { Pagination } from '@/components/ui/pagination'
+import { displayPhone } from '@/lib/phone'
 
 const PAGE_SIZE = 25
 const ORDER_STATUSES = [
@@ -269,7 +270,7 @@ export default async function OrdersPage({
                         </p>
                         {order.customerPhone ? (
                           <p dir="ltr" className="mt-1 text-start text-xs text-[var(--text-muted)]">
-                            {order.customerPhone}
+                            {displayPhone(order.customerPhone)}
                           </p>
                         ) : order.customerEmail ? (
                           <p dir="ltr" className="mt-1 max-w-52 truncate text-start text-xs text-[var(--text-muted)]">

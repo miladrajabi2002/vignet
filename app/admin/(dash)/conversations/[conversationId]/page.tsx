@@ -7,6 +7,7 @@ import { PageHeader, Card, Badge, fa, fmtDate } from '../../ui'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
+import { displayPhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
     },
   })
   if (!conversation) notFound()
-  const contactName = conversation.contact?.name || conversation.contact?.phone || 'مخاطب ناشناس'
+  const contactName = conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'
 
   return (
     <div className="space-y-5">

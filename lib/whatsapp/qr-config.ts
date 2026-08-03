@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { encrypt } from '@/lib/crypto'
 import { newWebhookToken } from '@/lib/channels/config'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * WhatsApp QR-bridge connection config — stored encrypted in
@@ -71,7 +72,8 @@ export function buildWhatsappQrConfig(input: {
     mode: 'QR',
     bridgeSessionId: input.bridgeSessionId,
     botTokenEnc: encrypt(packed),
-    displayPhoneNumber: input.displayPhoneNumber,
+    displayPhoneNumber:
+      normalizeIranianMobile(input.displayPhoneNumber) ?? input.displayPhoneNumber?.trim(),
     verifiedName: input.verifiedName,
   }
 }

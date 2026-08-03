@@ -1,4 +1,5 @@
 import type { ChannelType } from '@prisma/client'
+import { displayPhone } from '@/lib/phone'
 
 /**
  * Resolve the best display name for a contact across channels.
@@ -26,7 +27,8 @@ export function contactDisplayName(params: {
 }): string {
 	const { name, phone, handle, channel, channelId, anonymousLabel } = params
 	if (name && name.trim()) return name.trim()
-	if (phone && phone.trim()) return phone.trim()
+	const formattedPhone = displayPhone(phone)
+	if (formattedPhone) return formattedPhone
 	if (handle && handle.trim()) return handle.trim()
 	// Per-channel fallback when we at least know the platform (i.e. the
 	// contact exists on that channel even without a display name).

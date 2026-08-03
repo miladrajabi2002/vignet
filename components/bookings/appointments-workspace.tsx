@@ -32,6 +32,7 @@ import { LocalizedDatePicker } from '@/components/ui/localized-date-picker'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { dateKeyInTimeZone } from '@/lib/bookings/time'
 import { dateLocaleTag, formatDateKey } from '@/lib/localized-date'
+import { displayPhone } from '@/lib/phone'
 
 type Locale = 'fa' | 'en'
 type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'
@@ -782,7 +783,7 @@ function AppointmentCard({ appointment, locale, busy, cancelling, cancellationRe
           {appointment.customerPhone && (
             <span dir="ltr" className="inline-flex items-center gap-1">
               <UserRound className="h-3.5 w-3.5" />
-              {appointment.customerPhone}
+              {displayPhone(appointment.customerPhone)}
             </span>
           )}
           {appointment.serviceLocation && (

@@ -18,6 +18,7 @@ import {
         type HandoffAlertProp,
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
+import { displayPhone } from '@/lib/phone'
 import { channelHasOutboundCredentials } from '@/lib/channels/outbound'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
@@ -223,7 +224,7 @@ export default async function ConversationThreadPage(props: {
                                                         {conversation.contact?.phone && (
                                                                 <span dir="ltr" className="inline-flex items-center gap-1">
                                                                         <Phone className="h-3 w-3" />
-                                                                        {conversation.contact.phone}
+                                                                        {displayPhone(conversation.contact.phone)}
                                                                 </span>
                                                         )}
                                                 </div>

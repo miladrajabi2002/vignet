@@ -17,6 +17,7 @@ import {
         CheckCircle2,
         Sparkles,
 } from 'lucide-react'
+import { displayPhone } from '@/lib/phone'
 import type { ChannelType } from '@prisma/client'
 import { cn } from '@/lib/utils'
 import { relativeTime } from '@/lib/format'
@@ -174,7 +175,7 @@ export function ConversationPanel({
                                         <Snap
                                                 icon={<Phone className="h-3.5 w-3.5" />}
                                                 label={t('customerPhone')}
-                                                value={contactPhone ?? '—'}
+                                                value={displayPhone(contactPhone) ?? '—'}
                                         />
                                         <Snap
                                                 icon={<MessageCircle className="h-3.5 w-3.5" />}
