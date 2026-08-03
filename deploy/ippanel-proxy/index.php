@@ -21,7 +21,8 @@ const PROXY_SECRET = 'PUT_A_LONG_RANDOM_SECRET_HERE';
 // ────────────────────────────────────────────────────────────────────────
 
 const IPPANEL_SEND_URL = 'https://edge.ippanel.com/v1/api/send';
-const ALLOWED_SENDING_TYPES = ['pattern', 'webservice'];
+// Vigent intentionally sends only pre-approved patterns (OTP and notifications).
+const ALLOWED_SENDING_TYPES = ['pattern'];
 
 require_once __DIR__ . '/payload.php';
 

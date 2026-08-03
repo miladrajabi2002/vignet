@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_OWNER_PHONE, isAdminAuthed } from '@/lib/admin/auth'
-import { dispatchNotification } from '@/lib/queue/jobs'
 import { ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
 
 const BodySchema = z.object({
@@ -11,7 +10,6 @@ const BodySchema = z.object({
   userId: z.string().min(1).optional(),
   audience: z.enum(['all', 'paid', 'trial', 'onboarding']).optional(),
   plan: z.enum(['TRIAL', 'STARTER', 'PRO', 'BUSINESS']).optional(),
-  channel: z.enum(['notification', 'sms', 'both']),
   title: z.string().trim().min(2).max(120),
   message: z.string().trim().min(2).max(1000),
 }).superRefine((value, ctx) => {
@@ -46,35 +44,16 @@ export async function POST(request: Request) {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      name: true,
-      owner: {
-        select: { id: true, phone: true },
-      },
     },
   })
 
   if (!workspaces.length) return NextResponse.json({ error: 'مخاطبی با این فیلتر پیدا نشد.' }, { status: 404 })
-  const sendInApp = input.channel !== 'sms'
-  const sendSms = input.channel !== 'notification'
-  const text = `${input.title}\n${input.message}`
   let notificationCount = 0
-  let smsCount = 0
 
   for (let index = 0; index < workspaces.length; index += 10) {
     await Promise.all(workspaces.slice(index, index + 10).map(async (workspace) => {
-      if (sendInApp) {
-        await prisma.notification.create({ data: { workspaceId: workspace.id, type: 'SYSTEM', title: input.title, body: input.message } })
-        notificationCount += 1
-      }
-      if (sendSms) {
-        const recipient = input.mode === 'single' && workspace.owner?.id !== input.userId
-          ? null
-          : workspace.owner
-        if (recipient?.phone) {
-          await dispatchNotification({ kind: 'sms', to: recipient.phone, message: text })
-          smsCount += 1
-        }
-      }
+      await prisma.notification.create({ data: { workspaceId: workspace.id, type: 'SYSTEM', title: input.title, body: input.message } })
+      notificationCount += 1
     }))
   }
 
@@ -86,17 +65,15 @@ export async function POST(request: Request) {
       targetId: input.userId ?? input.plan ?? input.audience ?? 'all',
       payload: {
         mode: input.mode,
-        channel: input.channel,
         audience: input.audience ?? null,
         plan: input.plan ?? null,
         title: input.title,
         messageLength: input.message.length,
         workspaceCount: workspaces.length,
         notificationCount,
-        smsCount,
       } as Prisma.InputJsonValue,
     },
   })
 
-  return NextResponse.json({ ok: true, workspaceCount: workspaces.length, notificationCount, smsCount })
+  return NextResponse.json({ ok: true, workspaceCount: workspaces.length, notificationCount })
 }

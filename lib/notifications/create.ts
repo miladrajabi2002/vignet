@@ -11,8 +11,6 @@ export interface NotifyParams {
   body?: string
   /** In-app deep link, e.g. /conversations/<id>. */
   link?: string
-  /** Also text the workspace owner (critical alerts only — SMS costs money). */
-  sms?: boolean
   /** Also send an ops email to ALERT_EMAIL (platform monitoring). */
   opsEmail?: boolean
   /** Also alert the workspace's configured operator Telegram bot. */
@@ -21,11 +19,10 @@ export interface NotifyParams {
 
 /**
  * Create an in-app notification (the dashboard bell) and optionally fan out to
- * SMS (the workspace owner) and an ops email. Never throws — a failed
- * notification must not break the action that triggered it.
+ * an ops email. Never throws — a failed notification must not break the action
+ * that triggered it.
  *
- * Users authenticate by phone (no email on the User model), so customer-facing
- * delivery beyond the bell is SMS; email is reserved for ALERT_EMAIL ops alerts.
+ * Email is reserved for ALERT_EMAIL ops alerts.
  */
 export async function notifyWorkspace(params: NotifyParams): Promise<void> {
   try {
@@ -43,21 +40,6 @@ export async function notifyWorkspace(params: NotifyParams): Promise<void> {
   }
 
   const text = params.body ? `${params.title}\n${params.body}` : params.title
-
-  if (params.sms) {
-    try {
-      const owner = await prisma.user.findFirst({
-        where: { workspaceId: params.workspaceId },
-        orderBy: { createdAt: 'asc' }, // the first user is the OWNER
-        select: { phone: true },
-      })
-      if (owner?.phone) {
-        await dispatchNotification({ kind: 'sms', to: owner.phone, message: text })
-      }
-    } catch (e) {
-      captureError('notify:sms', e, { workspaceId: params.workspaceId })
-    }
-  }
 
   if (params.opsEmail) {
     try {

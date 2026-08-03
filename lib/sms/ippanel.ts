@@ -6,9 +6,8 @@ import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
 
 /**
  * IPPanel Edge API (https://docs.ippanel.com/docs/).
- * All sends go through a single endpoint; `sending_type` selects the mode:
- *  - "pattern"    → pre-approved template with variables (used for OTP)
- *  - "webservice" → free-form message (used for notifications)
+ * All sends go through a single endpoint in `pattern` mode. IPPanel requires
+ * every key in `params` to match a variable in the pre-approved template.
  * Auth is the panel API key / token in the `Authorization` header.
  *
  * IPPanel only accepts requests from an Iranian IP, but the app server is
@@ -99,8 +98,15 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
+    const params = body.params
     captureError('sms:ippanel:http', new Error(`IPPanel request failed with HTTP ${res.status}`), {
-      metadata: { status: res.status, providerResponse: text.slice(0, 1_000) },
+      metadata: {
+        status: res.status,
+        sendingType: body.sending_type,
+        patternCode: body.code,
+        paramKeys: params && typeof params === 'object' ? Object.keys(params) : [],
+        providerResponse: text.slice(0, 1_000),
+      },
     })
     return false
   }
@@ -214,39 +220,6 @@ export async function sendOTP(mobile: string, context?: OtpAuditContext): Promis
       metadata: { phone: normalized, requestId: context?.requestId, provider },
     })
     throw new Error('SMS_FAILED', { cause: error })
-  }
-}
-
-/**
- * Send a free-form SMS via IPPanel's webservice mode (used for notifications,
- * not OTP). Requires (IPPANEL_API_KEY or IPPANEL_PROXY_URL) and
- * IPPANEL_FROM_NUMBER. In dev (neither set) the message is logged to the
- * console instead. Never throws — notifications must not break the caller;
- * returns false when not delivered.
- */
-export async function sendSms(mobile: string, message: string): Promise<boolean> {
-  const normalized = normalizePhone(mobile)
-  if (!normalized) return false
-
-  const fromNumber = process.env.IPPANEL_FROM_NUMBER
-
-  if (!isSmsConfigured() || !fromNumber) {
-    // Never print recipients or bodies. Commercial messages can contain
-    // customer identity and payment details when production is misconfigured.
-    console.warn('[ippanel] notification SMS skipped: provider or sender is not configured')
-    return false
-  }
-
-  try {
-    return await ippanelSend({
-      sending_type: 'webservice',
-      from_number: fromNumber,
-      message,
-      params: { recipients: [normalized] },
-    })
-  } catch (e) {
-    console.error('[ippanel] webservice send threw:', e)
-    return false
   }
 }
 
@@ -365,7 +338,7 @@ type AdminCreditTopupPatternData = Omit<AdminSubscriptionPatternData, 'plan'> & 
 /**
  * Platform-owner commercial alerts intentionally have no free-text fallback.
  * Each event uses its own pre-approved IPPanel pattern so a financial callback
- * can never silently switch to webservice-mode delivery.
+ * can never silently switch to free-form delivery.
  */
 export async function sendAdminSubscriptionPurchasedSms(
   mobile: string,
@@ -404,6 +377,7 @@ export async function sendAdminCreditTopupSms(
  * Subscription-expiry reminder SMS — sent N days before the subscription ends.
  * Uses a dedicated IPPanel pattern (IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE)
  * whose variables are:
+ *   %plan%    → plan name (e.g. "حرفه‌ای")
  *   %days%    → whole days remaining (e.g. "۳")
  *   %expiry%  → subscription end date (e.g. "۱۴۰۳/۰۵/۱۲")
  *
@@ -413,9 +387,10 @@ export async function sendAdminCreditTopupSms(
  */
 export async function sendSubscriptionExpiringSms(
   mobile: string,
-  data: { daysRemaining: number; currentPeriodEnd: Date },
+  data: { plan: string; daysRemaining: number; currentPeriodEnd: Date },
 ): Promise<boolean> {
   return sendPatternSms(mobile, process.env.IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE, {
+    plan: planLabelFa(data.plan),
     days: String(data.daysRemaining),
     expiry: formatPersianDate(data.currentPeriodEnd),
   })

@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { dispatchNotification } from '@/lib/queue/jobs'
 import { captureError } from '@/lib/errors/capture'
 import { findModel, type ModelAlias } from '@/lib/ai/models'
 import {
@@ -7,14 +6,6 @@ import {
   estimateRemainingReplies,
   lowCreditThresholdIRR,
 } from '@/lib/billing/credit-estimates'
-
-type AlertPayload = {
-  workspaceId: string
-  remainingReplies: number
-  modelName: string
-  conversationsThisMonth: number
-  bookingsThisMonth: number
-}
 
 /**
  * Runs only after a successful credit capture. The caller intentionally does
@@ -26,7 +17,7 @@ export async function processLowCreditAlert(params: {
   replyPriceIRR: number
 }): Promise<void> {
   try {
-    const alert = await prisma.$transaction(async (tx): Promise<AlertPayload | null> => {
+    await prisma.$transaction(async (tx) => {
       const [workspace, state] = await Promise.all([
         tx.workspace.findUnique({
           where: { id: params.workspaceId },
@@ -111,33 +102,12 @@ export async function processLowCreditAlert(params: {
         },
       })
 
-      return { workspaceId: params.workspaceId, remainingReplies, modelName, conversationsThisMonth, bookingsThisMonth }
+      return null
     })
-
-    if (alert) await sendLowCreditSms(alert)
   } catch (error) {
     captureError('billing:low-credit-alert', error, {
       workspaceId: params.workspaceId,
       metadata: { modelAlias: params.modelAlias },
     })
-  }
-}
-
-async function sendLowCreditSms(alert: AlertPayload): Promise<void> {
-  try {
-    const owner = await prisma.user.findFirst({
-      where: { workspaceId: alert.workspaceId },
-      select: { phone: true },
-    })
-    if (!owner?.phone) return
-
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir').replace(/\/$/, '')
-    await dispatchNotification({
-      kind: 'sms',
-      to: owner.phone,
-      message: `اعتبار پاسخ‌های ویجنت رو به پایان است. این ماه ${alert.conversationsThisMonth.toLocaleString('fa-IR')} گفتگو و ${alert.bookingsThisMonth.toLocaleString('fa-IR')} رزرو ثبت شده؛ با مدل ${alert.modelName} حدود ${alert.remainingReplies.toLocaleString('fa-IR')} پاسخ دیگر دارید. حفظ روند پاسخ‌گویی: ${appUrl}/billing`,
-    })
-  } catch (error) {
-    captureError('billing:low-credit-sms', error, { workspaceId: alert.workspaceId })
   }
 }

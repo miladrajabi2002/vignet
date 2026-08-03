@@ -2,9 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Validate the two distinct IPPanel Edge send contracts without modifying the
- * body that is forwarded upstream. Pattern sends keep `recipients` at the top
- * level; webservice sends put it inside `params`.
+ * Validate the IPPanel Edge send contract without modifying the body forwarded
+ * upstream. Vigent uses only pattern sends, whose `recipients` are top-level.
  */
 function is_valid_ippanel_payload($payload, array $allowedSendingTypes): bool
 {
@@ -17,12 +16,7 @@ function is_valid_ippanel_payload($payload, array $allowedSendingTypes): bool
         return false;
     }
 
-    if ($type === 'webservice') {
-        $params = $payload['params'] ?? null;
-        $recipients = is_array($params) ? ($params['recipients'] ?? null) : null;
-    } else {
-        $recipients = $payload['recipients'] ?? null;
-    }
+    $recipients = $payload['recipients'] ?? null;
 
     if (!is_array($recipients) || count($recipients) === 0) {
         return false;

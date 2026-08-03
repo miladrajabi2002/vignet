@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../deploy/ippanel-proxy/payload.php';
 
-$allowed = ['pattern', 'webservice'];
+$allowed = ['pattern'];
 $cases = [
-    'nested webservice recipients are accepted' => [
+    'webservice sends are rejected' => [
         ['sending_type' => 'webservice', 'params' => ['recipients' => ['+989128352271']]],
-        true,
+        false,
     ],
     'top-level-only webservice recipients are rejected' => [
         ['sending_type' => 'webservice', 'recipients' => ['+989128352271']],

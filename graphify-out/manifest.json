@@ -430,8 +430,8 @@
     "semantic_hash": ""
   },
   "app/api/admin/notifications/route.ts": {
-    "mtime": 1784678354.8111854,
-    "ast_hash": "889b082c3f50e9845c514a7d29583c79",
+    "mtime": 1785779188.3813212,
+    "ast_hash": "3c4c6d011e232a8d7c9c551b2b5cf1ae",
     "semantic_hash": ""
   },
   "app/api/admin/platform-settings/route.ts": {
@@ -935,8 +935,8 @@
     "semantic_hash": ""
   },
   "components/admin/admin-broadcast-form.tsx": {
-    "mtime": 1785730431.055312,
-    "ast_hash": "3636fc87fcf3134f28e42f11b7ab9b25",
+    "mtime": 1785779154.68778,
+    "ast_hash": "fc4e4473248f1e7f4a044a2879d64d5f",
     "semantic_hash": ""
   },
   "components/admin/ai-model-policy-form.tsx": {
@@ -1515,8 +1515,8 @@
     "semantic_hash": ""
   },
   "deploy/ippanel-proxy/index.php": {
-    "mtime": 1784724839.6213083,
-    "ast_hash": "381a1a56d2381bb38fc563818731d420",
+    "mtime": 1785776203.7222896,
+    "ast_hash": "1d2a308b085e12716fab685288bae8bc",
     "semantic_hash": ""
   },
   "deploy/setup-db-studio.sh": {
@@ -1525,7 +1525,7 @@
     "semantic_hash": ""
   },
   "deploy/setup-server.sh": {
-    "mtime": 1784663407.2056286,
+    "mtime": 1785779120.5999641,
     "ast_hash": "b6012505f98c107d899c0bb80856a10f",
     "semantic_hash": ""
   },
@@ -1660,8 +1660,8 @@
     "semantic_hash": ""
   },
   "lib/billing/low-credit-alert.ts": {
-    "mtime": 1784678371.473238,
-    "ast_hash": "14ebe99c8ba5c2a6107c9efae4992f73",
+    "mtime": 1785779120.605965,
+    "ast_hash": "625ae04e0463e028631febc017d0b437",
     "semantic_hash": ""
   },
   "lib/billing/nowpayments.ts": {
@@ -1760,8 +1760,8 @@
     "semantic_hash": ""
   },
   "lib/channels/operator-handoff.ts": {
-    "mtime": 1784722221.7385778,
-    "ast_hash": "397927b331cf4dfb8501926cbd59c256",
+    "mtime": 1785779120.6049712,
+    "ast_hash": "91530cf740d991b0aefabaccb0181a4c",
     "semantic_hash": ""
   },
   "lib/channels/outbound.ts": {
@@ -1975,13 +1975,13 @@
     "semantic_hash": ""
   },
   "lib/notifications/create.ts": {
-    "mtime": 1783816713.81935,
-    "ast_hash": "c97b805e72762f15c678f8bee2b1390e",
+    "mtime": 1785779209.7283075,
+    "ast_hash": "d013a7f599ac90bbb2a9fd7a4642cef6",
     "semantic_hash": ""
   },
   "lib/notifications/notify.ts": {
-    "mtime": 1783182294.5601952,
-    "ast_hash": "ad29653b4346ee27a3cbf15ee3d8f84f",
+    "mtime": 1785779120.6009655,
+    "ast_hash": "fa3f1e83e87c83a0ae7620a5388ac00e",
     "semantic_hash": ""
   },
   "lib/notifications/operator-telegram.ts": {
@@ -2020,8 +2020,8 @@
     "semantic_hash": ""
   },
   "lib/queue/jobs.ts": {
-    "mtime": 1785077866.9703507,
-    "ast_hash": "f656f784464f319255b9a34beba792e7",
+    "mtime": 1785779120.601965,
+    "ast_hash": "233111ac5534d84e3976d125b62837f7",
     "semantic_hash": ""
   },
   "lib/ratelimit.ts": {
@@ -2055,8 +2055,8 @@
     "semantic_hash": ""
   },
   "lib/sms/ippanel.ts": {
-    "mtime": 1785237195.9438589,
-    "ast_hash": "dc4cac8af213945030b37798c2958f7c",
+    "mtime": 1785779120.5944462,
+    "ast_hash": "7b8dae374bf3213532706b036733ba1d",
     "semantic_hash": ""
   },
   "lib/storage.ts": {
@@ -2455,8 +2455,8 @@
     "semantic_hash": ""
   },
   "worker/scheduler.ts": {
-    "mtime": 1785077866.9753528,
-    "ast_hash": "7ca76cdb056427ae42dde626f0331a74",
+    "mtime": 1785779120.6039667,
+    "ast_hash": "a7a44427e35cef703a65cf4dc028f909",
     "semantic_hash": ""
   },
   ".agents/skills/animation-vocabulary/SKILL.md": {
@@ -2800,7 +2800,7 @@
     "semantic_hash": ""
   },
   "lib/config/production-env.ts": {
-    "mtime": 1785028963.879179,
+    "mtime": 1785779120.5979974,
     "ast_hash": "3830acbd94f39af1a49839a0ae5e3978",
     "semantic_hash": ""
   },
@@ -2885,7 +2885,7 @@
     "semantic_hash": ""
   },
   "tests/production-env.test.ts": {
-    "mtime": 1785029009.797934,
+    "mtime": 1785779365.7736588,
     "ast_hash": "c548b91e6a22ee041a4959e446ee216f",
     "semantic_hash": ""
   },
@@ -3160,8 +3160,8 @@
     "semantic_hash": ""
   },
   "deploy/ippanel-proxy/payload.php": {
-    "mtime": 1784724840.7357638,
-    "ast_hash": "56a9e3704428e4b35da277d846666067",
+    "mtime": 1785779188.3813212,
+    "ast_hash": "72f6a47a68eed81d6a06828823480fbf",
     "semantic_hash": ""
   },
   "lib/ai/sales-intelligence.ts": {
@@ -3240,13 +3240,8 @@
     "semantic_hash": ""
   },
   "tests/ippanel-proxy-contract.php": {
-    "mtime": 1784724841.7920892,
-    "ast_hash": "3a4d13052fa5579ab084721033e4ddd4",
-    "semantic_hash": ""
-  },
-  "tests/ippanel-webservice-contract.test.ts": {
-    "mtime": 1784724838.0883276,
-    "ast_hash": "b92b8995a2fa1fcd0b739132c399e093",
+    "mtime": 1785776203.7242906,
+    "ast_hash": "4f215405c4ea73531d2f8d1e397c2c42",
     "semantic_hash": ""
   },
   "tests/product-description.test.ts": {
@@ -3632,6 +3627,11 @@
   "tests/whatsapp-bridge-identity.test.ts": {
     "mtime": 1785733255.9020154,
     "ast_hash": "b7ed903ff90afeb4d2ceeac123245a97",
+    "semantic_hash": ""
+  },
+  "tests/ippanel-pattern-contract.test.ts": {
+    "mtime": 1785779188.3813212,
+    "ast_hash": "dbda120c99b047b6042261f916d15d1c",
     "semantic_hash": ""
   }
 }

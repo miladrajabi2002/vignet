@@ -111,7 +111,6 @@ async function alertSilentChannels(): Promise<void> {
                         title: `اتصال ${ch.type} قطع به نظر می‌رسد`,
                         body: `کانال «${ch.agent.name}» بیش از ۳ روز پیامی دریافت نکرده است. ممکن است توکن منقضی شده باشد.`,
                         link: '/integrations',
-                        sms: true,
                         opsEmail: true,
                 })
                 await prisma.agentChannel.update({
@@ -408,6 +407,7 @@ async function remindExpiringSubscriptions(): Promise<void> {
                                 Math.ceil((sub.currentPeriodEnd.getTime() - now) / (24 * HOUR_MS)),
                         )
                         await sendSubscriptionExpiringSms(owner.phone, {
+                                plan: sub.plan,
                                 daysRemaining,
                                 currentPeriodEnd: sub.currentPeriodEnd,
                         })
@@ -632,7 +632,6 @@ async function refreshOauthTokens(): Promise<void> {
                                                                         : 'اتصال واتساپ نیاز به اتصال مجدد دارد',
                                                         body: `تمدید خودکار دسترسی کانال «${ch.agent.name}» ناموفق بود و اعتبار آن به‌زودی تمام می‌شود. لطفاً از بخش کانال‌ها دوباره متصل شوید.`,
                                                         link: '/integrations',
-                                                        sms: true,
                                                 })
                                         }
                                 } catch (notifyError) {

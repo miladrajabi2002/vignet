@@ -137,7 +137,6 @@ export async function createHandoffAlert(ctx: HandoffContext): Promise<string | 
                         title: 'گفتگو به اپراتور انسانی منتقل شد',
                         body: `یک مکالمه نیاز به پاسخ شما دارد.${ctx.contactName ? ` مشتری: ${ctx.contactName}` : ''}`,
                         link: `/conversations/${ctx.conversationId}`,
-                        sms: true,
                 }).catch(() => {})
 
                 // Push to operator Telegram bot if configured.

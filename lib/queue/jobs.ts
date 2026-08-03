@@ -136,7 +136,7 @@ export async function dispatchSummary(data: SummaryJobData): Promise<void> {
   }
 }
 
-/** Enqueue a notification (email/SMS/ops). Falls back to inline processing. */
+/** Enqueue an email or ops notification. Falls back to inline processing. */
 export async function dispatchNotification(
   data: NotificationJobData,
 ): Promise<void> {
