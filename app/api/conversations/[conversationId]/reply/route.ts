@@ -3,7 +3,11 @@ import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { sendOutbound, type OutboundDeliveryResult } from '@/lib/channels/outbound'
+import {
+  resolveConversationRecipient,
+  sendOutbound,
+  type OutboundDeliveryResult,
+} from '@/lib/channels/outbound'
 import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
@@ -36,7 +40,13 @@ export async function POST(req: Request, props: Params) {
 
   const conversation = await prisma.conversation.findFirst({
     where: { id: params.conversationId, workspaceId: user.workspaceId },
-    select: { id: true, agentId: true, channel: true, externalId: true },
+    select: {
+      id: true,
+      agentId: true,
+      channel: true,
+      externalId: true,
+      contact: { select: { phone: true } },
+    },
   })
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
 
@@ -50,10 +60,15 @@ export async function POST(req: Request, props: Params) {
     ? { status: 'unavailable', reason: conversation.externalId ? 'channel_inactive' : 'missing_thread' }
     : { status: 'unavailable', reason: 'not_push_channel' }
   if (isMessengerType(conversation.channel) && conversation.externalId) {
+    const recipient = resolveConversationRecipient(
+      conversation.channel,
+      conversation.externalId,
+      conversation.contact?.phone,
+    )
     delivery = await sendOutbound(
       conversation.agentId,
       conversation.channel,
-      conversation.externalId,
+      recipient,
       text,
     )
     if (delivery.status === 'failed') {

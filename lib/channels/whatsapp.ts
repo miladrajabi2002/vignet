@@ -67,10 +67,21 @@ export function whatsappAdapter(token: string): MessengerAdapter {
             const contact = value?.contacts?.find((item) => item.wa_id === m.from)
               ?? value?.contacts?.[0]
             const customerId = m.from.trim()
-            const customerPhone = normalizeIranianMobile(contact?.wa_id ?? customerId)
+            // Cloud API normally repeats the customer's number in both
+            // messages[].from and contacts[].wa_id. The QR bridge may receive
+            // a LID in one field and the corresponding PN in the other, so try
+            // every customer candidate instead of letting an opaque first
+            // value hide a valid mobile number.
+            const customerPhone = [
+              contact?.wa_id,
+              customerId,
+              ...(value?.contacts?.map((item) => item.wa_id) ?? []),
+            ]
+              .map(normalizeIranianMobile)
+              .find((phone): phone is string => Boolean(phone))
             out.push({
               chatId: customerId,
-              senderId: customerId,
+              senderId: (qrSessionId ? m._vigent_sender_id?.trim() : undefined) || customerId,
               senderName: contact?.profile?.name,
               senderPhone: customerPhone ?? undefined,
               // wamid — globally unique; drives the shared idempotency claim.
@@ -256,6 +267,7 @@ interface WaWebhook {
           text?: { body?: string }
           button?: { text?: string }
           interactive?: { button_reply?: { id?: string; title?: string } }
+          _vigent_sender_id?: string
           type?: string
         }[]
       }

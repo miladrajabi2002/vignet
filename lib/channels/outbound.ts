@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { readPageToken } from '@/lib/instagram/config'
 import { getAdapter, isMessengerType } from '@/lib/channels/registry'
+import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * Push a plain-text message to a contact on a messenger channel — used for
@@ -31,6 +32,16 @@ export type OutboundDeliveryResult = {
   status: OutboundDeliveryStatus
   reason?: OutboundDeliveryReason
   cause?: unknown
+}
+
+/** Prefer the CRM mobile for WhatsApp conversations created with an old LID. */
+export function resolveConversationRecipient(
+  channel: ChannelType,
+  externalId: string | null,
+  contactPhone: string | null | undefined,
+): string | null {
+  if (channel !== 'WHATSAPP') return externalId
+  return normalizeIranianMobile(contactPhone) ?? externalId
 }
 
 export function channelHasOutboundCredentials(

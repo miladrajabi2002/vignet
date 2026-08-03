@@ -35,6 +35,37 @@ describe('WhatsApp inbound identity parsing', () => {
     expect(message.senderPhone).toBeUndefined()
   })
 
+  it('finds the customer mobile when another WhatsApp identity field is opaque', () => {
+    const [message] = whatsappAdapter('token|business-phone-id').parseUpdate({
+      entry: [{ changes: [{ value: {
+        contacts: [{ wa_id: '181316641398869', profile: { name: 'Customer' } }],
+        messages: [{ id: 'wamid.3', from: '989128352271', text: { body: 'hello' } }],
+      } }] }],
+    })
+
+    expect(message.senderPhone).toBe('09128352271')
+  })
+
+  it('keeps a QR LID for CRM repair while replying to its mapped phone number', () => {
+    const [message] = whatsappAdapter('qr:session-1').parseUpdate({
+      entry: [{ changes: [{ value: {
+        contacts: [{ wa_id: '989128352271', profile: { name: 'Customer' } }],
+        messages: [{
+          id: 'bridge-message-1',
+          from: '989128352271',
+          _vigent_sender_id: '181316641398869',
+          text: { body: 'hello' },
+        }],
+      } }] }],
+    })
+
+    expect(message).toMatchObject({
+      chatId: '989128352271',
+      senderId: '181316641398869',
+      senderPhone: '09128352271',
+    })
+  })
+
   it('refuses to send to the business phone-number id', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

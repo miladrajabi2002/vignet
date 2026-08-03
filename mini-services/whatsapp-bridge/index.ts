@@ -38,6 +38,7 @@
  * restarting the bridge reconnects automatically without re-scanning the QR.
  */
 import express from 'express'
+import { resolveBaileysInboundIdentity } from './inbound-identity.js'
 import {
   default as makeWASocket,
   useMultiFileAuthState,
@@ -163,7 +164,9 @@ async function forwardInbound(
   if (msg.key?.fromMe) return
   if (jid === 'status@broadcast') return
 
-  const from = jid.split('@')[0]
+  const identity = resolveBaileysInboundIdentity(msg.key ?? {})
+  if (!identity) return
+  const { chatId: from, senderId, phone } = identity
   const text =
     msg.message?.conversation ??
     msg.message?.extendedTextMessage?.text ??
@@ -195,12 +198,19 @@ async function forwardInbound(
                 phone_number_id: `qr:${sessionId}`,
                 display_phone_number: sessions.get(sessionId)?.phone ?? '',
               },
-              contacts: msg.pushName
-                ? [{ profile: { name: msg.pushName } }]
+              contacts: phone || msg.pushName
+                ? [{
+                    ...(phone ? { wa_id: phone } : {}),
+                    ...(msg.pushName ? { profile: { name: msg.pushName } } : {}),
+                  }]
                 : [],
               messages: [
                 {
                   from,
+                  id: msg.key?.id,
+                  // Internal extension consumed by our adapter. This keeps
+                  // CRM identity separate from the PN used as reply target.
+                  _vigent_sender_id: senderId,
                   type: 'text',
                   text: text !== '' ? { body: text } : undefined,
                   button: buttonTitle ? { text: buttonTitle } : undefined,

@@ -15,7 +15,7 @@ vi.mock('@/lib/channels/registry', () => ({
   getAdapter: () => ({ sendText: mocks.sendText }),
 }))
 
-import { sendOutbound } from '@/lib/channels/outbound'
+import { resolveConversationRecipient, sendOutbound } from '@/lib/channels/outbound'
 
 describe('structured outbound delivery', () => {
   beforeEach(() => {
@@ -44,5 +44,21 @@ describe('structured outbound delivery', () => {
       reason: 'provider_error',
       cause,
     })
+  })
+
+  it('repairs an old WhatsApp LID recipient from the CRM mobile', () => {
+    expect(resolveConversationRecipient(
+      'WHATSAPP',
+      '181316641398869',
+      '+989128352271',
+    )).toBe('09128352271')
+  })
+
+  it('does not replace recipients for other channels', () => {
+    expect(resolveConversationRecipient(
+      'TELEGRAM',
+      '181316641398869',
+      '09128352271',
+    )).toBe('181316641398869')
   })
 })

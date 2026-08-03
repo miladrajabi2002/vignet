@@ -351,9 +351,10 @@ export async function withInboundEventLease<T>(
         if (!ok) lost = true
       })
       .catch(() => {
-        // Conservative fencing: a worker that cannot prove renewal must stop
-        // before dispatch/finalization instead of racing a future owner.
-        lost = true
+        // A single transient database error must not permanently poison an
+        // otherwise-current lease. The next heartbeat retries, while every
+        // dispatch/finalization write still proves the fencing token and the
+        // expiry atomically in PostgreSQL.
       })
       .finally(() => {
         renewing = false
@@ -370,9 +371,11 @@ export async function withInboundEventLease<T>(
   }
 
   try {
-    const result = await operation(guard)
-    await guard.assertActive()
-    return result
+    // Do not assert after the callback returns. A successful callback is
+    // allowed to call completeInboundEvent(), which atomically transitions
+    // the row to COMPLETED and intentionally clears its lease. Re-checking the
+    // lease here would turn every successful completion into LeaseLost.
+    return await operation(guard)
   } finally {
     clearInterval(timer)
   }
