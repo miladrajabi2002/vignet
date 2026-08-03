@@ -172,7 +172,7 @@ export default async function AdminUsersPage(
             users={messageUsers.map((user) => ({
               id: user.id,
               name: user.name || 'بدون نام',
-              phone: displayPhone(user.phone),
+              phone: displayPhone(user.phone) ?? user.phone ?? '—',
               workspace: user.workspace.name,
               plan: user.workspace.plan,
             }))}

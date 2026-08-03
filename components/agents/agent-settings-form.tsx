@@ -86,7 +86,6 @@ export function AgentSettingsForm({
                 replyPricesIRR: Record<ModelAlias, number>
         }
 }) {
-        const t = useTranslations('agents')
         const tw = useTranslations('agents.wizard')
         const tf = useTranslations('agents.settingsForm')
         const tc = useTranslations('common')
