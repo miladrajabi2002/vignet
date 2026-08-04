@@ -917,28 +917,6 @@ export async function processWooWebhookBatch(job: WooWebhookBatchJobData): Promi
   }
 }
 
-/** Backward-compatible direct handler; the public route uses the durable batch queue. */
-export async function handleWooWebhook(
-  integration: StoreIntegrationInput,
-  payload: { topic: string; data: unknown },
-): Promise<void> {
-  const event: WooWebhookEvent = {
-    eventId: crypto.randomUUID(),
-    topic: payload.topic,
-    data: payload.data,
-  }
-  const count = await processWebhookEvent(integration, event, await allAgentIds(integration.workspaceId))
-  await writeSyncLog({
-    integrationId: integration.id,
-    workspaceId: integration.workspaceId,
-    direction: 'push',
-    entity: payload.topic.split('.')[0] || 'unknown',
-    outcome: 'ok',
-    count,
-    message: payload.topic,
-  })
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }

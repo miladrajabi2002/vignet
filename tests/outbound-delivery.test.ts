@@ -24,8 +24,36 @@ describe('structured outbound delivery', () => {
     mocks.sendText.mockResolvedValue(undefined)
   })
 
-  it('reports sent only after the provider accepts the message', async () => {
-    await expect(sendOutbound('agent-1', 'TELEGRAM', 'chat-1', 'hello')).resolves.toEqual({ status: 'sent' })
+  it.each(['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP', 'INSTAGRAM'] as const)(
+    'reports sent for %s only after its provider adapter accepts the message',
+    async (channel) => {
+      await expect(sendOutbound('agent-1', channel, 'chat-1', 'hello')).resolves.toEqual({ status: 'sent' })
+      expect(mocks.findFirst).toHaveBeenCalledWith({
+        where: { agentId: 'agent-1', type: channel, active: true },
+        select: { config: true },
+      })
+      expect(mocks.sendText).toHaveBeenCalledWith('chat-1', 'hello')
+    },
+  )
+
+  it.each(['WEB_WIDGET', 'CHAT_LINK', 'API'] as const)(
+    'treats %s conversation history as its successful delivery transport',
+    async (channel) => {
+      await expect(sendOutbound('agent-1', channel, null, 'hello')).resolves.toEqual({
+        status: 'stored',
+        reason: 'history_delivery',
+      })
+      expect(mocks.findFirst).not.toHaveBeenCalled()
+      expect(mocks.sendText).not.toHaveBeenCalled()
+    },
+  )
+
+  it('reports unavailable when a messenger recipient cannot be resolved', async () => {
+    await expect(sendOutbound('agent-1', 'TELEGRAM', null, 'hello')).resolves.toEqual({
+      status: 'unavailable',
+      reason: 'missing_thread',
+    })
+    expect(mocks.sendText).not.toHaveBeenCalled()
   })
 
   it('reports unavailable when the active channel is missing', async () => {

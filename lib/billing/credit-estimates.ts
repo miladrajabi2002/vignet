@@ -23,15 +23,6 @@ export function lowCreditThresholdIRR(replyPriceIRR: number): number {
   return Math.max(0, Math.round(replyPriceIRR)) * LOW_CREDIT_REPLY_THRESHOLD
 }
 
-export function crossedLowCreditThreshold(params: {
-  previousBalanceIRR: number
-  balanceIRR: number
-  replyPriceIRR: number
-}): boolean {
-  const threshold = lowCreditThresholdIRR(params.replyPriceIRR)
-  return params.previousBalanceIRR >= threshold && params.balanceIRR < threshold
-}
-
 export type LowCreditAlertAction = 'ALERT' | 'REARM' | 'NONE'
 
 /** Pure state transition used by the post-capture alert latch. */

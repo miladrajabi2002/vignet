@@ -71,19 +71,3 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     )
   },
 )
-
-/**
- * Class builder for link-shaped buttons (`<Link>` / `<a>` styled as buttons)
- * so anchors share the exact same geometry without a wrapper component.
- */
-export function buttonClasses({
-  variant = 'primary',
-  size = 'md',
-  className,
-}: {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  className?: string
-} = {}) {
-  return cn(BASE, VARIANTS[variant], SIZES[size], className)
-}

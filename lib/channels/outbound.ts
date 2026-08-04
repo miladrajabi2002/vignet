@@ -1,4 +1,4 @@
-import type { ChannelType, Prisma } from '@prisma/client'
+import type { ChannelType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { readPageToken } from '@/lib/instagram/config'
@@ -10,19 +10,20 @@ import { normalizeIranianMobile } from '@/lib/phone'
  * operator (human handoff) replies that originate in the dashboard rather than
  * from the AI pipeline.
  *
- * Returns true when delivered to the platform. Web-widget / chat-link / API
- * channels can't be pushed to (they're request/response), so those return false
- * and the caller persists the message in the thread only — the visitor sees it
- * on their next page refresh.
+ * Messenger channels are `sent` only after their provider adapter resolves.
+ * Web-widget / chat-link / API conversations use the persisted conversation
+ * history as their transport, so they return `stored` instead of being
+ * mislabeled as unavailable. Their clients pick the message up through the
+ * shared history/polling endpoint.
  *
  * Instagram token note: OAuth channels (Instagram Login) store the access token
  * under `userTokenEnc` (read via `readPageToken`), NOT `botTokenEnc`. Using
  * `readBotToken` here would silently return null for OAuth channels and the
  * operator's reply would never reach Instagram — so we branch on the channel.
  */
-export type OutboundDeliveryStatus = 'sent' | 'unavailable' | 'failed'
+export type OutboundDeliveryStatus = 'sent' | 'stored' | 'unavailable' | 'failed'
 export type OutboundDeliveryReason =
-  | 'not_push_channel'
+  | 'history_delivery'
   | 'missing_thread'
   | 'channel_inactive'
   | 'credentials_missing'
@@ -44,21 +45,13 @@ export function resolveConversationRecipient(
   return normalizeIranianMobile(contactPhone) ?? externalId
 }
 
-export function channelHasOutboundCredentials(
-  channel: ChannelType,
-  config: Prisma.JsonValue,
-): boolean {
-  if (!isMessengerType(channel)) return false
-  return Boolean(channel === 'INSTAGRAM' ? readPageToken(config) : readBotToken(config))
-}
-
 export async function sendOutbound(
   agentId: string,
   channel: ChannelType,
   externalId: string | null,
   text: string,
 ): Promise<OutboundDeliveryResult> {
-  if (!isMessengerType(channel)) return { status: 'unavailable', reason: 'not_push_channel' }
+  if (!isMessengerType(channel)) return { status: 'stored', reason: 'history_delivery' }
   if (!externalId) return { status: 'unavailable', reason: 'missing_thread' }
 
   const ch = await prisma.agentChannel.findFirst({

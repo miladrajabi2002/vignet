@@ -52,12 +52,10 @@ export type ThreadMessage = {
 export function ConversationThread({
         initialMessages,
         conversationId,
-        canDeliver,
         locale,
 }: {
         initialMessages: ThreadMessage[]
         conversationId: string
-        canDeliver: boolean
         locale: 'fa' | 'en'
 }) {
         const t = useTranslations('conversations')
@@ -359,7 +357,6 @@ export function ConversationThread({
                         <div className="shrink-0 border-t border-[var(--border-subtle)] p-3">
                                 <OperatorReply
                                         conversationId={conversationId}
-                                        canDeliver={canDeliver}
                                         onSent={handleSent}
                                 />
                         </div>

@@ -175,7 +175,6 @@ vigent/
 │   │   ├── product-form.tsx           # Create/edit form
 │   │   ├── product-image-upload.tsx   # Multi-image drag & drop
 │   │   ├── category-tree.tsx          # Hierarchical category manager
-│   │   └── catalog-assign.tsx         # Assign products to agents
 │   ├── knowledge/
 │   │   ├── kb-manager.tsx
 │   │   ├── upload-zone.tsx

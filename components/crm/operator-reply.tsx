@@ -8,7 +8,7 @@ import { ChatComposer } from '@/components/chat/chat-composer'
 import type { ThreadMessage } from './conversation-thread'
 
 type DeliveryFeedback = {
-  status: 'sent' | 'unavailable' | 'failed'
+  status: 'sent' | 'stored' | 'unavailable' | 'failed'
   reason?: string
 }
 
@@ -30,11 +30,9 @@ type DeliveryFeedback = {
  */
 export function OperatorReply({
   conversationId,
-  canDeliver,
   onSent,
 }: {
   conversationId: string
-  canDeliver: boolean
   onSent?: (message: ThreadMessage) => void
 }) {
   const t = useTranslations('conversations')
@@ -92,15 +90,25 @@ export function OperatorReply({
 
   const feedback = error ? (
     <p className="mt-1.5 text-xs text-[var(--red)]" role="alert">{t('replyFailed')}</p>
-  ) : delivery?.status === 'failed' || (delivery?.status === 'unavailable' && canDeliver) ? (
+  ) : delivery?.status === 'failed' ? (
     <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
       <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-      {locale === 'fa' ? 'پیام ذخیره شد، اما به کانال نرسید. اتصال کانال را بررسی و دوباره تلاش کنید.' : 'Saved, but not delivered. Check the channel connection and try again.'}
+      {locale === 'fa' ? 'ارسال به کانال ناموفق بود. اتصال کانال را بررسی و دوباره تلاش کنید.' : 'Channel delivery failed. Check the connection and try again.'}
+    </p>
+  ) : delivery?.status === 'unavailable' ? (
+    <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-700" role="status" aria-live="polite">
+      <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+      {locale === 'fa' ? 'این کانال اکنون آمادهٔ ارسال نیست. اتصال کانال را بررسی کنید.' : 'This channel is not ready to send. Check its connection.'}
     </p>
   ) : delivery?.status === 'sent' ? (
     <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
       <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-      {locale === 'fa' ? 'پیام برای ارسال توسط کانال پذیرفته شد.' : 'Accepted by the channel for delivery.'}
+      {locale === 'fa' ? 'پیام به کانال ارسال شد.' : 'Message sent to the channel.'}
+    </p>
+  ) : delivery?.status === 'stored' ? (
+    <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700" role="status" aria-live="polite">
+      <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+      {locale === 'fa' ? 'پیام در گفتگو ثبت شد و برای کاربر قابل مشاهده است.' : 'Message added to the conversation and visible to the customer.'}
     </p>
   ) : (
     <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{t('replyHint')}</p>
@@ -108,13 +116,6 @@ export function OperatorReply({
 
   return (
     <div>
-      {!canDeliver && (
-        <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
-          {locale === 'fa'
-            ? 'ارسال زنده برای این گفتگو در دسترس نیست؛ پیام در تاریخچه ذخیره می‌شود. برای کانال‌های پیام‌رسان، اتصال و دسترسی کانال را بررسی کنید.'
-            : 'Live delivery is unavailable for this conversation; the message is still saved in the history. For messenger channels, check the channel connection and permissions.'}
-        </p>
-      )}
       <ChatComposer
         value={text}
         onChange={setText}

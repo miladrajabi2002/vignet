@@ -1,19 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
-/**
- * Serialize find-or-create for one tenant identity without requiring a risky
- * cleanup migration over existing CRM duplicates. PostgreSQL releases this
- * transaction-scoped advisory lock automatically on commit/rollback.
- */
-export async function withContactIdentityLock<T>(
-  workspaceId: string,
-  identity: string,
-  operation: (tx: Prisma.TransactionClient) => Promise<T>,
-): Promise<T> {
-  return withContactIdentityLocks(workspaceId, [identity], operation)
-}
-
 /** Acquire multiple identity locks in a stable order to avoid deadlocks. */
 export async function withContactIdentityLocks<T>(
   workspaceId: string,

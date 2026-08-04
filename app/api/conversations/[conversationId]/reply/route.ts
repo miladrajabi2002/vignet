@@ -8,7 +8,6 @@ import {
   sendOutbound,
   type OutboundDeliveryResult,
 } from '@/lib/channels/outbound'
-import { isMessengerType } from '@/lib/channels/registry'
 import { captureError } from '@/lib/errors/capture'
 import { bumpContactActivity } from '@/lib/crm/contact-activity'
 import { recordConversationActivity } from '@/lib/conversations/activity'
@@ -23,11 +22,10 @@ const bodySchema = z.object({ text: z.string().min(1).max(4000) })
  * operator-authored and pushes it to the contact on messenger channels. The
  * conversation is marked HANDED_OFF so the AI stays out of the thread.
  *
- * For web-widget / chat-link / API channels, there is no outbound push
- * (these are request/response channels) — the message is persisted and the
- * visitor sees it on their next page load. For messenger channels we attempt
- * delivery; if delivery fails we STILL persist the message (the operator typed
- * it, it should be saved) and report `delivered: false`.
+ * For web-widget / chat-link / API channels, the persisted history is the
+ * outbound transport and the client reads it through the shared message feed.
+ * Messenger channels are marked sent only after their provider adapter accepts
+ * the message. A provider failure never discards the operator's typed reply.
  */
 export async function POST(req: Request, props: Params) {
   const params = await props.params;
@@ -52,31 +50,26 @@ export async function POST(req: Request, props: Params) {
 
   const text = parsed.data.text.trim()
 
-  // Only attempt outbound delivery for messenger channels that have an
-  // external thread id. Web-widget / chat-link / API channels are
-  // request/response — there's no API to push to, so we skip delivery
-  // entirely and just persist the message.
-  let delivery: OutboundDeliveryResult = isMessengerType(conversation.channel)
-    ? { status: 'unavailable', reason: conversation.externalId ? 'channel_inactive' : 'missing_thread' }
-    : { status: 'unavailable', reason: 'not_push_channel' }
-  if (isMessengerType(conversation.channel) && conversation.externalId) {
-    const recipient = resolveConversationRecipient(
-      conversation.channel,
-      conversation.externalId,
-      conversation.contact?.phone,
-    )
-    delivery = await sendOutbound(
-      conversation.agentId,
-      conversation.channel,
-      recipient,
-      text,
-    )
-    if (delivery.status === 'failed') {
-      captureError('conversation:operator-reply', delivery.cause ?? new Error('OUTBOUND_PROVIDER_ERROR'), {
-        workspaceId: user.workspaceId,
-        metadata: { conversationId: conversation.id, channel: conversation.channel },
-      })
-    }
+  // All supported channels pass through one outcome model. Messenger adapters
+  // perform a live provider send; web/chat/API transports publish by persisting
+  // into the conversation history below. Resolving the recipient before the
+  // call also lets old WhatsApp LID conversations fall back to the CRM mobile.
+  const recipient = resolveConversationRecipient(
+    conversation.channel,
+    conversation.externalId,
+    conversation.contact?.phone,
+  )
+  const delivery: OutboundDeliveryResult = await sendOutbound(
+    conversation.agentId,
+    conversation.channel,
+    recipient,
+    text,
+  )
+  if (delivery.status === 'failed') {
+    captureError('conversation:operator-reply', delivery.cause ?? new Error('OUTBOUND_PROVIDER_ERROR'), {
+      workspaceId: user.workspaceId,
+      metadata: { conversationId: conversation.id, channel: conversation.channel },
+    })
   }
 
   // The customer question this reply answers — used to feed the learning
@@ -139,7 +132,7 @@ export async function POST(req: Request, props: Params) {
 
   return NextResponse.json({
     message,
-    delivered: delivery.status === 'sent',
+    delivered: delivery.status === 'sent' || delivery.status === 'stored',
     delivery: { status: delivery.status, reason: delivery.reason },
   })
 }

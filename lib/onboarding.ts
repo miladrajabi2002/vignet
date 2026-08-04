@@ -1,8 +1,5 @@
 import { prisma } from '@/lib/prisma'
 
-/** Cookie that hides the onboarding flow without marking it complete. */
-export const ONBOARDING_SKIP_COOKIE = 'onboarding_skipped'
-
 export interface OnboardingState {
   step: number // highest contiguous completed setup step (0-3)
   completed: boolean

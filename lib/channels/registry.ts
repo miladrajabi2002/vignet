@@ -93,21 +93,3 @@ export function getBotInfo(
       return getInstagramInfo(token)
   }
 }
-
-/** Map a messenger channel to the Contact field that stores its user id. */
-export function contactIdField(
-  type: MessengerType,
-): 'telegramId' | 'baleId' | 'rubikaId' | 'whatsappId' | 'instagramId' {
-  switch (type) {
-    case 'TELEGRAM':
-      return 'telegramId'
-    case 'BALE':
-      return 'baleId'
-    case 'RUBIKA':
-      return 'rubikaId'
-    case 'WHATSAPP':
-      return 'whatsappId'
-    case 'INSTAGRAM':
-      return 'instagramId'
-  }
-}

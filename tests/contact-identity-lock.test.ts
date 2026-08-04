@@ -11,9 +11,9 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { withContactIdentityLock, withContactIdentityLocks } from '@/lib/crm/contact-identity-lock'
+import { withContactIdentityLocks } from '@/lib/crm/contact-identity-lock'
 
-describe('withContactIdentityLock', () => {
+describe('withContactIdentityLocks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.executeRaw.mockResolvedValue(1)
@@ -23,7 +23,11 @@ describe('withContactIdentityLock', () => {
   it('executes the void advisory-lock statement without deserializing a raw result', async () => {
     const operation = vi.fn().mockResolvedValue('contact-1')
 
-    const result = await withContactIdentityLock('workspace-1', 'WHATSAPP:sender-1', operation)
+    const result = await withContactIdentityLocks(
+      'workspace-1',
+      ['WHATSAPP:sender-1'],
+      operation,
+    )
 
     expect(result).toBe('contact-1')
     expect(mocks.executeRaw).toHaveBeenCalledOnce()

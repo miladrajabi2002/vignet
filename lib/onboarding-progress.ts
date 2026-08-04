@@ -1,11 +1,3 @@
-export type OnboardingProgressStageKey =
-  | 'PROFILE'
-  | 'AGENT'
-  | 'KNOWLEDGE'
-  | 'CHANNEL'
-  | 'FINISH'
-  | 'COMPLETED'
-
 export interface OnboardingProgressSignals {
   completed: boolean
   hasProfile: boolean

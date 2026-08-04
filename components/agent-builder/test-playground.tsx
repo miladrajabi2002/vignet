@@ -46,6 +46,7 @@ export function TestPlayground({
         const [streaming, setStreaming] = useState(false)
         const [error, setError] = useState<string | null>(null)
         const conversationId = useRef<string | undefined>(undefined)
+        const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
         const scrollRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<ChatComposerHandle>(null)
         const isAtBottomRef = useRef(true)
@@ -68,6 +69,71 @@ export function TestPlayground({
         useEffect(() => {
                 if (isAtBottomRef.current) scrollToBottom()
         }, [messages, scrollToBottom])
+
+        // API conversations use persisted history as their return path for
+        // operator replies. Once the SSE turn finishes, poll that shared
+        // history so a reply sent from CRM appears here without another user
+        // request or a page refresh — the same delivery contract as Chat Link
+        // and Web Widget.
+        useEffect(() => {
+                if (!activeConversationId || streaming) return
+                let cancelled = false
+                let inFlight = false
+
+                async function pollHistory() {
+                        if (cancelled || inFlight || document.visibilityState === 'hidden') return
+                        inFlight = true
+                        try {
+                                const res = await fetch(
+                                        `/api/conversations/${encodeURIComponent(activeConversationId!)}/messages`,
+                                        { headers: { Accept: 'application/json' }, cache: 'no-store' },
+                                )
+                                if (!res.ok) return
+                                const data = await res.json() as { messages?: unknown[] }
+                                if (cancelled || !Array.isArray(data.messages)) return
+                                const historyMessages = data.messages
+
+                                setMessages((current) => {
+                                        const seenIds = new Set(
+                                                current.flatMap((message) => message.id ? [message.id] : []),
+                                        )
+                                        const seenUserText = new Set(
+                                                current
+                                                        .filter((message) => message.role === 'user')
+                                                        .map((message) => message.content),
+                                        )
+                                        const additions: Msg[] = []
+
+                                        for (const raw of historyMessages) {
+                                                if (!raw || typeof raw !== 'object') continue
+                                                const row = raw as Record<string, unknown>
+                                                const id = typeof row.id === 'string' ? row.id : null
+                                                const content = typeof row.content === 'string' ? row.content : null
+                                                if (!id || content == null || seenIds.has(id)) continue
+                                                if (row.role === 'USER') {
+                                                        if (seenUserText.has(content)) continue
+                                                        additions.push({ id, role: 'user', content })
+                                                } else if (row.role === 'ASSISTANT') {
+                                                        additions.push({ id, role: 'assistant', content, rating: null })
+                                                }
+                                        }
+
+                                        return additions.length > 0 ? [...current, ...additions] : current
+                                })
+                        } catch {
+                                // A transient polling failure must not interrupt the test chat.
+                        } finally {
+                                inFlight = false
+                        }
+                }
+
+                void pollHistory()
+                const interval = window.setInterval(pollHistory, 5000)
+                return () => {
+                        cancelled = true
+                        window.clearInterval(interval)
+                }
+        }, [activeConversationId, streaming])
 
         async function send() {
                 const text = input.trim()
@@ -117,10 +183,11 @@ export function TestPlayground({
                                 for (const part of parts) {
                                         const line = part.trim()
                                         if (!line.startsWith('data:')) continue
-                                        try {
-                                                const evt = JSON.parse(line.slice(5).trim())
-                                                if (evt.type === 'meta') {
-                                                        conversationId.current = evt.conversationId
+                                                try {
+                                                        const evt = JSON.parse(line.slice(5).trim())
+                                                        if (evt.type === 'meta') {
+                                                                conversationId.current = evt.conversationId
+                                                                setActiveConversationId(evt.conversationId)
                                                 } else if (evt.type === 'delta') {
                                                         setMessages((m) => {
                                                                 const next = [...m]
@@ -166,6 +233,7 @@ export function TestPlayground({
         function resetSession() {
                 if (streaming) return
                 conversationId.current = undefined
+                setActiveConversationId(null)
                 setMessages(welcomeMessage ? [{ role: 'assistant', content: welcomeMessage }] : [])
                 setInput('')
                 setError(null)

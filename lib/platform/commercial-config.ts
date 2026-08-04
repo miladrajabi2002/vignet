@@ -184,7 +184,3 @@ export async function updatePlatformCommercialConfig(
   cache = null
   return getPlatformCommercialConfig().then((value) => ({ ...value, zeroDataRetention: row.zeroDataRetention }))
 }
-
-export function clearPlatformCommercialConfigCache(): void {
-  cache = null
-}

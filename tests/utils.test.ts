@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, generateSlug, formatToman } from '@/lib/utils'
+import { cn, generateSlug } from '@/lib/utils'
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -20,17 +20,5 @@ describe('generateSlug', () => {
   it('is (practically) unique across calls', () => {
     const set = new Set(Array.from({ length: 50 }, () => generateSlug()))
     expect(set.size).toBe(50)
-  })
-})
-
-describe('formatToman', () => {
-  it('formats with English digits for en', () => {
-    expect(formatToman(1234567, 'en')).toBe('1,234,567')
-  })
-  it('formats Persian digits for fa', () => {
-    // fa-IR groups with the Persian thousands separator; just assert it localized.
-    const out = formatToman(1000, 'fa')
-    expect(out).not.toBe('1000')
-    expect(out).toMatch(/[۰-۹]/)
   })
 })

@@ -19,7 +19,6 @@ import {
 } from '@/components/crm/conversation-panel'
 import { isMessengerType } from '@/lib/channels/registry'
 import { displayPhone } from '@/lib/phone'
-import { channelHasOutboundCredentials } from '@/lib/channels/outbound'
 import { contactDisplayName } from '@/lib/crm/display'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
@@ -112,18 +111,11 @@ export default async function ConversationThreadPage(props: {
         // "go to Telegram/Bale/Rubika" indicators when a handoff is active.
         const agentChannels = await prisma.agentChannel.findMany({
                 where: { agentId: conversation.agent.id, active: true },
-                select: { type: true, config: true },
+                select: { type: true },
         })
         const connectedChannels: ChannelType[] = agentChannels
                 .map((c) => c.type)
                 .filter((c): c is ChannelType => isMessengerType(c))
-
-        const deliveryChannel = agentChannels.find((item) => item.type === conversation.channel)
-        const canDeliver = Boolean(
-                conversation.externalId &&
-                deliveryChannel &&
-                channelHasOutboundCredentials(conversation.channel, deliveryChannel.config),
-        )
 
         // Pick the per-channel avatar + handle for the contact based on the
         // conversation's channel so the header reflects the same identity the
@@ -238,7 +230,6 @@ export default async function ConversationThreadPage(props: {
                                 key={conversation.id}
                                 initialMessages={conversation.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString(), contentType: m.contentType, metadata: m.metadata as Record<string, unknown> | null })) as ThreadMessage[]}
                                 conversationId={conversation.id}
-                                canDeliver={canDeliver}
                                 locale={locale}
                           />
                           <aside className="space-y-3">

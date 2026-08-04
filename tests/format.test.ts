@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { relativeTime, formatDate, formatDateTime } from '@/lib/format'
+import { relativeTime, formatDateTime } from '@/lib/format'
 import {
   calendarPartsFromDateKey,
   dateKeyFromCalendarParts,
+  formatLocalizedDate,
   formatDateKey,
 } from '@/lib/localized-date'
 
@@ -39,8 +40,8 @@ describe('formatDateTime', () => {
 
   it('uses the Persian calendar only for the Persian locale', () => {
     const date = new Date('2026-03-21T10:30:00Z')
-    expect(formatDate(date, 'fa')).toContain('۱۴۰۵')
-    expect(formatDate(date, 'en')).toContain('2026')
+    expect(formatLocalizedDate(date, 'fa')).toContain('۱۴۰۵')
+    expect(formatLocalizedDate(date, 'en')).toContain('2026')
     expect(formatDateKey('2026-03-21', 'fa')).toContain('۱۴۰۵')
     expect(formatDateKey('2026-03-21', 'en')).toContain('2026')
   })

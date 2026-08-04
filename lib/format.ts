@@ -10,7 +10,7 @@
  * posts into `relativeTime`). See lib/localized-date.ts for the same pattern.
  */
 
-import { formatLocalizedDate, formatLocalizedDateTime } from '@/lib/localized-date'
+import { formatLocalizedDateTime } from '@/lib/localized-date'
 
 const DIVISIONS: { amount: number; unit: Intl.RelativeTimeFormatUnit }[] = [
 	{ amount: 60, unit: 'second' },
@@ -56,12 +56,4 @@ export function formatDateTime(
 	locale: 'fa' | 'en' = 'fa',
 ): string {
 	return formatLocalizedDateTime(date, locale)
-}
-
-/** Date only: Persian calendar for fa, Gregorian calendar for en. */
-export function formatDate(
-	date: Date | string | number,
-	locale: 'fa' | 'en' = 'fa',
-): string {
-	return formatLocalizedDate(date, locale)
 }

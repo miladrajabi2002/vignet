@@ -8,18 +8,28 @@ import { useLocale } from 'next-intl'
 import {
 	ArrowLeft,
 	ArrowRight,
+	ArrowDown,
 	Bot,
+	BrainCircuit,
 	Check,
 	Clock3,
 	Database,
+	FileText,
 	GraduationCap,
+	Headphones,
+	Layers3,
 	MessagesSquare,
 	PackageSearch,
 	Pause,
 	Play,
+	Radio,
 	RotateCcw,
+	Search,
+	Send,
 	ShoppingBag,
+	Sparkles,
 	UserRoundCheck,
+	Wifi,
 } from 'lucide-react'
 import { InstagramIcon } from './social-links'
 
@@ -76,6 +86,82 @@ const COPY: Record<'fa' | 'en', {
 			{ key: 'support', label: 'Messaging support', audience: 'Resolve and hand off', question: 'I paid, but my subscription is not active. Can you check?', answer: 'Absolutely. I saved your payment details and will hand this to the right teammate for immediate review.', action: 'Conversation handed off with summary and payment details', result: 'Operator received an alert in Telegram', source: 'Support guide + sensitivity detection', channel: 'Bale / Rubika', icon: MessagesSquare },
 		],
 	},
+}
+
+const MODEL_COPY = {
+	fa: {
+		compare: 'هر سه مدل با یک سناریو کار می‌کنند؛ تفاوتشان در شیوه معرفی محصول است.',
+		models: [
+			{ label: 'مدل ۱', title: 'شبکه زنده کانال‌ها', description: 'برای نشان‌دادن تصویر بزرگ: پیام از هر کانال وارد می‌شود، در هسته دانش پردازش می‌شود و پاسخ به همان کانال برمی‌گردد.', tag: 'دید کلان' },
+			{ label: 'مدل ۲', title: 'گفتگوی واقعی + ردپای تصمیم', description: 'برای لمس خود محصول: مشتری، پاسخ، منبع دانش و نتیجه ثبت‌شده هم‌زمان دیده می‌شوند.', tag: 'واقعی‌ترین تجربه' },
+			{ label: 'مدل ۳', title: 'اتاق ساخت پاسخ', description: 'برای توضیح هوش پشت صحنه: دریافت پیام، بازیابی دانش، ساخت پاسخ و تحویل مرحله‌به‌مرحله دیده می‌شود.', tag: 'شفاف‌ترین روایت' },
+		],
+		incomingQueue: 'ورودی زنده',
+		activeMessage: 'پیام فعال',
+		otherChannels: 'کانال‌های دیگر آماده‌اند',
+		aiCore: 'هسته هوشمند ویجنت',
+		grounded: 'پاسخ بر پایه دانش کسب‌وکار',
+		retrieving: 'در حال تطبیق سؤال با منابع',
+		sourceFound: 'منبع مرتبط پیدا شد',
+		outbound: 'پاسخ آماده ارسال',
+		delivered: 'تحویل به کانال',
+		connected: 'متصل',
+		inbox: 'صندوق ورودی',
+		knowledgeDesk: 'میز دانش',
+		composer: 'ساخت پاسخ',
+		matched: 'تطبیق‌یافته',
+		answerReady: 'پاسخ آماده است',
+		sentTo: 'ارسال شد به',
+		activity: 'نتیجه عملیاتی',
+		live: 'زنده',
+	},
+	en: {
+		compare: 'All three models use the same scenario; only the product story changes.',
+		models: [
+			{ label: 'Model 1', title: 'Live channel network', description: 'The big picture: a message enters from any channel, passes through business knowledge, and returns to the same channel.', tag: 'System view' },
+			{ label: 'Model 2', title: 'Real conversation + decision trace', description: 'The product itself: customer, answer, knowledge source, action and recorded outcome appear together.', tag: 'Most tangible' },
+			{ label: 'Model 3', title: 'Response workroom', description: 'The intelligence backstage: intake, retrieval, answer construction and delivery unfold step by step.', tag: 'Most transparent' },
+		],
+		incomingQueue: 'Live intake',
+		activeMessage: 'Active message',
+		otherChannels: 'Other channels are ready',
+		aiCore: 'Vigent intelligence core',
+		grounded: 'Grounded in business knowledge',
+		retrieving: 'Matching the question to sources',
+		sourceFound: 'Relevant source found',
+		outbound: 'Reply ready to send',
+		delivered: 'Delivered to channel',
+		connected: 'Connected',
+		inbox: 'Inbox',
+		knowledgeDesk: 'Knowledge desk',
+		composer: 'Reply composer',
+		matched: 'Matched',
+		answerReady: 'Reply is ready',
+		sentTo: 'Sent to',
+		activity: 'Operational outcome',
+		live: 'Live',
+	},
+} as const
+
+type ModelCopy = (typeof MODEL_COPY)[keyof typeof MODEL_COPY]
+
+function ModelHeader({
+	model,
+}: {
+	model: ModelCopy['models'][number]
+}) {
+	return (
+		<div className="flex flex-col gap-3 border-b border-[var(--border-subtle)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+			<div className="flex min-w-0 items-start gap-3">
+				<span className="mt-0.5 inline-flex shrink-0 rounded-full bg-[var(--text-primary)] px-2.5 py-1 text-[9px] font-bold text-white">{model.label}</span>
+				<div className="min-w-0">
+					<h3 className="text-sm font-semibold text-[var(--text-primary)] sm:text-base">{model.title}</h3>
+					<p className="mt-1 max-w-3xl text-[11px] leading-6 text-[var(--text-muted)]">{model.description}</p>
+				</div>
+			</div>
+			<span className="ms-12 w-fit shrink-0 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1 text-[9px] font-semibold text-[var(--text-secondary)] sm:ms-0">{model.tag}</span>
+		</div>
+	)
 }
 
 function PhoneConversation({ scenario, copy }: { scenario: Scenario; copy: typeof COPY.fa | typeof COPY.en }) {
@@ -173,9 +259,211 @@ function JourneyStrip({ scenario, copy }: { scenario: Scenario; copy: typeof COP
 	)
 }
 
+function SignalNetworkModel({
+	scenario,
+	modelCopy,
+}: {
+	scenario: Scenario
+	modelCopy: ModelCopy
+}) {
+	const reduce = useReducedMotion()
+	const ActiveIcon = scenario.icon
+	const standbyChannels = [
+		{ label: 'WhatsApp', Icon: MessagesSquare },
+		{ label: 'Telegram', Icon: Send },
+		{ label: 'Web', Icon: Wifi },
+	]
+	const enter = (delay: number) => reduce
+		? { duration: 0 }
+		: { duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] as const }
+
+	return (
+		<div className="overflow-hidden rounded-[1.75rem] border border-black/10 bg-white shadow-[var(--shadow-card)]">
+			<ModelHeader model={modelCopy.models[0]} />
+			<div
+				className="relative overflow-hidden bg-[#070807] px-4 py-5 text-white sm:px-6 sm:py-7 lg:px-8"
+				style={{ backgroundImage: 'radial-gradient(circle at 50% 42%, rgba(34,197,94,.12), transparent 25rem), linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px)', backgroundSize: 'auto, 42px 42px, 42px 42px' }}
+			>
+				<div className="flex items-center justify-between border-b border-white/10 pb-4">
+					<div className="flex items-center gap-2 text-[10px] font-medium text-white/55">
+						<Radio className="h-3.5 w-3.5 text-emerald-400" />
+						{modelCopy.incomingQueue}
+					</div>
+					<span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-semibold text-emerald-300">
+						<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+						{modelCopy.live}
+					</span>
+				</div>
+
+				<div className="grid items-stretch gap-3 py-5 lg:grid-cols-[minmax(0,0.9fr)_3rem_minmax(0,1.05fr)_3rem_minmax(0,0.9fr)] lg:gap-2 lg:py-8">
+					<m.div
+						key={`${scenario.key}-signal-in`}
+						initial={reduce ? false : { opacity: 0, transform: 'translate3d(0,10px,0)' }}
+						animate={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+						transition={enter(0)}
+						className="rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 backdrop-blur-sm"
+					>
+						<p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40 rtl:tracking-normal">{modelCopy.activeMessage}</p>
+						<div className="mt-3 rounded-xl border border-white/10 bg-white/[0.07] p-3">
+							<div className="flex items-center gap-2">
+								<span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-black"><ActiveIcon className="h-4 w-4" /></span>
+								<div className="min-w-0"><p className="truncate text-[11px] font-semibold text-white">{scenario.channel}</p><p className="mt-0.5 text-[9px] text-emerald-300">{modelCopy.connected}</p></div>
+							</div>
+							<p className="mt-3 line-clamp-3 text-[11px] leading-6 text-white/72">{scenario.question}</p>
+						</div>
+						<p className="mt-3 text-[9px] text-white/35">{modelCopy.otherChannels}</p>
+						<div className="mt-2 flex gap-1.5">
+							{standbyChannels.map(({ label, Icon }) => (
+								<span key={label} title={label} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 text-white/45"><Icon className="h-3.5 w-3.5" /></span>
+							))}
+						</div>
+					</m.div>
+
+					<div className="flex items-center justify-center py-1 lg:py-0" aria-hidden>
+						<ArrowDown className="h-4 w-4 text-emerald-300/70 lg:hidden" />
+						<span className="relative hidden h-px w-full overflow-hidden bg-white/10 lg:block"><m.span className="absolute inset-y-0 start-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-300 to-transparent rtl:bg-gradient-to-l" initial={reduce ? false : { transform: 'translate3d(-100%,0,0)', opacity: 0 }} animate={{ transform: 'translate3d(200%,0,0)', opacity: [0, 1, 0] }} transition={reduce ? { duration: 0 } : { duration: 1.4, delay: 0.25, ease: 'easeInOut' }} /></span>
+					</div>
+
+					<m.div
+						key={`${scenario.key}-signal-core`}
+						initial={reduce ? false : { opacity: 0, transform: 'scale(.96)' }}
+						animate={{ opacity: 1, transform: 'scale(1)' }}
+						transition={enter(0.16)}
+						className="relative flex min-h-[16rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.055] p-5 text-center"
+					>
+						<div className="relative grid h-20 w-20 place-items-center">
+							<span className="conic-spin absolute inset-0 rounded-full opacity-70" />
+							<span className="absolute inset-[3px] rounded-full bg-[#0d100e]" />
+							<span className="relative grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.07] text-emerald-300"><BrainCircuit className="h-6 w-6" /></span>
+						</div>
+						<p className="mt-4 text-xs font-semibold text-white">{modelCopy.aiCore}</p>
+						<p className="mt-1 text-[9px] text-white/42">{modelCopy.retrieving}</p>
+						<div className="mt-4 flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-2 text-[9px] text-white/65">
+							<Layers3 className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+							<span className="truncate">{scenario.source}</span>
+							<Check className="h-3 w-3 shrink-0 text-emerald-300" />
+						</div>
+						<p className="mt-3 text-[9px] font-medium text-emerald-300">{modelCopy.grounded}</p>
+					</m.div>
+
+					<div className="flex items-center justify-center py-1 lg:py-0" aria-hidden>
+						<ArrowDown className="h-4 w-4 text-emerald-300/70 lg:hidden" />
+						<span className="relative hidden h-px w-full overflow-hidden bg-white/10 lg:block"><m.span className="absolute inset-y-0 start-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-300 to-transparent rtl:bg-gradient-to-l" initial={reduce ? false : { transform: 'translate3d(-100%,0,0)', opacity: 0 }} animate={{ transform: 'translate3d(200%,0,0)', opacity: [0, 1, 0] }} transition={reduce ? { duration: 0 } : { duration: 1.4, delay: 0.65, ease: 'easeInOut' }} /></span>
+					</div>
+
+					<m.div
+						key={`${scenario.key}-signal-out`}
+						initial={reduce ? false : { opacity: 0, transform: 'translate3d(0,10px,0)' }}
+						animate={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+						transition={enter(0.34)}
+						className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 backdrop-blur-sm"
+					>
+						<div className="flex items-center justify-between"><p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40 rtl:tracking-normal">{modelCopy.outbound}</p><Sparkles className="h-3.5 w-3.5 text-emerald-300" /></div>
+						<div className="mt-3 flex-1 rounded-xl bg-white p-3 text-black">
+							<p className="text-[11px] leading-6 text-black/70">{scenario.answer}</p>
+							<div className="mt-3 flex items-start gap-2 rounded-lg bg-black/[0.045] p-2 text-[9px] leading-5 text-black/55"><Sparkles className="mt-0.5 h-3 w-3 shrink-0" />{scenario.action}</div>
+						</div>
+						<div className="mt-3 flex items-center justify-between text-[9px]"><span className="text-white/42">{modelCopy.delivered}</span><span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300"><Check className="h-3 w-3" />{scenario.channel}</span></div>
+					</m.div>
+				</div>
+
+				<div className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.045] px-3.5 py-3 text-[10px] leading-5 text-white/60">
+					<Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
+					<span><b className="font-semibold text-white/85">{modelCopy.sourceFound}:</b> {scenario.result}</span>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function ResponseWorkbenchModel({
+	scenario,
+	modelCopy,
+}: {
+	scenario: Scenario
+	modelCopy: ModelCopy
+}) {
+	const reduce = useReducedMotion()
+	const ActiveIcon = scenario.icon
+	const stages = [
+		{ key: 'inbox', label: modelCopy.inbox, Icon: Headphones, delay: 0 },
+		{ key: 'knowledge', label: modelCopy.knowledgeDesk, Icon: Search, delay: 0.12 },
+		{ key: 'composer', label: modelCopy.composer, Icon: Sparkles, delay: 0.24 },
+	] as const
+
+	return (
+		<div className="overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
+			<ModelHeader model={modelCopy.models[2]} />
+			<div className="bg-[var(--bg-surface)] p-3 sm:p-5 lg:p-6">
+				<div className="grid gap-3 lg:grid-cols-3">
+					{stages.map(({ key, label, Icon, delay }, index) => (
+						<div key={key} className="contents">
+							<m.div
+								key={`${scenario.key}-${key}`}
+								initial={reduce ? false : { opacity: 0, transform: 'translate3d(0,10px,0)' }}
+								animate={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+								transition={reduce ? { duration: 0 } : { duration: 0.36, delay, ease: [0.16, 1, 0.3, 1] }}
+								className="relative min-h-[17rem] rounded-2xl border border-[var(--border-default)] bg-white p-4"
+							>
+								<div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+									<div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--text-primary)] text-white"><Icon className="h-4 w-4" /></span><p className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</p></div>
+									<span className="text-[9px] font-bold tabular-nums text-[var(--text-hint)]">0{index + 1}</span>
+								</div>
+
+								{key === 'inbox' && (
+									<div className="mt-4">
+										<div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3">
+											<div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white shadow-[var(--shadow-xs)]"><ActiveIcon className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-[10px] font-semibold text-[var(--text-primary)]">{scenario.channel}</p><p className="mt-0.5 text-[9px] text-emerald-600">{modelCopy.activeMessage}</p></div></div>
+											<p className="mt-3 line-clamp-4 text-[11px] leading-6 text-[var(--text-secondary)]">{scenario.question}</p>
+										</div>
+										<div className="mt-3 flex items-center gap-2 text-[9px] text-[var(--text-muted)]"><Clock3 className="h-3 w-3" />{modelCopy.live}<span className="ms-auto h-1.5 w-1.5 rounded-full bg-emerald-500" /></div>
+									</div>
+								)}
+
+								{key === 'knowledge' && (
+									<div className="mt-4">
+										<div className="flex items-center gap-2 rounded-lg border border-[var(--border-default)] px-3 py-2 text-[9px] text-[var(--text-muted)]"><Search className="h-3.5 w-3.5" /><span className="truncate">{modelCopy.retrieving}</span><span className="ms-auto flex gap-1"><i className="h-1 w-1 rounded-full bg-[var(--text-hint)]" /><i className="h-1 w-1 rounded-full bg-[var(--text-hint)]" /><i className="h-1 w-1 rounded-full bg-[var(--text-hint)]" /></span></div>
+										<div className="mt-3 rounded-xl border border-emerald-600/15 bg-emerald-50/60 p-3">
+											<div className="flex items-start gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-emerald-700"><FileText className="h-4 w-4" /></span><div className="min-w-0"><p className="text-[9px] font-bold text-emerald-700">{modelCopy.matched}</p><p className="mt-1 line-clamp-3 text-[11px] leading-6 text-[var(--text-secondary)]">{scenario.source}</p></div></div>
+										</div>
+										<p className="mt-3 flex items-center gap-1.5 text-[9px] font-medium text-emerald-700"><Check className="h-3 w-3" />{modelCopy.sourceFound}</p>
+									</div>
+								)}
+
+								{key === 'composer' && (
+									<div className="mt-4 flex h-[12.5rem] flex-col">
+										<div className="flex-1 rounded-xl border border-[var(--border-default)] p-3">
+											<p className="text-[9px] font-semibold text-[var(--text-muted)]">{modelCopy.answerReady}</p>
+											<p className="mt-2 line-clamp-4 text-[11px] leading-6 text-[var(--text-secondary)]">{scenario.answer}</p>
+										</div>
+										<div className="mt-2 flex items-center justify-between rounded-xl bg-[var(--text-primary)] px-3 py-2.5 text-white"><span className="text-[9px] text-white/60">{modelCopy.sentTo} {scenario.channel}</span><Send className="h-3.5 w-3.5" /></div>
+									</div>
+								)}
+							</m.div>
+						</div>
+					))}
+				</div>
+
+				<m.div
+					key={`${scenario.key}-workbench-result`}
+					initial={reduce ? false : { opacity: 0, transform: 'translate3d(0,6px,0)' }}
+					animate={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+					transition={reduce ? { duration: 0 } : { duration: 0.32, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
+					className="mt-3 flex flex-col gap-2 rounded-2xl border border-[var(--border-default)] bg-white px-4 py-3 sm:flex-row sm:items-center"
+				>
+					<span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700"><Check className="h-3 w-3" />{modelCopy.activity}</span>
+					<p className="text-[10px] leading-5 text-[var(--text-secondary)] sm:ms-1">{scenario.result}</p>
+					<span className="text-[9px] text-[var(--text-muted)] sm:ms-auto">{scenario.action}</span>
+				</m.div>
+			</div>
+		</div>
+	)
+}
+
 export function DemoSection() {
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
+	const modelCopy = MODEL_COPY[locale]
 	const reduce = useReducedMotion()
 	const [selected, setSelected] = useState(0)
 	const [playing, setPlaying] = useState(false)
@@ -208,25 +496,45 @@ export function DemoSection() {
 						return <button key={item.key} type="button" aria-pressed={selected === index} onClick={() => { setSelected(index); setPlaying(false) }} className={`marketing-pressable flex min-h-14 items-center gap-2 rounded-xl border px-3 text-start text-[11px] font-medium transition-[transform,color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 ${index === copy.scenarios.length - 1 ? 'col-span-2 sm:col-span-1' : ''} ${selected === index ? 'border-[var(--text-primary)] bg-[var(--text-primary)] text-white shadow-[0_10px_28px_rgba(0,0,0,0.11)]' : 'border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]'}`}><Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>{item.label}</span></button>
 					})}
 				</div>
-				<AnimatePresence mode="wait" initial={false}>
-					<JourneyStrip key={`journey-${scenario.key}`} scenario={scenario} copy={copy} />
-				</AnimatePresence>
+				<p className="mx-auto mt-4 max-w-2xl text-center text-[10px] leading-5 text-[var(--text-muted)]">{modelCopy.compare}</p>
 
-				<div className="mt-5 overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white p-3 sm:p-6 lg:p-8" style={{ boxShadow: 'var(--shadow-card)' }}>
-					<AnimatePresence mode="wait" initial={false}>
-						<m.div key={scenario.key} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -4 }} transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }} className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12">
-							<PhoneConversation scenario={scenario} copy={copy} />
-							<div className="hidden h-full lg:block"><TracePanel scenario={scenario} copy={copy} /></div>
-						</m.div>
-					</AnimatePresence>
+				<div className="mt-8 space-y-8 sm:space-y-10">
+					<SignalNetworkModel scenario={scenario} modelCopy={modelCopy} />
 
-					<div className="mt-7 flex flex-col gap-4 border-t border-[var(--border-default)] pt-5 sm:flex-row sm:items-center sm:justify-between">
-						<div className="flex items-center gap-2">
-							<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="marketing-pressable inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-[11px] font-medium text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
-							<button type="button" onClick={() => setSelected(0)} className="marketing-pressable flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
+					<div className="overflow-hidden rounded-[1.75rem] border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
+						<ModelHeader model={modelCopy.models[1]} />
+						<div className="p-3 sm:p-5 lg:p-6">
+							<AnimatePresence mode="wait" initial={false}>
+								<JourneyStrip key={`journey-${scenario.key}`} scenario={scenario} copy={copy} />
+							</AnimatePresence>
+
+							<div className="mt-4 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 sm:p-6 lg:p-8">
+								<AnimatePresence mode="wait" initial={false}>
+									<m.div
+										key={scenario.key}
+										initial={reduce ? false : { opacity: 0, transform: 'translate3d(0,6px,0)' }}
+										animate={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+										exit={reduce ? undefined : { opacity: 0, transform: 'translate3d(0,-4px,0)' }}
+										transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+										className="grid items-center gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:gap-12"
+									>
+										<PhoneConversation scenario={scenario} copy={copy} />
+										<div className="hidden h-full lg:block"><TracePanel scenario={scenario} copy={copy} /></div>
+									</m.div>
+								</AnimatePresence>
+							</div>
 						</div>
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-[var(--text-muted)]">{copy.noCode}</span><Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 text-xs font-medium text-white hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
 					</div>
+
+					<ResponseWorkbenchModel scenario={scenario} modelCopy={modelCopy} />
+				</div>
+
+				<div className="mt-8 flex flex-col gap-4 rounded-[1.5rem] border border-[var(--border-default)] bg-white p-4 shadow-[var(--shadow-sm)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+					<div className="flex items-center gap-2">
+						<button type="button" onClick={() => setPlaying((value) => !value)} disabled={!!reduce} className="marketing-pressable inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border-default)] px-4 text-[11px] font-medium text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40" aria-label={playing ? copy.pauseAria : copy.playAria}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}{copy.watch}</button>
+						<button type="button" onClick={() => setSelected(0)} className="marketing-pressable flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border-default)] text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]" aria-label={copy.replay}><RotateCcw className="h-3.5 w-3.5" /></button>
+					</div>
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center"><span className="text-[11px] text-[var(--text-muted)]">{copy.noCode}</span><Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 text-xs font-medium text-white hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"><span>{copy.start}</span><Arrow className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" /></Link></div>
 				</div>
 			</div>
 		</section>

@@ -1,9 +1,8 @@
-import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { twMerge, type ClassNameValue } from 'tailwind-merge'
 
 /** Merge Tailwind classes with conflict resolution. */
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+export function cn(...inputs: ClassNameValue[]) {
+  return twMerge(...inputs)
 }
 
 const ADJECTIVES = ['swift', 'bright', 'calm', 'bold', 'clever', 'keen', 'prime', 'vivid']
@@ -15,9 +14,4 @@ export function generateSlug(): string {
   const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)]
   const rand = Math.random().toString(36).slice(2, 7)
   return `${adj}-${noun}-${rand}`
-}
-
-/** Format a number as Iranian Toman with Persian digits. */
-export function formatToman(value: number, locale: 'fa' | 'en' = 'fa'): string {
-  return value.toLocaleString(locale === 'fa' ? 'fa-IR' : 'en-US')
 }

@@ -173,19 +173,3 @@ export function captureWarning(
 ): void {
   captureLog('warn', source, warning, opts)
 }
-
-export function captureInfo(
-  source: string,
-  message: string,
-  opts?: Omit<LogOptions, 'level'>,
-): void {
-  captureLog('info', source, message, opts)
-}
-
-export function captureDebug(
-  source: string,
-  message: string,
-  opts?: Omit<LogOptions, 'level'>,
-): void {
-  captureLog('debug', source, message, opts)
-}

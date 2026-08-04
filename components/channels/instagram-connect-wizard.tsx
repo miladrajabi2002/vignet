@@ -14,6 +14,10 @@ import {
   Smartphone,
   Monitor,
   ShieldAlert,
+  ShieldCheck,
+  KeyRound,
+  MessagesSquare,
+  Unplug,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -47,6 +51,7 @@ export function InstagramConnectFlow({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [vpnModalOpen, setVpnModalOpen] = useState(false)
+  const [trustModalOpen, setTrustModalOpen] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // VPN warning modal: BEFORE the OAuth flow starts, the operator must
@@ -55,7 +60,7 @@ export function InstagramConnectFlow({
   // Instagram dialog page won't even load). The modal intercepts the
   // "اتصال اینستاگرام" click and only proceeds once the user confirms.
   useEffect(() => {
-    if (!vpnModalOpen) return
+    if (!vpnModalOpen && !trustModalOpen) return
 
     const previousOverflow = document.body.style.overflow
     const previousFocus = document.activeElement instanceof HTMLElement
@@ -73,6 +78,7 @@ export function InstagramConnectFlow({
       if (e.key === 'Escape') {
         e.preventDefault()
         setVpnModalOpen(false)
+        setTrustModalOpen(false)
         return
       }
       if (e.key !== 'Tab' || !dialogRef.current) return
@@ -100,7 +106,7 @@ export function InstagramConnectFlow({
       document.body.style.overflow = previousOverflow
       previousFocus?.focus()
     }
-  }, [vpnModalOpen])
+  }, [trustModalOpen, vpnModalOpen])
 
   // Intercept the connect button: open the VPN modal first instead of
   // starting OAuth directly. The actual OAuth start happens in `confirmVpn`.
@@ -137,12 +143,8 @@ export function InstagramConnectFlow({
           setError('این ایجنت پیدا نشد.')
         } else if (data.error === 'CHANNEL_LIMIT') {
           setError('سهمیه اتصال کانال پلن شما تکمیل شده است. یک کانال را حذف کنید یا پلن را ارتقا دهید.')
-        } else if (res.status === 500) {
-          setError(
-            'خطای سرور هنگام ساخت URL اتصال. احتمالاً INSTAGRAM_APP_ID یا INSTAGRAM_APP_SECRET در .env تنظیم نشده. ' +
-              'راهنما: این مقادیر را از App Dashboard → Instagram → API Setup with Instagram Login بگیرید ' +
-              '(با Facebook App ID فرق دارد!).',
-          )
+        } else if (res.status >= 500) {
+          setError('سرویس اتصال اینستاگرام موقتاً در دسترس نیست. چند دقیقه دیگر دوباره تلاش کنید.')
         } else {
           setError('شروع اتصال ناموفق بود. دوباره تلاش کنید.')
         }
@@ -174,92 +176,109 @@ export function InstagramConnectFlow({
 
   return (
     <div className="mt-4 space-y-3">
-      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-base)] p-5">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white">
-            <Camera className="h-5 w-5" />
+      <div className="overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-white shadow-[var(--shadow-card)]">
+        <div className="border-b border-[var(--border-subtle)] bg-[linear-gradient(135deg,#fff_0%,#fff_58%,rgba(221,42,123,0.06)_100%)] p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white shadow-[0_10px_24px_-14px_rgba(221,42,123,0.85)]">
+              <Camera className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                  اتصال رسمی به اینستاگرام
+                </h3>
+                <span className="rounded-full border border-emerald-600/15 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
+                  بدون ساخت اپ متا
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-6 text-[var(--text-secondary)]">
+                وارد صفحه رسمی Instagram می‌شوید، دسترسی‌ها را تأیید می‌کنید و خودکار به ویجنت برمی‌گردید.
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-medium text-[var(--text-primary)]">
-              اتصال اینستاگرام
-            </h3>
-            <p className="text-xs text-[var(--text-secondary)]">
-              با یک کلیک، مستقیم از طریق اینستاگرام
-            </p>
-          </div>
+
+          <ol className="mt-5 grid gap-2 sm:grid-cols-3" aria-label="مراحل اتصال اینستاگرام">
+            {[
+              ['۱', 'ورود در Instagram'],
+              ['۲', 'تأیید پیام و کامنت'],
+              ['۳', 'بازگشت و شروع کار'],
+            ].map(([step, label]) => (
+              <li key={step} className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white/80 px-3 py-2.5">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--text-primary)] text-[10px] font-bold text-white">
+                  {step}
+                </span>
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">{label}</span>
+              </li>
+            ))}
+          </ol>
         </div>
 
-        {/* Prerequisites */}
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-[var(--text-primary)]">
-            قبل از اتصال، مطمئن شوید:
-          </p>
-          <ul className="space-y-2.5">
-            <PrereqItem icon={CheckCircle2} tone="brand">
-              اکانت اینستاگرام شما باید از نوع{' '}
-              <b>Business یا Creator</b> باشد (اکانت شخصی قابل اتصال نیست). برای
-              تغییر: اپ اینستاگرام → تنظیمات → Account type and tools → Switch to
-              professional account
-            </PrereqItem>
-            <PrereqItem icon={Smartphone}>
-              مراحل اتصال را حتماً در <b>مرورگر</b> انجام دهید (نه داخل اپلیکیشن
-              اینستاگرام) — در موبایل لینک را در Chrome باز کنید.
-            </PrereqItem>
-            <PrereqItem icon={Monitor}>
-              توصیه: اتصال را روی <b>دسکتاپ</b> انجام دهید برای اطمینان از تکمیل
-              فرآیند.
-            </PrereqItem>
-            <PrereqItem icon={CheckCircle2} tone="brand">
-              نیازی به فیسبوک یا ساخت اپ متا نیست — فقط دکمه اتصال را بزنید و
-              اجازه دسترسی بدهید.
-            </PrereqItem>
-          </ul>
-        </div>
-
-        {/* Help link */}
-        <a
-          href="/docs/instagram-connection"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-          مشکل دارید؟ راهنمای کامل
-          <ArrowLeft className="h-3 w-3 rtl:rotate-180" />
-        </a>
-
-        {/* Error */}
-        {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-2.5 text-xs text-danger">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="leading-relaxed">{error}</span>
+        <div className="p-5 sm:p-6">
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
+            <p className="text-xs font-semibold text-[var(--text-primary)]">قبل از اتصال</p>
+            <ul className="mt-3 space-y-2.5">
+              <PrereqItem icon={CheckCircle2} tone="brand">
+                اکانت باید <b>Business یا Creator</b> باشد؛ اکانت شخصی را از بخش Account type and tools حرفه‌ای کنید.
+              </PrereqItem>
+              <PrereqItem icon={Smartphone}>
+                اتصال را در <b>مرورگر</b> انجام دهید؛ در موبایل لینک را با Chrome باز کنید.
+              </PrereqItem>
+              <PrereqItem icon={Monitor}>
+                برای روند پایدارتر، دسکتاپ پیشنهاد می‌شود؛ اتصال در موبایل هم پشتیبانی می‌شود.
+              </PrereqItem>
+            </ul>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="mt-5 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={back}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-          >
-            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-            بازگشت
-          </button>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setTrustModalOpen(true)}
+              aria-haspopup="dialog"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-primary)] transition-[transform,border-color,background-color] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] active:scale-[0.97]"
+            >
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              چجوری بهتون اعتماد کنیم؟
+            </button>
+            <a
+              href="/docs/instagram-connection"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] transition-[transform,border-color,background-color,color] duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] active:scale-[0.97]"
+            >
+              <BookOpen className="h-4 w-4" />
+              راهنمای کامل اتصال
+              <ArrowLeft className="h-3 w-3 rtl:rotate-180" />
+            </a>
+          </div>
+
+          {error && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/5 p-3 text-xs text-danger" role="alert">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span className="leading-relaxed">{error}</span>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={onConnectClick}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--text-primary)] px-5 py-2 text-sm font-medium text-[var(--bg-base)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-control)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Camera className="h-4 w-4" />
-            )}
-            {busy ? 'در حال انتقال به اینستاگرام…' : 'اتصال اینستاگرام'}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            {busy ? 'در حال انتقال به اینستاگرام…' : 'ادامه در Instagram'}
+          </button>
+          <p className="mt-2 text-center text-[10px] leading-5 text-[var(--text-muted)]">
+            رمز عبور را فقط در صفحه Instagram وارد می‌کنید؛ ویجنت آن را دریافت یا ذخیره نمی‌کند.
+          </p>
+
+          <button
+            type="button"
+            onClick={back}
+            disabled={busy}
+            className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
+          >
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+            بازگشت به کانال‌ها
           </button>
         </div>
       </div>
@@ -341,11 +360,102 @@ export function InstagramConnectFlow({
           )
         : null}
 
-      {/* Trust note */}
-      <p className="text-center text-[11px] leading-relaxed text-[var(--text-tertiary)]">
-        اتصال مستقیم از طریق اینستاگرام انجام می‌شود — vigent هیچ رمز عبوری ذخیره نمی‌کند.
-        شما هر زمان می‌توانید از داشبورد اینستاگرام دسترسی را لغو کنید.
-      </p>
+      {trustModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="presentation">
+              <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setTrustModalOpen(false)}
+                aria-hidden
+              />
+              <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="instagram-trust-title"
+                aria-describedby="instagram-trust-description"
+                className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[1.5rem] border border-[var(--border-default)] bg-white shadow-2xl"
+              >
+                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                      <ShieldCheck className="h-[1.1rem] w-[1.1rem]" />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-700">اتصال شفاف و قابل لغو</p>
+                      <h3 id="instagram-trust-title" className="mt-0.5 text-sm font-semibold text-[var(--text-primary)]">
+                        چجوری بهتون اعتماد کنیم؟
+                      </h3>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrustModalOpen(false)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70"
+                    aria-label="بستن"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="px-5 py-5 sm:px-6">
+                  <p id="instagram-trust-description" className="text-sm leading-7 text-[var(--text-secondary)]">
+                    اتصال در صفحه رسمی Instagram انجام می‌شود و قبل از تأیید، خود اینستاگرام دسترسی‌های درخواستی را به شما نشان می‌دهد.
+                  </p>
+                  <div className="mt-5 space-y-2.5">
+                    <TrustItem icon={KeyRound} title="رمز عبور دست ما نمی‌رسد">
+                      رمز را فقط در دامنه Instagram وارد می‌کنید؛ ویجنت رمز عبور شما را نمی‌بیند و ذخیره نمی‌کند.
+                    </TrustItem>
+                    <TrustItem icon={MessagesSquare} title="دسترسی‌ها مشخص و محدودند">
+                      فقط پروفایل حرفه‌ای، پیام‌ها و کامنت‌ها برای پاسخ‌گویی و اتوماسیون درخواست می‌شوند؛ همان مواردی که در صفحه تأیید می‌بینید.
+                    </TrustItem>
+                    <TrustItem icon={Unplug} title="هر زمان خواستید قطعش کنید">
+                      می‌توانید کانال را از ویجنت حذف کنید یا دسترسی برنامه را از تنظیمات Instagram لغو کنید.
+                    </TrustItem>
+                  </div>
+
+                  <div className="mt-5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[11px] leading-6 text-[var(--text-secondary)]">
+                    مسیر قابل بررسی است: دکمه اتصال شما را به <b className="text-[var(--text-primary)]">api.instagram.com</b> می‌فرستد و پس از تأیید به ویجنت برمی‌گرداند.
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end border-t border-[var(--border-subtle)] px-5 py-4 sm:px-6">
+                  <button
+                    data-autofocus
+                    type="button"
+                    onClick={() => setTrustModalOpen(false)}
+                    className="inline-flex min-h-11 items-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/70 focus-visible:ring-offset-2"
+                  >
+                    متوجه شدم
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  )
+}
+
+function TrustItem({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-[var(--border-subtle)] p-3.5">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div>
+        <p className="text-xs font-semibold text-[var(--text-primary)]">{title}</p>
+        <p className="mt-1 text-[11px] leading-6 text-[var(--text-secondary)]">{children}</p>
+      </div>
     </div>
   )
 }

@@ -7,15 +7,9 @@ import type { Prisma } from '@prisma/client'
  */
 
 /**
- * One RRF rank step at the top of the candidate list:
- * 30.5 * (1/61 − 1/62) ≈ 0.008. Every additive boost below MUST stay under
- * this value so a boost can only break near-ties between adjacently-ranked
- * chunks — it must never let a rank-7 crawled page leapfrog the rank-1
- * result (which the old 0.05 cosine-scale boost did).
+ * Tie-break bonus for recently re-crawled URL chunks. It stays below one
+ * top-list RRF rank step (~0.008), so it cannot leapfrog a stronger result.
  */
-export const RRF_TOP_RANK_STEP = 30.5 * (1 / 61 - 1 / 62)
-
-/** Tie-break bonus for chunks whose URL KB was recently re-crawled. */
 export const RECENT_BOOST_MAX = 0.004
 
 /**
