@@ -265,6 +265,7 @@
   "263": "order-context.ts",
   "264": "intelligence-core-lazy.tsx",
   "265": "react-dom",
+  "266": "recharts",
   "273": "woo-connect-wizard.tsx",
   "275": "zarinpay.ts"
 }

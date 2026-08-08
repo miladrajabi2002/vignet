@@ -3550,8 +3550,8 @@
     "semantic_hash": ""
   },
   "prisma/migrations/20260808120000_account_cascade_retention_admin_mailbox/migration.sql": {
-    "mtime": 1786215743.57843,
-    "ast_hash": "1a51944e76c7a7a85b258430418aa7a4",
+    "mtime": 1786217918.3704824,
+    "ast_hash": "6be85469ed13f6cc66a7a5945a484509",
     "semantic_hash": ""
   },
   "tests/admin-mailbox-webhook.test.ts": {
@@ -3572,6 +3572,11 @@
   "tests/docs-removed-pages.test.ts": {
     "mtime": 1786216135.5841098,
     "ast_hash": "45b171c746a53c93f903824e73dc2178",
+    "semantic_hash": ""
+  },
+  "tests/account-cascade-migration-recovery.test.ts": {
+    "mtime": 1786217918.371484,
+    "ast_hash": "47a395e4e2783c91f5ae99cf4944b622",
     "semantic_hash": ""
   }
 }

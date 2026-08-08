@@ -31,6 +31,36 @@ ALTER TABLE "KnowledgeBase" DROP CONSTRAINT IF EXISTS "KnowledgeBase_agentId_fke
 ALTER TABLE "KnowledgeBase" ADD CONSTRAINT "KnowledgeBase_agentId_fkey"
   FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Some early production databases were baselined with the initial migration
+-- recorded as applied even though KnowledgeChunk was never created. Repair that
+-- drift before changing its FK. CREATE ... IF NOT EXISTS preserves every row
+-- when the table is already present and only rebuilds the missing empty table.
+CREATE EXTENSION IF NOT EXISTS "vector";
+
+CREATE TABLE IF NOT EXISTS "KnowledgeChunk" (
+  "id" TEXT NOT NULL,
+  "kbId" TEXT NOT NULL,
+  "agentId" TEXT NOT NULL,
+  "workspaceId" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "metadata" JSONB,
+  "embedding" vector(1536),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "KnowledgeChunk_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "KnowledgeChunk_kbId_fkey"
+    FOREIGN KEY ("kbId") REFERENCES "KnowledgeBase"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "KnowledgeChunk_agentId_idx"
+  ON "KnowledgeChunk"("agentId");
+CREATE INDEX IF NOT EXISTS "KnowledgeChunk_workspaceId_idx"
+  ON "KnowledgeChunk"("workspaceId");
+CREATE INDEX IF NOT EXISTS "KnowledgeChunk_embedding_idx"
+  ON "KnowledgeChunk" USING hnsw ("embedding" vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS "KnowledgeChunk_content_fts_idx"
+  ON "KnowledgeChunk" USING GIN (to_tsvector('simple', "content"));
+
 ALTER TABLE "KnowledgeChunk" DROP CONSTRAINT IF EXISTS "KnowledgeChunk_agentId_fkey";
 ALTER TABLE "KnowledgeChunk" ADD CONSTRAINT "KnowledgeChunk_agentId_fkey"
   FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;

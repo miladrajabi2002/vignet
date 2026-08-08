@@ -237,8 +237,6 @@
   "235": "route.ts",
   "236": "next-auth",
   "237": "pdf-parse",
-  "238": "route.ts",
-  "239": "woo-connect-wizard.tsx",
   "240": "route.ts",
   "241": "route.ts",
   "242": "whatsapp.ts",
@@ -264,8 +262,6 @@
   "262": "format.ts",
   "263": "order-context.ts",
   "264": "intelligence-core-lazy.tsx",
-  "265": "react-dom",
   "266": "recharts",
-  "273": "woo-connect-wizard.tsx",
-  "275": "zarinpay.ts"
+  "273": "woo-connect-wizard.tsx"
 }
