@@ -45,7 +45,7 @@ const TOOLS: ChatTool[] = [
   { type: 'function', function: { name: 'propose_resolve_conversation', description: 'Create a confirmation preview to mark a conversation resolved and clear operator handoff state.', parameters: { type: 'object', properties: { conversationId: { type: 'string' }, reason: { type: 'string' } }, required: ['conversationId', 'reason'] } } },
   { type: 'function', function: { name: 'propose_update_workspace', description: 'Preview changing a workspace display name and/or plan. Requires owner confirmation and creates an audit receipt.', parameters: { type: 'object', properties: { workspaceQuery: { type: 'string' }, name: { type: 'string' }, plan: { type: 'string', enum: ['TRIAL', 'STARTER', 'PRO', 'BUSINESS'] }, reason: { type: 'string' } }, required: ['workspaceQuery', 'reason'] } } },
   { type: 'function', function: { name: 'propose_set_agent_active', description: 'Preview activating or deactivating one agent. Requires owner confirmation.', parameters: { type: 'object', properties: { agentQuery: { type: 'string' }, active: { type: 'boolean' }, reason: { type: 'string' } }, required: ['agentQuery', 'active', 'reason'] } } },
-  { type: 'function', function: { name: 'propose_delete_user_account', description: 'Preview deleting the single owner account from a workspace while preserving workspace data. Platform admins are protected and owner confirmation is required.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
+  { type: 'function', function: { name: 'propose_delete_user_account', description: 'Preview permanently deleting the single owner account and all data owned by its workspace. Platform admins are protected and owner confirmation is required.', parameters: { type: 'object', properties: { userQuery: { type: 'string' }, reason: { type: 'string' } }, required: ['userQuery', 'reason'] } } },
 ]
 
 async function platformSummary(days: number) {
@@ -277,7 +277,7 @@ async function executeTool(name: string, rawArgs: string): Promise<{ result: unk
     if (user.platformRole === 'ADMIN') return { result: { error: 'PROTECTED_USER' } }
     const userLabel = user.name || displayPhone(user.phone) || user.phone
     const token = createAdminActionToken({ kind: 'DELETE_USER_ACCOUNT', userId: user.id, workspaceId: user.workspace.id, label: userLabel, reason: input.reason })
-    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف حساب کاربر', description: `${userLabel} از «${user.workspace.name}» حذف می‌شود. داده‌های کسب‌وکار برای سوابق حفظ می‌شوند و این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
+    return { result: { readyForConfirmation: true }, proposal: { token, title: 'حذف کامل حساب کاربر', description: `${userLabel} و همه داده‌های «${user.workspace.name}» شامل ایجنت‌ها، گفتگوها، پیام‌ها و اتصال‌ها برای همیشه حذف می‌شوند. این عملیات در تاریخچه ادمین ثبت خواهد شد.`, tone: 'danger' } }
   }
   return { result: { error: 'UNKNOWN_TOOL' } }
 }

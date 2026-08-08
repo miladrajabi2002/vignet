@@ -17,6 +17,7 @@ import {
   Sparkles,
   Database,
   ExternalLink,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/logo'
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/system', label: 'سلامت و خطاها', icon: ServerCog },
       { href: '/admin/users', label: 'کاربران', icon: Users },
       { href: '/admin/conversations', label: 'گفتگوها', icon: MessagesSquare },
+      { href: '/admin/mail', label: 'صندوق ایمیل', icon: Mail },
       { href: '/admin/agents', label: 'ایجنت‌ها', icon: Bot },
       { href: '/admin/revenue', label: 'درآمد و سود', icon: TrendingUp },
       { href: '/admin/payments', label: 'پرداخت‌ها و فاکتورها', icon: CreditCard },
@@ -44,7 +46,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/blog', label: 'مدیریت بلاگ', icon: FileText },
 ]
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ onNavigate, mailUnreadCount = 0 }: { onNavigate?: () => void; mailUnreadCount?: number }) {
   const pathname = usePathname()
 
   return (
@@ -83,7 +85,14 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   <Icon className={cn('h-4 w-4 shrink-0 transition-colors', active ? 'text-white' : 'text-[var(--text-hint)] group-hover:text-[var(--text-muted)]')} />
                   <span className="truncate">{label}</span>
-                  {openInNewTab ? (
+                  {href === '/admin/mail' && mailUnreadCount > 0 ? (
+                    <span className={cn(
+                      'ms-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[9px] font-bold tabular-nums',
+                      active ? 'bg-white text-black' : 'bg-black text-white',
+                    )}>
+                      {Math.min(mailUnreadCount, 99).toLocaleString('fa-IR')}
+                    </span>
+                  ) : openInNewTab ? (
                     <ExternalLink className="ms-auto h-3 w-3 shrink-0 opacity-45" />
                   ) : active ? (
                     <span className="ms-auto h-1.5 w-1.5 rounded-full bg-blue-400" />

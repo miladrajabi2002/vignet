@@ -10,24 +10,19 @@ import {
   Send,
   MessagesSquare,
   Radio,
-  MessageCircle,
   Camera,
   ChevronDown,
-  Copy,
-  CheckCheck,
   AlertTriangle,
   Settings2,
   ArrowLeft,
   type LucideIcon,
 } from 'lucide-react'
 import { InstagramConnectFlow } from '@/components/channels/instagram-connect-wizard'
-import { WhatsAppConnectFlow } from '@/components/channels/whatsapp-connect-wizard'
 
 export type MessengerKind =
   | 'TELEGRAM'
   | 'BALE'
   | 'RUBIKA'
-  | 'WHATSAPP'
   | 'INSTAGRAM'
 
 /** Icon lookup so the server component never passes a component across the boundary. */
@@ -35,7 +30,6 @@ const ICONS: Record<MessengerKind, LucideIcon> = {
   TELEGRAM: Send,
   BALE: MessagesSquare,
   RUBIKA: Radio,
-  WHATSAPP: MessageCircle,
   INSTAGRAM: Camera,
 }
 
@@ -52,10 +46,6 @@ const FIELD_SETS: Record<MessengerKind, FieldDef[]> = {
   RUBIKA: [
     { key: 'botToken', labelKey: 'fieldBotToken', placeholderKey: 'fieldBotTokenPh' },
   ],
-  WHATSAPP: [
-    { key: 'accessToken', labelKey: 'fieldAccessToken', placeholderKey: 'fieldAccessTokenPh' },
-    { key: 'phoneNumberId', labelKey: 'fieldPhoneNumberId', placeholderKey: 'fieldPhoneNumberIdPh' },
-  ],
   INSTAGRAM: [
     { key: 'pageToken', labelKey: 'fieldPageToken', placeholderKey: 'fieldPageTokenPh' },
   ],
@@ -63,9 +53,6 @@ const FIELD_SETS: Record<MessengerKind, FieldDef[]> = {
 
 /** Compose the single bot-token string the API/adapter expects from the fields. */
 function composeToken(type: MessengerKind, values: Record<string, string>): string {
-  if (type === 'WHATSAPP') {
-    return `${(values.accessToken ?? '').trim()}|${(values.phoneNumberId ?? '').trim()}`
-  }
   if (type === 'INSTAGRAM') return (values.pageToken ?? '').trim()
   return (values.botToken ?? '').trim()
 }
@@ -75,42 +62,18 @@ function isComplete(type: MessengerKind, values: Record<string, string>): boolea
   return FIELD_SETS[type].every((f) => (values[f.key] ?? '').trim().length > 0)
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(value)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        } catch {
-          /* clipboard blocked — ignore */
-        }
-      }}
-      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-      aria-label={label}
-    >
-      {copied ? <CheckCheck className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? label : null}
-    </button>
-  )
-}
-
 /** Platforms that render quick-reply buttons.
  *
  * NOTE (FRONTEND-AUTO-V3): Instagram is excluded — the dedicated Instagram
  * automation tab (`/agents/{agentId}/instagram`) is the canonical place to
  * manage quick replies / message builders for IG. Showing the legacy
  * quick-replies card on the channels page for IG was redundant and confusing.
- * Telegram/Bale/WhatsApp keep it; Rubika's bot API has no keyboard support.
+ * Telegram/Bale keep it; Rubika's bot API has no keyboard support.
  */
 const SUPPORTS_QUICK_REPLIES: Record<MessengerKind, boolean> = {
   TELEGRAM: true,
   BALE: true,
   RUBIKA: false,
-  WHATSAPP: true,
   INSTAGRAM: false,
 }
 
@@ -167,20 +130,18 @@ function ChannelSettings({
       >
         <span className="inline-flex items-center gap-1.5">
           <Settings2 className="h-3.5 w-3.5" />
-          {type === 'WHATSAPP' ? t('msgrQuickRepliesLabel') : t('channelSettings')}
+          {t('channelSettings')}
         </span>
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div id={`channel-quick-replies-${type.toLowerCase()}`} className="space-y-3 px-3 pb-3">
           <div>
-            {type !== 'WHATSAPP' && (
-              <p className="text-xs font-medium text-[var(--text-primary)]">
-                {t('msgrQuickRepliesLabel')}
-              </p>
-            )}
+            <p className="text-xs font-medium text-[var(--text-primary)]">
+              {t('msgrQuickRepliesLabel')}
+            </p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-              {type === 'WHATSAPP' ? t('msgrQuickRepliesHintWa') : t('msgrQuickRepliesHint')}
+              {t('msgrQuickRepliesHint')}
             </p>
           </div>
           <div className="space-y-2">
@@ -280,8 +241,6 @@ export function MessengerChannel({
   enabled,
   channelId,
   botUsername,
-  callbackUrl,
-  verifyToken,
   lastInboundAt,
   quickReplies = [],
   botAvatar,
@@ -293,10 +252,6 @@ export function MessengerChannel({
   enabled: boolean
   channelId: string | null
   botUsername: string | null
-  /** For Meta channels (WhatsApp/Instagram): webhook callback URL to paste in the Meta dashboard. */
-  callbackUrl?: string | null
-  /** For Meta channels: verify token to paste in the Meta dashboard. */
-  verifyToken?: string | null
   /** ISO timestamp of the last inbound webhook message, or null if none yet. */
   lastInboundAt?: string | null
   /** Saved quick-reply suggestion buttons (config.settings.quickReplies). */
@@ -384,11 +339,7 @@ export function MessengerChannel({
             {enabled && <Check className="h-4 w-4 text-success" />}
           </div>
           <div className="truncate text-sm text-[var(--text-secondary)]">
-            {enabled && botUsername
-              ? type === 'WHATSAPP'
-                ? botUsername.replace(/^@+/, '')
-                : `@${botUsername}`
-              : hint}
+            {enabled && botUsername ? `@${botUsername}` : hint}
           </div>
         </div>
         {enabled ? (
@@ -462,33 +413,6 @@ export function MessengerChannel({
         />
       )}
 
-      {/* Connected WhatsApp channels: show the webhook callback URL + verify
-          token to finish Meta dashboard setup. Instagram OAuth channels no
-          longer need this — the platform app manages the webhook globally
-          (callback /api/webhook/instagram, demuxed by pageId). */}
-          {enabled && type === 'WHATSAPP' && callbackUrl && verifyToken && (
-            <div className="mt-4 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-base)] p-4">
-              <p className="text-xs text-[var(--text-secondary)]">{t('webhookSetupNote')}</p>
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--text-secondary)]">{t('callbackUrl')}</label>
-                <div className="flex items-center gap-2">
-                  <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
-                    {callbackUrl}
-                  </code>
-                  <CopyButton value={callbackUrl} label={t('copied')} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--text-secondary)]">{t('verifyToken')}</label>
-                <div className="flex items-center gap-2">
-                  <code dir="ltr" className="min-w-0 flex-1 truncate rounded-md bg-[var(--bg-surface)] px-2 py-1.5 text-xs text-[var(--text-primary)]">
-                    {verifyToken}
-                  </code>
-                  <CopyButton value={verifyToken} label={t('copied')} />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -499,18 +423,6 @@ export function MessengerChannel({
             // Facebook Login dialog → callback → channel persisted). No token
             // pasting, no webhook configuration, no Meta dashboard visit.
             <InstagramConnectFlow
-              agentId={agentId}
-              onClose={() => setOpen(false)}
-            />
-          ) : type === 'WHATSAPP' ? (
-            // WhatsApp mirrors Instagram: platform-managed OAuth via the
-            // WhatsApp Embedded Signup. The operator clicks "اتصال واتساپ",
-            // authorizes in Facebook's dialog, and the callback either
-            // connects immediately (single number) or stashes a cookie and
-            // shows the number picker on the channels page. No Meta App
-            // creation, no token pasting, no manual webhook setup — the
-            // backend subscribes the WABA to the global webhook for them.
-            <WhatsAppConnectFlow
               agentId={agentId}
               onClose={() => setOpen(false)}
             />

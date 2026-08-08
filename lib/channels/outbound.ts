@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { readBotToken } from '@/lib/channels/config'
 import { readPageToken } from '@/lib/instagram/config'
 import { getAdapter, isMessengerType } from '@/lib/channels/registry'
-import { normalizeIranianMobile } from '@/lib/phone'
 
 /**
  * Push a plain-text message to a contact on a messenger channel — used for
@@ -27,6 +26,7 @@ export type OutboundDeliveryReason =
   | 'missing_thread'
   | 'channel_inactive'
   | 'credentials_missing'
+  | 'channel_retired'
   | 'provider_error'
 
 export type OutboundDeliveryResult = {
@@ -35,14 +35,11 @@ export type OutboundDeliveryResult = {
   cause?: unknown
 }
 
-/** Prefer the CRM mobile for WhatsApp conversations created with an old LID. */
+/** Resolve the provider-native conversation recipient. */
 export function resolveConversationRecipient(
-  channel: ChannelType,
   externalId: string | null,
-  contactPhone: string | null | undefined,
 ): string | null {
-  if (channel !== 'WHATSAPP') return externalId
-  return normalizeIranianMobile(contactPhone) ?? externalId
+  return externalId
 }
 
 export async function sendOutbound(
@@ -51,6 +48,9 @@ export async function sendOutbound(
   externalId: string | null,
   text: string,
 ): Promise<OutboundDeliveryResult> {
+  // Historical WhatsApp conversations remain readable, but the retired
+  // integration must never pretend that an operator reply was delivered.
+  if (channel === 'WHATSAPP') return { status: 'unavailable', reason: 'channel_retired' }
   if (!isMessengerType(channel)) return { status: 'stored', reason: 'history_delivery' }
   if (!externalId) return { status: 'unavailable', reason: 'missing_thread' }
 

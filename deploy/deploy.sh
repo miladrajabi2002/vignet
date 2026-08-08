@@ -150,14 +150,6 @@ npm ci
 echo "==> Validating launch-critical production configuration"
 npm run check:production-env
 
-if [ -f mini-services/whatsapp-bridge/package-lock.json ]; then
-  echo "==> Installing locked WhatsApp bridge dependencies"
-  (cd mini-services/whatsapp-bridge && npm ci --legacy-peer-deps)
-elif [ -f mini-services/whatsapp-bridge/package.json ]; then
-  echo "ERROR: WhatsApp bridge package-lock.json is required for a reproducible deploy" >&2
-  exit 1
-fi
-
 echo "==> Generating Prisma client"
 npx prisma generate
 
@@ -188,14 +180,9 @@ fi
 # self-heals the orphaned Next.js/npm state created by older deployments.
 stop_service_and_release_port "vignet-web" 3003 "${APP_ROOT}"
 stop_service_and_release_port "vignet-studio" 5555 "${APP_ROOT}"
-stop_service_and_release_port \
-  "vignet-whatsapp-bridge" \
-  3040 \
-  "${APP_ROOT}/mini-services/whatsapp-bridge"
-
 if [ "${recreate_pm2_apps}" -eq 1 ]; then
   echo "==> Re-registering PM2 services with direct executables"
-  pm2 delete vignet-web vignet-worker vignet-studio vignet-whatsapp-bridge >/dev/null 2>&1 || true
+  pm2 delete vignet-web vignet-worker vignet-studio >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.js
 else
   pm2 restart deploy/ecosystem.config.js --update-env

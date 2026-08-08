@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
  *
  * The desktop nav links, the language switcher and the signup CTA are all
  * `hidden lg:flex`, so below 1024px the header collapsed to just the logo and
- * the login button: Product / Live demo / Solutions / Pricing / Blog / Docs
+ * the login button: Product / Vigento / Solutions / Pricing / Blog / Docs
  * were reachable only by scrolling to the footer, and the fa/en switch was
  * unreachable entirely. This adds the missing `lg:hidden` entry point.
  *

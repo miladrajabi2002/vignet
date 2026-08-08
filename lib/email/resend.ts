@@ -12,7 +12,7 @@ import { Resend } from 'resend'
 const FROM = process.env.RESEND_FROM || 'Vigent <alerts@vigent.ir>'
 
 let client: Resend | null = null
-function getClient(): Resend | null {
+export function getResendClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null
   if (!client) client = new Resend(process.env.RESEND_API_KEY)
   return client
@@ -26,7 +26,7 @@ export interface EmailMessage {
 
 /** Send an email. Returns false (without throwing) when email isn't configured. */
 export async function sendEmail(msg: EmailMessage): Promise<boolean> {
-  const resend = getClient()
+  const resend = getResendClient()
   if (!resend) return false
   try {
     const { error } = await resend.emails.send({

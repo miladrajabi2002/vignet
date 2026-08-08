@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-22T11:57:59.134791+00:00",
+  "generated_at": "2026-08-08T18:28:01.197659+00:00",
   "nodes": {
     "app_dashboard_agents_agentid_page_agentdetailpage": {
       "code_fingerprint": "e939cb7f7afe5313e3816bfaf496e052cf1473a095e7bf000ecd6a3f9384a8a1",
@@ -17,7 +17,7 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 1.835379783,
+      "score": 1.23147162,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "preferred",
       "uses": 2
@@ -33,7 +33,7 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.923676825,
+      "score": 0.61975282,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -49,13 +49,13 @@
           "q": "حذف چهار کارت آماری و انتقال فرصت‌های رشد بالاتر از اتصال‌های فعال"
         }
       ],
-      "score": 0.923676825,
+      "score": 0.61975282,
       "source_file": "app/(dashboard)/agents/[agentId]/page.tsx",
       "status": "tentative",
       "uses": 1
     },
     "app_dashboard_conversations_page_conversationspage": {
-      "code_fingerprint": "a2d6d415d27d0d0b52f99be8a962d0dd1644bd7079e3ebcfb0d2e8a83f9f86e9",
+      "code_fingerprint": "9473a5bbf34f0cb68aaa72d06d82011e4dc325caee4cedd16fbfee89e1c6f7f1",
       "label": "ConversationsPage()",
       "last": "2026-07-17T14:05:20.455421+00:00",
       "provenance": [
@@ -65,13 +65,13 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.892721065,
+      "score": 0.598982656,
       "source_file": "app/(dashboard)/conversations/page.tsx",
       "status": "tentative",
       "uses": 1
     },
     "app_dashboard_overview_page_attentionitem": {
-      "code_fingerprint": "2d829173febb2918ce11df33f05b18c19f11fa08069dbe6c9f4026dffc147c62",
+      "code_fingerprint": "a839e573edcfbe6f94db96d038e33479b2dabc0d6732bfb6a880cfd2c299fb1b",
       "label": "AttentionItem()",
       "last": "2026-07-17T14:45:53.470511+00:00",
       "neg": 1,
@@ -87,14 +87,14 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000160625,
+      "score": -0.000107773,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
       "verdict": "dead end"
     },
     "app_dashboard_overview_page_overviewpage": {
-      "code_fingerprint": "2d829173febb2918ce11df33f05b18c19f11fa08069dbe6c9f4026dffc147c62",
+      "code_fingerprint": "a839e573edcfbe6f94db96d038e33479b2dabc0d6732bfb6a880cfd2c299fb1b",
       "label": "OverviewPage()",
       "last": "2026-07-17T14:45:53.470511+00:00",
       "neg": 1,
@@ -110,14 +110,14 @@
           "q": "قسمت مرکز عملیات ویجنت، سه مورد را بدون تغییر اندازه درست نمایش بده"
         }
       ],
-      "score": -0.000160625,
+      "score": -0.000107773,
       "source_file": "app/(dashboard)/overview/page.tsx",
       "status": "contested",
       "uses": 1,
       "verdict": "dead end"
     },
     "components_agent_builder_agent_wizard_readinessrow": {
-      "code_fingerprint": "50d7685e39822554dd953276f188e4b4bf19d59960b928448e3c6a8b5a424432",
+      "code_fingerprint": "923835ab6e7b14af86c3fbc732fb620a2ce5db9ea1609ad28af27ffdb06f76f6",
       "label": "ReadinessRow()",
       "last": "2026-07-18T18:53:57.257225+00:00",
       "provenance": [
@@ -127,13 +127,13 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.917827903,
+      "score": 0.615828411,
       "source_file": "components/agent-builder/agent-wizard.tsx",
       "status": "tentative",
       "uses": 1
     },
     "components_agents_agent_settings_form_agentsettingsform": {
-      "code_fingerprint": "9d103aa6680f80de9c59d82ec38dc12c5c64681c7306b31cf5f3a0f1ae3cf420",
+      "code_fingerprint": "94a2e9c12d7a190f890da7f4a3e85c9da29c4caa1100b98279762fdbd75fba0a",
       "label": "AgentSettingsForm()",
       "last": "2026-07-18T18:35:12.498984+00:00",
       "provenance": [
@@ -143,7 +143,7 @@
           "q": "توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن"
         }
       ],
-      "score": 0.91755188,
+      "score": 0.615643209,
       "source_file": "components/agents/agent-settings-form.tsx",
       "status": "tentative",
       "uses": 1
@@ -159,7 +159,7 @@
           "q": "بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن"
         }
       ],
-      "score": 0.917827903,
+      "score": 0.615828411,
       "source_file": "components/channels/messenger-channel.tsx",
       "status": "tentative",
       "uses": 1
@@ -175,13 +175,13 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.892721065,
+      "score": 0.598982656,
       "source_file": "components/crm/campaign-composer.tsx",
       "status": "tentative",
       "uses": 1
     },
     "components_crm_contacts_view": {
-      "code_fingerprint": "5354992aa76dd9a9fd0b6a1c08d5e6d3186e7be9bcc46e7ddc872997ca4b4e5f",
+      "code_fingerprint": "5e904ca9821dfa529572c5001d403305f330b5900ef97b096c9ae55af3faeb4c",
       "label": "contacts-view.tsx",
       "last": "2026-07-17T14:05:20.455421+00:00",
       "provenance": [
@@ -191,26 +191,31 @@
           "q": "Fix the send-message modal layering in customers and conversations"
         }
       ],
-      "score": 0.892721065,
+      "score": 0.598982656,
       "source_file": "components/crm/contacts-view.tsx",
       "status": "tentative",
       "uses": 1
     },
     "components_crm_contacts_view_contactsview": {
-      "code_fingerprint": "5354992aa76dd9a9fd0b6a1c08d5e6d3186e7be9bcc46e7ddc872997ca4b4e5f",
+      "code_fingerprint": "5e904ca9821dfa529572c5001d403305f330b5900ef97b096c9ae55af3faeb4c",
       "label": "ContactsView()",
-      "last": "2026-07-22T01:03:45.170981+00:00",
+      "last": "2026-07-22T12:19:04.510251+00:00",
       "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        },
         {
           "date": "2026-07-22T01:03:45.170981+00:00",
           "outcome": "useful",
           "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
         }
       ],
-      "score": 0.989557691,
+      "score": 1.335146348,
       "source_file": "components/crm/contacts-view.tsx",
-      "status": "tentative",
-      "uses": 1
+      "status": "preferred",
+      "uses": 2
     },
     "components_dashboard_intelligence_core": {
       "code_fingerprint": "e329be1a586f39bd87113b02d8a53d0390e9cf44cac56158939ef8fb9855973a",
@@ -233,7 +238,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 2.73272118,
+      "score": 1.833554347,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 3
@@ -254,7 +259,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 1.822328015,
+      "score": 1.222714369,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "preferred",
       "uses": 2
@@ -270,7 +275,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.910393165,
+      "score": 0.610839978,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -286,7 +291,7 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.911392171,
+      "score": 0.611510274,
       "source_file": "components/dashboard/intelligence-core.tsx",
       "status": "tentative",
       "uses": 1
@@ -302,7 +307,7 @@
           "q": "بازطراحی اتصال‌های Vigento AI داشبورد با neural-operation-graph.tsx به‌عنوان Source of Truth"
         }
       ],
-      "score": 0.910935844,
+      "score": 0.611204095,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -318,13 +323,13 @@
           "q": "حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها"
         }
       ],
-      "score": 0.911392171,
+      "score": 0.611510274,
       "source_file": "components/marketing/neural-network-primitives.tsx",
       "status": "tentative",
       "uses": 1
     },
     "components_marketing_neural_operation_graph": {
-      "code_fingerprint": "84f07459c74dd66195f45ffa31256afe88f516a07fd8e47b86486720892aff83",
+      "code_fingerprint": "19c6fbc43094e313dafa433df12031f3ebc44858c407dfc40cdaaf5c18e54b4b",
       "label": "neural-operation-graph.tsx",
       "last": "2026-07-18T11:04:11.288218+00:00",
       "provenance": [
@@ -339,13 +344,13 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 1.821329009,
+      "score": 1.222044073,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "preferred",
       "uses": 2
     },
     "components_marketing_neural_operation_graph_neuraloperationgraph": {
-      "code_fingerprint": "84f07459c74dd66195f45ffa31256afe88f516a07fd8e47b86486720892aff83",
+      "code_fingerprint": "19c6fbc43094e313dafa433df12031f3ebc44858c407dfc40cdaaf5c18e54b4b",
       "label": "NeuralOperationGraph()",
       "last": "2026-07-18T10:27:02.883112+00:00",
       "provenance": [
@@ -355,7 +360,7 @@
           "q": "میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی"
         }
       ],
-      "score": 0.910393165,
+      "score": 0.610839978,
       "source_file": "components/marketing/neural-operation-graph.tsx",
       "status": "tentative",
       "uses": 1
@@ -371,13 +376,13 @@
           "q": "خطا و ارور داریم: Prisma knowledgeBase.count Unknown argument workspace"
         }
       ],
-      "score": 0.989237853,
+      "score": 0.663741834,
       "source_file": "lib/admin/reporting-scope.ts",
       "status": "tentative",
       "uses": 1
     },
     "lib_billing_entitlements": {
-      "code_fingerprint": "470921dfa47a8ee35a52ca177d2e77c0b3fc2bcc846888f9611a738eedc43a30",
+      "code_fingerprint": "de7080181d128225fdaed301e889165d4c043b4e4eaa64774bce65dd225df31a",
       "label": "entitlements.ts",
       "last": "2026-07-22T00:34:27.473115+00:00",
       "provenance": [
@@ -387,7 +392,7 @@
           "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
         }
       ],
-      "score": 0.989092669,
+      "score": 0.66364442,
       "source_file": "lib/billing/entitlements.ts",
       "status": "tentative",
       "uses": 1
@@ -403,13 +408,13 @@
           "q": "الان محدودیت روی ایجنت هستش معمولا کسب کار ها نهایت دوتا ایجنت داشته باشن ما بر اساس کانال پلن بندی کنیم خیلی خوبه اینو هم توی پنل ادمین و هم توی بقیه جا ها اعمال بکن به جای محدودیت ایجنت"
         }
       ],
-      "score": 0.989092669,
+      "score": 0.66364442,
       "source_file": "lib/billing/plans.ts",
       "status": "tentative",
       "uses": 1
     },
     "lib_channels_handler_processchannelinbound": {
-      "code_fingerprint": "6c902f3887079896f0a5e48a47cee361968cc9fa7e3672f085dd5c29f0f44fd3",
+      "code_fingerprint": "a603594a30f39080d901a3a91963b91e28cf7ad453681cf982b3eda18be221f3",
       "label": "processChannelInbound()",
       "last": "2026-07-22T01:03:45.170981+00:00",
       "provenance": [
@@ -419,40 +424,98 @@
           "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
         }
       ],
-      "score": 0.989557691,
+      "score": 0.663956433,
       "source_file": "lib/channels/handler.ts",
       "status": "tentative",
       "uses": 1
     },
     "lib_channels_outbound_sendoutbound": {
-      "code_fingerprint": "5fd1137fe0fb2adc36f8a8f20219603aefbb904778f857a781e8d7f780f70f21",
+      "code_fingerprint": "bb162df3b374fdd8cf6bebe6ae2c8d1389bdf21a94ed3056c913ca2451c38c77",
       "label": "sendOutbound()",
-      "last": "2026-07-22T01:03:45.170981+00:00",
+      "last": "2026-07-22T12:19:04.510251+00:00",
       "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        },
         {
           "date": "2026-07-22T01:03:45.170981+00:00",
           "outcome": "useful",
           "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
         }
       ],
-      "score": 0.989557691,
+      "score": 1.335146348,
       "source_file": "lib/channels/outbound.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "lib_crm_contact_identity_applycontactidentity": {
+      "code_fingerprint": "ad67fab1321b11bee5436c2c042d9ab745a8bdd385197a8d712aeb9ad4f30bc9",
+      "label": "applyContactIdentity()",
+      "last": "2026-07-22T12:19:04.510251+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        }
+      ],
+      "score": 0.671189915,
+      "source_file": "lib/crm/contact-identity.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "lib_crm_contact_identity_resolveinboundcontact": {
+      "code_fingerprint": "ad67fab1321b11bee5436c2c042d9ab745a8bdd385197a8d712aeb9ad4f30bc9",
+      "label": "resolveInboundContact()",
+      "last": "2026-07-22T12:19:04.510251+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        }
+      ],
+      "score": 0.671189915,
+      "source_file": "lib/crm/contact-identity.ts",
       "status": "tentative",
       "uses": 1
     },
     "lib_crm_live_version_conversationliveversion": {
-      "code_fingerprint": "bfbc6f02eaf629af886e68278d089d36b33f18b0c00554eb2c596a133712d0cf",
+      "code_fingerprint": "59e26d7583a9b34f71598151d7925544e6165e50b4308199b90d275353fc06d1",
       "label": "conversationLiveVersion()",
-      "last": "2026-07-22T01:03:45.170981+00:00",
+      "last": "2026-07-22T12:19:04.510251+00:00",
       "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        },
         {
           "date": "2026-07-22T01:03:45.170981+00:00",
           "outcome": "useful",
           "q": "قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟"
         }
       ],
-      "score": 0.989557691,
+      "score": 1.335146348,
       "source_file": "lib/crm/live-version.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "lib_phone_normalizecontactphone": {
+      "code_fingerprint": "c01ee28e85cbd6a450fc9b4e5bea5c0de95661c3f988a09e0e15fbfd391e327b",
+      "label": "normalizeContactPhone()",
+      "last": "2026-07-22T12:19:04.510251+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-22T12:19:04.510251+00:00",
+          "outcome": "useful",
+          "q": "اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
+        }
+      ],
+      "score": 0.671189915,
+      "source_file": "lib/phone.ts",
       "status": "tentative",
       "uses": 1
     }

@@ -23,7 +23,7 @@ export const SOLUTIONS_EN: Solution[] = [
       'Test real scenarios, then connect the agent to your website or preferred channel.',
     ],
     faq: [
-      { q: 'Which channels support the Persian chatbot?', a: 'You can use it on the website widget, a dedicated chat link, Telegram, WhatsApp, Instagram, Bale, and Rubika.' },
+      { q: 'Which channels support the Persian chatbot?', a: 'You can use it on the website widget, a dedicated chat link, Telegram, Instagram, Bale, and Rubika.' },
       { q: 'Can I customize how the agent speaks?', a: 'Yes. You can control personality, brand tone, formality, empathy, initiative, response rules, and fallback behavior.' },
       { q: 'What happens when the answer is not in my data?', a: 'The agent avoids inventing an answer, flags the conversation for follow-up, and keeps the unanswered question for knowledge review.' },
     ],
@@ -40,7 +40,7 @@ export const SOLUTIONS_EN: Solution[] = [
       { title: 'Recommendations based on real needs', desc: 'The agent asks about budget and requirements, finds suitable catalog items, and explains meaningful differences.' },
       { title: 'Current price and availability', desc: 'Replies use the Vigent catalog or synchronized WooCommerce data instead of stale information or guesses.' },
       { title: 'Order tracking without a phone call', desc: 'Customers can ask about their order in the same conversation and receive the relevant status.' },
-      { title: 'One source across every sales channel', desc: 'The same product data powers conversations on your site, Instagram, Telegram, and WhatsApp.' },
+      { title: 'One source across every sales channel', desc: 'The same product data powers conversations on your site, Instagram, Telegram, and Bale.' },
     ],
     steps: [
       'Create an ecommerce agent from the recommended template.',
@@ -115,7 +115,7 @@ export const SOLUTIONS_EN: Solution[] = [
       { title: 'Fast replies protect the sale', desc: 'The agent responds in seconds—even outside business hours—while customer intent is still high.' },
       { title: 'Accurate price and availability', desc: 'Instead of a generic “DM for price,” the agent reads the current catalog entry and shares the right item.' },
       { title: 'Turn followers into customers', desc: 'Guide the conversation toward an order or contact capture and keep qualified leads in the CRM.' },
-      { title: 'One inbox across channels', desc: 'Instagram DMs sit beside Telegram, WhatsApp, and website chat with one customer history.' },
+      { title: 'One inbox across channels', desc: 'Instagram DMs sit beside Telegram, Bale, and website chat with one customer history.' },
     ],
     steps: [
       'Create your agent and add the products it can discuss.',
@@ -126,31 +126,6 @@ export const SOLUTIONS_EN: Solution[] = [
       { q: 'Is the Instagram connection secure?', a: 'The supported connection uses Meta APIs and Vigent never asks for or stores your Instagram password.' },
       { q: 'What happens with an unusual customer request?', a: 'The agent responds safely, gathers the minimum useful context, and hands the conversation to an operator.' },
       { q: 'Can I set the agent tone myself?', a: 'Yes. Configure personality, formality, empathy, initiative, must-do rules, and prohibited behavior.' },
-    ],
-  },
-  {
-    slug: 'whatsapp',
-    metaTitle: 'WhatsApp AI Chatbot for Sales and Support | Vigent',
-    metaDescription: 'Add an AI assistant to business WhatsApp for round-the-clock answers, sales guidance, order follow-up, human handoff, and unified CRM history.',
-    keywords: ['WhatsApp AI chatbot', 'WhatsApp Business automation', 'WhatsApp sales bot', 'WhatsApp customer support', 'WhatsApp CRM'],
-    serviceType: 'WhatsApp chatbot for sales, support, and CRM',
-    title: 'An AI assistant for your business WhatsApp',
-    subtitle: 'Meet customers where they already message you. Vigent responds accurately in your brand voice and keeps your team in control.',
-    benefits: [
-      { title: 'Available around the clock', desc: 'Customers receive a useful response in seconds without requiring a night-shift operator.' },
-      { title: 'Natural multi-turn conversations', desc: 'The agent follows your brand voice, uses known customer context carefully, and avoids robotic repeated greetings.' },
-      { title: 'Sales and follow-up together', desc: 'Recommend products, share verified prices, capture requests, and follow an order in the same thread.' },
-      { title: 'Automatic CRM history', desc: 'Keep each WhatsApp contact and conversation history in the same customer profile used across channels.' },
-    ],
-    steps: [
-      'Build the agent and add verified business information.',
-      'Connect your business WhatsApp account from Channels.',
-      'Run a real test, then let the agent handle routine messages while your team manages exceptions.',
-    ],
-    faq: [
-      { q: 'Which WhatsApp account should I use?', a: 'Use a business account supported by the connection method shown in Channels. The setup guide walks through the required steps.' },
-      { q: 'Can a teammate take over a conversation?', a: 'Yes. An operator can take ownership at any time; the AI stops replying until the conversation is returned.' },
-      { q: 'How is usage charged?', a: 'Your trial includes initial reply credit. Fixed Instagram automations remain free, and AI credit is deducted only after a successful generated reply.' },
     ],
   },
   {

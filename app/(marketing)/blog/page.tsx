@@ -22,8 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 			: 'Vigent blog — AI, sales and customer support'
 	const description =
 		locale === 'fa'
-			? 'مقاله‌ها و راهنماهای کاربردی درباره ایجنت‌های هوش مصنوعی فارسی، اتوماسیون فروش و پشتیبانی، CRM و ارتباط با مشتری در اینستاگرام، واتساپ و تلگرام.'
-			: 'Practical articles and guides on Persian AI agents, sales and support automation, CRM, and customer conversations across Instagram, WhatsApp and Telegram.'
+			? 'مقاله‌ها و راهنماهای کاربردی درباره ایجنت‌های هوش مصنوعی فارسی، اتوماسیون فروش و پشتیبانی، CRM و ارتباط با مشتری در اینستاگرام و تلگرام.'
+			: 'Practical articles and guides on Persian AI agents, sales and support automation, CRM, and customer conversations across Instagram and Telegram.'
 	return {
 		title,
 		description,

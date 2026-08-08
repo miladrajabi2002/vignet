@@ -31,7 +31,7 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/channels/config', () => ({ readBotToken: () => 'token' }))
 vi.mock('@/lib/instagram/config', () => ({ readPageToken: () => 'token' }))
 vi.mock('@/lib/channels/registry', () => ({
-  isMessengerType: (channel: string) => ['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP', 'INSTAGRAM'].includes(channel),
+  isMessengerType: (channel: string) => ['TELEGRAM', 'BALE', 'RUBIKA', 'INSTAGRAM'].includes(channel),
   getAdapter: () => ({ sendText: mocks.sendText }),
 }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: mocks.captureError }))
@@ -139,12 +139,12 @@ describe('POST /api/conversations/:id/reply delivery outcome', () => {
     expect(mocks.messageCreate).toHaveBeenCalledOnce()
   })
 
-  it('uses the CRM mobile when an old WhatsApp conversation has no usable thread id', async () => {
+  it('keeps a historical WhatsApp reply in the inbox without claiming delivery', async () => {
     mocks.conversationFindFirst.mockResolvedValue(conversation('WHATSAPP', null))
 
     const response = await POST(request(), props)
 
-    expect((await response.json()).delivery).toEqual({ status: 'sent' })
-    expect(mocks.sendText).toHaveBeenCalledWith('09128352271', 'پاسخ اپراتور')
+    expect((await response.json()).delivery).toEqual({ status: 'unavailable', reason: 'channel_retired' })
+    expect(mocks.sendText).not.toHaveBeenCalled()
   })
 })

@@ -25,7 +25,7 @@ const bodySchema = z.object({
  *
  * The chosen Page's Page Access Token is then POSTed to the existing
  * /api/agents/[agentId]/channels/messenger endpoint to actually connect the
- * channel — same shape as WhatsApp/Telegram, just with the Page token instead
+ * channel — same shape as the other messenger channels, with a Page token
  * of the original User token.
  *
  * This endpoint does NOT persist anything; it's a pure lookup. Auth is the

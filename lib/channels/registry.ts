@@ -12,11 +12,6 @@ import {
   getRubikaBotInfo,
 } from '@/lib/channels/rubika'
 import {
-  whatsappAdapter,
-  setWhatsappWebhook,
-  getWhatsappInfo,
-} from '@/lib/channels/whatsapp'
-import {
   instagramAdapter,
   setInstagramWebhook,
   getInstagramInfo,
@@ -27,7 +22,6 @@ export const MESSENGER_TYPES = [
   'TELEGRAM',
   'BALE',
   'RUBIKA',
-  'WHATSAPP',
   'INSTAGRAM',
 ] as const
 export type MessengerType = (typeof MESSENGER_TYPES)[number]
@@ -48,8 +42,6 @@ export function getAdapter(
       return baleAdapter(token)
     case 'RUBIKA':
       return rubikaAdapter(token)
-    case 'WHATSAPP':
-      return whatsappAdapter(token)
     case 'INSTAGRAM':
       return instagramAdapter(token)
   }
@@ -68,8 +60,6 @@ export function setWebhook(
       return setBaleWebhook(token, url)
     case 'RUBIKA':
       return setRubikaWebhook(token, url)
-    case 'WHATSAPP':
-      return setWhatsappWebhook()
     case 'INSTAGRAM':
       return setInstagramWebhook()
   }
@@ -87,8 +77,6 @@ export function getBotInfo(
       return getBaleBotInfo(token)
     case 'RUBIKA':
       return getRubikaBotInfo(token)
-    case 'WHATSAPP':
-      return getWhatsappInfo(token)
     case 'INSTAGRAM':
       return getInstagramInfo(token)
   }

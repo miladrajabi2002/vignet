@@ -11,7 +11,6 @@ import {
 	Clock3,
 	Database,
 	Globe2,
-	MessageCircleMore,
 	PackageSearch,
 	Send,
 	ShoppingBag,
@@ -31,7 +30,6 @@ const SOLUTION_META: Record<string, { icon: ComponentType<{ className?: string }
 	'customer-support-ai': { icon: UserRoundCheck, channel: 'صندوق پشتیبانی', question: 'پرداخت انجام شده ولی سرویس من فعال نیست.', answer: 'اطلاعات را ثبت کردم و گفتگو را با خلاصه کامل برای بررسی فوری به همکار مربوطه می‌سپارم.', source: 'راهنمای پشتیبانی و ارجاع' },
 	telegram: { icon: Send, channel: 'ربات تلگرام', question: 'سفارشم امروز تحویل پست می‌شه؟', answer: 'بله، سفارش شما آماده ارسال است و کد پیگیری بعد از تحویل به پست همین‌جا فرستاده می‌شود.', source: 'اطلاعات سفارش و ارسال' },
 	instagram: { icon: InstagramIcon, channel: 'دایرکت اینستاگرام', question: 'قیمت این مدل چنده؟ رنگ کرم هم دارید؟', answer: '۲٬۳۹۰٬۰۰۰ تومان است و رنگ کرم موجود است. کارت محصول را همین‌جا می‌فرستم.', source: 'کاتالوگ محصول و موجودی' },
-	whatsapp: { icon: MessageCircleMore, channel: 'واتساپ بیزینس', question: 'برای فردا عصر وقت مشاوره دارید؟', answer: 'بله، ساعت ۵ و ۶:۳۰ خالی است. کدام زمان برای شما بهتر است؟', source: 'ساعات و قوانین رزرو' },
 	woocommerce: { icon: PackageSearch, channel: 'فروشگاه ووکامرس', question: 'برای دویدن سبک چه مدلی پیشنهاد می‌دید؟', answer: 'این دو مدل با نیاز و بودجه شما هماهنگ‌اند؛ تفاوت وزن و کفی را هم مقایسه کردم.', source: 'محصولات همگام‌شده ووکامرس' },
 }
 
@@ -41,13 +39,12 @@ const SOLUTION_META_EN: typeof SOLUTION_META = {
 	'customer-support-ai': { icon: UserRoundCheck, channel: 'Support inbox', question: 'My payment went through, but the service is not active.', answer: 'I have captured the details and will hand this conversation to the right teammate with a complete summary.', source: 'Support and escalation guide' },
 	telegram: { icon: Send, channel: 'Telegram bot', question: 'Will my order be handed to the carrier today?', answer: 'Your order is ready to ship. The tracking code will be sent here after the carrier receives it.', source: 'Order and delivery data' },
 	instagram: { icon: InstagramIcon, channel: 'Instagram DMs', question: 'How much is this model, and is cream available?', answer: 'It is 2,390,000 tomans and cream is in stock. I can send the product card here.', source: 'Product catalog and stock' },
-	whatsapp: { icon: MessageCircleMore, channel: 'WhatsApp Business', question: 'Do you have a consultation slot tomorrow afternoon?', answer: 'Yes, 5:00 and 6:30 are available. Which time works better for you?', source: 'Availability and booking policy' },
 	woocommerce: { icon: PackageSearch, channel: 'WooCommerce store', question: 'Which model would you suggest for light running?', answer: 'These two match your needs and budget. I have also compared their weight and cushioning.', source: 'Synchronized WooCommerce products' },
 }
 
 const PAGE_COPY = {
 	fa: {
-		breadcrumb: 'مسیر صفحه', brand: 'ویجنت', solutions: 'راهکارها', start: 'شروع رایگان — یک ماه', demo: 'مشاهده دموی واقعی',
+		breadcrumb: 'مسیر صفحه', brand: 'ویجنت', solutions: 'راهکارها', start: 'شروع رایگان — یک ماه', vigento: 'آشنایی با ویجنتو',
 		trust: 'یک ماه رایگان · اتوماسیون ثابت اینستاگرام رایگان · هزینه فقط برای پاسخ موفق AI', automation: 'اتوماسیون', automationValue: 'کارهای ثابت اینستاگرام رایگان', aiReplies: 'پاسخ هوشمند', aiRepliesValue: 'کسر اعتبار فقط پس از پاسخ موفق',
 		agent: 'ایجنت ویجنت', online: 'آنلاین و آماده پاسخ', result: 'پاسخ دقیق و نتیجه گفتگو ثبت شد', does: 'کاری که برای شما انجام می‌دهد', doesTitle: 'از سؤال تکراری تا کاری که واقعاً باید انجام شود',
 		setup: 'راه‌اندازی', setupTitle: 'سه قدم تا اولین پاسخ واقعی', minutes: 'چند دقیقه', faq: 'سؤال‌های متداول', faqTitle: 'قبل از شروع، شفاف بدانید', faqDesc: 'اگر پاسخ دیگری لازم دارید، مستندات را ببینید یا از ویجت همین صفحه بپرسید.',
@@ -55,7 +52,7 @@ const PAGE_COPY = {
 		finalEyebrow: 'Vigento AI | هوش مصنوعی ویجنتو', finalTitle: 'این راهکار را با اطلاعات خودتان ببینید', finalDesc: 'یک ماه فرصت دارید ایجنت را بسازید، محصولات و دانش را اضافه کنید و کانال واقعی خودتان را وصل کنید', finalCta: 'شروع دوره یک‌ماهه',
 	},
 	en: {
-		breadcrumb: 'Breadcrumb', brand: 'Vigent', solutions: 'Solutions', start: 'Start free — one month', demo: 'See a real demo',
+		breadcrumb: 'Breadcrumb', brand: 'Vigent', solutions: 'Solutions', start: 'Start free — one month', vigento: 'Meet Vigento',
 		trust: 'One month free · Fixed Instagram automations are free · Pay only for successful AI replies', automation: 'Automation', automationValue: 'Fixed Instagram actions stay free', aiReplies: 'AI replies', aiRepliesValue: 'Credit is used only after a successful reply',
 		agent: 'Vigent agent', online: 'Online and ready', result: 'Accurate reply and conversation outcome recorded', does: 'What it does for you', doesTitle: 'From a repeat question to the next useful action',
 		setup: 'Setup', setupTitle: 'Three steps to your first real reply', minutes: 'A few minutes', faq: 'Frequently asked questions', faqTitle: 'Know what to expect before you start', faqDesc: 'For anything else, browse the documentation or ask the widget on this page.',
@@ -171,7 +168,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 							<p className="marketing-subtitle mt-5 max-w-2xl text-pretty sm:text-base">{solution.subtitle}</p>
 							<div className="mt-8 flex flex-col gap-3 sm:flex-row">
 								<Link href="/login?next=/onboarding" className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">{copy.start}<DirectionArrow className="h-4 w-4 transition-transform group-hover:rtl:-translate-x-0.5 group-hover:ltr:translate-x-0.5" /></Link>
-								<Link href="/#demo" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 text-sm font-medium text-black transition-colors hover:bg-black/[0.04]">{copy.demo}</Link>
+								<Link href="/#vigento" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 text-sm font-medium text-black transition-colors hover:bg-black/[0.04]">{copy.vigento}</Link>
 							</div>
 							<p className="mt-5 text-[11px] leading-6 text-black/45">{copy.trust}</p>
 							<div className="mt-5 grid max-w-2xl gap-2 sm:grid-cols-2">

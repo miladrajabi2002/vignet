@@ -104,7 +104,7 @@ model User {
   language     String       @default("fa")
   createdAt    DateTime     @default(now())
 
-  workspace                  Workspace           @relation(fields: [workspaceId], references: [id])
+  workspace                  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   knowledgeApprovalsVerified KnowledgeApproval[] @relation("KnowledgeApprovalVerifier")
 
   @@unique([workspaceId])
@@ -169,7 +169,7 @@ model Agent {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  workspace                   Workspace                    @relation(fields: [workspaceId], references: [id])
+  workspace                   Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channels                    AgentChannel[]
   knowledgeBases              KnowledgeBase[]
   conversations               Conversation[]
@@ -241,7 +241,7 @@ model AgentChannel {
   healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
   createdAt       DateTime    @default(now())
 
-  agent                  Agent                   @relation(fields: [agentId], references: [id])
+  agent                  Agent                   @relation(fields: [agentId], references: [id], onDelete: Cascade)
   inboundEvents          InboundEvent[]
   conversationTurnLeases ConversationTurnLease[]
 
@@ -350,7 +350,7 @@ model ProductCategory {
   sortOrder           Int      @default(0)
   createdAt           DateTime @default(now())
 
-  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
   parent            ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
   children          ProductCategory[] @relation("CategoryTree")
@@ -386,7 +386,7 @@ model Product {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   sourceIntegration StoreIntegration? @relation(fields: [sourceIntegrationId], references: [id], onDelete: SetNull)
   category          ProductCategory?  @relation(fields: [categoryId], references: [id])
   catalogItems      AgentCatalog[]
@@ -439,7 +439,7 @@ model KnowledgeBase {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  agent    Agent              @relation(fields: [agentId], references: [id])
+  agent    Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
   chunks   KnowledgeChunk[]
   approval KnowledgeApproval?
 
@@ -518,7 +518,7 @@ model KnowledgeChunk {
   createdAt   DateTime                     @default(now())
 
   kb    KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
-  agent Agent         @relation(fields: [agentId], references: [id])
+  agent Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId])
   @@index([workspaceId])
@@ -567,7 +567,7 @@ model Contact {
   marketingOptInAt   DateTime?
   marketingOptOutAt  DateTime?
 
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id])
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations      Conversation[]
   campaignRecipients CampaignRecipient[]
   appointments       Appointment[]
@@ -606,8 +606,8 @@ model Conversation {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  workspace     Workspace                 @relation(fields: [workspaceId], references: [id])
-  agent         Agent                     @relation(fields: [agentId], references: [id])
+  workspace     Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent         Agent                     @relation(fields: [agentId], references: [id], onDelete: Cascade)
   contact       Contact?                  @relation(fields: [contactId], references: [id])
   messages      Message[]
   handoffAlerts HandoffAlert[]
@@ -726,7 +726,7 @@ model Message {
   inboundEventId          String?     @unique
   resultForInboundEventId String?     @unique
 
-  conversation          Conversation       @relation(fields: [conversationId], references: [id])
+  conversation          Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   parent                Message?           @relation("MessageReplies", fields: [parentId], references: [id])
   replies               Message[]          @relation("MessageReplies")
   inboundEvent          InboundEvent?      @relation("InboundEventInboundMessage", fields: [inboundEventId], references: [id], onDelete: SetNull)
@@ -768,7 +768,7 @@ model UsageLog {
   idempotencyKey    String?     @unique
   type              LogType
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   walletEntries WalletLedger[]
 
   @@index([workspaceId, date])
@@ -802,7 +802,7 @@ model Subscription {
   currentPeriodEnd DateTime
   createdAt        DateTime  @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 enum SubStatus {
@@ -1079,7 +1079,7 @@ model Notification {
   read        Boolean          @default(false)
   createdAt   DateTime         @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, read, createdAt])
 }
@@ -1126,7 +1126,7 @@ model BlogCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   posts     BlogPost[]
 
   @@unique([workspaceId, slug])
@@ -1156,7 +1156,7 @@ model BlogPost {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id])
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   category  BlogCategory? @relation(fields: [categoryId], references: [id])
 
   @@unique([workspaceId, slug])
@@ -1325,6 +1325,37 @@ model StoreSyncLog {
 
   @@index([integrationId, createdAt])
   @@index([workspaceId])
+  @@index([outcome, createdAt])
+}
+
+// Platform-owner inbox for info@vigent.ir. Inbound messages are idempotent by
+// provider id; replies stay attached to the original message to keep the admin
+// workflow deliberately small and auditable.
+model AdminMailboxMessage {
+  id                   String    @id @default(cuid())
+  providerEmailId      String    @unique
+  webhookEventId       String?   @unique
+  messageId            String?
+  from                 String
+  to                   String[]
+  cc                   String[]  @default([])
+  replyTo              String[]  @default([])
+  subject              String
+  text                 String?   @db.Text
+  html                 String?   @db.Text
+  preview              String    @db.Text
+  attachments          Json?
+  receivedAt           DateTime
+  readAt               DateTime?
+  forwardedAt          DateTime?
+  repliedAt            DateTime?
+  replyText            String?   @db.Text
+  replyProviderEmailId String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([readAt, receivedAt])
+  @@index([receivedAt])
 }
 
 model StoreWebhookDelivery {

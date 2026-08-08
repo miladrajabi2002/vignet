@@ -16,7 +16,7 @@ const COPY = {
 		productTitle: 'محصول',
 		solutionsTitle: 'راهکارها',
 		resourcesTitle: 'یادگیری',
-		productLinks: ['اتصال‌ها', 'دموی زنده', 'Vigento AI', 'تعرفه‌ها'],
+		productLinks: ['اتصال‌ها', 'قابلیت‌ها', 'Vigento AI', 'تعرفه‌ها'],
 		// Order must track solutionHrefs below — these labels previously pointed at
 		// the wrong pages ("خدمات و رزرو" opened the support page, "پشتیبانی مشتری"
 		// opened the chatbot page).
@@ -34,7 +34,7 @@ const COPY = {
 		productTitle: 'Product',
 		solutionsTitle: 'Solutions',
 		resourcesTitle: 'Learn',
-		productLinks: ['Connections', 'Live demo', 'Vigento AI', 'Pricing'],
+		productLinks: ['Connections', 'Features', 'Vigento AI', 'Pricing'],
 		solutionLinks: ['Instagram', 'Online stores', 'Customer support', 'Persian AI chatbot', 'WooCommerce'],
 		resourceLinks: ['Documentation', 'Blog', 'Service status'],
 		status: 'All services operational',
@@ -47,7 +47,7 @@ export function Footer() {
 	const copy = COPY[locale]
 	const t = useTranslations('marketing.footer')
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
-	const productHrefs = ['/#product', '/#demo', '/#vigento', '/pricing']
+	const productHrefs = ['/#product', '/#solutions', '/#vigento', '/pricing']
 	const solutionHrefs = ['/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/woocommerce']
 	const resourceHrefs = ['/docs', '/blog', '/status']
 

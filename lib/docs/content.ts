@@ -39,7 +39,7 @@ export interface DocPage {
         blocks: DocBlock[]
 }
 
-export const DOCS: DocPage[] = [
+const ALL_DOCS: DocPage[] = [
         {
                 slug: 'introduction',
                 icon: BookOpen,
@@ -1747,6 +1747,11 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                 ],
         },
 ]
+
+// Internal Meta configuration must not be published as customer-facing docs.
+// Keeping the historical body out of DOCS also removes it from static params,
+// metadata, sitemap/JSON-LD navigation and makes the old URL return 404.
+export const DOCS: DocPage[] = ALL_DOCS.filter((doc) => doc.slug !== 'meta-app-setup')
 
 export function getDoc(slug: string): DocPage | undefined {
         return DOCS.find((d) => d.slug === slug)

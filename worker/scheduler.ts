@@ -6,7 +6,6 @@ import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { refreshLongLivedToken as refreshInstagramLongLivedToken } from '@/lib/instagram/oauth'
-import { refreshLongLivedToken as refreshWhatsappLongLivedToken } from '@/lib/whatsapp/oauth'
 import {
         sendActivationCompleteSms,
         sendActivationReminderSms,
@@ -22,6 +21,7 @@ import {
 } from '@/lib/integrations/woocommerce'
 import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
+import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
 
 /**
  * Lightweight in-process scheduler for the background worker. Uses plain
@@ -315,31 +315,21 @@ async function runAppointmentReminders(): Promise<void> {
 // ─── data retention cleanup ─────────────────────────────────────────────────
 
 const CLEANUP_INTERVAL_MS = 24 * HOUR_MS
-const RETENTION_DAYS = 30
-
-/**
- * Prune unbounded audit tables daily: OTP logs, error logs and store sync logs
- * older than RETENTION_DAYS. Keeps these tables from growing forever (OTPLog
- * gets a row per login attempt, ErrorLog per captured error).
- */
-async function cleanupOldRecords(): Promise<void> {
-        const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * HOUR_MS)
-        const [otp, errors, syncLogs] = await Promise.all([
-                prisma.oTPLog.deleteMany({ where: { sentAt: { lt: cutoff } } }),
-                prisma.errorLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-                prisma.storeSyncLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-        ])
-        const total = otp.count + errors.count + syncLogs.count
-        if (total > 0) {
-                console.log(
-                        `[scheduler] retention cleanup: ${otp.count} OTP, ${errors.count} error, ${syncLogs.count} sync log rows deleted`,
-                )
-        }
-}
 
 async function runCleanup(): Promise<void> {
         try {
-                await cleanupOldRecords()
+                const result = await cleanupOldRecords()
+                const total =
+                        result.otpLogs +
+                        result.errorLogs +
+                        result.syncLogsByAge +
+                        result.syncLogsOverCap +
+                        result.orphanWorkspaces
+                if (total > 0) {
+                        console.log(
+                                `[scheduler] retention cleanup: ${result.otpLogs} OTP, ${result.errorLogs} error, ${result.syncLogsByAge + result.syncLogsOverCap} sync log, ${result.orphanWorkspaces} orphan workspace rows deleted`,
+                        )
+                }
         } catch (e) {
                 console.error('[scheduler] retention cleanup failed:', e)
         }
@@ -521,7 +511,7 @@ async function runAdminCommercialSmsOutbox(): Promise<void> {
         }
 }
 
-// ─── OAuth token refresh (Instagram + WhatsApp) ─────────────────────────────
+// ─── Instagram OAuth token refresh ──────────────────────────────────────────
 
 const TOKEN_REFRESH_INTERVAL_MS = 12 * HOUR_MS
 // Refresh well before the ~60-day expiry so a few failed attempts still leave
@@ -529,8 +519,7 @@ const TOKEN_REFRESH_INTERVAL_MS = 12 * HOUR_MS
 const TOKEN_REFRESH_WINDOW_MS = 10 * 24 * HOUR_MS
 
 /**
- * Meta long-lived tokens (Instagram Login user tokens and WhatsApp Embedded
- * Signup user tokens) expire after ~60 days. Without a refresh sweep every
+ * Instagram Login long-lived user tokens expire after ~60 days. Without a refresh sweep every
  * OAuth-connected channel silently dies: inbound keeps arriving but every send
  * fails with OAuthException until the operator manually reconnects. Refresh
  * every channel whose token expires inside the window; on failure near expiry,
@@ -538,7 +527,7 @@ const TOKEN_REFRESH_WINDOW_MS = 10 * 24 * HOUR_MS
  */
 async function refreshOauthTokens(): Promise<void> {
         const channels = await prisma.agentChannel.findMany({
-                where: { active: true, type: { in: ['INSTAGRAM', 'WHATSAPP'] } },
+                where: { active: true, type: 'INSTAGRAM' },
                 select: {
                         id: true,
                         type: true,
@@ -569,39 +558,17 @@ async function refreshOauthTokens(): Promise<void> {
                 }
 
                 try {
-                        if (ch.type === 'INSTAGRAM') {
-                                const fresh = await refreshInstagramLongLivedToken(token)
-                                await prisma.agentChannel.update({
-                                        where: { id: ch.id },
-                                        data: {
-                                                config: {
-                                                        ...cfg,
-                                                        userTokenEnc: encrypt(fresh.token),
-                                                        userTokenExpiresAt: fresh.expiresAt.toISOString(),
-                                                } as Prisma.InputJsonValue,
-                                        },
-                                })
-                        } else {
-                                const fresh = await refreshWhatsappLongLivedToken(token)
-                                const phoneNumberId =
-                                        typeof cfg.phoneNumberId === 'string' ? cfg.phoneNumberId : null
-                                await prisma.agentChannel.update({
-                                        where: { id: ch.id },
-                                        data: {
-                                                config: {
-                                                        ...cfg,
-                                                        userTokenEnc: encrypt(fresh.token),
-                                                        userTokenExpiresAt: fresh.expiresAt.toISOString(),
-                                                        // The user token doubles as the send token — keep the
-                                                        // derived fields in lockstep (see buildWhatsappOAuthConfig).
-                                                        phoneNumberEnc: encrypt(fresh.token),
-                                                        ...(phoneNumberId
-                                                                ? { botTokenEnc: encrypt(`${fresh.token}|${phoneNumberId}`) }
-                                                                : {}),
-                                                } as Prisma.InputJsonValue,
-                                        },
-                                })
-                        }
+                        const fresh = await refreshInstagramLongLivedToken(token)
+                        await prisma.agentChannel.update({
+                                where: { id: ch.id },
+                                data: {
+                                        config: {
+                                                ...cfg,
+                                                userTokenEnc: encrypt(fresh.token),
+                                                userTokenExpiresAt: fresh.expiresAt.toISOString(),
+                                        } as Prisma.InputJsonValue,
+                                },
+                        })
                         console.log(`[scheduler] refreshed ${ch.type} OAuth token for channel ${ch.id}`)
                 } catch (error) {
                         captureError('scheduler:oauth-token-refresh', error, {
@@ -626,10 +593,7 @@ async function refreshOauthTokens(): Promise<void> {
                                                 await notifyWorkspace({
                                                         workspaceId: ch.agent.workspaceId,
                                                         type: 'CHANNEL_DOWN',
-                                                        title:
-                                                                ch.type === 'INSTAGRAM'
-                                                                        ? 'اتصال اینستاگرام نیاز به اتصال مجدد دارد'
-                                                                        : 'اتصال واتساپ نیاز به اتصال مجدد دارد',
+                                                        title: 'اتصال اینستاگرام نیاز به اتصال مجدد دارد',
                                                         body: `تمدید خودکار دسترسی کانال «${ch.agent.name}» ناموفق بود و اعتبار آن به‌زودی تمام می‌شود. لطفاً از بخش کانال‌ها دوباره متصل شوید.`,
                                                         link: '/integrations',
                                                 })

@@ -81,7 +81,7 @@ describe('channel-based plan entitlements', () => {
     await expect(checkChannelConnectAllowed('ws-1', {
       kind: 'AGENT_CHANNEL',
       agentId: 'agent-1',
-      type: 'WHATSAPP',
+      type: 'BALE',
     })).resolves.toEqual({ allowed: false, reason: 'CHANNEL_LIMIT' })
   })
 

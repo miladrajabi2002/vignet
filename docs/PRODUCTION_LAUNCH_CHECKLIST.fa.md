@@ -17,7 +17,7 @@
 - TLS معتبر، تمدید خودکار گواهی و redirect دائمی HTTP به HTTPS را در Nginx فعال کنید.
 - محتوای `deploy/nginx-proxy-security.conf` را در `location /` قرار دهید؛ در غیر این صورت به `TRUST_PROXY_HEADERS=1` اعتماد نکنید.
 - محدودیت اندازه درخواست و timeout جداگانه برای upload و webhook در Nginx تعریف کنید.
-- DNS، رکوردهای ایمیل دامنه و دامنه‌های callback سرویس‌های Meta/WhatsApp/پرداخت دقیقاً با URLهای production یکسان باشند.
+- DNS، رکوردهای ایمیل دامنه و دامنه‌های callback سرویس‌های Meta/پرداخت دقیقاً با URLهای production یکسان باشند.
 
 ## ۳. داده، بکاپ و بازگشت
 

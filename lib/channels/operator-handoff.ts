@@ -67,7 +67,7 @@ export async function getConnectedMessengerChannels(
                 where: { agentId, active: true },
                 select: { type: true },
         })
-        const messengerTypes: ChannelType[] = ['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP', 'INSTAGRAM']
+        const messengerTypes: ChannelType[] = ['TELEGRAM', 'BALE', 'RUBIKA', 'INSTAGRAM']
         return channels
                 .map((c) => c.type)
                 .filter((t): t is ChannelType => (messengerTypes as string[]).includes(t))

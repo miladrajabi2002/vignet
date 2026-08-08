@@ -168,11 +168,31 @@ export async function executeAdminAction(token: string) {
     return prisma.$transaction(async (tx) => {
       const alreadyDone = await tx.adminAuditLog.findFirst({ where: { action: payload.kind, targetId: payload.userId, payload: { path: ['nonce'], equals: payload.nonce } } })
       if (alreadyDone) return { kind: payload.kind, alreadyDone: true }
-      const user = await tx.user.findFirst({ where: { id: payload.userId, workspaceId: payload.workspaceId }, select: { id: true, name: true, phone: true, platformRole: true } })
+      const user = await tx.user.findFirst({
+        where: { id: payload.userId, workspaceId: payload.workspaceId },
+        select: { id: true, platformRole: true },
+      })
       if (!user) throw new Error('USER_NOT_FOUND')
       if (user.platformRole === 'ADMIN') throw new Error('PROTECTED_USER')
-      await tx.user.delete({ where: { id: user.id } })
-      await tx.adminAuditLog.create({ data: { adminPhone: ADMIN_OWNER_PHONE || 'unconfigured', action: payload.kind, targetType: 'User', targetId: user.id, payload: { deleted: user, workspaceDataPreserved: true, reason: payload.reason, nonce: payload.nonce } as Prisma.InputJsonValue } })
+      await tx.adminAuditLog.create({
+        data: {
+          adminPhone: ADMIN_OWNER_PHONE || 'unconfigured',
+          action: payload.kind,
+          targetType: 'User',
+          targetId: user.id,
+          payload: {
+            deletedUserId: user.id,
+            deletedWorkspaceId: payload.workspaceId,
+            workspaceDataDeleted: true,
+            reason: payload.reason,
+            nonce: payload.nonce,
+          } as Prisma.InputJsonValue,
+        },
+      })
+      // Workspace is the tenant lifecycle root. Database cascades remove the
+      // owner, agents, channels, conversations, messages, store logs and every
+      // other owned row in the same transaction.
+      await tx.workspace.delete({ where: { id: payload.workspaceId } })
       return { kind: payload.kind, label: payload.label }
     })
   }

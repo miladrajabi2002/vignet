@@ -16,11 +16,16 @@ describe('agent channel UI', () => {
     ).toBe(false)
   })
 
-  it('renders connected WhatsApp identities without an at-sign prefix', () => {
+  it('removes WhatsApp connection surfaces', () => {
+    const page = source('app/(dashboard)/agents/[agentId]/channels/page.tsx')
     const messenger = source('components/channels/messenger-channel.tsx')
+    const migration = source('prisma/migrations/20260808120000_account_cascade_retention_admin_mailbox/migration.sql')
 
-    expect(messenger).toContain("botUsername.replace(/^@+/, '')")
-    expect(messenger).toContain("type === 'WHATSAPP' ? t('msgrQuickRepliesLabel')")
+    expect(page).not.toContain('WHATSAPP')
+    expect(messenger).not.toContain('WHATSAPP')
+    expect(existsSync(path.join(root, 'components/channels/whatsapp-connect-wizard.tsx'))).toBe(false)
+    expect(existsSync(path.join(root, 'app/api/webhook/whatsapp/route.ts'))).toBe(false)
+    expect(migration).toContain(`DELETE FROM "AgentChannel" WHERE "type" = 'WHATSAPP'`)
   })
 
   it('portals the Instagram VPN warning above dashboard stacking contexts', () => {

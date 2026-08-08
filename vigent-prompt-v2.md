@@ -1046,7 +1046,7 @@ Content (centered, max-width 700px):
 CTA row:
   Primary: white bg, black text, "شروع رایگان — ۱۴ روز"
            — on hover: slight scale(1.02) + white glow
-  Secondary: border rgba(255,255,255,0.2), "مشاهده دمو" — ghost style
+  Secondary: border rgba(255,255,255,0.2), "آشنایی با ویجنتو" — ghost style
 
 Scroll indicator: animated chevron-down, white 30% opacity
 

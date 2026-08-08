@@ -4,7 +4,6 @@ import { Suspense } from 'react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
-import { DemoSection } from '@/components/marketing/demo-section'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
 import { MarketingMotionProvider } from '@/components/marketing/motion-provider'
@@ -33,7 +32,7 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_AP
 const HOME_METADATA_COPY = {
 	fa: {
 		title: 'ویجنت | ایجنت هوشمند فروش، پشتیبانی و CRM چندکاناله',
-		description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، واتساپ، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
+		description: 'ویجنت پاسخ‌گویی، فروش، رزرو، CRM و اتوماسیون اینستاگرام را در اینستاگرام، تلگرام، بله، روبیکا و سایت یکپارچه می‌کند.',
 		keywords: ['ایجنت هوش مصنوعی فارسی', 'پشتیبانی هوشمند مشتری', 'اتوماسیون اینستاگرام', 'چت‌بات فارسی', 'CRM چندکاناله', 'دستیار فروش هوشمند'],
 		openGraphTitle: 'ویجنت | مرکز عملیات هوشمند کسب‌وکار',
 		openGraphDescription: 'فروش، پشتیبانی، رزرو، CRM و ارتباط با مشتری در همه کانال‌ها؛ با یک ایجنت فارسی و یک داشبورد.',
@@ -41,7 +40,7 @@ const HOME_METADATA_COPY = {
 	},
 	en: {
 		title: 'Vigent | AI Sales, Support and Omnichannel CRM',
-		description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, WhatsApp, Telegram, Bale, Rubika and your website.',
+		description: 'Vigent unifies AI customer support, sales, booking, CRM and Instagram automation across Instagram, Telegram, Bale, Rubika and your website.',
 		keywords: ['AI sales agent', 'AI customer support', 'Instagram automation', 'omnichannel CRM', 'Persian AI chatbot', 'AI booking assistant'],
 		openGraphTitle: 'Vigent | Intelligent Business Operations',
 		openGraphDescription: 'Run sales, support, booking, CRM and customer conversations across every channel with one AI agent and one dashboard.',
@@ -90,7 +89,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const STRUCTURED_DATA_COPY = {
 	fa: {
 		alternateName: 'ویجنت',
-		description: 'پلتفرم ایجنت هوشمند برای کسب‌وکارها — فروش، پشتیبانی و پیگیری سفارش در سایت، تلگرام، واتساپ و اینستاگرام',
+		description: 'پلتفرم ایجنت هوشمند برای کسب‌وکارها — فروش، پشتیبانی و پیگیری سفارش در سایت، تلگرام، بله و اینستاگرام',
 		features: [
 			'پاسخ‌گویی هوشمند فارسی بر پایه دانش کسب‌وکار',
 			'صندوق گفتگو و CRM چندکاناله',
@@ -103,7 +102,7 @@ const STRUCTURED_DATA_COPY = {
 	},
 	en: {
 		alternateName: 'Vigent AI',
-		description: 'An AI agent platform for business sales, customer support and order follow-up across websites, Telegram, WhatsApp and Instagram.',
+		description: 'An AI agent platform for business sales, customer support and order follow-up across websites, Telegram, Bale and Instagram.',
 		features: [
 			'Knowledge-grounded AI customer support',
 			'Omnichannel inbox and CRM',
@@ -198,7 +197,6 @@ export default async function HomePage() {
 			<Suspense fallback={null}>
 				<LivePlatformStats />
 			</Suspense>
-			<DemoSection />
 			<FeaturesSection />
 			<ChannelsSection />
 			<VigentoSection />

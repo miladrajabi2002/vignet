@@ -43,7 +43,6 @@ export async function POST(req: Request, props: Params) {
       agentId: true,
       channel: true,
       externalId: true,
-      contact: { select: { phone: true } },
     },
   })
   if (!conversation) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
@@ -52,12 +51,10 @@ export async function POST(req: Request, props: Params) {
 
   // All supported channels pass through one outcome model. Messenger adapters
   // perform a live provider send; web/chat/API transports publish by persisting
-  // into the conversation history below. Resolving the recipient before the
-  // call also lets old WhatsApp LID conversations fall back to the CRM mobile.
+  // into the conversation history below. Historical retired-channel messages
+  // stay readable, while the shared delivery result avoids claiming a send.
   const recipient = resolveConversationRecipient(
-    conversation.channel,
     conversation.externalId,
-    conversation.contact?.phone,
   )
   const delivery: OutboundDeliveryResult = await sendOutbound(
     conversation.agentId,

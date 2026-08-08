@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  * an inbound "isn't being read".
  *
  * Query params:
- *   - type=INSTAGRAM|WHATSAPP|TELEGRAM|…  → filter by channel (default: all)
+ *   - type=INSTAGRAM|TELEGRAM|…  → filter by channel (default: all)
  *   - limit=N                              → cap returned payloads (default 20, max 50)
  *
  * Each payload entry includes:

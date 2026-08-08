@@ -15,11 +15,11 @@ export interface InboundMessageJobData {
 
 /**
  * A signature-verified payload from one of the GLOBAL Meta webhooks
- * (`/api/webhook/instagram`, `/api/webhook/whatsapp`). Routed to the matching
+ * (`/api/webhook/instagram`). Routed to the matching
  * per-tenant channel inside the worker (`handle*GlobalInbound`).
  */
 export interface GlobalInboundJobData {
-  global: 'INSTAGRAM' | 'WHATSAPP'
+  global: 'INSTAGRAM'
   body: unknown
 }
 
@@ -240,7 +240,7 @@ async function runInlineInbound(data: InboundMessageJobData): Promise<void> {
 }
 
 /**
- * Enqueue a GLOBAL Meta webhook payload (Instagram / WhatsApp OAuth) for
+ * Enqueue a global Instagram webhook payload for
  * durable processing in the worker. Previously these payloads were processed
  * fire-and-forget inside the web process after the 200 ACK: a deploy/restart
  * or transient DB/LLM failure silently lost the customer's message with no
@@ -290,13 +290,8 @@ export async function dispatchGlobalInbound(data: GlobalInboundJobData): Promise
 }
 
 async function runInlineGlobalInbound(data: GlobalInboundJobData): Promise<void> {
-  if (data.global === 'INSTAGRAM') {
-    const { handleInstagramGlobalInbound } = await import('@/lib/channels/handler')
-    await handleInstagramGlobalInbound(data.body)
-  } else {
-    const { handleWhatsappGlobalInbound } = await import('@/lib/whatsapp/webhook')
-    await handleWhatsappGlobalInbound(data.body)
-  }
+  const { handleInstagramGlobalInbound } = await import('@/lib/channels/handler')
+  await handleInstagramGlobalInbound(data.body)
 }
 
 async function handleEnqueueFailure(

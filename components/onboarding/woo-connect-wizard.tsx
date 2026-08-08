@@ -144,8 +144,8 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
 
   // ── Polling: detect when the plugin has connected ──
   // The plugin sends a `test.connection` event when the user clicks "اتصال"
-  // in the WP admin. That event creates a StoreSyncLog row. We poll
-  // /api/integrations and watch for syncLogs count to go from 0 → >0.
+  // in the WP admin. That event stamps connectedAt/lastWebhookAt on the
+  // integration. We poll /api/integrations for that durable connection state.
   //
   // IMPORTANT: this callback has EMPTY deps so it never re-creates. The
   // polling interval is set ONCE when `polling` flips to true and cleared
@@ -153,7 +153,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
   // previously caused a request storm.
   //
   // FORGIVING MATCH: we accept the connection as live if ANY WooCommerce
-  // integration in the workspace has syncLogs > 0 — not just the specific
+  // integration in the workspace is stamped connected — not just the specific
   // integration ID we created. This handles the case where the user has
   // duplicate integrations for the same URL (e.g. from earlier test runs
   // before POST became idempotent) and the WP plugin's auto-discovery
@@ -165,13 +165,18 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       const res = await fetch('/api/integrations', { cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
-      const integrations: Array<{ type: string; _count?: { syncLogs?: number } }> = data.integrations ?? []
+      const integrations: Array<{
+        type: string
+        connectedAt?: string | null
+        lastWebhookAt?: string | null
+        lastSyncAt?: string | null
+      }> = data.integrations ?? []
       const anyConnected = integrations.some(
-        (i) => i.type === 'WOOCOMMERCE' && (i._count?.syncLogs ?? 0) > 0,
+        (i) => i.type === 'WOOCOMMERCE' && Boolean(i.connectedAt || i.lastWebhookAt || i.lastSyncAt),
       )
 
-      // The plugin's first event is `test.connection` which creates a syncLog.
-      // Once we see at least one on any WC integration, the connection is live.
+      // The first signed plugin event stamps the integration itself. This stays
+      // true even after old high-volume sync logs are pruned.
       if (anyConnected) {
         pollStoppedRef.current = true
         setPolling(false)

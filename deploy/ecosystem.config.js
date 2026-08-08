@@ -1,7 +1,6 @@
 const path = require("path");
 
 const appRoot = path.resolve(__dirname, "..");
-const whatsappRoot = path.join(appRoot, "mini-services", "whatsapp-bridge");
 
 module.exports = {
   apps: [
@@ -55,22 +54,6 @@ module.exports = {
       exec_mode: "fork",
       autorestart: true,
       kill_timeout: 10000,
-    },
-    {
-      name: "vignet-whatsapp-bridge",
-      script: require.resolve("tsx/cli", { paths: [whatsappRoot] }),
-      args: ["index.ts"],
-      cwd: whatsappRoot,
-      env: {
-        NODE_ENV: "production",
-        WHATSAPP_BRIDGE_PORT: "3040",
-        NEXT_JS_BASE_URL: "http://localhost:3003",
-        WHATSAPP_BRIDGE_SECRET: process.env.WHATSAPP_BRIDGE_SECRET || "",
-        LOG_LEVEL: "info",
-      },
-      max_memory_restart: "512M",
-      instances: 1,
-      autorestart: true,
     },
   ],
 };

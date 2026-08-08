@@ -6,7 +6,6 @@ import {
         Send,
         MessagesSquare,
         Radio,
-        MessageCircle,
         Camera,
         ArrowRight,
         Link2,
@@ -30,7 +29,6 @@ const CHANNELS: {
         { type: 'TELEGRAM', name: 'Telegram', icon: Send, available: true },
         { type: 'BALE', name: 'Bale', icon: MessagesSquare, available: true },
         { type: 'RUBIKA', name: 'Rubika', icon: Radio, available: true },
-        { type: 'WHATSAPP', name: 'WhatsApp', icon: MessageCircle, available: true },
         { type: 'INSTAGRAM', name: 'Instagram', icon: Camera, available: true },
 ]
 
@@ -91,6 +89,8 @@ export default async function IntegrationsPage() {
                                 webhookSecret: row.webhookSecret,
                                 pollIntervalMinutes: row.pollIntervalMinutes,
                                 active: row.active,
+                                connectedAt: row.connectedAt ? row.connectedAt.toISOString() : null,
+                                lastWebhookAt: row.lastWebhookAt ? row.lastWebhookAt.toISOString() : null,
                                 lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
                                 lastSyncStatus: row.lastSyncStatus,
                                 lastSyncError: row.lastSyncError,

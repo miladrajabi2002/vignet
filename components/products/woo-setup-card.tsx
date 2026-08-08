@@ -50,6 +50,8 @@ export interface WooIntegrationState {
     webhookSecret: string | null
     pollIntervalMinutes: number
     active: boolean
+    connectedAt: string | null
+    lastWebhookAt: string | null
     lastSyncAt: string | null
     lastSyncStatus: string | null
     lastSyncError: string | null
@@ -76,7 +78,7 @@ export function WooSetupCard({
     useEffect(() => {
         setIntegration(initial)
 
-        if (!initial || initial._count.syncLogs === 0) {
+        if (!initial || !isWooConnected(initial)) {
             const interval = setInterval(() => {
                 fetch('/api/integrations', { cache: 'no-store' })
                     .then((r) => r.json())
@@ -90,6 +92,8 @@ export function WooSetupCard({
                                     webhookSecret: woo.webhookSecret,
                                     pollIntervalMinutes: woo.pollIntervalMinutes,
                                     active: woo.active,
+                                    connectedAt: woo.connectedAt,
+                                    lastWebhookAt: woo.lastWebhookAt,
                                     lastSyncAt: woo.lastSyncAt,
                                     lastSyncStatus: woo.lastSyncStatus,
                                     lastSyncError: woo.lastSyncError,
@@ -98,7 +102,7 @@ export function WooSetupCard({
                                     syncLogs: woo.syncLogs || [],
                                 }
                                 setIntegration(mapped)
-                                if (mapped._count.syncLogs > 0 && (!initial || initial._count.syncLogs === 0)) {
+                                if (isWooConnected(mapped) && (!initial || !isWooConnected(initial))) {
                                     router.refresh()
                                 }
                             }
@@ -249,7 +253,7 @@ export function WooSetupCard({
     }
 
     // ── Connected ────────────────────────────────────────────────────────
-    const isPluginConfigured = integration._count.syncLogs > 0
+    const isPluginConfigured = isWooConnected(integration)
     const statusLabel = !integration.active
         ? 'غیرفعال'
         : isPluginConfigured
@@ -402,4 +406,12 @@ function formatDate(iso: string): string {
     } catch {
         return iso
     }
+}
+
+function isWooConnected(integration: WooIntegrationState): boolean {
+    return Boolean(
+        integration.connectedAt ||
+        integration.lastWebhookAt ||
+        integration.lastSyncAt,
+    )
 }

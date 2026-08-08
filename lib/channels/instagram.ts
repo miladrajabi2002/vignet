@@ -1,5 +1,4 @@
 import type { InboundMessage, MessengerAdapter, OutboundVoice, SendOptions } from '@/lib/channels/types'
-import { GRAPH_BASE } from '@/lib/channels/whatsapp'
 import { isEmojiOnly } from '@/lib/instagram/emoji'
 import {
         PRIVATE_REPLY_PREFIX,
@@ -89,7 +88,7 @@ export function splitInstagramText(
 }
 
 /** Facebook Graph API base — used by Page Access Tokens (DMs + comments). */
-const FB_BASE = GRAPH_BASE // https://graph.facebook.com/v21.0
+const FB_BASE = 'https://graph.facebook.com/v21.0'
 /** Instagram Graph API base — used by Instagram User Access Tokens ("IGAA…"). */
 const IG_BASE = 'https://graph.instagram.com/v21.0'
 

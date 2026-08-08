@@ -6,7 +6,6 @@ import { processProductEmbed } from '@/lib/products/catalog'
 import { processSummary } from '@/lib/conversations/summary'
 import { processNotification } from '@/lib/notifications/notify'
 import { handleInbound, handleInstagramGlobalInbound } from '@/lib/channels/handler'
-import { handleWhatsappGlobalInbound } from '@/lib/whatsapp/webhook'
 import { processCampaign } from '@/lib/campaigns/process'
 import { processWooWebhookBatch } from '@/lib/integrations/woocommerce'
 import { startScheduler } from '@/worker/scheduler'
@@ -63,7 +62,7 @@ const inboundWorker = new Worker(
   async (job) => {
     console.log(`[worker] inbound-message job ${job.id}`)
     const data = job.data as {
-      global?: 'INSTAGRAM' | 'WHATSAPP'
+      global?: 'INSTAGRAM'
       type?: Parameters<typeof handleInbound>[0]
       token?: string
       body: unknown
@@ -72,8 +71,6 @@ const inboundWorker = new Worker(
     // per-channel token — they demux to the owning tenant inside the handler.
     if (data.global === 'INSTAGRAM') {
       await handleInstagramGlobalInbound(data.body)
-    } else if (data.global === 'WHATSAPP') {
-      await handleWhatsappGlobalInbound(data.body)
     } else if (data.type && data.token) {
       await handleInbound(data.type, data.token, data.body)
     }

@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import {
   Store,
@@ -16,29 +15,14 @@ import {
   MessengerChannel,
   type MessengerKind,
 } from '@/components/channels/messenger-channel'
-import {
-  WhatsAppNumberPicker,
-  type PendingWhatsappNumber,
-} from '@/components/channels/whatsapp-connect-wizard'
 import { normalizeMessengerSettings } from '@/lib/channels/config'
 import {
   normalizeChatLinkSettings,
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
-import { openPendingWhatsappOAuth } from '@/lib/whatsapp/pending-oauth'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
-import { normalizeIranianMobile } from '@/lib/phone'
-
-/** Public webhook path segment per messenger type. */
-const WEBHOOK_PATH: Record<MessengerKind, string> = {
-  TELEGRAM: 'telegram',
-  BALE: 'bale',
-  RUBIKA: 'rubika',
-  WHATSAPP: 'whatsapp',
-  INSTAGRAM: 'instagram',
-}
 
 export default async function AgentChannelsPage(
   props: {
@@ -108,49 +92,10 @@ export default async function AgentChannelsPage(
   const igError =
     typeof searchParams.ig_error === 'string' ? searchParams.ig_error : null
 
-  // ── WhatsApp OAuth redirect-back handling ───────────────────────────────
-  // The callback at /api/whatsapp/oauth/callback sets one of:
-  //   ?wa_connected=1  → single phone number connected immediately
-  //   ?wa_error=denied|state|exchange|no_number → failure with a reason
-  //   ?wa_pick=1       → multiple numbers found; the candidate numbers are
-  //                      stashed in a short-lived `wa_oauth_pending` cookie
-  //                      (base64url JSON; httpOnly so it can only be read
-  //                      server-side) and the user must pick one. The picker
-  //                      POSTs the chosen phoneNumberId to
-  //                      /api/agents/[agentId]/channels/whatsapp-connect.
-  const waConnected = !!searchParams.wa_connected
-  const waError =
-    typeof searchParams.wa_error === 'string' ? searchParams.wa_error : null
-  const waPick = !!searchParams.wa_pick
-
-  // Read and authenticate the encrypted pending-numbers cookie server-side.
-  let waPendingNumbers: PendingWhatsappNumber[] = []
-  if (waPick) {
-    try {
-      const jar = await cookies()
-      const raw = jar.get('wa_oauth_pending')?.value
-      if (raw) {
-        const pending = openPendingWhatsappOAuth(raw)
-        if (
-          pending?.userId === user.id &&
-          pending.workspaceId === user.workspaceId &&
-          pending.agentId === agent.id
-        ) {
-          waPendingNumbers = pending.numbers
-        }
-      }
-    } catch {
-      // Malformed cookie — fall through to the empty-picker defensive branch
-      // (the picker renders a "no number found, retry" message).
-      waPendingNumbers = []
-    }
-  }
-
   const messengers: { type: MessengerKind; label: string; hint: string }[] = [
     { type: 'TELEGRAM', label: t('telegram'), hint: t('telegramHint') },
     { type: 'BALE', label: t('bale'), hint: t('baleHint') },
     { type: 'RUBIKA', label: t('rubika'), hint: t('rubikaHint') },
-    { type: 'WHATSAPP', label: t('whatsapp'), hint: t('whatsappHint') },
     { type: 'INSTAGRAM', label: t('instagram'), hint: t('instagramHint') },
   ]
 
@@ -238,55 +183,6 @@ export default async function AgentChannelsPage(
         </div>
       )}
 
-      {/* ── WhatsApp OAuth status banners ──────────────────────────────── */}
-      {waConnected && (
-        <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/5 p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-success">
-              واتساپ با موفقیت متصل شد.
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-success/80">
-              شمارهٔ واتساپ Business شما به‌صورت خودکار متصل شد و وب‌هوک آن هم
-              تنظیم شد — نیازی به کار دیگری ندارید.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {waError && (
-        <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/5 p-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-danger">
-              اتصال واتساپ ناموفق بود.
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-danger/80">
-              دوباره تلاش کنید.{' '}
-              {waError === 'denied' && '(دسترسی لغو شد)'}
-              {waError === 'exchange' && '(خطا در تأیید کد متا)'}
-              {waError === 'state' && '(نشست نامعتبر — دوباره تلاش کنید)'}
-              {waError === 'no_number' &&
-                '(هیچ شمارهٔ واتساپ Business روی حساب متای شما پیدا نشد)'}
-              {waError === 'channel_limit' && '(سهمیه اتصال کانال پلن شما تکمیل شده است)'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── WhatsApp multi-number picker ─────────────────────────────────
-          Shown when Meta's OAuth callback found MORE than one WhatsApp
-          phone number. The candidate numbers are read server-side from the
-          `wa_oauth_pending` cookie and passed to the client picker, which
-          POSTs the operator's choice to /api/agents/[agentId]/channels/
-          whatsapp-connect to finalize the connection. */}
-      {waPick && (
-        <WhatsAppNumberPicker
-          agentId={agent.id}
-          numbers={waPendingNumbers}
-        />
-      )}
-
       <WebWidgetChannel
         agentId={agent.id}
         agentName={agent.name}
@@ -314,49 +210,11 @@ export default async function AgentChannelsPage(
           ch && ch.config && typeof ch.config === 'object'
             ? (ch.config as Record<string, unknown>)
             : null
-        // WhatsApp OAuth channels store mode='OAUTH' (plus displayPhoneNumber
-        // / verifiedName) in their config. QR-bridge channels store mode='QR'.
-        // Legacy token-paste channels have mode='LEGACY' or no mode at all.
-        const waIsOAuth =
-          m.type === 'WHATSAPP' && config?.mode === 'OAUTH'
-        const waIsQr =
-          m.type === 'WHATSAPP' && config?.mode === 'QR'
-        // For OAuth + QR WhatsApp channels, show the verified business name (or
-        // display phone number) as the "username" so the connected card
-        // identifies which number is wired up. For all other channels, fall
-        // back to the legacy `botUsername` field.
-        const waDisplay =
-          m.type === 'WHATSAPP' && (waIsOAuth || waIsQr)
-            ? String(
-                config?.verifiedName
-                ?? normalizeIranianMobile(String(config?.displayPhoneNumber ?? ''))
-                ?? config?.displayPhoneNumber
-                ?? '',
-              )
-            : ''
-        const botUsername =
-          (config ? String(config.botUsername ?? '') : '') || waDisplay
-        const webhookToken = config ? String(config.webhookToken ?? '') : ''
+        const botUsername = config ? String(config.botUsername ?? '') : ''
         const botAvatar =
           config && m.type === 'INSTAGRAM'
             ? String(config.igProfilePictureUrl ?? '')
             : ''
-        const isMeta = m.type === 'WHATSAPP' || m.type === 'INSTAGRAM'
-        // LEGACY WhatsApp channels still need manual webhook setup in the
-        // Meta dashboard; OAuth (mode='OAUTH') and QR-bridge (mode='QR')
-        // channels are managed by the platform — the backend handles webhook
-        // subscription for OAuth, and the QR bridge forwards inbound messages
-        // directly. So we hide the per-token callback URL / verify token block
-        // for both OAuth and QR channels. Instagram OAuth channels are likewise
-        // globally managed.
-        const callbackUrl =
-          isMeta &&
-          m.type === 'WHATSAPP' &&
-          webhookToken &&
-          !waIsOAuth &&
-          !waIsQr
-            ? `${appUrl}/api/webhook/${WEBHOOK_PATH[m.type]}/${webhookToken}`
-            : null
         // FRONTEND-AUTO-V3: Instagram no longer renders the legacy quick-replies
         // editor on this page — the dedicated `/agents/{agentId}/instagram`
         // automation tab is the canonical place for IG message builders.
@@ -380,12 +238,6 @@ export default async function AgentChannelsPage(
             enabled={!!ch}
             channelId={ch?.id ?? null}
             botUsername={botUsername || null}
-            callbackUrl={callbackUrl}
-            verifyToken={
-              m.type === 'WHATSAPP' && !waIsOAuth && !waIsQr
-                ? webhookToken || null
-                : null
-            }
             lastInboundAt={ch?.lastInboundAt ? ch.lastInboundAt.toISOString() : null}
             quickReplies={quickReplies}
             botAvatar={botAvatar || null}

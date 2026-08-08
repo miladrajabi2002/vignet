@@ -12,7 +12,6 @@ type Params = { params: Promise<{ agentId: string }> }
 const bodySchema = z.object({
 	type: z.enum([
 		'TELEGRAM',
-		'WHATSAPP',
 		'INSTAGRAM',
 		'RUBIKA',
 		'BALE',

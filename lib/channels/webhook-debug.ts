@@ -3,7 +3,7 @@ import type { MessengerType } from '@/lib/channels/registry'
 /**
  * In-memory ring buffer of raw webhook payloads, for live debugging.
  *
- * When an Instagram/WhatsApp/etc. inbound "isn't being read", the first
+ * When a messenger inbound "isn't being read", the first
  * question is always: "did the platform actually deliver it?" This module
  * captures the last N raw JSON bodies per channel type so an admin can inspect
  * exactly what arrived — no database migration needed, no log grepping.

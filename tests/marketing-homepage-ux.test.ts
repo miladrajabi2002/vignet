@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -10,9 +10,9 @@ describe('marketing homepage UX contracts', () => {
 		const navbar = read('components/marketing/navbar.tsx')
 		const sections = [
 			'components/marketing/channels-section.tsx',
-			'components/marketing/demo-section.tsx',
 			'components/marketing/features-section.tsx',
 			'components/marketing/pricing-section.tsx',
+			'components/marketing/vigento-section.tsx',
 		].map(read).join('\n')
 		const anchorIds = [...navbar.matchAll(/href: '\/#([^']+)'/g)].map((match) => match[1])
 
@@ -49,18 +49,23 @@ describe('marketing homepage UX contracts', () => {
 		expect(pixelSizes).toEqual([])
 	})
 
-	it('keeps the hero demo concise and the product journey connector centered', () => {
+	it('removes the demo and routes its former calls to action to Vigento', () => {
 		const hero = read('components/marketing/hero.tsx')
 		const graph = read('components/marketing/neural-operation-graph.tsx')
-		const demo = read('components/marketing/demo-section.tsx')
+		const page = read('app/(marketing)/page.tsx')
+		const solutionPage = read('app/(marketing)/solutions/[slug]/page.tsx')
 
 		expect(hero).not.toContain('یک ایجنت، یک پاسخ دقیق')
 		expect(hero).not.toContain('پیام دریافت شد')
 		expect(hero).not.toContain('دانش پیدا شد')
 		expect(hero).not.toContain('پاسخ و اقدام ثبت شد')
 		expect(graph).not.toContain('sharedBrain')
-		expect(demo).toContain('top-[42px]')
-		expect(demo).not.toContain('top-[34px]')
+		expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
+		expect(page).not.toContain('DemoSection')
+		expect(hero).toContain('href="#vigento"')
+		expect(hero).not.toContain('#demo')
+		expect(solutionPage).toContain('href="/#vigento"')
+		expect(solutionPage).not.toContain('/#demo')
 	})
 
 	it('renders final geometry before native hash navigation aligns a homepage target', () => {

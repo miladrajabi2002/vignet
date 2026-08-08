@@ -40,6 +40,8 @@ export interface StoreIntegrationItem {
     webhookSecret: string | null
     pollIntervalMinutes: number
     active: boolean
+    connectedAt: string | null
+    lastWebhookAt: string | null
     lastSyncAt: string | null
     lastSyncStatus: string | null
     lastSyncError: string | null
@@ -62,7 +64,7 @@ export function StoreIntegrationsSection({
     // Auto-poll when not connected.
     useEffect(() => {
         setIntegrations(initial)
-        const hasUnconnected = initial.some((i) => i._count.syncLogs === 0)
+        const hasUnconnected = initial.some((i) => !isIntegrationConnected(i))
         if (hasUnconnected || initial.length === 0) {
             const interval = setInterval(() => {
                 fetch('/api/integrations', { cache: 'no-store' })
@@ -77,6 +79,8 @@ export function StoreIntegrationsSection({
                                 webhookSecret: i.webhookSecret,
                                 pollIntervalMinutes: i.pollIntervalMinutes,
                                 active: i.active,
+                                connectedAt: i.connectedAt,
+                                lastWebhookAt: i.lastWebhookAt,
                                 lastSyncAt: i.lastSyncAt,
                                 lastSyncStatus: i.lastSyncStatus,
                                 lastSyncError: i.lastSyncError,
@@ -84,8 +88,8 @@ export function StoreIntegrationsSection({
                                 syncLogs: i.syncLogs,
                             }))
                             setIntegrations(mapped)
-                            const justConnected = mapped.some((i: StoreIntegrationItem) => i._count.syncLogs > 0)
-                            const wasUnconnected = initial.some((i) => i._count.syncLogs === 0)
+                            const justConnected = mapped.some(isIntegrationConnected)
+                            const wasUnconnected = initial.some((i) => !isIntegrationConnected(i))
                             if (justConnected && wasUnconnected) router.refresh()
                         }
                     })
@@ -307,7 +311,7 @@ function IntegrationCard({
     onToggle: () => void
     onDelete: () => void
 }) {
-    const isPluginConfigured = integration._count.syncLogs > 0
+    const isPluginConfigured = isIntegrationConnected(integration)
     const statusLabel = !integration.active
         ? 'غیرفعال'
         : isPluginConfigured
@@ -343,7 +347,7 @@ function IntegrationCard({
                             </span>
                             {isPluginConfigured && (
                                 <span className="text-xs text-[var(--text-muted)]">
-                                    {integration._count.orders} سفارش · {integration._count.syncLogs} رویداد
+                                    {integration._count.orders} سفارش · {integration._count.syncLogs} رویداد اخیر
                                 </span>
                             )}
                         </div>
@@ -452,4 +456,12 @@ function entityLabel(entity: string): string {
         content_update: 'محتوا',
     }
     return map[entity] ?? entity
+}
+
+function isIntegrationConnected(integration: StoreIntegrationItem): boolean {
+    return Boolean(
+        integration.connectedAt ||
+        integration.lastWebhookAt ||
+        integration.lastSyncAt,
+    )
 }

@@ -13,7 +13,6 @@ const roleKeys = [
 
 const recommendedChannels = [
   'INSTAGRAM',
-  'WHATSAPP',
   'TELEGRAM',
   'BALE',
   'RUBIKA',
@@ -128,8 +127,8 @@ export function fallbackVigentoDraft(description: string, language: 'fa' | 'en')
     ],
     channelPolicy: {
       recommended: roleTemplate === 'sales_consultant'
-        ? ['INSTAGRAM', 'WHATSAPP', 'WEB_WIDGET']
-        : ['TELEGRAM', 'WHATSAPP', 'WEB_WIDGET'],
+        ? ['INSTAGRAM', 'WEB_WIDGET', 'CHAT_LINK']
+        : ['TELEGRAM', 'WEB_WIDGET', 'CHAT_LINK'],
       guidance: isFa
         ? ['پاسخ هر کانال کوتاه و متناسب با همان کانال باشد.', 'در نبود فکت معتبر، پاسخ قطعی ساخته نشود.']
         : ['Keep replies concise for each channel.', 'Never invent an answer when verified context is missing.'],

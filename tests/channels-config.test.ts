@@ -31,18 +31,4 @@ describe('messenger config', () => {
     const { newWebhookToken } = await import('@/lib/channels/config')
     expect(newWebhookToken()).not.toBe(newWebhookToken())
   })
-
-  it('stores WhatsApp display numbers in national 09 form while keeping the Meta id separate', async () => {
-    const { buildWhatsappOAuthConfig } = await import('@/lib/whatsapp/config')
-    const cfg = buildWhatsappOAuthConfig({
-      userToken: 'user-token',
-      userTokenExpiresAt: new Date('2026-09-01T00:00:00.000Z'),
-      wabaId: 'waba-id',
-      phoneNumberId: '181316641398869',
-      displayPhoneNumber: '+989128352271',
-    })
-
-    expect(cfg.displayPhoneNumber).toBe('09128352271')
-    expect(cfg.phoneNumberId).toBe('181316641398869')
-  })
 })

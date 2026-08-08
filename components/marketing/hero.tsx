@@ -14,7 +14,6 @@ import {
 	Check,
 	GraduationCap,
 	Gift,
-	Play,
 	ShoppingBag,
 	UtensilsCrossed,
 } from 'lucide-react'
@@ -86,7 +85,7 @@ const COPY: Record<Locale, HeroCopy> = {
 			},
 			{
 				name: 'سفارش غذا',
-				channel: 'واتساپ',
+				channel: 'تلگرام',
 				person: 'امیر',
 				text: 'سفارشم چه زمانی می‌رسه؟',
 				time: '۱ دقیقه پیش',
@@ -167,7 +166,7 @@ const COPY: Record<Locale, HeroCopy> = {
 			},
 			{
 				name: 'Food',
-				channel: 'WhatsApp',
+				channel: 'Telegram',
 				person: 'Amir',
 				text: 'When will my order arrive?',
 				time: '1 min ago',
@@ -422,11 +421,11 @@ export function Hero() {
 						</Link>
 
 						<Link
-							href="#demo"
+							href="#vigento"
 							className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-6 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
 							style={{ boxShadow: 'var(--shadow-sm)' }}
 						>
-							<Play className="h-3.5 w-3.5 fill-[var(--text-primary)]" aria-hidden />
+							<Bot className="h-3.5 w-3.5" aria-hidden />
 							{t('ctaSecondary')}
 						</Link>
 					</div>

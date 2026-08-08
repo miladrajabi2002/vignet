@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { isMessengerType } from '@/lib/channels/registry'
 import { contactPhoneLookupVariants } from '@/lib/phone'
 
-const campaignChannels = ['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE'] as const
+const campaignChannels = ['TELEGRAM', 'INSTAGRAM', 'RUBIKA', 'BALE'] as const
 
 export const campaignAudienceSchema = z
   .object({
@@ -25,7 +25,6 @@ export type CampaignAudienceInput = z.infer<typeof campaignAudienceSchema>
 
 const channelIdentityField: Record<typeof campaignChannels[number], keyof Prisma.ContactWhereInput> = {
   TELEGRAM: 'telegramId',
-  WHATSAPP: 'whatsappId',
   INSTAGRAM: 'instagramId',
   RUBIKA: 'rubikaId',
   BALE: 'baleId',

@@ -143,8 +143,8 @@ export function ContactsView({
                 return {
                         filters: {
                                 ...(stageFilter ? { stage: stageFilter } : {}),
-                                ...(channelFilter && ['TELEGRAM', 'WHATSAPP', 'INSTAGRAM', 'RUBIKA', 'BALE'].includes(channelFilter)
-                                        ? { channel: channelFilter as 'TELEGRAM' | 'WHATSAPP' | 'INSTAGRAM' | 'RUBIKA' | 'BALE' }
+                                ...(channelFilter && ['TELEGRAM', 'INSTAGRAM', 'RUBIKA', 'BALE'].includes(channelFilter)
+                                        ? { channel: channelFilter as 'TELEGRAM' | 'INSTAGRAM' | 'RUBIKA' | 'BALE' }
                                         : {}),
                                 ...(tagFilter ? { tag: tagFilter } : {}),
                                 ...(query.trim() ? { query: query.trim() } : {}),
@@ -244,7 +244,7 @@ export function ContactsView({
                                         />
                                 </div>
                                 <MaterialSelect value={stageFilter} onValueChange={(value) => setStageFilter(value as Stage | '')} ariaLabel={locale === 'fa' ? 'فیلتر مرحله مشتری' : 'Filter customer stage'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه مراحل' : 'All stages' }, ...STAGES.map((stage) => ({ value: stage, label: t(STAGE_KEY[stage]) }))]} />
-                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
+                                <MaterialSelect value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelType | '')} ariaLabel={locale === 'fa' ? 'فیلتر کانال' : 'Filter channel'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه کانال‌ها' : 'All channels' }, ...['INSTAGRAM', 'TELEGRAM', 'BALE', 'RUBIKA'].map((channel) => ({ value: channel, label: CHANNEL_LABEL[channel][locale === 'fa' ? 0 : 1] }))]} />
                                 <MaterialSelect value={tagFilter} onValueChange={setTagFilter} ariaLabel={locale === 'fa' ? 'فیلتر تگ' : 'Filter tag'} className="min-w-40" options={[{ value: '', label: locale === 'fa' ? 'همه تگ‌ها' : 'All tags' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))]} />
                                 {hasFilters && (
                                         <button type="button" onClick={clearFilters} disabled={!hasFilters && selected.size === 0} className="inline-flex h-11 w-11 items-center justify-center rounded-[0.75rem] border border-[var(--border-default)] bg-white text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40" aria-label={locale === 'fa' ? 'پاک‌کردن فیلترها' : 'Clear filters'}><X className="h-4 w-4" /></button>

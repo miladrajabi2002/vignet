@@ -67,10 +67,10 @@ const LABELS = {
 const SECONDARY_MESSAGES = {
 	fa: [
 		{
-			channel: 'واتساپ',
+			channel: 'تلگرام',
 			text: 'هزینه و زمان ارسال چقدره؟',
 			time: '۴ دقیقه پیش',
-			kind: 'whatsapp' as const,
+			kind: 'messenger' as const,
 		},
 		{
 			channel: 'وب‌سایت',
@@ -81,10 +81,10 @@ const SECONDARY_MESSAGES = {
 	],
 	en: [
 		{
-			channel: 'WhatsApp',
+			channel: 'Telegram',
 			text: 'How much is delivery and how long does it take?',
 			time: '4 min ago',
-			kind: 'whatsapp' as const,
+			kind: 'messenger' as const,
 		},
 		{
 			channel: 'Website',
@@ -190,7 +190,7 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 	)
 }
 
-function SecondaryChannelBadge({ kind }: { kind: 'whatsapp' | 'website' }) {
+function SecondaryChannelBadge({ kind }: { kind: 'messenger' | 'website' }) {
 	if (kind === 'website') {
 		return (
 			<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-500/15 text-sky-300">

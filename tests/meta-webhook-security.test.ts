@@ -13,10 +13,8 @@ vi.mock('@/lib/channels/webhook-debug', () => ({ logWebhookPayload: vi.fn() }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
 
 import { POST as postInstagram } from '@/app/api/webhook/instagram/route'
-import { POST as postWhatsapp } from '@/app/api/webhook/whatsapp/route'
 
 const originalInstagramSecret = process.env.INSTAGRAM_APP_SECRET
-const originalMetaSecret = process.env.META_APP_SECRET
 
 function signature(body: string, secret: string): string {
   return `sha256=${crypto.createHmac('sha256', secret).update(body).digest('hex')}`
@@ -33,14 +31,11 @@ function request(path: string, body: string, value?: string): Request {
 beforeEach(() => {
   mocks.dispatch.mockClear().mockResolvedValue(undefined)
   process.env.INSTAGRAM_APP_SECRET = 'instagram-app-secret'
-  process.env.META_APP_SECRET = 'meta-app-secret'
 })
 
 afterEach(() => {
   if (originalInstagramSecret === undefined) delete process.env.INSTAGRAM_APP_SECRET
   else process.env.INSTAGRAM_APP_SECRET = originalInstagramSecret
-  if (originalMetaSecret === undefined) delete process.env.META_APP_SECRET
-  else process.env.META_APP_SECRET = originalMetaSecret
 })
 
 describe('Meta webhook signatures', () => {
@@ -68,21 +63,6 @@ describe('Meta webhook signatures', () => {
     expect(response.status).toBe(200)
     expect(mocks.dispatch).toHaveBeenCalledWith({
       global: 'INSTAGRAM',
-      body: JSON.parse(body),
-    })
-  })
-
-  it('rejects unsigned WhatsApp events and enqueues a valid Meta signature', async () => {
-    const body = '{"entry":[{"changes":[]}]}'
-    expect((await postWhatsapp(request('/api/webhook/whatsapp', body))).status).toBe(401)
-    expect(mocks.dispatch).not.toHaveBeenCalled()
-
-    const response = await postWhatsapp(
-      request('/api/webhook/whatsapp', body, signature(body, 'meta-app-secret')),
-    )
-    expect(response.status).toBe(200)
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      global: 'WHATSAPP',
       body: JSON.parse(body),
     })
   })

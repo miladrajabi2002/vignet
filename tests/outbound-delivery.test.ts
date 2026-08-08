@@ -11,7 +11,7 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/channels/config', () => ({ readBotToken: () => 'token' }))
 vi.mock('@/lib/instagram/config', () => ({ readPageToken: () => 'token' }))
 vi.mock('@/lib/channels/registry', () => ({
-  isMessengerType: (channel: string) => ['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP', 'INSTAGRAM'].includes(channel),
+  isMessengerType: (channel: string) => ['TELEGRAM', 'BALE', 'RUBIKA', 'INSTAGRAM'].includes(channel),
   getAdapter: () => ({ sendText: mocks.sendText }),
 }))
 
@@ -24,7 +24,7 @@ describe('structured outbound delivery', () => {
     mocks.sendText.mockResolvedValue(undefined)
   })
 
-  it.each(['TELEGRAM', 'BALE', 'RUBIKA', 'WHATSAPP', 'INSTAGRAM'] as const)(
+  it.each(['TELEGRAM', 'BALE', 'RUBIKA', 'INSTAGRAM'] as const)(
     'reports sent for %s only after its provider adapter accepts the message',
     async (channel) => {
       await expect(sendOutbound('agent-1', channel, 'chat-1', 'hello')).resolves.toEqual({ status: 'sent' })
@@ -74,19 +74,18 @@ describe('structured outbound delivery', () => {
     })
   })
 
-  it('repairs an old WhatsApp LID recipient from the CRM mobile', () => {
-    expect(resolveConversationRecipient(
-      'WHATSAPP',
-      '181316641398869',
-      '+989128352271',
-    )).toBe('09128352271')
+  it('keeps historical WhatsApp messages readable without attempting delivery', async () => {
+    await expect(sendOutbound('agent-1', 'WHATSAPP', 'legacy-thread', 'hello')).resolves.toEqual({
+      status: 'unavailable',
+      reason: 'channel_retired',
+    })
+    expect(mocks.findFirst).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
   })
 
   it('does not replace recipients for other channels', () => {
     expect(resolveConversationRecipient(
-      'TELEGRAM',
       '181316641398869',
-      '09128352271',
     )).toBe('181316641398869')
   })
 })

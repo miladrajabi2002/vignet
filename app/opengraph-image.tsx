@@ -65,7 +65,7 @@ export default function OpenGraphImage() {
 
 				<div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
 					<div style={{ display: 'flex', gap: 10 }}>
-						{['Instagram', 'Telegram', 'WhatsApp', 'Web'].map((channel) => (
+						{['Instagram', 'Telegram', 'Bale', 'Web'].map((channel) => (
 							<div
 								key={channel}
 								style={{

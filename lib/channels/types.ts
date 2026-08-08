@@ -94,7 +94,7 @@ export interface MessengerAdapter {
   /**
    * Fetch the sender's profile picture URL (best-effort). Used to backfill the
    * contact's per-channel avatar in the CRM. Platforms that don't expose
-   * customer avatars (WhatsApp, Rubika) omit this method. Returns null when the
+   * customer avatars (such as Rubika) omit this method. Returns null when the
    * user has no photo or the platform refuses.
    */
   getAvatarUrl?(userId: string): Promise<string | null>

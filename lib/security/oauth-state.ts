@@ -1,6 +1,6 @@
 import { getRedis } from '@/lib/redis'
 
-export type OAuthProvider = 'instagram' | 'whatsapp'
+export type OAuthProvider = 'instagram'
 
 export interface OAuthStateBinding {
   userId: string

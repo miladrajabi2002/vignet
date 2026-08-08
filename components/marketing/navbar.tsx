@@ -10,13 +10,13 @@ import { Logo } from '@/components/ui/logo'
 import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
-const SECTION_IDS = ['product', 'demo', 'solutions', 'pricing'] as const
+const SECTION_IDS = ['product', 'solutions', 'vigento', 'pricing'] as const
 
 const COPY = {
 	fa: {
 		home: 'صفحه اصلی',
 		product: 'محصول',
-		demo: 'دموی زنده',
+		vigento: 'ویجنتو',
 		solutions: 'راهکارها',
 		start: 'شروع رایگان — یک ماه',
 		dashboard: 'داشبورد من',
@@ -30,7 +30,7 @@ const COPY = {
 	en: {
 		home: 'Home',
 		product: 'Product',
-		demo: 'Live demo',
+		vigento: 'Vigento',
 		solutions: 'Solutions',
 		start: 'Start free — one month',
 		dashboard: 'My dashboard',
@@ -90,8 +90,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const links = [
 		{ href: '/', id: 'home', label: copy.home },
 		{ href: '/#product', id: 'product', label: copy.product },
-		{ href: '/#demo', id: 'demo', label: copy.demo },
 		{ href: '/#solutions', id: 'solutions', label: copy.solutions },
+		{ href: '/#vigento', id: 'vigento', label: copy.vigento },
 		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
 		{ href: '/blog', id: 'blog', label: t('blog') },
 		{ href: '/docs', id: 'docs', label: t('docs') },

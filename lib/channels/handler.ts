@@ -216,7 +216,7 @@ async function resolveInstagramChannelById(
 /** Map a messenger channel to the Contact field that stores its user id. */
 function profileFields(
         type: MessengerType,
-): { idField: 'telegramId' | 'baleId' | 'rubikaId' | 'whatsappId' | 'instagramId'; usernameField: string; avatarField: string } {
+): { idField: 'telegramId' | 'baleId' | 'rubikaId' | 'instagramId'; usernameField: string; avatarField: string } {
         switch (type) {
                 case 'TELEGRAM':
                         return { idField: 'telegramId', usernameField: 'telegramUsername', avatarField: 'telegramAvatarUrl' }
@@ -224,8 +224,6 @@ function profileFields(
                         return { idField: 'baleId', usernameField: 'baleUsername', avatarField: 'baleAvatarUrl' }
                 case 'RUBIKA':
                         return { idField: 'rubikaId', usernameField: 'rubikaUsername', avatarField: 'rubikaAvatarUrl' }
-                case 'WHATSAPP':
-                        return { idField: 'whatsappId', usernameField: 'whatsappName', avatarField: 'whatsappAvatarUrl' }
                 case 'INSTAGRAM':
                         return { idField: 'instagramId', usernameField: 'instagramUsername', avatarField: 'instagramAvatarUrl' }
         }
@@ -744,9 +742,8 @@ async function processChannelInbound(
                                                                 })
                                                                 .catch(() => {})
                                                 }
-                                                // Username — only set when still empty (skip WhatsApp which
-                                                // uses whatsappName for the display name, not a handle).
-                                                if (profile.username && pf.usernameField !== 'whatsappName') {
+                                                // Username — only set when still empty.
+                                                if (profile.username) {
                                                         prisma.contact
                                                                 .updateMany({
                                                                         where: { id: contactId, [pf.usernameField]: null },

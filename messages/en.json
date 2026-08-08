@@ -182,7 +182,7 @@
                         },
                         "channel": {
                                 "title": "Add a connection",
-                                "desc": "Connect your agent to Telegram, WhatsApp and more",
+                                "desc": "Connect your agent to Telegram, Instagram and more",
                                 "cta": "Add connection"
                         },
                         "test": {
@@ -239,7 +239,7 @@
                         "knowledgeDesc": "Add FAQs, shipping terms, warranty and anything the agent should know.",
                         "knowledgeCta": "Add knowledge",
                         "channelTitle": "Connect channels",
-                        "channelDesc": "Connect the agent to the web widget, Telegram, Bale, Rubika, WhatsApp or Instagram.",
+                        "channelDesc": "Connect the agent to the web widget, Telegram, Bale, Rubika or Instagram.",
                         "channelCta": "Connect channel",
                         "testTitle": "Test your agent",
                         "testDesc": "Send a message below and see how the agent replies."
@@ -466,7 +466,6 @@
                 "collapseConnection": "Collapse connection details",
                 "msgrQuickRepliesLabel": "Suggested questions (buttons)",
                 "msgrQuickRepliesHint": "Define up to 4 common questions; they appear as tappable buttons under every agent reply.",
-                "msgrQuickRepliesHintWa": "WhatsApp shows at most 3 buttons with titles up to 20 characters.",
                 "msgrQuickRepliesPh": "e.g. Price list",
                 "msgrQuickRepliesAdd": "Add question",
                 "comingSoon": "Coming soon",
@@ -574,13 +573,6 @@
                                 "Set a name and username, then copy the API token.",
                                 "Paste the token below. We register the receive-update endpoint automatically."
                         ],
-                        "WHATSAPP": [
-                                "Recommended: click \"Show QR\". A QR code will appear.",
-                                "On your phone, open WhatsApp → Settings → Linked devices → Link a device and scan the QR.",
-                                "If you're on mobile and can't scan a QR, use Method 2: enter your number to receive an 8-digit pairing code. Enter it on the same Linked devices → Link with phone number screen.",
-                                "Once connected, WhatsApp messages are auto-forwarded to your agent. No Meta app, VPN, business verification, or webhook setup needed.",
-                                "Alternative (official Meta OAuth): for verified businesses with a WhatsApp Business Account. Click \"Official Meta OAuth\"."
-                        ],
                         "INSTAGRAM": [
                                 "Convert your Instagram account to a Professional (Business or Creator) account: Instagram app → Settings → Account type and tools → Switch to Professional Account.",
                                 "Link the Instagram account to a Facebook Page: Instagram app → Settings → Business/Creator → Connect a Facebook Page.",
@@ -598,39 +590,6 @@
                 "baleHint": "Connect your Bale bot with its token",
                 "rubika": "Rubika",
                 "rubikaHint": "Connect your Rubika bot with its token",
-                "whatsapp": "WhatsApp",
-                "whatsappHint": "Connect via QR code or phone number — no Meta app, VPN, or business verification needed",
-                "whatsappConnect": "Connect WhatsApp",
-                "whatsappConnected": "WhatsApp connected successfully.",
-                "whatsappConnectError": "WhatsApp connection failed. Please try again.",
-                "whatsappPickNumber": "Pick your WhatsApp number",
-                "whatsappQrTitle": "QR Connection",
-                "whatsappQrSubtitle": "No Meta app, VPN, or business verification — just scan a QR",
-                "whatsappQrMethod1": "Method 1: Scan QR",
-                "whatsappQrMethod1Desc": "A QR will be displayed. On your phone, open WhatsApp → Settings → Linked devices → Link a device and scan the QR.",
-                "whatsappQrShowQr": "Show QR",
-                "whatsappQrMethod2": "Method 2: Connect with phone number",
-                "whatsappQrMethod2Desc": "If you're on mobile and can't scan a QR, enter your number to receive an 8-digit pairing code.",
-                "whatsappQrGetCode": "Get code",
-                "whatsappQrPhonePh": "+989121234567",
-                "whatsappQrBadPhone": "Enter a valid phone number. Example: +989121234567",
-                "whatsappQrStarting": "Preparing connection…",
-                "whatsappQrConnecting": "Connecting to WhatsApp…",
-                "whatsappQrTimeout": "Connection timed out. Please try again.",
-                "whatsappQrBridgeDown": "WhatsApp bridge service is unavailable. Make sure it's running on port 3040.",
-                "whatsappQrBridgeClosed": "Connection closed.",
-                "whatsappQrRetry": "Try again",
-                "whatsappQrNewQr": "New QR",
-                "whatsappQrNewCode": "New code",
-                "whatsappQrCancel": "Cancel",
-                "whatsappQrDone": "Done",
-                "whatsappQrConnected": "WhatsApp connected!",
-                "whatsappQrConnectedHint": "New WhatsApp messages will now be auto-forwarded to your agent and the AI reply sent back to the contact.",
-                "whatsappQrSwitchOauth": "Official Meta OAuth",
-                "whatsappQrTrustNote": "vigent never stores any password. The WhatsApp session is held on your own server.",
-                "whatsappOAuthTitle": "Official Meta OAuth",
-                "whatsappOAuthSubtitle": "For verified businesses with a WhatsApp Business Account",
-                "whatsappOAuthConnect": "Connect with Meta",
                 "instagram": "Instagram",
                 "instagramHint": "Instagram DMs and comment replies via the Meta API",
                 "storeTitle": "Have a WordPress site or WooCommerce store?",
@@ -791,7 +750,7 @@
                 "paymentCancelled": "Payment was cancelled.",
                 "currentPlanBadge": "Your current plan",
                 "featChannelLimit": "{count} active channel connections",
-                "featChannels": "Access to every channel type (Telegram, WhatsApp, web widget, …)",
+                "featChannels": "Access to every supported channel type (Telegram, Instagram, web widget, …)",
                 "featUnlimitedAgents": "Create agents without a plan limit",
                 "featManagedAi": "Managed AI — no separate key or account"
         },
@@ -990,7 +949,7 @@
                         "rotate": ["for sales", "for support", "for order tracking", "for your business"],
                         "subtitle": "Vigent connects to your real knowledge, products and workflows; it answers, moves sales and bookings forward, and hands sensitive cases to your team with context.",
                         "ctaPrimary": "Start free — one month",
-                        "ctaSecondary": "Watch demo",
+                        "ctaSecondary": "Meet Vigento",
                         "trust": "Set up in under 5 minutes · No technical skills · AI ready to use",
                         "scrollCue": "Scroll to explore"
                 },
@@ -1028,7 +987,7 @@
                                 },
                                 "channels": {
                                         "title": "All connections",
-                                        "desc": "Telegram, WhatsApp, Instagram (DMs & comments), Rubika, Bale and a web widget — with quick-reply buttons and voice; one agent, answering everywhere"
+                                        "desc": "Telegram, Instagram (DMs & comments), Rubika, Bale and a web widget — with quick-reply buttons and voice; one agent, answering everywhere"
                                 },
                                 "voice": {
                                         "title": "Voice understanding",
@@ -1051,13 +1010,13 @@
                         "step2": "Upload your catalog and documents so the agent knows your business inside out",
                         "step2Time": "about 2 minutes",
                         "step3Title": "Connect and go live",
-                        "step3": "Hook up Telegram, WhatsApp or your site widget — the agent starts answering right away",
+                        "step3": "Hook up Telegram, Instagram or your site widget — the agent starts answering right away",
                         "step3Time": "about 1 minute",
                         "cta": "Build your agent now"
                 },
                 "channels": {
                         "title": "All your connections, one dashboard",
-                        "subtitle": "Connect this same agent to Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget — all managed from one dashboard.",
+                        "subtitle": "Connect this same agent to Telegram, Instagram, Rubika, Bale and a web widget — all managed from one dashboard.",
                         "eyebrow": "One agent, everywhere",
                         "hubTitle": "Vigent dashboard",
                         "hubDesc": "Every message, every channel — one inbox",
@@ -1137,8 +1096,8 @@
                                         },
                                         {
                                                 "name": "Ali Rezaei",
-                                                "channelKey": "whatsapp",
-                                                "channelLabel": "WhatsApp",
+                                                "channelKey": "bale",
+                                                "channelLabel": "Bale",
                                                 "text": "Does this model come in black?",
                                                 "time": "2 min ago",
                                                 "auto": true
@@ -1165,7 +1124,7 @@
                                 "badge": "Agent learning center",
                                 "detected": "Unanswered question detected",
                                 "question": "Do you offer cash on delivery?",
-                                "sourceLabel": "From a WhatsApp conversation · 2 hours ago",
+                                "sourceLabel": "From an Instagram conversation · 2 hours ago",
                                 "suggestionLabel": "Agent's suggested answer",
                                 "suggestion": "Yes — cash on delivery is available in Tehran and Karaj. Other cities use secure online payment.",
                                 "approve": "Approve & add to knowledge",
@@ -1386,7 +1345,7 @@
                                 },
                                 {
                                         "q": "Which connections are supported?",
-                                        "a": "Telegram, WhatsApp, Instagram, Rubika, Bale and a web widget. For WordPress sites there's an official plugin that syncs your WooCommerce products automatically."
+                                        "a": "Telegram, Instagram, Rubika, Bale and a web widget. For WordPress sites there's an official plugin that syncs your WooCommerce products automatically."
                                 },
                                 {
                                         "q": "What happens when the agent doesn't know an answer?",
@@ -1415,7 +1374,6 @@
                         "tagline": "AI platform for businesses",
                         "solutionTelegram": "Telegram chatbot",
                         "solutionInstagram": "Instagram auto-reply",
-                        "solutionWhatsapp": "WhatsApp chatbot",
                         "solutionWoocommerce": "WooCommerce assistant",
                         "product": "Product",
                         "resources": "Resources",

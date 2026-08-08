@@ -25,12 +25,12 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
 const ROOT_METADATA_COPY = {
 	fa: {
 		title: 'ویجنت — ایجنت هوشمند فروش و پشتیبانی فارسی',
-		description: 'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
-		openGraphDescription: 'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، واتساپ، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
+		description: 'با ویجنت فروش و پشتیبانی مشتری را در اینستاگرام، تلگرام، بله، روبیکا و سایت از یک داشبورد هوشمند مدیریت کنید.',
+		openGraphDescription: 'فروش و پشتیبانی مشتری در اینستاگرام، تلگرام، بله، روبیکا و سایت؛ همه از یک داشبورد هوشمند.',
 	},
 	en: {
 		title: 'Vigent — AI Sales and Customer Support Agent',
-		description: 'Manage sales and customer support across Instagram, Telegram, WhatsApp, Bale, Rubika and your website from one intelligent dashboard.',
+		description: 'Manage sales and customer support across Instagram, Telegram, Bale, Rubika and your website from one intelligent dashboard.',
 		openGraphDescription: 'Bring customer sales and support across every channel into one intelligent business dashboard.',
 	},
 } as const

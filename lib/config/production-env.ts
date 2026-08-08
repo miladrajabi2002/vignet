@@ -150,8 +150,12 @@ export function validateProductionEnv(env: Env): ProductionEnvReport {
 
   warnIncompletePair(env, warnings, 'NOWPayments', ['NOWPAYMENTS_API_KEY', 'NOWPAYMENTS_IPN_SECRET'])
   warnIncompletePair(env, warnings, 'Meta channels', ['META_APP_ID', 'META_APP_SECRET', 'META_APP_VERIFY_TOKEN'])
-  warnIncompletePair(env, warnings, 'WhatsApp bridge', ['WHATSAPP_BRIDGE_URL', 'WHATSAPP_BRIDGE_SECRET'])
   warnIncompletePair(env, warnings, 'Resend alerts', ['RESEND_API_KEY', 'ALERT_EMAIL'])
+  warnIncompletePair(env, warnings, 'Resend admin mailbox', [
+    'RESEND_API_KEY',
+    'RESEND_WEBHOOK_SECRET',
+    'ADMIN_MAIL_FORWARD_TO',
+  ])
   warnIncompletePair(env, warnings, 'Off-site backups', [
     'BACKUP_S3_ENDPOINT',
     'BACKUP_S3_ACCESS_KEY',

@@ -7,7 +7,7 @@ import { Menu, X } from 'lucide-react'
 import { AdminNavContent, BrandHeader } from './admin-nav'
 
 /** Mobile navigation trigger embedded in the shared admin header. */
-export function MobileNavTrigger() {
+export function MobileNavTrigger({ mailUnreadCount = 0 }: { mailUnreadCount?: number }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -69,7 +69,7 @@ export function MobileNavTrigger() {
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">
-              <AdminNavContent onNavigate={() => setOpen(false)} />
+              <AdminNavContent onNavigate={() => setOpen(false)} mailUnreadCount={mailUnreadCount} />
             </div>
           </aside>
         </div>,

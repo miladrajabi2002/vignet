@@ -49,9 +49,8 @@ export function readBotToken(config: Prisma.JsonValue): string | null {
 export interface MessengerSettings {
 	/**
 	 * Suggested questions shown as tappable buttons under the agent's replies
-	 * (Telegram/Bale reply keyboard, WhatsApp reply buttons, Instagram quick
-	 * replies). Tapping one sends its text as a normal user message. Max 4;
-	 * WhatsApp shows the first 3 (platform limit).
+	 * (Telegram/Bale reply keyboard and Instagram quick replies). Tapping one
+	 * sends its text as a normal user message. Max 4.
 	 */
 	quickReplies: string[]
 }

@@ -19,7 +19,6 @@ const WEBHOOK_PATH: Record<(typeof MESSENGER_TYPES)[number], string> = {
   TELEGRAM: 'telegram',
   BALE: 'bale',
   RUBIKA: 'rubika',
-  WHATSAPP: 'whatsapp',
   INSTAGRAM: 'instagram',
 }
 
