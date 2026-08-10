@@ -25,9 +25,28 @@ export function SectionRevealController() {
 			{ rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
 		)
 
+		const observeWithin = (node: Node) => {
+			if (!(node instanceof Element)) return
+			if (node.matches(SELECTOR)) observer.observe(node)
+			node.querySelectorAll(SELECTOR).forEach((section) => observer.observe(section))
+		}
+
+		// Async Server Components can stream in after this effect has mounted. Keep
+		// observing the marketing tree so a late section is not left at opacity: 0.
+		const mutationObserver = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				mutation.addedNodes.forEach(observeWithin)
+			}
+		})
+		mutationObserver.observe(document.getElementById('marketing-main') ?? document.body, {
+			childList: true,
+			subtree: true,
+		})
+
 		document.querySelectorAll(SELECTOR).forEach((section) => observer.observe(section))
 
 		return () => {
+			mutationObserver.disconnect()
 			observer.disconnect()
 			root.classList.remove('marketing-motion-ready')
 		}

@@ -75,6 +75,15 @@ describe('marketing homepage UX contracts', () => {
 		expect(styles).toContain('html.marketing-motion-ready .marketing-story-section:target')
 	})
 
+	it('registers marketing sections that stream in after the reveal controller mounts', () => {
+		const controller = read('components/marketing/section-reveal.tsx')
+
+		expect(controller).toContain('new MutationObserver')
+		expect(controller).toContain('mutation.addedNodes.forEach(observeWithin)')
+		expect(controller).toContain("document.getElementById('marketing-main')")
+		expect(controller).toContain('mutationObserver.disconnect()')
+	})
+
 	it('keeps both desktop and mobile channel maps visibly connected', () => {
 		const channels = read('components/marketing/channels-section.tsx')
 

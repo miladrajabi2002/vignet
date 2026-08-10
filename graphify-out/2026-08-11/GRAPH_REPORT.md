@@ -1,16 +1,16 @@
-# Graph Report - vignet  (2026-08-11)
+# Graph Report - vignet  (2026-08-08)
 
 ## Corpus Check
-- 708 files · ~521,754 words
+- 708 files · ~521,657 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4142 nodes · 9651 edges · 264 communities (237 shown, 27 thin omitted)
+- 4142 nodes · 9650 edges · 265 communities (238 shown, 27 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ad746f7b`
+- Built from commit: `8dac820e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -238,6 +238,7 @@
 - sitemap.ts
 - react-dom
 - route.ts
+- next-auth
 - pdf-parse
 - route.ts
 - route.ts
@@ -288,11 +289,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (264 total, 27 thin omitted)
+## Communities (265 total, 27 thin omitted)
 
 ### Community 0 - "automation.ts"
 Cohesion: 0.11
-Nodes (32): AutomationAction, AutomationContext, AutomationPolicy, AutomationRow, AutomationTrigger, checkUserFollows(), commentDmTarget(), DEFAULT_AUTOMATION_POLICY (+24 more)
+Nodes (31): AutomationAction, AutomationContext, AutomationPolicy, AutomationRow, AutomationTrigger, checkUserFollows(), commentDmTarget(), DEFAULT_AUTOMATION_POLICY (+23 more)
 
 ### Community 1 - "cn"
 Cohesion: 0.13
@@ -392,7 +393,7 @@ Nodes (25): sendPurchaseConfirmation(), AdminCreditTopupPatternData, AdminSubscr
 
 ### Community 25 - "dependencies"
 Cohesion: 0.06
-Nodes (31): @aws-sdk/client-s3, bullmq, framer-motion, lucide-react, next, next-auth, next-intl, dependencies (+23 more)
+Nodes (31): @aws-sdk/client-s3, bullmq, framer-motion, jalaali-js, lucide-react, next, next-auth, next-intl (+23 more)
 
 ### Community 26 - "devDependencies"
 Cohesion: 0.07
@@ -423,8 +424,8 @@ Cohesion: 0.09
 Nodes (38): AccountStatus(), AdminAiPage(), formatProviderUSD(), formatRequestUSD(), formatRial(), ManagedModels(), ModelUsageTable(), parseRange() (+30 more)
 
 ### Community 33 - "package.json"
-Cohesion: 0.23
-Nodes (21): assertPublicHttps(), ButtonAction, formatPrice(), messagesUrl(), MetaErrorBody, preflightMedia(), PreparedMedia, ProductShowcase (+13 more)
+Cohesion: 0.22
+Nodes (22): tryFulfillFollowGate(), assertPublicHttps(), ButtonAction, formatPrice(), messagesUrl(), MetaErrorBody, preflightMedia(), PreparedMedia (+14 more)
 
 ### Community 34 - "registry.ts"
 Cohesion: 0.33
@@ -439,8 +440,8 @@ Cohesion: 0.40
 Nodes (10): allClaimedInstagramIds(), GET(), Params, POST(), PUT(), getScopedWebhookPayloads(), readIgUserId(), readPageToken() (+2 more)
 
 ### Community 37 - "page.tsx"
-Cohesion: 0.26
-Nodes (16): generateMetadata(), Props, PublicBlogPostPage(), BlogEditor(), isFa(), analyzeSeo(), deriveExcerpt(), deriveSeoDescription() (+8 more)
+Cohesion: 0.25
+Nodes (18): generateMetadata(), Props, PublicBlogPostPage(), BlogEditor(), isFa(), PopularCard(), analyzeSeo(), deriveExcerpt() (+10 more)
 
 ### Community 38 - "popular-posts.tsx"
 Cohesion: 0.09
@@ -479,8 +480,8 @@ Cohesion: 0.20
 Nodes (14): POST(), OAuthState, signState(), stateSecret(), getRedis(), globalForRedis, consumeOAuthState(), createOAuthState() (+6 more)
 
 ### Community 47 - "vigent-woo.php"
-Cohesion: 0.10
-Nodes (18): Props, PublicPost, PublicPostCard(), TrendSpark(), ConversationPanel(), HandoffAlertProp, MESSENGER_META, getPopularPosts() (+10 more)
+Cohesion: 0.16
+Nodes (12): ConversationPanel(), HandoffAlertProp, MESSENGER_META, getPopularPosts(), loadPopularPosts, PopularPosts(), PostPreview, ViewsLabel() (+4 more)
 
 ### Community 48 - "config.ts"
 Cohesion: 0.16
@@ -577,6 +578,10 @@ Nodes (4): Vigent_Woo_Core, vigent_woo_migrate_4_2_0(), vigent_woo_migrate_exist
 ### Community 71 - "automation-manager.tsx"
 Cohesion: 0.20
 Nodes (9): Mock و Integration Test ایجادشده, ✅ Ready with Minor Risks, نتایج Build و Test **قبل** از تغییرات, گزارش آمادگی انتشار Vigent (Release Readiness Report), ۱۲. نتیجه نهایی, ۲. خط مبنا (مرحله صفر), ۶. گزارش کانال‌ها, ۷. گزارش Performance (+1 more)
+
+### Community 72 - "charts.ts"
+Cohesion: 0.21
+Nodes (4): Props, PublicPost, PublicPostCard(), TrendSpark()
 
 ### Community 73 - "booking-manager.tsx"
 Cohesion: 0.16
@@ -1163,7 +1168,7 @@ Cohesion: 0.21
 Nodes (16): logout(), Header(), MobileNav(), getDashboardNavForProfile(), getDashboardNavFromModules(), Sidebar(), BUSINESS_SERVICE_OPTIONS, CapabilityPackKey (+8 more)
 
 ## Knowledge Gaps
-- **1265 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1260 more)
+- **1266 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1261 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -1183,14 +1188,14 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `react-dom` to `ui.tsx`, `page-header.tsx`, `prisma.ts`, `format.ts`, `page.tsx`, `page.tsx`, `woo-connect-wizard.tsx`, `registry.ts`, `commercial-config.ts`, `rateLimit`, `setup-whatsapp-bridge.sh`, `layout.tsx`, `material-select.tsx`, `vigent-woo.php`, `route.ts`, `route.ts`, `social-links.tsx`, `vertical-bookings-vigento.test.ts`, `iphone-preview.tsx`, `page.tsx`, `page.tsx`, `ingest.ts`, `page.tsx`, `dispatchProductEmbed`, `route.ts`, `automation-manager.tsx`, `scheduler.ts`, `page.tsx`, `logo.tsx`, `service.ts`, `automation-card.tsx`, `automation-card.tsx`, `page.tsx`, `neural-network-primitives.tsx`, `page.tsx`?**
   _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `charts.ts`, `recharts`, `isAdminAuthed`, `index.ts`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `recharts`, `next-auth`, `isAdminAuthed`, `index.ts`?**
+  _High betweenness centrality (0.040) - this node is a cross-community bridge._
 - **Why does `devDependencies` connect `devDependencies` to `isAdminAuthed`?**
   _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **What connects `next/core-web-vitals`, `next/typescript`, `mini-services/**` to the rest of the system?**
-  _1265 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1266 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `automation.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.10756302521008404 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10695187165775401 - nodes in this community are weakly interconnected._
 - **Should `cn` be split into smaller, more focused modules?**
   _Cohesion score 0.12561576354679804 - nodes in this community are weakly interconnected._
 - **Should `ui.tsx` be split into smaller, more focused modules?**

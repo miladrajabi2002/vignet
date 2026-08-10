@@ -1550,8 +1550,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_marketing_blog_category_slug_page",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "page.tsx"
     },
     {
@@ -1561,8 +1561,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "app_marketing_blog_category_slug_page_props",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "props"
     },
     {
@@ -1572,8 +1572,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "app_marketing_blog_category_slug_page_generatemetadata",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "generatemetadata()"
     },
     {
@@ -1583,8 +1583,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "app_marketing_blog_category_slug_page_publicblogcategorypage",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "publicblogcategorypage()"
     },
     {
@@ -1594,8 +1594,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "app_marketing_blog_page",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "page.tsx"
     },
     {
@@ -1605,8 +1605,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "app_marketing_blog_page_generatemetadata",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "generatemetadata()"
     },
     {
@@ -1616,8 +1616,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "app_marketing_blog_page_publicblogindexpage",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "publicblogindexpage()"
     },
     {
@@ -11351,8 +11351,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_blog_public_post_card",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "public-post-card.tsx"
     },
     {
@@ -11362,8 +11362,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "components_blog_public_post_card_publicpost",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "publicpost"
     },
     {
@@ -11373,8 +11373,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_blog_public_post_card_publicpostcard",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "publicpostcard()"
     },
     {
@@ -11384,8 +11384,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_blog_trend_spark",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "trend-spark.tsx"
     },
     {
@@ -11395,8 +11395,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_blog_trend_spark_trendspark",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 72,
+      "community_name": "charts.ts",
       "norm_label": "trendspark()"
     },
     {
@@ -16620,8 +16620,8 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "components_marketing_popular_posts_popularcard",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 37,
+      "community_name": "page.tsx",
       "norm_label": "popularcard()"
     },
     {
@@ -23124,8 +23124,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "lib_blog_helpers_topersiandigits",
-      "community": 47,
-      "community_name": "vigent-woo.php",
+      "community": 37,
+      "community_name": "page.tsx",
       "norm_label": "topersiandigits()"
     },
     {
@@ -28195,8 +28195,8 @@
       "source_location": "L864",
       "_origin": "ast",
       "id": "lib_instagram_automation_tryfulfillfollowgate",
-      "community": 0,
-      "community_name": "automation.ts",
+      "community": 33,
+      "community_name": "package.json",
       "norm_label": "tryfulfillfollowgate()"
     },
     {
@@ -33893,8 +33893,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "package_dependencies_jalaali_js",
-      "community": 72,
-      "community_name": "charts.ts",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "jalaali-js"
     },
     {
@@ -33904,8 +33904,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "jalaali_js",
-      "community": 72,
-      "community_name": "charts.ts",
+      "community": 25,
+      "community_name": "dependencies",
       "norm_label": "jalaali-js"
     },
     {
@@ -34025,8 +34025,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "package_dependencies_qrcode",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 236,
+      "community_name": "next-auth",
       "norm_label": "qrcode"
     },
     {
@@ -34036,8 +34036,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "qrcode",
-      "community": 25,
-      "community_name": "dependencies",
+      "community": 236,
+      "community_name": "next-auth",
       "norm_label": "qrcode"
     },
     {
@@ -103085,18 +103085,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "references",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "components/marketing/section-reveal.tsx",
-      "source_location": "L30",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "components_marketing_section_reveal_sectionrevealcontroller",
-      "target": "package_engines_node"
-    },
-    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "components/marketing/social-links.tsx",
@@ -158068,5 +158056,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ad746f7b9edbc817eb5ac632ec3041987bf52b26"
+  "built_at_commit": "8dac820e4cfec795730538aca2abbf45faf1234d"
 }
