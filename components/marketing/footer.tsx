@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, ArrowUpLeft, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
@@ -43,11 +44,15 @@ const COPY = {
 } as const
 
 export function Footer() {
+	const pathname = usePathname()
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
 	const t = useTranslations('marketing.footer')
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
-	const productHrefs = ['/#product', '/#solutions', '/#vigento', '/pricing']
+	const variantBase = /^\/[1-5]$/.test(pathname) ? pathname : null
+	const productHrefs = variantBase
+		? [`${variantBase}#product`, `${variantBase}#solutions`, `${variantBase}#vigento`, `${variantBase}#pricing`]
+		: ['/#product', '/#solutions', '/#vigento', '/pricing']
 	const solutionHrefs = ['/solutions/instagram', '/solutions/ecommerce-ai', '/solutions/customer-support-ai', '/solutions/persian-ai-chatbot', '/solutions/woocommerce']
 	const resourceHrefs = ['/docs', '/blog', '/status']
 

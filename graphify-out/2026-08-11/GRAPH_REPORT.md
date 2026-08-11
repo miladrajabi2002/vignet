@@ -1,16 +1,16 @@
-# Graph Report - vignet  (2026-08-08)
+# Graph Report - vignet  (2026-08-11)
 
 ## Corpus Check
-- 708 files · ~521,657 words
+- 711 files · ~524,289 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4142 nodes · 9650 edges · 265 communities (238 shown, 27 thin omitted)
+- 4156 nodes · 9666 edges · 256 communities (228 shown, 28 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8dac820e`
+- Built from commit: `ae9ebfbf`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -212,7 +212,6 @@
 - route.ts
 - popular-posts.tsx
 - customer-identification.ts
-- dispatchProductEmbed
 - route.ts
 - route.ts
 - deploy.sh
@@ -224,7 +223,6 @@
 - sitemap.ts
 - resend
 - layout.tsx
-- route.ts
 - automation-card.tsx
 - MessengerAdapter
 - postcss.config.mjs
@@ -238,28 +236,21 @@
 - sitemap.ts
 - react-dom
 - route.ts
-- next-auth
 - pdf-parse
 - route.ts
 - route.ts
 - whatsapp.ts
 - neural-network-primitives.tsx
-- route.ts
 - فاز Launch-critical — تکمیل AI، RAG، کانال‌ها و تجربه گفتگو
-- notify.ts
 - route.ts
 - admin-broadcast-form.tsx
 - route.ts
-- tts.ts
 - platform-stats.ts
 - activity.ts
 - conversation-reply-delivery.test.ts
-- route.ts
 - marketing-homepage-ux.test.ts
-- format.ts
 - order-context.ts
 - intelligence-core-lazy.tsx
-- recharts
 - woo-connect-wizard.tsx
 
 ## God Nodes (most connected - your core abstractions)
@@ -275,137 +266,137 @@
 10. `Vigent_Woo_Sync` - 35 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `openAlertsScreen()` --indirect_call--> `contact()`  [INFERRED]
-  app/api/telegram-operator/webhook/route.ts → tests/contact-identity-merge.test.ts
 - `MessageBuilder()` --indirect_call--> `value()`  [INFERRED]
   components/instagram/automation-form.tsx → lib/config/production-env.ts
 - `ChannelSettingsCard()` --indirect_call--> `value()`  [INFERRED]
   components/instagram/automation-manager.tsx → lib/config/production-env.ts
 - `AgentAnalyticsPage()` --indirect_call--> `value()`  [INFERRED]
   app/(dashboard)/agents/[agentId]/analytics/page.tsx → lib/config/production-env.ts
-- `AgentCatalogPage()` --calls--> `requireUser()`  [EXTRACTED]
-  app/(dashboard)/agents/[agentId]/catalog/page.tsx → lib/session.ts
+- `EditAutomationPage()` --calls--> `requireUser()`  [EXTRACTED]
+  app/(dashboard)/agents/[agentId]/instagram/[automationId]/edit/page.tsx → lib/session.ts
+- `NewAutomationPage()` --calls--> `requireUser()`  [EXTRACTED]
+  app/(dashboard)/agents/[agentId]/instagram/new/page.tsx → lib/session.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (265 total, 27 thin omitted)
+## Communities (256 total, 28 thin omitted)
 
 ### Community 0 - "automation.ts"
-Cohesion: 0.11
-Nodes (31): AutomationAction, AutomationContext, AutomationPolicy, AutomationRow, AutomationTrigger, checkUserFollows(), commentDmTarget(), DEFAULT_AUTOMATION_POLICY (+23 more)
+Cohesion: 0.10
+Nodes (49): captureError(), AutomationAction, AutomationContext, AutomationPolicy, AutomationRow, AutomationTrigger, checkUserFollows(), commentDmTarget() (+41 more)
 
 ### Community 1 - "cn"
-Cohesion: 0.13
-Nodes (23): COLOR_PRESETS, WebWidgetChannel(), FONT_FAMILY_BY_KEY, hexToRgba(), shade(), WIDGET_ICON_COMPONENTS, WidgetPreview(), CachedWidgetPayload (+15 more)
+Cohesion: 0.10
+Nodes (29): GET(), Avatar(), ChatLinkPreview(), COLOR_PRESETS, WebWidgetChannel(), FONT_FAMILY_BY_KEY, hexToRgba(), shade() (+21 more)
 
 ### Community 2 - "ui.tsx"
 Cohesion: 0.08
-Nodes (27): AgentSettingsPage(), BUSINESSES, NewAgentPage(), BillingPage(), PLAN_KEY, assurances, metadata, PLAN_FA_NAMES (+19 more)
+Nodes (39): AgentSettingsPage(), BUSINESSES, NewAgentPage(), assurances, metadata, PLAN_FA_NAMES, PRICING_FAQ, PricingPage() (+31 more)
 
 ### Community 3 - "loader.js"
 Cohesion: 0.09
 Nodes (55): actionChip(), applyConfig(), applyViewportHeight(), applyWidgetViewport(), autoGrow(), bindRailResize(), bubble(), clearIntro() (+47 more)
 
 ### Community 4 - "prisma.ts"
-Cohesion: 0.11
-Nodes (18): CHANNELS, IntegrationsPage(), DigitalMenuDashboardPage(), ServicesPage(), PageHeader(), IMPORTANT: by request, there is NO kicker / eyebrow text above the title., formatWooSyncResult(), SyncFeedback (+10 more)
+Cohesion: 0.06
+Nodes (39): AgentCatalogPage(), agent_hint_body(), agent_hint_title(), AgentsPage(), InstagramWorkspacePage(), CHANNELS, IntegrationsPage(), DigitalMenuDashboardPage() (+31 more)
 
 ### Community 5 - "chat-engine.ts"
-Cohesion: 0.15
-Nodes (17): Params, POST(), schema, POST(), AdminMailboxItem, ADMIN_MAILBOX_ADDRESS, bareAddress(), InboundEmailEventData (+9 more)
+Cohesion: 0.17
+Nodes (16): Params, POST(), schema, POST(), ADMIN_MAILBOX_ADDRESS, bareAddress(), InboundEmailEventData, ingestAdminMailboxEmail() (+8 more)
 
 ### Community 6 - "qr-config.ts"
-Cohesion: 0.09
-Nodes (36): POST(), appUrl(), GET(), handleCallback(), POST(), readPid(), appUrl(), bodySchema (+28 more)
+Cohesion: 0.11
+Nodes (25): AdminCommercialEvent, enqueueAdminCommercialSms(), processAdminCommercialSmsPayment(), RETRY_DELAYS_MS, retryAt(), sweepAdminCommercialSmsOutbox(), AiCreditTopupCapture, captureAiCreditTopupPayment() (+17 more)
 
 ### Community 7 - "charts.ts"
 Cohesion: 0.19
 Nodes (17): GET(), guard(), POST(), DELETE(), GET(), guard(), Params, PATCH() (+9 more)
 
 ### Community 8 - "page.tsx"
-Cohesion: 0.21
-Nodes (10): InstagramAutomationContent(), normalizeSettings(), ChannelSettingsCard(), InstagramAutomationManager(), TABS, DEFAULT_SETTINGS, InstagramAutomationSettings, REPLY_POLICY_DESC_KEY (+2 more)
+Cohesion: 0.14
+Nodes (20): InstagramAutomationContent(), normalizeSettings(), AutomationCard(), MESSAGE_TYPE_ICON, REPLY_MODE_ICON, TYPE_ICON, ChannelSettingsCard(), InstagramAutomationManager() (+12 more)
 
 ### Community 9 - "prompt-builder.ts"
-Cohesion: 0.06
-Nodes (51): AgentWizard(), BUSINESS_PRESETS, channelLabel(), ConfigDraft, CreatedAgent, draftFromRole(), FormState, NaturalConversationControls() (+43 more)
+Cohesion: 0.08
+Nodes (32): NaturalConversationControls(), EMPTY_CONFIG, LayerTab, BaseRoleKey, booleanOrDefault(), buildLayeredPrompt(), BUSINESS_ROLE_SPECS, BUSINESS_ROLE_TEMPLATES (+24 more)
 
 ### Community 10 - "page.tsx"
-Cohesion: 0.17
-Nodes (18): applyContactIdentity(), channelIdField(), consentState(), ContactRow, firstValue(), laterDate(), withContactIdentityLocks(), mergeContacts() (+10 more)
+Cohesion: 0.19
+Nodes (16): applyContactIdentity(), channelIdField(), consentState(), ContactRow, firstValue(), laterDate(), withContactIdentityLocks(), mergeContacts() (+8 more)
 
 ### Community 11 - "models.ts"
-Cohesion: 0.21
-Nodes (10): DELETE(), Params, PATCH(), GET(), POST(), categoryCreateSchema, categoryUpdateSchema, productCreateSchema (+2 more)
+Cohesion: 0.10
+Nodes (22): AgentWizard(), BUSINESS_PRESETS, channelLabel(), ConfigDraft, CreatedAgent, draftFromRole(), FormState, VigentoComposer() (+14 more)
 
 ### Community 12 - "captureError"
-Cohesion: 0.09
-Nodes (45): AgentSettingsData, appendSalesGuidance(), buildDeterministicTurnReply(), bumpProductQueries(), generateReply(), GenerateReplyOptions, GenerateReplyResult, persistAssistantTurn() (+37 more)
+Cohesion: 0.08
+Nodes (50): bodySchema, POST(), appendSalesGuidance(), buildDeterministicTurnReply(), buildSystemPrompt(), bumpProductQueries(), generateReply(), GenerateReplyOptions (+42 more)
 
 ### Community 13 - "webhook.ts"
 Cohesion: 0.22
 Nodes (8): ارتقا از نسخهٔ قبلی, دکمه‌های صفحهٔ افزونه, راهنمای نصب افزونه ویجنت 4.2.0, رفتار همگام‌سازی, عیب‌یابی سریع, محدودهٔ سفارش, نصب و اتصال, پیش‌نیازها
 
 ### Community 14 - "page.tsx"
-Cohesion: 0.08
-Nodes (27): AgentAnalyticsPage(), AnalyticsPage(), daysAgo(), nfFa(), STAGE_LABELS_EN, STAGE_LABELS_FA, CHANNEL_LABELS, ChannelIcon (+19 more)
+Cohesion: 0.05
+Nodes (39): GET(), Params, GET(), LiveResource, AgentAnalyticsPage(), AnalyticsPage(), daysAgo(), nfFa() (+31 more)
 
 ### Community 15 - "syncOnboarding"
-Cohesion: 0.60
-Nodes (3): EMOJI_TOKEN, isEmojiOnly(), ONLY_EMOJI
+Cohesion: 0.12
+Nodes (17): GET(), bodySchema, Params, POST(), readBotToken(), FacebookPagesResult, IgHost, IgWebhook (+9 more)
 
 ### Community 16 - "session.ts"
-Cohesion: 0.12
-Nodes (29): createHandoffAlert(), decrypt(), encrypt(), getKey(), captureError(), cleanupOldRecords(), CleanupResult, NotifyParams (+21 more)
+Cohesion: 0.11
+Nodes (32): decrypt(), refreshLongLivedToken(), resolveWooCredentials(), cleanupOldRecords(), CleanupResult, NotifyParams, notifyWorkspace(), sendOperatorTelegramNotification() (+24 more)
 
 ### Community 17 - "page.tsx"
-Cohesion: 0.14
-Nodes (22): agent_hint_body(), agent_hint_title(), AgentsPage(), AttentionItem(), buildTrend(), daysAgo(), isRecord(), MODULE_META (+14 more)
+Cohesion: 0.11
+Nodes (20): CampaignComposer(), DraftCampaign, Preview, CampaignLaunchButton(), CHANNEL_LABEL, ListView(), PipelineView(), rowDisplayName() (+12 more)
 
 ### Community 18 - "activity.ts"
-Cohesion: 0.15
-Nodes (15): onRequestError(), register(), captureLog(), captureWarning(), emitConsole(), errorDetails(), ErrorLevel, LogLevel (+7 more)
+Cohesion: 0.16
+Nodes (15): onRequestError(), register(), captureLog(), emitConsole(), errorDetails(), ErrorLevel, LogLevel, LogOptions (+7 more)
 
 ### Community 19 - "registry.ts"
-Cohesion: 0.16
-Nodes (23): Meter(), ModelSelect(), TIER_ICON, ReplyCreditEstimator(), AGENT_MODELS, AgentModel, BY_ALIAS, findModel() (+15 more)
+Cohesion: 0.14
+Nodes (19): EditProductPage(), AgentSparkline(), SocialProof(), ProductsToolbar(), key(), Env, ProductionEnvReport, REQUIRED (+11 more)
 
 ### Community 20 - "commercial-config.ts"
 Cohesion: 0.07
-Nodes (44): AdminPlatformSettingsPage(), GET(), nonNegativeInt, planSchema, positiveInt, PUT(), schema, bodySchema (+36 more)
+Nodes (41): AdminPlatformSettingsPage(), POST(), bodySchema, POST(), MODEL_META, NumberPath, PLAN_META, PlanNumber() (+33 more)
 
 ### Community 21 - "handler.ts"
-Cohesion: 0.06
-Nodes (51): entryOwnerIds(), getContactName(), handleInbound(), handleInstagramGlobalInbound(), IgWebhookEntry, markAssistantDelivery(), persistFixedAssistantReply(), persistInboundOnly() (+43 more)
+Cohesion: 0.07
+Nodes (47): getContactName(), handleInbound(), IgWebhookEntry, markAssistantDelivery(), persistFixedAssistantReply(), persistInboundOnly(), processChannelInbound(), profileFields() (+39 more)
 
 ### Community 22 - "rateLimit"
 Cohesion: 0.10
 Nodes (21): Progress(), AdminUsagePage(), parseRange(), TYPE_LABEL, OPTIONS, RangeKind, RangeSwitch(), ActivationFunnel() (+13 more)
 
 ### Community 23 - "ippanel.ts"
-Cohesion: 0.18
-Nodes (18): buildLexicalQuery(), LEXICAL_STOPWORDS, normalizePersian(), isCurated(), RankableChunk, rankRetrievedChunks(), deleteChunksForProduct(), insertChunk() (+10 more)
+Cohesion: 0.29
+Nodes (11): buildLexicalQuery(), LEXICAL_STOPWORDS, normalizePersian(), isCurated(), RankableChunk, rankRetrievedChunks(), insertChunk(), InsertChunkInput (+3 more)
 
 ### Community 24 - "automation-form.tsx"
 Cohesion: 0.12
-Nodes (25): sendPurchaseConfirmation(), AdminCreditTopupPatternData, AdminSubscriptionPatternData, formatPersianDate(), generateCode(), IppanelMeta, ippanelSend(), isSmsConfigured() (+17 more)
+Nodes (22): captureWarning(), getRedis(), globalForRedis, AdminCreditTopupPatternData, AdminSubscriptionPatternData, formatPersianDate(), generateCode(), IppanelMeta (+14 more)
 
 ### Community 25 - "dependencies"
-Cohesion: 0.06
-Nodes (31): @aws-sdk/client-s3, bullmq, framer-motion, jalaali-js, lucide-react, next, next-auth, next-intl (+23 more)
+Cohesion: 0.07
+Nodes (29): @aws-sdk/client-s3, bullmq, framer-motion, jalaali-js, lucide-react, next, next-intl, dependencies (+21 more)
 
 ### Community 26 - "devDependencies"
 Cohesion: 0.07
 Nodes (29): dotenv, eslint, eslint-config-next, devDependencies, dotenv, eslint, eslint-config-next, postcss (+21 more)
 
 ### Community 27 - "woocommerce.ts"
-Cohesion: 0.06
-Nodes (66): batchSchema, digest(), eventSchema, handleManualSync(), loadManualIntegration(), normalizeSiteUrl(), parseDelivery(), pluginVersionFromHeaders() (+58 more)
+Cohesion: 0.13
+Nodes (33): allAgentIds(), assignProduct(), availableCategorySlug(), canonicalize(), categoryExternalId(), categorySlug(), deleteProductFromWoo(), errorMessage() (+25 more)
 
 ### Community 28 - "config.ts"
-Cohesion: 0.12
-Nodes (29): bodySchema, GET(), Params, POST(), GET(), normalizeSiteUrl(), bodySchema, GET() (+21 more)
+Cohesion: 0.16
+Nodes (20): bodySchema, GET(), Params, POST(), bodySchema, GET(), OPTIONS(), Params (+12 more)
 
 ### Community 29 - "compilerOptions"
 Cohesion: 0.07
@@ -416,16 +407,16 @@ Cohesion: 0.07
 Nodes (25): Aggressive Escalation Triggers, Guidelines, Operating Posture, Part 1 — Findings table (REQUIRED), Part 2 — Verdict (REQUIRED), Remedial Preference Hierarchy, Required Output Format, Reviewing Animations (+17 more)
 
 ### Community 31 - "route.ts"
-Cohesion: 0.16
-Nodes (15): AdminUsersPage(), BadgeTone, PLAN_LABEL, PLAN_OPTIONS, PlanFilter, startOfToday(), VALID_PLANS, AdminBroadcastDialog() (+7 more)
+Cohesion: 0.18
+Nodes (14): bodySchema, faqText(), normalize(), Params, POST(), redispatchExisting(), deleteContent(), handleWpContentWebhook() (+6 more)
 
 ### Community 32 - "layout.tsx"
 Cohesion: 0.09
-Nodes (38): AccountStatus(), AdminAiPage(), formatProviderUSD(), formatRequestUSD(), formatRial(), ManagedModels(), ModelUsageTable(), parseRange() (+30 more)
+Nodes (39): AccountStatus(), AdminAiPage(), formatProviderUSD(), formatRequestUSD(), formatRial(), ManagedModels(), ModelUsageTable(), parseRange() (+31 more)
 
 ### Community 33 - "package.json"
-Cohesion: 0.22
-Nodes (22): tryFulfillFollowGate(), assertPublicHttps(), ButtonAction, formatPrice(), messagesUrl(), MetaErrorBody, preflightMedia(), PreparedMedia (+14 more)
+Cohesion: 0.21
+Nodes (13): appUrl(), GET(), handleCallback(), POST(), readPid(), createZarinPayPayment(), getStoreId(), getToken() (+5 more)
 
 ### Community 34 - "registry.ts"
 Cohesion: 0.33
@@ -436,12 +427,12 @@ Cohesion: 0.09
 Nodes (15): defaultReplyMode(), emptyTextMessage(), FormState, KeywordFilter, MediaUploader, MessageBuilder(), normalizeMessage(), PostFilter (+7 more)
 
 ### Community 36 - "oauth.ts"
-Cohesion: 0.40
-Nodes (10): allClaimedInstagramIds(), GET(), Params, POST(), PUT(), getScopedWebhookPayloads(), readIgUserId(), readPageToken() (+2 more)
+Cohesion: 0.50
+Nodes (7): allClaimedInstagramIds(), GET(), Params, PUT(), getScopedWebhookPayloads(), getIgUserWebhookSubscription(), getInstagramProfile()
 
 ### Community 37 - "page.tsx"
-Cohesion: 0.25
-Nodes (18): generateMetadata(), Props, PublicBlogPostPage(), BlogEditor(), isFa(), PopularCard(), analyzeSeo(), deriveExcerpt() (+10 more)
+Cohesion: 0.12
+Nodes (28): Props, generateMetadata(), Props, PublicBlogPostPage(), AdminBlogManager(), BlogEditor(), isFa(), PublicPost (+20 more)
 
 ### Community 38 - "popular-posts.tsx"
 Cohesion: 0.09
@@ -456,52 +447,52 @@ Cohesion: 0.09
 Nodes (21): 1. Purpose & frequency, 2. Easing & duration, 3. Physicality & origin, 4. Interruptibility, 5. Performance, 6. Accessibility, 7. Cohesion & tokens, 8. Missed opportunities (+13 more)
 
 ### Community 41 - "trend-chart.tsx"
-Cohesion: 0.14
-Nodes (15): GET(), PUT(), schema, GET(), BodySchema, POST(), GET(), DELETE() (+7 more)
+Cohesion: 0.22
+Nodes (14): batchSchema, digest(), eventSchema, handleManualSync(), loadManualIntegration(), normalizeSiteUrl(), parseDelivery(), pluginVersionFromHeaders() (+6 more)
 
 ### Community 42 - "route.ts"
 Cohesion: 0.18
-Nodes (20): appUrl(), GET(), buildInstagramOAuthConfig(), buildInstagramAuthUrl(), exchangeCodeForUserToken(), exchangeForLongLivedToken(), INSTAGRAM_OAUTH_SCOPES, INSTAGRAM_WEBHOOK_FIELDS (+12 more)
+Nodes (20): POST(), appUrl(), GET(), buildInstagramOAuthConfig(), buildInstagramAuthUrl(), exchangeCodeForUserToken(), exchangeForLongLivedToken(), INSTAGRAM_OAUTH_SCOPES (+12 more)
 
 ### Community 43 - "jobs.ts"
 Cohesion: 0.17
-Nodes (23): SummaryJobData, deleteContent(), handleWpContentWebhook(), upsertContent(), WpContentPayload, writeLog(), createQueueConnection(), isQueueDisabled() (+15 more)
+Nodes (22): bodySchema, GET(), ownAgent(), Params, PUT(), IngestionJobData, createQueueConnection(), isQueueDisabled() (+14 more)
 
 ### Community 44 - "chat-client.tsx"
-Cohesion: 0.06
-Nodes (39): bodySchema, Params, POST(), defaultSettings(), GET(), Params, PATCH(), patchSchema (+31 more)
+Cohesion: 0.05
+Nodes (57): DELETE(), GET(), getOwnedAgent(), Params, PATCH(), GET(), ownAgent(), Params (+49 more)
 
 ### Community 45 - "material-select.tsx"
-Cohesion: 0.15
-Nodes (10): CHANNEL_LABEL, STATUS_META, GATEWAY_BADGE, PLAN_BADGE, STATUS_BADGE, AdminPagination(), TableShell(), Td() (+2 more)
+Cohesion: 0.26
+Nodes (11): POST(), appUrl(), bodySchema, POST(), createNowPaymentsInvoice(), getApiKey(), NOWPAYMENTS_PAID_STATUSES, NowPaymentsInvoiceResult (+3 more)
 
 ### Community 46 - "getVerticalPack"
-Cohesion: 0.20
-Nodes (14): POST(), OAuthState, signState(), stateSecret(), getRedis(), globalForRedis, consumeOAuthState(), createOAuthState() (+6 more)
+Cohesion: 0.18
+Nodes (14): POST(), checkChannelConnectAllowed(), OAuthState, signState(), stateSecret(), consumeOAuthState(), createOAuthState(), OAuthProvider (+6 more)
 
 ### Community 47 - "vigent-woo.php"
-Cohesion: 0.16
-Nodes (12): ConversationPanel(), HandoffAlertProp, MESSENGER_META, getPopularPosts(), loadPopularPosts, PopularPosts(), PostPreview, ViewsLabel() (+4 more)
+Cohesion: 0.20
+Nodes (10): COMMON_COPY, IconName, LocalizedCopy, ProductScenario, VARIANT_COPY, HomeLocale, HomeVariant, HomeVariantPageProps (+2 more)
 
 ### Community 48 - "config.ts"
 Cohesion: 0.16
 Nodes (14): POST(), POST(), POST(), POST(), MessengerType, CapturedPayload, categorizePayload(), logWebhookPayload() (+6 more)
 
 ### Community 49 - "route.ts"
-Cohesion: 0.27
-Nodes (11): assertSafeHttpUrl(), hostnameWithoutBrackets(), isBlockedIp(), isBlockedIpv4(), parseHttpUrl(), request(), resolvePublicAddress(), SafeHttpOptions (+3 more)
+Cohesion: 0.15
+Nodes (20): GET(), normalizeSiteUrl(), appBaseUrl(), createSchema, encryptSensitiveFields(), GET(), normalizeWooStoreUrl(), POST() (+12 more)
 
 ### Community 50 - "route.ts"
-Cohesion: 0.17
-Nodes (12): SettingsPage(), BusyAction, Feedback, fetchOperatorHealth(), GlassButton(), localeDate(), localeNumber(), OperatorChannelHealth (+4 more)
+Cohesion: 0.31
+Nodes (9): bodySchema, Params, POST(), createHandoffAlert(), escapeTelegramHtml(), formatOperatorAlertMessage(), getConnectedMessengerChannels(), HandoffContext (+1 more)
 
 ### Community 51 - "page.tsx"
-Cohesion: 0.09
-Nodes (32): baseUrl(), bodySchema, Params, POST(), WEBHOOK_PATH, baleAdapter(), getBaleBotInfo(), setBaleWebhook() (+24 more)
+Cohesion: 0.20
+Nodes (16): baleAdapter(), getBaleBotInfo(), setBaleWebhook(), getInstagramInfo(), setInstagramWebhook(), getAdapter(), getBotInfo(), setWebhook() (+8 more)
 
 ### Community 52 - "social-links.tsx"
 Cohesion: 0.09
-Nodes (15): CHANNEL_ICONS, COPY, MobileChannelExplorer(), MobileChannelTab, COPY, Pillar, COPY, InstagramIcon() (+7 more)
+Nodes (14): CHANNEL_ICONS, COPY, MobileChannelExplorer(), MobileChannelTab, COPY, Pillar, InstagramIcon(), SOCIAL_LABELS (+6 more)
 
 ### Community 53 - "agent.ts"
 Cohesion: 0.14
@@ -513,35 +504,35 @@ Nodes (20): 10. Gesture design details (the "feel" checklist), 11. Frame-level s
 
 ### Community 55 - "route.ts"
 Cohesion: 0.13
-Nodes (21): agentStateSchema, creditSchema, executeTool(), fileSchema, findAgents(), findUsers(), findWorkspaces(), inputSchema (+13 more)
+Nodes (22): agentStateSchema, creditSchema, executeTool(), fileSchema, findAgents(), findUsers(), findWorkspaces(), GET() (+14 more)
 
 ### Community 56 - "low-credit-alert.ts"
-Cohesion: 0.11
-Nodes (38): AdminVigentoPage(), CAPABILITIES, POST(), recordRun(), requestSchema, inputSchema, POST(), DraftAgent (+30 more)
+Cohesion: 0.10
+Nodes (44): AdminVigentoPage(), CAPABILITIES, GET(), PUT(), schema, POST(), recordRun(), requestSchema (+36 more)
 
 ### Community 57 - "vertical-bookings-vigento.test.ts"
-Cohesion: 0.11
-Nodes (18): metadata, MarketingLayout(), SESSION_COOKIE_NAMES, authorized(), PROTECTED_PREFIXES, ScopedIntlProvider(), BackToTop(), Footer() (+10 more)
+Cohesion: 0.08
+Nodes (25): BrandHeader(), NAV_ITEMS, NavItem, NavList(), AdminLayout(), metadata, MobileNavTrigger(), MarketingLayout() (+17 more)
 
 ### Community 58 - "validation.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: حذف دانش و قواعد، حذف نقطه اتصال میانی، اصلاح اتصال کارت‌های مشتری‌ها و گفتگوها و سفیدکردن کارت‌ها, Source Nodes
 
 ### Community 59 - "appointments-workspace.tsx"
-Cohesion: 0.38
-Nodes (8): applyExtractedIdentity(), ExtractedIdentity, extractEnglishName(), extractIdentity(), extractPersianName(), hasCompleteCustomerIdentity(), looksLikePersonName(), NAME_STOPWORDS
+Cohesion: 0.26
+Nodes (12): Intro(), ExtractedIdentity, extractEnglishName(), extractIdentity(), extractPersianName(), looksLikePersonName(), NAME_STOPWORDS, normalizeContactPhone() (+4 more)
 
 ### Community 60 - "iphone-preview.tsx"
 Cohesion: 0.10
-Nodes (23): AppointmentsPage(), AppointmentCard(), AppointmentRow, AppointmentStatus, AppointmentsWorkspace(), BookingDialog(), DayMetric(), groupByTimeSlot() (+15 more)
+Nodes (21): AppointmentCard(), AppointmentRow, AppointmentStatus, AppointmentsWorkspace(), BookingDialog(), DayMetric(), groupByTimeSlot(), Locale (+13 more)
 
 ### Community 61 - "types.ts"
-Cohesion: 0.06
-Nodes (64): bookingErrorResponse(), GET(), POST(), GET(), POST(), GET(), ChatTool, ChatUsage (+56 more)
+Cohesion: 0.05
+Nodes (74): GET(), PATCH(), Props, bookingErrorResponse(), GET(), POST(), GET(), POST() (+66 more)
 
 ### Community 62 - "helpers.ts"
-Cohesion: 0.31
-Nodes (9): calculateFinanceSummary(), FinanceInputs, FinanceSummary, parseUsdToIrrRate(), safeNonNegative(), getFinanceSummary(), PlanRevenueRow, RevenueKPIs (+1 more)
+Cohesion: 0.20
+Nodes (15): AdminRevenuePage(), PLAN_BADGE, paymentsDailyByWorkspace(), calculateFinanceSummary(), FinanceInputs, FinanceSummary, parseUsdToIrrRate(), safeNonNegative() (+7 more)
 
 ### Community 63 - "page.tsx"
 Cohesion: 0.13
@@ -552,20 +543,20 @@ Cohesion: 0.22
 Nodes (8): چک‌لیست انتشار Production ویجنت, ۱. دروازه پیش از انتشار, ۲. زیرساخت و شبکه, ۳. داده، بکاپ و بازگشت, ۴. Smoke test پس از انتشار, ۵. پایش و پاسخ به حادثه, ۶. کیفیت، سرعت و جذب مشتری, ۷. فرمان انتشار
 
 ### Community 65 - "route.ts"
-Cohesion: 0.19
-Nodes (10): setLocale(), geistMono, geistSans, ROOT_METADATA_COPY, RootLayout(), Providers(), dirForLocale(), isLocale() (+2 more)
+Cohesion: 0.28
+Nodes (6): geistMono, geistSans, ROOT_METADATA_COPY, RootLayout(), Providers(), dirForLocale()
 
 ### Community 66 - "contacts-view.tsx"
 Cohesion: 0.29
 Nodes (9): POST(), schema, AdminActionInput, AdminActionPayload, createAdminActionToken(), executeAdminAction(), secret(), signature() (+1 more)
 
 ### Community 67 - "chat-orchestrator.ts"
-Cohesion: 0.14
-Nodes (23): bodySchema, Params, POST(), campaignDeliveryText(), CampaignJobData, processCampaign(), processRecipient(), SEND_INTERVAL_MS (+15 more)
+Cohesion: 0.15
+Nodes (20): bodySchema, Params, POST(), campaignDeliveryText(), CampaignJobData, processCampaign(), processRecipient(), SEND_INTERVAL_MS (+12 more)
 
 ### Community 68 - "ingest.ts"
-Cohesion: 0.15
-Nodes (10): ChatLinkPreview(), COLOR_PRESETS, LinkState, Button, ButtonProps, ButtonSize, ButtonVariant, SIZES (+2 more)
+Cohesion: 0.13
+Nodes (13): COLOR_PRESETS, LinkState, Button, ButtonProps, ButtonSize, ButtonVariant, SIZES, VARIANTS (+5 more)
 
 ### Community 69 - "Glossary"
 Cohesion: 0.11
@@ -576,52 +567,52 @@ Cohesion: 0.09
 Nodes (4): Vigent_Woo_Core, vigent_woo_migrate_4_2_0(), vigent_woo_migrate_existing_users(), vigent_woo_setup_cron()
 
 ### Community 71 - "automation-manager.tsx"
-Cohesion: 0.20
-Nodes (9): Mock و Integration Test ایجادشده, ✅ Ready with Minor Risks, نتایج Build و Test **قبل** از تغییرات, گزارش آمادگی انتشار Vigent (Release Readiness Report), ۱۲. نتیجه نهایی, ۲. خط مبنا (مرحله صفر), ۶. گزارش کانال‌ها, ۷. گزارش Performance (+1 more)
+Cohesion: 0.15
+Nodes (12): Mock و Integration Test ایجادشده, ✅ Ready with Minor Risks, تست‌های جدید اضافه‌شده در ممیزی اولیه (۱۵ مورد), تست‌های جدید موج تکمیلی (۸ مورد), نتایج Build و Test **قبل** از تغییرات, گزارش آمادگی انتشار Vigent (Release Readiness Report), ۱۲. نتیجه نهایی, ۲. خط مبنا (مرحله صفر) (+4 more)
 
 ### Community 72 - "charts.ts"
-Cohesion: 0.21
-Nodes (4): Props, PublicPost, PublicPostCard(), TrendSpark()
+Cohesion: 0.39
+Nodes (7): DELETE(), Params, BUCKETS, deleteFile(), downloadFile(), getClient(), uploadFile()
 
 ### Community 73 - "booking-manager.tsx"
 Cohesion: 0.16
 Nodes (21): crawlUrlToKnowledge(), refreshStaleUrlKnowledge(), chunkFaq(), ChunkOptions, chunkText(), hardSplit(), splitBySentence(), splitLongFaqPair() (+13 more)
 
 ### Community 74 - "instagram.ts"
-Cohesion: 0.15
-Nodes (31): AdminOverviewPage(), parseRange(), startOfToday(), SystemErrorsPanel(), getAiOverview(), AgentSpark, conversationsDaily(), conversationsDailyByAgent() (+23 more)
+Cohesion: 0.12
+Nodes (33): AdminAgentsPage(), AdminOverviewPage(), parseRange(), startOfToday(), LevelBadge(), ClearErrorLogsButton(), SystemErrorsPanel(), getAiOverview() (+25 more)
 
 ### Community 75 - "PageHeader"
-Cohesion: 0.19
-Nodes (11): GET(), Params, GET(), LiveResource, ContactsPage(), contactLiveVersion(), ContactSnapshot, conversationLiveVersion() (+3 more)
+Cohesion: 0.28
+Nodes (7): entryOwnerIds(), handleInstagramGlobalInbound(), resolveInstagramChannelById(), normalizeInstagramSettings(), readPageToken(), mocks, payload
 
 ### Community 76 - "page.tsx"
-Cohesion: 0.25
-Nodes (13): POST(), POST(), bodySchema, POST(), POST(), persistLog(), getRequestId(), HeaderSource (+5 more)
+Cohesion: 0.29
+Nodes (11): POST(), POST(), POST(), getRequestId(), HeaderSource, requestIdHeaders(), allowOtpVerificationAttempt(), getClientIp() (+3 more)
 
 ### Community 77 - "conversation-thread.tsx"
-Cohesion: 0.17
-Nodes (20): ALLOWED, EXTENSION, POST(), GET(), ownAgent(), Params, POST(), buffer (+12 more)
+Cohesion: 0.22
+Nodes (15): ALLOWED, EXTENSION, POST(), GET(), ownAgent(), Params, POST(), buffer (+7 more)
 
 ### Community 78 - "neural-operation-graph.tsx"
 Cohesion: 0.13
 Nodes (22): ConnectionGeometry, ConnectionNetwork(), ConnectionTiming, DEFAULT_MODULES, DESKTOP_LAYOUTS, distanceBetween(), FALLBACK_NETWORK_SIZE, formatPoint() (+14 more)
 
 ### Community 79 - "automation-manager.tsx"
-Cohesion: 0.11
-Nodes (21): isOrderStatus(), ORDER_STATUSES, OrdersPage(), OrderStatus, shortStoreUrl(), STATUS_TRANSLATION_KEYS, statusClassName(), ProductsPage() (+13 more)
+Cohesion: 0.13
+Nodes (16): DashboardBarList(), NamedPoint, formatWooSyncResult(), SyncFeedback, WooSyncResult, entityLabel(), IntegrationCard(), isIntegrationConnected() (+8 more)
 
 ### Community 80 - "scheduler.ts"
-Cohesion: 0.24
-Nodes (9): BrandHeader(), NAV_ITEMS, NavItem, NavList(), AdminLayout(), metadata, MobileNavTrigger(), adminLogout() (+1 more)
+Cohesion: 0.48
+Nodes (4): setLocale(), isLocale(), Locale, LOCALES
 
 ### Community 81 - "API"
-Cohesion: 0.24
-Nodes (11): bodySchema, GET(), ownAgent(), Params, PUT(), DELETE(), GET(), ownProduct() (+3 more)
+Cohesion: 0.33
+Nodes (6): defaultSettings(), GET(), Params, PATCH(), patchSchema, REPLY_POLICIES
 
 ### Community 82 - "getEffectivePlanDefs"
-Cohesion: 0.18
-Nodes (11): worker, campaignWorker, connection, inboundWorker, ingestionWorker, notificationWorker, productWorker, shutdown() (+3 more)
+Cohesion: 0.14
+Nodes (18): EmailMessage, escapeHtml(), notifyOps(), sendEmail(), NotificationJobData, processNotification(), runInlineNotification(), worker (+10 more)
 
 ### Community 83 - "checkWorkspaceActive"
 Cohesion: 0.28
@@ -636,16 +627,16 @@ Cohesion: 0.22
 Nodes (9): C1 — نشت بین‌مستاجری در وبهوک سراسری اینستاگرام, C2 — نشت بین‌مستاجری + گم‌شدن پیام در وبهوک سراسری واتساپ, C3 — گم‌شدن دائمی پیام مشتری هنگام قطع پلن یا اعتبار, C4 — نشت Connection ردیس در Production, C5 — XSS ذخیره‌شده در صفحهٔ عمومی منو, C6 — نشت بافر سراسری وبهوک به مستاجرها, C7 — امکان ربودن اکانت اینستاگرام مستاجر دیگر, C8 — مسیرهای سراسری غیرپایدار (گم‌شدن پیام روی هر Deploy) (+1 more)
 
 ### Community 86 - "page.tsx"
-Cohesion: 0.42
-Nodes (7): AdminDatabasePage(), EmptyState(), adminVisibleDatabaseClause(), DATABASE_MODELS, DIRECT_WORKSPACE_MODELS, readDatabaseModel(), serializeValue()
+Cohesion: 0.50
+Nodes (6): AdminDatabasePage(), adminVisibleDatabaseClause(), DATABASE_MODELS, DIRECT_WORKSPACE_MODELS, readDatabaseModel(), serializeValue()
 
 ### Community 87 - "isAdminAuthed"
 Cohesion: 0.20
 Nodes (9): engines, node, npm, name, postcss, overrides, next, private (+1 more)
 
 ### Community 88 - "validation.ts"
-Cohesion: 0.13
-Nodes (13): Avatar(), ChatLinkClient(), errorText(), Intro(), isRetryableError(), Msg, nextId(), parseAssistant() (+5 more)
+Cohesion: 0.33
+Nodes (5): NewAutomationPage(), NewInstagramAutomationPage(), AutomationForm(), TabDef, AutomationType
 
 ### Community 89 - "service.ts"
 Cohesion: 0.33
@@ -704,20 +695,20 @@ Cohesion: 0.40
 Nodes (5): ۱. Rollback کد (بدون ازدست‌رفتن داده), ۱۱. برنامه Rollback, ۲. نکات مهم Rollback, ۳. بازگردانی دیتابیس (فقط در صورت Corruption), ۴. Rollback جزئی (توصیه‌شده در صورت مشکل کانال)
 
 ### Community 105 - "material-select.tsx"
-Cohesion: 0.31
-Nodes (10): GET(), PATCH(), DashboardLayout(), metadata, computeOnboarding(), BusinessProfileInput, businessProfileInputSchema, normalizeBusinessProfile() (+2 more)
+Cohesion: 0.12
+Nodes (20): GET(), PATCH(), AgentLayout(), DashboardLayout(), metadata, metadata, OnboardingPage(), SettingsPage() (+12 more)
 
 ### Community 106 - "service.ts"
-Cohesion: 0.14
-Nodes (23): AdminAgentDetailPage(), CHANNEL_LABEL, AdminAgentsPage(), AdminBlogPage(), AdminConversationDetailPage(), CHANNEL_LABEL, STATUS_LABEL, AdminConversationsPage() (+15 more)
+Cohesion: 0.09
+Nodes (35): CHANNEL_LABEL, AdminBlogPage(), AdminConversationDetailPage(), CHANNEL_LABEL, STATUS_LABEL, CHANNEL_LABEL, STATUS_META, GATEWAY_BADGE (+27 more)
 
 ### Community 107 - "automation-card.tsx"
 Cohesion: 0.29
 Nodes (10): ChangeDetail, MODULES, VerticalChangeNotice(), BusinessProfileStep(), ICONS, SubStep, DetailsStep(), getBusinessServiceOptions() (+2 more)
 
 ### Community 108 - "automation-card.tsx"
-Cohesion: 0.42
-Nodes (8): callEmbeddings(), embedCacheKey(), EmbedContext, embedText(), embedTexts(), getCachedEmbedding(), getEmbedContext(), setCachedEmbedding()
+Cohesion: 0.21
+Nodes (15): callEmbeddings(), embedCacheKey(), EmbedContext, embedText(), embedTexts(), getCachedEmbedding(), getEmbedContext(), setCachedEmbedding() (+7 more)
 
 ### Community 109 - "build-plugin-zip.mjs"
 Cohesion: 0.17
@@ -728,20 +719,20 @@ Cohesion: 0.18
 Nodes (11): 10. Charts & Data (LOW), 1. Accessibility (CRITICAL), 2. Touch & Interaction (CRITICAL), 3. Performance (HIGH), 4. Style Selection (HIGH), 5. Layout & Responsive (HIGH), 6. Typography & Color (MEDIUM), 7. Animation (MEDIUM) (+3 more)
 
 ### Community 111 - "media-uploader.tsx"
-Cohesion: 0.29
-Nodes (10): avatarResponse(), GET(), Params, unavailable(), ALLOWED_IMAGE_TYPES, fetchTrustedInstagramAvatar(), isTrustedInstagramAvatarUrl(), ProxiedAvatar (+2 more)
+Cohesion: 0.22
+Nodes (12): avatarResponse(), GET(), Params, unavailable(), ALLOWED_IMAGE_TYPES, fetchTrustedInstagramAvatar(), isTrustedInstagramAvatarUrl(), ProxiedAvatar (+4 more)
 
 ### Community 112 - "page.tsx"
-Cohesion: 0.24
-Nodes (9): GET(), META, StatusPage(), formatDateTime(), HealthCheck, HealthReport, runHealthChecks(), timed() (+1 more)
+Cohesion: 0.26
+Nodes (8): GET(), META, StatusPage(), HealthCheck, HealthReport, runHealthChecks(), timed(), withTimeout()
 
 ### Community 113 - "automation-card.tsx"
 Cohesion: 0.07
-Nodes (35): DocsHomePage(), metadata, DocPageRoute(), generateMetadata(), generateMetadata(), PAGE_COPY, SITE_URL, SOLUTION_META (+27 more)
+Nodes (34): DocsHomePage(), metadata, DocPageRoute(), generateMetadata(), generateMetadata(), PAGE_COPY, SITE_URL, SOLUTION_META (+26 more)
 
 ### Community 114 - "page.tsx"
-Cohesion: 0.29
-Nodes (6): NotificationBell(), NotificationItem, pushBrowserNotification(), NotificationIdentity, selectNotificationArrivals(), items
+Cohesion: 0.09
+Nodes (19): AgentKnowledgePage(), BillingPage(), PLAN_KEY, AMOUNTS_IRR, CreditTopup(), NotificationBell(), NotificationItem, pushBrowserNotification() (+11 more)
 
 ### Community 115 - "فایل‌های جدید"
 Cohesion: 0.20
@@ -760,24 +751,24 @@ Cohesion: 0.22
 Nodes (8): Available Domains, Available Stacks, How to Use, Output Formats, Prerequisites, Rule Categories by Priority, Search Reference, UI/UX Pro Max - Design Intelligence
 
 ### Community 119 - "route.ts"
-Cohesion: 0.22
-Nodes (10): execFileAsync, hasFfmpeg(), MIME_TO_EXT, POST(), publicBaseUrl(), transcodeToInstagramAudio(), UploadedFile, rateLimitCost() (+2 more)
+Cohesion: 0.53
+Nodes (5): DELETE(), ownAgent(), Params, POST(), invalidateWidgetConfig()
 
 ### Community 121 - "vigento-actions.ts"
-Cohesion: 0.32
-Nodes (4): GET(), MessengerConfig, MessengerSettings, readBotToken()
+Cohesion: 0.16
+Nodes (14): DELETE(), Params, settingsSchema, buildMessengerConfig(), MessengerConfig, MessengerSettings, newWebhookToken(), encrypt() (+6 more)
 
 ### Community 122 - "readBotToken"
-Cohesion: 0.09
-Nodes (32): DELETE(), Params, PATCH(), settingsSchema, bodySchema, GET(), ownAgent(), Params (+24 more)
+Cohesion: 0.18
+Nodes (13): baseUrl(), bodySchema, Params, POST(), WEBHOOK_PATH, bodySchema, GET(), ownAgent() (+5 more)
 
 ### Community 123 - "page.tsx"
-Cohesion: 0.06
-Nodes (46): ContactDetailPage(), ConversationThreadPage(), CHANNEL_LABELS_FA, ConversationsPage(), SalesFilter, VALID_CHANNELS, VALID_SALES_FILTERS, VALID_STATUSES (+38 more)
+Cohesion: 0.07
+Nodes (48): ContactDetailPage(), ConversationThreadPage(), CHANNEL_LABELS_FA, ConversationsPage(), SalesFilter, VALID_CHANNELS, VALID_SALES_FILTERS, VALID_STATUSES (+40 more)
 
 ### Community 125 - "normalizeChatLinkSettings"
 Cohesion: 0.20
-Nodes (18): appBaseUrl(), GET(), appBaseUrl(), createSchema, DELETE(), GET(), maskBotToken(), PATCH() (+10 more)
+Nodes (19): appBaseUrl(), GET(), appBaseUrl(), createSchema, DELETE(), GET(), maskBotToken(), PATCH() (+11 more)
 
 ### Community 126 - "راهنمای قیمت‌گذاری ویجنت"
 Cohesion: 0.22
@@ -800,20 +791,20 @@ Cohesion: 0.23
 Nodes (11): asReceipt(), ConversationTimelineActivity(), getTimelineActivity(), Locale, MessageActivityReceipts(), Metadata, Receipt, receiptCopy() (+3 more)
 
 ### Community 132 - "embeddings.ts"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (29): answerCallback(), appUrl, escapeHtml(), getOpenAlerts(), handleCallback(), healthText(), helpText(), homeText() (+21 more)
 
 ### Community 133 - "route.ts"
-Cohesion: 0.08
-Nodes (35): GET(), PATCH(), Props, DELETE(), GET(), ownedService(), PATCH(), Props (+27 more)
+Cohesion: 0.09
+Nodes (29): bodySchema, Params, POST(), confirmSchema, Params, POST(), POST(), createSchema (+21 more)
 
 ### Community 134 - "route.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: توی قسمت تنظیمات ایجنت -> نمای کلی، قسمت تست ایجنت و چک‌لیست پیشنهادی را بهتر و هوشمندتر کن, Source Nodes
 
 ### Community 135 - "campaign-composer.tsx"
-Cohesion: 0.14
-Nodes (16): bodySchema, faqText(), normalize(), Params, POST(), redispatchExisting(), AgentLearningPage(), LearningCenter() (+8 more)
+Cohesion: 0.13
+Nodes (15): DELETE(), dismissSchema, GET(), ownAgent(), Params, AgentLearningPage(), LearningCenter(), LearningItem (+7 more)
 
 ### Community 136 - "فاز ۶ — رفع ۴۰۴ صفحهٔ مستندات ووکامرس"
 Cohesion: 0.29
@@ -859,13 +850,9 @@ Nodes (6): How to Use This Skill, Step 1: Analyze User Requirements, Step 2: Gen
 Cohesion: 0.50
 Nodes (4): High (۲۰ مورد رفع‌شده), Medium (رفع‌شده), مرحله چهارم — یکپارچه‌سازی Composer (طبق تصویر مرجع), ۳. فهرست تغییرات
 
-### Community 147 - "route.ts"
-Cohesion: 0.36
-Nodes (7): appBaseUrl(), createSchema, encryptSensitiveFields(), GET(), normalizeWooStoreUrl(), POST(), SENSITIVE_FIELDS
-
 ### Community 148 - "route.ts"
-Cohesion: 0.21
-Nodes (14): AdminCommercialEvent, AdminCommercialEventKind, adminCommercialSmsPhone(), captureAdminCommercialSmsError(), compact(), formatAmount(), gatewayLabelFa(), notifyAdminCommercialEvent() (+6 more)
+Cohesion: 0.23
+Nodes (13): AdminCommercialEventKind, adminCommercialSmsPhone(), captureAdminCommercialSmsError(), compact(), formatAmount(), gatewayLabelFa(), notifyAdminCommercialEvent(), planLabelFa() (+5 more)
 
 ### Community 149 - "نکات اجرایی"
 Cohesion: 0.33
@@ -880,8 +867,8 @@ Cohesion: 0.52
 Nodes (5): apt_update(), ensure_secret(), node_is_supported(), set_env(), setup-server.sh script
 
 ### Community 152 - "setup-whatsapp-bridge.sh"
-Cohesion: 0.09
-Nodes (17): EASE, ICONS, OnboardingFlow(), Phase, Props, skipSetupStep(), staggerChild, staggerParent (+9 more)
+Cohesion: 0.08
+Nodes (22): CapabilityOptions(), Locale, OPTION_META, optionLabel(), EASE, ICONS, OnboardingFlow(), Phase (+14 more)
 
 ### Community 153 - "route.ts"
 Cohesion: 0.40
@@ -928,8 +915,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: میخوام قسمت انیمشن Vigento AI | هوش مصنوعی ویجنتو توی پنل داشبورد کاربر رو برام بهبود بدی و میخوام از neural-operation-graph.tsx یا قسمت مرکز عملیات هوشمند کسب‌وکار توی صفحه اصلی الگو بگیری و افکت اتصال به کارت و مسیر اتصال رو مشابه همین درست کنی, Source Nodes
 
 ### Community 165 - "vigento-actions.ts"
-Cohesion: 0.22
-Nodes (7): identificationInstruction(), MODEL_ALIASES, agentCreateSchema, promptConversationSchema, promptFormatSchema, promptQAPairSchema, roleTemplateKeys
+Cohesion: 0.24
+Nodes (8): agentCreateSchema, agentUpdateSchema, promptConfigSchema, promptConversationSchema, promptFormatSchema, promptQAPairSchema, roleTemplateKeys, BUSINESS_TYPES
 
 ### Community 166 - "@prisma/client"
 Cohesion: 0.40
@@ -996,8 +983,8 @@ Cohesion: 0.60
 Nodes (3): DashboardError(), GlobalError(), reportClientError()
 
 ### Community 192 - "page.tsx"
-Cohesion: 0.12
-Nodes (15): AdminBlogManager(), AdminPostRow, STATUS_BADGE_CLS, STATUS_LABELS_EN, STATUS_LABELS_FA, BlogCategory, BlogPostData, EMPTY_POST (+7 more)
+Cohesion: 0.13
+Nodes (14): AdminPostRow, STATUS_BADGE_CLS, STATUS_LABELS_EN, STATUS_LABELS_FA, BlogCategory, BlogPostData, EMPTY_POST, JsonImportDialog() (+6 more)
 
 ### Community 193 - "global-error.tsx"
 Cohesion: 0.52
@@ -1008,16 +995,12 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: بعد از تکمیل چک‌لیست، بخش را به نمایش اتصال‌ها، جزئیات و پیشنهادهای رشد تبدیل کن و وردپرس اختیاری را ناقص حساب نکن, Source Nodes
 
 ### Community 196 - "page.tsx"
-Cohesion: 0.14
-Nodes (26): AdminMailbox(), senderInitial(), CHANNEL_LABELS, FailedJobLog, HealthPayload, HealthState, QUEUE_LABELS, Service (+18 more)
-
-### Community 197 - "service-health-panel.tsx"
-Cohesion: 0.38
-Nodes (5): GET(), ownAgent(), Params, POST(), saveSchema
+Cohesion: 0.12
+Nodes (27): AdminMailbox(), AdminMailboxItem, senderInitial(), CHANNEL_LABELS, FailedJobLog, HealthPayload, HealthState, QUEUE_LABELS (+19 more)
 
 ### Community 199 - "page.tsx"
-Cohesion: 0.11
-Nodes (25): AdminPaymentsPage(), AdminPaymentDetailPage(), GATEWAY_BADGE, PLAN_BADGE, STATUS_BADGE, StatusSummary(), AdminRevenuePage(), PLAN_BADGE (+17 more)
+Cohesion: 0.09
+Nodes (31): AdminAgentDetailPage(), AdminConversationsPage(), AdminPaymentsPage(), AdminPaymentDetailPage(), GATEWAY_BADGE, PLAN_BADGE, STATUS_BADGE, StatusSummary() (+23 more)
 
 ### Community 200 - "tts.ts"
 Cohesion: 0.40
@@ -1027,45 +1010,33 @@ Nodes (4): Answer, Outcome, Q: الان محدودیت روی ایجنت هست�
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: قابلیت یکپارچه بودن کانال ها و گفتگو ها و مشتری ها هنوز اکیه ؟ نیاز به بهود نداره؟, Source Nodes
 
-### Community 203 - "customer-identification.ts"
-Cohesion: 0.33
-Nodes (5): AgentBuilderEntry(), BuildMode, Props, Props, BusinessTypeValue
-
-### Community 204 - "dispatchProductEmbed"
-Cohesion: 0.40
-Nodes (5): CapabilityOptions(), Locale, OPTION_META, optionLabel(), BusinessServiceOption
-
 ### Community 205 - "route.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: خطا و ارور داریم: Prisma knowledgeBase.count Unknown argument workspace, Source Nodes
 
 ### Community 206 - "route.ts"
-Cohesion: 0.06
-Nodes (34): NewAutomationPage(), AgentKnowledgePage(), NewInstagramAutomationPage(), InstagramWorkspacePage(), CategoriesPage(), NewProductPage(), AiModelPolicyForm(), formatUSD() (+26 more)
+Cohesion: 0.09
+Nodes (21): AiModelPolicyForm(), formatUSD(), ModelAlias, ModelOption, Notice, Policy, ContactDetailEditor(), Stage (+13 more)
 
 ### Community 207 - "deploy.sh"
 Cohesion: 0.47
 Nodes (3): pm2_scripts_match_ecosystem(), deploy.sh script, stop_service_and_release_port()
 
 ### Community 211 - "model-select.tsx"
-Cohesion: 0.22
-Nodes (11): EditAutomationPage(), EditInstagramAutomationPage(), AutomationForm(), TabDef, Automation, AutomationAction, AutomationTrigger, AutomationType (+3 more)
+Cohesion: 0.40
+Nodes (4): EditAutomationPage(), EditInstagramAutomationPage(), AutomationAction, AutomationTrigger
 
 ### Community 212 - "wp-content.ts"
 Cohesion: 0.29
 Nodes (6): Vignet Improvements — CHANGES.md, اعتبارسنجی, فاز جدید — فروشندهٔ مشاور (Consult-vs-Show) + تازه‌سازی مدل‌های میان‌رده, فاز ۱ — موتور پرامپت ۶ لایه‌ای + تمپلیت‌های نقش‌محور, هدف, هدف
 
 ### Community 214 - "sitemap.ts"
-Cohesion: 0.16
-Nodes (18): adminLogin(), AdminLoginState, AdminLoginForm(), initial, AdminLoginPage(), metadata, ADMIN_COOKIE, AdminLoginResult (+10 more)
+Cohesion: 0.08
+Nodes (36): adminLogin(), AdminLoginState, adminLogout(), AdminLoginForm(), initial, AdminLoginPage(), metadata, GET() (+28 more)
 
 ### Community 216 - "layout.tsx"
 Cohesion: 0.18
 Nodes (12): GET(), DELETE(), Params, POST(), DELETE(), GET(), isAdminAuthedRequest(), parseHttpUrl() (+4 more)
-
-### Community 217 - "route.ts"
-Cohesion: 0.67
-Nodes (3): تست‌های جدید اضافه‌شده در ممیزی اولیه (۱۵ مورد), تست‌های جدید موج تکمیلی (۸ مورد), ۴. گزارش تست‌ها
 
 ### Community 218 - "automation-card.tsx"
 Cohesion: 0.15
@@ -1076,24 +1047,24 @@ Cohesion: 0.12
 Nodes (5): IphonePreview, IphonePreviewProps, ScreenProps, AutomationMessage, ReplyMode
 
 ### Community 229 - "wp-content.ts"
-Cohesion: 0.20
-Nodes (15): DELETE(), GET(), ownAgent(), Params, PUT(), putSchema, AgentChannelsPage(), ChatLinkChannel() (+7 more)
+Cohesion: 0.19
+Nodes (16): PATCH(), DELETE(), GET(), ownAgent(), Params, PUT(), putSchema, AgentChannelsPage() (+8 more)
 
 ### Community 231 - "Q: اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: اینارو درست بکن همچنین توی شماره موبایل +989128352271 09128352271 989128352271 اینارو جدا حساب نکنه تکمیل کن این قسمتو, Source Nodes
 
 ### Community 234 - "react-dom"
-Cohesion: 0.05
-Nodes (42): RangeTabs(), AgentCatalogPage(), AgentLayout(), COPY, fmtBytes(), Metrics, Sample, ServerStatsWidget() (+34 more)
+Cohesion: 0.04
+Nodes (69): metadata, COPY, fmtBytes(), Metrics, Sample, ServerStatsWidget(), Message, Proposal (+61 more)
 
 ### Community 235 - "route.ts"
 Cohesion: 0.31
 Nodes (7): DELETE(), ownContact(), Params, PATCH(), updateSchema, mocks, params
 
 ### Community 240 - "route.ts"
-Cohesion: 0.25
-Nodes (16): ProductDetailPage(), AttrRow, cleanDescriptionForChat(), extractListItems(), formatAttrValue(), normalizeAttributes(), stripListBlocks(), buildTrustedProductReply() (+8 more)
+Cohesion: 0.23
+Nodes (17): ProductDetailPage(), ProductShowcase, AttrRow, cleanDescriptionForChat(), extractListItems(), formatAttrValue(), normalizeAttributes(), stripListBlocks() (+9 more)
 
 ### Community 241 - "route.ts"
 Cohesion: 0.38
@@ -1101,59 +1072,39 @@ Nodes (5): DELETE(), EXT_TO_MIME, GET(), Params, resolveFilePath()
 
 ### Community 242 - "whatsapp.ts"
 Cohesion: 0.09
-Nodes (13): isHumanOwnedConversation(), reactAfterInstagramReply(), ResolvedChannel, BotApiError, telegramMarkdownToHtml(), TgMessage, TgUser, splitOutboundText() (+5 more)
+Nodes (12): reactAfterInstagramReply(), ResolvedChannel, BotApiError, telegramMarkdownToHtml(), TgMessage, TgUser, splitOutboundText(), InboundMessage (+4 more)
 
 ### Community 243 - "neural-network-primitives.tsx"
-Cohesion: 0.06
-Nodes (36): VigentoPage(), Message, Proposal, QUICK_PROMPTS, VigentoAdminConsole(), WELCOME, Msg, TestPlayground() (+28 more)
-
-### Community 244 - "route.ts"
-Cohesion: 0.27
-Nodes (7): DELETE(), dismissSchema, GET(), ownAgent(), Params, mocks, props
+Cohesion: 0.11
+Nodes (20): ChatLinkClient(), errorText(), isRetryableError(), Msg, nextId(), parseAssistant(), ProductCard, Props (+12 more)
 
 ### Community 251 - "فاز Launch-critical — تکمیل AI، RAG، کانال‌ها و تجربه گفتگو"
 Cohesion: 0.20
 Nodes (10): AI و تمپلیت‌های صنفی, RAG و دانش, SEO/GEO و صفحه تعرفه, اعتبارسنجی نهایی, عمداً منتقل‌شده به فاز بعد, فاز Launch-critical — تکمیل AI، RAG، کانال‌ها و تجربه گفتگو, فایل‌های تست جدید, محدوده (+2 more)
 
-### Community 252 - "notify.ts"
-Cohesion: 0.42
-Nodes (7): EmailMessage, escapeHtml(), notifyOps(), sendEmail(), NotificationJobData, processNotification(), runInlineNotification()
-
 ### Community 253 - "route.ts"
 Cohesion: 0.19
-Nodes (10): doSignOut(), GET(), POST(), { handlers, auth, signOut }, ADMIN_OWNER_PHONE, isPlatformOwnerPhone(), normalizeIranianMobile(), normalizePhone() (+2 more)
+Nodes (7): doSignOut(), GET(), POST(), { handlers, auth, signOut }, ADMIN_OWNER_PHONE, isPlatformOwnerPhone(), sendWelcomeSms()
 
 ### Community 254 - "admin-broadcast-form.tsx"
 Cohesion: 0.25
 Nodes (6): bodySchema, Params, POST(), existing, mocks, props
 
 ### Community 255 - "route.ts"
-Cohesion: 0.28
-Nodes (7): DELETE(), Params, PATCH(), updateSchema, resumeAiForConversation(), mocks, props
-
-### Community 256 - "tts.ts"
-Cohesion: 0.33
-Nodes (6): POST(), resolveText(), audioFormat(), downloadAudio(), transcribeAudio(), TranscribeInput
+Cohesion: 0.27
+Nodes (8): DELETE(), Params, PATCH(), updateSchema, resumeAiForConversation(), dispatchSummary(), mocks, props
 
 ### Community 257 - "platform-stats.ts"
 Cohesion: 0.28
 Nodes (6): LivePlatformStats(), MIN_VISIBLE, EMPTY_STATS, getPublicPlatformStats(), loadPublicPlatformStats, PublicPlatformStats
 
 ### Community 258 - "activity.ts"
-Cohesion: 0.28
-Nodes (8): buildTurnReceipts(), CONVERSATION_ACTIVITY_VERSION, ConversationReceiptKind, ConversationTimelineActivity, ConversationTimelineKind, productCardCount(), TurnEvidence, uniqueProductCount()
+Cohesion: 0.24
+Nodes (10): persistAssistantTurn(), buildTurnReceipts(), CONVERSATION_ACTIVITY_VERSION, ConversationReceiptKind, ConversationTimelineActivity, ConversationTimelineKind, metadataWithReceipts(), productCardCount() (+2 more)
 
 ### Community 259 - "conversation-reply-delivery.test.ts"
 Cohesion: 0.29
 Nodes (5): LayerEditor(), conversation(), createdAt, mocks, props
-
-### Community 260 - "route.ts"
-Cohesion: 0.31
-Nodes (8): DELETE(), encryptSensitiveFields(), GET(), ownIntegration(), Params, PATCH(), patchSchema, SENSITIVE_FIELDS
-
-### Community 262 - "format.ts"
-Cohesion: 0.20
-Nodes (9): ConversationActions(), Status, AutomationCard(), MESSAGE_TYPE_ICON, REPLY_MODE_ICON, TYPE_ICON, MessageType, REPLY_MODE_SHORT_LABEL_KEY (+1 more)
 
 ### Community 263 - "order-context.ts"
 Cohesion: 0.53
@@ -1164,13 +1115,13 @@ Cohesion: 0.50
 Nodes (3): IntelligenceCoreProps, IntelligenceCoreLazy(), LazyIntelligenceCore
 
 ### Community 273 - "woo-connect-wizard.tsx"
-Cohesion: 0.21
-Nodes (16): logout(), Header(), MobileNav(), getDashboardNavForProfile(), getDashboardNavFromModules(), Sidebar(), BUSINESS_SERVICE_OPTIONS, CapabilityPackKey (+8 more)
+Cohesion: 0.16
+Nodes (20): logout(), BuildMode, Props, Header(), MobileNav(), getDashboardNavForProfile(), getDashboardNavFromModules(), Sidebar() (+12 more)
 
 ## Knowledge Gaps
-- **1266 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1261 more)
+- **1273 isolated node(s):** `next/core-web-vitals`, `next/typescript`, `mini-services/**`, `node_modules/**`, `metadata` (+1268 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
@@ -1186,17 +1137,17 @@ Nodes (16): logout(), Header(), MobileNav(), getDashboardNavForProfile(), getDas
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `react-dom` to `ui.tsx`, `page-header.tsx`, `prisma.ts`, `format.ts`, `page.tsx`, `page.tsx`, `woo-connect-wizard.tsx`, `registry.ts`, `commercial-config.ts`, `rateLimit`, `setup-whatsapp-bridge.sh`, `layout.tsx`, `material-select.tsx`, `vigent-woo.php`, `route.ts`, `route.ts`, `social-links.tsx`, `vertical-bookings-vigento.test.ts`, `iphone-preview.tsx`, `page.tsx`, `page.tsx`, `ingest.ts`, `page.tsx`, `dispatchProductEmbed`, `route.ts`, `automation-manager.tsx`, `scheduler.ts`, `page.tsx`, `logo.tsx`, `service.ts`, `automation-card.tsx`, `automation-card.tsx`, `page.tsx`, `neural-network-primitives.tsx`, `page.tsx`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `recharts`, `next-auth`, `isAdminAuthed`, `index.ts`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
-- **Why does `devDependencies` connect `devDependencies` to `isAdminAuthed`?**
-  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+- **Why does `cn()` connect `react-dom` to `ui.tsx`, `page-header.tsx`, `prisma.ts`, `page.tsx`, `page.tsx`, `woo-connect-wizard.tsx`, `commercial-config.ts`, `rateLimit`, `setup-whatsapp-bridge.sh`, `layout.tsx`, `page.tsx`, `route.ts`, `social-links.tsx`, `vertical-bookings-vigento.test.ts`, `iphone-preview.tsx`, `page.tsx`, `page.tsx`, `ingest.ts`, `page.tsx`, `route.ts`, `automation-manager.tsx`, `page.tsx`, `logo.tsx`, `material-select.tsx`, `service.ts`, `automation-card.tsx`, `page.tsx`, `neural-network-primitives.tsx`, `page.tsx`?**
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `wp-content.ts`, `@prisma/client`, `service-health-panel.tsx`, `route.ts`, `isAdminAuthed`, `index.ts`?**
+  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+- **Why does `getCurrentUser()` connect `chat-client.tsx` to `prisma.ts`, `route.ts`, `campaign-composer.tsx`, `captureError`, `page.tsx`, `syncOnboarding`, `commercial-config.ts`, `route.ts`, `oauth.ts`, `route.ts`, `trend-chart.tsx`, `route.ts`, `jobs.ts`, `material-select.tsx`, `getVerticalPack`, `route.ts`, `layout.tsx`, `route.ts`, `low-credit-alert.ts`, `types.ts`, `chat-orchestrator.ts`, `charts.ts`, `conversation-thread.tsx`, `API`, `wp-content.ts`, `material-select.tsx`, `route.ts`, `media-uploader.tsx`, `route.ts`, `route.ts`, `vigento-actions.ts`, `readBotToken`, `normalizeChatLinkSettings`, `admin-broadcast-form.tsx`, `route.ts`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **What connects `next/core-web-vitals`, `next/typescript`, `mini-services/**` to the rest of the system?**
-  _1266 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1273 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `automation.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.10695187165775401 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10256410256410256 - nodes in this community are weakly interconnected._
 - **Should `cn` be split into smaller, more focused modules?**
-  _Cohesion score 0.12561576354679804 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1 - nodes in this community are weakly interconnected._
 - **Should `ui.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.08170731707317073 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07692307692307693 - nodes in this community are weakly interconnected._

@@ -47,6 +47,7 @@ export function MarketingMobileMenu({
 }) {
 	const pathname = usePathname()
 	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const landingHomeHref = /^\/[1-5]$/.test(pathname) ? pathname : '/'
 	const [open, setOpen] = useState(false)
 	const dialogRef = useRef<HTMLDialogElement>(null)
 	const triggerRef = useRef<HTMLButtonElement>(null)
@@ -140,7 +141,7 @@ export function MarketingMobileMenu({
 							<X className="h-5 w-5" />
 						</button>
 						<Link
-							href="/"
+							href={landingHomeHref}
 							onClick={() => setOpen(false)}
 							aria-label={locale === 'fa' ? 'صفحه اصلی ویجنت' : 'Vigent home'}
 							className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
@@ -156,7 +157,7 @@ export function MarketingMobileMenu({
 							const active =
 								link.id === 'blog' || link.id === 'docs'
 									? pathname.startsWith(`/${link.id}`)
-									: pathname === '/' && activeSection === link.id
+									: activeSection === link.id
 							return (
 								<Link
 									key={link.id}

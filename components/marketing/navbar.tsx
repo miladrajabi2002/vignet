@@ -11,6 +11,7 @@ import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
 const SECTION_IDS = ['product', 'solutions', 'vigento', 'pricing'] as const
+const HOME_VARIANT_PATH = /^\/[1-5]$/
 
 const COPY = {
 	fa: {
@@ -51,6 +52,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	const [scrolled, setScrolled] = useState(false)
 	const [activeSection, setActiveSection] = useState('')
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
+	const homeVariantPath = HOME_VARIANT_PATH.test(pathname) ? pathname : null
+	const isLandingPath = pathname === '/' || homeVariantPath !== null
 
 	useEffect(() => {
 		const onScroll = () => setScrolled(window.scrollY > 10)
@@ -60,7 +63,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 	}, [])
 
 	useEffect(() => {
-		if (pathname !== '/') {
+		if (!isLandingPath) {
 			setActiveSection('')
 			return
 		}
@@ -85,7 +88,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 			window.removeEventListener('scroll', update)
 			window.removeEventListener('resize', update)
 		}
-	}, [pathname])
+	}, [isLandingPath, pathname])
 
 	const links = [
 		{ href: '/', id: 'home', label: copy.home },
@@ -95,7 +98,14 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
 		{ href: '/blog', id: 'blog', label: t('blog') },
 		{ href: '/docs', id: 'docs', label: t('docs') },
-	]
+	].map((link) => {
+		if (!homeVariantPath) return link
+		if (link.id === 'home') return { ...link, href: homeVariantPath }
+		if (SECTION_IDS.some((id) => id === link.id)) {
+			return { ...link, href: `${homeVariantPath}#${link.id}` }
+		}
+		return link
+	})
 	const mobileLinks = links.filter((link) => link.id !== 'home')
 
 	return (
@@ -105,8 +115,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				className={cn(
 					'relative mx-auto grid h-[58px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-[1.15rem] border px-2.5 transition-[background-color,border-color,box-shadow] duration-200 lg:flex lg:justify-between lg:px-3.5',
 					scrolled
-						? 'border-black/10 bg-white/82 shadow-[0_14px_45px_rgba(0,0,0,0.09)] backdrop-blur-xl'
-						: 'border-black/[0.07] bg-white/72 shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-lg',
+						? 'border-black/10 bg-white/[0.9] shadow-[0_14px_45px_rgba(0,0,0,0.09)] backdrop-blur-xl'
+						: 'border-black/[0.07] bg-white/[0.82] shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-lg',
 				)}
 			>
 				{/* Mobile entry point — the desktop nav below is hidden under lg. */}
@@ -128,10 +138,10 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				<div className="hidden items-center gap-1 lg:flex">
 					{links.map((link) => {
 						const active = link.id === 'home'
-							? pathname === '/' && activeSection === ''
+							? isLandingPath && activeSection === ''
 							: link.id === 'blog' || link.id === 'docs'
 							? pathname.startsWith(`/${link.id}`)
-							: pathname === '/' && activeSection === link.id
+							: isLandingPath && activeSection === link.id
 						return (
 							<Link
 								key={link.id}
@@ -148,7 +158,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				</div>
 
 				<Link
-					href="/"
+					href={homeVariantPath ?? '/'}
 					aria-label={locale === 'fa' ? 'صفحه اصلی ویجنت' : 'Vigent home'}
 					className="col-start-2 inline-flex min-h-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black lg:absolute lg:left-1/2 lg:-translate-x-1/2"
 				>

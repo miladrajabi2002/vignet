@@ -1305,8 +1305,8 @@
     "semantic_hash": ""
   },
   "components/marketing/navbar.tsx": {
-    "mtime": 1786212035.6719787,
-    "ast_hash": "085bfccfe61a613912bd926e8fd20cf4",
+    "mtime": 1786398428.4790094,
+    "ast_hash": "fbf4e664268830a881052d64d4670773",
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
@@ -1325,8 +1325,8 @@
     "semantic_hash": ""
   },
   "components/marketing/section-reveal.tsx": {
-    "mtime": 1785674427.8410082,
-    "ast_hash": "aff000841e0f7c3385ff43d6562d889c",
+    "mtime": 1786395567.661353,
+    "ast_hash": "325e0889f976727680696ef9928aec2f",
     "semantic_hash": ""
   },
   "components/marketing/social-links.tsx": {
@@ -3420,8 +3420,8 @@
     "semantic_hash": ""
   },
   "tests/marketing-homepage-ux.test.ts": {
-    "mtime": 1786212149.6745234,
-    "ast_hash": "52e07fe2437ac4532fe647d1d5e5050d",
+    "mtime": 1786395567.6633508,
+    "ast_hash": "617ac7e02f825adcb93dba4eb3509b81",
     "semantic_hash": ""
   },
   "tests/notification-live-state.test.ts": {
@@ -3577,6 +3577,21 @@
   "tests/account-cascade-migration-recovery.test.ts": {
     "mtime": 1786217918.371484,
     "ast_hash": "47a395e4e2783c91f5ae99cf4944b622",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/content.ts": {
+    "mtime": 1786398481.80133,
+    "ast_hash": "8b5354f1da42243226b8aa01ddad9d25",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/types.ts": {
+    "mtime": 1786398358.2516782,
+    "ast_hash": "9f9760885dda5f315c414b94a8b19839",
+    "semantic_hash": ""
+  },
+  "tests/marketing-navbar-variants.test.ts": {
+    "mtime": 1786398411.938329,
+    "ast_hash": "909623fcd27eba4c9d7c07c8a9179999",
     "semantic_hash": ""
   }
 }

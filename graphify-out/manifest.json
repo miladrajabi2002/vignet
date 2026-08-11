@@ -1295,8 +1295,8 @@
     "semantic_hash": ""
   },
   "components/marketing/footer.tsx": {
-    "mtime": 1786212035.6886907,
-    "ast_hash": "637210493b52b04abdaedfbe78e05af2",
+    "mtime": 1786399166.5082102,
+    "ast_hash": "edda4e63ed20074997e36f5900d1d787",
     "semantic_hash": ""
   },
   "components/marketing/hero.tsx": {
@@ -1305,8 +1305,8 @@
     "semantic_hash": ""
   },
   "components/marketing/navbar.tsx": {
-    "mtime": 1786212035.6719787,
-    "ast_hash": "085bfccfe61a613912bd926e8fd20cf4",
+    "mtime": 1786399763.4407325,
+    "ast_hash": "9e558ac9e45c8e7c3baeac0280935329",
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
@@ -3250,8 +3250,8 @@
     "semantic_hash": ""
   },
   "components/marketing/mobile-menu.tsx": {
-    "mtime": 1786212035.6719787,
-    "ast_hash": "8df725141f9341378cba7a30b9df4e78",
+    "mtime": 1786400219.5033836,
+    "ast_hash": "d03d66187c74afc72fe195309a1a0a44",
     "semantic_hash": ""
   },
   "components/products/product-showcase-rail.tsx": {
@@ -3577,6 +3577,86 @@
   "tests/account-cascade-migration-recovery.test.ts": {
     "mtime": 1786217918.371484,
     "ast_hash": "47a395e4e2783c91f5ae99cf4944b622",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/content.ts": {
+    "mtime": 1786399337.514013,
+    "ast_hash": "759b9adb3f9cb72e344303cd78abf906",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/types.ts": {
+    "mtime": 1786398358.2516782,
+    "ast_hash": "9f9760885dda5f315c414b94a8b19839",
+    "semantic_hash": ""
+  },
+  "tests/marketing-navbar-variants.test.ts": {
+    "mtime": 1786400239.6420536,
+    "ast_hash": "4c740d3d06f14b155a5b93dcda39b1df",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/(home-variants)/1/page.tsx": {
+    "mtime": 1786398889.504077,
+    "ast_hash": "cd87858252df3d1ae076d2e033c9a60b",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/(home-variants)/2/page.tsx": {
+    "mtime": 1786398889.504077,
+    "ast_hash": "b59c21446a99301bb6246a9a2fd299cc",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/(home-variants)/3/page.tsx": {
+    "mtime": 1786398889.5050824,
+    "ast_hash": "685c87cc775ccec3cf548999e7aa1df2",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/(home-variants)/4/page.tsx": {
+    "mtime": 1786398889.5050824,
+    "ast_hash": "03515525c39e72472803786b0a1f6d1f",
+    "semantic_hash": ""
+  },
+  "app/(marketing)/(home-variants)/5/page.tsx": {
+    "mtime": 1786398889.5060856,
+    "ast_hash": "935661fe0b9902abf4cc61acdad16346",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/get-variant-props.ts": {
+    "mtime": 1786398863.220184,
+    "ast_hash": "74d417de14ce35d24650f3d648eed401",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/shared/primitives.tsx": {
+    "mtime": 1786400306.6347814,
+    "ast_hash": "d96bb781dce269895f34b933bb05b84f",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/v1/page.tsx": {
+    "mtime": 1786399378.1651707,
+    "ast_hash": "957c2b42bf2683a08a28fa379eea5db9",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/v2/page.tsx": {
+    "mtime": 1786399270.4108758,
+    "ast_hash": "99f8c83ff1c31aba36a8cd3cc036134d",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/v3/page.tsx": {
+    "mtime": 1786399248.277148,
+    "ast_hash": "5fe0eb1f1f2879f3c2cd30a66b7acf58",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/v4/page.tsx": {
+    "mtime": 1786399363.6979523,
+    "ast_hash": "6b8f0fa55adb615fe41983d4cd093705",
+    "semantic_hash": ""
+  },
+  "components/marketing/home-variants/v5/page.tsx": {
+    "mtime": 1786399305.5084329,
+    "ast_hash": "d3ff0e0283a2077a2d24be54520cfd6f",
+    "semantic_hash": ""
+  },
+  "tests/marketing-home-variants.test.ts": {
+    "mtime": 1786399568.2492511,
+    "ast_hash": "f5a69f24a56ffaca6939fb07eab30920",
     "semantic_hash": ""
   }
 }
