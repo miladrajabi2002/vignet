@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+	// Appended to asset URLs so proxies and long-lived browser tabs never mix
+	// files from two production releases. deploy/deploy.sh supplies the commit.
+	deploymentId: process.env.VIGENT_DEPLOYMENT_ID,
 	poweredByHeader: false,
 	async redirects() {
 		return [

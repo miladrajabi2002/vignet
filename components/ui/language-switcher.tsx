@@ -1,20 +1,35 @@
 'use client'
 
 import { useLocale } from 'next-intl'
-import { useTransition } from 'react'
+import { useState } from 'react'
 import { Languages } from 'lucide-react'
-import { setLocale } from '@/app/actions/locale'
 import { cn } from '@/lib/utils'
 
 export function LanguageSwitcher({ className }: { className?: string }) {
   const locale = useLocale()
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
 
-  const toggle = () => {
+  const toggle = async () => {
     const next = locale === 'fa' ? 'en' : 'fa'
-    startTransition(() => {
-      setLocale(next)
-    })
+    setIsPending(true)
+
+    try {
+      const response = await fetch('/api/locale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: next }),
+      })
+
+      if (!response.ok) throw new Error(`Locale update failed (${response.status})`)
+
+      // A full reload applies lang/dir at the document root and also guarantees
+      // that a tab left open across a deployment picks up the current client
+      // bundle instead of retaining references to old Server Action IDs.
+      window.location.reload()
+    } catch (error) {
+      console.error('[locale] Failed to switch language', error)
+      setIsPending(false)
+    }
   }
 
   return (

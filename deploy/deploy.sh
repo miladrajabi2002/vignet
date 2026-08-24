@@ -119,6 +119,43 @@ set -a
 source .env
 set +a
 
+# Next.js salts Server Action IDs with this key. Its default is regenerated on
+# every build, so an otherwise unchanged action stops existing for tabs opened
+# before a deployment. Preserve the key from the currently served artifact on
+# the first upgraded deploy, then persist it in .env for every later build.
+if [ -z "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-}" ]; then
+  previous_actions_key=""
+  if [ -f .next/server/server-reference-manifest.json ]; then
+    previous_actions_key="$(node -e '
+      try {
+        const manifest = require("./.next/server/server-reference-manifest.json");
+        if (typeof manifest.encryptionKey === "string") process.stdout.write(manifest.encryptionKey);
+      } catch {}
+    ')"
+  fi
+
+  if ! node -e '
+    const key = process.argv[1] || "";
+    const decoded = Buffer.from(key, "base64");
+    process.exit(decoded.length === 32 && decoded.toString("base64") === key ? 0 : 1);
+  ' "${previous_actions_key}"; then
+    previous_actions_key="$(node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("base64"))')"
+  fi
+
+  printf '\n# Stable across builds; changing it invalidates existing Server Action IDs.\nNEXT_SERVER_ACTIONS_ENCRYPTION_KEY="%s"\n' "${previous_actions_key}" >> .env
+  export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="${previous_actions_key}"
+  echo "==> Persisted stable Server Action encryption key"
+fi
+
+if ! node -e '
+  const key = process.argv[1] || "";
+  const decoded = Buffer.from(key, "base64");
+  process.exit(decoded.length === 32 && decoded.toString("base64") === key ? 0 : 1);
+' "${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}"; then
+  echo "ERROR: NEXT_SERVER_ACTIONS_ENCRYPTION_KEY must be a Base64-encoded 32-byte key" >&2
+  exit 1
+fi
+
 required_env=(
   AUTH_SECRET
   ADMIN_OWNER_PHONE
@@ -143,6 +180,10 @@ fi
 
 echo "==> Pulling fast-forward-only source"
 git pull --ff-only
+
+# next.config.mjs uses this to version asset requests for the release being
+# built. It deliberately comes from the pulled commit, not the pre-pull state.
+export VIGENT_DEPLOYMENT_ID="$(git rev-parse --verify HEAD)"
 
 echo "==> Installing locked application dependencies"
 npm ci
