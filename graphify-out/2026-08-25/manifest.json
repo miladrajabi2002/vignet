@@ -1310,8 +1310,8 @@
     "semantic_hash": ""
   },
   "components/marketing/neural-operation-graph.tsx": {
-    "mtime": 1786215266.071404,
-    "ast_hash": "7bcfa6b9ab6fc8fd53484b854051ac31",
+    "mtime": 1787616396.6131544,
+    "ast_hash": "0bcf8fe78b0fcbe9f7693a00856c894e",
     "semantic_hash": ""
   },
   "components/marketing/popular-posts.tsx": {
@@ -1400,8 +1400,8 @@
     "semantic_hash": ""
   },
   "components/ui/language-switcher.tsx": {
-    "mtime": 1784026385.0842974,
-    "ast_hash": "1bf645b8c6448dcca3bbe9ceff763ecf",
+    "mtime": 1787611544.2377028,
+    "ast_hash": "c1d02704614d8ebf2c29a26aa6e12eaf",
     "semantic_hash": ""
   },
   "components/ui/logo.tsx": {
@@ -1440,8 +1440,8 @@
     "semantic_hash": ""
   },
   "deploy/deploy.sh": {
-    "mtime": 1786215188.2036154,
-    "ast_hash": "dc047ff46162d0d5d9ef19fe27313bba",
+    "mtime": 1787611544.2377028,
+    "ast_hash": "64de023eb4c762ba5663843b3e8e0e86",
     "semantic_hash": ""
   },
   "deploy/ecosystem.config.js": {
@@ -2060,8 +2060,8 @@
     "semantic_hash": ""
   },
   "next.config.mjs": {
-    "mtime": 1784718970.4659736,
-    "ast_hash": "a8086aec4cacbeccbf12d1e4b3af3a0a",
+    "mtime": 1787611544.2377028,
+    "ast_hash": "2614ca5d7420e6bcf146b791ccc448bb",
     "semantic_hash": ""
   },
   "package.json": {
@@ -3657,6 +3657,16 @@
   "tests/marketing-home-variants.test.ts": {
     "mtime": 1786399568.2492511,
     "ast_hash": "f5a69f24a56ffaca6939fb07eab30920",
+    "semantic_hash": ""
+  },
+  "app/api/locale/route.ts": {
+    "mtime": 1787611544.2377028,
+    "ast_hash": "791451b4f6729694ff36549c253a9999",
+    "semantic_hash": ""
+  },
+  "tests/locale-route.test.ts": {
+    "mtime": 1787611544.2377028,
+    "ast_hash": "26e9c337a1501d7667770ae0b14a3f5d",
     "semantic_hash": ""
   }
 }

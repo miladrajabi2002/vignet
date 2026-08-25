@@ -18,7 +18,7 @@ import {
 	NeuralNetworkDefs as NetworkDefs,
 	NeuralSignalParticle as SignalParticle,
 } from './neural-network-primitives'
-import { InstagramIcon } from './social-links'
+import { InstagramIcon, TelegramIcon } from './social-links'
 
 type Scenario = {
 	name: string
@@ -95,51 +95,37 @@ const SECONDARY_MESSAGES = {
 	],
 } as const
 
-function TelegramIcon({ className }: { className?: string }) {
-	return (
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			className={className}
-			aria-hidden
-		>
-			<path
-				d="M20.665 3.717 2.934 10.554c-1.21.486-1.203 1.161-.222 1.462l4.55 1.42 1.737 5.33c.211.584.107.816.72.816.474 0 .683-.216.948-.474l2.185-2.124 4.546 3.358c.838.462 1.442.224 1.65-.778l2.986-14.075c.306-1.225-.467-1.78-1.369-1.372ZM8.153 13.11l10.37-6.543c.518-.314.994-.145.604.202l-8.563 7.727-.334 3.56-2.077-4.946Z"
-				fill="currentColor"
-			/>
-		</svg>
-	)
-}
-
 function RubikaIcon({ className }: { className?: string }) {
 	return (
 		<svg
-			viewBox="0 0 24 24"
-			fill="none"
+			viewBox="780 0 500 543"
 			xmlns="http://www.w3.org/2000/svg"
 			className={className}
 			aria-hidden
 		>
-			<path
-				d="M7.2 3.8h9.6c1.9 0 3.4 1.5 3.4 3.4v9.6c0 1.9-1.5 3.4-3.4 3.4H7.2c-1.9 0-3.4-1.5-3.4-3.4V7.2c0-1.9 1.5-3.4 3.4-3.4Z"
-				stroke="currentColor"
-				strokeWidth="1.7"
-				strokeLinejoin="round"
-			/>
-			<path
-				d="M8.5 8.2h7a1.4 1.4 0 0 1 1.4 1.4v4.8a1.4 1.4 0 0 1-1.4 1.4h-4.2l-2.3 1.8v-1.8h-.5a1.4 1.4 0 0 1-1.4-1.4V9.6a1.4 1.4 0 0 1 1.4-1.4Z"
-				stroke="currentColor"
-				strokeWidth="1.7"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-			<path
-				d="M10 11.1h4M10 13.4h2.8"
-				stroke="currentColor"
-				strokeWidth="1.7"
-				strokeLinecap="round"
-			/>
+			<g transform="translate(-494 -579.79)">
+				<path fill="#b8ce01" d="M1523.57,579.8h1.76c.48,42.73-.25,128.44-.25,128.44-40.86-22.92-82-45.3-122.84-68.29q40.13-22.82,80.32-45.51c12.69-7.16,26.33-13.31,41-14.64Z" />
+				<path fill="#7db425" d="M1525.23,579.79h3c15.89,1.43,30.25,9,43.94,16.68q38.24,21.57,76.38,43.34c-41,22.73-82.45,45.82-123.51,68.48-.35-42.73.63-85.77.15-128.5Z" />
+				<path fill="#f6a925" d="M1402.27,639.9l122.84,68.29-123.69,72.26s-.06-45.85.08-68.71C1401.39,688,1402.27,639.9,1402.27,639.9Z" />
+				<path fill="#35ac9d" d="M1648.69,639.82l.35.19c-.1,42.59,0,85.18,0,127.77-.07,4.17-.11,12.77-.11,12.77l-123.81-72.31s82.58-45.69,123.61-68.42Z" />
+				<path fill="#59d6bd" d="M1648.94,640c27.28,15.51,54.37,31.36,81.47,47.17,13.11,7.36,27,15.52,34.16,29.39-38.38,21.25-115.68,64-115.68,64s-.06-8.61,0-12.78c0-42.59-.06-85.18,0-127.77Z" />
+				<path fill="#ef7414" d="M1324,684.82c25.65-15,78.19-44.88,78.19-44.88l-.72,140.51s-77-42.45-115.26-63.71c8.34-14.82,23.4-23.83,37.79-31.92Z" />
+				<path fill="#fff" d="M1525,708.23l123.81,72.3s-39.84,22.05-59.62,32.64c-21.14,12-64.09,35.82-64.09,35.82l-123.66-68.54Z" />
+				<path fill="#e74b50" d="M1277.5,772.82c.11-18.86-.23-38.88,8.66-56.08,38.29,21.26,115.26,63.71,115.26,63.71-41.37,23.92-82.54,48.2-123.89,72.15-.06-26.6,0-53.19,0-79.78Z" />
+				<path fill="#794387" d="M1764.57,716.56c7.54,14.1,8.64,30.5,8.22,46.19,0,29.81,0,90.11,0,90.11l-123.88-72.31S1726.19,737.81,1764.57,716.56Z" />
+				<path fill="#e4e4e4" d="M1401.42,780.45c.19-.08,123.66,68.54,123.66,68.54s.05,71.69.07,106.76c.2,11.29-.07,34.11-.07,34.11-41.27-22.78-82.32-45.76-123.6-68.54l-.07-.31q0-70.28,0-140.56Z" />
+				<path fill="#794387" d="M1277.53,852.6c41.35-24,82.52-48.23,123.89-72.15q-.06,70.29,0,140.56c-6.35-2.65-12.13-6.43-18.19-9.64C1348,892,1312.88,872.18,1277.52,853v-.37Z" />
+				<path fill="#f1f1f1" d="M1648.89,780.55q0,43.1,0,86.18c-.13,18.27.46,36.47,0,54.73-41.21,22.4-123.82,68.4-123.82,68.4s.27-22.82.07-34.11c0-35.07-.07-106.76-.07-106.76Z" />
+				<path fill="#4c3683" d="M1648.89,780.55s123.88,72.14,123.88,72.31c-41.17,22.82-123.87,68.6-123.87,68.6h0c.46-18.26-.13-36.46,0-54.73q0-43.1,0-86.18Z" />
+				<path fill="#4c3683" d="M1277.52,853c35.36,19.21,70.43,39,105.7,58.4,6.06,3.21,11.84,7,18.19,9.64l.07.31q-57,33.23-113.94,66.49c-4-6.09-6-13.19-7.51-20.25-2.39-11.77-2.52-23.83-2.52-35.79q0-39.4,0-78.8Z" />
+				<path fill="#e74b50" d="M1772.77,852.86c.06,27.65,0,55.3,0,82.95.4,17.73-.12,36.62-9.57,52.25-34.2-20-114.33-66.6-114.33-66.6S1731.6,875.68,1772.77,852.86Z" />
+				<path fill="#0f68a0" d="M1287.54,987.81q56.94-33.3,113.94-66.49c-.25,46.83.08,93.67-.16,140.49q-40.35-22.75-80.49-45.86c-12.51-7.4-25.32-15.63-33.29-28.14Z" />
+				<path fill="#49bdca" d="M1401.48,921.32c41.28,22.78,82.33,45.76,123.6,68.54-41.2,24-123.7,72-123.76,71.95.24-46.82-.09-93.66.16-140.49Z" />
+				<path fill="#f6a925" d="M1648.7,921.55l.2-.09c.12,46.84-.25,93.69.19,140.53l-.31.15c-32.66-19.51-65.71-38.4-98.52-57.68-8.26-4.7-25.18-14.6-25.18-14.6S1607.49,944,1648.7,921.55Z" />
+				<path fill="#ef7414" d="M1648.9,921.46h0c3.65,2.49,80.13,46.62,114.33,66.6-4.86,8.3-12.56,14.39-20.32,19.84-12.52,8.42-25.88,15.47-38.9,23.05-18.31,10.35-36.5,20.91-54.92,31-.44-46.84-.07-93.69-.19-140.53Z" />
+				<path fill="#7db425" d="M1525.08,989.86v132.93c-10.25-1.51-21.42-3.87-30.5-9.08-31.11-17.26-62.27-34.42-93.26-51.9C1442.52,1037.76,1483.88,1013.91,1525.08,989.86Z" />
+				<path fill="#b8ce01" d="M1525.08,989.86s16.92,9.9,25.18,14.6c32.81,19.28,65.86,38.17,98.52,57.68q-47.79,26.44-95.57,53a62.48,62.48,0,0,1-25.87,7.69c-.56,0-2.26,0-2.26,0Z" />
+			</g>
 		</svg>
 	)
 }
@@ -161,13 +147,13 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 		)
 	}
 
-	if (activeIndex === 3) {
+	if (activeIndex === 1 || activeIndex === 3) {
 		return (
 			<span
-				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#229ED9] text-white shadow-[0_0_18px_rgba(34,158,217,0.34)]"
+				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#229ED9]/10 text-[#229ED9] shadow-[0_0_18px_rgba(34,158,217,0.16)]"
 				title="Telegram"
 			>
-				<TelegramIcon className="h-[19px] w-[19px]" />
+				<TelegramIcon className="h-5 w-5" />
 			</span>
 		)
 	}
@@ -175,10 +161,10 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 	if (activeIndex === 4) {
 		return (
 			<span
-				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#1B4BFF] text-white shadow-[0_0_18px_rgba(27,75,255,0.28)]"
+				className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/[0.035] shadow-[0_0_18px_rgba(73,189,202,0.14)]"
 				title="Rubika"
 			>
-				<RubikaIcon className="h-[18px] w-[18px]" />
+				<RubikaIcon className="h-5 w-5" />
 			</span>
 		)
 	}
@@ -193,15 +179,15 @@ function MainChannelBadge({ activeIndex }: { activeIndex: number }) {
 function SecondaryChannelBadge({ kind }: { kind: 'messenger' | 'website' }) {
 	if (kind === 'website') {
 		return (
-			<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-500/15 text-sky-300">
+			<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-500/10 text-sky-600">
 				<Globe2 className="h-3.5 w-3.5" />
 			</span>
 		)
 	}
 
 	return (
-		<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300">
-			<MessageCircleMore className="h-3.5 w-3.5" />
+		<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#229ED9]/10 text-[#229ED9]">
+			<TelegramIcon className="h-4 w-4" />
 		</span>
 	)
 }
@@ -224,10 +210,10 @@ function MessageCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[232px] flex-col rounded-[1.4rem] border border-white/[0.16] bg-[rgba(8,8,8,0.96)] p-2.5 shadow-[0_20px_48px_rgba(0,0,0,0.38)] backdrop-blur-xl"
+			className="flex h-[232px] flex-col rounded-[1.4rem] border border-black/[0.08] bg-white p-2.5 text-black shadow-[0_20px_48px_rgba(0,0,0,0.34)]"
 		>
 			<div className="flex items-center justify-between gap-2 px-0.5">
-				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-white/[0.62]">
+				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-black/[0.58]">
 					<MessageCircleMore className="h-3.5 w-3.5 shrink-0" />
 					{label}
 				</p>
@@ -245,22 +231,22 @@ function MessageCard({
 							duration: reduce ? 0 : 0.3,
 							ease: [0.23, 1, 0.32, 1],
 						}}
-						className="h-[92px] rounded-[1.05rem] border border-white/[0.14] bg-white/[0.065] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+						className="h-[92px] rounded-[1.05rem] border border-black/[0.08] bg-black/[0.025] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
 					>
 						<div className="flex items-center gap-2.5">
 							<MainChannelBadge activeIndex={activeIndex} />
 
 							<div className="min-w-0 flex-1">
-								<p className="truncate text-[11px] font-semibold text-white">
+								<p className="truncate text-[11px] font-semibold text-black/[0.86]">
 									{scenario.person} · {scenario.channel}
 								</p>
-								<p className="mt-0.5 whitespace-nowrap text-[9px] text-white/[0.42]">
+								<p className="mt-0.5 whitespace-nowrap text-[9px] text-black/[0.42]">
 									{scenario.time}
 								</p>
 							</div>
 						</div>
 
-						<p className="mt-2.5 line-clamp-2 text-[10.5px] font-medium leading-[1.65] text-white/[0.84]">
+						<p className="mt-2.5 line-clamp-2 text-[10.5px] font-medium leading-[1.65] text-black/[0.74]">
 							{scenario.text}
 						</p>
 					</m.div>
@@ -269,19 +255,19 @@ function MessageCard({
 				{secondaryMessages.map((message) => (
 					<div
 						key={message.channel}
-						className="flex h-[40px] items-center gap-2 rounded-xl border border-white/[0.085] bg-white/[0.028] px-2.5 py-1.5"
+						className="flex h-[40px] items-center gap-2 rounded-xl border border-black/[0.07] bg-black/[0.018] px-2.5 py-1.5"
 					>
 						<SecondaryChannelBadge kind={message.kind} />
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center justify-between gap-2">
-								<p className="truncate text-[9px] font-medium text-white/[0.66]">
+								<p className="truncate text-[9px] font-medium text-black/[0.62]">
 									{message.channel}
 								</p>
-								<p className="shrink-0 whitespace-nowrap text-[9px] text-white/[0.4]">
+								<p className="shrink-0 whitespace-nowrap text-[9px] text-black/[0.4]">
 									{message.time}
 								</p>
 							</div>
-							<p className="mt-0.5 truncate text-[9px] text-white/[0.48]">{message.text}</p>
+							<p className="mt-0.5 truncate text-[9px] text-black/[0.48]">{message.text}</p>
 						</div>
 					</div>
 				))}
@@ -465,7 +451,6 @@ function CrmChip({ locale }: { locale: 'fa' | 'en' }) {
 			<div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.14] bg-black/80 px-2.5 py-1.5 text-[9px] text-white/[0.68] backdrop-blur">
 				<UsersRound className="h-3.5 w-3.5" />
 				{LABELS[locale].crm}
-				<span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
 			</div>
 		</div>
 	)
