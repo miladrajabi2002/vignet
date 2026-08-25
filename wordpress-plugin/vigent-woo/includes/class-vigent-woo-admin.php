@@ -485,7 +485,14 @@ class Vigent_Woo_Admin {
                                                 var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 50) / d.total) * 100)) : 100;
                                                 if (pBar) pBar.style.width = pct + '%';
                                                 if (pText) pText.textContent = pct + '%';
-                                                if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + '</span><span>خطا: ' + totalErrors + '</span>';
+                                                // When syncing orders, show a hint that we only sync the most recent 1000 orders.
+								// The plugin caps the count at MAX_ORDERS_TO_SYNC (1000), so if
+								// d.total === 1000 the store likely has more orders than the cap.
+								var capNote = '';
+								if (kind === 'orders' && d.total >= 1000) {
+									capNote = ' · فقط آخرین ۱۰۰۰ سفارش';
+								}
+								if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
                                                 if (d.errors && d.errors.length) {
                                                         cb(totalSent, totalErrors, false, d.errors[0]);
                                                 } else if (d.done) {

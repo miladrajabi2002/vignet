@@ -18,6 +18,24 @@ class Vigent_Woo_Sync {
         const MAX_QUEUE_SIZE     = 5000;
         const MAX_BATCH_SIZE     = 50;
         /**
+         * Maximum number of orders to sync during a full push.
+         *
+         * Some stores have tens of thousands of historical orders. Syncing all of
+         * them is slow (20+ batches of 50), uses bandwidth, and the old orders are
+         * rarely useful for Vigent's order-tracking use case. We cap the full-sync
+         * to the most recent MAX_ORDERS_TO_SYNC orders (newest first, since the
+         * query uses ORDER BY date DESC).
+         *
+         * New orders created after the initial push still arrive in real-time via
+         * the delta queue hooks — this cap only applies to the one-time "send all
+         * products/orders" wizard.
+         *
+         * The Vigent panel enforces its own retention (deletes oldest orders when
+         * a workspace exceeds 2000), so even if the store has more than 1000 recent
+         * orders, the panel stays bounded.
+         */
+        const MAX_ORDERS_TO_SYNC = 1000;
+        /**
          * Vigent answers a body larger than 4MB with HTTP 413. Fifty products with
          * long descriptions can pass that, and the old code retried the very same
          * oversized batch every five minutes forever, so the queue never drained.
@@ -482,10 +500,18 @@ class Vigent_Woo_Sync {
                         // makes the progress bar show more pages than actually exist.
                         $args['type'] = 'shop_order';
                         $result = wc_get_orders( $args );
+                        $total  = is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
+                        // Cap the sync-able orders to MAX_ORDERS_TO_SYNC. The progress bar
+                        // and the $done flag in sync_batch both read this count, so capping
+                        // here makes the wizard stop after the most recent 1000 orders
+                        // instead of grinding through the entire history.
+                        if ( $total > self::MAX_ORDERS_TO_SYNC ) {
+                                $total = self::MAX_ORDERS_TO_SYNC;
+                        }
+                        return $total;
                 } else {
                         return 0;
                 }
-                return is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
         }
 
         /** Send one full-sync page as a single request (maximum 50 events). */
@@ -547,6 +573,13 @@ class Vigent_Woo_Sync {
 
                 $total = $this->count_items( $kind, $filter );
                 $done  = ( $offset + count( $items ) ) >= $total || count( $items ) < $batch_size;
+                // Hard cap for orders: never sync more than MAX_ORDERS_TO_SYNC, even
+                // if count_items returned a higher number (shouldn't happen since we
+                // cap there too, but this is a second-line defense). Once the offset
+                // reaches the cap, we're done regardless of what the DB still holds.
+                if ( 'orders' === $kind && ( $offset + count( $items ) ) >= self::MAX_ORDERS_TO_SYNC ) {
+                        $done = true;
+                }
                 if ( empty( $events ) ) {
                         return array( 'sent' => 0, 'errors' => array(), 'total' => $total, 'done' => $done );
                 }
