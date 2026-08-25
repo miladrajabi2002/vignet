@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { Pagination } from '@/components/ui/pagination'
 import { displayPhone } from '@/lib/phone'
+import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 
 const PAGE_SIZE = 25
 const ORDER_STATUSES = [
@@ -121,9 +122,17 @@ export default async function OrdersPage({
         title={t('title')}
         subtitle={t('subtitle')}
         actions={
-          <span className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
-            {t('total', { count: totalOrders })}
-          </span>
+          <>
+            <BulkDeleteButton
+              countEndpoint="/api/products/orders/bulk"
+              deleteEndpoint="/api/products/orders/bulk"
+              entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
+              buttonLabel={locale === 'en' ? 'Delete all' : 'حذف همه سفارشات'}
+            />
+            <span className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
+              {t('total', { count: totalOrders })}
+            </span>
+          </>
         }
       />
 

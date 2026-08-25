@@ -33,6 +33,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
+import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import {
         LiveArrivalItem,
         LiveArrivalProvider,
@@ -292,11 +293,22 @@ export default async function ConversationsPage(props: {
                                 title={t('title')}
                                 subtitle={t('subtitle')}
                                 actions={
-                                        <CampaignLaunchButton
-                                                audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
-                                                locale={locale}
-                                                disabled={audienceContacts.length === 0}
-                                        />
+                                        <>
+                                                <BulkDeleteButton
+                                                        countEndpoint="/api/conversations/bulk"
+                                                        deleteEndpoint="/api/conversations/bulk"
+                                                        entityLabel={isFa ? 'گفتگو' : 'conversation'}
+                                                        buttonLabel={isFa ? 'حذف همه گفتگوها' : 'Delete all'}
+                                                        extraWarning={isFa
+                                                                ? 'تاریخچه پیام‌ها (شامل متن چت) برای همیشه از بین می‌رود. اطلاعات مشتریان حفظ می‌شود.'
+                                                                : 'Message history (including chat content) is permanently destroyed. Customer info is preserved.'}
+                                                />
+                                                <CampaignLaunchButton
+                                                        audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
+                                                        locale={locale}
+                                                        disabled={audienceContacts.length === 0}
+                                                />
+                                        </>
                                 }
                         />
 

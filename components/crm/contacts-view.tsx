@@ -21,6 +21,7 @@ import {
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
+import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 
 export interface ContactRow {
         id: string
@@ -194,16 +195,28 @@ export function ContactsView({
                                 title={t('title')}
                                 subtitle={t('subtitle')}
                                 actions={
-                                        <CampaignLaunchButton
-                                                audience={campaignAudience}
-                                                locale={locale}
-                                                disabled={filtered.length === 0}
-                                                label={selected.size > 0
-                                                        ? locale === 'fa'
-                                                                ? `ارسال پیام به ${selected.size.toLocaleString('fa-IR')} مشتری`
-                                                                : `Message ${selected.size} customers`
-                                                        : undefined}
-                                        />
+                                        <>
+                                                <BulkDeleteButton
+                                                        countEndpoint="/api/contacts/bulk"
+                                                        deleteEndpoint="/api/contacts/bulk"
+                                                        entityLabel={locale === 'fa' ? 'مشتری' : 'contact'}
+                                                        buttonLabel={locale === 'fa' ? 'حذف همه مشتریان' : 'Delete all'}
+                                                        extraWarning={locale === 'fa'
+                                                                ? 'گفتگوهای مشتریان حفظ می‌شوند اما به‌صورت «ناشناس» در می‌آیند. تاریخچه چت از بین نمی‌رود.'
+                                                                : 'Conversations are preserved but become anonymous. Chat history is NOT lost.'}
+                                                        onDeleted={() => router.refresh()}
+                                                />
+                                                <CampaignLaunchButton
+                                                        audience={campaignAudience}
+                                                        locale={locale}
+                                                        disabled={filtered.length === 0}
+                                                        label={selected.size > 0
+                                                                ? locale === 'fa'
+                                                                        ? `ارسال پیام به ${selected.size.toLocaleString('fa-IR')} مشتری`
+                                                                        : `Message ${selected.size} customers`
+                                                                : undefined}
+                                                />
+                                        </>
                                 }
                         />
 

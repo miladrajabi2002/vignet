@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { WooSetupCard, type WooIntegrationState } from '@/components/products/woo-setup-card'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
+import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 
 const PAGE_SIZE = 24
 
@@ -161,6 +162,12 @@ export default async function ProductsPage(
         subtitle={t('subtitle')}
         actions={
           <>
+            <BulkDeleteButton
+              countEndpoint="/api/products/bulk"
+              deleteEndpoint="/api/products/bulk"
+              entityLabel={fa ? 'محصولات' : 'products'}
+              buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
+            />
             <Link
               href="/products/categories"
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
