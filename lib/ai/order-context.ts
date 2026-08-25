@@ -47,6 +47,45 @@ function safeValue(value: string, maxLength = 300): string {
 }
 
 /**
+ * Synthesize a tracking link for common Iranian couriers when the store
+ * didn't provide one. This lets the agent share a clickable URL with the
+ * customer even when the shipping plugin only recorded a tracking code.
+ *
+ * Recognized couriers:
+ *  • Iran Post (post.ir) — codes are 13–20 digits → tracking.post.ir/?id=<code>
+ *  • Tipax (tipax.ir)   — codes are typically 10–14 digits → tipax.ir/track/<code>
+ *  • Chapar (chapar.ir) — codes are 13 digits → chapar.ir/track/<code>
+ *
+ * Returns '' if no recognized pattern matches — we'd rather expose no link
+ * than a wrong one.
+ */
+function synthesizeTrackingLink(trackingCode: string | null, courierName: string | null): string {
+  if (!trackingCode) return ''
+  const code = trackingCode.trim()
+  const courier = (courierName ?? '').toLowerCase()
+
+  // Iran Post — 13 to 20 digit numeric codes.
+  if (/^\d{13,20}$/.test(code)) {
+    // If the courier name explicitly says Tipax or Chapar, prefer the
+    // courier-specific URL; otherwise default to Iran Post.
+    if (/tipax|تیپاکس/.test(courier)) {
+      return `https://www.tipax.ir/Tracking?code=${encodeURIComponent(code)}`
+    }
+    if (/chapar|چاپار/.test(courier)) {
+      return `https://chapar.ir/track/${encodeURIComponent(code)}`
+    }
+    return `https://tracking.post.ir/?id=${encodeURIComponent(code)}`
+  }
+
+  // Tipax-style codes (alphanumeric, 10–14 chars).
+  if (/^.{10,14}$/.test(code) && /tipax|تیپاکس/.test(courier)) {
+    return `https://www.tipax.ir/Tracking?code=${encodeURIComponent(code)}`
+  }
+
+  return ''
+}
+
+/**
  * Return a small, identity-scoped order block only when the current message is
  * actually about order tracking. This is deliberately read-only: the model is
  * never given a tool or instruction that can create, cancel, or mutate orders.
@@ -106,6 +145,10 @@ export async function buildOrderContext(params: {
       itemCount: true,
       itemsSummary: true,
       trackingCode: true,
+      courierName: true,
+      shippingDate: true,
+      trackingLink: true,
+      shippingNote: true,
       shippingMethod: true,
       orderDate: true,
     },
@@ -119,6 +162,12 @@ export async function buildOrderContext(params: {
 
   const status = isFa ? FA_STATUS[order.status] ?? order.status : order.status
   const orderDate = formatDate(order.orderDate, isFa)
+
+  // Build a tracking link if one wasn't provided by the store. Iranian Post
+  // tracking codes are 13–20 digits and have a well-known URL format. Tipax
+  // codes (typically 10–14 digits) link to the Tipax tracker.
+  const effectiveTrackingLink = order.trackingLink || synthesizeTrackingLink(order.trackingCode, order.courierName)
+
   const lines = [
     `order_number: ${order.externalOrderId}`,
     `status: ${safeValue(status, 80)}`,
@@ -126,13 +175,17 @@ export async function buildOrderContext(params: {
     `item_count: ${order.itemCount}`,
     order.itemsSummary ? `items: ${safeValue(order.itemsSummary)}` : '',
     order.trackingCode ? `tracking_code: ${safeValue(order.trackingCode, 100)}` : '',
+    order.courierName ? `courier_name: ${safeValue(order.courierName, 120)}` : '',
+    order.shippingDate ? `shipping_date: ${safeValue(order.shippingDate, 80)}` : '',
+    effectiveTrackingLink ? `tracking_link: ${safeValue(effectiveTrackingLink, 300)}` : '',
     order.shippingMethod ? `shipping_method: ${safeValue(order.shippingMethod, 120)}` : '',
+    order.shippingNote ? `shipping_note: ${safeValue(order.shippingNote, 500)}` : '',
     orderDate ? `order_date: ${orderDate}` : '',
   ].filter(Boolean)
 
   const guard = isFa
-    ? 'این داده فقط برای اعلام وضعیت/رهگیری است. ثبت، لغو، مرجوع یا ویرایش سفارش انجام نده و اطلاعاتی خارج از این بلوک نساز.'
-    : 'This data is read-only for status/tracking. Never create, cancel, return, or change an order, and do not invent details outside this block.'
+    ? 'این داده فقط برای اعلام وضعیت/رهگیری است. ثبت، لغو، مرجوع یا ویرایش سفارش انجام نده و اطلاعاتی خارج از این بلوک نساز. اگر tracking_code یا tracking_link موجود است، آن را به مشتری بده تا خودش پیگیری کند.'
+    : 'This data is read-only for status/tracking. Never create, cancel, return, or change an order, and do not invent details outside this block. If a tracking_code or tracking_link is present, share it with the customer so they can track their parcel.'
 
   return `\n\n<verified_order>\n${lines.join('\n')}\n</verified_order>\n${guard}`
 }

@@ -965,21 +965,49 @@ class Vigent_Woo_Core {
                         return $info;
                 }
 
-                // ─── Tracking code ────────────────────────────────────────────────
-                // Try every known meta key. The first non-empty, non-zero value wins.
+                // ─── Phase 1: well-known meta keys ──────────────────────────────────
+                // We try every meta key documented by Iranian shipping plugins.
+                // The first non-empty, non-zero value wins. We deliberately cast to
+                // (string) because some plugins store tracking as integers.
                 $tracking_keys = array(
+                        // Generic WooCommerce Shipment Tracking
                         '_tracking_number',
                         '_shipment_tracking_number',
                         'tracking_number',
                         '_tracking_code',
+                        // WooCommerce Shipment Tracking (official)
+                        '_wc_shipment_tracking_items',
+                        // Persian WooCommerce Shipping (PWS)
                         '_pws_tracking_code',
+                        '_pws_tracking_number',
+                        // Post.ir / Post Pishtaz plugins
                         '_post_tracking_code',
+                        '_post_tracking_number',
                         '_postex_tracking_code',
-                        'pa_tracking_code',           // some themes store as attribute
+                        '_postex_tracking_number',
+                        '_post_code',
+                        '_post_id',
+                        '_pishtaz_tracking_code',
+                        // Tipax (باربری تیپاکس)
+                        '_tipax_tracking_code',
+                        '_tipax_code',
+                        '_tipax_consignment_code',
+                        '_tipax_consignment',
+                        '_btk_tracking_code',
+                        // Chapar (باربری چاپار)
+                        '_chapar_tracking_code',
+                        '_chapar_code',
+                        // Mahex / other Iranian shipping plugins
+                        '_mahex_tracking_code',
+                        '_shipping_tracking_code',
+                        '_tracking_id',
+                        // Themes that store tracking as a product attribute / custom field
+                        'pa_tracking_code',
+                        'pa_tracking_number',
                 );
                 foreach ( $tracking_keys as $key ) {
                         $value = $order->get_meta( $key, true );
-                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) && '0' !== (string) $value ) {
                                 $info['tracking_code'] = trim( (string) $value );
                                 break;
                         }
@@ -1022,6 +1050,11 @@ class Vigent_Woo_Core {
                         '_shipping_courier',
                         'shipping_company',
                         '_postex_courier_name',
+                        '_tipax_courier_name',
+                        '_chapar_courier_name',
+                        '_carrier_name',
+                        '_shipping_carrier',
+                        '_delivery_company',
                 );
                 foreach ( $courier_keys as $key ) {
                         $value = $order->get_meta( $key, true );
@@ -1055,6 +1088,11 @@ class Vigent_Woo_Core {
                         '_dispatch_date',
                         '_pws_shipping_date',
                         'shipping_date',
+                        '_shipment_dispatch_date',
+                        '_date_shipped',
+                        '_shipping_dispatch_date',
+                        '_tipax_shipping_date',
+                        '_postex_shipping_date',
                 );
                 foreach ( $date_keys as $key ) {
                         $value = $order->get_meta( $key, true );
@@ -1074,21 +1112,15 @@ class Vigent_Woo_Core {
                         '_shipment_tracking_link',
                         'tracking_link',
                         '_pws_tracking_link',
+                        '_tracking_link_url',
+                        '_postex_tracking_link',
+                        '_tipax_tracking_link',
                 );
                 foreach ( $link_keys as $key ) {
                         $value = $order->get_meta( $key, true );
                         if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
                                 $info['tracking_link'] = trim( (string) $value );
                                 break;
-                        }
-                }
-                // Synthesize a link for پست (Iran Post) if we have a tracking code but
-                // no link. The Post.ir tracking URL format is well-known.
-                if ( '' === $info['tracking_link'] && '' !== $info['tracking_code'] ) {
-                        $tc = $info['tracking_code'];
-                        // Iranian Post tracking codes are 13–20 digits.
-                        if ( preg_match( '/^\d{13,20}$/', $tc ) ) {
-                                $info['tracking_link'] = 'https://tracking.post.ir/?id=' . $tc;
                         }
                 }
 
@@ -1099,6 +1131,8 @@ class Vigent_Woo_Core {
                         '_shipping_description',
                         'shipping_note',
                         '_delivery_note',
+                        '_shipping_comment',
+                        '_shipment_description',
                 );
                 foreach ( $note_keys as $key ) {
                         $value = $order->get_meta( $key, true );
@@ -1108,7 +1142,403 @@ class Vigent_Woo_Core {
                         }
                 }
 
+                // ─── Phase 2: scan order notes (BIG win for Iranian stores) ───────
+                // Many Iranian shop admins do NOT use a shipping plugin — they
+                // simply add a private order note when they ship the order, like:
+                //   «کد رهگیری: 12345678901234 - پست پیشتاز»
+                //   «ارسال با تیپاکس - کد: 1234567890»
+                //   «باربری: چاپار - کد رهگیری: 1234567890123»
+                // We scan ALL order notes (private + customer-visible) for these
+                // patterns and extract any missing fields.
+                $this->extract_shipping_from_order_notes( $order, $info );
+
+                // ─── Phase 3: scan ALL meta keys as a last resort ────────────────
+                // Some Iranian themes store tracking under completely custom keys
+                // (e.g. `_mytheme_tracking`, `_custom_ship_code`). If we still don't
+                // have a tracking_code, scan every meta key on the order for one that
+                // LOOKS like a tracking number (13–20 digits for Iran Post, 10–14 for
+                // Tipax, etc.).
+                if ( '' === $info['tracking_code'] ) {
+                        $this->scan_all_meta_for_tracking_code( $order, $info );
+                }
+
+                // ─── Phase 4: synthesize tracking link from the code ───────────────
+                // If we now have a tracking code but no link, synthesize one for the
+                // known Iranian couriers (Iran Post, Tipax, Chapar).
+                if ( '' === $info['tracking_link'] && '' !== $info['tracking_code'] ) {
+                        $info['tracking_link'] = $this->synthesize_tracking_link(
+                                $info['tracking_code'],
+                                $info['courier_name']
+                        );
+                }
+
                 return $info;
+        }
+
+        /**
+         * Scan WooCommerce order notes for shipping / tracking info.
+         *
+         * Iranian shop admins frequently skip the shipping-plugin UI and just add
+         * a private note like:
+         *   «کد رهگیری: 12345678901234 — پست پیشتاز — تاریخ ارسال: ۱۴۰۳/۰۸/۲۶»
+         *   «ارسال با تیپاکس — کد: 1234»
+         *   «باربری چاپار — کد رهگیری: 1234567890123»
+         *
+         * We look at every note (most recent first) and pull out any missing
+         * field. Notes are an UNRELIABLE source — they may contain partial or
+         * wrong info — so we only fill in fields that are still empty after the
+         * meta-key pass.
+         *
+         * @param \WC_Order $order
+         * @param array     $info  Passed by reference and mutated in place.
+         * @return void
+         */
+        private function extract_shipping_from_order_notes( $order, &$info ) {
+                if ( ! function_exists( 'wc_get_order_notes' ) ) {
+                        // WooCommerce not loaded or older version — bail.
+                        return;
+                }
+
+                $notes = wc_get_order_notes( array(
+                        'order_id' => $order->get_id(),
+                        'limit'    => 50,  // last 50 notes is plenty
+                        'orderby'  => 'date_created',
+                        'order'    => 'DESC',
+                ) );
+
+                if ( empty( $notes ) ) {
+                        return;
+                }
+
+                foreach ( $notes as $note ) {
+                        $content = is_object( $note ) && property_exists( $note, 'content' )
+                                ? (string) $note->content
+                                : '';
+                        if ( '' === $content ) {
+                                continue;
+                        }
+
+                        // Tracking code — look for «کد رهگیری», «کد», «رهگیری»,
+                        // «tracking», «tracking number», etc., followed by a number.
+                        if ( '' === $info['tracking_code'] ) {
+                                $code = $this->extract_tracking_code_from_text( $content );
+                                if ( '' !== $code ) {
+                                        $info['tracking_code'] = $code;
+                                }
+                        }
+
+                        // Courier name — look for «باربری», «پست», «تیپاکس»,
+                        // «چاپار», «پست پیشتاز», «ارسال با», etc.
+                        if ( '' === $info['courier_name'] ) {
+                                $courier = $this->extract_courier_from_text( $content );
+                                if ( '' !== $courier ) {
+                                        $info['courier_name'] = $courier;
+                                }
+                        }
+
+                        // Shipping date — look for «تاریخ ارسال», «ارسال شد»,
+                        // Jalali dates like «۱۴۰۳/۰۸/۲۶» or «۲۶ آبان ۱۴۰۳».
+                        if ( '' === $info['shipping_date'] ) {
+                                $date = $this->extract_shipping_date_from_text( $content );
+                                if ( '' !== $date ) {
+                                        $info['shipping_date'] = $date;
+                                }
+                        }
+
+                        // Tracking link — any URL containing «tracking» or «post.ir»
+                        // or «tipax» or «chapar».
+                        if ( '' === $info['tracking_link'] ) {
+                                $link = $this->extract_tracking_link_from_text( $content );
+                                if ( '' !== $link ) {
+                                        $info['tracking_link'] = $link;
+                                }
+                        }
+
+                        // Stop early once we have all five fields.
+                        if ( '' !== $info['tracking_code']
+                                && '' !== $info['courier_name']
+                                && '' !== $info['shipping_date']
+                                && '' !== $info['tracking_link']
+                                && '' !== $info['shipping_note'] ) {
+                                return;
+                        }
+                }
+
+                // If we found a tracking code in a note but no shipping_note,
+                // store the note content as the shipping_note so the agent can
+                // see the original message the shop admin wrote.
+                if ( '' !== $info['tracking_code'] && '' === $info['shipping_note'] ) {
+                        foreach ( $notes as $note ) {
+                                $content = is_object( $note ) && property_exists( $note, 'content' )
+                                        ? trim( (string) $note->content )
+                                        : '';
+                                if ( '' !== $content && false !== stripos( $content, $info['tracking_code'] ) ) {
+                                        $info['shipping_note'] = mb_substr( $content, 0, 1000 );
+                                        return;
+                                }
+                        }
+                }
+        }
+
+        /**
+         * Extract a tracking number from a free-text note.
+         *
+         * Recognized patterns (case-insensitive):
+         *   «کد رهگیری: 12345678901234»
+         *   «کد: 12345678901234»
+         *   «رهگیری 12345678901234»
+         *   «tracking: 12345678901234»
+         *   «tracking number: 12345678901234»
+         *
+         * Falls back to any standalone 13–20 digit number (Iran Post format),
+         * then 10–14 digit alphanumeric (Tipax format).
+         *
+         * @param string $text
+         * @return string Empty string if nothing matched.
+         */
+        private function extract_tracking_code_from_text( $text ) {
+                $text = $text . ' ';
+
+                // First: explicit «کد رهگیری» / «کد» / «tracking» patterns.
+                $patterns = array(
+                        // Persian: «کد رهگیری», «کد پیگیری», «کد» followed by digits.
+                        '/(?:کد\s*(?:رهگیری|پیگیری|ارسال|مرسوله)?|رهگیری|پیگیری)\s*[:#\-–\u00A0\s]*\s*([0-9\u06F0-\u06F9]{6,24})/iu',
+                        // English: «tracking», «tracking number», «tracking code».
+                        '/(?:tracking\s*(?:number|code|#)?|shipment\s*id)\s*[:#\-–\u00A0\s]*\s*([0-9A-Za-z]{6,30})/iu',
+                );
+                foreach ( $patterns as $pattern ) {
+                        if ( preg_match( $pattern, $text, $m ) && ! empty( $m[1] ) ) {
+                                return $this->normalize_digits( $m[1] );
+                        }
+                }
+
+                // Fallback: any standalone 13–20 digit number (Iran Post format).
+                // We require it to be «standalone» (surrounded by whitespace or
+                // punctuation) so we don't pick up phone numbers or prices.
+                if ( preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\u06F0-\u06F9]{13,20})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m ) ) {
+                        return $this->normalize_digits( $m[1] );
+                }
+
+                // Tipax: 10–14 digit numeric code.
+                if ( preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\u06F0-\u06F9]{10,12})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m ) ) {
+                        // Only accept if the note mentions «tipax» or «تیپاکس» to avoid
+                        // matching phone numbers or order numbers.
+                        if ( preg_match( '/tipax|تیپاکس/iu', $text ) ) {
+                                return $this->normalize_digits( $m[1] );
+                        }
+                }
+
+                return '';
+        }
+
+        /**
+         * Extract a courier / shipping company name from a free-text note.
+         *
+         * Recognized couriers: پست پیشتاز، پست، تیپاکس، چاپار، کریتینو، اسنپ،
+         * الوپست، مبیت، لجنت، etc.
+         *
+         * @param string $text
+         * @return string
+         */
+        private function extract_courier_from_text( $text ) {
+                $text_lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $text ) : strtolower( $text );
+
+                // Build a regex of every known Iranian courier name. Order matters:
+                // longer / more specific names first so «پست پیشتاز» wins over «پست».
+                $couriers = array(
+                        // Persian names
+                        'پست\s*پیشتاز',
+                        'پست\s*ویژه',
+                        'پست\s*سفارشی',
+                        'پست',
+                        'تیپاکس',
+                        'چاپار',
+                        'کریتینو',
+                        'اسنپ\s*(?:اکسپرس|بار)?',
+                        'الوپست',
+                        'مبیت',
+                        'لجنت',
+                        'باربری',
+                        'ارسال\s*با\s*\S+',
+                        // English names (for stores with English order notes)
+                        'tipax',
+                        'chapar',
+                        'iran\s*post',
+                        'post\.ir',
+                );
+                $pattern = '/(?:' . implode( '|', $couriers ) . ')/iu';
+                if ( preg_match( $pattern, $text, $m ) ) {
+                        $name = trim( $m[0] );
+                        // Normalize whitespace.
+                        $name = preg_replace( '/\s+/u', ' ', $name );
+                        return $name;
+                }
+                return '';
+        }
+
+        /**
+         * Extract a shipping date from a free-text note.
+         *
+         * Recognized patterns:
+         *   «۱۴۰۳/۰۸/۲۶»     — Jalali numeric date
+         *   «۲۶ آبان ۱۴۰۳»   — Jalali written date
+         *   «1403/08/26»     — Gregorian numeric date
+         *   «2024-11-16»     — ISO date
+         *
+         * @param string $text
+         * @return string
+         */
+        private function extract_shipping_date_from_text( $text ) {
+                $patterns = array(
+                        // Persian «تاریخ ارسال», «تاریخ» followed by a date.
+                        '/(?:تاریخ\s*(?:ارسال|تحویل|پست|ترخیص)?|ارسال\s*در)\s*[:#\-–\s]*\s*([0-9\u06F0-\u06F9]{4}[\/\-.][0-9\u06F0-\u06F9]{1,2}[\/\-.][0-9\u06F0-\u06F9]{1,2})/iu',
+                        // Jalali written date: «۲۶ آبان ۱۴۰۳»
+                        '/([0-9\u06F0-\u06F9]{1,2}\s+[\x{0600}-\x{06FF}]{2,8}\s+[0-9\u06F0-\u06F9]{4})/u',
+                        // Generic numeric date: «1403/08/26» or «2024-11-16»
+                        '/\b([0-9\u06F0-\u06F9]{4}[\/\-.][0-9\u06F0-\u06F9]{1,2}[\/\-.][0-9\u06F0-\u06F9]{1,2})\b/u',
+                );
+                foreach ( $patterns as $pattern ) {
+                        if ( preg_match( $pattern, $text, $m ) && ! empty( $m[1] ) ) {
+                                return trim( $m[1] );
+                        }
+                }
+                return '';
+        }
+
+        /**
+         * Extract a tracking URL from a free-text note.
+         *
+         * @param string $text
+         * @return string
+         */
+        private function extract_tracking_link_from_text( $text ) {
+                // First: explicit https://... links.
+                if ( preg_match_all( '#https?://[^\s<>\"\']+#i', $text, $matches ) ) {
+                        foreach ( $matches[0] as $url ) {
+                                $url_lower = function_exists( 'mb_strtolower' )
+                                        ? mb_strtolower( $url )
+                                        : strtolower( $url );
+                                if ( false !== strpos( $url_lower, 'tracking' )
+                                        || false !== strpos( $url_lower, 'post.ir' )
+                                        || false !== strpos( $url_lower, 'tipax' )
+                                        || false !== strpos( $url_lower, 'chapar' )
+                                        || false !== strpos( $url_lower, 'tracking.post' ) ) {
+                                        return rtrim( $url, '.,;)' );
+                                }
+                        }
+                }
+                return '';
+        }
+
+        /**
+         * Scan every meta key on the order for one that looks like a tracking code.
+         *
+         * This is a LAST-RESORT fallback for stores that use a custom theme with
+         * non-standard meta keys. We pull every meta key on the order and look
+         * for values that match the Iran Post / Tipax patterns. We accept a value
+         * only if it's 13–20 digits (Iran Post) or 10–14 digit alphanumeric and
+         * the meta key name contains a tracking-like keyword.
+         *
+         * @param \WC_Order $order
+         * @param array     $info  Passed by reference.
+         * @return void
+         */
+        private function scan_all_meta_for_tracking_code( $order, &$info ) {
+                if ( ! method_exists( $order, 'get_meta_data' ) ) {
+                        return;
+                }
+                $meta_data = $order->get_meta_data();
+                if ( ! is_array( $meta_data ) || empty( $meta_data ) ) {
+                        return;
+                }
+
+                // Keyword whitelist: a meta key must contain at least one of these
+                // substrings for us to consider its value as a tracking code.
+                // This prevents us from picking up phone numbers, prices, etc.
+                $key_keywords = array(
+                        'track', 'ship', 'post', 'tipax', 'chapar', 'rahgiri',
+                        'cod', 'consig', 'parcel', 'waybill', 'follow',
+                );
+
+                foreach ( $meta_data as $meta ) {
+                        $key   = is_object( $meta ) && method_exists( $meta, 'get_data' )
+                                ? (string) ( $meta->get_data()['key'] ?? '' )
+                                : (string) ( $meta->key ?? '' );
+                        $value = is_object( $meta ) && method_exists( $meta, 'get_data' )
+                                ? (string) ( $meta->get_data()['value'] ?? '' )
+                                : (string) ( $meta->value ?? '' );
+
+                        if ( '' === $key || '' === $value || ! is_scalar( $value ) ) {
+                                continue;
+                        }
+
+                        $key_lower   = strtolower( $key );
+                        $value_trim  = trim( (string) $value );
+                        $matches_keyword = false;
+                        foreach ( $key_keywords as $kw ) {
+                                if ( false !== strpos( $key_lower, $kw ) ) {
+                                        $matches_keyword = true;
+                                        break;
+                                }
+                        }
+                        if ( ! $matches_keyword ) {
+                                continue;
+                        }
+
+                        // Accept 13–20 digit numeric (Iran Post) or 10–14
+                        // alphanumeric (Tipax-style).
+                        if ( preg_match( '/^[0-9\u06F0-\u06F9]{13,20}$/', $value_trim )
+                                || preg_match( '/^[A-Za-z0-9]{10,14}$/', $value_trim ) ) {
+                                $info['tracking_code'] = $this->normalize_digits( $value_trim );
+                                return;
+                        }
+                }
+        }
+
+        /**
+         * Synthesize a tracking URL for common Iranian couriers.
+         *
+         * @param string $tracking_code
+         * @param string $courier_name
+         * @return string  Empty string if no recognized pattern.
+         */
+        private function synthesize_tracking_link( $tracking_code, $courier_name ) {
+                $code    = trim( (string) $tracking_code );
+                $courier = strtolower( (string) $courier_name );
+
+                // Tipax.
+                if ( false !== strpos( $courier, 'tipax' )
+                        || false !== strpos( $courier, 'تیپاکس' ) ) {
+                        return 'https://www.tipax.ir/Tracking?code=' . rawurlencode( $code );
+                }
+
+                // Chapar.
+                if ( false !== strpos( $courier, 'chapar' )
+                        || false !== strpos( $courier, 'چاپار' ) ) {
+                        return 'https://chapar.ir/track/' . rawurlencode( $code );
+                }
+
+                // Iran Post — 13–20 digit numeric codes.
+                if ( preg_match( '/^[0-9]{13,20}$/', $code ) ) {
+                        return 'https://tracking.post.ir/?id=' . rawurlencode( $code );
+                }
+
+                return '';
+        }
+
+        /**
+         * Convert Persian / Arabic digits in a string to plain ASCII digits.
+         *
+         * @param string $value
+         * @return string
+         */
+        private function normalize_digits( $value ) {
+                $persian = array( '۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹' );
+                $arabic  = array( '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩' );
+                $ascii   = array( '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' );
+                $value   = str_replace( $persian, $ascii, $value );
+                $value   = str_replace( $arabic, $ascii, $value );
+                return $value;
         }
 
         /** Find a tracking number written by common WooCommerce shipment plugins. */
