@@ -834,6 +834,28 @@ class Vigent_Woo_Core {
                         return array();
                 }
 
+                // Defensive guard: OrderRefund objects (returned by wc_get_orders in
+                // some WC versions) don't implement get_order_number(), get_total(),
+                // etc. Calling those methods throws a fatal "Call to undefined method"
+                // error. We bail early with an empty payload — sync_batch also filters
+                // refunds out, but this is the second line of defense in case
+                // order_to_payload is called from another path (e.g. a hook firing on
+                // refund creation).
+                if ( ! ( $order instanceof \WC_Order ) ) {
+                        $this->debug_log( 'order_to_payload SKIP_NON_ORDER', array(
+                                'class' => get_class( $order ),
+                                'id'    => method_exists( $order, 'get_id' ) ? $order->get_id() : 0,
+                        ) );
+                        return array();
+                }
+                if ( 'shop_order_refund' === $order->get_type() ) {
+                        $this->debug_log( 'order_to_payload SKIP_REFUND', array(
+                                'id'     => $order->get_id(),
+                                'parent' => method_exists( $order, 'get_parent_id' ) ? $order->get_parent_id() : 0,
+                        ) );
+                        return array();
+                }
+
                 $line_items = array();
                 foreach ( $order->get_items() as $item ) {
                         // get_product() can return null if the underlying product was
@@ -860,23 +882,38 @@ class Vigent_Woo_Core {
                         );
                 }
 
+                // All order getters are wrapped with method_exists for defensive
+                // coding — some stores use custom order classes that may not implement
+                // every method. We'd rather send an empty string than crash the sync.
                 $first_name    = method_exists( $order, 'get_billing_first_name' ) ? $order->get_billing_first_name() : '';
                 $last_name  = method_exists( $order, 'get_billing_last_name' ) ? $order->get_billing_last_name() : '';
                 $phone      = method_exists( $order, 'get_billing_phone' ) ? $order->get_billing_phone() : '';
                 $email         = method_exists( $order, 'get_billing_email' ) ? $order->get_billing_email() : '';
-                $date_created  = $order->get_date_created();
+                $date_created  = method_exists( $order, 'get_date_created' ) ? $order->get_date_created() : null;
                 $date_modified = method_exists( $order, 'get_date_modified' ) ? $order->get_date_modified() : null;
-                $tracking_code = $this->get_order_tracking_code( $order );
 
+                // Extract shipping info (tracking code, courier, date, link, note)
+                // from the various Iranian shipment plugins. See get_order_shipping_info().
+                $shipping_info = $this->get_order_shipping_info( $order );
+
+                // Backwards-compat: tracking_code is still a top-level field so the
+                // Vigent server (which reads $payload['tracking_code']) keeps working.
+                // New code should read $payload['shipping_info']['tracking_code'].
+                $tracking_code = isset( $shipping_info['tracking_code'] ) ? $shipping_info['tracking_code'] : '';
+
+                // Use method_exists for every getter — get_order_number, get_currency,
+                // get_total, get_customer_id, etc. are all standard WC_Order methods,
+                // but being defensive costs nothing and prevents a single missing
+                // method from crashing the entire batch.
                 return array(
                         'id'                   => $order->get_id(),
-                        'number'               => $order->get_order_number(),
-                        'status'               => $order->get_status(),
-                        'currency'             => $order->get_currency(),
-                        'total'                => $order->get_total(),
-                        'customer_id'          => $order->get_customer_id(),
-                        'payment_method'       => $order->get_payment_method(),
-                        'payment_method_title' => $order->get_payment_method_title(),
+                        'number'               => method_exists( $order, 'get_order_number' ) ? $order->get_order_number() : (string) $order->get_id(),
+                        'status'               => method_exists( $order, 'get_status' ) ? $order->get_status() : '',
+                        'currency'             => method_exists( $order, 'get_currency' ) ? $order->get_currency() : '',
+                        'total'                => method_exists( $order, 'get_total' ) ? $order->get_total() : '',
+                        'customer_id'          => method_exists( $order, 'get_customer_id' ) ? $order->get_customer_id() : 0,
+                        'payment_method'       => method_exists( $order, 'get_payment_method' ) ? $order->get_payment_method() : '',
+                        'payment_method_title' => method_exists( $order, 'get_payment_method_title' ) ? $order->get_payment_method_title() : '',
                         'date_created'         => $date_created ? $date_created->date( 'c' ) : null,
                         'date_created_gmt'     => $date_created ? gmdate( 'c', $date_created->getTimestamp() ) : null,
                         'date_modified'        => $date_modified ? $date_modified->date( 'c' ) : null,
@@ -889,27 +926,198 @@ class Vigent_Woo_Core {
                                 'email'      => $email,
                         ),
                         'shipping'             => ! empty( $shipping_methods ) ? $shipping_methods[0] : array(),
+                        'shipping_info'        => $shipping_info,
                         'line_items'           => $line_items,
                 );
         }
 
-        /** Find a tracking number written by common WooCommerce shipment plugins. */
-        private function get_order_tracking_code( $order ) {
-                foreach ( array( '_tracking_number', '_shipment_tracking_number', 'tracking_number' ) as $key ) {
+        /**
+         * Extract shipping/delivery info from an order.
+         *
+         * Iranian WooCommerce stores use a variety of plugins to record shipment
+         * details. There is no single standard — each plugin stores the data under
+         * a different post meta key. This method checks all known keys and returns
+         * a normalized { tracking_code, courier_name, shipping_date, tracking_link,
+         * shipping_note } object.
+         *
+         * Supported plugins (best-effort, based on publicly documented meta keys):
+         *   • WooCommerce Shipment Tracking (official) — _wc_shipment_tracking_items
+         *   • Persian WooCommerce Shipping — _tracking_code, _shipping_date, ...
+         *   • PWS (Persian WooCommerce) — _pws_tracking_code
+         *   • Custom fields added by Iranian themes (e.g. «اطلاعات ارسال» tab)
+         *
+         * If multiple plugins wrote data, the first non-empty value wins (in the
+         * order the meta keys are listed below).
+         *
+         * @param \WC_Order $order
+         * @return array { tracking_code, courier_name, shipping_date, tracking_link, shipping_note }
+         */
+        private function get_order_shipping_info( $order ) {
+                $info = array(
+                        'tracking_code'  => '',
+                        'courier_name'   => '',
+                        'shipping_date'  => '',
+                        'tracking_link'  => '',
+                        'shipping_note'  => '',
+                );
+
+                if ( ! $order || ! method_exists( $order, 'get_meta' ) ) {
+                        return $info;
+                }
+
+                // ─── Tracking code ────────────────────────────────────────────────
+                // Try every known meta key. The first non-empty, non-zero value wins.
+                $tracking_keys = array(
+                        '_tracking_number',
+                        '_shipment_tracking_number',
+                        'tracking_number',
+                        '_tracking_code',
+                        '_pws_tracking_code',
+                        '_post_tracking_code',
+                        '_postex_tracking_code',
+                        'pa_tracking_code',           // some themes store as attribute
+                );
+                foreach ( $tracking_keys as $key ) {
                         $value = $order->get_meta( $key, true );
                         if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
-                                return trim( (string) $value );
+                                $info['tracking_code'] = trim( (string) $value );
+                                break;
                         }
                 }
 
+                // WooCommerce Shipment Tracking plugin stores tracking as an array of
+                // items under _wc_shipment_tracking_items. Each item has
+                // tracking_number, tracking_provider, date_shipped, tracking_link.
                 $items = $order->get_meta( '_wc_shipment_tracking_items', true );
-                if ( is_array( $items ) ) {
-                        foreach ( $items as $item ) {
-                                if ( is_array( $item ) && ! empty( $item['tracking_number'] ) ) {
-                                        return trim( (string) $item['tracking_number'] );
+                if ( is_array( $items ) && ! empty( $items ) ) {
+                        // Use the FIRST item — the earliest shipment. If the store ships
+                        // in multiple packages, only the first one is synced. This is a
+                        // conscious trade-off: Vigent tracks the order, not individual
+                        // parcels.
+                        $first = reset( $items );
+                        if ( is_array( $first ) ) {
+                                if ( '' === $info['tracking_code'] && ! empty( $first['tracking_number'] ) ) {
+                                        $info['tracking_code'] = trim( (string) $first['tracking_number'] );
+                                }
+                                if ( '' === $info['courier_name'] && ! empty( $first['tracking_provider'] ) ) {
+                                        $info['courier_name'] = trim( (string) $first['tracking_provider'] );
+                                }
+                                if ( '' === $info['shipping_date'] && ! empty( $first['date_shipped'] ) ) {
+                                        $info['shipping_date'] = trim( (string) $first['date_shipped'] );
+                                }
+                                if ( '' === $info['tracking_link'] && ! empty( $first['tracking_link'] ) ) {
+                                        $info['tracking_link'] = trim( (string) $first['tracking_link'] );
                                 }
                         }
                 }
-                return '';
+
+                // ─── Courier / shipping company name ──────────────────────────────
+                // Try meta keys that store the courier name (e.g. «پست پیشتاز», «تیپاکس»).
+                // The shipping method title (from $shipping_methods above) is usually
+                // the same thing, but Iranian plugins often store a richer name in meta.
+                $courier_keys = array(
+                        '_shipping_company',
+                        '_courier_name',
+                        '_pws_courier_name',
+                        '_shipping_courier',
+                        'shipping_company',
+                        '_postex_courier_name',
+                );
+                foreach ( $courier_keys as $key ) {
+                        $value = $order->get_meta( $key, true );
+                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+                                $info['courier_name'] = trim( (string) $value );
+                                break;
+                        }
+                }
+
+                // If the courier name is still empty, fall back to the shipping method
+                // title from the order's shipping line. This is usually localized:
+                // «پست پیشتاز», «ارسال با پست», «تیپاکس», etc.
+                if ( '' === $info['courier_name'] && method_exists( $order, 'get_shipping_methods' ) ) {
+                        $methods = $order->get_shipping_methods();
+                        foreach ( $methods as $shipping ) {
+                                $title = method_exists( $shipping, 'get_method_title' ) ? $shipping->get_method_title() : '';
+                                if ( '' !== trim( (string) $title ) ) {
+                                        $info['courier_name'] = trim( (string) $title );
+                                        break;
+                                }
+                        }
+                }
+
+                // ─── Shipping date ────────────────────────────────────────────────
+                // Iranian plugins store this in Jalali (e.g. «۲۶ آبان ۱۴۰۳») or as a
+                // Gregorian timestamp. We pass it through as-is — the Vigent panel can
+                // format it for display.
+                $date_keys = array(
+                        '_shipping_date',
+                        '_shipment_date',
+                        '_dispatch_date',
+                        '_pws_shipping_date',
+                        'shipping_date',
+                );
+                foreach ( $date_keys as $key ) {
+                        $value = $order->get_meta( $key, true );
+                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+                                $info['shipping_date'] = trim( (string) $value );
+                                break;
+                        }
+                }
+
+                // ─── Tracking link ────────────────────────────────────────────────
+                // Some plugins store a direct tracking URL (e.g. post.ir/?id=...).
+                // If absent, we synthesize one from the tracking code for common
+                // Iranian couriers.
+                $link_keys = array(
+                        '_tracking_link',
+                        '_tracking_url',
+                        '_shipment_tracking_link',
+                        'tracking_link',
+                        '_pws_tracking_link',
+                );
+                foreach ( $link_keys as $key ) {
+                        $value = $order->get_meta( $key, true );
+                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+                                $info['tracking_link'] = trim( (string) $value );
+                                break;
+                        }
+                }
+                // Synthesize a link for پست (Iran Post) if we have a tracking code but
+                // no link. The Post.ir tracking URL format is well-known.
+                if ( '' === $info['tracking_link'] && '' !== $info['tracking_code'] ) {
+                        $tc = $info['tracking_code'];
+                        // Iranian Post tracking codes are 13–20 digits.
+                        if ( preg_match( '/^\d{13,20}$/', $tc ) ) {
+                                $info['tracking_link'] = 'https://tracking.post.ir/?id=' . $tc;
+                        }
+                }
+
+                // ─── Shipping note / extra description ────────────────────────────
+                $note_keys = array(
+                        '_shipping_note',
+                        '_shipment_note',
+                        '_shipping_description',
+                        'shipping_note',
+                        '_delivery_note',
+                );
+                foreach ( $note_keys as $key ) {
+                        $value = $order->get_meta( $key, true );
+                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+                                $info['shipping_note'] = trim( (string) $value );
+                                break;
+                        }
+                }
+
+                return $info;
+        }
+
+        /** Find a tracking number written by common WooCommerce shipment plugins. */
+        private function get_order_tracking_code( $order ) {
+                // Deprecated — kept for backwards compatibility. New code should call
+                // get_order_shipping_info() which returns a richer object. This method
+                // now delegates to get_order_shipping_info so the tracking_code logic
+                // lives in exactly one place.
+                $info = $this->get_order_shipping_info( $order );
+                return $info['tracking_code'];
         }
 }

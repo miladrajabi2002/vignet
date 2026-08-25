@@ -4,7 +4,7 @@ Tags: woocommerce, ai, chatbot, ecommerce, product-sync
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.2.3
+Stable tag: 4.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 رویدادهای صف حذف نمی‌شوند و در اجرای بعد دوباره ارسال خواهند شد. اگر یک تغییر پس از تلاش‌های مکرر همچنان پذیرفته نشود، برای اینکه صف مسدود نماند از صف بیرون گذاشته می‌شود و در صفحهٔ افزونه هشدار می‌بینید؛ یک‌بار «ارسال کامل محصولات» کاتالوگ را دوباره هم‌تراز می‌کند.
 
 == Changelog ==
+
+= 4.2.4 =
+* رفع خطای "Call to undefined method OrderRefund::get_order_number()" با فیلتر کردن سفارش‌های برگشتی (refund) در کوئری ووکامرس
+* افزودن فیلد shipping_info به payload سفارش شامل: کد رهگیری، نام شرکت ارسالی، تاریخ ارسال، لینک پیگیری، توضیحات اضافی
+* پشتیبانی از پلاگین‌های حمل و نقل ایرانی (پست پیشتاز، تیپاکس، پستکس و...) با بررسی تمام متاهای رایج
+* ساخت خودکار لینک پیگیری پست (https://tracking.post.ir/?id=...) برای کدهای رهگیری ۱۳-۲۰ رقمی
+* محافظت کامل order_to_payload با method_exists برای تمام متدها (رفع crash در سفارش‌های خاص)
 
 = 4.2.3 =
 * رفع خطای «Unexpected token '<'» با تشخیص پاسخ HTML از سرور و نمایش متن واقعی خطا در alert
