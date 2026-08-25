@@ -4,7 +4,7 @@ Tags: woocommerce, ai, chatbot, ecommerce, product-sync
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.2.2
+Stable tag: 4.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,14 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 رویدادهای صف حذف نمی‌شوند و در اجرای بعد دوباره ارسال خواهند شد. اگر یک تغییر پس از تلاش‌های مکرر همچنان پذیرفته نشود، برای اینکه صف مسدود نماند از صف بیرون گذاشته می‌شود و در صفحهٔ افزونه هشدار می‌بینید؛ یک‌بار «ارسال کامل محصولات» کاتالوگ را دوباره هم‌تراز می‌کند.
 
 == Changelog ==
+
+= 4.2.3 =
+* رفع خطای «Unexpected token '<'» با تشخیص پاسخ HTML از سرور و نمایش متن واقعی خطا در alert
+* افزودن register_shutdown_function برای ثبت خطاهای Fatal PHP (مثل کمبود حافظه) در لاگ دیباگ
+* افزایش memory_limit به 256M هنگام پردازش بچ همگام‌سازی (برای جلوگیری از کمبود حافظه در فروشگاه‌های بزرگ)
+* افزودن try/catch در ajax_sync_batch برای تشخیص خطاهای داخلی و ثبت stack trace در لاگ
+* نمایش دکمه «مشاهده لاگ» در تمام مراحل (اتصال / ارسال اولیه / مدیریت) — قبلاً فقط در مرحله مدیریت نمایش داده می‌شد
+* محافظت در برابر محصول حذف‌شده هنگام استخراج SKU سفارش (رفع خطای Call to a member function get_sku() on null)
 
 = 4.2.2 =
 * نمایش پیام خطای واقعی (کد HTTP و پاسخ سرور) در هشدار «ارسال کامل نشد» به‌جای پیام عمومی
