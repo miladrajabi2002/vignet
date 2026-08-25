@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند و محصولات و سفارش‌ها را همگام می‌سازد.
- * Version:           4.2.1
+ * Version:           4.2.2
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -17,10 +17,10 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-        exit;
+	exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '4.2.1' );
+define( 'VIGENT_WOO_VERSION', '4.2.2' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -28,18 +28,18 @@ define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
 // ─── بارگذاری کلاس‌ها (با چک امنیتی) ─────────────────────────────────────
 
 $vg_includes = array(
-        __DIR__ . '/includes/class-vigent-woo-core.php',
+	__DIR__ . '/includes/class-vigent-woo-core.php',
 	__DIR__ . '/includes/class-vigent-woo-sync.php',
 	__DIR__ . '/includes/class-vigent-woo-rest.php',
-        __DIR__ . '/includes/class-vigent-woo-admin.php',
-        __DIR__ . '/includes/class-vigent-woo-ajax.php',
-        __DIR__ . '/includes/class-vigent-woo-updater.php',
+	__DIR__ . '/includes/class-vigent-woo-admin.php',
+	__DIR__ . '/includes/class-vigent-woo-ajax.php',
+	__DIR__ . '/includes/class-vigent-woo-updater.php',
 );
 
 foreach ( $vg_includes as $vg_file ) {
-        if ( file_exists( $vg_file ) ) {
-                require_once $vg_file;
-        }
+	if ( file_exists( $vg_file ) ) {
+		require_once $vg_file;
+	}
 }
 
 // ─── فعال‌سازی (ساده و امن) ────────────────────────────────────────────────
@@ -49,21 +49,21 @@ foreach ( $vg_includes as $vg_file ) {
  * cron scheduling به admin_init منتقل شده تا از خطای activation جلوگیری شود.
  */
 function vigent_woo_activate() {
-        // تنظیمات پیش‌فرض.
-        if ( false === get_option( VIGENT_WOO_OPTION ) ) {
-                add_option(
-                        VIGENT_WOO_OPTION,
-                        array(
-                                'webhook_url'    => '',
-                                'webhook_secret' => '',
-                                'sync_products'  => '1',
-                                'sync_orders'    => '1',
-                                'enable_retry'   => '1',
-                        )
-                );
-        }
+	// تنظیمات پیش‌فرض.
+	if ( false === get_option( VIGENT_WOO_OPTION ) ) {
+		add_option(
+			VIGENT_WOO_OPTION,
+			array(
+				'webhook_url'    => '',
+				'webhook_secret' => '',
+				'sync_products'  => '1',
+				'sync_orders'    => '1',
+				'enable_retry'   => '1',
+			)
+		);
+	}
 
-        // صف retry.
+	// صف retry.
 	if ( false === get_option( 'vigent_woo_retry_queue' ) ) {
 		add_option( 'vigent_woo_retry_queue', array(), '', 'no' );
 	}
@@ -73,13 +73,13 @@ function vigent_woo_activate() {
 		add_option( 'vigent_woo_delta_queue', array(), '', 'no' );
 	}
 
-        // پاک‌سازی cron‌های قدیمی (از نسخه‌های قبلی).
-        wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
+	// پاک‌سازی cron‌های قدیمی (از نسخه‌های قبلی).
+	wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
 	wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
 	wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
 	wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
-        wp_clear_scheduled_hook( 'vigent_woo_status_check' );
-        wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
+	wp_clear_scheduled_hook( 'vigent_woo_status_check' );
+	wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
 register_activation_hook( __FILE__, 'vigent_woo_activate' );
 
@@ -87,12 +87,12 @@ register_activation_hook( __FILE__, 'vigent_woo_activate' );
  * Deactivation — پاک‌سازی cron‌ها.
  */
 function vigent_woo_deactivate() {
-        wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
+	wp_clear_scheduled_hook( 'vigent_woo_retry_cron' );
 	wp_clear_scheduled_hook( 'vigent_woo_auto_sync' );
 	wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
 	wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
-        wp_clear_scheduled_hook( 'vigent_woo_status_check' );
-        wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
+	wp_clear_scheduled_hook( 'vigent_woo_status_check' );
+	wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
 }
 register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
 
@@ -100,7 +100,7 @@ register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
  * بارگذاری فایل ترجمه.
  */
 function vigent_woo_load_textdomain() {
-        load_plugin_textdomain( 'vigent-woo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+	load_plugin_textdomain( 'vigent-woo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 }
 add_action( 'plugins_loaded', 'vigent_woo_load_textdomain' );
 
@@ -108,15 +108,15 @@ add_action( 'plugins_loaded', 'vigent_woo_load_textdomain' );
  * اضافه کردن intervalهای سفارشی برای WP-Cron.
  */
 function vigent_woo_cron_schedules( $schedules ) {
-        $schedules['five_minutes'] = array(
-                'interval' => 300,
-                'display'  => __( 'هر ۵ دقیقه', 'vigent-woo' ),
-        );
-        $schedules['twenty_four_hours'] = array(
-                'interval' => DAY_IN_SECONDS, // 86400 ثانیه = ۲۴ ساعت
-                'display'  => __( 'هر ۲۴ ساعت', 'vigent-woo' ),
-        );
-        return $schedules;
+	$schedules['five_minutes'] = array(
+		'interval' => 300,
+		'display'  => __( 'هر ۵ دقیقه', 'vigent-woo' ),
+	);
+	$schedules['twenty_four_hours'] = array(
+		'interval' => DAY_IN_SECONDS, // 86400 ثانیه = ۲۴ ساعت
+		'display'  => __( 'هر ۲۴ ساعت', 'vigent-woo' ),
+	);
+	return $schedules;
 }
 add_filter( 'cron_schedules', 'vigent_woo_cron_schedules' );
 
@@ -134,12 +134,12 @@ function vigent_woo_setup_cron() {
 			wp_schedule_event( time() + 300, 'five_minutes', 'vigent_woo_delta_flush' );
 		}
 	}
-        // بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
-        // این cron فایل info رو از سرور ویجنت می‌خونه و در صورت وجود نسخه جدید،
-        // آن را در transient بروزرسانی‌ها ثبت می‌کنه تا وردپرس بنر آپدیت رو نشون بده.
-        if ( ! wp_next_scheduled( 'vigent_woo_daily_update_check' ) ) {
-                wp_schedule_event( time() + 3600, 'twenty_four_hours', 'vigent_woo_daily_update_check' );
-        }
+	// بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
+	// این cron فایل info رو از سرور ویجنت می‌خونه و در صورت وجود نسخه جدید،
+	// آن را در transient بروزرسانی‌ها ثبت می‌کنه تا وردپرس بنر آپدیت رو نشون بده.
+	if ( ! wp_next_scheduled( 'vigent_woo_daily_update_check' ) ) {
+		wp_schedule_event( time() + 3600, 'twenty_four_hours', 'vigent_woo_daily_update_check' );
+	}
 }
 add_action( 'admin_init', 'vigent_woo_setup_cron' );
 
@@ -157,38 +157,38 @@ add_action( 'admin_init', 'vigent_woo_setup_cron' );
  * به‌صورت شیفته‌شده مهاجرت می‌دهد.
  */
 function vigent_woo_migrate_existing_users() {
-        $migrated = get_option( 'vigent_woo_migrated_4_0_2', false );
-        if ( $migrated ) {
-                return; // فقط یک بار اجرا شود.
-        }
+	$migrated = get_option( 'vigent_woo_migrated_4_0_2', false );
+	if ( $migrated ) {
+		return; // فقط یک بار اجرا شود.
+	}
 
-        $settings = get_option( VIGENT_WOO_OPTION, array() );
-        if ( is_array( $settings ) && ! empty( $settings['webhook_url'] ) && ! empty( $settings['webhook_secret'] ) ) {
-                // این کاربر قبلاً اتصال را برقرار کرده. فرض می‌کنیم push هم انجام شده
-                // تا ویزارد برایش ظاهر نشود.
-                if ( ! get_option( 'vigent_woo_initial_push_done' ) ) {
-                        update_option( 'vigent_woo_initial_push_done', 1 );
-                }
-        }
+	$settings = get_option( VIGENT_WOO_OPTION, array() );
+	if ( is_array( $settings ) && ! empty( $settings['webhook_url'] ) && ! empty( $settings['webhook_secret'] ) ) {
+		// این کاربر قبلاً اتصال را برقرار کرده. فرض می‌کنیم push هم انجام شده
+		// تا ویزارد برایش ظاهر نشود.
+		if ( ! get_option( 'vigent_woo_initial_push_done' ) ) {
+			update_option( 'vigent_woo_initial_push_done', 1 );
+		}
+	}
 
-        // مهاجرت webhook_secret به حالت encrypt‌شده. اگر هنوز با پیشوند 'enc:'
-        // شروع نشده، یعنی plaintext است و باید رمزگذاری شود. این کار از طریق
-        // update_settings انجام می‌شود تا همان مسیر رمزگذاری طی شود.
-        if ( is_array( $settings ) && ! empty( $settings['webhook_secret'] ) ) {
-                if ( 0 !== strpos( $settings['webhook_secret'], 'enc:' ) ) {
-                        // plaintext → باید رمزگذاری شود. Core::update_settings این کار را انجام می‌دهد.
-                        if ( class_exists( 'Vigent_Woo_Core' ) ) {
-                                $core = Vigent_Woo_Core::instance();
-                                // ابتدا secret فعلی (plaintext) را بخوانیم، سپس دوباره ذخیره کنیم
-                                // تا update_settings آن را رمزگذاری کند.
-                                $decrypted = $settings['webhook_secret']; // فعلاً plaintext
-                                $settings['webhook_secret'] = $decrypted;
-                                $core->update_settings( $settings );
-                        }
-                }
-        }
+	// مهاجرت webhook_secret به حالت encrypt‌شده. اگر هنوز با پیشوند 'enc:'
+	// شروع نشده، یعنی plaintext است و باید رمزگذاری شود. این کار از طریق
+	// update_settings انجام می‌شود تا همان مسیر رمزگذاری طی شود.
+	if ( is_array( $settings ) && ! empty( $settings['webhook_secret'] ) ) {
+		if ( 0 !== strpos( $settings['webhook_secret'], 'enc:' ) ) {
+			// plaintext → باید رمزگذاری شود. Core::update_settings این کار را انجام می‌دهد.
+			if ( class_exists( 'Vigent_Woo_Core' ) ) {
+				$core = Vigent_Woo_Core::instance();
+				// ابتدا secret فعلی (plaintext) را بخوانیم، سپس دوباره ذخیره کنیم
+				// تا update_settings آن را رمزگذاری کند.
+				$decrypted = $settings['webhook_secret']; // فعلاً plaintext
+				$settings['webhook_secret'] = $decrypted;
+				$core->update_settings( $settings );
+			}
+		}
+	}
 
-        update_option( 'vigent_woo_migrated_4_0_2', 1 );
+	update_option( 'vigent_woo_migrated_4_0_2', 1 );
 }
 add_action( 'admin_init', 'vigent_woo_migrate_existing_users' );
 
@@ -222,7 +222,7 @@ add_action( 'admin_init', 'vigent_woo_migrate_4_2_0' );
 // ─── راه‌اندازی کلاس‌ها (با چک امنیتی) ─────────────────────────────────────
 
 if ( class_exists( 'Vigent_Woo_Core' ) ) {
-        Vigent_Woo_Core::instance();
+	Vigent_Woo_Core::instance();
 }
 
 if ( class_exists( 'Vigent_Woo_Sync' ) ) {
@@ -237,15 +237,15 @@ if ( class_exists( 'Vigent_Woo_REST' ) ) {
 }
 
 if ( class_exists( 'Vigent_Woo_Admin' ) ) {
-        Vigent_Woo_Admin::instance();
+	Vigent_Woo_Admin::instance();
 }
 
 if ( class_exists( 'Vigent_Woo_Ajax' ) ) {
-        Vigent_Woo_Ajax::instance();
+	Vigent_Woo_Ajax::instance();
 }
 
 // Updater — آپدیت خودکار از طریق سرور ویجنت.
 // نکته: این کلاس باید بعد از بقیه کلاس‌ها لود شود تا VIGENT_WOO_VERSION در دسترس باشد.
 if ( class_exists( 'Vigent_Woo_Updater' ) ) {
-        Vigent_Woo_Updater::instance();
+	Vigent_Woo_Updater::instance();
 }

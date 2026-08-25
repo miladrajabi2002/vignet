@@ -538,11 +538,26 @@ class Vigent_Woo_Sync {
 		$sent   = 0;
 		$errors = array();
 		foreach ( $this->chunk_events_by_budget( $events ) as $chunk ) {
-			$result = $this->core()->send_batch_events( array_values( $chunk ), true );
+			$chunk_events = array_values( $chunk );
+			$result = $this->core()->send_batch_events( $chunk_events, true );
 			if ( ! empty( $result['success'] ) ) {
-				$sent += count( $chunk );
+				$sent += count( $chunk_events );
 			} else {
-				$errors[] = isset( $result['body'] ) ? $result['body'] : __( 'ارسال ناموفق بود.', 'vigent-woo' );
+				// Build a detailed error message so the JS alert + debug log
+				// tell the admin exactly what failed. Without this the alert
+				// was a generic "ارسال ناموفق بود" with no actionable detail.
+				$err_body = isset( $result['body'] ) ? (string) $result['body'] : '';
+				if ( strlen( $err_body ) > 500 ) {
+					$err_body = substr( $err_body, 0, 500 ) . '…';
+				}
+				$http_code = isset( $result['code'] ) ? (int) $result['code'] : 0;
+				/* translators: 1: HTTP code, 2: event count, 3: error body */
+				$errors[] = sprintf(
+					__( 'HTTP %1$s | %2$s رویداد | %3$s', 'vigent-woo' ),
+					$http_code > 0 ? (string) $http_code : '—',
+					count( $chunk_events ),
+					$err_body !== '' ? $err_body : __( 'پاسخی از سرور دریافت نشد.', 'vigent-woo' )
+				);
 			}
 		}
 		return array(
