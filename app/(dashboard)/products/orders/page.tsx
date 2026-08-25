@@ -357,6 +357,45 @@ export default async function OrdersPage({
                       </dd>
                     </div>
                   )}
+                  {(order.courierName || order.shippingDate || order.trackingLink || order.shippingNote) && (
+                    <div className="col-span-2 border-t border-[var(--border-subtle)] pt-3">
+                      <dt className="text-[var(--text-muted)]">{t('shippingInfo', { fallback: 'اطلاعات ارسال' })}</dt>
+                      <dd className="mt-2 space-y-1 text-sm text-[var(--text-primary)]">
+                        {order.courierName && (
+                          <div className="flex gap-2">
+                            <span className="text-[var(--text-muted)]">{t('courier', { fallback: 'نام کالارسان' })}:</span>
+                            <span className="font-medium">{order.courierName}</span>
+                          </div>
+                        )}
+                        {order.shippingDate && (
+                          <div className="flex gap-2">
+                            <span className="text-[var(--text-muted)]">{t('shippingDate', { fallback: 'تاریخ ارسال' })}:</span>
+                            <span className="font-medium">{order.shippingDate}</span>
+                          </div>
+                        )}
+                        {order.trackingLink && (
+                          <div className="flex gap-2">
+                            <span className="text-[var(--text-muted)]">{t('trackingLink', { fallback: 'لینک پیگیری' })}:</span>
+                            <a
+                              href={order.trackingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              dir="ltr"
+                              className="font-medium text-blue-600 hover:underline"
+                            >
+                              {order.trackingLink}
+                            </a>
+                          </div>
+                        )}
+                        {order.shippingNote && (
+                          <div className="flex gap-2">
+                            <span className="text-[var(--text-muted)]">{t('shippingNote', { fallback: 'توضیحات' })}:</span>
+                            <span>{order.shippingNote}</span>
+                          </div>
+                        )}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </article>
             ))}
