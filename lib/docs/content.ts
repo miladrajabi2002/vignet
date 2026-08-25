@@ -376,8 +376,8 @@ const ALL_DOCS: DocPage[] = [
                 blocks: [
                         {
                                 type: 'p',
-                                fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت وب و کانال‌های پیام‌رسان (تلگرام، واتساپ، اینستاگرام، روبیکا، بله) همگی در دسترس هستند.',
-                                en: 'Channels define where your agent talks to customers. The web widget and messaging channels (Telegram, WhatsApp, Instagram, Rubika, Bale) are all available.',
+                                fa: 'کانال‌ها مشخص می‌کنند که ایجنت کجا با مشتریان گفتگو می‌کند. ویجت وب و کانال‌های پیام‌رسان (تلگرام، اینستاگرام، روبیکا و بله) در دسترس هستند.',
+                                en: 'Channels define where your agent talks to customers. The web widget and messaging channels (Telegram, Instagram, Rubika, and Bale) are available.',
                         },
                         { type: 'h2', fa: 'فعال‌سازی ویجت وب', en: 'Enable the web widget' },
                         {
@@ -420,10 +420,6 @@ const ALL_DOCS: DocPage[] = [
                                                 en: 'Telegram & Bale: text replies, suggested-question buttons, typing indicator, inbound & outbound voice',
                                         },
                                         {
-                                                fa: 'واتساپ: پاسخ متنی + دکمه‌های پاسخ سریع (حداکثر ۳ دکمه)',
-                                                en: 'WhatsApp: text replies + quick-reply buttons (max 3)',
-                                        },
-                                        {
                                                 fa: 'اینستاگرام: پاسخ خودکار به دایرکت‌ها با چیپ‌های سؤال پیشنهادی، و پاسخ عمومی خودکار به کامنت پست‌ها و ریلزها',
                                                 en: 'Instagram: auto-replies to DMs with suggested-question chips, plus automatic public replies to post/reel comments',
                                         },
@@ -440,8 +436,8 @@ const ALL_DOCS: DocPage[] = [
                         },
                         {
                                 type: 'p',
-                                fa: 'در تنظیمات هر کانال (کارت کانال ← تنظیمات کانال) می‌توانید تا ۴ سؤال پرتکرار تعریف کنید. این سؤالات زیر پاسخ‌های ایجنت به‌صورت دکمه ظاهر می‌شوند و مشتری با یک لمس آن‌ها را می‌پرسد — بدون تایپ. در واتساپ حداکثر ۳ دکمه با متن حداکثر ۲۰ کاراکتر نمایش داده می‌شود.',
-                                en: 'In each channel\'s settings (channel card → Channel settings) you can define up to 4 common questions. They appear as buttons under the agent\'s replies so customers ask with one tap — no typing. WhatsApp shows at most 3 buttons with 20-character titles.',
+                                fa: 'در تنظیمات هر کانال (کارت کانال ← تنظیمات کانال) می‌توانید تا ۴ سؤال پرتکرار تعریف کنید. این سؤال‌ها زیر پاسخ‌های ایجنت به‌صورت دکمه ظاهر می‌شوند و مشتری با یک لمس آن‌ها را می‌پرسد — بدون تایپ.',
+                                en: 'In each channel\'s settings (channel card → Channel settings) you can define up to 4 common questions. They appear as buttons under the agent\'s replies so customers ask with one tap — no typing.',
                         },
                 ],
         },
@@ -874,7 +870,7 @@ const ALL_DOCS: DocPage[] = [
                 },
                 description: {
                         fa: 'تنظیمات اپ متا برای پلتفرم ویجنت با جریان Instagram Login (Business Login for Instagram): ساخت اپ، افزودن محصول Instagram، App Review، OAuth، وب‌هوک، Data Deletion و واتساپ',
-                        en: 'Meta app configuration for the Vigent platform using the Instagram Login flow (Business Login for Instagram): app creation, Instagram product, App Review, OAuth, webhook, data deletion, WhatsApp',
+                        en: 'Meta app configuration for the Vigent platform using the Instagram Login flow (Business Login for Instagram): app creation, Instagram product, App Review, OAuth, webhook, and data deletion',
                 },
                 blocks: [
                         {
@@ -1125,18 +1121,8 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                         },
                         {
                                 type: 'h2',
-                                fa: '۱۱. واتساپ (WhatsApp Cloud API)',
-                                en: '11. WhatsApp (WhatsApp Cloud API)',
-                        },
-                        {
-                                type: 'p',
-                                fa: 'واتساپ هم چون محصول متا است، از همان اپ استفاده می‌کند. محصول WhatsApp Business API را به اپ اضافه کنید، شماره تلفن config کنید، و permission‌های whatsapp_business_messaging و whatsapp_business_management را App Review بزنید. Redirect URI واتساپ: https://vigent.ir/api/whatsapp/oauth/callback. (واتساپ از Facebook Login با Embedded Signup استفاده می‌کند — این جریان جدا از Instagram Login است.)',
-                                en: 'WhatsApp is also a Meta product, so it uses the same app. Add the WhatsApp Business API product to the app, configure a phone number, and submit whatsapp_business_messaging and whatsapp_business_management for App Review. The WhatsApp redirect URI is https://vigent.ir/api/whatsapp/oauth/callback. (WhatsApp uses Facebook Login with Embedded Signup — this is a separate flow from Instagram Login.)',
-                        },
-                        {
-                                type: 'h2',
-                                fa: '۱۲. تست اتصال',
-                                en: '12. Test the connection',
+                                fa: '۱۱. تست اتصال',
+                                en: '11. Test the connection',
                         },
                         {
                                 type: 'steps',
@@ -1314,8 +1300,8 @@ POST https://graph.instagram.com/v21.0/me/messages`,
                                                 en: 'Web widget: yes, because the visitor’s identity is anonymous and you need a name/phone for follow-up.',
                                         },
                                         {
-                                                fa: 'پیام‌رسان‌ها (تلگرام، بله، روبیکا، واتساپ، اینستاگرام): به‌طور پیش‌فرض خیر، چون پلتفرم هویت کاربر را می‌دهد. در صورت نیاز می‌توانید فعال کنید.',
-                                                en: 'Messengers (Telegram, Bale, Rubika, WhatsApp, Instagram): off by default because the platform already provides the user identity. Enable if you need an explicit phone number.',
+                                                fa: 'پیام‌رسان‌ها (تلگرام، بله، روبیکا و اینستاگرام): به‌طور پیش‌فرض خیر، چون پلتفرم هویت کاربر را می‌دهد. در صورت نیاز می‌توانید فعال کنید.',
+                                                en: 'Messengers (Telegram, Bale, Rubika, and Instagram): off by default because the platform already provides the user identity. Enable if you need an explicit phone number.',
                                         },
                                 ],
                         },

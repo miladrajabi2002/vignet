@@ -58,6 +58,8 @@ export const authConfig = {
         token.platformRole = user.platformRole
         token.phone = user.phone
         token.name = user.name ?? null
+        token.impersonatedByAdmin = user.impersonatedByAdmin === true
+        token.impersonationExpiresAt = user.impersonationExpiresAt
       }
       return token
     },
@@ -67,6 +69,10 @@ export const authConfig = {
         session.user.workspaceId = token.workspaceId as string
         session.user.platformRole = token.platformRole as string
         session.user.phone = token.phone as string
+        session.user.impersonatedByAdmin = token.impersonatedByAdmin === true
+        session.user.impersonationExpiresAt = typeof token.impersonationExpiresAt === 'number'
+          ? token.impersonationExpiresAt
+          : undefined
       }
       return session
     },

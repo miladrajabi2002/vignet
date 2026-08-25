@@ -42,6 +42,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   process.env = { ...originalEnv }
   vi.unstubAllGlobals()
 })
@@ -66,6 +67,29 @@ describe('OTP send observability', () => {
           requestId: 'request-12345678',
         }),
       }),
+    )
+  })
+
+  it('never exposes a generated OTP in production even when the legacy override is enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('LOG_OTP_CODES', 'true')
+    process.env.IPPANEL_PROXY_URL = 'https://sms.example.test/otp'
+    process.env.IPPANEL_PATTERN_CODE = 'pattern'
+    process.env.IPPANEL_FROM_NUMBER = '+983000505'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ meta: { status: true } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ))
+
+    await sendOTP('09123456789', { requestId: 'request-12345678' })
+
+    expect(mocks.persistLog).toHaveBeenCalledWith(
+      'info',
+      'auth:otp:generated',
+      'OTP generated for phone login',
+      expect.objectContaining({ exposeOtpCode: false }),
     )
   })
 

@@ -50,6 +50,8 @@ describe('managed model policy', () => {
 describe('OpenRouter platform wrapper', () => {
   it('enforces privacy, price routing and output caps and captures exact cost', async () => {
     vi.stubEnv('OPENROUTER_API_KEY', 'test-platform-key')
+    // Do not let a developer/production .env override this contract test.
+    vi.stubEnv('OPENROUTER_ZDR', 'true')
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({

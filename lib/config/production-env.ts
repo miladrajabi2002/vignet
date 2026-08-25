@@ -143,6 +143,10 @@ export function validateProductionEnv(env: Env): ProductionEnvReport {
     errors.push('NODE_TLS_REJECT_UNAUTHORIZED: must never be 0 in production')
   }
 
+  if (/^(1|true|yes)$/i.test(value(env, 'LOG_OTP_CODES'))) {
+    errors.push('LOG_OTP_CODES: must be false in production; OTPs must never be written to logs')
+  }
+
   requireGroup(env, errors, 'OTP delivery', [
     ['IPPANEL_PROXY_URL', 'IPPANEL_PROXY_SECRET', 'IPPANEL_PATTERN_CODE', 'IPPANEL_FROM_NUMBER'],
     ['IPPANEL_API_KEY', 'IPPANEL_PATTERN_CODE', 'IPPANEL_FROM_NUMBER'],

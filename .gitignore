@@ -29,6 +29,10 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+.env.bak*
+
+# Retired WhatsApp bridge artifacts (may contain live session credentials)
+/mini-services/whatsapp-bridge/
 
 # prisma generated client
 /lib/generated/prisma

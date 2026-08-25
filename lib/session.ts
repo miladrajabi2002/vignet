@@ -8,6 +8,8 @@ export interface SessionUser {
   platformRole: string
   phone: string
   name?: string | null
+  impersonatedByAdmin?: boolean
+  impersonationExpiresAt?: number
 }
 
 /** Return the current session user, or null if unauthenticated. */
@@ -18,6 +20,12 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await auth()
   if (!session?.user) return null
   const tokenUser = session.user as SessionUser
+  if (
+    tokenUser.impersonatedByAdmin
+    && (!tokenUser.impersonationExpiresAt || tokenUser.impersonationExpiresAt <= Date.now())
+  ) {
+    return null
+  }
 
   // JWT claims describe the login-time snapshot. Re-read the user so deletion,
   // workspace moves and account deletion revoke stale sessions immediately.
@@ -33,7 +41,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   })
   if (!current) return null
 
-  return current
+  return tokenUser.impersonatedByAdmin
+    ? {
+        ...current,
+        impersonatedByAdmin: true,
+        impersonationExpiresAt: tokenUser.impersonationExpiresAt,
+      }
+    : current
 }
 
 /**

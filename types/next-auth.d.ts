@@ -7,6 +7,8 @@ declare module 'next-auth' {
       workspaceId: string
       platformRole: string
       phone: string
+      impersonatedByAdmin?: boolean
+      impersonationExpiresAt?: number
     } & DefaultSession['user']
   }
 
@@ -14,6 +16,8 @@ declare module 'next-auth' {
     workspaceId: string
     platformRole: string
     phone: string
+    impersonatedByAdmin?: boolean
+    impersonationExpiresAt?: number
   }
 }
 
@@ -23,5 +27,7 @@ declare module 'next-auth/jwt' {
     workspaceId: string
     platformRole: string
     phone: string
+    impersonatedByAdmin?: boolean
+    impersonationExpiresAt?: number
   }
 }

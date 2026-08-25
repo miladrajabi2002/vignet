@@ -13,6 +13,9 @@ describe('product request planning', () => {
     expect(planProductRequest('قیمت خدمات موجود رو بفرست', []).isProductTurn).toBe(false)
     const serviceHistory = [user('خدمات موجود رو نشون بده')]
     expect(planProductRequest('۵ تا بفرست', serviceHistory).explicitShowcase).toBe(false)
+    expect(planProductRequest('آیا ارسال به مریخ رایگان است؟ اگر اطلاعات قطعی نداری حدس نزن.', []).isProductTurn).toBe(false)
+    expect(planProductRequest('اگر اطلاعات بیشتری نداری صادقانه بگو', []).isProductTurn).toBe(false)
+    expect(planProductRequest('کوله پشتی دارید؟', []).isProductTurn).toBe(true)
   })
 
   it('extracts a broad product category and honors the 10-card ceiling', () => {

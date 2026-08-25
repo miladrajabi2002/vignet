@@ -82,4 +82,12 @@ describe('production environment gate', () => {
 
     expect(errors).toContain('IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE: missing')
   })
+
+  it('rejects any production configuration that exposes OTP codes in logs', () => {
+    const { errors } = validateProductionEnv({ ...validEnv, LOG_OTP_CODES: 'true' })
+
+    expect(errors).toContain(
+      'LOG_OTP_CODES: must be false in production; OTPs must never be written to logs',
+    )
+  })
 })

@@ -43,8 +43,12 @@ export type OtpAuditContext = {
 }
 
 function shouldExposeOtpCode(): boolean {
-  if (process.env.NODE_ENV !== 'production') return true
-  return /^(1|true|yes)$/i.test(process.env.LOG_OTP_CODES?.trim() ?? '')
+  // Never put a live production login credential in process/admin logs. A
+  // production override used to make troubleshooting convenient, but those
+  // logs are retained and readable well beyond the OTP's lifetime. Local and
+  // test environments still expose the code so passwordless development works
+  // without an SMS provider.
+  return process.env.NODE_ENV !== 'production'
 }
 
 async function recordOtpSent(phone: string, context?: OtpAuditContext): Promise<void> {

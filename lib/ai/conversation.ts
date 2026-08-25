@@ -66,7 +66,11 @@ const ASSISTANT_OFFER_RE = new RegExp(
 const RESET_CONTEXT_RE =
         /(?:بیخیال|بی‌خیال|فراموش|از\s*اول|درخواست\s*جدید|موضوع\s*جدید|ربطی\s*ندار|اشتباه|بدرد\s*نمی|به\s*درد\s*نمی|never\s*mind|forget|start\s*over|new\s*(?:request|topic))/i
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
-const AVAILABLE_RE = /(?:موجود|دار(?:ی|ید|ین|یم|ن)|in\s+stock|available|have)/i
+// Match Persian «دارید/دارین/داری…» as a complete token. The previous loose
+// substring also matched the negated «نداری» in sentences such as «اگر اطلاعات
+// قطعی نداری حدس نزن» and, combined with the word «ارسال», misrouted shipping
+// policy questions into the deterministic product-showcase fallback.
+const AVAILABLE_RE = /(?:موجود|(?:^|[^\p{L}\p{N}_])دار(?:ی|ید|ین|یم|ن)(?:ش)?(?=$|[^\p{L}\p{N}_])|in\s+stock|available|have)/iu
 const ORDER_ONLY_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|ارسال\s*سفارش|order|tracking|shipment)/i
 // Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).

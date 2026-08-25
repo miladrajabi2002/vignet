@@ -6,6 +6,7 @@ import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { MobileNav } from '@/components/dashboard/mobile-nav'
 import { logout } from '@/app/actions/auth'
 import { getVerticalPack, type BusinessTypeValue } from '@/lib/verticals/registry'
+import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
 
 export async function Header({
   name,
@@ -15,6 +16,7 @@ export async function Header({
   creditIRR,
   remainingPercent,
   daysLeft,
+  impersonatedUserName,
 }: {
   name?: string | null
   businessType?: BusinessTypeValue | null
@@ -23,6 +25,7 @@ export async function Header({
   creditIRR: number
   remainingPercent: number
   daysLeft: number | null
+  impersonatedUserName?: string
 }) {
   const [t, locale] = await Promise.all([
     getTranslations('dashboard'),
@@ -43,6 +46,7 @@ export async function Header({
 
   return (
     <header className="dashboard-shell-header sticky top-0 z-30 pt-3">
+      {impersonatedUserName && <ImpersonationBanner userName={impersonatedUserName} />}
       <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-3 rounded-[1.6rem] border border-black/[0.07] bg-white/[0.76] px-3 shadow-[0_10px_34px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/[0.92] sm:px-4 xl:min-h-[5.5rem] xl:rounded-[2rem] xl:px-5">
         <div className="flex min-w-0 items-center gap-3.5 xl:gap-4">
           <MobileNav businessType={businessType} services={services} />

@@ -248,8 +248,6 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 | کانال | اتصال | دریافت | ارسال | Media | Retry | Rate Limit | امنیت | وضعیت |
 |---|---|---|---|---|---|---|---|---|
 | **Instagram** | OAuth سراسری (Instagram Login) + Legacy | ✅ صف پایدار (اصلاح‌شده) | ✅ Split در ۱۹۰۰ کاراکتر، Probe دو Host | ⚠️ تصویر/ویدیو/کاروسل ✅ — **ورودی Media بی‌صدا Drop می‌شود** | ✅ ۳ تلاش + Backoff (اصلاح‌شده) | ⚠️ Per-provider ندارد | ✅ HMAC + State امضاشده | **رفع‌شده، تست‌نشده** |
-| **WhatsApp Cloud** | OAuth (Embedded Signup) + Legacy | ✅ صف پایدار (اصلاح‌شده) | ✅ متن + Split پیام بلند + Quick reply روی بخش نهایی | ❌ عمداً پشتیبانی نمی‌شود | ✅ (اصلاح‌شده) | ⚠️ | ✅ HMAC | **رفع‌شده، تست زنده نشده** |
-| **WhatsApp QR** | Bridge Baileys (`mini-services`) | ✅ صف پایدار (اصلاح‌شده) | ✅ متن + Quick reply شماره‌دار | ❌ | ⚠️ Bridge خودش Retry ندارد | ⚠️ | ✅ Secret اشتراکی Timing-safe | **رفع‌شده، ریسک Bridge** |
 | **Telegram** | Bot token | ✅ صف پایدار (از قبل) | ✅ Split خوانای زیر سقف ۴۰۹۶ + fallback امن HTML | ✅ صوت دوطرفه | ✅ + Timeout | ⚠️ ۱۲۰/دقیقه per-token | ✅ Token تصادفی ۲۴ بایتی | **کامل‌ترین کانال** |
 | **Bale** | Bot token | ✅ صف پایدار | ⚠️ **Markdown خام `**` نمایش می‌دهد** | ✅ صوت | ✅ | ⚠️ | ✅ | تقریباً کامل |
 | **Rubika** | Bot token (API غیررسمی) | ✅ صف پایدار | ⚠️ فقط متن | ❌ **پیام صوتی Parse می‌شود ولی بی‌صدا Drop** | ⚠️ خطای داخل Body 200 تشخیص نمی‌شود | ⚠️ | ✅ | **Stub — باید به مالکان اعلام شود** |
@@ -326,7 +324,7 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 - [ ] **کامیت موج Launch-critical این گزارش Deploy شود** و hash آن در Release ثبت شود
 - [ ] `npx tsc --noEmit` ✅ · `npm run lint` ✅ · `npm test` ✅ · `npm run build` ✅ (همه تأیید شدند)
 - [ ] `npm run check:production-env` روی سرور اجرا شود
-- [ ] `.env` سرور شامل: `REDIS_URL`، `DATABASE_URL`، `OPENROUTER_API_KEY`، `META_APP_SECRET`، `META_APP_VERIFY_TOKEN`، `INSTAGRAM_APP_SECRET`، `ADMIN_OWNER_PHONE`، `ADMIN_PASS`، `ADMIN_TOTP_SECRET`، `ADMIN_SESSION_SECRET`، `AUTH_SECRET`، `TRUST_PROXY_HEADERS=1`، `WHATSAPP_BRIDGE_SECRET` (≥۳۲ کاراکتر)
+- [ ] `.env` سرور شامل: `REDIS_URL`، `DATABASE_URL`، `OPENROUTER_API_KEY`، `META_APP_SECRET`، `META_APP_VERIFY_TOKEN`، `INSTAGRAM_APP_SECRET`، `ADMIN_OWNER_PHONE`، `ADMIN_PASS`، `ADMIN_TOTP_SECRET`، `ADMIN_SESSION_SECRET`، `AUTH_SECRET`، `TRUST_PROXY_HEADERS=1`
 - [ ] `package-lock.json` با `package.json` هم‌خوان باشد (این کار هیچ Dependency جدیدی اضافه نکرده — صفر تغییر در `package.json`)
 - [ ] Backup دستی تأیید شود: `bash deploy/backup.sh` و وجود فایل Dump بررسی شود
 - [ ] **مهم:** با اعمال این نسخه، وبهوک‌های سراسری متا حالا **۵۰۳** برمی‌گردانند اگر ردیس در دسترس نباشد. مطمئن شوید ردیس قبل از Deploy سالم است، وگرنه متا رویدادها را صف می‌کند
@@ -334,7 +332,7 @@ Templateهای نقش، **Prompt عمومی سطحی نیستند**: ۸ Vertical
 ### هنگام Deploy
 - [ ] `bash deploy/deploy.sh` (خودش Backup و Gate سلامت دارد)
 - [ ] هیچ Migration مخربی در این تغییرات وجود ندارد — **صفر Migration جدید** (تغییر ورودی دانش از فیلد `metadata` موجود استفاده می‌کند)
-- [ ] خروجی `pm2 status` بررسی شود: `vignet-web`، `vignet-worker`، `vignet-whatsapp-bridge` هر سه `online`
+- [ ] خروجی `pm2 status` بررسی شود: `vignet-web` و `vignet-worker` هر دو `online`
 - [ ] تأیید شود Worker با `kill_timeout: 60000` جدید بالا آمده (`pm2 describe vignet-worker`)
 
 ### بعد از Deploy

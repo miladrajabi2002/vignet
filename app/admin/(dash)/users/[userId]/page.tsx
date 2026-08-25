@@ -25,6 +25,7 @@ import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { TrendChart, type DailyPoint } from '@/components/admin/trend-chart'
 import { conversationsDailyByWorkspace, paymentsDailyByWorkspace } from '@/lib/admin/charts'
 import { PERSIAN_DATE_LOCALE } from '@/lib/localized-date'
+import { StartImpersonationButton } from '@/components/admin/start-impersonation-button'
 import {
   PageHeader,
   Panel,
@@ -274,6 +275,9 @@ export default async function AdminUserDetailPage(
           { label: 'کاربران', href: '/admin/users' },
           { label: userName },
         ]}
+        action={user.platformRole === 'USER'
+          ? <StartImpersonationButton userId={user.id} />
+          : undefined}
       />
 
       <section className="admin-panel overflow-hidden rounded-[1.6rem]" aria-labelledby="user-journey-title">

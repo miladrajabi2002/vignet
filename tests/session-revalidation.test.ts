@@ -36,4 +36,29 @@ describe('session claim revalidation', () => {
     mocks.findUnique.mockResolvedValue(current)
     await expect(getCurrentUser()).resolves.toEqual(current)
   })
+
+  it('preserves a live impersonation marker while revalidating database identity', async () => {
+    const impersonated = {
+      ...staleAdmin,
+      impersonatedByAdmin: true,
+      impersonationExpiresAt: Date.now() + 60_000,
+    }
+    mocks.auth.mockResolvedValue({ user: impersonated })
+    mocks.findUnique.mockResolvedValue(staleAdmin)
+
+    await expect(getCurrentUser()).resolves.toEqual(impersonated)
+  })
+
+  it('rejects an expired impersonation session before using its tenant identity', async () => {
+    mocks.auth.mockResolvedValue({
+      user: {
+        ...staleAdmin,
+        impersonatedByAdmin: true,
+        impersonationExpiresAt: Date.now() - 1,
+      },
+    })
+
+    await expect(getCurrentUser()).resolves.toBeNull()
+    expect(mocks.findUnique).not.toHaveBeenCalled()
+  })
 })

@@ -151,6 +151,16 @@ else
   sudo systemctl enable --now redis-server
 fi
 
+# BullMQ requires durable queue keys. An LRU policy may silently evict a queued
+# inbound message, retry marker or job lock under memory pressure. Keep Redis
+# fail-loud (`OOM`) instead of losing customer work, and apply the setting on
+# both fresh and already-provisioned servers.
+echo "==> پیکربندی Redis برای صف بدون حذف خودکار کلیدها"
+sudo sed -i -E '/^[[:space:]]*maxmemory-policy[[:space:]]+/d' /etc/redis/redis.conf
+printf '\n# Vigent/BullMQ: never evict queue or idempotency keys.\nmaxmemory-policy noeviction\n' \
+  | sudo tee -a /etc/redis/redis.conf >/dev/null
+sudo systemctl restart redis-server
+
 # ─── Node.js 20 ─────────────────────────────────────────────────────────────
 node_is_supported() {
   local current="$1"

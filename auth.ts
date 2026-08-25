@@ -11,8 +11,10 @@ import { allowOtpVerificationAttempt } from '@/lib/security/otp-attempts'
 import { captureError, persistLog } from '@/lib/errors/capture'
 import { getClientIp } from '@/lib/security/request-ip'
 import { getRequestId } from '@/lib/observability/request-context'
+import { verifyAdminImpersonationGrant } from '@/lib/admin/impersonation'
+import { ADMIN_VISIBLE_USER_WHERE } from '@/lib/admin/reporting-scope'
 
-export const { handlers, auth, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   logger: {
     error(error) {
@@ -21,6 +23,40 @@ export const { handlers, auth, signOut } = NextAuth({
     },
   },
   providers: [
+    Credentials({
+      id: 'admin-impersonation',
+      name: 'admin-impersonation',
+      credentials: {
+        grant: { label: 'Grant', type: 'text' },
+      },
+      async authorize(credentials) {
+        const grant = verifyAdminImpersonationGrant(String(credentials?.grant ?? ''))
+        if (!grant) return null
+
+        const user = await prisma.user.findFirst({
+          where: {
+            ...ADMIN_VISIBLE_USER_WHERE,
+            id: grant.userId,
+            workspaceId: grant.workspaceId,
+            platformRole: 'USER',
+          },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            workspaceId: true,
+            platformRole: true,
+          },
+        })
+        if (!user) return null
+
+        return {
+          ...user,
+          impersonatedByAdmin: true,
+          impersonationExpiresAt: grant.sessionExpiresAt,
+        }
+      },
+    }),
     Credentials({
       name: 'phone-otp',
       credentials: {

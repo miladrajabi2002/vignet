@@ -12,6 +12,7 @@ import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-not
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
+import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -60,6 +61,13 @@ export default async function DashboardLayout({
         hasKnowledge={state.checks.hasKnowledge}
         hasChannel={state.checks.hasChannel}
       >
+        {user.impersonatedByAdmin && (
+          <div className="px-3 pt-3 sm:px-5">
+            <div className="mx-auto max-w-6xl">
+              <ImpersonationBanner userName={user.name ?? user.phone} />
+            </div>
+          </div>
+        )}
         {children}
       </OnboardingShell>
       </ScopedIntlProvider>
@@ -100,6 +108,7 @@ export default async function DashboardLayout({
           creditIRR={workspace?.aiCreditBalanceIRR ?? 0}
           remainingPercent={remainingPercent}
           daysLeft={daysLeft}
+          impersonatedUserName={user.impersonatedByAdmin ? (user.name ?? user.phone) : undefined}
         />
         {accessExpired && (
           <div className="dashboard-shell-content mt-3">
