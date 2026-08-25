@@ -1294,6 +1294,14 @@ model StoreOrder {
   paymentMethod   String?
   shippingMethod  String?
   trackingCode    String?
+  // ─── Shipping / delivery info (v4.2.4+) ────────────────────────────
+  // Populated from the WooCommerce plugin's shipping_info object, which
+  // aggregates meta keys from Iranian shipment plugins (PWS, Postex,
+  // WooCommerce Shipment Tracking, custom theme fields).
+  courierName     String?   // e.g. «پست پیشتاز», «تیپاکس»
+  shippingDate    String?   // Jalali or Gregorian, passed through as-is
+  trackingLink    String?   // e.g. https://tracking.post.ir/?id=1234567890123
+  shippingNote    String?   @db.Text // extra description from the store
   // ISO date strings from the store
   orderDate       DateTime?
   updatedAt       DateTime?

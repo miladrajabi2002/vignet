@@ -75,6 +75,16 @@ interface WooOrder {
     email?: string
   }
   shipping?: { method_title?: string }
+  // v4.2.4+ — the plugin sends a richer shipping_info object aggregating
+  // meta keys from Iranian shipment plugins (PWS, Postex, WC Shipment
+  // Tracking, custom theme fields). Older plugins only send tracking_code.
+  shipping_info?: {
+    tracking_code?: string
+    courier_name?: string
+    shipping_date?: string
+    tracking_link?: string
+    shipping_note?: string
+  }
   line_items?: {
     name?: string
     quantity?: number
@@ -637,6 +647,16 @@ async function upsertOrderFromWoo(
   const byEmail = byPhone ? null : await findContactByEmail(integration.workspaceId, customerEmail)
   const { summary, count: itemCount } = summarizeItems(order.line_items ?? [])
   const orderDate = parseDate(order.date_created_gmt, true) ?? parseDate(order.date_created)
+
+  // Extract shipping info. Prefer the v4.2.4+ shipping_info object; fall
+  // back to the legacy top-level tracking_code for older plugins.
+  const si = order.shipping_info ?? {}
+  const trackingCode = (si.tracking_code ?? (order.tracking_code == null ? '' : String(order.tracking_code))).trim() || null
+  const courierName = (si.courier_name ?? '').trim() || order.shipping?.method_title?.trim() || null
+  const shippingDate = (si.shipping_date ?? '').trim() || null
+  const trackingLink = (si.tracking_link ?? '').trim() || null
+  const shippingNote = (si.shipping_note ?? '').trim() || null
+
   const data = {
     contactId: byPhone?.id ?? byEmail?.id ?? null,
     customerName: customerName || null,
@@ -649,7 +669,11 @@ async function upsertOrderFromWoo(
     itemsSummary: summary || null,
     paymentMethod: order.payment_method_title || order.payment_method || null,
     shippingMethod: order.shipping?.method_title || null,
-    trackingCode: order.tracking_code == null ? null : String(order.tracking_code).trim() || null,
+    trackingCode,
+    courierName,
+    shippingDate,
+    trackingLink,
+    shippingNote,
     orderDate,
     updatedAt: incomingUpdatedAt ?? new Date(),
   }
