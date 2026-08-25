@@ -72,6 +72,13 @@ const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موج
 // policy questions into the deterministic product-showcase fallback.
 const AVAILABLE_RE = /(?:موجود|(?:^|[^\p{L}\p{N}_])دار(?:ی|ید|ین|یم|ن)(?:ش)?(?=$|[^\p{L}\p{N}_])|in\s+stock|available|have)/iu
 const ORDER_ONLY_RE = /(?:سفارش|پیگیری|رهگیری|مرسوله|ارسال\s*سفارش|order|tracking|shipment)/i
+// Shipping/payment/warranty questions belong to policy knowledge, not the
+// product showcase planner. In particular «ارسال رایگان دارید؟» previously
+// combined SHOWCASE_COMMAND_RE's «ارسال» with AVAILABLE_RE's «دارید» and
+// returned the deterministic "catalog disabled" reply instead of answering
+// the customer's policy question.
+const BUSINESS_POLICY_RE =
+        /(?:ارسال\s*رایگان|هزینه\s*ارسال|شرایط\s*ارسال|محدوده\s*ارسال|شهر(?:های)?\s*تحت\s*پوشش|زمان\s*تحویل|گارانتی|ضمانت|مرجوعی|بازگشت\s*وجه|روش\s*پرداخت|پرداخت\s*قسط|فاکتور|ساعت\s*کاری|free\s*shipping|shipping\s*(?:cost|policy|coverage)|delivery\s*time|warranty|returns?\s*policy|refund|payment\s*method|invoice|business\s*hours)/i
 // Bare «وقت» would match the greeting «وقت بخیر», so it only counts with a
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
 const SERVICE_ONLY_RE =
@@ -186,6 +193,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const normalized = normalizePersianText(message)
         const resetRequested = RESET_CONTEXT_RE.test(normalized)
         const orderOnly = ORDER_ONLY_RE.test(normalized)
+        const policyOnly = BUSINESS_POLICY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
@@ -193,7 +201,9 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // queries, but are not product intent when the user explicitly asks
         // about services, appointments or bookings.
         const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
-        const directProductSignal = productKeywordSignal || (!serviceOnly && AVAILABLE_RE.test(normalized))
+        const directProductSignal = !policyOnly && (
+                productKeywordSignal || (!serviceOnly && AVAILABLE_RE.test(normalized))
+        )
 
         let priorProductTerms: string[] = []
         // A prior browse turn ("what do you have?") counts as product context
@@ -244,7 +254,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 showcaseCommand &&
                 (priorProductTerms.length > 0 || (priorProductSignal && currentTerms.length === 0))
         const explicitShowcase =
-                !orderOnly && !serviceOnly && (
+                !orderOnly && !serviceOnly && !policyOnly && (
                         (showcaseCommand && directProductSignal) ||
                         showcaseFromContext ||
                         affirmativeFollowUp
@@ -254,7 +264,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const requestNewTopic =
                 resetRequested && !explicitShowcase && !browseQuery && !directProductSignal
         const isProductTurn =
-                !requestNewTopic && !orderOnly && !serviceOnly &&
+                !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly &&
                 (directProductSignal || browseQuery || explicitShowcase)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.

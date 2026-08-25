@@ -55,4 +55,17 @@ describe('business-specific role templates', () => {
     expect(appointments.qaPairs.map((pair) => pair.question).join(' ')).toContain('نوبت')
     expect(appointments.qaPairs.map((pair) => pair.question).join(' ')).not.toContain('کیف')
   })
+
+  it('keeps recommended example answers to at most one follow-up question', () => {
+    for (const businessType of BUSINESS_TYPES) {
+      const template = getRoleTemplatesForBusiness(businessType)[0]!
+      for (const pair of template.config.qaPairs) {
+        const questionMarks = pair.answer.match(/[؟?]/g)?.length ?? 0
+        expect(
+          questionMarks,
+          `${businessType} example asks too many questions: ${pair.answer}`,
+        ).toBeLessThanOrEqual(1)
+      }
+    }
+  })
 })

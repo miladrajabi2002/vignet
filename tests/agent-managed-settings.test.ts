@@ -17,7 +17,7 @@ const source = (file: string) => readFileSync(path.join(process.cwd(), file), 'u
 describe('managed agent generation settings', () => {
   it('uses one bounded reply profile for customer-facing agents', () => {
     expect(AGENT_MAX_RESPONSE_TOKENS).toBe(600)
-    expect(AGENT_RESPONSE_TEMPERATURE).toBe(0.55)
+    expect(AGENT_RESPONSE_TEMPERATURE).toBe(0.3)
   })
 
   it('strips legacy client overrides from the agent API contract', () => {

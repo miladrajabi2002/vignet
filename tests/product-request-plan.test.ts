@@ -14,6 +14,9 @@ describe('product request planning', () => {
     const serviceHistory = [user('خدمات موجود رو نشون بده')]
     expect(planProductRequest('۵ تا بفرست', serviceHistory).explicitShowcase).toBe(false)
     expect(planProductRequest('آیا ارسال به مریخ رایگان است؟ اگر اطلاعات قطعی نداری حدس نزن.', []).isProductTurn).toBe(false)
+    expect(planProductRequest('آیا ارسال رایگان دارید و به چه شهرهایی ارسال می‌کنید؟', []).isProductTurn).toBe(false)
+    expect(planProductRequest('گارانتی و شرایط مرجوعی دارید؟', []).isProductTurn).toBe(false)
+    expect(planProductRequest('هزینه ارسال و روش پرداخت را بگو', []).explicitShowcase).toBe(false)
     expect(planProductRequest('اگر اطلاعات بیشتری نداری صادقانه بگو', []).isProductTurn).toBe(false)
     expect(planProductRequest('کوله پشتی دارید؟', []).isProductTurn).toBe(true)
   })
