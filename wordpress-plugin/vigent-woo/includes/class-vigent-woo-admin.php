@@ -278,27 +278,110 @@ class Vigent_Woo_Admin {
                         // an Error whose .message is a localized, human-readable description
                         // (including the raw response text so the admin can see exactly what
                         // the server returned).
+                        //
+                        // The error object carries a `.transient` boolean flag so callers
+                        // can decide whether to retry. HTML/empty/network errors are
+                        // transient (the WordPress host is temporarily down — DB connection
+                        // error, server restart, etc.) and usually recover within seconds.
+                        // JSON errors (success:false with a message) are NOT transient —
+                        // retrying won't help.
                         function vgAjax(formData) {
                                 return fetch(window.VG.ajaxUrl, { method: 'POST', body: formData })
                                         .then(function(r) {
+                                                // Network-level failure (server unreachable, DNS failure,
+                                                // CORS). fetch() rejects with a TypeError — we catch it
+                                                // below and flag it as transient.
+                                                if (!r.ok && r.status === 0) {
+                                                        var err = new Error('<?php echo esc_js( __( "خطای شبکه — سرور در دسترس نیست.", "vigent-woo" ) ); ?>');
+                                                        err.transient = true;
+                                                        throw err;
+                                                }
                                                 return r.text().then(function(text) {
                                                         var trimmed = text ? text.trim() : '';
                                                         if (trimmed === '') {
-                                                                throw new Error('<?php echo esc_js( __( "پاسخ خالی از سرور دریافت شد. احتمالاً خطای زمان اجرای PHP (مثل کمبود حافظه) رخ داده. لاگ دیباگ افزونه را ببینید.", "vigent-woo" ) ); ?>');
+                                                                var emptyErr = new Error('<?php echo esc_js( __( "پاسخ خالی از سرور دریافت شد. احتمالاً خطای زمان اجرای PHP (مثل کمبود حافظه) رخ داده.", "vigent-woo" ) ); ?>');
+                                                                emptyErr.transient = true;
+                                                                throw emptyErr;
                                                         }
                                                         if (trimmed.charAt(0) === '<') {
                                                                 // HTML response — strip tags and keep the first 500 chars.
                                                                 var stripped = trimmed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
                                                                 if (stripped.length > 500) stripped = stripped.substring(0, 500) + '…';
-                                                                throw new Error('<?php echo esc_js( __( "سرور پاسخ HTML (نه JSON) برگرداند — احتمالاً خطای PHP:", "vigent-woo" ) ); ?>\n' + stripped);
+                                                                var htmlErr = new Error('<?php echo esc_js( __( "سرور پاسخ HTML (نه JSON) برگرداند — احتمالاً خطای PHP:", "vigent-woo" ) ); ?>\n' + stripped);
+                                                                // HTML errors (DB connection error, 500, fatal error) are
+                                                                // transient — the WordPress host usually recovers within
+                                                                // a few seconds. Flag for retry.
+                                                                htmlErr.transient = true;
+                                                                throw htmlErr;
                                                         }
                                                         try {
                                                                 return JSON.parse(trimmed);
                                                         } catch (e) {
-                                                                throw new Error('<?php echo esc_js( __( "پاسخ نامعتبر از سرور:", "vigent-woo" ) ); ?>\n' + trimmed.substring(0, 500));
+                                                                var jsonErr = new Error('<?php echo esc_js( __( "پاسخ نامعتبر از سرور:", "vigent-woo" ) ); ?>\n' + trimmed.substring(0, 500));
+                                                                jsonErr.transient = false;
+                                                                throw jsonErr;
                                                         }
                                                 });
+                                        })
+                                        .catch(function(err) {
+                                                // fetch() rejects with TypeError on network failures. Mark
+                                                // these as transient so vgAjaxWithRetry will retry them.
+                                                if (err && !err.transient && err instanceof TypeError) {
+                                                        err.transient = true;
+                                                }
+                                                throw err;
                                         });
+                        }
+
+                        // ─── AJAX helper with retry ────────────────────────────────────
+                        // Wraps vgAjax with automatic retry for transient failures.
+                        // When the WordPress host returns HTML (DB connection error, 500,
+                        // server restart) or is unreachable, we retry up to `maxRetries`
+                        // times with `delayMs` between attempts. This is essential for
+                        // stores on shared hosting where the MySQL server briefly drops
+                        // connections under load — the error self-heals within seconds,
+                        // but without retry the entire sync batch fails and the user has
+                        // to restart manually.
+                        //
+                        // JSON responses (success or error) are NEVER retried — only
+                        // transport-level failures (HTML, empty, network) qualify.
+                        function vgAjaxWithRetry(formData, options) {
+                                options = options || {};
+                                var maxRetries = options.maxRetries || 5;
+                                var delayMs    = options.delayMs || 1500;
+                                var attempt    = 0;
+
+                                function attemptOnce() {
+                                        return vgAjax(formData).then(
+                                                function(data) {
+                                                        // Success — return the parsed data immediately.
+                                                        return data;
+                                                },
+                                                function(err) {
+                                                        // Only retry transient errors (HTML/empty/network).
+                                                        // JSON parse failures and real server errors are
+                                                        // not retried.
+                                                        if (err && err.transient && attempt < maxRetries) {
+                                                                attempt++;
+                                                                // Update the progress info so the user sees we're
+                                                                // retrying, not frozen.
+                                                                var pInfo = document.getElementById('vg-pinfo');
+                                                                if (pInfo) {
+                                                                        var retryNote = '<?php echo esc_js( __( "خطای موقت سرور — تلاش مجدد", "vigent-woo" ) ); ?> ' + attempt + '/' + maxRetries + '…';
+                                                                        pInfo.innerHTML = '<span>' + retryNote + '</span><span style="color:#f59e0b;">⚠</span>';
+                                                                }
+                                                                // Wait delayMs, then retry the SAME request.
+                                                                return new Promise(function(resolve) {
+                                                                        setTimeout(resolve, delayMs);
+                                                                }).then(attemptOnce);
+                                                        }
+                                                        // Non-transient error, or retries exhausted → throw.
+                                                        throw err;
+                                                }
+                                        );
+                                }
+
+                                return attemptOnce();
                         }
 
                         // ─── Step 1: Connect to Vigent ──────────────────────────────
@@ -390,7 +473,7 @@ class Vigent_Woo_Admin {
                                 body.append('kind', kind);
                                 body.append('offset', offset);
 
-                                vgAjax(body)
+                                vgAjaxWithRetry(body)
                                         .then(function(data) {
                                                 if (!data.success) {
                                                         cb(totalSent, totalErrors + 1, false, (data.data && data.data.message) ? data.data.message : '<?php echo esc_js( __( "ارسال ناموفق بود.", "vigent-woo" ) ); ?>');
@@ -493,7 +576,7 @@ class Vigent_Woo_Admin {
                                         body.append('offset', offset);
                                         body.append('filter', JSON.stringify(filter));
 
-                                        vgAjax(body)
+                                        vgAjaxWithRetry(body)
                                                 .then(function(data) {
                                                         if (!data.success) {
                                                                 finish(false, data.data && data.data.message ? data.data.message : '<?php echo esc_js( __( 'ارسال ناموفق بود.', 'vigent-woo' ) ); ?>');

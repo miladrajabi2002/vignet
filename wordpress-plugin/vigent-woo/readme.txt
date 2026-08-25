@@ -4,7 +4,7 @@ Tags: woocommerce, ai, chatbot, ecommerce, product-sync
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.2.4
+Stable tag: 4.2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,11 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 رویدادهای صف حذف نمی‌شوند و در اجرای بعد دوباره ارسال خواهند شد. اگر یک تغییر پس از تلاش‌های مکرر همچنان پذیرفته نشود، برای اینکه صف مسدود نماند از صف بیرون گذاشته می‌شود و در صفحهٔ افزونه هشدار می‌بینید؛ یک‌بار «ارسال کامل محصولات» کاتالوگ را دوباره هم‌تراز می‌کند.
 
 == Changelog ==
+
+= 4.2.5 =
+* تلاش مجدد خودکار (Retry) تا ۵ بار با تأخیر ۱.۵ ثانیه برای خطاهای موقت سرور (خطای دیتابیس، 500، قطع لحظه‌ای شبکه)
+* نمایش وضعیت تلاش مجدد در نوار پیشرفت (مثلاً «خطای موقت سرور — تلاش مجدد ۲/۵…»)
+* تشخیص خودکار خطاهای موقت (HTML/خالی/شبکه) از خطاهای دائمی (JSON error) — فقط خطاهای موقت retry می‌شوند
 
 = 4.2.4 =
 * رفع خطای "Call to undefined method OrderRefund::get_order_number()" با فیلتر کردن سفارش‌های برگشتی (refund) در کوئری ووکامرس
