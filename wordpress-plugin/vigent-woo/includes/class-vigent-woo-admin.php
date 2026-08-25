@@ -486,13 +486,13 @@ class Vigent_Woo_Admin {
                                                 if (pBar) pBar.style.width = pct + '%';
                                                 if (pText) pText.textContent = pct + '%';
                                                 // When syncing orders, show a hint that we only sync the most recent 1000 orders.
-								// The plugin caps the count at MAX_ORDERS_TO_SYNC (1000), so if
-								// d.total === 1000 the store likely has more orders than the cap.
-								var capNote = '';
-								if (kind === 'orders' && d.total >= 1000) {
-									capNote = ' · فقط آخرین ۱۰۰۰ سفارش';
-								}
-								if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
+                                                                // The plugin caps the count at MAX_ORDERS_TO_SYNC (1000), so if
+                                                                // d.total === 1000 the store likely has more orders than the cap.
+                                                                var capNote = '';
+                                                                if (kind === 'orders' && d.total >= 1000) {
+                                                                        capNote = ' · فقط آخرین ۱۰۰۰ سفارش';
+                                                                }
+                                                                if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
                                                 if (d.errors && d.errors.length) {
                                                         cb(totalSent, totalErrors, false, d.errors[0]);
                                                 } else if (d.done) {
@@ -1344,7 +1344,26 @@ class Vigent_Woo_Admin {
                         </div>
                         <div class="vg-stat">
                                 <div class="num"><?php echo $has_wc ? esc_html( $this->count_orders_safe() ) : '—'; ?></div>
-                                <div class="lbl"><?php esc_html_e( 'سفارش‌ها', 'vigent-woo' ); ?></div>
+                                <div class="lbl"><?php esc_html_e( 'کل سفارش‌ها', 'vigent-woo' ); ?></div>
+                                <?php
+                                        $total_orders   = $has_wc ? $this->count_orders_safe() : 0;
+                                        $syncable_orders = $has_wc ? $this->count_syncable_orders() : 0;
+                                        $cap_orders     = defined( 'Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC' )
+                                                ? (int) Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC
+                                                : 1000;
+                                        if ( $has_wc && $total_orders > $syncable_orders ) :
+                                ?>
+                                        <div class="sub" style="margin-top:4px;font-size:11px;color:#6b7280;">
+                                                <?php
+                                                echo esc_html( sprintf(
+                                                        /* translators: 1: number of orders that will be sent, 2: cap (1000) */
+                                                        __( 'فقط %1$s سفارش آخر ارسال می‌شود (حداکثر %2$s)', 'vigent-woo' ),
+                                                        number_format_i18n( $syncable_orders ),
+                                                        number_format_i18n( $cap_orders )
+                                                ) );
+                                                ?>
+                                        </div>
+                                <?php endif; ?>
                         </div>
                         <div class="vg-stat">
                                 <div class="num" id="vg-queue-count"><?php echo esc_html( (int) $delta['queue_count'] ); ?></div>
@@ -1391,7 +1410,34 @@ class Vigent_Woo_Admin {
                 if ( ! $this->core()->has_wc() ) {
                         return 0;
                 }
-                $result = wc_get_orders( array( 'limit' => 1, 'page' => 1, 'paginate' => true, 'return' => 'ids' ) );
+                // Only count real orders, not refunds. Without type=shop_order the
+                // count includes shop_order_refund posts, inflating the number.
+                $result = wc_get_orders( array(
+                        'limit'    => 1,
+                        'page'     => 1,
+                        'paginate' => true,
+                        'return'   => 'ids',
+                        'type'     => 'shop_order',
+                ) );
                 return is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
+        }
+
+        /**
+         * Number of orders that will actually be sent during a full sync.
+         *
+         * The plugin caps full-sync to MAX_ORDERS_TO_SYNC (1000) most-recent
+         * orders — older orders are skipped because they are rarely useful for
+         * Vigent's order-tracking use case. We display this cap explicitly so
+         * the shop owner understands why only 1000 of their 3000 orders will be
+         * sent.
+         *
+         * @return int
+         */
+        private function count_syncable_orders() {
+                $total = $this->count_orders_safe();
+                $cap   = defined( 'Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC' )
+                        ? (int) Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC
+                        : 1000;
+                return min( $total, $cap );
         }
 }

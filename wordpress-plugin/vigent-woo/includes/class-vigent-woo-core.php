@@ -1273,7 +1273,15 @@ class Vigent_Woo_Core {
                                         ? trim( (string) $note->content )
                                         : '';
                                 if ( '' !== $content && false !== stripos( $content, $info['tracking_code'] ) ) {
-                                        $info['shipping_note'] = mb_substr( $content, 0, 1000 );
+                                        // Use function_exists for mb_substr — some shared hosts
+                                        // (especially Iranian ones) ship PHP without the mbstring
+                                        // extension, and calling mb_substr() when it's not loaded
+                                        // throws a fatal error that crashes the entire sync batch.
+                                        if ( function_exists( 'mb_substr' ) ) {
+                                                $info['shipping_note'] = mb_substr( $content, 0, 1000 );
+                                        } else {
+                                                $info['shipping_note'] = substr( $content, 0, 1000 );
+                                        }
                                         return;
                                 }
                         }
@@ -1302,12 +1310,14 @@ class Vigent_Woo_Core {
                 // First: explicit «کد رهگیری» / «کد» / «tracking» patterns.
                 $patterns = array(
                         // Persian: «کد رهگیری», «کد پیگیری», «کد» followed by digits.
-                        '/(?:کد\s*(?:رهگیری|پیگیری|ارسال|مرسوله)?|رهگیری|پیگیری)\s*[:#\-–\u00A0\s]*\s*([0-9\u06F0-\u06F9]{6,24})/iu',
+                        '/(?:کد\s*(?:رهگیری|پیگیری|ارسال|مرسوله)?|رهگیری|پیگیری)\s*[:#\-–\x{00A0}\s]*\s*([0-9\x{06F0}-\x{06F9}]{6,24})/iu',
                         // English: «tracking», «tracking number», «tracking code».
-                        '/(?:tracking\s*(?:number|code|#)?|shipment\s*id)\s*[:#\-–\u00A0\s]*\s*([0-9A-Za-z]{6,30})/iu',
+                        '/(?:tracking\s*(?:number|code|#)?|shipment\s*id)\s*[:#\-–\x{00A0}\s]*\s*([0-9A-Za-z]{6,30})/iu',
                 );
                 foreach ( $patterns as $pattern ) {
-                        if ( preg_match( $pattern, $text, $m ) && ! empty( $m[1] ) ) {
+                        // Suppress warnings — see comment in extract_courier_from_text().
+                        $matched = @preg_match( $pattern, $text, $m );
+                        if ( $matched && ! empty( $m[1] ) ) {
                                 return $this->normalize_digits( $m[1] );
                         }
                 }
@@ -1315,15 +1325,18 @@ class Vigent_Woo_Core {
                 // Fallback: any standalone 13–20 digit number (Iran Post format).
                 // We require it to be «standalone» (surrounded by whitespace or
                 // punctuation) so we don't pick up phone numbers or prices.
-                if ( preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\u06F0-\u06F9]{13,20})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m ) ) {
+                $matched = @preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\x{06F0}-\x{06F9}]{13,20})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m );
+                if ( $matched && ! empty( $m[1] ) ) {
                         return $this->normalize_digits( $m[1] );
                 }
 
                 // Tipax: 10–14 digit numeric code.
-                if ( preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\u06F0-\u06F9]{10,12})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m ) ) {
+                $matched = @preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\x{06F0}-\x{06F9}]{10,12})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m );
+                if ( $matched && ! empty( $m[1] ) ) {
                         // Only accept if the note mentions «tipax» or «تیپاکس» to avoid
                         // matching phone numbers or order numbers.
-                        if ( preg_match( '/tipax|تیپاکس/iu', $text ) ) {
+                        $tipax_match = @preg_match( '/tipax|تیپاکس/iu', $text );
+                        if ( $tipax_match ) {
                                 return $this->normalize_digits( $m[1] );
                         }
                 }
@@ -1345,12 +1358,17 @@ class Vigent_Woo_Core {
 
                 // Build a regex of every known Iranian courier name. Order matters:
                 // longer / more specific names first so «پست پیشتاز» wins over «پست».
+                //
+                // IMPORTANT: We DO NOT include «باربری» as a standalone courier — many
+                // Iranian notes mention «باربری» generically (e.g. «باربری چاپار»,
+                // «باربری: تیپاکس») without it being the actual courier name. We only
+                // match it when followed by another known courier name (handled by
+                // the `باربری\s+(?:...)` pattern below).
                 $couriers = array(
-                        // Persian names
+                        // Persian names — longer / more specific first.
                         'پست\s*پیشتاز',
                         'پست\s*ویژه',
                         'پست\s*سفارشی',
-                        'پست',
                         'تیپاکس',
                         'چاپار',
                         'کریتینو',
@@ -1358,19 +1376,42 @@ class Vigent_Woo_Core {
                         'الوپست',
                         'مبیت',
                         'لجنت',
-                        'باربری',
-                        'ارسال\s*با\s*\S+',
+                        // «باربری X» pattern — match "باربری تیپاکس" etc. but only
+                        // capture the courier name, not «باربری» itself.
+                        'باربری\s+(تیپاکس|چاپار|پست(?:\s*پیشتاز|\s*ویژه|\s*سفارشی)?)',
+                        // «ارسال با X» — match "ارسال با تیپاکس" etc.
+                        'ارسال\s*با\s+(تیپاکس|چاپار|پست(?:\s*پیشتاز|\s*ویژه|\s*سفارشی)?|کریتینو|اسنپ(?:\s*اکسپرس|\s*بار)?|الوپست|مبیت|لجنت)',
                         // English names (for stores with English order notes)
                         'tipax',
                         'chapar',
                         'iran\s*post',
                         'post\.ir',
                 );
+                // Build alternation. Capture group is the courier name when there's
+                // a «باربری X» or «ارسال با X» pattern, otherwise the whole match.
                 $pattern = '/(?:' . implode( '|', $couriers ) . ')/iu';
-                if ( preg_match( $pattern, $text, $m ) ) {
-                        $name = trim( $m[0] );
+                // Suppress warnings — see comment in extract_courier_from_text() above.
+                $matched = @preg_match( $pattern, $text, $m );
+                if ( $matched && ! empty( $m[0] ) ) {
+                        // If we have a capture group (e.g. «باربری تیپاکس» → «تیپاکس»),
+                        // use it. Otherwise use the whole match.
+                        $name = '';
+                        for ( $i = 1; $i < count( $m ); $i++ ) {
+                                if ( ! empty( $m[ $i ] ) ) {
+                                        $name = $m[ $i ];
+                                        break;
+                                }
+                        }
+                        if ( '' === $name ) {
+                                $name = $m[0];
+                        }
+                        $name = trim( $name );
                         // Normalize whitespace.
                         $name = preg_replace( '/\s+/u', ' ', $name );
+                        if ( null === $name ) {
+                                // preg_replace returned null — PCRE Unicode issue.
+                                $name = preg_replace( '/\s+/', ' ', $m[0] );
+                        }
                         return $name;
                 }
                 return '';
@@ -1391,14 +1432,16 @@ class Vigent_Woo_Core {
         private function extract_shipping_date_from_text( $text ) {
                 $patterns = array(
                         // Persian «تاریخ ارسال», «تاریخ» followed by a date.
-                        '/(?:تاریخ\s*(?:ارسال|تحویل|پست|ترخیص)?|ارسال\s*در)\s*[:#\-–\s]*\s*([0-9\u06F0-\u06F9]{4}[\/\-.][0-9\u06F0-\u06F9]{1,2}[\/\-.][0-9\u06F0-\u06F9]{1,2})/iu',
+                        '/(?:تاریخ\s*(?:ارسال|تحویل|پست|ترخیص)?|ارسال\s*در)\s*[:#\-–\s]*\s*([0-9\x{06F0}-\x{06F9}]{4}[\/\-.][0-9\x{06F0}-\x{06F9}]{1,2}[\/\-.][0-9\x{06F0}-\x{06F9}]{1,2})/iu',
                         // Jalali written date: «۲۶ آبان ۱۴۰۳»
-                        '/([0-9\u06F0-\u06F9]{1,2}\s+[\x{0600}-\x{06FF}]{2,8}\s+[0-9\u06F0-\u06F9]{4})/u',
+                        '/([0-9\x{06F0}-\x{06F9}]{1,2}\s+[\x{0600}-\x{06FF}]{2,8}\s+[0-9\x{06F0}-\x{06F9}]{4})/u',
                         // Generic numeric date: «1403/08/26» or «2024-11-16»
-                        '/\b([0-9\u06F0-\u06F9]{4}[\/\-.][0-9\u06F0-\u06F9]{1,2}[\/\-.][0-9\u06F0-\u06F9]{1,2})\b/u',
+                        '/\b([0-9\x{06F0}-\x{06F9}]{4}[\/\-.][0-9\x{06F0}-\x{06F9}]{1,2}[\/\-.][0-9\x{06F0}-\x{06F9}]{1,2})\b/u',
                 );
                 foreach ( $patterns as $pattern ) {
-                        if ( preg_match( $pattern, $text, $m ) && ! empty( $m[1] ) ) {
+                        // Suppress warnings — see comment in extract_courier_from_text().
+                        $matched = @preg_match( $pattern, $text, $m );
+                        if ( $matched && ! empty( $m[1] ) ) {
                                 return trim( $m[1] );
                         }
                 }
@@ -1486,9 +1529,11 @@ class Vigent_Woo_Core {
                         }
 
                         // Accept 13–20 digit numeric (Iran Post) or 10–14
-                        // alphanumeric (Tipax-style).
-                        if ( preg_match( '/^[0-9\u06F0-\u06F9]{13,20}$/', $value_trim )
-                                || preg_match( '/^[A-Za-z0-9]{10,14}$/', $value_trim ) ) {
+                        // alphanumeric (Tipax-style). Use @ to suppress any PCRE
+                        // warning on hosts without Unicode support.
+                        $is_post_code    = @preg_match( '/^[0-9\x{06F0}-\x{06F9}]{13,20}$/', $value_trim );
+                        $is_tipax_code   = @preg_match( '/^[A-Za-z0-9]{10,14}$/', $value_trim );
+                        if ( $is_post_code || $is_tipax_code ) {
                                 $info['tracking_code'] = $this->normalize_digits( $value_trim );
                                 return;
                         }
