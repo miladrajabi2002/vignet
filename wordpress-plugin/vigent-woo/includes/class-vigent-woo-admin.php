@@ -421,39 +421,89 @@ class Vigent_Woo_Admin {
 
                                 var includeOrders = document.getElementById('vg-include-orders');
                                 includeOrders = includeOrders ? includeOrders.checked : false;
+                                var includeCustomers = document.getElementById('vg-include-customers');
+                                includeCustomers = includeCustomers ? includeCustomers.checked : false;
 
                                 // Show progress section.
                                 var progress = document.getElementById('vg-push-progress');
                                 if (progress) progress.style.display = 'block';
 
+                                // Compute the visible step count so the finalize dot shows
+                                // the right number. Products is always step 1. If orders is
+                                // included it becomes step 2 (and customers step 3, finalize 4).
+                                // If orders is skipped but customers is included, customers
+                                // becomes step 2 and finalize step 3.
+                                var visibleSteps = 1; // products
+                                if (includeOrders) visibleSteps++;
+                                if (includeCustomers) visibleSteps++;
+                                var finalizeStepNum = visibleSteps + 1;
+
                                 // Reset step indicators.
                                 vgSetStep('products', 'active');
-                                if (includeOrders) {
-                                        var stepOrders = document.getElementById('vg-step-orders');
-                                        if (stepOrders) stepOrders.style.display = 'inline-flex';
-                                        var stepOrdersLine = document.getElementById('vg-step-orders-line');
-                                        if (stepOrdersLine) stepOrdersLine.style.display = 'block';
-                                        var finalizeDot = document.getElementById('vg-step-finalize-dot');
-                                        if (finalizeDot) finalizeDot.textContent = '3';
-                                } else {
-                                        var stepOrdersLine = document.getElementById('vg-step-orders-line');
-                                        if (stepOrdersLine) stepOrdersLine.style.display = 'none';
-                                        var finalizeDot = document.getElementById('vg-step-finalize-dot');
-                                        if (finalizeDot) finalizeDot.textContent = '2';
-                                }
 
-                                // Chain: products → orders → finalize.
+                                // Toggle orders step visibility.
+                                var stepOrders = document.getElementById('vg-step-orders');
+                                var stepOrdersLine = document.getElementById('vg-step-orders-line');
+                                if (stepOrders) stepOrders.style.display = includeOrders ? 'inline-flex' : 'none';
+                                if (stepOrdersLine) stepOrdersLine.style.display = includeOrders ? 'block' : 'none';
+
+                                // Toggle customers step visibility.
+                                var stepCustomers = document.getElementById('vg-step-customers');
+                                var stepCustomersLine = document.getElementById('vg-step-customers-line');
+                                if (stepCustomers) stepCustomers.style.display = includeCustomers ? 'inline-flex' : 'none';
+                                if (stepCustomersLine) stepCustomersLine.style.display = includeCustomers ? 'block' : 'none';
+
+                                // Renumber the visible step dots.
+                                // Products is always "1". Orders (if visible) is "2".
+                                // Customers (if visible) is the next number after orders.
+                                // Finalize is the last number.
+                                var ordersDot = stepOrders ? stepOrders.querySelector('.dot') : null;
+                                var customersDot = stepCustomers ? stepCustomers.querySelector('.dot') : null;
+                                var finalizeDot = document.getElementById('vg-step-finalize-dot');
+                                var nextNum = 2;
+                                if (includeOrders) {
+                                        if (ordersDot) ordersDot.textContent = String(nextNum);
+                                        nextNum++;
+                                }
+                                if (includeCustomers) {
+                                        if (customersDot) customersDot.textContent = String(nextNum);
+                                        nextNum++;
+                                }
+                                if (finalizeDot) finalizeDot.textContent = String(nextNum);
+
+                                // Chain: products → orders → customers → finalize.
+                                // Each step's callback invokes the next step only if the
+                                // corresponding "include" checkbox is checked.
                                 vgPushKind('products', 0, 0, 0, function(totalProducts, productErrors, complete, errorMsg) {
                                         if (!complete) { vgAbortPush(btn, orig, errorMsg); return; }
                                         vgSetStep('products', 'done');
                                         vgSetStepLabel('products', window.VG.i18n.productSent + ' (' + totalProducts + ')');
                                         if (includeOrders) {
                                                 vgSetStep('orders', 'active');
-                                        vgPushKind('orders', 0, 0, 0, function(totalOrders, orderErrors, ordersComplete, ordersErrorMsg) {
-                                                if (!ordersComplete) { vgAbortPush(btn, orig, ordersErrorMsg); return; }
+                                                vgPushKind('orders', 0, 0, 0, function(totalOrders, orderErrors, ordersComplete, ordersErrorMsg) {
+                                                        if (!ordersComplete) { vgAbortPush(btn, orig, ordersErrorMsg); return; }
                                                         vgSetStep('orders', 'done');
                                                         vgSetStepLabel('orders', window.VG.i18n.ordersSent + ' (' + totalOrders + ')');
-                                                        vgFinalize(btn, orig, totalProducts, productErrors, totalOrders, orderErrors);
+                                                        if (includeCustomers) {
+                                                                vgSetStep('customers', 'active');
+                                                                vgPushKind('customers', 0, 0, 0, function(totalCustomers, customerErrors, customersComplete, customersErrorMsg) {
+                                                                        if (!customersComplete) { vgAbortPush(btn, orig, customersErrorMsg); return; }
+                                                                        vgSetStep('customers', 'done');
+                                                                        vgSetStepLabel('customers', '<?php echo esc_js( __( "مشتری‌ها ارسال شد", "vigent-woo" ) ); ?>' + ' (' + totalCustomers + ')');
+                                                                        vgFinalize(btn, orig, totalProducts, productErrors, totalOrders, orderErrors);
+                                                                }, btn, orig);
+                                                        } else {
+                                                                vgFinalize(btn, orig, totalProducts, productErrors, totalOrders, orderErrors);
+                                                        }
+                                                }, btn, orig);
+                                        } else if (includeCustomers) {
+                                                // Orders skipped — go straight to customers.
+                                                vgSetStep('customers', 'active');
+                                                vgPushKind('customers', 0, 0, 0, function(totalCustomers, customerErrors, customersComplete, customersErrorMsg) {
+                                                        if (!customersComplete) { vgAbortPush(btn, orig, customersErrorMsg); return; }
+                                                        vgSetStep('customers', 'done');
+                                                        vgSetStepLabel('customers', '<?php echo esc_js( __( "مشتری‌ها ارسال شد", "vigent-woo" ) ); ?>' + ' (' + totalCustomers + ')');
+                                                        vgFinalize(btn, orig, totalProducts, productErrors, 0, []);
                                                 }, btn, orig);
                                         } else {
                                                 vgFinalize(btn, orig, totalProducts, productErrors, 0, []);
@@ -461,7 +511,7 @@ class Vigent_Woo_Admin {
                                 }, btn, orig);
                         }
 
-                        // Push one kind (products|orders) in batches of 50.
+                        // Push one kind (products|orders|customers) in batches of 50.
                         function vgPushKind(kind, offset, totalSent, totalErrors, cb, btn, orig) {
                                 var pBar = document.getElementById('vg-pbar');
                                 var pText = document.getElementById('vg-ptext');
@@ -485,14 +535,16 @@ class Vigent_Woo_Admin {
                                                 var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 50) / d.total) * 100)) : 100;
                                                 if (pBar) pBar.style.width = pct + '%';
                                                 if (pText) pText.textContent = pct + '%';
-                                                // When syncing orders, show a hint that we only sync the most recent 1000 orders.
-                                                                // The plugin caps the count at MAX_ORDERS_TO_SYNC (1000), so if
-                                                                // d.total === 1000 the store likely has more orders than the cap.
-                                                                var capNote = '';
-                                                                if (kind === 'orders' && d.total >= 1000) {
-                                                                        capNote = ' · فقط آخرین ۱۰۰۰ سفارش';
-                                                                }
-                                                                if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
+                                                // When syncing orders or customers, show a hint that we
+                                                // only sync the most recent 1000 records. The plugin caps
+                                                // the count at MAX_ORDERS_TO_SYNC (1000), so if
+                                                // d.total === 1000 the store likely has more records than
+                                                // the cap.
+                                                var capNote = '';
+                                                if ((kind === 'orders' || kind === 'customers') && d.total >= 1000) {
+                                                        capNote = kind === 'orders' ? ' · فقط آخرین ۱۰۰۰ سفارش' : ' · فقط آخرین ۱۰۰۰ مشتری';
+                                                }
+                                                if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
                                                 if (d.errors && d.errors.length) {
                                                         cb(totalSent, totalErrors, false, d.errors[0]);
                                                 } else if (d.done) {
@@ -662,12 +714,14 @@ class Vigent_Woo_Admin {
 
                                 var syncProducts = document.getElementById('sync_products') ? document.getElementById('sync_products').checked : false;
                                 var syncOrders = document.getElementById('sync_orders') ? document.getElementById('sync_orders').checked : false;
+                                var syncCustomers = document.getElementById('sync_customers') ? document.getElementById('sync_customers').checked : false;
 
                                 var body = new FormData();
                                 body.append('action', 'vigent_woo_save_toggles');
                                 body.append('nonce', window.VG.nonce);
                                 body.append('sync_products', syncProducts ? '1' : '0');
                                 body.append('sync_orders', syncOrders ? '1' : '0');
+                                body.append('sync_customers', syncCustomers ? '1' : '0');
 
                                 fetch(window.VG.ajaxUrl, { method: 'POST', body: body })
                                         .then(function(r) { return r.json(); })
@@ -919,26 +973,57 @@ class Vigent_Woo_Admin {
                         // ─── Sync the wizard-step indicators with the "include orders"
                         // checkbox state. When the user toggles the checkbox, we hide/show
                         // the orders step + its connector line, and renumber the finalize
-                        // dot (3 when orders is on, 2 when off). This keeps the visual
-                        // indicator in sync with what will actually happen on submit.
+                        // dot. This keeps the visual indicator in sync with what will
+                        // actually happen on submit.
+                        //
+                        // Customers step follows the same pattern: when its checkbox is
+                        // toggled, its pill + line are shown/hidden, and the finalize
+                        // dot is renumbered to reflect the visible step count.
                         function vgSyncWizardSteps() {
-                                var cb = document.getElementById('vg-include-orders');
-                                if (!cb) return;
-                                var includeOrders = cb.checked;
+                                var cbOrders = document.getElementById('vg-include-orders');
+                                var cbCustomers = document.getElementById('vg-include-customers');
+                                var includeOrders = cbOrders ? cbOrders.checked : false;
+                                var includeCustomers = cbCustomers ? cbCustomers.checked : false;
+
+                                // Toggle orders step visibility.
                                 var stepOrders = document.getElementById('vg-step-orders');
                                 var stepOrdersLine = document.getElementById('vg-step-orders-line');
-                                var finalizeDot = document.getElementById('vg-step-finalize-dot');
                                 if (stepOrders) stepOrders.style.display = includeOrders ? 'inline-flex' : 'none';
                                 if (stepOrdersLine) stepOrdersLine.style.display = includeOrders ? 'block' : 'none';
-                                if (finalizeDot) finalizeDot.textContent = includeOrders ? '3' : '2';
+
+                                // Toggle customers step visibility.
+                                var stepCustomers = document.getElementById('vg-step-customers');
+                                var stepCustomersLine = document.getElementById('vg-step-customers-line');
+                                if (stepCustomers) stepCustomers.style.display = includeCustomers ? 'inline-flex' : 'none';
+                                if (stepCustomersLine) stepCustomersLine.style.display = includeCustomers ? 'block' : 'none';
+
+                                // Renumber dots: products=1, then orders (if visible),
+                                // then customers (if visible), then finalize.
+                                var ordersDot = stepOrders ? stepOrders.querySelector('.dot') : null;
+                                var customersDot = stepCustomers ? stepCustomers.querySelector('.dot') : null;
+                                var finalizeDot = document.getElementById('vg-step-finalize-dot');
+                                var nextNum = 2;
+                                if (includeOrders) {
+                                        if (ordersDot) ordersDot.textContent = String(nextNum);
+                                        nextNum++;
+                                }
+                                if (includeCustomers) {
+                                        if (customersDot) customersDot.textContent = String(nextNum);
+                                        nextNum++;
+                                }
+                                if (finalizeDot) finalizeDot.textContent = String(nextNum);
                         }
                         document.addEventListener('DOMContentLoaded', function() {
-                                var cb = document.getElementById('vg-include-orders');
-                                if (cb) {
-                                        cb.addEventListener('change', vgSyncWizardSteps);
-                                        // Run once on load to make sure the initial state matches.
-                                        vgSyncWizardSteps();
+                                var cbOrders = document.getElementById('vg-include-orders');
+                                var cbCustomers = document.getElementById('vg-include-customers');
+                                if (cbOrders) {
+                                        cbOrders.addEventListener('change', vgSyncWizardSteps);
                                 }
+                                if (cbCustomers) {
+                                        cbCustomers.addEventListener('change', vgSyncWizardSteps);
+                                }
+                                // Run once on load to make sure the initial state matches.
+                                vgSyncWizardSteps();
                         });
 
                         // ─── Refresh header status (pill + last-check) ────────────
@@ -1225,7 +1310,7 @@ class Vigent_Woo_Admin {
 
                         <?php if ( $has_wc ) : ?>
                                 <!-- Optional: include orders in this initial push -->
-                                <label class="vg-toggle" style="max-width:420px;margin:0 auto 24px;">
+                                <label class="vg-toggle" style="max-width:420px;margin:0 auto 12px;">
                                         <input type="checkbox" id="vg-include-orders" checked />
                                         <div>
                                                 <div class="label"><?php esc_html_e( 'همچنین سفارش‌ها را هم ارسال کن', 'vigent-woo' ); ?></div>
@@ -1233,12 +1318,21 @@ class Vigent_Woo_Admin {
                                         </div>
                                 </label>
 
+                                <!-- Optional: include customers in this initial push -->
+                                <label class="vg-toggle" style="max-width:420px;margin:0 auto 24px;">
+                                        <input type="checkbox" id="vg-include-customers" checked />
+                                        <div>
+                                                <div class="label"><?php esc_html_e( 'همچنین مشتری‌ها را هم ارسال کن', 'vigent-woo' ); ?></div>
+                                                <div class="sub"><?php esc_html_e( 'اطلاعات تماس مشتریان (نام، تلفن، ایمیل، شهر) برای پشتیبانی و شناخت مشتری ارسال می‌شود.', 'vigent-woo' ); ?></div>
+                                        </div>
+                                </label>
+
                                 <!-- Step indicators — horizontal pill row:
-                                     "(1) محصولات ── (2) سفارش‌ها ── (3) نهایی‌سازی"
-                                     The orders step is hidden until the user toggles the
-                                     "include orders" checkbox. The dot (number) sits on
-                                     the LEFT of the label inside each pill, separated by
-                                     a thin line between pills. -->
+                                     "(1) محصولات ── (2) سفارش‌ها ── (3) مشتری‌ها ── (4) نهایی‌سازی"
+                                     The orders / customers steps are hidden until the user
+                                     toggles the corresponding "include" checkbox. The dot
+                                     (number) sits on the LEFT of the label inside each pill,
+                                     separated by a thin line between pills. -->
                                 <div class="vg-wizard-steps">
                                         <div class="vg-wizard-step active" id="vg-step-products">
                                                 <span class="dot">1</span>
@@ -1250,8 +1344,13 @@ class Vigent_Woo_Admin {
                                                 <span id="vg-step-orders-label"><?php esc_html_e( 'سفارش‌ها', 'vigent-woo' ); ?></span>
                                         </div>
                                         <div class="vg-wizard-line" id="vg-step-orders-line" style="display:none;"></div>
+                                        <div class="vg-wizard-step" id="vg-step-customers" style="display:none;">
+                                                <span class="dot">3</span>
+                                                <span id="vg-step-customers-label"><?php esc_html_e( 'مشتری‌ها', 'vigent-woo' ); ?></span>
+                                        </div>
+                                        <div class="vg-wizard-line" id="vg-step-customers-line" style="display:none;"></div>
                                         <div class="vg-wizard-step" id="vg-step-finalize">
-                                                <span class="dot" id="vg-step-finalize-dot"><?php echo $has_wc ? '3' : '2'; ?></span>
+                                                <span class="dot" id="vg-step-finalize-dot"><?php echo $has_wc ? '4' : '2'; ?></span>
                                                 <span id="vg-step-finalize-label"><?php esc_html_e( 'نهایی‌سازی', 'vigent-woo' ); ?></span>
                                         </div>
                                 </div>
@@ -1366,6 +1465,10 @@ class Vigent_Woo_Admin {
                                 <?php endif; ?>
                         </div>
                         <div class="vg-stat">
+                                <div class="num"><?php echo $has_wc ? esc_html( $this->count_customers_safe() ) : '—'; ?></div>
+                                <div class="lbl"><?php esc_html_e( 'مشتری‌ها', 'vigent-woo' ); ?></div>
+                        </div>
+                        <div class="vg-stat">
                                 <div class="num" id="vg-queue-count"><?php echo esc_html( (int) $delta['queue_count'] ); ?></div>
                                 <div class="lbl"><?php esc_html_e( 'تغییر در صف', 'vigent-woo' ); ?></div>
                         </div>
@@ -1388,6 +1491,14 @@ class Vigent_Woo_Admin {
                                 <div>
                                         <div class="label"><?php esc_html_e( 'ارسال سفارش‌ها برای پیگیری', 'vigent-woo' ); ?></div>
                                         <div class="sub"><?php esc_html_e( 'ایجاد و تغییر وضعیت سفارش برای پشتیبانی ارسال می‌شود؛ امکان ثبت سفارش ایجاد نمی‌کند.', 'vigent-woo' ); ?></div>
+                                </div>
+                        </label>
+
+                        <label class="vg-toggle <?php echo $has_wc ? '' : 'off'; ?>">
+                                <input type="checkbox" id="sync_customers" <?php checked( $settings['sync_customers'], '1' ); ?> <?php disabled( ! $has_wc ); ?> />
+                                <div>
+                                        <div class="label"><?php esc_html_e( 'ارسال مشتری‌ها برای پشتیبانی', 'vigent-woo' ); ?></div>
+                                        <div class="sub"><?php esc_html_e( 'اطلاعات تماس مشتریان (نام، تلفن، ایمیل، شهر) به‌صورت خودکار ارسال می‌شود تا ایجنت بتواند مشتریان را بشناسد و سوالاتشان را پاسخ دهد.', 'vigent-woo' ); ?></div>
                                 </div>
                         </label>
 
@@ -1420,6 +1531,27 @@ class Vigent_Woo_Admin {
                         'type'     => 'shop_order',
                 ) );
                 return is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
+        }
+
+        /**
+         * Count WooCommerce customers (WP users with role=customer).
+         *
+         * Uses WP_User_Query because it's available on every WordPress install
+         * and gives us a fast indexed count.
+         *
+         * @return int
+         */
+        private function count_customers_safe() {
+                if ( ! $this->core()->has_wc() ) {
+                        return 0;
+                }
+                $q = new \WP_User_Query( array(
+                        'role'       => 'customer',
+                        'number'     => 1,
+                        'fields'     => 'ID',
+                        'count_total' => true,
+                ) );
+                return (int) $q->get_total();
         }
 
         /**

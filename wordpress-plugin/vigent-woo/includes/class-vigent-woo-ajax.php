@@ -240,7 +240,7 @@ class Vigent_Woo_Ajax {
                 if ( ! is_array( $filter ) ) {
                         $filter = array();
                 }
-                if ( ! in_array( $kind, array( 'products', 'orders' ), true ) ) {
+                if ( ! in_array( $kind, array( 'products', 'orders', 'customers' ), true ) ) {
                         wp_send_json_error( array( 'message' => __( 'نوع نامعتبر.', 'vigent-woo' ) ) );
                 }
 
@@ -343,8 +343,9 @@ class Vigent_Woo_Ajax {
                         wp_send_json_error( array( 'message' => __( 'لطفاً کمی بعد دوباره تلاش کنید.', 'vigent-woo' ) ), 429 );
                 }
                 $s = $this->core()->get_settings();
-                $s['sync_products'] = ! empty( $_POST['sync_products'] ) ? '1' : '';
-                $s['sync_orders']   = ! empty( $_POST['sync_orders'] ) ? '1' : '';
+                $s['sync_products']  = ! empty( $_POST['sync_products'] ) ? '1' : '';
+                $s['sync_orders']    = ! empty( $_POST['sync_orders'] ) ? '1' : '';
+                $s['sync_customers'] = ! empty( $_POST['sync_customers'] ) ? '1' : '';
                 $this->core()->update_settings( $s );
                 wp_send_json_success( array( 'message' => __( 'ذخیره شد.', 'vigent-woo' ) ) );
         }

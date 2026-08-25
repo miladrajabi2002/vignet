@@ -93,6 +93,33 @@ interface WooOrder {
   }[]
 }
 
+/**
+ * WooCommerce customer payload sent by the v4.2.9+ plugin.
+ *
+ * Mirrors Vigent_Woo_Core::customer_to_payload() in the WordPress plugin.
+ * Every field is optional except `id` and at least one of `email`/`phone`
+ * (the plugin drops customers with neither before sending).
+ */
+interface WooCustomer {
+  id: number
+  email?: string
+  first_name?: string
+  last_name?: string
+  display_name?: string
+  phone?: string
+  billing_city?: string
+  billing_state?: string
+  billing_address_1?: string
+  billing_postcode?: string
+  date_created?: string
+  date_created_gmt?: string
+  date_modified?: string
+  date_modified_gmt?: string
+  is_paying?: boolean
+  orders_count?: number
+  total_spent?: number
+}
+
 export function resolveWooCredentials(raw: unknown): WooCredentials {
   if (!raw || typeof raw !== 'object') throw new Error('Invalid WooCommerce credentials payload')
   const value = raw as Record<string, unknown>
@@ -699,6 +726,145 @@ async function upsertOrderFromWoo(
 }
 
 /**
+ * Upsert a WooCommerce customer into the Vigent Contact table.
+ *
+ * Customers don't have their own table on the Vigent side — they map directly
+ * onto the existing Contact model. This keeps the agent's view unified: a
+ * customer who placed an order via WooCommerce and later messaged the agent
+ * on WhatsApp shows up as ONE contact, with all conversations linked.
+ *
+ * Matching strategy (in priority order):
+ *   1. By phone (normalized E.164). The most reliable identifier — phone
+ *      numbers are unique per customer and rarely change.
+ *   2. By email (lowercased). Stored as metadata.email — see findContactByEmail.
+ *   3. By external WooCommerce user ID. We store this in metadata.wooCustomerId
+ *      so subsequent syncs find the same contact even if the customer's phone
+ *      or email changed on the store side.
+ *
+ * If no existing contact matches, we create a new one. The contact's `stage`
+ * defaults to 'lead' (same as the schema default) — the agent / operator can
+ * promote it to 'customer' / 'vip' / etc. later via the panel UI.
+ *
+ * @param integration The store integration (workspace + credentials).
+ * @param customer The WooCommerce customer payload from the plugin.
+ * @returns {Promise<{ contactId: string; created: boolean }>}
+ */
+async function upsertContactFromWoo(
+  integration: StoreIntegrationInput,
+  customer: WooCustomer,
+): Promise<{ contactId: string; created: boolean }> {
+  if (!customer?.id) throw new Error('INVALID_CUSTOMER_PAYLOAD')
+
+  // Normalize phone + email once. Both are used for matching AND for write.
+  const rawPhone = customer.phone?.trim() || null
+  const phone = rawPhone ? normalizePhone(rawPhone) ?? rawPhone : null
+  const email = customer.email?.trim().toLowerCase() || null
+  const externalUserId = String(customer.id)
+
+  // Build the display name: prefer first+last, fall back to display_name,
+  // then email username, then phone. We never want a contact with no name
+  // at all — the agent UI looks broken when a contact row has no name.
+  const firstLast = [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
+  const name =
+    firstLast ||
+    customer.display_name?.trim() ||
+    (email ? email.split('@')[0] : '') ||
+    phone ||
+    `مشتری #${externalUserId}`
+
+  // Try to match an existing contact by phone, email, or externalId.
+  // We look up all three in parallel to minimize latency.
+  const byPhone = await findContactByPhone(integration.workspaceId, phone)
+  const byEmail = byPhone ? null : await findContactByEmail(integration.workspaceId, email)
+  let byExternalId: { id: string } | null = null
+  if (!byPhone && !byEmail && externalUserId) {
+    byExternalId = await prisma.contact.findFirst({
+      where: {
+        workspaceId: integration.workspaceId,
+        metadata: { path: ['wooCustomerId'], equals: externalUserId },
+      },
+      select: { id: true },
+    })
+  }
+  const existing = byPhone ?? byEmail ?? byExternalId
+
+  // Build the metadata payload. We store the WooCommerce-specific fields
+  // (external user ID, billing city, state, address, postcode, is_paying,
+  // orders_count, total_spent) in metadata so they don't pollute the core
+  // Contact columns. The core `phone` column is also updated so phone-based
+  // matching works on subsequent syncs.
+  const metadata: Record<string, unknown> = {
+    wooCustomerId: externalUserId,
+    wooStoreUrl: integration.storeUrl,
+    source: 'woocommerce',
+  }
+  if (email) metadata.email = email
+  if (customer.billing_city) metadata.billingCity = customer.billing_city
+  if (customer.billing_state) metadata.billingState = customer.billing_state
+  if (customer.billing_address_1) metadata.billingAddress = customer.billing_address_1
+  if (customer.billing_postcode) metadata.billingPostcode = customer.billing_postcode
+  if (typeof customer.is_paying === 'boolean') metadata.isPaying = customer.is_paying
+  if (typeof customer.orders_count === 'number') metadata.ordersCount = customer.orders_count
+  if (typeof customer.total_spent === 'number' && !Number.isNaN(customer.total_spent)) {
+    metadata.totalSpent = customer.total_spent
+  }
+
+  if (existing) {
+    // Update the existing contact. We merge metadata rather than replacing it,
+    // so we don't blow away fields set by the agent UI or by other channels
+    // (e.g. WhatsApp username, marketing opt-in).
+    const current = await prisma.contact.findUnique({
+      where: { id: existing.id },
+      select: { metadata: true, name: true, phone: true, lastActivityAt: true },
+    })
+    const mergedMetadata = {
+      ...(current?.metadata && typeof current.metadata === 'object'
+        ? (current.metadata as Record<string, unknown>)
+        : {}),
+      ...metadata,
+    } as Prisma.InputJsonValue
+    await prisma.contact.update({
+      where: { id: existing.id },
+      data: {
+        // Only update the name if we have a non-empty one. We don't want
+        // to overwrite a name the customer set via chat with a stale one
+        // from WooCommerce.
+        ...(name ? { name } : {}),
+        // Only update phone if we have a new one AND the existing one is
+        // empty. We never overwrite a phone that was set by the customer
+        // via the chat UI.
+        ...(phone && !current?.phone ? { phone } : {}),
+        metadata: mergedMetadata,
+        // Bump lastActivityAt so this contact surfaces in the "recently
+        // active" list — but only if it was null before. We don't want
+        // a customer sync to override a real chat lastActivityAt.
+        ...(current && !current.lastActivityAt ? { lastActivityAt: new Date() } : {}),
+      },
+    })
+    return { contactId: existing.id, created: false }
+  }
+
+  // Create a new contact. We pass `phone` if we have one — this is the
+  // primary key for matching future messages from the same customer.
+  const created = await prisma.contact.create({
+    data: {
+      workspaceId: integration.workspaceId,
+      name: name || null,
+      phone: phone || null,
+      metadata: metadata as Prisma.InputJsonValue,
+      // New customers start as 'lead'. The agent / operator can promote
+      // them to 'customer' / 'vip' later via the panel UI.
+      stage: 'lead',
+      // Set lastActivityAt to now so the contact shows up in the "recently
+      // active" list immediately after sync.
+      lastActivityAt: new Date(),
+    },
+    select: { id: true },
+  })
+  return { contactId: created.id, created: true }
+}
+
+/**
  * Maximum number of orders to retain per integration in the panel DB.
  *
  * The plugin syncs at most 1000 orders (MAX_ORDERS_TO_SYNC) during a full
@@ -852,7 +1018,7 @@ async function deleteProductFromWoo(
   return true
 }
 
-async function processWebhookEvent(
+export async function processWebhookEvent(
   integration: StoreIntegrationInput,
   event: WooWebhookEvent,
   agentIds: string[],
@@ -873,6 +1039,15 @@ async function processWebhookEvent(
   }
   if (event.topic === 'order.created' || event.topic === 'order.updated') {
     await upsertOrderFromWoo(integration, event.data as WooOrder)
+    return 1
+  }
+  // v4.2.9+ — customer sync. The plugin sends customer.updated whenever a
+  // WP user with the 'customer' role is created or modified. We map it onto
+  // the existing Contact model (see upsertContactFromWoo for the matching
+  // strategy). Customer deletes are NOT sent — WordPress doesn't fire a
+  // clean hook for them, and the plugin deliberately skips delete events.
+  if (event.topic === 'customer.updated' || event.topic === 'customer.created') {
+    await upsertContactFromWoo(integration, event.data as WooCustomer)
     return 1
   }
   if (event.topic === 'test.connection' || event.topic === 'connection.test') {

@@ -70,6 +70,24 @@ class Vigent_Woo_Sync {
                 add_action( 'woocommerce_new_order', array( $this, 'on_order_new' ), 10, 2 );
                 add_action( 'woocommerce_update_order', array( $this, 'on_order_update' ), 10, 2 );
                 add_action( 'woocommerce_order_status_changed', array( $this, 'on_order_status_changed' ), 10, 4 );
+
+                // Customer hooks — fire on:
+                //   • user_register / profile_update       → covers WP-level signups + edits.
+                //   • woocommerce_create_customer          → covers WC programmatic creation.
+                //   • woocommerce_save_account_details      → customer editing their account page.
+                //   • personal_options_update / edit_user_profile_update → admin editing the user.
+                //   • woocommerce_customer_save_address     → customer updating their billing address.
+                // We attach to ALL of them because different hosting setups fire different
+                // hooks depending on whether the customer was created via the admin UI,
+                // the checkout form, the my-account page, or programmatically.
+                add_action( 'user_register', array( $this, 'on_customer_change' ) );
+                add_action( 'profile_update', array( $this, 'on_customer_change' ), 10, 2 );
+                add_action( 'personal_options_update', array( $this, 'on_customer_change' ) );
+                add_action( 'edit_user_profile_update', array( $this, 'on_customer_change' ) );
+                add_action( 'woocommerce_create_customer', array( $this, 'on_customer_change' ) );
+                add_action( 'woocommerce_save_account_details', array( $this, 'on_customer_change' ) );
+                add_action( 'woocommerce_customer_save_address', array( $this, 'on_customer_change' ) );
+
                 add_action( 'vigent_woo_enqueue_delta_retry', array( $this, 'enqueue_delta' ), 10, 4 );
         }
 
@@ -153,17 +171,80 @@ class Vigent_Woo_Sync {
         }
 
         /**
+         * Customer change handler.
+         *
+         * Multiple WP/WC hooks can fire for the same customer during a single
+         * save operation (e.g. on the my-account page, WC fires
+         * woocommerce_save_account_details AND profile_update). The delta
+         * queue coalesces them into one event keyed by entity:entity_id, so
+         * we don't send the customer twice.
+         *
+         * We also filter out non-customer users early. Admins, editors, and
+         * shop managers don't need to be synced to Vigent — they're not
+         * customers.
+         *
+         * @param int|\WP_User $user User ID or WP_User object.
+         * @return void
+         */
+        public function on_customer_change( $user ) {
+                $user_id = is_object( $user ) && isset( $user->ID ) ? (int) $user->ID : (int) $user;
+                if ( ! $user_id ) {
+                        return;
+                }
+                // Only sync if customers sync is enabled. We check here (not in
+                // queue_customer) because queue_customer is private and we want
+                // to bail as early as possible — before get_userdata() is even
+                // called, which has a small but non-zero cost on every page load.
+                if ( ! $this->core()->sync_customers_enabled() ) {
+                        return;
+                }
+                $this->queue_customer( $user_id, 'customer.updated' );
+        }
+
+        private function queue_customer( $user_id, $topic ) {
+                $user_id = absint( $user_id );
+                if ( ! $user_id ) {
+                        return;
+                }
+                // Skip non-customer users. WP administrators, editors, and shop
+                // managers should never be exposed as «customers» in Vigent —
+                // their contact info would leak internal staff data.
+                if ( ! function_exists( 'get_userdata' ) ) {
+                        return;
+                }
+                $user = get_userdata( $user_id );
+                if ( ! $user ) {
+                        return;
+                }
+                // A user is a «customer» if:
+                //   • they have the 'customer' role (the WooCommerce default), OR
+                //   • they have billing_email / billing_phone set (covers users
+                //     who never had the role assigned explicitly but placed an
+                //     order as a guest-converted-to-customer).
+                $is_customer_role = is_array( $user->roles ) && in_array( 'customer', $user->roles, true );
+                $has_billing      = ! empty( get_user_meta( $user_id, 'billing_phone', true ) )
+                        || ! empty( get_user_meta( $user_id, 'billing_email', true ) );
+                if ( ! $is_customer_role && ! $has_billing ) {
+                        return;
+                }
+                $this->enqueue_delta( 'customer', $user_id, $topic );
+        }
+
+        /**
          * Add or coalesce an entity change. Hooks only write locally; the cron flush
          * sends at most one request for the latest state of each changed entity.
          */
         public function enqueue_delta( $entity, $entity_id, $topic, $data = null ) {
-                if ( ! in_array( $entity, array( 'product', 'order' ), true ) ) {
+                if ( ! in_array( $entity, array( 'product', 'order', 'customer' ), true ) ) {
                         return false;
                 }
                 if ( 'product' === $entity && ! $this->core()->sync_products_enabled() ) {
                         return false;
                 }
                 if ( 'order' === $entity && ! $this->core()->sync_orders_enabled() ) {
+                        return false;
+                }
+                if ( 'customer' === $entity && ! $this->core()->sync_customers_enabled() ) {
                         return false;
                 }
                 $entity_id = absint( $entity_id );
@@ -346,6 +427,9 @@ class Vigent_Woo_Sync {
                 if ( 'order' === $entity && ! $this->core()->sync_orders_enabled() ) {
                         return false;
                 }
+                if ( 'customer' === $entity && ! $this->core()->sync_customers_enabled() ) {
+                        return false;
+                }
 
                 if ( false === strpos( $topic, '.deleted' ) ) {
                         if ( 'product' === $entity ) {
@@ -362,6 +446,24 @@ class Vigent_Woo_Sync {
                                         return false;
                                 }
                                 $data = $this->core()->order_to_payload( $order );
+                        } elseif ( 'customer' === $entity ) {
+                                // Customer deleted? We don't have a delete hook wired up
+                                // (WordPress doesn't fire one cleanly for users), so a
+                                // customer_delta whose user has vanished is treated as
+                                // a no-op — we skip sending rather than emit a delete
+                                // event. The Vigent panel will keep its Contact record
+                                // around; this is acceptable for now.
+                                $payload = $this->core()->customer_to_payload( $entity_id );
+                                if ( empty( $payload ) ) {
+                                        return false;
+                                }
+                                // Skip customers with neither email nor phone — they
+                                // are useless to Vigent and would create empty
+                                // Contact rows that the agent can't message.
+                                if ( empty( $payload['email'] ) && empty( $payload['phone'] ) ) {
+                                        return false;
+                                }
+                                $data = $payload;
                         }
                 }
 
@@ -509,6 +611,24 @@ class Vigent_Woo_Sync {
                                 $total = self::MAX_ORDERS_TO_SYNC;
                         }
                         return $total;
+                } elseif ( 'customers' === $kind ) {
+                        // Count only users with the 'customer' role. We use a direct
+                        // WP_User_Query because wc_get_customer() doesn't expose a
+                        // count-only mode, and we want to skip admins/editors/etc.
+                        // WP_User_Query with role=customer is indexed and fast.
+                        $q = new \WP_User_Query( array(
+                                'role'   => 'customer',
+                                'number' => 1,
+                                'fields' => 'ID',
+                                'count_total' => true,
+                        ) );
+                        $total = (int) $q->get_total();
+                        // Same cap as orders — older customers are rarely useful for
+                        // Vigent's customer-support use case.
+                        if ( $total > self::MAX_ORDERS_TO_SYNC ) {
+                                $total = self::MAX_ORDERS_TO_SYNC;
+                        }
+                        return $total;
                 } else {
                         return 0;
                 }
@@ -567,17 +687,50 @@ class Vigent_Woo_Sync {
                                 }
                                 $events[] = $this->make_event( 'order.updated', $this->core()->order_to_payload( $order ) );
                         }
+                } elseif ( 'customers' === $kind ) {
+                        // Fetch users with the 'customer' role, newest first. We use
+                        // WP_User_Query (not wc_get_customer()) because WP_User_Query is
+                        // available on every WordPress install — even those running
+                        // WooCommerce < 5.0 where wc_get_customer() may not exist.
+                        //
+                        // 'number' is the per-page size, 'offset' is 0-based.
+                        // We deliberately DON'T filter by billing_phone / billing_email
+                        // here — if the user has the 'customer' role, they should be
+                        // synced. customer_to_payload() will skip empty rows.
+                        $user_q = new \WP_User_Query( array(
+                                'role'   => 'customer',
+                                'number' => $batch_size,
+                                'offset' => $offset,
+                                'orderby'=> 'registered',
+                                'order'  => 'DESC',
+                                'fields' => 'all',
+                        ) );
+                        $users = $user_q->get_results();
+                        foreach ( $users as $user ) {
+                                $payload = $this->core()->customer_to_payload( $user );
+                                if ( empty( $payload ) ) {
+                                        continue;
+                                }
+                                // Skip customers with no email AND no phone — they
+                                // would create empty Contact rows Vigent can't use.
+                                if ( empty( $payload['email'] ) && empty( $payload['phone'] ) ) {
+                                        continue;
+                                }
+                                $events[] = $this->make_event( 'customer.updated', $payload );
+                        }
+                        $items = $users;
                 } else {
                         return array( 'sent' => 0, 'errors' => array( __( 'نوع همگام‌سازی نامعتبر است.', 'vigent-woo' ) ), 'total' => 0, 'done' => true );
                 }
 
                 $total = $this->count_items( $kind, $filter );
                 $done  = ( $offset + count( $items ) ) >= $total || count( $items ) < $batch_size;
-                // Hard cap for orders: never sync more than MAX_ORDERS_TO_SYNC, even
-                // if count_items returned a higher number (shouldn't happen since we
-                // cap there too, but this is a second-line defense). Once the offset
-                // reaches the cap, we're done regardless of what the DB still holds.
-                if ( 'orders' === $kind && ( $offset + count( $items ) ) >= self::MAX_ORDERS_TO_SYNC ) {
+                // Hard cap for orders and customers: never sync more than
+                // MAX_ORDERS_TO_SYNC, even if count_items returned a higher number
+                // (shouldn't happen since we cap there too, but this is a second-line
+                // defense). Once the offset reaches the cap, we're done regardless of
+                // what the DB still holds.
+                if ( ( 'orders' === $kind || 'customers' === $kind ) && ( $offset + count( $items ) ) >= self::MAX_ORDERS_TO_SYNC ) {
                         $done = true;
                 }
                 if ( empty( $events ) ) {

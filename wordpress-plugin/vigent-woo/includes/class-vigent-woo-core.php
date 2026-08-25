@@ -26,11 +26,12 @@ class Vigent_Woo_Core {
 
         public function get_settings() {
                 $defaults = array(
-                        'webhook_url'    => '',
-                        'webhook_secret' => '',
-                        'sync_products'  => '1',
-                        'sync_orders'    => '1',
-                        'enable_retry'   => '1',
+                        'webhook_url'     => '',
+                        'webhook_secret'  => '',
+                        'sync_products'   => '1',
+                        'sync_orders'     => '1',
+                        'sync_customers'  => '1',
+                        'enable_retry'    => '1',
                 );
                 $saved = get_option( VIGENT_WOO_OPTION, array() );
                 if ( ! is_array( $saved ) ) {
@@ -168,6 +169,11 @@ class Vigent_Woo_Core {
         public function sync_orders_enabled() {
                 $s = $this->get_settings();
                 return ! empty( $s['sync_orders'] ) && $this->is_configured();
+        }
+
+        public function sync_customers_enabled() {
+                $s = $this->get_settings();
+                return ! empty( $s['sync_customers'] ) && $this->is_configured();
         }
 
         // ─── Auto-connect to Vigent ──────────────────────────────────────────
@@ -826,6 +832,107 @@ class Vigent_Woo_Core {
                         'attributes'        => $attrs,
                         'tags'              => $tags,
                         'categories'        => $categories,
+                );
+        }
+
+        /**
+         * Convert a WooCommerce customer (WP_User with WC customer role, or any
+         * user with billing data) into the payload Vigent expects.
+         *
+         * The payload schema mirrors `upsertContactFromWoo()` on the Vigent
+         * server. Every field is optional except `id` and at least one of
+         * `email` / `phone` — we'd rather skip an incomplete customer than
+         * pollute Vigent's Contact table with empty rows.
+         *
+         * @param WP_User|int $user WP_User object or user ID.
+         * @return array {
+         *   @type int    $id                 WordPress user ID.
+         *   @type string $email              Customer email (lowercased).
+         *   @type string $first_name
+         *   @type string $last_name
+         *   @type string $display_name
+         *   @type string $phone              Billing phone (normalized to E.164-ish).
+         *   @type string $billing_city       City (often used by the agent to
+         *                                    answer «از کدام شهر هستید؟»).
+         *   @type string $billing_state
+         *   @type string $billing_address_1
+         *   @type string $billing_postcode
+         *   @type string $date_created      ISO 8601.
+         *   @type string $date_created_gmt  ISO 8601 (UTC).
+         *   @type string $date_modified     ISO 8601.
+         *   @type string $date_modified_gmt ISO 8601 (UTC).
+         *   @type bool   $is_paying         True if the user has at least one
+         *                                    completed order.
+         *   @type int    $orders_count      Number of orders placed by this user.
+         *   @type float  $total_spent       Lifetime revenue from this user.
+         * }
+         */
+        public function customer_to_payload( $user ) {
+                if ( ! $user ) {
+                        return array();
+                }
+                if ( is_numeric( $user ) ) {
+                        $user_id = (int) $user;
+                        if ( ! function_exists( 'get_userdata' ) ) {
+                                return array();
+                        }
+                        $user = get_userdata( $user_id );
+                        if ( ! $user ) {
+                                return array();
+                        }
+                }
+                if ( ! ( $user instanceof \WP_User ) ) {
+                        return array();
+                }
+
+                // get_user_meta returns '' for missing keys; we coerce to string.
+                $first = (string) get_user_meta( $user->ID, 'first_name', true );
+                $last  = (string) get_user_meta( $user->ID, 'last_name', true );
+                // WooCommerce stores billing fields as user meta. These are
+                // populated when the customer places their first order OR when
+                // they edit their account page.
+                $phone        = (string) get_user_meta( $user->ID, 'billing_phone', true );
+                $billing_city = (string) get_user_meta( $user->ID, 'billing_city', true );
+                $billing_state = (string) get_user_meta( $user->ID, 'billing_state', true );
+                $billing_addr = (string) get_user_meta( $user->ID, 'billing_address_1', true );
+                $billing_post = (string) get_user_meta( $user->ID, 'billing_postcode', true );
+
+                // WooCommerce reports order count + lifetime spend via the
+                // _money_spent + _order_count user meta. These are cached and
+                // updated on each order status change, so reading them is cheap.
+                $orders_count = (int) get_user_meta( $user->ID, '_order_count', true );
+                $total_spent  = (float) get_user_meta( $user->ID, '_money_spent', true );
+                // A customer is "paying" if they have at least one completed order.
+                // _order_count is bumped by WooCommerce on every order, regardless
+                // of status, so it doesn't directly tell us "paying". We treat
+                // orders_count >= 1 as "paying" for simplicity — a customer who
+                // placed an order (even if it failed) engaged with checkout.
+                $is_paying = $orders_count > 0;
+
+                $date_created  = ! empty( $user->user_registered ) ? $user->user_registered : '';
+                $date_modified = (string) get_user_meta( $user->ID, 'last_update', true );
+                if ( '' === $date_modified ) {
+                        $date_modified = $date_created;
+                }
+
+                return array(
+                        'id'                 => (int) $user->ID,
+                        'email'              => $user->user_email ? strtolower( trim( $user->user_email ) ) : '',
+                        'first_name'         => $first,
+                        'last_name'          => $last,
+                        'display_name'       => $user->display_name ?: '',
+                        'phone'              => $phone,
+                        'billing_city'       => $billing_city,
+                        'billing_state'      => $billing_state,
+                        'billing_address_1'  => $billing_addr,
+                        'billing_postcode'   => $billing_post,
+                        'date_created'       => $date_created ? gmdate( 'c', strtotime( $date_created ) ) : null,
+                        'date_created_gmt'   => $date_created ? gmdate( 'c', strtotime( $date_created ) ) : null,
+                        'date_modified'      => $date_modified ? gmdate( 'c', strtotime( $date_modified ) ) : null,
+                        'date_modified_gmt'  => $date_modified ? gmdate( 'c', strtotime( $date_modified ) ) : null,
+                        'is_paying'          => $is_paying,
+                        'orders_count'       => $orders_count,
+                        'total_spent'        => $total_spent,
                 );
         }
 

@@ -4,7 +4,7 @@ Tags: woocommerce, ai, chatbot, ecommerce, product-sync
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.2.8
+Stable tag: 4.2.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,20 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 رویدادهای صف حذف نمی‌شوند و در اجرای بعد دوباره ارسال خواهند شد. اگر یک تغییر پس از تلاش‌های مکرر همچنان پذیرفته نشود، برای اینکه صف مسدود نماند از صف بیرون گذاشته می‌شود و در صفحهٔ افزونه هشدار می‌بینید؛ یک‌بار «ارسال کامل محصولات» کاتالوگ را دوباره هم‌تراز می‌کند.
 
 == Changelog ==
+
+= 4.2.9 =
+* ✨ ویژگی جدید: همگام‌سازی خودکار مشتریان وردپرس/ووکامرس به پنل ویجنت — حالا مثل محصولات و سفارش‌ها، وقتی مشتری‌ای ثبت‌نام می‌کند یا اطلاعات‌اش را ویرایش می‌کند، خودکار به پنل می‌آید.
+* نمایش تعداد مشتری‌ها در داشبورد افزونه (stat card جدا)
+* اضافه شدن toggle «ارسال مشتری‌ها برای پشتیبانی» در تنظیمات همگام‌سازی
+* اضافه شدن checkbox «همچنین مشتری‌ها را هم ارسال کن» در ویزارد نصب (مرحله سوم)
+* اسکن خودکار تمام کاربران با نقش customer در ارسال کامل (با کپ ۱۰۰۰ مشتری آخر)
+* اتصال هوشمند به Contact های موجود — وقتی مشتری با همون شماره تلفن قبلاً از طریق چت یا کانال دیگه شناخته شده، اطلاعات فقط به‌روزرسانی می‌شه و Contact تکراری ساخته نمی‌شه
+* ذخیره اطلاعات تکمیلی مشتری (شهر، استان، آدرس، کد پستی، تعداد سفارش‌ها، مجموع خرید) در metadata برای دسترسی ایجنت
+* فقط کاربران با نقش «customer» همگام می‌شوند — ادمین‌ها، ویرایشگرها و فروشندگان هرگز ارسال نمی‌شوند (جلوگیری از نشت اطلاعات داخلی)
+* ساخت webhook event جدید با topic «customer.updated» — مثل order.updated و product.updated
+* پلاگین هوک‌های متعدد WP/WC را پایش می‌کنه (user_register، profile_update، woocommerce_create_customer، woocommerce_save_account_details، woocommerce_customer_save_address، و چند مورد دیگر) تا هیچ تغییری از دست نره
+* در سرور: اضافه شدن upsertContactFromWoo() با استراتژی تطبیق سه‌گانه (تلفن → ایمیل → externalId)
+* در سرور: اضافه شدن WooCustomer interface + export processWebhookEvent
 
 = 4.2.8 =
 * رفع خطای مهم «Unexpected token '<' is not valid JSON» که در هاست‌های ایرانی رخ می‌داد — PHP 8+ با PCRE2 از escape sequence `\u` در regex پشتیبانی نمی‌کند، بنابراین regex‌های استخراج رهگیری fatal error می‌دادند و سرور به جای JSON، HTML error page برمی‌گرداند. تمام regex‌ها به `\x{}` تبدیل شدند.
