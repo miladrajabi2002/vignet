@@ -194,10 +194,35 @@ npm run check:production-env
 echo "==> Generating Prisma client"
 npx prisma generate
 
+# Keep content-hashed assets from the currently served release while the next
+# build replaces `.next`. Tabs opened before the restart may still request
+# those chunks. Files retain their original mtimes and are pruned after 24h.
+previous_static_dir="$(mktemp -d /tmp/vigent-next-static.XXXXXX)"
+cleanup_previous_static() {
+  case "${previous_static_dir}" in
+    /tmp/vigent-next-static.*)
+      find "${previous_static_dir}" -mindepth 1 -delete 2>/dev/null || true
+      rmdir "${previous_static_dir}" 2>/dev/null || true
+      ;;
+  esac
+}
+trap cleanup_previous_static EXIT
+if [ -d .next/static ]; then
+  cp -a .next/static/. "${previous_static_dir}/"
+fi
+
 # Build before changing the database. A compile failure therefore leaves the
 # currently-running application and schema untouched.
 echo "==> Building production artifact"
 npm run build
+
+if find "${previous_static_dir}" -type f -print -quit | grep -q .; then
+  echo "==> Retaining previous release chunks for open browser tabs"
+  mkdir -p .next/static
+  cp -an "${previous_static_dir}/." .next/static/
+  find .next/static -type f -mmin +1440 -delete
+  find .next/static -depth -type d -empty -delete
+fi
 
 # A migration must never be the first operation that touches production data.
 # Keep this fail-closed: if pg_dump cannot produce a restorable snapshot, the

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import { dirForLocale, type Locale } from '@/lib/locale'
+import { ChunkLoadRecovery } from '@/components/system/chunk-load-recovery'
 import './globals.css'
 
 const geistSans = localFont({
@@ -85,6 +86,7 @@ export default async function RootLayout({
 						className={`${geistSans.variable} ${geistMono.variable}`}
                 >
                         <body className="antialiased">
+                                <ChunkLoadRecovery />
                                 <Providers>
                                         {/* Route layouts provide only the messages their Client Components use. */}
                                         <NextIntlClientProvider locale={locale} messages={{}}>

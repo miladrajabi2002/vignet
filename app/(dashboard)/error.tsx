@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { reportClientError } from '@/lib/observability/client-error'
+import { recoverFromChunkLoadError } from '@/lib/observability/chunk-load-recovery'
 
 /**
  * Dashboard error boundary.
@@ -28,6 +29,10 @@ export default function DashboardError({
 
   useEffect(() => {
     console.error('[dashboard] render error:', error)
+    if (recoverFromChunkLoadError(error) !== 'not-chunk-error') {
+      setAutoRetrying(false)
+      return
+    }
     reportClientError('dashboard-render', error)
     if (retried.current) {
       setAutoRetrying(false)

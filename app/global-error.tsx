@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { reportClientError } from '@/lib/observability/client-error'
+import { recoverFromChunkLoadError } from '@/lib/observability/chunk-load-recovery'
 
 /**
  * Last-resort boundary for errors thrown in the root layout itself (e.g. an
@@ -18,6 +19,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[global] render error:', error)
+    if (recoverFromChunkLoadError(error) !== 'not-chunk-error') return
     reportClientError('global-render', error)
   }, [error])
 
