@@ -306,7 +306,7 @@ function ResultCard({
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[264px] flex-col rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
+			className="flex h-[264px] min-h-[264px] max-h-[264px] shrink-0 flex-col overflow-hidden rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
 		>
 			<div className="flex items-center justify-between" aria-hidden>
 				<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
@@ -492,10 +492,10 @@ function DesktopOperationFlow({
 	const auxiliaryPaths = [knowledgePath, rulesPath]
 
 	return (
-		<div dir="ltr" className="relative hidden h-[312px] overflow-hidden sm:block">
+		<div dir="ltr" className="relative hidden h-[328px] overflow-hidden sm:block">
 			<svg
 				aria-hidden
-				viewBox="0 0 780 312"
+				viewBox="0 0 780 328"
 				preserveAspectRatio="xMidYMid meet"
 				className="absolute inset-0 h-full w-full"
 			>
