@@ -103,7 +103,7 @@ class Vigent_Woo_Sync {
          * N pages would be expensive on a busy store).
          */
         const CUSTOMERS_WITH_ORDERS_CACHE_KEY = 'vigent_woo_customers_with_orders';
-        const CUSTOMERS_WITH_ORDERS_CACHE_TTL = 600; // 10 minutes
+        const CUSTOMERS_WITH_ORDERS_CACHE_TTL = 21600; // 6 hours — paying customers rarely change, and recomputing requires fetching every paid order
 
         private static $instance = null;
 

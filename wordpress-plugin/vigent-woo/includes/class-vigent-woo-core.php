@@ -326,6 +326,50 @@ class Vigent_Woo_Core {
 
         // ─── ارسال رویداد ────────────────────────────────────────────────────
 
+        /**
+         * HTTP status codes that justify an immediate inline retry.
+         *
+         * These are transient failures where the request is well-formed and
+         * the server (or network) is asking us to try again shortly:
+         *   • 502 Bad Gateway      — reverse proxy couldn't reach the upstream
+         *   • 503 Service Unavail  — Vigent queue/Redis temporarily saturated
+         *   • 504 Gateway Timeout  — upstream didn't answer in time
+         *   • 429 Too Many Requests— rate limited (Retry-After honored if present)
+         *
+         * 4xx (other than 429) and 5xx (other than above) are NOT retried
+         * inline — they indicate a permanent problem (bad signature, payload
+         * too large, etc.) and would only burn through the same error again.
+         * Such failures still go through the persistent retry queue if enabled.
+         */
+        const RETRYABLE_HTTP_CODES = array( 502, 503, 504, 429 );
+
+        /**
+         * Decide whether an HTTP response code is worth an inline retry.
+         *
+         * @param int $code HTTP status code from wp_remote_post.
+         * @return bool True for 502/503/504/429; false otherwise.
+         */
+        private function is_retryable_http_code( $code ) {
+                return in_array( (int) $code, self::RETRYABLE_HTTP_CODES, true );
+        }
+
+        /**
+         * Sleep for a backoff delay before the next inline retry.
+         *
+         * Strategy: 2s → 5s → 10s (capped). We don't use Retry-After because
+         * WordPress's wp_remote_post doesn't expose response headers in a
+         * way that's cheap to parse here, and the Vigent backend never sends
+         * long Retry-After values anyway.
+         *
+         * @param int $attempt Zero-indexed attempt number (0 = first retry).
+         */
+        private function sleep_for_retry( $attempt ) {
+                $delays = array( 2, 5, 10 );
+                $seconds = isset( $delays[ $attempt ] ) ? $delays[ $attempt ] : 10;
+                // phpcs:ignore WordPress.SleepFunctions -- deliberate blocking sleep for HTTP backoff
+                sleep( $seconds );
+        }
+
         public function send_event( $topic, $data, $retry = true ) {
                 $s = $this->get_settings();
                 if ( empty( $s['webhook_url'] ) || empty( $s['webhook_secret'] ) ) {
@@ -352,63 +396,143 @@ class Vigent_Woo_Core {
                         'site_url'    => $site_url,
                 ) );
 
-                $response = wp_remote_post(
-                        $s['webhook_url'],
-                        array(
-                                'method'      => 'POST',
-                                'timeout'     => 30,
-                                'redirection' => 5,
-                                'headers'     => array(
-                                        'Content-Type'           => 'application/json; charset=utf-8',
-                                        'X-WC-Webhook-Topic'     => $topic,
-                                        'X-WC-Webhook-Signature' => $signature,
-                                        // Vigent records the plugin version per delivery. Without this
-                                        // header it only learned the version from a manual connection
-                                        // test, so an auto-updated site kept reporting its old version.
-                                        'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
-                                ),
-                                'body'        => $body,
-                        )
-                );
+                // Inline retry loop for transient HTTP failures (502/503/504/429).
+                //
+                // The Vigent backend occasionally returns 503 QUEUE_UNAVAILABLE when
+                // its Redis queue is momentarily saturated (e.g. during a large
+                // bulk-sync from another customer). Without an inline retry, the WP
+                // plugin would mark this batch as failed and the user would have to
+                // click "ارسال کامل محصولات" again 5 minutes later. With the retry,
+                // most transient blips recover within 2–10 seconds and the user
+                // never sees the failure.
+                //
+                // We try up to 3 times total (initial + 2 retries) with 2s/5s backoff.
+                // Total worst-case added latency: 7s — well under the 30s timeout.
+                $max_attempts = 3;
+                $response     = null;
+                $code         = 0;
+                $resp_body    = '';
+                $success      = false;
+                $attempt_log  = array();
 
-                $duration_ms = round( ( microtime( true ) - $start ) * 1000, 1 );
+                for ( $attempt = 0; $attempt < $max_attempts; $attempt++ ) {
+                        $response = wp_remote_post(
+                                $s['webhook_url'],
+                                array(
+                                        'method'      => 'POST',
+                                        'timeout'     => 30,
+                                        'redirection' => 5,
+                                        'headers'     => array(
+                                                'Content-Type'           => 'application/json; charset=utf-8',
+                                                'X-WC-Webhook-Topic'     => $topic,
+                                                'X-WC-Webhook-Signature' => $signature,
+                                                'X-Vigent-Plugin-Version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
+                                        ),
+                                        'body'        => $body,
+                                )
+                        );
 
-                if ( is_wp_error( $response ) ) {
-                        $err_msg  = $response->get_error_message();
-                        $err_code = $response->get_error_code();
-                        $this->debug_log( "send_event WP_ERROR", array(
-                                'topic'       => $topic,
-                                'error_code'  => $err_code,
-                                'error'       => $err_msg,
-                                'body_size'   => $body_size,
-                                'duration_ms' => $duration_ms,
-                        ) );
-                        if ( $retry && ! empty( $s['enable_retry'] ) ) {
-                                $this->queue_retry( $topic, $body, $err_msg );
+                        $duration_ms = round( ( microtime( true ) - $start ) * 1000, 1 );
+
+                        if ( is_wp_error( $response ) ) {
+                                $err_msg  = $response->get_error_message();
+                                $err_code = $response->get_error_code();
+                                $attempt_log[] = array(
+                                        'attempt'     => $attempt + 1,
+                                        'outcome'     => 'wp_error',
+                                        'error_code'  => $err_code,
+                                        'error'       => $err_msg,
+                                        'duration_ms' => $duration_ms,
+                                );
+                                if ( $attempt + 1 < $max_attempts ) {
+                                        $this->debug_log( "send_event RETRY_AFTER_WP_ERROR", array(
+                                                'topic'       => $topic,
+                                                'attempt'     => $attempt + 1,
+                                                'max'         => $max_attempts,
+                                                'error'       => $err_msg,
+                                                'duration_ms' => $duration_ms,
+                                        ) );
+                                        $this->sleep_for_retry( $attempt );
+                                        $start = microtime( true );
+                                        continue;
+                                }
+                                $this->debug_log( "send_event WP_ERROR", array(
+                                        'topic'       => $topic,
+                                        'error_code'  => $err_code,
+                                        'error'       => $err_msg,
+                                        'body_size'   => $body_size,
+                                        'duration_ms' => $duration_ms,
+                                        'attempts'    => $attempt + 1,
+                                        'attempt_log' => $attempt_log,
+                                ) );
+                                if ( $retry && ! empty( $s['enable_retry'] ) ) {
+                                        $this->queue_retry( $topic, $body, $err_msg );
+                                }
+                                return array( 'code' => 0, 'body' => $err_msg, 'success' => false );
                         }
-                        return array( 'code' => 0, 'body' => $err_msg, 'success' => false );
+
+                        $code      = (int) wp_remote_retrieve_response_code( $response );
+                        $resp_body = wp_remote_retrieve_body( $response );
+                        $success   = $code >= 200 && $code < 300;
+
+                        $attempt_log[] = array(
+                                'attempt'     => $attempt + 1,
+                                'outcome'     => $success ? 'success' : 'http_' . $code,
+                                'http_code'   => $code,
+                                'duration_ms' => $duration_ms,
+                        );
+
+                        if ( $success ) {
+                                $this->debug_log( "send_event RESPONSE", array(
+                                        'topic'       => $topic,
+                                        'http_code'   => $code,
+                                        'success'     => true,
+                                        'body_size'   => $body_size,
+                                        'duration_ms' => $duration_ms,
+                                        'response'    => substr( $resp_body, 0, 1000 ),
+                                        'attempts'    => $attempt + 1,
+                                ) );
+                                $this->update_connection_status( true, $code, null );
+                                return array( 'code' => $code, 'body' => $resp_body, 'success' => true );
+                        }
+
+                        $should_retry = $this->is_retryable_http_code( $code ) && ( $attempt + 1 < $max_attempts );
+                        if ( $should_retry ) {
+                                $this->debug_log( "send_event RETRY_AFTER_HTTP", array(
+                                        'topic'       => $topic,
+                                        'attempt'     => $attempt + 1,
+                                        'max'         => $max_attempts,
+                                        'http_code'   => $code,
+                                        'response'    => substr( $resp_body, 0, 500 ),
+                                        'duration_ms' => $duration_ms,
+                                ) );
+                                $this->sleep_for_retry( $attempt );
+                                $start = microtime( true );
+                                continue;
+                        }
+
+                        break;
                 }
 
-                $code      = (int) wp_remote_retrieve_response_code( $response );
-                $resp_body = wp_remote_retrieve_body( $response );
-                $success   = $code >= 200 && $code < 300;
-
+                $duration_ms_final = round( ( microtime( true ) - $start ) * 1000, 1 );
                 $this->debug_log( "send_event RESPONSE", array(
                         'topic'       => $topic,
                         'http_code'   => $code,
-                        'success'     => $success,
+                        'success'     => false,
                         'body_size'   => $body_size,
-                        'duration_ms' => $duration_ms,
+                        'duration_ms' => $duration_ms_final,
                         'response'    => substr( $resp_body, 0, 1000 ),
+                        'attempts'    => count( $attempt_log ),
+                        'attempt_log' => $attempt_log,
                 ) );
 
                 if ( ! $success && $retry && ! empty( $s['enable_retry'] ) ) {
                         $this->queue_retry( $topic, $body, "HTTP $code: $resp_body" );
                 }
 
-                $this->update_connection_status( $success, $code, $success ? null : $resp_body );
+                $this->update_connection_status( false, $code, $resp_body );
 
-                return array( 'code' => $code, 'body' => $resp_body, 'success' => $success );
+                return array( 'code' => $code, 'body' => $resp_body, 'success' => false );
         }
 
         /**
@@ -913,6 +1037,88 @@ class Vigent_Woo_Core {
                         }
                 }
 
+                // ── VARIATIONS (variable products) ──────────────────────────────
+                // For WC_Product_Variable, the parent has no price/stock of its own
+                // — each variation does. Without this block, the Vigent panel only
+                // ever saw the (often empty) parent price and a null stock, so
+                // agents told customers "موجودی ثبت نشده" even when individual
+                // variations had real stock counts. We now send every published
+                // variation with its own sku/price/stock/attributes/image so the
+                // agent can answer "طرح 02 موجود است؟" precisely.
+                //
+                // This is generic: works for clothing (طرح/رنگ/سایز), shoes,
+                // electronics (color/capacity), food (weight/flavor), etc.
+                $variations = array();
+                $product_type = method_exists( $product, 'get_type' ) ? $product->get_type() : 'simple';
+                if ( 'variable' === $product_type && method_exists( $product, 'get_children' ) ) {
+                        $child_ids = $product->get_children();
+                        if ( is_array( $child_ids ) ) {
+                                foreach ( $child_ids as $child_id ) {
+                                        $variation = function_exists( 'wc_get_product' ) ? wc_get_product( $child_id ) : null;
+                                        if ( ! $variation ) {
+                                                continue;
+                                        }
+                                        // Skip draft/trash variations — only published
+                                        // ones are visible to shoppers on the storefront.
+                                        if ( 'publish' !== $variation->get_status() ) {
+                                                continue;
+                                        }
+
+                                        // Resolve variation attributes to {label: value}.
+                                        // WC stores them as ['attribute_pa_color' => 'blue']
+                                        // where 'blue' is the TERM SLUG for taxonomy
+                                        // attributes, or the raw string for custom ones.
+                                        // We convert both to the human-readable label +
+                                        // term name so the agent and Vigent DB never see
+                                        // the slug form.
+                                        $var_attrs = array();
+                                        if ( method_exists( $variation, 'get_attributes' ) ) {
+                                                foreach ( $variation->get_attributes() as $attr_key => $attr_value ) {
+                                                        // Empty string means "any" — skip it; it doesn't
+                                                        // constrain this variation and would only add noise.
+                                                        if ( '' === $attr_value || null === $attr_value ) {
+                                                                continue;
+                                                        }
+                                                        $label = function_exists( 'wc_attribute_label' )
+                                                                ? wc_attribute_label( $attr_key, $variation )
+                                                                : $attr_key;
+                                                        // Taxonomy attribute: resolve slug → term name.
+                                                        if ( function_exists( 'taxonomy_exists' ) && taxonomy_exists( $attr_key ) ) {
+                                                                $term = function_exists( 'get_term_by' )
+                                                                        ? get_term_by( 'slug', $attr_value, $attr_key )
+                                                                        : false;
+                                                                if ( $term && ! is_wp_error( $term ) && ! empty( $term->name ) ) {
+                                                                        $attr_value = $term->name;
+                                                                }
+                                                        }
+                                                        $var_attrs[ $label ] = (string) $attr_value;
+                                                }
+                                        }
+
+                                        // Variation image (optional — many stores rely on
+                                        // the parent image). Empty string if none.
+                                        $var_image_src = '';
+                                        $var_thumb = method_exists( $variation, 'get_image_id' ) ? $variation->get_image_id() : null;
+                                        if ( $var_thumb ) {
+                                                $var_image_src = $this->product_image_src( $var_thumb );
+                                        }
+
+                                        $variations[] = array(
+                                                'id'             => (int) $variation->get_id(),
+                                                'sku'            => (string) $variation->get_sku(),
+                                                'price'          => (string) $variation->get_price(),
+                                                'regular_price'  => (string) $variation->get_regular_price(),
+                                                'sale_price'     => (string) $variation->get_sale_price(),
+                                                'manage_stock'   => (bool) $variation->get_manage_stock(),
+                                                'stock_quantity' => $variation->get_stock_quantity(),
+                                                'in_stock'       => (bool) $variation->is_in_stock(),
+                                                'attributes'     => $var_attrs,
+                                                'image'          => $var_image_src,
+                                        );
+                                }
+                        }
+                }
+
                 $categories    = array();
                 $category_terms = get_the_terms( $taxonomy_product_id, 'product_cat' );
                 if ( is_array( $category_terms ) ) {
@@ -943,6 +1149,7 @@ class Vigent_Woo_Core {
                         'id'                => $product->get_id(),
                         'name'              => $product->get_name(),
                         'sku'               => $product->get_sku(),
+                        'type'              => $product_type,
                         'description'       => $description,
                         'short_description' => $short_description,
                         'price'             => $product->get_price(),
@@ -959,6 +1166,7 @@ class Vigent_Woo_Core {
                         'attributes'        => $attrs,
                         'tags'              => $tags,
                         'categories'        => $categories,
+                        'variations'        => $variations,
                 );
         }
 

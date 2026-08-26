@@ -21,6 +21,39 @@ describe('product request planning', () => {
     expect(planProductRequest('کوله پشتی دارید؟', []).isProductTurn).toBe(true)
   })
 
+  it('recognizes natural shopping needs without requiring a catalog keyword', () => {
+    const fabric = planProductRequest('دنبال جنس بابوس هستم', [])
+    const seasonal = planProductRequest('یه کار خنک برای تابستون میخوام', [])
+    const occasion = planProductRequest('برای مهمونی یه چیز سبک لازم دارم', [])
+    const english = planProductRequest('looking for linen fabric', [])
+
+    expect(fabric.isProductTurn).toBe(true)
+    expect(fabric.searchTerms).toEqual(['بابوس'])
+    expect(seasonal.isProductTurn).toBe(true)
+    expect(seasonal.searchTerms).toEqual(['خنک', 'تابستون'])
+    expect(occasion.isProductTurn).toBe(true)
+    expect(occasion.searchTerms).toEqual(['مهمونی', 'سبک'])
+    expect(english.isProductTurn).toBe(true)
+    expect(english.searchTerms).toEqual(['linen'])
+  })
+
+  it('treats description-style attributes and measurements as catalog evidence', () => {
+    expect(planProductRequest('جنس کار: بابوس', []).searchTerms).toEqual(['بابوس'])
+    expect(planProductRequest('رنگ مشکی سایز ۴۸', []).searchTerms).toEqual(['مشکی', '48'])
+    expect(planProductRequest('قدکار ۷۷ و دورسینه ۱۱۵', []).searchTerms).toEqual(['77', '115'])
+    expect(planProductRequest('مدل عبایی', []).searchTerms).toEqual(['عبایی'])
+  })
+
+  it('keeps non-shopping needs out of catalog retrieval', () => {
+    expect(planProductRequest('دنبال آدرستون هستم', []).isProductTurn).toBe(false)
+    expect(planProductRequest('راهنمایی میخوام', []).isProductTurn).toBe(false)
+    expect(planProductRequest('میخوام بدونم چند روزه میرسه', []).isProductTurn).toBe(false)
+    expect(planProductRequest('دنبال پیگیری سفارشم هستم', []).isProductTurn).toBe(false)
+    expect(planProductRequest('نیاز به رزرو وقت دارم', []).isProductTurn).toBe(false)
+    expect(planProductRequest('دنبال شرایط ارسال هستم', []).isProductTurn).toBe(false)
+    expect(planProductRequest('برای انتخاب مانتو راهنمایی میخوام', []).isProductTurn).toBe(true)
+  })
+
   it('extracts a broad product category and honors the 10-card ceiling', () => {
     const plan = planProductRequest('سلام هرچی پیراهن موجود داری بهم نشون بده', [])
 

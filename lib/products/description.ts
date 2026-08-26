@@ -20,6 +20,81 @@
 export type AttrRow = { label: string; value: string }
 
 /**
+ * Pull the `_variations` array out of a product's `attributes` JSON column.
+ *
+ * Variations are stashed under the `_variations` key by the WooCommerce ingest
+ * (see lib/integrations/woocommerce.ts → mapWooProduct) so we don't need a
+ * Prisma migration. Returns `null` when the attribute column doesn't carry
+ * variations (e.g. simple products, manual products without variations, or
+ * integrations that haven't been re-synced since v4.3.5).
+ *
+ * Shared by `normalizeAttributes` (which strips `_variations` from the
+ * human-readable attribute rows) and by the product detail page (which
+ * renders the variations as a dedicated grid below the attributes).
+ */
+export function extractVariations(attrs: unknown): Array<Record<string, unknown>> | null {
+  if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) return null
+  const obj = attrs as Record<string, unknown>
+  const v = obj._variations
+  if (!Array.isArray(v) || v.length === 0) return null
+  return v.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+}
+
+/**
+ * Type describing a single variation, used by the product detail page to
+ * render the variations grid. Mirrors the shape persisted by
+ * `mapWooProduct` in lib/integrations/woocommerce.ts.
+ */
+export interface VariationRow {
+  id: number
+  sku?: string | null
+  price?: number | null
+  regularPrice?: number | null
+  salePrice?: number | null
+  manageStock?: boolean
+  stockQuantity?: number | null
+  inStock?: boolean
+  attributes: Record<string, string>
+  image?: string | null
+}
+
+/**
+ * Strictly-typed variation extractor. Returns the same data as
+ * `extractVariations` but cast to `VariationRow[]` so the React component
+ * can read fields without `unknown` narrowing on each access. Unknown /
+ * malformed entries are dropped.
+ */
+export function extractTypedVariations(attrs: unknown): VariationRow[] {
+  const raw = extractVariations(attrs)
+  if (!raw) return []
+  const out: VariationRow[] = []
+  for (const v of raw) {
+    const attrs = v.attributes
+    if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) continue
+    const typedAttrs: Record<string, string> = {}
+    for (const [k, val] of Object.entries(attrs as Record<string, unknown>)) {
+      if (val == null) continue
+      typedAttrs[k] = String(val)
+    }
+    const id = typeof v.id === 'number' ? v.id : 0
+    if (id <= 0) continue
+    out.push({
+      id,
+      sku: typeof v.sku === 'string' && v.sku ? v.sku : null,
+      price: typeof v.price === 'number' && v.price > 0 ? v.price : null,
+      regularPrice: typeof v.regularPrice === 'number' && v.regularPrice > 0 ? v.regularPrice : null,
+      salePrice: typeof v.salePrice === 'number' && v.salePrice > 0 ? v.salePrice : null,
+      manageStock: v.manageStock === true,
+      stockQuantity: typeof v.stockQuantity === 'number' ? v.stockQuantity : null,
+      inStock: v.inStock !== false,
+      attributes: typedAttrs,
+      image: typeof v.image === 'string' && v.image ? v.image : null,
+    })
+  }
+  return out
+}
+
+/**
  * Normalize the `attributes` JSON column into a flat list of
  * `{ label, value }` rows. Handles every shape we've seen in the wild:
  *
@@ -30,6 +105,10 @@ export type AttrRow = { label: string; value: string }
  *
  * Without this, the detail page would call `String(value)` on each value and
  * print `[object Object]` for the nested-object shapes.
+ *
+ * NOTE: the `_variations` key (when present) is intentionally skipped here.
+ * It's a structured array, not a human-readable attribute, and is rendered
+ * separately by the product detail page via `extractTypedVariations`.
  */
 export function normalizeAttributes(raw: unknown): AttrRow[] {
   if (!raw || typeof raw !== 'object') return []
@@ -50,6 +129,8 @@ export function normalizeAttributes(raw: unknown): AttrRow[] {
   // Object shape: { key: value | { name, options } | array }
   const entries = Object.entries(raw as Record<string, unknown>)
   for (const [key, value] of entries) {
+    // Skip the internal `_variations` key — it's rendered separately.
+    if (key === '_variations') continue
     if (value == null) continue
 
     // Nested WC attribute object: { name: "رنگ", options: ["blue"] } or

@@ -9,12 +9,14 @@ import {
   Boxes,
   Tag,
   ExternalLink,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { formatDateTime } from '@/lib/format'
 import { BackButton } from '@/components/dashboard/back-button'
-import { normalizeAttributes } from '@/lib/products/description'
+import { normalizeAttributes, extractTypedVariations, type VariationRow } from '@/lib/products/description'
 import {
   extractListItems,
   stripListBlocks,
@@ -42,12 +44,30 @@ export default async function ProductDetailPage(
   })
   if (!product) notFound()
 
-  const stockLabel =
-    product.stock === null
-      ? t('unlimited')
-      : product.stock > 0
-        ? `${fmt(product.stock)}`
-        : t('outOfStock')
+  // ─── Variations ─────────────────────────────────────────────────────────
+  // Variable products carry their per-variant stock/price/attributes inside
+  // `attributes._variations`. We extract them here so the page can render a
+  // dedicated "تنوع‌ها" grid below the simple attributes, and so the stock
+  // summary can switch from "نامحدود" to an accurate per-variant breakdown
+  // (e.g. "۲ تنوع موجود از ۸ تنوع").
+  const variations: VariationRow[] = extractTypedVariations(product.attributes)
+  const inStockVariations = variations.filter((v) =>
+    v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock,
+  )
+
+  // Stock label: when variations exist, the parent stock is misleading
+  // (null or 0 even when variants are in stock). Show a per-variant summary
+  // instead of the flat "نامحدود" / "N عدد".
+  let stockLabel: string
+  if (variations.length > 0) {
+    stockLabel = locale === 'fa'
+      ? `${fmt(inStockVariations.length)} تنوع موجود از ${fmt(variations.length)}`
+      : `${fmt(inStockVariations.length)} of ${fmt(variations.length)} variants in stock`
+  } else if (product.stock === null) {
+    stockLabel = t('unlimited')
+  } else {
+    stockLabel = product.stock > 0 ? `${fmt(product.stock)}` : t('outOfStock')
+  }
 
   // ─── Attributes normalization ───────────────────────────────────────────
   // The `attributes` JSON column accepts several shapes depending on the source:
@@ -66,6 +86,10 @@ export default async function ProductDetailPage(
   // We normalize all of these into a flat `{ label: string, value: string }[]`
   // and also extract any <li> items found inside the description so they show
   // up as proper attribute rows instead of as raw HTML.
+  //
+  // NOTE: `normalizeAttributes` already strips the internal `_variations`
+  // key (see lib/products/description.ts), so it won't leak as a JSON dump
+  // into the attributes grid.
   const attributes = normalizeAttributes(product.attributes)
 
   // If the description contains <ul>…<li>…</li>…</ul> blocks (a common
@@ -254,7 +278,9 @@ export default async function ProductDetailPage(
 
       {/* Attributes — rendered from the normalized list, so <ul>/<li>
           descriptions and `[object Object]` attribute values both resolve
-          into clean rows instead of raw HTML / object dumps. */}
+          into clean rows instead of raw HTML / object dumps.
+          The internal `_variations` key is stripped by normalizeAttributes
+          so it never appears here. */}
       {mergedAttributes.length > 0 && (
         <div className="spatial-surface rounded-[1.5rem] p-5">
           <h2 className="text-sm font-medium text-[var(--text-secondary)]">
@@ -271,6 +297,97 @@ export default async function ProductDetailPage(
               </div>
             ))}
           </dl>
+        </div>
+      )}
+
+      {/* Variations grid — for variable products (e.g. clothing with multiple
+          colors/patterns, each with its own stock count). Renders one row per
+          variation showing the distinguishing attributes (color/size/…),
+          per-variant price, stock state, and (when available) the variant's
+          own image.
+
+          This replaces the old behavior where `_variations` leaked into the
+          attributes grid as a single raw-JSON row. */}
+      {variations.length > 0 && (
+        <div className="spatial-surface rounded-[1.5rem] p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-[var(--text-secondary)]">
+              {locale === 'fa' ? 'تنوع‌ها' : 'Variants'}
+            </h2>
+            <span className="text-xs text-[var(--text-muted)]">
+              {locale === 'fa'
+                ? `${fmt(inStockVariations.length)} موجود از ${fmt(variations.length)}`
+                : `${fmt(inStockVariations.length)} in stock of ${fmt(variations.length)}`}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-3">
+            {variations.map((v) => {
+              const inStock = v.manageStock ? (v.stockQuantity ?? 0) > 0 : v.inStock
+              const stockText = v.manageStock
+                ? (v.stockQuantity ?? 0) > 0
+                  ? `${fmt(v.stockQuantity ?? 0)} ${locale === 'fa' ? 'عدد' : 'pcs'}`
+                  : (locale === 'fa' ? 'ناموجود' : 'Out of stock')
+                : v.inStock
+                  ? (locale === 'fa' ? 'موجود' : 'In stock')
+                  : (locale === 'fa' ? 'ناموجود' : 'Out of stock')
+              return (
+                <div
+                  key={v.id}
+                  className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    inStock
+                      ? 'border-[var(--border-default)] bg-[var(--bg-base)]'
+                      : 'border-[var(--border-default)] bg-[var(--bg-muted)] opacity-70'
+                  }`}
+                >
+                  {/* Variant image (optional) */}
+                  {v.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={v.image}
+                      alt={Object.values(v.attributes).join('، ') || `#${v.id}`}
+                      width={56}
+                      height={56}
+                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-hint)]">
+                      <Package className="h-4 w-4" />
+                    </div>
+                  )}
+                  {/* Variant attributes (color/size/…) */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-sm">
+                      {Object.entries(v.attributes).map(([k, val]) => (
+                        <span key={k} className="text-[var(--text-secondary)]">
+                          <span className="text-[var(--text-muted)]">{k}:</span>{' '}
+                          <span className="text-[var(--text-primary)]">{val}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {v.sku && (
+                      <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]" dir="ltr">
+                        SKU: {v.sku}
+                      </p>
+                    )}
+                  </div>
+                  {/* Price (when different from parent) */}
+                  {v.price != null && (
+                    <div className="shrink-0 text-left">
+                      <p className="text-sm text-[var(--text-primary)]">
+                        {fmt(v.price)}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">{t('toman')}</p>
+                    </div>
+                  )}
+                  {/* Stock badge */}
+                  <div className={`flex shrink-0 items-center gap-1 text-xs ${inStock ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {inStock ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                    <span>{stockText}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
       <p className="text-xs text-[var(--text-muted)]">

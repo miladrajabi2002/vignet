@@ -165,19 +165,74 @@ function buildCatalogBlock(
       const description = sanitizeUntrusted(p.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), 260)
       if (description) parts.push(`توضیحات: ${description}`)
     }
+    // Pull per-variation data out of attributes before rendering the
+    // generic "مشخصات" line. Variations are stored under the `_variations`
+    // key (see lib/integrations/woocommerce.ts → mapWooProduct) so the
+    // Prisma schema didn't need a migration. We render them as a separate,
+    // human-readable block so the agent can quote per-variant stock/price
+    // precisely ("طرح 02 موجود است؟" → "بله، ۳ عدد").
+    let variationLines: string[] = []
     if (p.attributes && typeof p.attributes === 'object') {
-      const attributes = sanitizeUntrusted(JSON.stringify(p.attributes), 220)
-      if (attributes && attributes !== '{}') parts.push(`مشخصات: ${attributes}`)
+      const attrObj = p.attributes as Record<string, unknown>
+      const { _variations, ...restAttrs } = attrObj
+      const restStr = sanitizeUntrusted(JSON.stringify(restAttrs), 220)
+      if (restStr && restStr !== '{}') parts.push(`مشخصات: ${restStr}`)
+      if (Array.isArray(_variations) && _variations.length > 0) {
+        variationLines = _variations
+          .slice(0, 30) // cap so a 1000-variant product doesn't blow up the prompt
+          .map((v) => {
+            if (!v || typeof v !== 'object') return null
+            const variation = v as Record<string, unknown>
+            const attrs = variation.attributes
+            const attrStr =
+              attrs && typeof attrs === 'object'
+                ? Object.entries(attrs)
+                    .map(([k, val]) => `${k}: ${String(val)}`)
+                    .join('، ')
+                : ''
+            // Price: prefer per-variation; fall back to nothing if missing.
+            const varPrice = typeof variation.price === 'number' && variation.price > 0
+              ? formatPrice(variation.price)
+              : null
+            // Stock: respect manageStock + stockQuantity; if manageStock=false,
+            // treat as "available (untracked)" — same rule as the parent stock.
+            let stockStr: string
+            if (variation.manageStock === true) {
+              const qty = typeof variation.stockQuantity === 'number' ? variation.stockQuantity : 0
+              stockStr = qty > 0 ? `${qty} عدد` : 'ناموجود'
+            } else {
+              stockStr = variation.inStock === false ? 'ناموجود' : 'موجود'
+            }
+            const pieces: string[] = []
+            if (attrStr) pieces.push(attrStr)
+            if (varPrice) pieces.push(`قیمت: ${varPrice}`)
+            pieces.push(`موجودی: ${stockStr}`)
+            return `  • ${pieces.join(' | ')}`
+          })
+          .filter((line): line is string => Boolean(line))
+      }
     }
     if (p.tags.length) parts.push(`برچسب‌ها: ${sanitizeUntrusted(p.tags.join('، '), 140)}`)
-    // Product.stock=null is the schema's explicit "unlimited / untracked"
-    // state. Never let the model reinterpret a missing integer as sold out.
-    if (p.stock == null) parts.push('موجودی: موجود (تعداد دقیق ثبت نشده/نامحدود)')
-    else parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
+    // When variations exist, the parent's stock/price are aggregates or null
+    // and would mislead the agent (e.g. parent stock=null even though every
+    // variant is sold out). In that case we emit "تنوع‌محور" instead of the
+    // flat stock line so the agent is forced to consult the variation list.
+    if (variationLines.length > 0) {
+      parts.push('موجودی: تنوع‌محور (به لیست تنوع‌ها مراجعه کنید)')
+    } else if (p.stock == null) {
+      parts.push('موجودی: موجود (تعداد دقیق ثبت نشده/نامحدود)')
+    } else {
+      parts.push(p.stock > 0 ? `موجودی: ${p.stock} عدد` : 'موجودی: ناموجود')
+    }
     parts.push(`شناسه: ${p.id}`)
     if (p.image) parts.push(`تصویر: ${p.image}`)
     if (p.url) parts.push(`لینک: ${p.url}`)
-    return `${i + 1}. ${parts.join(' | ')}`
+    // Append the variation block as a separate multi-line section so the
+    // agent can read it as "this product has these specific combinations".
+    const header = `${i + 1}. ${parts.join(' | ')}`
+    return variationLines.length > 0
+      ? `${header}\nتنوع‌ها (${variationLines.length}):\n${variationLines.join('\n')}`
+      : header
   })
 
   if (isFa) {
@@ -191,7 +246,9 @@ ${lines.join('\n')}
 • هرگز قیمت را حدس نزن یا از دانش عمومی خود استفاده نکن
 • اگر محصولی در کاتالوگ نبود، بگو: "اطلاعات این محصول را ندارم"
 • موجودی null یعنی محصول موجود است و فقط تعداد دقیق آن ثبت نشده؛ هرگز آن را ناموجود اعلام نکن
-• موجودی صفر را صادقانه ناموجود اعلام کن`
+• موجودی صفر را صادقانه ناموجود اعلام کن
+• اگر محصول «تنوع‌ها» دارد، موجودی و قیمت واقعی برای هر ترکیب (مثل طرح/رنگ/سایز) در آن لیست است؛ موجودی کل محصول را اعلام نکن، بلکه بگو کدام تنوع موجود و کدام ناموجود است
+• اگر مشتری تنوع خاصی خواست (مثلاً «طرح 02» یا «رنگ آبی») و آن تنوع در لیست نبود، صادقانه بگو آن ترکیب فعلاً موجود نیست و نزدیک‌ترین تنوع موجود را پیشنهاد بده`
   } else {
     return `
 
@@ -202,7 +259,9 @@ Mandatory rules:
 • For prices and specs, ONLY use the catalog above — never your general knowledge
 • If a product is not listed, say: "I don't have information about this product"
 • A null stock value means available/unlimited, not sold out
-• Report stock=0 as out of stock honestly`
+• Report stock=0 as out of stock honestly
+• If a product lists "Variants", per-combination stock and price live in that list — never quote the parent stock for a specific variant; say which variant is in/out of stock
+• If a customer asks for a specific variant (e.g. "color blue", "size L") that isn't in the list, say so honestly and offer the closest available variant`
   }
 }
 

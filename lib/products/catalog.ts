@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { embedText } from '@/lib/ai/embeddings'
 import { insertChunk, deleteChunksForProduct } from '@/lib/knowledge/vector-store'
+import { cleanDescriptionForChat } from '@/lib/products/description'
 
 export interface ProductEmbedJobData {
   productId: string
@@ -25,8 +26,56 @@ interface ProductWithCategory {
   category: { name: string } | null
 }
 
-/** Build a rich, embeddable text representation of a product (Persian). */
+/**
+ * Pull the `_variations` array out of a product's `attributes` JSON column.
+ *
+ * Variations are stashed under the `_variations` key by the WooCommerce ingest
+ * (see lib/integrations/woocommerce.ts → mapWooProduct) so we don't need a
+ * Prisma migration. Returns `null` when the attribute column doesn't carry
+ * variations (e.g. simple products, manual products without variations, or
+ * integrations that haven't been re-synced since v4.3.5).
+ */
+function extractVariations(attrs: unknown): Array<Record<string, unknown>> | null {
+  if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) return null
+  const obj = attrs as Record<string, unknown>
+  const v = obj._variations
+  if (!Array.isArray(v) || v.length === 0) return null
+  return v.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+}
+
+/**
+ * Build a rich, embeddable text representation of a product (Persian).
+ *
+ * The text is what gets embedded into the vector store and what the RAG
+ * retrieval matches against. It MUST contain every word a customer might
+ * search for — including the names of every available color, pattern, size,
+ * etc. — otherwise the agent won't surface the product when a customer asks
+ * "پیراهن آبی دارید؟".
+ *
+ * For variable products we render each variation's attributes as a separate
+ * line ("رنگ: آبی", "رنگ: سبز", …) so the embedding model sees each
+ * color/size as a distinct semantic token, not as JSON noise. Empirically,
+ * LLM embeddings match "آبی" much better against the literal phrase "رنگ:
+ * آبی" than against `{"attributes":{"رنگ":"آبی"}}`.
+ */
 export function buildProductText(p: ProductWithCategory): string {
+  // WooCommerce descriptions commonly contain HTML lists. Preserve their
+  // label/value content as clean text so both exact Persian terms and semantic
+  // meaning contribute to retrieval instead of embedding markup noise.
+  const description = cleanDescriptionForChat(p.description, 4_000)
+
+  // Split out `_variations` so it doesn't leak into the "مشخصات" line as JSON.
+  // The remaining attributes (color list, size list, material, …) stay as a
+  // clean `key: value` block.
+  const variations = extractVariations(p.attributes)
+  const publicAttrs: Record<string, unknown> = {}
+  if (p.attributes && typeof p.attributes === 'object' && !Array.isArray(p.attributes)) {
+    for (const [k, v] of Object.entries(p.attributes as Record<string, unknown>)) {
+      if (k === '_variations') continue
+      publicAttrs[k] = v
+    }
+  }
+
   const lines = [
     `محصول: ${p.name}`,
     p.category ? `دسته‌بندی: ${p.category.name}` : '',
@@ -34,15 +83,61 @@ export function buildProductText(p: ProductWithCategory): string {
     p.comparePrice != null
       ? `قیمت اصلی: ${p.comparePrice.toLocaleString('fa-IR')} تومان`
       : '',
-    p.stock != null
-      ? `موجودی: ${p.stock > 0 ? `${p.stock} عدد` : 'ناموجود'}`
-      : 'موجودی: نامحدود',
+    // Stock line — for variable products we deliberately emit "تنوع‌محور"
+    // because the parent stock is misleading (null or 0 even when variants
+    // are in stock). The actual per-variant stock is listed below.
+    variations && variations.length > 0
+      ? `موجودی: تنوع‌محور (${variations.length} تنوع)`
+      : p.stock != null
+        ? `موجودی: ${p.stock > 0 ? `${p.stock} عدد` : 'ناموجود'}`
+        : 'موجودی: نامحدود',
     p.sku ? `کد محصول (SKU): ${p.sku}` : '',
-    `توضیحات: ${p.description || 'ندارد'}`,
+    `توضیحات: ${description || 'ندارد'}`,
     p.tags.length ? `تگ‌ها: ${p.tags.join('، ')}` : '',
-    p.attributes ? `مشخصات: ${JSON.stringify(p.attributes)}` : '',
-  ]
-  return lines.filter(Boolean).join('\n').trim()
+    Object.keys(publicAttrs).length > 0 ? `مشخصات: ${JSON.stringify(publicAttrs)}` : '',
+  ].filter(Boolean)
+
+  // Append each variation as its own line so the embedding model sees the
+  // attribute values as natural-language tokens rather than JSON.
+  //
+  // Example output:
+  //   تنوع: رنگ آبی — موجودی 7 عدد — قیمت ۱،۰۹۸،۰۰۰ تومان
+  //   تنوع: رنگ سبز — ناموجود
+  //
+  // We cap at 60 variations to stay within the embedding model's context
+  // window (8K tokens for text-embedding-3-small; 60 lines × ~30 tokens
+  // = 1.8K, well under budget).
+  if (variations) {
+    const shown = variations.slice(0, 60)
+    for (const v of shown) {
+      const attrs = v.attributes
+      const attrStr =
+        attrs && typeof attrs === 'object' && !Array.isArray(attrs)
+          ? Object.entries(attrs)
+              .map(([k, val]) => `${k} ${String(val)}`)
+              .join('، ')
+          : ''
+      if (!attrStr) continue
+      let stockStr: string
+      if (v.manageStock === true) {
+        const qty = typeof v.stockQuantity === 'number' ? v.stockQuantity : 0
+        stockStr = qty > 0 ? `موجودی ${qty} عدد` : 'ناموجود'
+      } else {
+        stockStr = v.inStock === false ? 'ناموجود' : 'موجود'
+      }
+      const varPrice = typeof v.price === 'number' && v.price > 0
+        ? `قیمت ${v.price.toLocaleString('fa-IR')} تومان`
+        : null
+      const pieces = [attrStr, stockStr]
+      if (varPrice) pieces.splice(1, 0, varPrice)
+      lines.push(`تنوع: ${pieces.join(' — ')}`)
+    }
+    if (variations.length > shown.length) {
+      lines.push(`(و ${variations.length - shown.length} تنوع دیگر)`)
+    }
+  }
+
+  return lines.join('\n').trim()
 }
 
 /** Get (or create) the auto-managed PRODUCT_CATALOG knowledge base for an agent. */

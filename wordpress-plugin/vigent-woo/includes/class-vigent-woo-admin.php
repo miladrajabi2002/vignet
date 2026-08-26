@@ -1552,56 +1552,7 @@ class Vigent_Woo_Admin {
                                 <div class="num"><?php echo $has_wc ? esc_html( $this->count_customers_safe() ) : '—'; ?></div>
                                 <div class="lbl"><?php esc_html_e( 'مشتری‌ها', 'vigent-woo' ); ?></div>
                         </div>
-                        <?php
-                                $payer_stats = $has_wc
-                                        ? Vigent_Woo_Sync::instance()->get_paying_customer_stats()
-                                        : array( 'total' => 0, 'synced' => 0, 'new' => 0 );
-                                $paying_customers = $payer_stats['total'];
-                                $synced_customers = $payer_stats['synced'];
-                                $new_customers    = $payer_stats['new'];
-                        ?>
-                        <div class="vg-stat vg-stat-payers">
-                                <div class="num" id="vg-payers-count"><?php echo $has_wc ? esc_html( number_format_i18n( $paying_customers ) ) : '—'; ?></div>
-                                <div class="lbl"><?php esc_html_e( 'مشتریان با خرید موفق', 'vigent-woo' ); ?></div>
-                        </div>
                 </div>
-
-                <?php if ( $has_wc ) : ?>
-                <div class="vg-card vg-payers-card">
-                        <div class="vg-payers-row">
-                                <div class="vg-payers-copy">
-                                        <h2><?php esc_html_e( 'افزودن مشتریان با خرید موفق', 'vigent-woo' ); ?></h2>
-                                        <?php if ( $paying_customers > 0 ) : ?>
-                                                <p>
-                                                        <?php
-                                                        printf(
-                                                                /* translators: 1: total paying customers, 2: already synced, 3: new */
-                                                                esc_html__( 'در مجموع %1$s مشتری حداقل یک سفارش موفق (تکمیل‌شده یا در حال پردازش) دارند. از این تعداد %2$s تا قبلاً به ویجنت ارسال شده‌اند و %3$s تا جدید هستند که با کلیک روی «افزودن همه» به‌عنوان «مشتری» اضافه می‌شوند.', 'vigent-woo' ),
-                                                                '<strong>' . esc_html( number_format_i18n( $paying_customers ) ) . '</strong>',
-                                                                '<strong>' . esc_html( number_format_i18n( $synced_customers ) ) . '</strong>',
-                                                                '<strong>' . esc_html( number_format_i18n( $new_customers ) ) . '</strong>'
-                                                        );
-                                                        ?>
-                                                </p>
-                                        <?php else : ?>
-                                                <p><?php esc_html_e( 'هنوز مشتری‌ای با حداقل یک سفارش موفق در فروشگاه شما وجود ندارد. به‌محض ثبت اولین سفارش موفق، خودکار در این لیست قرار می‌گیرد.', 'vigent-woo' ); ?></p>
-                                        <?php endif; ?>
-                                        <p class="vg-payers-sub"><?php esc_html_e( 'بدون محدودیت تعداد — همهٔ مشتریان با خرید موفق ارسال می‌شوند. موارد قبلی فقط به‌روزرسانی می‌شوند و تکراری ساخته نمی‌شوند (تطبیق با تلفن/ایمیل/شناسه ووکامرس).', 'vigent-woo' ); ?></p>
-                                </div>
-                                <div class="vg-btns vg-payers-actions">
-                                        <button type="button" class="vg-btn vg-btn-black" onclick="vgSync('customers', this)" <?php disabled( ! $has_wc || $paying_customers < 1 ); ?>>
-                                                <?php
-                                                printf(
-                                                        /* translators: %s: total paying customers */
-                                                        esc_html__( 'افزودن همه (%s)', 'vigent-woo' ),
-                                                        esc_html( number_format_i18n( $paying_customers ) )
-                                                );
-                                                ?>
-                                        </button>
-                                </div>
-                        </div>
-                </div>
-                <?php endif; ?>
 
                 <div class="vg-card">
                         <h2><?php esc_html_e( 'تنظیمات هم‌گام‌سازی', 'vigent-woo' ); ?></h2>

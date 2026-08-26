@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { productCreateSchema } from '@/lib/validations/product'
 import { syncOnboarding } from '@/lib/onboarding'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { dispatchProductEmbed } from '@/lib/queue/jobs'
 
 export async function GET(req: Request) {
   const user = await getCurrentUser()
@@ -92,6 +93,15 @@ export async function POST(req: Request) {
         skipDuplicates: true,
       })
     }
+
+    // Product search is semantic as well as lexical. New dashboard products
+    // must be embedded immediately, just like WooCommerce imports and edits;
+    // otherwise natural requests can miss them until the first manual edit.
+    await dispatchProductEmbed({
+      productId: product.id,
+      workspaceId: user.workspaceId,
+      agentIds: agents.map((agent) => agent.id),
+    })
   }
 
   await syncOnboarding(user.workspaceId)

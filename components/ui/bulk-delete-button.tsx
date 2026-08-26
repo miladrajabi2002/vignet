@@ -22,7 +22,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, AlertTriangle, Loader2 } from 'lucide-react'
+import { Trash2, AlertTriangle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface BulkDeleteButtonProps {

@@ -9,7 +9,14 @@ export const EMBED_DIM = 1536
 // Query embeddings repeat a lot (the same customer questions recur across
 // conversations), and an embedding is a pure function of (model, text). Cache
 // them in Redis to cut embedding cost and latency. Fails open on any Redis error.
-const EMBED_CACHE_TTL = 7 * 24 * 60 * 60 // 7 days
+//
+// TTL is 24 hours rather than 7 days because each cached entry is ~30 KB (1536
+// floats × ~20 bytes JSON-encoded), and on busy multi-tenant installs the
+// `emb:` keyspace was pushing Redis to its maxmemory limit — causing OOM
+// errors on the woo-webhook queue (HTTP 503 QUEUE_UNAVAILABLE). 24h retains
+// the high-value query cache (questions recur within a day) while keeping
+// Redis memory bounded.
+const EMBED_CACHE_TTL = 24 * 60 * 60 // 24 hours
 
 function embedCacheKey(model: string, text: string): string {
   const hash = crypto.createHash('sha1').update(text).digest('hex')

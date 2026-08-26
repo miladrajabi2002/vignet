@@ -16,6 +16,7 @@ import {
   normalizeAttributes,
   formatAttrValue,
 } from '@/lib/products/description'
+import { buildProductText } from '@/lib/products/catalog'
 
 describe('extractListItems', () => {
   it('returns [] when the description has no <li> tags', () => {
@@ -179,5 +180,27 @@ describe('formatAttrValue', () => {
   it('returns String(v) for primitives', () => {
     expect(formatAttrValue(42)).toBe('42')
     expect(formatAttrValue('hello')).toBe('hello')
+  })
+})
+
+describe('catalog embedding text', () => {
+  it('keeps WooCommerce list specifications as searchable plain text', () => {
+    const text = buildProductText({
+      id: 'product-1',
+      workspaceId: 'workspace-1',
+      name: 'مانتو آزاد',
+      description: '<p>معرفی</p><ul><li>جنس کار: بابوس</li><li>سایزبندی: ۴۲ تا ۴۸</li></ul>',
+      price: 1_000_000,
+      comparePrice: null,
+      sku: null,
+      stock: 2,
+      tags: [],
+      attributes: null,
+      category: { name: 'مانتو' },
+    })
+
+    expect(text).toContain('جنس کار: بابوس')
+    expect(text).toContain('سایزبندی: ۴۲ تا ۴۸')
+    expect(text).not.toContain('<li>')
   })
 })

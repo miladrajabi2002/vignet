@@ -911,6 +911,10 @@
                         "attrKey": "Attribute",
                         "attrValue": "Value",
                         "addAttr": "Add attribute",
+                        "variations": "Variants (color/size/pattern with separate stock)",
+                        "variation": "Variant",
+                        "addVariation": "Add variant",
+                        "removeVariation": "Remove variant",
                         "active": "Active"
                 },
                 "categories": {

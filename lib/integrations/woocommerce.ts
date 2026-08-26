@@ -34,6 +34,7 @@ interface WooProduct {
   id: number
   name: string
   sku?: string
+  type?: string // WooCommerce product type: 'simple', 'variable', 'grouped', 'external'
   description?: string
   short_description?: string
   price?: string
@@ -53,6 +54,35 @@ interface WooProduct {
     name?: string
     options?: string[] | string
   }[]
+  /**
+   * Variation list for variable products. Populated by
+   * Vigent_Woo_Core::product_to_payload() when the WC product type is
+   * 'variable'. Each entry carries its own sku/price/stock/attributes so
+   * the agent can answer "do you have طرح 02 in red?" with real per-variant
+   * stock numbers instead of the parent's empty/null stock.
+   */
+  variations?: WooVariation[]
+}
+
+/**
+ * Single variation of a WooCommerce variable product.
+ *
+ * Mirrors the per-variation payload built in
+ * `Vigent_Woo_Core::product_to_payload()`. `attributes` is a flat
+ * `{label: value}` map (already resolved from slugs to term names on the
+ * PHP side) — e.g. `{ "رنگ": "آبی", "سایز": "XL" }`.
+ */
+interface WooVariation {
+  id: number
+  sku?: string
+  price?: string
+  regular_price?: string
+  sale_price?: string
+  manage_stock?: boolean
+  stock_quantity?: number | null
+  in_stock?: boolean
+  attributes?: Record<string, string>
+  image?: string
 }
 
 interface WooOrder {
@@ -265,6 +295,9 @@ function mapWooProduct(product: WooProduct) {
     Number.isFinite(regularPrice) && effectivePrice != null && regularPrice > effectivePrice
       ? regularPrice
       : null
+  // Human-readable attribute map (e.g. { "رنگ": "آبی, قرمز", "سایز": "XL" }).
+  // This stays a flat Record<string, string> for backward compatibility with
+  // any code that reads Product.attributes expecting only string values.
   const attributes: Record<string, string> = {}
   for (const attribute of product.attributes ?? []) {
     if (!attribute.name) continue
@@ -274,10 +307,57 @@ function mapWooProduct(product: WooProduct) {
         ? ''
         : String(attribute.options)
   }
+
+  // Variable products: normalize per-variation sku/price/stock/attributes
+  // once here so the RAG formatter and any future UI logic don't have to
+  // re-parse strings. We cap the list at 200 entries to stay within
+  // Product.attributes JSON budget for stores with extreme variation counts
+  // (e.g. fabric swatches with thousands of SKUs).
+  const variations = (product.variations ?? [])
+    .map((v) => {
+      const varPrice = Number.parseFloat(v.price ?? '')
+      const varRegular = Number.parseFloat(v.regular_price ?? '')
+      const varSale = Number.parseFloat(v.sale_price ?? '')
+      const effectiveVarPrice = Number.isFinite(varPrice) && varPrice >= 0
+        ? varPrice
+        : Number.isFinite(varRegular) && varRegular >= 0
+          ? varRegular
+          : null
+      return {
+        id: v.id,
+        sku: v.sku?.trim() || null,
+        price: effectiveVarPrice,
+        regularPrice: Number.isFinite(varRegular) && varRegular >= 0 ? varRegular : null,
+        salePrice: Number.isFinite(varSale) && varSale >= 0 ? varSale : null,
+        manageStock: v.manage_stock === true,
+        stockQuantity: v.stock_quantity ?? null,
+        inStock: v.in_stock !== false,
+        attributes: v.attributes ?? {},
+        image: v.image?.trim() || null,
+      }
+    })
+    .filter((v) => v.id > 0)
+    .slice(0, 200)
+
+  // For variable products with no parent price, derive a display price from
+  // the variations so the catalog row isn't shown as "قیمت: خالی" in chat.
+  // We pick the min positive price as the "from" price. If the parent
+  // already has a price (some stores set the parent price as the min), we
+  // keep it as-is.
+  let displayPrice = effectivePrice
+  if (displayPrice == null && variations.length > 0) {
+    const positivePrices = variations
+      .map((v) => v.price)
+      .filter((p): p is number => p != null && p > 0)
+    if (positivePrices.length > 0) {
+      displayPrice = Math.min(...positivePrices)
+    }
+  }
+
   return {
     name: product.name,
     description: (product.short_description || product.description || '').slice(0, 4000) || null,
-    price: effectivePrice,
+    price: displayPrice,
     comparePrice,
     sku: product.sku?.trim() || null,
     stock: product.manage_stock === true && product.stock_quantity != null
@@ -295,6 +375,11 @@ function mapWooProduct(product: WooProduct) {
     attributes,
     externalUrl: product.permalink?.trim() || null,
     active: product.status ? product.status === 'publish' : true,
+    // `variations` is NOT a Prisma field — it's folded into `attributes` by
+    // the caller (upsertProductFromWoo) before persistence. We expose it on
+    // the mapped result purely so the caller can compute the persisted JSON
+    // and the source hash without re-walking the raw WooProduct.
+    variations,
   }
 }
 
@@ -517,10 +602,22 @@ async function upsertProductFromWoo(
   if (!product?.id || !product.name?.trim()) throw new Error('INVALID_PRODUCT_PAYLOAD')
   const externalId = String(product.id)
   const mapped = mapWooProduct(product)
+  const { variations, ...mappedFields } = mapped
   const categoryId = await upsertWooCategories(integration, product.categories ?? [])
   const updatedAt = productUpdatedAt(product, options.changedAt)
+  // Fold per-variation data into the persisted JSON column so we don't need
+  // a Prisma migration. The shape is:
+  //   { "رنگ": "آبی, قرمز", "سایز": "XL", "_variations": [...] }
+  // Legacy code that iterates attribute keys still works — it just sees an
+  // extra `_variations` key (underscore-prefixed to mark it as internal).
+  const persistedAttributes: Record<string, unknown> = { ...mappedFields.attributes }
+  if (variations.length > 0) {
+    persistedAttributes._variations = variations
+  }
   const hash = sourceHash({
-    ...mapped,
+    ...mappedFields,
+    variations,
+    attributes: persistedAttributes,
     categories: (product.categories ?? [])
       .map((category) => ({
         id: categoryExternalId(category),
@@ -560,15 +657,23 @@ async function upsertProductFromWoo(
     return { productId: existing.id, changed: false }
   }
 
+  // `variations` is NOT a Prisma column on Product — it was separated from
+  // the mapped fields above and folded into `persistedAttributes` instead.
+  // Prisma's JSON column type is `InputJsonValue`, which is structurally
+  // stricter than `Record<string, unknown>`. We cast through InputJsonValue
+  // because `persistedAttributes` legitimately only contains JSON-safe
+  // values (strings + the `_variations` array of plain objects) but
+  // TypeScript can't prove that the `unknown`-typed `_variations` entries
+  // are JSON-serializable.
   const updateData = {
-    ...mapped,
+    ...mappedFields,
     categoryId,
     sourceIntegrationId: integration.id,
     externalId,
     sourceUpdatedAt: updatedAt,
     sourceHash: hash,
     embeddingUpdatedAt: null,
-    attributes: mapped.attributes,
+    attributes: persistedAttributes as unknown as Prisma.InputJsonValue,
   }
   let saved: { id: string }
   try {

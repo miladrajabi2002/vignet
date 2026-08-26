@@ -911,6 +911,10 @@
                         "attrKey": "ویژگی",
                         "attrValue": "مقدار",
                         "addAttr": "افزودن ویژگی",
+                        "variations": "تنوع‌ها (رنگ/سایز/طرح با موجودی مجزا)",
+                        "variation": "تنوع",
+                        "addVariation": "افزودن تنوع",
+                        "removeVariation": "حذف تنوع",
                         "active": "فعال"
                 },
                 "categories": {

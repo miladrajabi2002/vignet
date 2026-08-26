@@ -1,7 +1,7 @@
 import type { ChannelType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getRedis } from '@/lib/redis'
-import { dispatchSummary } from '@/lib/queue/jobs'
+import { dispatchProductEmbed, dispatchSummary } from '@/lib/queue/jobs'
 import { MESSENGER_TYPES } from '@/lib/channels/registry'
 import { notifyWorkspace } from '@/lib/notifications/create'
 import { encrypt, decrypt } from '@/lib/crypto'
@@ -245,6 +245,49 @@ async function runKnowledgeRefresh(): Promise<void> {
                 }
         } catch (e) {
                 console.error('[scheduler] knowledge refresh failed:', e)
+        }
+}
+
+// ─── product embedding repair ────────────────────────────────────────────────────
+
+/**
+ * Heal legacy/dashboard products that were assigned before creation started
+ * dispatching semantic embeddings. A small bounded hourly batch avoids a
+ * migration-time API burst while eventually making every active catalog item
+ * discoverable by needs and descriptive phrases, not only exact text.
+ */
+async function repairMissingProductEmbeddings(): Promise<void> {
+        const products = await prisma.product.findMany({
+                where: {
+                        active: true,
+                        embeddingUpdatedAt: null,
+                        catalogItems: { some: {} },
+                },
+                orderBy: { createdAt: 'asc' },
+                take: 50,
+                select: { id: true, workspaceId: true },
+        })
+        if (!products.length) return
+
+        const results = await Promise.allSettled(
+                products.map((product) =>
+                        dispatchProductEmbed({
+                                productId: product.id,
+                                workspaceId: product.workspaceId,
+                        }),
+                ),
+        )
+        const queued = results.filter((result) => result.status === 'fulfilled').length
+        if (queued > 0) {
+                console.log(`[scheduler] queued ${queued} missing product embedding(s)`)
+        }
+}
+
+async function runProductEmbeddingRepair(): Promise<void> {
+        try {
+                await repairMissingProductEmbeddings()
+        } catch (error) {
+                console.error('[scheduler] product embedding repair failed:', error)
         }
 }
 
@@ -634,6 +677,9 @@ export function startScheduler(): () => void {
         const initialKnowledge = setTimeout(runKnowledgeRefresh, 2 * 60_000)
         const knowledgeInterval = setInterval(runKnowledgeRefresh, HOUR_MS)
 
+        const initialProductEmbeddingRepair = setTimeout(runProductEmbeddingRepair, 105_000)
+        const productEmbeddingRepairInterval = setInterval(runProductEmbeddingRepair, HOUR_MS)
+
         const initialAppointments = setTimeout(runAppointmentReminders, 75_000)
         const appointmentInterval = setInterval(
                 runAppointmentReminders,
@@ -676,6 +722,8 @@ export function startScheduler(): () => void {
                 clearInterval(storeInterval)
                 clearTimeout(initialKnowledge)
                 clearInterval(knowledgeInterval)
+                clearTimeout(initialProductEmbeddingRepair)
+                clearInterval(productEmbeddingRepairInterval)
                 clearTimeout(initialAppointments)
                 clearInterval(appointmentInterval)
                 clearTimeout(initialCleanup)

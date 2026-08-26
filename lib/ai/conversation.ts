@@ -42,6 +42,23 @@ const PRODUCT_INTENT_RE =
         /(?:محصول|کالا|کاتالوگ|فروشگاه|قیمت|موجود|خرید|پیراهن|لباس|کفش|کیف|product|catalog|price|buy|shop|in\s*stock|available)/i
 const PRODUCT_SUBJECT_RE =
         /(?:محصول|کالا|کاتالوگ|فروشگاه|پیراهن|لباس|کفش|کیف|product|catalog|shop)/i
+/**
+ * Natural shopping language often contains no catalog noun at all:
+ * «دنبال جنس بابوس هستم», «یه چیز خنک می‌خوام», or "looking for linen".
+ * This is deliberately separate from PRODUCT_INTENT_RE so policy, order and
+ * service exclusions below can still win before catalog retrieval starts.
+ */
+const SHOPPING_NEED_RE =
+        /(?:دنبال(?:ش|شون|شان)?|می\s*(?:خوام|خواهم|گردم|پسندم)|نیاز\s*(?:دارم|داریم|داره|هست)|لازم\s*(?:دارم|داریم|داره)|قصد\s*(?:خرید|تهیه)|می\s*(?:خرم|خریم)|looking\s+for|searching\s+for|i\s+(?:need|want)|need\s+something|want\s+something)/iu
+/** Attribute-only messages are common replies to product ads and DMs. */
+const PRODUCT_ATTRIBUTE_RE =
+        /(?:جنس(?:\s+کار)?|پارچه|متریال|رنگ|سایز(?:بندی)?|اندازه|قد(?:\s*کار)?|دور\s*(?:سینه|کمر|باسن)|فری\s*سایز|برند|مدل|طرح|fabric|material|colou?r|size|length|chest|waist|fit)\s*[:：-]?\s*[\p{L}\p{N}]/iu
+/** Obvious non-shopping needs must not pull arbitrary semantic product hits. */
+const NON_PRODUCT_NEED_RE =
+        /(?:پشتیبانی|اپراتور|آدرس|نشانی|شماره\s*(?:تماس|تلفن)|استخدام|شغل|همکاری|نمایندگی|کسی|شخص|پیج|اینستاگرام|ورود|حساب|رمز|خطا|مشکل\s*(?:فنی|سیستم)|support|operator|address|phone|job|career|person|login|account|password)/iu
+const GENERIC_HELP_RE = /(?:راهنمایی|کمک|guidance|help)/iu
+const INFORMATION_SEEKING_RE =
+        /(?:می\s*خوام\s*(?:بدونم|بپرسم)|می\s*خواستم\s*بدونم|سوال\s*دارم|i\s+want\s+to\s+(?:know|ask))/iu
 /** Imperative "send/show/list" — the customer commands a showcase. */
 const SHOWCASE_COMMAND_RE =
         /(?:بفرست|ارسال|نشون|نشان|نمایش|لیست|فهرست|معرفی|پیشنهاد|گزینه|هرچی|هرچه|send|show|list|recommend)/i
@@ -98,7 +115,13 @@ const PRODUCT_STOP_WORDS = new Set([
         'موجودتون', 'موجودتان', 'محصولاتتون', 'محصولاتتان', 'محصولامون', 'محصولاتون', 'مشخصات',
         'بفرستی', 'بفرستم', 'بفرستن', 'بفرستیم',
         'قبلی', 'قبل', 'بیخیال', 'فراموش', 'اطلاعات',
-        'چیزی', 'چیا', 'چه', 'می', 'فروشید', 'فروشی', 'میفروشید', 'میفروشی', 'بفروشید',
+        // Shopping scaffolding and generic attribute labels should not outrank
+        // the actual requested value («بابوس», «مشکی», «۴۸», ...).
+        'دنبال', 'دنبالش', 'هستم', 'هستیم', 'گردم', 'میگردم', 'نیاز', 'لازم', 'قصد', 'تهیه',
+        'راهنمایی', 'کمک', 'انتخاب', 'بدونم', 'بپرسم',
+        'جنس', 'پارچه', 'متریال', 'رنگ', 'سایز', 'سایزبندی', 'اندازه', 'قد', 'قدکار', 'دورسینه',
+        'دور', 'سینه', 'کمر', 'باسن', 'کار', 'مدل', 'طرح', 'مناسب', 'فری',
+        'چیز', 'چیزی', 'چیا', 'چه', 'می', 'فروشید', 'فروشی', 'میفروشید', 'میفروشی', 'بفروشید',
         // Greetings must never become catalog search terms («سلام وقت بخیر»).
         'وقت', 'بخیر', 'صبح', 'عصر', 'شب', 'ظهر', 'خسته', 'نباشید', 'خداقوت',
         'hi', 'hello', 'good', 'morning', 'evening',
@@ -111,7 +134,9 @@ const PRODUCT_STOP_WORDS = new Set([
         'list', 'recommend', 'available', 'stock', 'in', 'have', 'all', 'any', 'please', 'me', 'the',
         'a', 'an', 'some', 'without', 'question', 'questions', 'new', 'more',
         'what', 'whats', "what's", 'you', 'your', 'do', 'does', 'sell', 'selling', 'got',
-        'there', 'is', 'are', 'anything', 'something',
+        'there', 'is', 'are', 'anything', 'something', 'for',
+        'looking', 'searching', 'need', 'want', 'fabric', 'material', 'color', 'colour', 'size',
+        'length', 'chest', 'waist', 'fit', 'made',
 ])
 
 function normalizePersianText(value: string): string {
@@ -127,18 +152,31 @@ function normalizePersianText(value: string): string {
 }
 
 function extractProductTerms(value: string): string[] {
-        const tokens = normalizePersianText(value)
+        const normalized = normalizePersianText(value)
+        // Plain counts ("۵ تا محصول") are not search terms, but measurements
+        // and sizes are essential catalog evidence. Keep numeric tokens only
+        // when the message explicitly puts them in an attribute context.
+        const keepNumericTerms =
+                /(?:سایز|اندازه|قد|دور\s*(?:سینه|کمر|باسن)|کد\s*(?:محصول|کالا|sku)|size|length|chest|waist)/iu.test(normalized)
+        const tokens = normalized
                 .toLocaleLowerCase('fa')
                 .split(/[^\p{L}\p{N}_-]+/u)
                 .map((token) => token.trim())
-                .filter((token) => token.length >= 2 && !/^\d+$/.test(token))
+                .filter((token) => token.length >= 2 && (keepNumericTerms || !/^\d+$/.test(token)))
 
         const terms: string[] = []
         for (const token of tokens) {
                 if (PRODUCT_STOP_WORDS.has(token)) continue
                 // Persian plural suffixes are often written without a ZWNJ.
-                const withoutPossessive = token.length > 4
-                        ? token.replace(/(?:تون|تان|مون|مان|شون|شان)$/u, '')
+                // Strip a colloquial possessive only when the base is a known
+                // product/generic term. Blindly stripping «تون» corrupts «تابستون».
+                const possessiveCandidate = token.length > 4
+                        ? token.replace(/(?:تون|مون|شون)$/u, '')
+                        : token
+                const withoutPossessive = possessiveCandidate !== token && (
+                        PRODUCT_STOP_WORDS.has(possessiveCandidate) || PRODUCT_SUBJECT_RE.test(possessiveCandidate)
+                )
+                        ? possessiveCandidate
                         : token
                 const singular = withoutPossessive.length > 4
                         ? withoutPossessive.replace(/(?:هایی|های|ها)$/u, '')
@@ -197,12 +235,20 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const showcaseCommand = SHOWCASE_COMMAND_RE.test(normalized)
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
+        const attributeSignal = PRODUCT_ATTRIBUTE_RE.test(normalized)
+        const currentTerms = extractProductTerms(normalized)
+        const shoppingNeedSignal =
+                SHOPPING_NEED_RE.test(normalized) &&
+                (!NON_PRODUCT_NEED_RE.test(normalized) || productKeywordSignal || attributeSignal) &&
+                (!INFORMATION_SEEKING_RE.test(normalized) || productKeywordSignal || attributeSignal) &&
+                (!GENERIC_HELP_RE.test(normalized) || currentTerms.length > 0 || productKeywordSignal || attributeSignal)
         // Availability verbs such as «دارید» are useful for named-product
         // queries, but are not product intent when the user explicitly asks
         // about services, appointments or bookings.
         const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
         const directProductSignal = !policyOnly && (
-                productKeywordSignal || (!serviceOnly && AVAILABLE_RE.test(normalized))
+                productKeywordSignal ||
+                (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
         )
 
         let priorProductTerms: string[] = []
@@ -219,6 +265,13 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         const previousContent = normalizePersianText(previous.content ?? '')
                         if (RESET_CONTEXT_RE.test(previousContent)) break
                         const previousProductKeyword = PRODUCT_INTENT_RE.test(previousContent)
+                        const previousAttributeSignal = PRODUCT_ATTRIBUTE_RE.test(previousContent)
+                        const previousTerms = extractProductTerms(previousContent)
+                        const previousShoppingNeed =
+                                SHOPPING_NEED_RE.test(previousContent) &&
+                                (!NON_PRODUCT_NEED_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
+                                (!INFORMATION_SEEKING_RE.test(previousContent) || previousProductKeyword || previousAttributeSignal) &&
+                                (!GENERIC_HELP_RE.test(previousContent) || previousTerms.length > 0 || previousProductKeyword || previousAttributeSignal)
                         const previousIsNonProduct =
                                 ORDER_ONLY_RE.test(previousContent) ||
                                 (SERVICE_ONLY_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent))
@@ -226,10 +279,12 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         const previousHasProductSignal =
                                 previousProductKeyword ||
                                 AVAILABLE_RE.test(previousContent) ||
-                                BROWSE_QUERY_RE.test(previousContent)
+                                BROWSE_QUERY_RE.test(previousContent) ||
+                                previousAttributeSignal ||
+                                previousShoppingNeed
                         if (!previousHasProductSignal) continue
                         priorProductSignal = true
-                        priorProductTerms = extractProductTerms(previousContent)
+                        priorProductTerms = previousTerms
                         if (priorProductTerms.length) break
                 }
         }
@@ -242,8 +297,6 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                 !!lastAssistant && ASSISTANT_OFFER_RE.test(normalizePersianText(lastAssistant.content ?? ''))
         const affirmativeFollowUp =
                 AFFIRMATIVE_SHOW_RE.test(normalized.trim()) && priorProductSignal && assistantOfferedShowcase
-
-        const currentTerms = extractProductTerms(normalized)
 
         // A generic verb such as "send/show/list" is not enough by itself:
         // "send this message" and "show my orders" must never become a catalog
@@ -520,6 +573,17 @@ function searchableProductText(product: {
         }
 }
 
+/** Match measurements regardless of whether the source used 48, ۴۸ or ٤٨. */
+function catalogTermVariants(term: string): string[] {
+        if (!/\d/.test(term)) return [term]
+        const variants = [
+                term,
+                term.replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]),
+                term.replace(/\d/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[Number(digit)]),
+        ]
+        return [...new Set(variants)]
+}
+
 /**
  * Hybrid catalog retrieval. Semantic product IDs provide fuzzy recall, while
  * a deterministic DB lexical pass guarantees that broad category/name queries
@@ -535,13 +599,15 @@ export async function fetchCatalogProducts(
 
         const rankedIds = [...new Set(productIds)].slice(0, 40)
         const terms = plan.searchTerms.slice(0, 6)
-        const lexicalFilters: Prisma.ProductWhereInput[] = terms.flatMap((term) => [
-                { name: { contains: term, mode: 'insensitive' as const } },
-                { description: { contains: term, mode: 'insensitive' as const } },
-                { sku: { contains: term, mode: 'insensitive' as const } },
-                { tags: { has: term } },
-                { category: { is: { name: { contains: term, mode: 'insensitive' as const } } } },
-        ])
+        const lexicalFilters: Prisma.ProductWhereInput[] = terms.flatMap((term) =>
+                catalogTermVariants(term).flatMap((variant) => [
+                        { name: { contains: variant, mode: 'insensitive' as const } },
+                        { description: { contains: variant, mode: 'insensitive' as const } },
+                        { sku: { contains: variant, mode: 'insensitive' as const } },
+                        { tags: { has: variant } },
+                        { category: { is: { name: { contains: variant, mode: 'insensitive' as const } } } },
+                ]),
+        )
         // A broad request with no meaningful term must search the whole active
         // assigned catalog. Restricting it to the handful of semantic chunks
         // would recreate the "only one product" failure.
