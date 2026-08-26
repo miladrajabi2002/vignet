@@ -262,27 +262,46 @@ class Vigent_Woo_Sync {
                 if ( ! $order_id || ! $this->core()->sync_orders_enabled() ) {
                         return;
                 }
-                // Skip cancelled orders. We don't sync them at all (cancelled =
-                // dead order, nothing to track, see EXCLUDED_ORDER_STATUSES doc).
-                // This filter runs on EVERY order change hook (new, update,
-                // status_changed), so even if an order is created and then
-                // immediately cancelled in the same checkout flow, it never
-                // gets enqueued for sync.
+                // Cancelled-order handling: when an order is in (or transitions
+                // to) a status in EXCLUDED_ORDER_STATUSES (currently = cancelled),
+                // we send an `order.deleted` event instead of `order.updated`.
+                // Vigent will then physically delete the row from its DB on
+                // the next delta flush (~5 minutes), so the agent's order list
+                // doesn't get polluted with dead rows.
                 //
-                // We still allow an order that was previously synced (e.g. while
-                // it was "processing") to be RE-queued when its status changes —
-                // but only if the new status is NOT cancelled. If the new
-                // status IS cancelled, we skip the enqueue here, which means
-                // Vigent keeps the last known non-cancelled state of the order
-                // in its database (we don't propagate the cancellation). This
-                // is intentional: the customer may still ask "what happened
-                // to my order?" and the agent should be able to answer based
-                // on the last known state, not get a 404 because we deleted it.
+                // Why delete instead of update-with-status=cancelled?
+                //   • Lighter on the panel DB (no row at all vs. a stale row).
+                //   • The "delete cancelled" bulk button on the orders page
+                //     is one click away if the shop owner wants to clean up
+                //     historical cancelled orders that were synced before
+                //     this v4.3.3 logic existed.
+                //   • If a customer asks "what happened to my cancelled order?",
+                //     the agent can still look it up in WooCommerce via the
+                //     orders API (the agent has the order number from the chat
+                //     transcript); it just won't show up in the Vigent order
+                //     list anymore.
+                //
+                // We compute $is_excluded here ONCE and use it to pick the
+                // right topic. The bulk-sync (sync_batch) still skips
+                // excluded orders entirely (no point in deleting something
+                // that was never created), but the delta queue sends a delete
+                // so that previously-synced orders get cleaned up.
+                $is_excluded = false;
                 if ( function_exists( 'wc_get_order' ) ) {
                         $order = wc_get_order( $order_id );
                         if ( $order && $this->is_order_excluded( $order->get_status() ) ) {
-                                return;
+                                $is_excluded = true;
                         }
+                }
+                if ( $is_excluded ) {
+                        // Send a delete event so Vigent removes the row on the
+                        // next flush. We pass the order's id in the data payload
+                        // (the server's deleteOrderFromWoo needs it to find the
+                        // row by externalOrderId). We use a minimal payload —
+                        // no billing, no line items — to keep the delta small.
+                        $delete_data = array( 'id' => $order_id );
+                        $this->enqueue_delta( 'order', $order_id, 'order.deleted', $delete_data );
+                        return;
                 }
                 $this->enqueue_delta( 'order', $order_id, $topic );
         }

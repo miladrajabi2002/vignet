@@ -726,6 +726,49 @@ async function upsertOrderFromWoo(
 }
 
 /**
+ * Delete a WooCommerce order from the Vigent panel DB.
+ *
+ * Called when the WP plugin sends an `order.deleted` webhook event.
+ * This happens in two cases:
+ *
+ *   1. The shop owner trashes an order in the WP admin (WooCommerce fires
+ *      wp_trash_post → on_order_delete → order.deleted).
+ *
+ *   2. (Most common) The order was cancelled — the v4.3.3+ plugin sends
+ *      an `order.deleted` event whenever an order transitions to a status
+ *      in EXCLUDED_ORDER_STATUSES (currently = cancelled). This way the
+ *      cancelled order is removed from the Vigent agent's order list
+ *      within ~5 minutes (the delta flush interval) instead of lingering
+ *      forever with its last-known (non-cancelled) status.
+ *
+ * The lookup is by (integrationId, externalOrderId) — the same unique key
+ * used by upsertOrderFromWoo. If the order doesn't exist in Vigent (e.g.
+ * it was never synced, or was already deleted by the bulk-delete-cancelled
+ * button), this is a no-op.
+ *
+ * @returns true if a row was deleted, false otherwise.
+ */
+async function deleteOrderFromWoo(
+  integration: StoreIntegrationInput,
+  payload: { id?: number | string; number?: string | number },
+): Promise<boolean> {
+  if (payload.id == null) return false
+  const externalOrderId = String(payload.id)
+  const existing = await prisma.storeOrder.findUnique({
+    where: {
+      integrationId_externalOrderId: {
+        integrationId: integration.id,
+        externalOrderId,
+      },
+    },
+    select: { id: true },
+  })
+  if (!existing) return false
+  await prisma.storeOrder.delete({ where: { id: existing.id } })
+  return true
+}
+
+/**
  * Upsert a WooCommerce customer into the Vigent Contact table.
  *
  * Customers don't have their own table on the Vigent side — they map directly
@@ -1044,6 +1087,17 @@ export async function processWebhookEvent(
   if (event.topic === 'order.created' || event.topic === 'order.updated') {
     await upsertOrderFromWoo(integration, event.data as WooOrder)
     return 1
+  }
+  if (event.topic === 'order.deleted') {
+    // Sent by the v4.3.3+ WP plugin when an order is trashed OR when an
+    // order transitions to a status in EXCLUDED_ORDER_STATUSES (currently
+    // = cancelled). We physically delete the row from the panel DB so the
+    // agent's order list doesn't get polluted with dead rows. See
+    // deleteOrderFromWoo() above for the full rationale.
+    return await deleteOrderFromWoo(
+      integration,
+      event.data as { id?: number | string; number?: string | number },
+    ) ? 1 : 0
   }
   // v4.2.9+ — customer sync. The plugin sends customer.updated whenever a
   // WP user with the 'customer' role is created or modified. We map it onto

@@ -35,6 +35,11 @@ interface BulkDeleteButtonProps {
   entityLabel: string
   /** Optional: label for the button itself (defaults to «حذف همه»). */
   buttonLabel?: string
+  /** Optional: title for the confirm dialog (defaults to «حذف همه ${entityLabel}»).
+   *  Set this when the button label is not "حذف همه" — e.g. the
+   *  "delete cancelled orders" button should have dialogTitle="حذف سفارش‌های
+   *  لغو شده" instead of "حذف همه سفارش‌های لغو شده". */
+  dialogTitle?: string
   /** Optional: extra warning text shown under the count. */
   extraWarning?: string
   /** Called after a successful deletion — usually to navigate or
@@ -47,6 +52,7 @@ export function BulkDeleteButton({
   deleteEndpoint,
   entityLabel,
   buttonLabel = 'حذف همه',
+  dialogTitle,
   extraWarning,
   onDeleted,
 }: BulkDeleteButtonProps) {
@@ -119,7 +125,7 @@ export function BulkDeleteButton({
 
       <ConfirmDialog
         open={open}
-        title={`حذف همه ${entityLabel}`}
+        title={dialogTitle ?? `حذف همه ${entityLabel}`}
         description={description}
         confirmLabel={busy ? 'در حال حذف…' : 'بله، حذف کن'}
         tone="danger"

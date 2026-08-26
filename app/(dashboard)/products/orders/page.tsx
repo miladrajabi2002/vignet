@@ -124,6 +124,13 @@ export default async function OrdersPage({
         actions={
           <>
             <BulkDeleteButton
+              countEndpoint="/api/products/orders/bulk/cancelled"
+              deleteEndpoint="/api/products/orders/bulk/cancelled"
+              entityLabel={locale === 'en' ? 'cancelled orders' : 'سفارش لغو شده'}
+              buttonLabel={locale === 'en' ? 'Delete cancelled' : 'حذف سفارش‌های لغو شده'}
+              dialogTitle={locale === 'en' ? 'Delete cancelled orders' : 'حذف سفارش‌های لغو شده'}
+            />
+            <BulkDeleteButton
               countEndpoint="/api/products/orders/bulk"
               deleteEndpoint="/api/products/orders/bulk"
               entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
