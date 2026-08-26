@@ -742,8 +742,10 @@ async function upsertOrderFromWoo(
  *      or email changed on the store side.
  *
  * If no existing contact matches, we create a new one. The contact's `stage`
- * defaults to 'lead' (same as the schema default) — the agent / operator can
- * promote it to 'customer' / 'vip' / etc. later via the panel UI.
+ * is set to 'customer' (not 'lead'), because the WordPress plugin only sends
+ * users who already have at least one paid order — so they are real customers,
+ * not prospects. The agent / operator can still move it to 'qualified' /
+ * 'lost' / etc. later via the panel UI.
  *
  * @param integration The store integration (workspace + credentials).
  * @param customer The WooCommerce customer payload from the plugin.
@@ -852,9 +854,11 @@ async function upsertContactFromWoo(
       name: name || null,
       phone: phone || null,
       metadata: metadata as Prisma.InputJsonValue,
-      // New customers start as 'lead'. The agent / operator can promote
-      // them to 'customer' / 'vip' later via the panel UI.
-      stage: 'lead',
+      // New customers from WooCommerce already have a successful order
+      // (the WordPress plugin filters to customers with ≥1 paid order),
+      // so they enter the pipeline directly at the 'customer' stage
+      // rather than starting as a 'lead' that the operator must promote.
+      stage: 'customer',
       // Set lastActivityAt to now so the contact shows up in the "recently
       // active" list immediately after sync.
       lastActivityAt: new Date(),

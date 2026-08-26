@@ -18,21 +18,17 @@ class Vigent_Woo_Sync {
         const MAX_QUEUE_SIZE     = 5000;
         const MAX_BATCH_SIZE     = 50;
         /**
-         * Maximum number of orders to sync during a full push.
+         * Maximum number of ORDERS to sync during a full push.
          *
-         * Some stores have tens of thousands of historical orders. Syncing all of
-         * them is slow (20+ batches of 50), uses bandwidth, and the old orders are
-         * rarely useful for Vigent's order-tracking use case. We cap the full-sync
-         * to the most recent MAX_ORDERS_TO_SYNC orders (newest first, since the
-         * query uses ORDER BY date DESC).
+         * Orders are historical and rarely useful past a certain age, so we still
+         * cap them at MAX_ORDERS_TO_SYNC to keep the panel DB bounded and the
+         * sync wizard fast. The Vigent panel also enforces its own retention
+         * (deletes oldest orders when a workspace exceeds 2000).
          *
-         * New orders created after the initial push still arrive in real-time via
-         * the delta queue hooks — this cap only applies to the one-time "send all
-         * products/orders" wizard.
-         *
-         * The Vigent panel enforces its own retention (deletes oldest orders when
-         * a workspace exceeds 2000), so even if the store has more than 1000 recent
-         * orders, the panel stays bounded.
+         * IMPORTANT: This cap applies to ORDERS ONLY. Customers are no longer
+         * capped — every customer with at least one paid order is synced, even
+         * if the store has tens of thousands of them. The product owner asked
+         * for this explicitly: "محدودیت نداره" (no limit on customers).
          */
         const MAX_ORDERS_TO_SYNC = 1000;
         /**
@@ -49,6 +45,27 @@ class Vigent_Woo_Sync {
          * dead-lettered and reported on the settings screen; a full push recovers it.
          */
         const MAX_DELTA_ATTEMPTS = 12;
+        /**
+         * Order statuses that count as "successful" (paid) for the
+         * customer-filter. A customer is synced to Vigent only if they
+         * have at least one shop_order in one of these statuses.
+         *
+         *   • completed  — order fulfilled & closed
+         *   • processing — payment received, being prepared/shipped
+         *
+         * Excluded: pending, on-hold, cancelled, refunded, failed — these
+         * represent abandoned or unsuccessful checkouts and the customer
+         * has not actually paid yet.
+         */
+        const SUCCESSFUL_ORDER_STATUSES = array( 'completed', 'processing' );
+        /**
+         * Transient key + TTL for the cached list of customer IDs that
+         * have ≥1 paid order. We cache it so the bulk-sync wizard doesn't
+         * re-run the orders query on every page (50 customers per page ×
+         * N pages would be expensive on a busy store).
+         */
+        const CUSTOMERS_WITH_ORDERS_CACHE_KEY = 'vigent_woo_customers_with_orders';
+        const CUSTOMERS_WITH_ORDERS_CACHE_TTL = 600; // 10 minutes
 
         private static $instance = null;
 
@@ -160,6 +177,46 @@ class Vigent_Woo_Sync {
 
         public function on_order_status_changed( $order_id, $old_status, $new_status, $order = null ) {
                 $this->queue_order( $order_id, 'order.updated' );
+
+                // Whenever an order transitions into or out of a "successful"
+                // (paid) status, two things need to happen:
+                //   1. Invalidate the cached list of customer IDs with paid
+                //      orders, so the next bulk-sync sees the up-to-date set.
+                //   2. If the order is now paid AND the customer exists as a WP
+                //      user, queue the customer too — this is how a brand-new
+                //      customer who just paid for their first order gets synced
+                //      to Vigent (their user_register hook fired before they
+                //      had any paid orders, so queue_customer skipped them).
+                if ( ! $this->core()->sync_customers_enabled() ) {
+                        return;
+                }
+                $paid_statuses = self::SUCCESSFUL_ORDER_STATUSES;
+                $was_paid = in_array( $old_status, $paid_statuses, true );
+                $is_paid  = in_array( $new_status, $paid_statuses, true );
+                if ( $was_paid === $is_paid ) {
+                        // No transition in/out of paid — nothing extra to do.
+                        return;
+                }
+                // Cache invalidation: the set of "customers with paid orders"
+                // just changed.
+                $this->invalidate_customers_with_orders_cache();
+                // Only queue the customer when transitioning INTO a paid status.
+                // (Transitioning OUT — e.g. a completed order is refunded —
+                // doesn't un-sync the customer from Vigent; we leave them there
+                // for historical support context.)
+                if ( ! $is_paid ) {
+                        return;
+                }
+                if ( ! $order ) {
+                        $order = wc_get_order( $order_id );
+                }
+                if ( ! $order ) {
+                        return;
+                }
+                $customer_id = (int) $order->get_customer_id();
+                if ( $customer_id > 0 ) {
+                        $this->queue_customer( $customer_id, 'customer.updated' );
+                }
         }
 
         private function queue_order( $order_id, $topic ) {
@@ -225,6 +282,15 @@ class Vigent_Woo_Sync {
                 $has_billing      = ! empty( get_user_meta( $user_id, 'billing_phone', true ) )
                         || ! empty( get_user_meta( $user_id, 'billing_email', true ) );
                 if ( ! $is_customer_role && ! $has_billing ) {
+                        return;
+                }
+                // Stricter filter: only sync customers who have at least one
+                // PAID order (status = completed or processing). A registered
+                // user with no successful purchase is just a prospect — not a
+                // customer worth loading into Vigent's CRM. They will be queued
+                // automatically the moment their first order is paid, via the
+                // on_order_status_changed hook below.
+                if ( ! $this->customer_has_successful_orders( $user_id ) ) {
                         return;
                 }
                 $this->enqueue_delta( 'customer', $user_id, $topic );
@@ -574,6 +640,208 @@ class Vigent_Woo_Sync {
                 delete_option( $option );
         }
 
+        /**
+         * Get the list of WordPress user IDs that have at least one paid
+         * (completed or processing) shop_order.
+         *
+         * Used by both count_items('customers') and sync_batch('customers')
+         * so that the bulk-sync wizard ONLY sends customers who have actually
+         * purchased something — not every registered user with the 'customer'
+         * role (which includes abandoned checkouts, never-paid signups, etc.).
+         *
+         * The result is cached in a transient for 10 minutes to avoid
+         * re-running the orders query on every wizard page (the wizard paginates
+         * 50 customers at a time, so a 1000-customer store would otherwise hit
+         * this 20 times). The cache is invalidated by on_order_status_changed
+         * whenever an order transitions into or out of a paid status.
+         *
+         * Returns the IDs sorted DESC (newest user_id first) so the wizard
+         * syncs the most recent customers first — same UX as before.
+         *
+         * @return int[] Array of WP user IDs (may be empty).
+         */
+        public function get_customer_ids_with_successful_orders() {
+                if ( ! $this->core()->has_wc() || ! function_exists( 'wc_get_orders' ) ) {
+                        return array();
+                }
+                $cached = get_transient( self::CUSTOMERS_WITH_ORDERS_CACHE_KEY );
+                if ( is_array( $cached ) ) {
+                        return $cached;
+                }
+                // Fetch all paid order IDs. wc_get_orders abstracts HPOS vs
+                // legacy post storage, so this works on both. We ask for IDs
+                // only (no full object hydration) to keep memory low on stores
+                // with thousands of historical orders.
+                $order_ids = wc_get_orders( array(
+                        'status'  => self::SUCCESSFUL_ORDER_STATUSES,
+                        'type'    => 'shop_order',
+                        'limit'   => -1,
+                        'return'  => 'ids',
+                        'orderby' => 'date',
+                        'order'   => 'DESC',
+                ) );
+                if ( empty( $order_ids ) ) {
+                        set_transient( self::CUSTOMERS_WITH_ORDERS_CACHE_KEY, array(), self::CUSTOMERS_WITH_ORDERS_CACHE_TTL );
+                        return array();
+                }
+                // De-duplicate by customer_id. We iterate the order IDs and
+                // pull each order's customer_id. For very large stores this is
+                // O(N) order fetches, but wc_get_order() is internally cached
+                // by WooCommerce so subsequent calls in the same request are
+                // cheap. The result is also cached in a transient so the next
+                // wizard page skips this entirely.
+                $seen = array();
+                foreach ( $order_ids as $order_id ) {
+                        $order = wc_get_order( $order_id );
+                        if ( ! $order ) {
+                                continue;
+                        }
+                        $cid = (int) $order->get_customer_id();
+                        if ( $cid > 0 ) {
+                                $seen[ $cid ] = true;
+                        }
+                }
+                $ids = array_keys( $seen );
+                // Sort DESC so newest customers come first in the sync wizard.
+                rsort( $ids );
+                set_transient( self::CUSTOMERS_WITH_ORDERS_CACHE_KEY, $ids, self::CUSTOMERS_WITH_ORDERS_CACHE_TTL );
+                return $ids;
+        }
+
+        /**
+         * Check if a single user has at least one paid order.
+         *
+         * Used by queue_customer() on every customer-change hook to decide
+         * whether the change is worth syncing. We query with limit=1 so it's
+         * fast even on stores with thousands of orders per customer.
+         *
+         * @param int $user_id WordPress user ID.
+         * @return bool True if the user has ≥1 completed/processing order.
+         */
+        private function customer_has_successful_orders( $user_id ) {
+                $user_id = absint( $user_id );
+                if ( ! $user_id || ! $this->core()->has_wc() || ! function_exists( 'wc_get_orders' ) ) {
+                        return false;
+                }
+                $orders = wc_get_orders( array(
+                        'customer_id' => $user_id,
+                        'status'      => self::SUCCESSFUL_ORDER_STATUSES,
+                        'type'        => 'shop_order',
+                        'limit'       => 1,
+                        'return'      => 'ids',
+                ) );
+                return ! empty( $orders );
+        }
+
+        /**
+         * Invalidate the cached list of customer IDs with paid orders.
+         *
+         * Called from on_order_status_changed whenever an order transitions
+         * into or out of a "successful" status, so the next bulk-sync page
+         * sees the up-to-date list.
+         */
+        public function invalidate_customers_with_orders_cache() {
+                delete_transient( self::CUSTOMERS_WITH_ORDERS_CACHE_KEY );
+        }
+
+        /**
+         * Get the set of WP user IDs that have already been synced to Vigent
+         * during a previous bulk-sync run.
+         *
+         * Stored as a PHP array in the WP option `vigent_woo_synced_customer_ids`.
+         * The set grows on every successful sync_batch('customers') call —
+         * we add the page of IDs that was just sent. It is NEVER shrunk
+         * automatically (a customer that was synced stays "synced" even if
+         * their order is later refunded — we want the agent to keep their
+         * history).
+         *
+         * This is what powers the "X از N قبلاً ارسال شده" hint on the
+         * management card: we compare the set of paying-customer IDs against
+         * this stored set to figure out how many are NEW (will be added to
+         * Vigent) vs already known (will just be updated).
+         *
+         * @return int[] Associative array [user_id => true] for O(1) lookup.
+         */
+        public function get_synced_customer_ids() {
+                $ids = get_option( 'vigent_woo_synced_customer_ids', array() );
+                if ( ! is_array( $ids ) ) {
+                        $ids = array();
+                }
+                return $ids;
+        }
+
+        /**
+         * Mark a list of WP user IDs as "synced to Vigent".
+         *
+         * Called from sync_batch('customers') after a successful page send.
+         * We merge the new IDs into the stored set so subsequent runs can
+         * compute the "new vs. already-known" delta.
+         *
+         * @param int[] $user_ids IDs to mark as synced.
+         */
+        public function mark_customers_synced( $user_ids ) {
+                if ( empty( $user_ids ) ) {
+                        return;
+                }
+                $existing = $this->get_synced_customer_ids();
+                $changed = false;
+                foreach ( $user_ids as $uid ) {
+                        $uid = (int) $uid;
+                        if ( $uid > 0 && ! isset( $existing[ $uid ] ) ) {
+                                $existing[ $uid ] = true;
+                                $changed = true;
+                        }
+                }
+                if ( $changed ) {
+                        update_option( 'vigent_woo_synced_customer_ids', $existing, false );
+                }
+        }
+
+        /**
+         * Compute stats about paying customers and their sync state.
+         *
+         * Returns:
+         *   • total       — total number of customers with ≥1 paid order
+         *                   (the same number the wizard / sync_batch will send).
+         *   • synced      — how many of those have already been sent to Vigent
+         *                   in a previous successful bulk-sync run.
+         *   • new         — how many are NEW (will be added to Vigent as new
+         *                   contacts on the next sync). Computed as total - synced.
+         *
+         * Used by the management card to show:
+         *   "N مشتری با خرید موفق — X تا قبلاً ارسال شده، Y تا جدید اضافه می‌شود"
+         *
+         * Note: this is a best-effort count. The "synced" set is tracked in the
+         * WP option `vigent_woo_synced_customer_ids` and grows on every successful
+         * sync_batch('customers') call. If a customer exists in Vigent but their
+         * ID is not in this option (e.g. they were synced by an older plugin
+         * version before this tracking was added, or via the delta queue), they
+         * will be counted as "new" and re-sent — Vigent's upsert logic will
+         * just update them instead of creating a duplicate (it matches by phone
+         * / email / externalId), so this is safe.
+         *
+         * @return array{total:int, synced:int, new:int}
+         */
+        public function get_paying_customer_stats() {
+                $all_ids = $this->get_customer_ids_with_successful_orders();
+                $total   = count( $all_ids );
+                if ( $total === 0 ) {
+                        return array( 'total' => 0, 'synced' => 0, 'new' => 0 );
+                }
+                $synced_set = $this->get_synced_customer_ids();
+                $synced     = 0;
+                foreach ( $all_ids as $uid ) {
+                        if ( isset( $synced_set[ $uid ] ) ) {
+                                $synced++;
+                        }
+                }
+                return array(
+                        'total'  => $total,
+                        'synced' => $synced,
+                        'new'    => max( 0, $total - $synced ),
+                );
+        }
+
         public function count_items( $kind, $filter = array() ) {
                 if ( ! $this->core()->has_wc() ) {
                         return 0;
@@ -612,22 +880,21 @@ class Vigent_Woo_Sync {
                         }
                         return $total;
                 } elseif ( 'customers' === $kind ) {
-                        // Count only users with the 'customer' role. We use a direct
-                        // WP_User_Query because wc_get_customer() doesn't expose a
-                        // count-only mode, and we want to skip admins/editors/etc.
-                        // WP_User_Query with role=customer is indexed and fast.
-                        $q = new \WP_User_Query( array(
-                                'role'   => 'customer',
-                                'number' => 1,
-                                'fields' => 'ID',
-                                'count_total' => true,
-                        ) );
-                        $total = (int) $q->get_total();
-                        // Same cap as orders — older customers are rarely useful for
-                        // Vigent's customer-support use case.
-                        if ( $total > self::MAX_ORDERS_TO_SYNC ) {
-                                $total = self::MAX_ORDERS_TO_SYNC;
-                        }
+                        // Count only customers who have at least one PAID order
+                        // (status = completed or processing). This is stricter than
+                        // the old "has customer role OR has billing info" check —
+                        // we now skip users who registered but never actually bought
+                        // anything, abandoned their cart, or had their order fail.
+                        // These are the only customers worth syncing to Vigent.
+                        //
+                        // NOTE: Customers are NOT capped at MAX_ORDERS_TO_SYNC.
+                        // The product owner asked for "no limit" — every customer
+                        // with at least one paid order is synced, regardless of
+                        // how many thousands there are. Orders are still capped
+                        // (they're historical and the panel retains at most 2000),
+                        // but customers are CRM entities and we want all of them.
+                        $ids   = $this->get_customer_ids_with_successful_orders();
+                        $total = count( $ids );
                         return $total;
                 } else {
                         return 0;
@@ -688,24 +955,31 @@ class Vigent_Woo_Sync {
                                 $events[] = $this->make_event( 'order.updated', $this->core()->order_to_payload( $order ) );
                         }
                 } elseif ( 'customers' === $kind ) {
-                        // Fetch users with the 'customer' role, newest first. We use
-                        // WP_User_Query (not wc_get_customer()) because WP_User_Query is
-                        // available on every WordPress install — even those running
-                        // WooCommerce < 5.0 where wc_get_customer() may not exist.
+                        // Only sync customers who have at least one PAID order
+                        // (status = completed or processing). The full list is
+                        // cached in a transient; we slice it by offset/batch_size
+                        // to paginate the wizard. Then we use WP_User_Query with
+                        // an `include` clause to hydrate the user objects for the
+                        // current page only.
                         //
-                        // 'number' is the per-page size, 'offset' is 0-based.
-                        // We deliberately DON'T filter by billing_phone / billing_email
-                        // here — if the user has the 'customer' role, they should be
-                        // synced. customer_to_payload() will skip empty rows.
-                        $user_q = new \WP_User_Query( array(
-                                'role'   => 'customer',
-                                'number' => $batch_size,
-                                'offset' => $offset,
-                                'orderby'=> 'registered',
-                                'order'  => 'DESC',
-                                'fields' => 'all',
-                        ) );
-                        $users = $user_q->get_results();
+                        // This is stricter than the previous "all users with the
+                        // customer role" filter — we now skip registered users who
+                        // never actually bought anything. The Vigent panel only
+                        // cares about customers who have a real purchase history.
+                        $all_ids = $this->get_customer_ids_with_successful_orders();
+                        $page_ids = array_slice( $all_ids, $offset, $batch_size );
+                        if ( empty( $page_ids ) ) {
+                                $users = array();
+                        } else {
+                                $user_q = new \WP_User_Query( array(
+                                        'include' => $page_ids,
+                                        'number'  => $batch_size,
+                                        'orderby'  => 'registered',
+                                        'order'    => 'DESC',
+                                        'fields'   => 'all',
+                                ) );
+                                $users = $user_q->get_results();
+                        }
                         foreach ( $users as $user ) {
                                 $payload = $this->core()->customer_to_payload( $user );
                                 if ( empty( $payload ) ) {
@@ -725,12 +999,14 @@ class Vigent_Woo_Sync {
 
                 $total = $this->count_items( $kind, $filter );
                 $done  = ( $offset + count( $items ) ) >= $total || count( $items ) < $batch_size;
-                // Hard cap for orders and customers: never sync more than
-                // MAX_ORDERS_TO_SYNC, even if count_items returned a higher number
-                // (shouldn't happen since we cap there too, but this is a second-line
-                // defense). Once the offset reaches the cap, we're done regardless of
-                // what the DB still holds.
-                if ( ( 'orders' === $kind || 'customers' === $kind ) && ( $offset + count( $items ) ) >= self::MAX_ORDERS_TO_SYNC ) {
+                // Hard cap for ORDERS only: never sync more than MAX_ORDERS_TO_SYNC
+                // orders, even if count_items returned a higher number (shouldn't
+                // happen since we cap there too, but this is a second-line defense).
+                // Once the offset reaches the cap, we're done regardless of what the
+                // DB still holds.
+                //
+                // CUSTOMERS are NOT capped — see the comment in count_items() above.
+                if ( 'orders' === $kind && ( $offset + count( $items ) ) >= self::MAX_ORDERS_TO_SYNC ) {
                         $done = true;
                 }
                 if ( empty( $events ) ) {
@@ -742,12 +1018,14 @@ class Vigent_Woo_Sync {
                 // an oversized page no longer fails the whole page.
                 $sent   = 0;
                 $errors = array();
+                $all_ok = true; // tracks whether every chunk succeeded (for marking IDs).
                 foreach ( $this->chunk_events_by_budget( $events ) as $chunk ) {
                         $chunk_events = array_values( $chunk );
                         $result = $this->core()->send_batch_events( $chunk_events, true );
                         if ( ! empty( $result['success'] ) ) {
                                 $sent += count( $chunk_events );
                         } else {
+                                $all_ok = false;
                                 // Build a detailed error message so the JS alert + debug log
                                 // tell the admin exactly what failed. Without this the alert
                                 // was a generic "ارسال ناموفق بود" with no actionable detail.
@@ -763,6 +1041,24 @@ class Vigent_Woo_Sync {
                                         count( $chunk_events ),
                                         $err_body !== '' ? $err_body : __( 'پاسخی از سرور دریافت نشد.', 'vigent-woo' )
                                 );
+                        }
+                }
+                // For customers: if every chunk in this page was sent successfully,
+                // mark the user IDs as "synced to Vigent". This lets the management
+                // card show "X از N قبلاً ارسال شده" so the shop owner knows how
+                // many customers are NEW (will be added) vs already-known (will be
+                // updated). We only mark on full success — if any chunk failed we
+                // don't mark, so the next retry will re-send them and the count
+                // stays accurate.
+                if ( 'customers' === $kind && $all_ok && $sent > 0 ) {
+                        $synced_ids = array();
+                        foreach ( $items as $user ) {
+                                if ( is_object( $user ) && isset( $user->ID ) ) {
+                                        $synced_ids[] = (int) $user->ID;
+                                }
+                        }
+                        if ( ! empty( $synced_ids ) ) {
+                                $this->mark_customers_synced( $synced_ids );
                         }
                 }
                 return array(

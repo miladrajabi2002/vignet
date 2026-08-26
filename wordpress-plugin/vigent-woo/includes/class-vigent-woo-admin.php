@@ -166,10 +166,23 @@ class Vigent_Woo_Admin {
                         .vg-progress-info { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #6b7280; }
 
                         /* Stats — compact, used in management section after first push */
-                        .vg-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+                        .vg-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
                         .vg-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; text-align: center; }
                         .vg-stat .num { font-size: 26px; font-weight: 800; color: #000; line-height: 1; }
                         .vg-stat .lbl { font-size: 11px; color: #9ca3af; margin-top: 5px; }
+                        /* Highlighted stat for "paying customers" — distinct accent so it stands out. */
+                        .vg-stat.vg-stat-payers { background: #f0fdf4; border-color: #bbf7d0; }
+                        .vg-stat.vg-stat-payers .num { color: #15803d; }
+                        .vg-stat.vg-stat-payers .lbl { color: #16a34a; }
+
+                        /* Action card: "Add all paying customers" — sits right under the stats. */
+                        .vg-payers-card { padding: 18px 20px; }
+                        .vg-payers-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+                        .vg-payers-copy { flex: 1 1 320px; min-width: 0; }
+                        .vg-payers-copy h2 { margin: 0 0 6px; font-size: 15px; font-weight: 800; color: #000; }
+                        .vg-payers-copy p { margin: 0 0 4px; font-size: 13px; color: #374151; line-height: 1.7; }
+                        .vg-payers-copy .vg-payers-sub { color: #6b7280; font-size: 12px; }
+                        .vg-payers-actions { flex-shrink: 0; }
 
                         /* Steps list */
                         .vg-steps { list-style: none; padding: 0; margin: 12px 0 0; }
@@ -231,7 +244,7 @@ class Vigent_Woo_Admin {
                                 .vg-header .vg-btn-disconnect { margin-inline-start: 0; }
                                 .vg-connected-actions { width: 100%; justify-content: stretch; }
                                 .vg-connected-actions .vg-btn { flex: 1; justify-content: center; }
-                                .vg-stats { grid-template-columns: 1fr; }
+                                .vg-stats { grid-template-columns: repeat(2, 1fr); }
                         }
                         @media (prefers-reduced-motion: reduce) {
                                 .vg-wrap *, .vg-wrap *::before, .vg-wrap *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
@@ -535,14 +548,12 @@ class Vigent_Woo_Admin {
                                                 var pct = d.total > 0 ? Math.min(100, Math.round(((offset + 50) / d.total) * 100)) : 100;
                                                 if (pBar) pBar.style.width = pct + '%';
                                                 if (pText) pText.textContent = pct + '%';
-                                                // When syncing orders or customers, show a hint that we
-                                                // only sync the most recent 1000 records. The plugin caps
-                                                // the count at MAX_ORDERS_TO_SYNC (1000), so if
-                                                // d.total === 1000 the store likely has more records than
-                                                // the cap.
+                                                // When syncing ORDERS, show a hint that we only sync the
+                                                // most recent 1000 records (MAX_ORDERS_TO_SYNC). Customers
+                                                // are no longer capped — every paying customer is synced.
                                                 var capNote = '';
-                                                if ((kind === 'orders' || kind === 'customers') && d.total >= 1000) {
-                                                        capNote = kind === 'orders' ? ' · فقط آخرین ۱۰۰۰ سفارش' : ' · فقط آخرین ۱۰۰۰ مشتری';
+                                                if (kind === 'orders' && d.total >= 1000) {
+                                                        capNote = ' · فقط آخرین ۱۰۰۰ سفارش';
                                                 }
                                                 if (pInfo) pInfo.innerHTML = '<span>' + totalSent + ' / ' + d.total + capNote + '</span><span>خطا: ' + totalErrors + '</span>';
                                                 if (d.errors && d.errors.length) {
@@ -1318,12 +1329,26 @@ class Vigent_Woo_Admin {
                                         </div>
                                 </label>
 
-                                <!-- Optional: include customers in this initial push -->
+                                <!-- Optional: include customers in this initial push.
+                                     We pre-compute the count of paying customers here so the
+                                     shop owner sees EXACTLY how many customers will be synced
+                                     before they click the button — not after. -->
+                                <?php
+                                        $wizard_paying_customers = $this->count_customers_with_successful_orders();
+                                ?>
                                 <label class="vg-toggle" style="max-width:420px;margin:0 auto 24px;">
                                         <input type="checkbox" id="vg-include-customers" checked />
                                         <div>
-                                                <div class="label"><?php esc_html_e( 'همچنین مشتری‌ها را هم ارسال کن', 'vigent-woo' ); ?></div>
-                                                <div class="sub"><?php esc_html_e( 'اطلاعات تماس مشتریان (نام، تلفن، ایمیل، شهر) برای پشتیبانی و شناخت مشتری ارسال می‌شود.', 'vigent-woo' ); ?></div>
+                                                <div class="label">
+                                                        <?php
+                                                        printf(
+                                                                /* translators: %s: number of paying customers */
+                                                                esc_html__( 'همچنین مشتریان با خرید موفق را هم ارسال کن (%s)', 'vigent-woo' ),
+                                                                '<strong>' . esc_html( number_format_i18n( $wizard_paying_customers ) ) . '</strong>'
+                                                        );
+                                                        ?>
+                                                </div>
+                                                <div class="sub"><?php esc_html_e( 'فقط مشتریانی که حداقل یک سفارش موفق (تکمیل‌شده یا در حال پردازش) دارند ارسال می‌شوند؛ بدون محدودیت تعداد. سایر کاربران ثبت‌نام‌کرده نادیده گرفته می‌شوند.', 'vigent-woo' ); ?></div>
                                         </div>
                                 </label>
 
@@ -1468,11 +1493,56 @@ class Vigent_Woo_Admin {
                                 <div class="num"><?php echo $has_wc ? esc_html( $this->count_customers_safe() ) : '—'; ?></div>
                                 <div class="lbl"><?php esc_html_e( 'مشتری‌ها', 'vigent-woo' ); ?></div>
                         </div>
-                        <div class="vg-stat">
-                                <div class="num" id="vg-queue-count"><?php echo esc_html( (int) $delta['queue_count'] ); ?></div>
-                                <div class="lbl"><?php esc_html_e( 'تغییر در صف', 'vigent-woo' ); ?></div>
+                        <?php
+                                $payer_stats = $has_wc
+                                        ? Vigent_Woo_Sync::instance()->get_paying_customer_stats()
+                                        : array( 'total' => 0, 'synced' => 0, 'new' => 0 );
+                                $paying_customers = $payer_stats['total'];
+                                $synced_customers = $payer_stats['synced'];
+                                $new_customers    = $payer_stats['new'];
+                        ?>
+                        <div class="vg-stat vg-stat-payers">
+                                <div class="num" id="vg-payers-count"><?php echo $has_wc ? esc_html( number_format_i18n( $paying_customers ) ) : '—'; ?></div>
+                                <div class="lbl"><?php esc_html_e( 'مشتریان با خرید موفق', 'vigent-woo' ); ?></div>
                         </div>
                 </div>
+
+                <?php if ( $has_wc ) : ?>
+                <div class="vg-card vg-payers-card">
+                        <div class="vg-payers-row">
+                                <div class="vg-payers-copy">
+                                        <h2><?php esc_html_e( 'افزودن مشتریان با خرید موفق', 'vigent-woo' ); ?></h2>
+                                        <?php if ( $paying_customers > 0 ) : ?>
+                                                <p>
+                                                        <?php
+                                                        printf(
+                                                                /* translators: 1: total paying customers, 2: already synced, 3: new */
+                                                                esc_html__( 'در مجموع %1$s مشتری حداقل یک سفارش موفق (تکمیل‌شده یا در حال پردازش) دارند. از این تعداد %2$s تا قبلاً به ویجنت ارسال شده‌اند و %3$s تا جدید هستند که با کلیک روی «افزودن همه» به‌عنوان «مشتری» اضافه می‌شوند.', 'vigent-woo' ),
+                                                                '<strong>' . esc_html( number_format_i18n( $paying_customers ) ) . '</strong>',
+                                                                '<strong>' . esc_html( number_format_i18n( $synced_customers ) ) . '</strong>',
+                                                                '<strong>' . esc_html( number_format_i18n( $new_customers ) ) . '</strong>'
+                                                        );
+                                                        ?>
+                                                </p>
+                                        <?php else : ?>
+                                                <p><?php esc_html_e( 'هنوز مشتری‌ای با حداقل یک سفارش موفق در فروشگاه شما وجود ندارد. به‌محض ثبت اولین سفارش موفق، خودکار در این لیست قرار می‌گیرد.', 'vigent-woo' ); ?></p>
+                                        <?php endif; ?>
+                                        <p class="vg-payers-sub"><?php esc_html_e( 'بدون محدودیت تعداد — همهٔ مشتریان با خرید موفق ارسال می‌شوند. موارد قبلی فقط به‌روزرسانی می‌شوند و تکراری ساخته نمی‌شوند (تطبیق با تلفن/ایمیل/شناسه ووکامرس).', 'vigent-woo' ); ?></p>
+                                </div>
+                                <div class="vg-btns vg-payers-actions">
+                                        <button type="button" class="vg-btn vg-btn-black" onclick="vgSync('customers', this)" <?php disabled( ! $has_wc || $paying_customers < 1 ); ?>>
+                                                <?php
+                                                printf(
+                                                        /* translators: %s: total paying customers */
+                                                        esc_html__( 'افزودن همه (%s)', 'vigent-woo' ),
+                                                        esc_html( number_format_i18n( $paying_customers ) )
+                                                );
+                                                ?>
+                                        </button>
+                                </div>
+                        </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="vg-card">
                         <h2><?php esc_html_e( 'تنظیمات هم‌گام‌سازی', 'vigent-woo' ); ?></h2>
@@ -1552,6 +1622,28 @@ class Vigent_Woo_Admin {
                         'count_total' => true,
                 ) );
                 return (int) $q->get_total();
+        }
+
+        /**
+         * Count customers who have at least one PAID order
+         * (status = completed or processing).
+         *
+         * This is the count that drives the «افزودن همه» (Add All) button on
+         * the dashboard — the user explicitly asked to only sync customers
+         * who have actually bought something, not every registered user.
+         *
+         * Delegates to Vigent_Woo_Sync::get_customer_ids_with_successful_orders()
+         * which caches the result in a transient for 10 minutes, so this is
+         * cheap to call on every page render.
+         *
+         * @return int
+         */
+        private function count_customers_with_successful_orders() {
+                if ( ! $this->core()->has_wc() ) {
+                        return 0;
+                }
+                $ids = Vigent_Woo_Sync::instance()->get_customer_ids_with_successful_orders();
+                return count( $ids );
         }
 
         /**

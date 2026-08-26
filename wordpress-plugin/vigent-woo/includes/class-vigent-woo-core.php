@@ -719,6 +719,121 @@ class Vigent_Woo_Core {
                 return '';
         }
 
+        /**
+         * Convert an HTML product description into clean, readable plain text.
+         *
+         * WooCommerce stores product descriptions as HTML (the rich text editor
+         * output). Some shop themes wrap every attribute in styled <div>/<span>
+         * tags with classes like:
+         *
+         *   <div class="sc-guDLey fELFnW">
+         *     <div class="sc-guDLey fELFnW">
+         *       <span class="sc-hLQSwg gRGEch">جنس کار:</span>
+         *       <span class="sc-hLQSwg eCaJqF sc-20cd4b0f-0 gAXKXn">داکرون</span>
+         *     </div>
+         *     ...
+         *   </div>
+         *
+         * When this HTML is sent to Vigent and the agent renders it in a chat
+         * message, the user sees a wall of CSS class names instead of clean
+         * text. We need to convert it to:
+         *
+         *   جنس کار: داکرون
+         *   قد کار: ۱۲۰ سانتی متر
+         *   دورسینه : ۱۱۲ سانتی متر
+         *
+         * Strategy:
+         *   1. Convert block-level tags (<div>, <p>, <br>, <li>, <tr>) to
+         *      newlines so each "row" ends up on its own line.
+         *   2. Strip ALL remaining HTML tags (including <span> with their
+         *      classes) — we keep only the inner text.
+         *   3. Decode HTML entities (&nbsp; → space, &amp; → &, etc.).
+         *   4. Collapse runs of whitespace inside each line (multiple spaces
+         *      become one) and trim trailing spaces from each line.
+         *   5. Collapse runs of blank lines to a single blank line, and trim
+         *      the whole string.
+         *
+         * This is a deterministic, dependency-free transformation. We don't
+         * use wp_strip_all_tags() because it doesn't insert newlines for
+         * block-level elements — it would join "جنس کار:" and "داکرون"
+         * into "جنس کار:داکرون" with no space, or worse, join separate
+         * rows on the same line.
+         *
+         * @param string $html Raw HTML from WC_Product::get_description() etc.
+         * @return string Clean plain text, may be empty string.
+         */
+        public function html_to_plain_text( $html ) {
+                if ( empty( $html ) || ! is_string( $html ) ) {
+                        return '';
+                }
+                // 1. Normalize newlines to \n first (Windows \r\n → \n, lone \r → \n).
+                $text = str_replace( array( "\r\n", "\r" ), "\n", $html );
+
+                // 2. Insert a newline AFTER every closing block tag, and a newline
+                //    BEFORE every opening block tag. This way adjacent block elements
+                //    (e.g. </div><div class="...">) end up on separate lines.
+                //
+                //    We use a comprehensive list of HTML block-level elements.
+                //    The `[^>]*` after the tag name matches any attributes
+                //    (class="...", style="...", id="..." etc.) so they're consumed
+                //    by the regex and don't survive into the output.
+                //
+                //    We run this BEFORE strip_tags so the newline structure is
+                //    preserved — strip_tags just removes <span>/<a>/<b>/etc.
+                //    inline tags without touching them.
+                $block_pattern = '#</?(?:div|p|section|article|header|footer|main|aside|figure|figcaption|blockquote|pre|ul|ol|li|table|thead|tbody|tfoot|tr|td|th|h[1-6]|hr|br)\b[^>]*>#i';
+                $text = preg_replace( $block_pattern, "\n", $text );
+
+                // 2b. Insert a single space between adjacent inline-tag boundaries.
+                //     When two inline tags sit next to each other with no whitespace
+                //     between them (very common in theme-generated HTML):
+                //       <span>جنس کار:</span><span>داکرون</span>
+                //     naive strip_tags would join them into "جنس کار:داکرون" with no
+                //     space. We want "جنس کار: داکرون" — a space after the colon.
+                //     The simplest fix: replace every "</X>" closing inline tag
+                //     boundary (</span>, </a>, </b>, </i>, </strong>, </em>, etc.)
+                //     with a single space. strip_tags will then remove the leftover
+                //     opening tags, and the spaces survive into the final text.
+                //     Multiple adjacent spaces collapse in step 6 below.
+                $text = preg_replace( '#</(span|a|b|i|strong|em|u|small|sub|sup|mark|label|font|code|abbr|cite|q|time|var)\s*>#i', ' ', $text );
+
+                // 3. Strip ALL remaining tags. Anything we didn't convert above
+                //    (span, a, img, strong, em, b, i, etc.) loses its tag and we
+                //    keep only the inner text.
+                $text = wp_strip_all_tags( $text );
+
+                // 4. Decode HTML entities. wp_strip_all_tags doesn't decode
+                //    entities by default, so &nbsp; would survive as the literal
+                //    string "&nbsp;". We use wp_kses_decode_entities which is
+                //    the WP-canonical decoder (handles named + numeric entities).
+                $text = wp_kses_decode_entities( $text );
+
+                // 5. Convert non-breaking spaces (U+00A0 and the HTML entity
+                //    decoded form) to regular spaces so they collapse properly
+                //    in step 6.
+                $text = str_replace( "\xc2\xa0", ' ', $text );
+
+                // 6. Collapse runs of spaces/tabs inside each line to a single
+                //    space, and trim trailing spaces. We split on \n, process
+                //    each line, then rejoin.
+                $lines = explode( "\n", $text );
+                $clean_lines = array();
+                foreach ( $lines as $line ) {
+                        // Collapse internal whitespace runs to a single space.
+                        $line = preg_replace( '/[ \t]+/', ' ', $line );
+                        // Trim trailing/leading spaces on this line.
+                        $line = trim( $line );
+                        if ( $line !== '' ) {
+                                $clean_lines[] = $line;
+                        }
+                }
+                // 7. Rejoin with single \n. Multiple blank lines collapse to
+                //    zero (because we skipped empty lines above), which is
+                //    what we want for a compact, readable text.
+                $text = implode( "\n", $clean_lines );
+                return trim( $text );
+        }
+
         public function product_to_payload( $product ) {
                 if ( ! $product ) {
                         return array();
@@ -812,12 +927,24 @@ class Vigent_Woo_Core {
                 }
                 $date_modified = $product->get_date_modified();
 
+                // Convert HTML descriptions to clean plain text. WooCommerce stores
+                // these as HTML (rich text editor output), but some shop themes
+                // wrap every attribute in styled <div>/<span> tags with classes
+                // that look like garbage when rendered in chat. We strip all HTML
+                // and convert block-level elements to newlines so the agent sees
+                // clean, readable text like:
+                //   جنس کار: داکرون
+                //   قد کار: ۱۲۰ سانتی متر
+                // See html_to_plain_text() above for the full strategy.
+                $description       = $this->html_to_plain_text( $product->get_description() );
+                $short_description = $this->html_to_plain_text( $product->get_short_description() );
+
                 return array(
                         'id'                => $product->get_id(),
                         'name'              => $product->get_name(),
                         'sku'               => $product->get_sku(),
-                        'description'       => $product->get_description(),
-                        'short_description' => $product->get_short_description(),
+                        'description'       => $description,
+                        'short_description' => $short_description,
                         'price'             => $product->get_price(),
                         'regular_price'     => $product->get_regular_price(),
                         'sale_price'        => $product->get_sale_price(),
