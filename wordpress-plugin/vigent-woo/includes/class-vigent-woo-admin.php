@@ -1320,12 +1320,48 @@ class Vigent_Woo_Admin {
                         <p class="vg-center-sub"><?php esc_html_e( 'اتصال برقرار شد. محصولات را یک‌بار بفرستید؛ پس از آن فقط تغییرات جدید به‌صورت تجمیعی ارسال می‌شوند.', 'vigent-woo' ); ?></p>
 
                         <?php if ( $has_wc ) : ?>
-                                <!-- Optional: include orders in this initial push -->
+                                <!-- Optional: include orders in this initial push.
+                                     We pre-compute the order stats here so the shop owner
+                                     sees EXACTLY how many orders will be synced before they
+                                     click the button. -->
+                                <?php
+                                        $wizard_order_stats = Vigent_Woo_Sync::instance()->get_order_stats();
+                                        $wizard_syncable     = $wizard_order_stats['syncable'];
+                                        $wizard_total_orders = $wizard_order_stats['total'];
+                                        $wizard_cap_orders   = $wizard_order_stats['cap'];
+                                        $wizard_cancelled    = $wizard_order_stats['cancelled'];
+                                ?>
                                 <label class="vg-toggle" style="max-width:420px;margin:0 auto 12px;">
                                         <input type="checkbox" id="vg-include-orders" checked />
                                         <div>
-                                                <div class="label"><?php esc_html_e( 'همچنین سفارش‌ها را هم ارسال کن', 'vigent-woo' ); ?></div>
-                                                <div class="sub"><?php esc_html_e( 'سفارش‌های اخیر برای پیگیری و پشتیبانی ارسال می‌شوند.', 'vigent-woo' ); ?></div>
+                                                <div class="label">
+                                                        <?php
+                                                        printf(
+                                                                /* translators: %s: number of orders that will be sent */
+                                                                esc_html__( 'همچنین سفارش‌ها را هم ارسال کن (%s)', 'vigent-woo' ),
+                                                                '<strong>' . esc_html( number_format_i18n( $wizard_syncable ) ) . '</strong>'
+                                                        );
+                                                        ?>
+                                                </div>
+                                                <div class="sub">
+                                                        <?php
+                                                        if ( $wizard_total_orders > $wizard_syncable ) {
+                                                                printf(
+                                                                        /* translators: 1: total orders, 2: syncable count, 3: cap */
+                                                                        esc_html__( 'از مجموع %1$s سفارش قابل پیگیری، فقط %2$s سفارش آخر ارسال می‌شود (حداکثر %3$s). سفارش‌های لغو شده ارسال نمی‌شوند.', 'vigent-woo' ),
+                                                                        esc_html( number_format_i18n( $wizard_total_orders ) ),
+                                                                        esc_html( number_format_i18n( $wizard_syncable ) ),
+                                                                        esc_html( number_format_i18n( $wizard_cap_orders ) )
+                                                                );
+                                                        } else {
+                                                                printf(
+                                                                        /* translators: 1: syncable count */
+                                                                        esc_html__( 'همهٔ %1$s سفارش قابل پیگیری ارسال می‌شوند. سفارش‌های لغو شده ارسال نمی‌شوند.', 'vigent-woo' ),
+                                                                        esc_html( number_format_i18n( $wizard_syncable ) )
+                                                                );
+                                                        }
+                                                        ?>
+                                                </div>
                                         </div>
                                 </label>
 
@@ -1466,27 +1502,50 @@ class Vigent_Woo_Admin {
                                 <div class="num"><?php echo $has_wc ? esc_html( $this->count_products() ) : '—'; ?></div>
                                 <div class="lbl"><?php esc_html_e( 'محصولات', 'vigent-woo' ); ?></div>
                         </div>
+                        <?php
+                                $order_stats = $has_wc
+                                        ? Vigent_Woo_Sync::instance()->get_order_stats()
+                                        : array( 'total' => 0, 'syncable' => 0, 'cap' => 1000, 'cancelled' => 0 );
+                                $total_orders    = $order_stats['total'];
+                                $syncable_orders = $order_stats['syncable'];
+                                $cap_orders      = $order_stats['cap'];
+                                $cancelled_orders = $order_stats['cancelled'];
+                        ?>
                         <div class="vg-stat">
-                                <div class="num"><?php echo $has_wc ? esc_html( $this->count_orders_safe() ) : '—'; ?></div>
-                                <div class="lbl"><?php esc_html_e( 'کل سفارش‌ها', 'vigent-woo' ); ?></div>
-                                <?php
-                                        $total_orders   = $has_wc ? $this->count_orders_safe() : 0;
-                                        $syncable_orders = $has_wc ? $this->count_syncable_orders() : 0;
-                                        $cap_orders     = defined( 'Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC' )
-                                                ? (int) Vigent_Woo_Sync::MAX_ORDERS_TO_SYNC
-                                                : 1000;
-                                        if ( $has_wc && $total_orders > $syncable_orders ) :
-                                ?>
+                                <div class="num"><?php echo $has_wc ? esc_html( number_format_i18n( $total_orders ) ) : '—'; ?></div>
+                                <div class="lbl"><?php esc_html_e( 'سفارش‌های قابل پیگیری', 'vigent-woo' ); ?></div>
+                                <?php if ( $has_wc ) : ?>
                                         <div class="sub" style="margin-top:4px;font-size:11px;color:#6b7280;">
                                                 <?php
-                                                echo esc_html( sprintf(
-                                                        /* translators: 1: number of orders that will be sent, 2: cap (1000) */
-                                                        __( 'فقط %1$s سفارش آخر ارسال می‌شود (حداکثر %2$s)', 'vigent-woo' ),
-                                                        number_format_i18n( $syncable_orders ),
-                                                        number_format_i18n( $cap_orders )
-                                                ) );
+                                                if ( $total_orders > $syncable_orders ) {
+                                                        // More orders than the cap — only the most recent N will be sent.
+                                                        printf(
+                                                                /* translators: 1: syncable count (will be sent), 2: cap (1000) */
+                                                                esc_html__( 'فقط %1$s سفارش آخر ارسال می‌شود (حداکثر %2$s)', 'vigent-woo' ),
+                                                                '<strong>' . esc_html( number_format_i18n( $syncable_orders ) ) . '</strong>',
+                                                                esc_html( number_format_i18n( $cap_orders ) )
+                                                        );
+                                                } else {
+                                                        // All orders fit under the cap — every one will be sent.
+                                                        printf(
+                                                                /* translators: %s: syncable count */
+                                                                esc_html__( 'همه ارسال می‌شوند (%s سفارش در حال پیگیری)', 'vigent-woo' ),
+                                                                '<strong>' . esc_html( number_format_i18n( $syncable_orders ) ) . '</strong>'
+                                                        );
+                                                }
                                                 ?>
                                         </div>
+                                        <?php if ( $cancelled_orders > 0 ) : ?>
+                                                <div class="sub" style="margin-top:2px;font-size:10px;color:#9ca3af;">
+                                                        <?php
+                                                        printf(
+                                                                /* translators: %s: cancelled orders count */
+                                                                esc_html__( '%s سفارش لغو شده نادیده گرفته شد', 'vigent-woo' ),
+                                                                esc_html( number_format_i18n( $cancelled_orders ) )
+                                                        );
+                                                        ?>
+                                                </div>
+                                        <?php endif; ?>
                                 <?php endif; ?>
                         </div>
                         <div class="vg-stat">

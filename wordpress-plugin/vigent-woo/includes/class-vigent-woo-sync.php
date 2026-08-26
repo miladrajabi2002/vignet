@@ -59,6 +59,44 @@ class Vigent_Woo_Sync {
          */
         const SUCCESSFUL_ORDER_STATUSES = array( 'completed', 'processing' );
         /**
+         * Order statuses that are SYNCED to Vigent.
+         *
+         * This is the inverse of the "excluded" list — we sync every order
+         * status EXCEPT the ones the product owner explicitly asked to skip:
+         *
+         *   • cancelled — the customer (or admin) explicitly cancelled the
+         *     order. There is nothing to track, no shipping to follow up, and
+         *     no payment to chase. Syncing these would just pollute the
+         *     agent's order list with dead rows.
+         *
+         * Everything else is sent so the agent can answer "where is my
+         * order?" / "what's my order status?" / "why is my payment on hold?"
+         * for ALL active and historical orders the customer might ask about:
+         *
+         *   • pending     — checkout started, awaiting payment
+         *   • on-hold     — payment received but stock/awaiting manual review
+         *   • processing — payment received, being prepared/shipped
+         *   • completed   — fulfilled & closed
+         *   • refunded    — money returned to the customer (the customer
+         *                  might still ask "where is my refund?" so we keep
+         *                  these for historical context)
+         *   • failed      — payment attempted and declined (the customer
+         *                  might still ask "why did my payment fail?")
+         *
+         * Note: shop_order_refund posts are already filtered out separately
+         * via `type => shop_order` in the wc_get_orders() args — that's a
+         * different concept (a separate WC post type) vs the `cancelled`
+         * order status (a status on a normal shop_order).
+         *
+         * The status names use the "wc-" prefix form because that's what
+         * wc_get_order_statuses() returns as array keys. We compare against
+         * the same form everywhere (count_items, sync_batch, get_order_stats,
+         * queue_order) so the array_diff + in_array checks all line up.
+         * wc_get_orders() accepts both forms ("cancelled" and "wc-cancelled")
+         * so passing either works in the status filter.
+         */
+        const EXCLUDED_ORDER_STATUSES = array( 'wc-cancelled' );
+        /**
          * Transient key + TTL for the cached list of customer IDs that
          * have ≥1 paid order. We cache it so the bulk-sync wizard doesn't
          * re-run the orders query on every page (50 customers per page ×
@@ -224,7 +262,60 @@ class Vigent_Woo_Sync {
                 if ( ! $order_id || ! $this->core()->sync_orders_enabled() ) {
                         return;
                 }
+                // Skip cancelled orders. We don't sync them at all (cancelled =
+                // dead order, nothing to track, see EXCLUDED_ORDER_STATUSES doc).
+                // This filter runs on EVERY order change hook (new, update,
+                // status_changed), so even if an order is created and then
+                // immediately cancelled in the same checkout flow, it never
+                // gets enqueued for sync.
+                //
+                // We still allow an order that was previously synced (e.g. while
+                // it was "processing") to be RE-queued when its status changes —
+                // but only if the new status is NOT cancelled. If the new
+                // status IS cancelled, we skip the enqueue here, which means
+                // Vigent keeps the last known non-cancelled state of the order
+                // in its database (we don't propagate the cancellation). This
+                // is intentional: the customer may still ask "what happened
+                // to my order?" and the agent should be able to answer based
+                // on the last known state, not get a 404 because we deleted it.
+                if ( function_exists( 'wc_get_order' ) ) {
+                        $order = wc_get_order( $order_id );
+                        if ( $order && $this->is_order_excluded( $order->get_status() ) ) {
+                                return;
+                        }
+                }
                 $this->enqueue_delta( 'order', $order_id, $topic );
+        }
+
+        /**
+         * Check if an order status is in the EXCLUDED_ORDER_STATUSES list.
+         *
+         * WooCommerce is inconsistent about status naming:
+         *   • wc_get_order_statuses() returns keys WITH the "wc-" prefix
+         *     (e.g. "wc-cancelled", "wc-completed").
+         *   • WC_Order::get_status() returns the status WITHOUT the prefix
+         *     (e.g. "cancelled", "completed").
+         *   • wc_get_orders() accepts both forms in the `status` parameter.
+         *
+         * EXCLUDED_ORDER_STATUSES uses the "wc-" form (to match
+         * wc_get_order_statuses() keys for the array_diff in count_items).
+         * But get_status() returns the no-prefix form, so a naive
+         * in_array( get_status(), EXCLUDED_ORDER_STATUSES ) would FAIL.
+         *
+         * This helper normalizes the input by accepting either form and
+         * checking both. We use it in queue_order and sync_batch to keep
+         * the comparison logic in one place.
+         *
+         * @param string $status Order status (with or without "wc-" prefix).
+         * @return bool True if the status is in the excluded list.
+         */
+        private function is_order_excluded( $status ) {
+                if ( empty( $status ) || ! is_string( $status ) ) {
+                        return false;
+                }
+                // Normalize: ensure "wc-" prefix.
+                $normalized = ( strpos( $status, 'wc-' ) === 0 ) ? $status : 'wc-' . $status;
+                return in_array( $normalized, self::EXCLUDED_ORDER_STATUSES, true );
         }
 
         /**
@@ -842,6 +933,72 @@ class Vigent_Woo_Sync {
                 );
         }
 
+        /**
+         * Count ALL non-excluded orders in the store, WITHOUT the MAX_ORDERS_TO_SYNC
+         * cap. Used by the admin UI to show the shop owner:
+         *
+         *   • "شما ۳۵۲۳ سفارش قابل پیگیری دارید — فقط ۱۰۰۰ سفارش آخر ارسال می‌شود"
+         *     (when total > cap)
+         *   • "شما ۳۲ سفارش قابل پیگیری دارید — همه ارسال می‌شوند"
+         *     (when total <= cap)
+         *
+         * Returns an associative array:
+         *   • total    — count of all non-excluded (i.e. non-cancelled) orders.
+         *   • cap      — MAX_ORDERS_TO_SYNC (1000). Constant, returned for the
+         *                UI so it doesn't have to hard-code the number.
+         *   • syncable — min(total, cap) — the number of orders that will
+         *                actually be sent on the next sync. Same as count_items
+         *                ('orders'), but without re-running the query (we
+         *                already have $total).
+         *   • cancelled — count of cancelled orders (informational; the UI may
+         *                show "X سفارش لغو شده نادیده گرفته شد" if > 0).
+         *
+         * @return array{total:int, cap:int, syncable:int, cancelled:int}
+         */
+        public function get_order_stats() {
+                $cap = self::MAX_ORDERS_TO_SYNC;
+                if ( ! $this->core()->has_wc() || ! function_exists( 'wc_get_orders' ) ) {
+                        return array( 'total' => 0, 'cap' => $cap, 'syncable' => 0, 'cancelled' => 0 );
+                }
+                // Count non-excluded orders (= orders we WILL sync). We pass the
+                // list of included statuses (everything except cancelled) to
+                // wc_get_orders, exactly like count_items('orders') does.
+                $all_statuses = function_exists( 'wc_get_order_statuses' )
+                        ? array_keys( wc_get_order_statuses() )
+                        : array( 'pending', 'on-hold', 'processing', 'completed', 'refunded', 'failed', 'cancelled' );
+                $included = array_values( array_diff( $all_statuses, self::EXCLUDED_ORDER_STATUSES ) );
+                $args = array(
+                        'status'  => $included,
+                        'type'    => 'shop_order',
+                        'limit'   => 1,
+                        'paginate' => true,
+                        'return'  => 'ids',
+                );
+                $result = wc_get_orders( $args );
+                $total  = is_object( $result ) && isset( $result->total ) ? (int) $result->total : 0;
+
+                // Count cancelled orders (informational). We pass status=cancelled
+                // directly because that's exactly what we want to count.
+                $cancelled = 0;
+                $c_result = wc_get_orders( array(
+                        'status'  => self::EXCLUDED_ORDER_STATUSES,
+                        'type'    => 'shop_order',
+                        'limit'   => 1,
+                        'paginate' => true,
+                        'return'  => 'ids',
+                ) );
+                if ( is_object( $c_result ) && isset( $c_result->total ) ) {
+                        $cancelled = (int) $c_result->total;
+                }
+
+                return array(
+                        'total'     => $total,
+                        'cap'       => $cap,
+                        'syncable'  => min( $total, $cap ),
+                        'cancelled' => $cancelled,
+                );
+        }
+
         public function count_items( $kind, $filter = array() ) {
                 if ( ! $this->core()->has_wc() ) {
                         return 0;
@@ -862,8 +1019,34 @@ class Vigent_Woo_Sync {
                         }
                         $result = wc_get_products( $args );
                 } elseif ( 'orders' === $kind ) {
+                        // Status filter:
+                        //   • If the user passed an explicit status filter (e.g. via
+                        //     the management UI's status dropdown), respect it.
+                        //   • Otherwise, EXCLUDE cancelled orders — the product owner
+                        //     explicitly asked to skip them. Cancelled orders have
+                        //     nothing to track (no shipping, no payment to chase), so
+                        //     syncing them would just pollute the agent's order list.
+                        //     Every OTHER status (pending, on-hold, processing,
+                        //     completed, refunded, failed) is kept so the agent can
+                        //     answer "where is my order?" for any active order.
                         if ( ! empty( $filter['status'] ) ) {
                                 $args['status'] = array( sanitize_text_field( $filter['status'] ) );
+                        } else {
+                                $args['status'] = self::EXCLUDED_ORDER_STATUSES;
+                                // wc_get_orders interprets `status` as "match any of
+                                // these statuses" — there is no built-in "exclude"
+                                // parameter. To exclude cancelled, we have to pass
+                                // the full list of statuses EXCEPT cancelled.
+                                // wc_get_order_statuses() returns the full
+                                // slug => label map; we take every slug that's not
+                                // in the excluded list.
+                                if ( function_exists( 'wc_get_order_statuses' ) ) {
+                                        $all_statuses = array_keys( wc_get_order_statuses() );
+                                        $included     = array_values( array_diff( $all_statuses, self::EXCLUDED_ORDER_STATUSES ) );
+                                        if ( ! empty( $included ) ) {
+                                                $args['status'] = $included;
+                                        }
+                                }
                         }
                         // Only count real orders, not refunds. Without this the total
                         // includes shop_order_refund posts, which inflates the count and
@@ -932,8 +1115,20 @@ class Vigent_Woo_Sync {
                                 $events[] = $this->make_event( 'product.updated', $this->core()->product_to_payload( $product ) );
                         }
                 } elseif ( 'orders' === $kind ) {
+                        // Status filter (see count_items('orders') for the full
+                        // explanation): if the user passed an explicit status,
+                        // respect it; otherwise EXCLUDE cancelled orders so we
+                        // don't sync dead orders the customer can't ask about.
                         if ( ! empty( $filter['status'] ) ) {
                                 $args['status'] = array( sanitize_text_field( $filter['status'] ) );
+                        } else {
+                                if ( function_exists( 'wc_get_order_statuses' ) ) {
+                                        $all_statuses = array_keys( wc_get_order_statuses() );
+                                        $included     = array_values( array_diff( $all_statuses, self::EXCLUDED_ORDER_STATUSES ) );
+                                        if ( ! empty( $included ) ) {
+                                                $args['status'] = $included;
+                                        }
+                                }
                         }
                         // Only fetch real orders, not refunds. wc_get_orders() can return
                         // OrderRefund objects mixed in with WC_Order, and OrderRefund does
@@ -950,6 +1145,12 @@ class Vigent_Woo_Sync {
                                         continue;
                                 }
                                 if ( 'shop_order_refund' === $order->get_type() ) {
+                                        continue;
+                                }
+                                // Third-line defense: skip cancelled orders even if the
+                                // query somehow returned them (e.g. an old WC version
+                                // that ignores the status filter). Belt + suspenders.
+                                if ( $this->is_order_excluded( $order->get_status() ) ) {
                                         continue;
                                 }
                                 $events[] = $this->make_event( 'order.updated', $this->core()->order_to_payload( $order ) );
