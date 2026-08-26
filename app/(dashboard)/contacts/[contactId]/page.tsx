@@ -5,7 +5,7 @@ import type { ChannelType } from '@prisma/client'
 import { Phone, MessageSquare } from 'lucide-react'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
 import { ContactDetailEditor } from '@/components/crm/contact-detail'
 import { contactDisplayName } from '@/lib/crm/display'
 import { BackButton } from '@/components/dashboard/back-button'
@@ -162,6 +162,7 @@ export default async function ContactDetailPage(
                 {channels.map((ch) => (
                   <ChannelBadge key={ch} type={ch} />
                 ))}
+                <SourceTagBadges tags={contact.tags} />
               </div>
               {contact.phone && (
                 <p

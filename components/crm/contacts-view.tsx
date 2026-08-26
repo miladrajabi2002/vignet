@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ChannelType } from '@prisma/client'
 import { Users, Search, LayoutList, Columns3, GripVertical, Filter, X, Loader2 } from 'lucide-react'
-import { ChannelBadge } from '@/components/crm/channel-badge'
+import { ChannelBadge, SourceTagBadges } from '@/components/crm/channel-badge'
 import { relativeTime } from '@/lib/format'
 import { contactDisplayName } from '@/lib/crm/display'
 import { cn } from '@/lib/utils'
@@ -413,6 +413,7 @@ function ListView({
                                                                                 </span>
                                                                         )
                                                                 })}
+                                                                <SourceTagBadges tags={c.tags} />
                                                         </div>
                                                         <p className="truncate text-xs text-[var(--text-secondary)]">
                                                                 {c.conversationCount} {t('conversations')} · {t('lastSeen')}{' '}
@@ -534,6 +535,7 @@ function PipelineView({
                                                                                         {c.channels.map((ch) => (
                                                                                                 <ChannelBadge key={ch} type={ch} />
                                                                                         ))}
+                                                                                        <SourceTagBadges tags={c.tags} />
                                                                                 </Link>
                                                                                 <div className="mt-2 flex items-center justify-between">
                                                                                         <Link

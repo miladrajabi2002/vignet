@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -422,6 +422,38 @@ export function ProductsToolbar({
 }) {
   const t = useTranslations('products')
   const router = useRouter()
+  // Local state for the search input — we debounce URL updates so we don't
+  // trigger a server round-trip on every keystroke. The dropdowns (category,
+  // stock, sort) update immediately because each change is a discrete action.
+  const [searchInput, setSearchInput] = useState(defaultQuery)
+  const [isSearching, startSearchTransition] = useTransition()
+
+  // Keep local input in sync when the URL changes (e.g. user clicks "clear").
+  useEffect(() => {
+    setSearchInput(defaultQuery)
+  }, [defaultQuery])
+
+  // Debounced live search: wait 280ms after the last keystroke, then update
+  // the URL. Soft navigation (Next.js App Router) makes this feel instant.
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === defaultQuery.trim()) return
+    const timer = window.setTimeout(() => {
+      const sp = new URLSearchParams()
+      const merged = {
+        q: trimmed,
+        sort: defaultSort,
+        categoryId: defaultCategory,
+        stock: defaultStock,
+      }
+      for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, v)
+      sp.delete('page') // back to page 1 on every search change
+      startSearchTransition(() => {
+        router.replace(`/products?${sp.toString()}`, { scroll: false })
+      })
+    }, 280)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, defaultQuery, defaultSort, defaultCategory, defaultStock, router])
 
   function update(params: Record<string, string>) {
     const sp = new URLSearchParams()
@@ -450,10 +482,14 @@ export function ProductsToolbar({
   return (
     <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
       <div className="relative min-w-[12rem] flex-1">
-        <SearchIcon className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        {isSearching ? (
+          <Loader2 className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
+        ) : (
+          <SearchIcon className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        )}
         <input
-          defaultValue={defaultQuery}
-          onKeyDown={(e) => e.key === 'Enter' && update({ q: (e.target as HTMLInputElement).value })}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           placeholder={t('search')}
           className="input ps-9"
         />

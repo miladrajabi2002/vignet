@@ -1,4 +1,4 @@
-import type { MessengerAdapter, InboundMessage } from '@/lib/channels/types'
+import type { MessengerAdapter, InboundMessage, ProductCard } from '@/lib/channels/types'
 
 /**
  * Rubika Bot API adapter.
@@ -58,6 +58,55 @@ export function rubikaAdapter(token: string): MessengerAdapter {
 
     async sendText(chatId: string, text: string): Promise<void> {
       await call('sendMessage', { chat_id: chatId, text })
+    },
+
+    async sendProductCard(chatId: string, card: ProductCard): Promise<void> {
+      // Rubika's sendPhoto accepts: chat_id, file (URL), caption, reply_markup
+      // Their Markdown support is unreliable, so we use plain text caption.
+      const lines: string[] = []
+      lines.push(card.name)
+      if (card.badge) lines.push(`🏷 ${card.badge}`)
+      if (card.price) lines.push(`💰 ${card.price}`)
+      if (card.description) {
+        lines.push('', card.description.slice(0, 280))
+      }
+      if (card.specs && card.specs.length) {
+        lines.push('', card.specs.slice(0, 5).map((s) => `• ${s.slice(0, 80)}`).join('\n'))
+      }
+      const caption = lines.join('\n').slice(0, 4096)
+
+      // Build Rubika-style inline keyboard (rows of buttons).
+      // Rubika's reply_markup shape: { rows: [ { buttons: [ { text, url, ... } ] } ] }
+      const rows: { buttons: { text: string; url?: string }[] }[] = []
+      if (card.productUrl) {
+        rows.push({
+          buttons: [
+            { text: card.ctaLabel || '🛒 خرید', url: card.productUrl },
+          ],
+        })
+      }
+
+      // Try sendPhoto if we have an image URL, otherwise fall back to text.
+      if (card.imageUrl) {
+        try {
+          await call('sendPhoto', {
+            chat_id: chatId,
+            file: card.imageUrl,
+            caption,
+            ...(rows.length ? { reply_markup: { rows } } : {}),
+          })
+          return
+        } catch (e) {
+          console.warn('[RUBIKA] sendProductCard photo fallback:', e instanceof Error ? e.message : e)
+        }
+      }
+
+      // Text-only fallback: sendMessage with caption + keyboard
+      await call('sendMessage', {
+        chat_id: chatId,
+        text: caption,
+        ...(rows.length ? { reply_markup: { rows } } : {}),
+      })
     },
   }
 }

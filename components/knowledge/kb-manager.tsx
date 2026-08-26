@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Clock,
   Database,
+  Pencil,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/lib/format'
@@ -30,6 +32,9 @@ export interface KbItem {
   lastIngestedAt?: Date | string | null
   /** F4: refresh cadence in hours (0 = manual only). */
   refreshIntervalHours?: number
+  /** Editable fields — populated when the user opens the edit panel. */
+  sourceUrl?: string | null
+  content?: string | null
 }
 
 type Mode = 'text' | 'url' | 'file'
@@ -53,6 +58,13 @@ export function KbManager({
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editUrl, setEditUrl] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editRefreshHours, setEditRefreshHours] = useState<number>(24)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Auto-refresh while any item is still processing.
@@ -115,6 +127,75 @@ export function KbManager({
   async function remove(id: string) {
     await fetch(`/api/agents/${agentId}/knowledge/${id}`, { method: 'DELETE' })
     router.refresh()
+  }
+
+  async function startEdit(item: KbItem) {
+    setEditingId(item.id)
+    setEditName(item.name)
+    setEditError(null)
+    setEditLoading(true)
+    // Fetch full KB row to get sourceUrl/content
+    try {
+      const res = await fetch(`/api/agents/${agentId}/knowledge/${item.id}`)
+      if (!res.ok) throw new Error('failed')
+      const data = (await res.json()) as { kb: KbItem & { sourceUrl?: string | null } }
+      setEditUrl(data.kb.sourceUrl ?? '')
+      setEditRefreshHours(item.refreshIntervalHours ?? 0)
+      // TEXT content is NOT stored on the KB row — it's chunked. For editing,
+      // we let the user replace the content entirely (not append). Show empty
+      // textarea with a hint that this will REPLACE the current content.
+      setEditContent('')
+    } catch {
+      setEditError(t('add'))
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditName('')
+    setEditUrl('')
+    setEditContent('')
+    setEditError(null)
+  }
+
+  async function saveEdit(item: KbItem) {
+    setEditError(null)
+    setEditLoading(true)
+    try {
+      const body: Record<string, unknown> = {}
+      if (editName.trim() && editName !== item.name) body.name = editName.trim()
+      if (item.type === 'URL') {
+        if (editUrl.trim() && editUrl !== (item.sourceUrl ?? '')) body.url = editUrl.trim()
+        if (editRefreshHours !== (item.refreshIntervalHours ?? 0)) {
+          body.refreshIntervalHours = editRefreshHours
+        }
+      }
+      if (item.type === 'TEXT' && editContent.trim()) {
+        body.content = editContent
+      }
+      if (Object.keys(body).length === 0) {
+        cancelEdit()
+        return
+      }
+      const res = await fetch(`/api/agents/${agentId}/knowledge/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setEditError(data.error === 'INVALID_URL' ? t('invalidUrl') : t('add'))
+        return
+      }
+      cancelEdit()
+      router.refresh()
+    } catch {
+      setEditError(t('add'))
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   const tabs: {
@@ -373,53 +454,181 @@ export function KbManager({
           {items.map((item) => (
             <div
               key={item.id}
-              className="spatial-inset flex items-center gap-3 rounded-2xl p-4 transition-colors hover:border-[var(--border-hover)]"
+              className="spatial-inset rounded-2xl p-4 transition-colors hover:border-[var(--border-hover)]"
             >
-              <StatusIcon status={item.status} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-[var(--text-primary)]">
-                  {item.name}
-                </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
-                  <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide">
-                    {item.type}
-                  </span>
-                  <span>{t(`status.${item.status}`)}</span>
-                  {item.status === 'READY' && (
-                    <span>· {t('chunks', { count: item.chunkCount })}</span>
-                  )}
-                  {item.status === 'ERROR' && item.errorMsg && (
-                    <span className="text-danger">· {item.errorMsg}</span>
-                  )}
-                </div>
-                {item.type === 'URL' && item.lastIngestedAt && (
-                  <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-                    <Clock className="h-3 w-3" />
-                    {t('lastRefreshed', {
-                      when: formatDateTime(new Date(item.lastIngestedAt), locale),
-                    })}
-                    {item.refreshIntervalHours && item.refreshIntervalHours > 0
-                      ? ` · ${t('refreshEvery', { h: item.refreshIntervalHours })}`
-                      : ''}
+              {editingId === item.id ? (
+                /* ── Edit form (inline) ── */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">
+                      {t('editTitle')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-black/[0.04] hover:text-[var(--text-primary)]"
+                      aria-label={t('cancel')}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                )}
-                {item.type === 'URL' &&
-                  item.refreshIntervalHours &&
-                  item.refreshIntervalHours > 0 &&
-                  !item.lastIngestedAt && (
-                    <div className="mt-1 text-[11px] text-[var(--amber)]">
-                      {t('refreshScheduled')}
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                      {t('name')}
+                    </label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="input min-h-11"
+                    />
+                  </div>
+                  {item.type === 'URL' && (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                          {t('url')}
+                        </label>
+                        <input
+                          dir="ltr"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          className="input min-h-11 font-mono text-sm"
+                        />
+                      </div>
+                      <div className="spatial-inset rounded-2xl p-3">
+                        <label className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
+                          {t('refreshIntervalLabel')}
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[0, 6, 12, 24, 72, 168].map((h) => (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => setEditRefreshHours(h)}
+                              className={cn(
+                                'min-h-9 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium',
+                                editRefreshHours === h
+                                  ? 'border-black bg-black text-white'
+                                  : 'border-[var(--border-default)] bg-white/70 text-[var(--text-secondary)]',
+                              )}
+                            >
+                              {h === 0
+                                ? t('refreshManual')
+                                : h < 24
+                                  ? t('refreshHours', { h })
+                                  : t('refreshDays', { d: Math.round(h / 24) })}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {item.type === 'TEXT' && (
+                    <div>
+                      <label className="mb-1 block text-[11px] font-medium text-[var(--text-secondary)]">
+                        {t('content')}
+                      </label>
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={5}
+                        placeholder={t('contentEditPlaceholder')}
+                        className="input resize-none"
+                      />
+                      <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                        {t('contentEditHint')}
+                      </p>
                     </div>
                   )}
-              </div>
-              <button
-                type="button"
-                onClick={() => remove(item.id)}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-danger/10 hover:text-danger active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
-                aria-label={t('delete')}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+                  {item.type !== 'TEXT' && item.type !== 'URL' && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                      {t('editFileHint')}
+                    </p>
+                  )}
+                  {editError && (
+                    <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {editError}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={editLoading}
+                      className="min-h-10 rounded-xl border border-[var(--border-default)] px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:bg-black/[0.04]"
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(item)}
+                      disabled={editLoading}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-black px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {editLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {editLoading ? t('saving') : t('save')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Display row ── */
+                <div className="flex items-center gap-3">
+                  <StatusIcon status={item.status} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      {item.name}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)]">
+                      <span className="rounded-md bg-[var(--bg-base)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide">
+                        {item.type}
+                      </span>
+                      <span>{t(`status.${item.status}`)}</span>
+                      {item.status === 'READY' && (
+                        <span>· {t('chunks', { count: item.chunkCount })}</span>
+                      )}
+                      {item.status === 'ERROR' && item.errorMsg && (
+                        <span className="text-danger">· {item.errorMsg}</span>
+                      )}
+                    </div>
+                    {item.type === 'URL' && item.lastIngestedAt && (
+                      <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                        <Clock className="h-3 w-3" />
+                        {t('lastRefreshed', {
+                          when: formatDateTime(new Date(item.lastIngestedAt), locale),
+                        })}
+                        {item.refreshIntervalHours && item.refreshIntervalHours > 0
+                          ? ` · ${t('refreshEvery', { h: item.refreshIntervalHours })}`
+                          : ''}
+                      </div>
+                    )}
+                    {item.type === 'URL' &&
+                      item.refreshIntervalHours &&
+                      item.refreshIntervalHours > 0 &&
+                      !item.lastIngestedAt && (
+                        <div className="mt-1 text-[11px] text-[var(--amber)]">
+                          {t('refreshScheduled')}
+                        </div>
+                      )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startEdit(item)}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-black/[0.04] hover:text-[var(--text-primary)] active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                    aria-label={t('edit')}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(item.id)}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] transition-[background-color,color,transform] duration-150 hover:bg-danger/10 hover:text-danger active:scale-[0.94] motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
+                    aria-label={t('delete')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

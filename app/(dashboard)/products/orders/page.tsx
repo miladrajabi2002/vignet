@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { Prisma } from '@prisma/client'
-import { Search, ShoppingBag, X } from 'lucide-react'
+import { ShoppingBag } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -10,6 +10,7 @@ import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { Pagination } from '@/components/ui/pagination'
 import { displayPhone } from '@/lib/phone'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { OrdersSearchForm } from '@/components/products/orders-search-form'
 
 const PAGE_SIZE = 25
 const ORDER_STATUSES = [
@@ -142,73 +143,19 @@ export default async function OrdersPage({
         ordersLabel={t('title')}
       />
 
-      <form
-        action="/products/orders"
-        method="get"
-        className="spatial-surface grid gap-3 rounded-[1.5rem] p-4 sm:grid-cols-[minmax(0,1fr)_13rem_auto] sm:items-end sm:p-5"
-      >
-        <div>
-          <label
-            htmlFor="orders-search"
-            className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]"
-          >
-            {t('searchLabel')}
-          </label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              id="orders-search"
-              name="q"
-              type="search"
-              defaultValue={q}
-              placeholder={t('searchPlaceholder')}
-              className="input min-h-11 w-full ps-10"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="orders-status"
-            className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]"
-          >
-            {t('statusLabel')}
-          </label>
-          <select
-            id="orders-status"
-            name="status"
-            defaultValue={status}
-            className="input min-h-11 w-full"
-          >
-            <option value="">{t('allStatuses')}</option>
-            {ORDER_STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {t(STATUS_TRANSLATION_KEYS[value])}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90 sm:flex-none"
-          >
-            <Search className="h-4 w-4" />
-            {t('searchAction')}
-          </button>
-          {hasFilters && (
-            <Link
-              href="/products/orders"
-              aria-label={t('clearFilters')}
-              title={t('clearFilters')}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <X className="h-4 w-4" />
-            </Link>
-          )}
-        </div>
-      </form>
+      <OrdersSearchForm
+        defaultQuery={q}
+        defaultStatus={status}
+        statusOptions={ORDER_STATUSES.map((value) => ({
+          value,
+          label: t(STATUS_TRANSLATION_KEYS[value]),
+        }))}
+        searchLabel={t('searchLabel')}
+        searchPlaceholder={t('searchPlaceholder')}
+        statusLabel={t('statusLabel')}
+        allStatuses={t('allStatuses')}
+        clearFilters={t('clearFilters')}
+      />
 
       {orders.length === 0 ? (
         <section className="flex min-h-72 flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">

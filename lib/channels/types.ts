@@ -75,6 +75,32 @@ export interface SendOptions {
   quickReplies?: string[]
 }
 
+/**
+ * A single product card to render in messenger channels that support rich
+ * media (Telegram sendPhoto + inline keyboard, Rubika sendPhoto, …).
+ *
+ * Adapters that do NOT support rich media will simply ignore this and the
+ * caller falls back to plain text via `sendText`.
+ */
+export interface ProductCard {
+  /** Product display name (already localized). */
+  name: string
+  /** Optional product description / short pitch (already localized, plain text). */
+  description?: string | null
+  /** Optional formatted price string (already localized, e.g. "۲۵۰٬۰۰۰ تومان"). */
+  price?: string | null
+  /** Optional badge text (e.g. "موجود" / "Available"). */
+  badge?: string | null
+  /** Optional list of spec rows (e.g. ["رنگ: سرمه‌ای", "سایز: M"]). */
+  specs?: string[]
+  /** Optional product image URL (https preferred; adapters may skip if unreachable). */
+  imageUrl?: string | null
+  /** Optional product URL (e.g. the WooCommerce product page). */
+  productUrl?: string | null
+  /** Optional CTA button label (e.g. "خرید" / "Buy"). */
+  ctaLabel?: string | null
+}
+
 export interface MessengerAdapter {
   readonly channel: ChannelType
   /** Parse a raw webhook body into normalized messages (0..n). */
@@ -114,4 +140,16 @@ export interface MessengerAdapter {
   reactToMessage?(messageId: string, recipientId: string): Promise<void>
   /** Best-effort like of a public comment. */
   likeComment?(commentId: string): Promise<void>
+  /**
+   * Send a single product card as rich media. Adapters that don't support rich
+   * media omit this method, and callers fall back to plain text. Failure to
+   * send the card MUST be caught by the caller and trigger the text fallback.
+   *
+   * Implementations should:
+   *   - Prefer sending the image with a caption (HTML/Markdown per platform)
+   *   - Add an inline keyboard / button row with the CTA + product URL
+   *   - Skip the image when `imageUrl` is null/empty or the platform can't
+   *     fetch it, but still send the text caption + button
+   */
+  sendProductCard?(chatId: string, card: ProductCard): Promise<void>
 }

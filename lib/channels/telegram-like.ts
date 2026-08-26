@@ -3,6 +3,7 @@ import type {
   InboundMessage,
   MessengerAdapter,
   OutboundVoice,
+  ProductCard,
   SendOptions,
 } from '@/lib/channels/types'
 import { splitOutboundText } from '@/lib/channels/text-chunks'
@@ -189,6 +190,97 @@ export function createTelegramLikeAdapter(opts: {
       }
     },
 
+    async sendProductCard(chatId: string, card: ProductCard): Promise<void> {
+      // Build the HTML caption: bold name, price on its own line, then
+      // optional description + spec rows. Telegram captions are limited to
+      // 1024 chars for photos and 4096 for plain text — we truncate to fit.
+      const lines: string[] = []
+      // Bold name (escape + bold)
+      lines.push(`<b>${escapeHtml(card.name)}</b>`)
+      if (card.badge) lines.push(`🏷 ${escapeHtml(card.badge)}`)
+      if (card.price) lines.push(`💰 ${escapeHtml(card.price)}`)
+      if (card.description) {
+        const desc = truncate(card.description, 280)
+        lines.push('', escapeHtml(desc))
+      }
+      if (card.specs && card.specs.length) {
+        lines.push('', card.specs.slice(0, 5).map((s) => `• ${escapeHtml(truncate(s, 80))}`).join('\n'))
+      }
+      const caption = lines.join('\n').slice(0, 1024)
+
+      // Build the inline keyboard: a single URL button for the product page.
+      // Telegram inline keyboards use url buttons (open in browser).
+      const inlineKeyboard: { text: string; url: string }[] = []
+      if (card.productUrl) {
+        inlineKeyboard.push({
+          text: card.ctaLabel || '🛒 خرید',
+          url: card.productUrl,
+        })
+      }
+
+      // Try sendPhoto first; if it fails (image unreachable, 400, etc.),
+      // fall back to sendMessage (text-only) with the same caption + button.
+      const usePhoto = !!card.imageUrl
+      try {
+        if (!usePhoto) throw new Error('no image url')
+        const form = new FormData()
+        form.append('chat_id', chatId)
+        form.append('photo', card.imageUrl!)
+        if (channel === 'TELEGRAM') {
+          form.append('parse_mode', 'HTML')
+          form.append('caption', caption)
+        } else {
+          // Bale doesn't accept parse_mode HTML reliably for sendPhoto —
+          // send caption as plain text to avoid 400 on malformed markup.
+          form.append('caption', stripHtml(caption))
+        }
+        if (inlineKeyboard.length) {
+          form.append('reply_markup', JSON.stringify({
+            inline_keyboard: [inlineKeyboard],
+          }))
+        }
+        const res = await fetch(`${api}/sendPhoto`, {
+          method: 'POST',
+          body: form,
+          signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok || (json as { ok?: boolean }).ok === false) {
+          throw new BotApiError(res.status, `sendPhoto failed: ${JSON.stringify(json)}`)
+        }
+        return
+      } catch (photoError) {
+        // Image failed (no URL, unreachable, 400). Fall through to text mode.
+        if (!(photoError instanceof BotApiError) || photoError.status !== 400) {
+          // Don't log network timeouts as errors — the fallback will succeed
+          console.warn(`[${channel}] sendProductCard photo fallback:`, photoError instanceof Error ? photoError.message : photoError)
+        }
+      }
+
+      // Text-only fallback: sendMessage with caption + inline keyboard
+      const textPayload: Record<string, unknown> = {
+        chat_id: chatId,
+        text: channel === 'TELEGRAM' ? caption : stripHtml(caption),
+      }
+      if (channel === 'TELEGRAM') textPayload.parse_mode = 'HTML'
+      if (inlineKeyboard.length) {
+        textPayload.reply_markup = JSON.stringify({
+          inline_keyboard: [inlineKeyboard],
+        })
+      }
+      try {
+        await call('sendMessage', textPayload)
+      } catch (err) {
+        // Last-resort: strip HTML and retry
+        if (channel !== 'TELEGRAM' || !(err instanceof BotApiError) || err.status !== 400) {
+          throw err
+        }
+        const fallback: Record<string, unknown> = { ...textPayload, text: stripHtml(caption) }
+        delete fallback.parse_mode
+        await call('sendMessage', fallback)
+      }
+    },
+
     async getVoiceUrl(fileId: string): Promise<string | null> {
       try {
         const result = (await call('getFile', { file_id: fileId })) as {
@@ -239,4 +331,23 @@ interface TgMessage {
   voice?: { file_id: string }
   audio?: { file_id: string }
   reply_to_message?: { message_id: number | string }
+}
+
+/** Escape HTML special characters for safe Telegram caption rendering. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/** Truncate a string to a max length, with an ellipsis when truncated. */
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value
+  return value.slice(0, max - 1).trimEnd() + '…'
+}
+
+/** Strip HTML tags (used as a fallback when HTML parse_mode is rejected). */
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 }

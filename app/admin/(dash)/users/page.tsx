@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { Search, Users, Building2, CreditCard, Clock, UserRound } from 'lucide-react'
+import { Users, Building2, CreditCard, Clock, UserRound } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
 import {
   PageHeader,
   StatCard,
@@ -181,18 +182,12 @@ export default async function AdminUsersPage(
       />
 
       <div className="flex flex-col gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
-        <form method="GET" className="relative min-w-0 flex-1" autoComplete="off">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
-            aria-label="جستجوی کاربرها"
-            className="admin-input border-0 bg-black/[0.025] pr-10 shadow-none"
-          />
-          {planFilter && <input type="hidden" name="plan" value={planFilter} />}
-        </form>
+        <AdminUsersSearchForm
+          defaultQuery={q}
+          placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
+          ariaLabel="جستجوی کاربرها"
+        />
+        {planFilter && <input type="hidden" name="plan" value={planFilter} />}
         <div className="shrink-0 overflow-x-auto"><FilterPills options={filterPillOptions} /></div>
       </div>
 

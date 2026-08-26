@@ -362,7 +362,7 @@ async function persistInboundOnly(args: {
                                 data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
                         })
                 }
-				return {
+                                return {
                         conversationId: conversation.id,
                         messageId,
                         humanOwned: conversation.handedOff || conversation.status === 'HANDED_OFF',
@@ -384,7 +384,7 @@ async function persistFixedAssistantReply(
         text: string,
         inboundEventId?: string,
 ): Promise<string> {
-		return prisma.$transaction(async (tx) => {
+                return prisma.$transaction(async (tx) => {
                 let created = true
                 let messageId: string
                 if (inboundEventId) {
@@ -420,7 +420,7 @@ async function persistFixedAssistantReply(
                         })
                 }
                 return messageId
-		})
+                })
 }
 
 /** Attach the provider acceptance/failure result to the already-persisted AI
@@ -462,34 +462,34 @@ async function reactAfterInstagramReply(
         adapter: MessengerAdapter,
         msg: InboundMessage,
         enabled: boolean,
-		workspaceId: string,
+                workspaceId: string,
 ): Promise<void> {
         if (!enabled) return
         try {
-				if (msg.kind === 'COMMENT') {
-						if (msg.commentId && adapter.likeComment) {
-							await adapter.likeComment(msg.commentId)
-							return
-						}
-						captureError('instagram:like-comment:unsupported', new Error('Instagram comment like is not supported by this adapter'), {
-							workspaceId,
-							metadata: { commentId: msg.commentId },
-						})
-						return
-				}
-				if (!msg.platformMessageId || !adapter.reactToMessage) {
-						captureError('instagram:react-message:unsupported', new Error('Instagram message reaction is unavailable'), {
-							workspaceId,
-							metadata: { platformMessageId: msg.platformMessageId },
-						})
-						return
-				}
-				await adapter.reactToMessage(msg.platformMessageId, msg.senderId)
+                                if (msg.kind === 'COMMENT') {
+                                                if (msg.commentId && adapter.likeComment) {
+                                                        await adapter.likeComment(msg.commentId)
+                                                        return
+                                                }
+                                                captureError('instagram:like-comment:unsupported', new Error('Instagram comment like is not supported by this adapter'), {
+                                                        workspaceId,
+                                                        metadata: { commentId: msg.commentId },
+                                                })
+                                                return
+                                }
+                                if (!msg.platformMessageId || !adapter.reactToMessage) {
+                                                captureError('instagram:react-message:unsupported', new Error('Instagram message reaction is unavailable'), {
+                                                        workspaceId,
+                                                        metadata: { platformMessageId: msg.platformMessageId },
+                                                })
+                                                return
+                                }
+                                await adapter.reactToMessage(msg.platformMessageId, msg.senderId)
         } catch (e) {
-				captureError('instagram:post-reply-reaction', e, {
-						workspaceId,
-						metadata: { kind: msg.kind, platformMessageId: msg.platformMessageId, commentId: msg.commentId },
-				})
+                                captureError('instagram:post-reply-reaction', e, {
+                                                workspaceId,
+                                                metadata: { kind: msg.kind, platformMessageId: msg.platformMessageId, commentId: msg.commentId },
+                                })
         }
 }
 
@@ -778,10 +778,10 @@ async function processChannelInbound(
                         let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         if (type === 'INSTAGRAM') {
                                 instagramPolicy = await loadAutomationPolicy(agent.id, resolved.config)
-								const reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
+                                                                const reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
 
                                 // A configured fixed reply has precedence over scenarios. When
-								// disabled we still let scenarios match, but never fall through to AI.
+                                                                // disabled we still let scenarios match, but never fall through to AI.
                                 if (reactionClassInput) {
                                         const fixedReply = msg.kind === 'STORY_REACTION' && instagramPolicy.storyReactionReplyEnabled
                                                 ? instagramPolicy.storyReactionReplyText
@@ -802,9 +802,9 @@ async function processChannelInbound(
                                                         : msg.kind === 'STORY_REACTION'
                                                                 ? instagramPolicy.likeStoryReactionAfterReply
                                                                 : instagramPolicy.likeDmAfterReply
-											await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
-											outcome = 'FIXED_REPLY_SENT'
-											return
+                                                                                        await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
+                                                                                        outcome = 'FIXED_REPLY_SENT'
+                                                                                        return
                                         }
                                 }
                                 const auto = await runInstagramAutomation({
@@ -837,42 +837,42 @@ async function processChannelInbound(
                                                                 : msg.kind === 'STORY_REACTION'
                                                                         ? instagramPolicy.likeStoryReactionAfterReply
                                                                         : instagramPolicy.likeDmAfterReply
-											await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
+                                                                                        await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
                                         }
-										const effectivePolicy = msg.kind === 'COMMENT'
-											? instagramPolicy.commentReplyPolicy
-											: msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
-												? instagramPolicy.storyReplyPolicy
-												: instagramPolicy.dmReplyPolicy
-										if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') {
-											await persistInboundOnly({
-												workspaceId: agent.workspaceId,
-												agentId: agent.id,
-												contactId,
-												externalId: msg.chatId,
-												text,
-												channel: type,
-												metadata: inboundMetadata,
-												inboundEventId: eventLease.id,
-											})
-											outcome = auto.replied ? 'AUTOMATION_REPLIED' : 'AUTOMATION_HANDLED'
-											return
-										}
+                                                                                const effectivePolicy = msg.kind === 'COMMENT'
+                                                                                        ? instagramPolicy.commentReplyPolicy
+                                                                                        : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
+                                                                                                ? instagramPolicy.storyReplyPolicy
+                                                                                                : instagramPolicy.dmReplyPolicy
+                                                                                if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') {
+                                                                                        await persistInboundOnly({
+                                                                                                workspaceId: agent.workspaceId,
+                                                                                                agentId: agent.id,
+                                                                                                contactId,
+                                                                                                externalId: msg.chatId,
+                                                                                                text,
+                                                                                                channel: type,
+                                                                                                metadata: inboundMetadata,
+                                                                                                inboundEventId: eventLease.id,
+                                                                                        })
+                                                                                        outcome = auto.replied ? 'AUTOMATION_REPLIED' : 'AUTOMATION_HANDLED'
+                                                                                        return
+                                                                                }
                                 }
-								if (reactionClassInput) {
-										await persistInboundOnly({
-											workspaceId: agent.workspaceId,
-											agentId: agent.id,
-											contactId,
-											externalId: msg.chatId,
-										text,
-										channel: type,
-										metadata: inboundMetadata,
-										inboundEventId: eventLease.id,
-										})
-										outcome = 'REACTION_RECORDED'
-										return
-								}
+                                                                if (reactionClassInput) {
+                                                                                await persistInboundOnly({
+                                                                                        workspaceId: agent.workspaceId,
+                                                                                        agentId: agent.id,
+                                                                                        contactId,
+                                                                                        externalId: msg.chatId,
+                                                                                text,
+                                                                                channel: type,
+                                                                                metadata: inboundMetadata,
+                                                                                inboundEventId: eventLease.id,
+                                                                                })
+                                                                                outcome = 'REACTION_RECORDED'
+                                                                                return
+                                                                }
                         }
 
                         // ─── Channel reply policy gate (Instagram only) ────────────
@@ -899,7 +899,7 @@ async function processChannelInbound(
                                 const allow = await shouldAgentReply({
                                         policy,
                                         scenarioHandled,
-									text,
+                                                                        text,
                                         kind: msg.kind,
                                         conversationMetadata: conv?.metadata ?? undefined,
                                         conversationStatus: conv?.status,
@@ -1003,6 +1003,17 @@ async function processChannelInbound(
                                 msg.kind !== 'COMMENT' &&
                                 msg.kind !== 'REACTION'
 
+                        // Telegram-like (Telegram + Bale) and Rubika: send each
+                        // showcased product as a rich card (photo + caption +
+                        // inline CTA button) when the adapter supports it. If
+                        // sendProductCard fails for any reason, fall through
+                        // to the text fallback so the customer still sees the
+                        // product info (just less prettily).
+                        const canUseProductCards =
+                                !canUseInstagramCarousel &&
+                                showcasedProducts.length > 0 &&
+                                !!deliveryAdapter.sendProductCard
+
                         try {
                                 if (canUseInstagramCarousel) {
                                         if (parsedReply.text) {
@@ -1020,6 +1031,46 @@ async function processChannelInbound(
                                         } catch (carouselError) {
                                                 console.error('[handler] Instagram product carousel failed:', carouselError)
                                                 if (productFallback) await deliveryAdapter.sendText(msg.chatId, productFallback)
+                                        }
+                                } else if (canUseProductCards) {
+                                        // Send the text reply (without the text-only fallback,
+                                        // since the cards carry the product info graphically),
+                                        // then send each product card sequentially. If a card
+                                        // send fails, we still send the rest + the text fallback.
+                                        if (parsedReply.text) {
+                                                await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
+                                                        quickReplies: settings.quickReplies,
+                                                })
+                                        }
+                                        const isFa = agent.language !== 'en'
+                                        let cardsSent = 0
+                                        for (const product of showcasedProducts) {
+                                                try {
+                                                        await deliveryAdapter.sendProductCard!(msg.chatId, {
+                                                                name: product.name,
+                                                                description: product.description ?? null,
+                                                                price: product.price == null
+                                                                        ? null
+                                                                        : isFa
+                                                                                ? `${product.price.toLocaleString('fa-IR')} تومان`
+                                                                                : product.price.toLocaleString('en-US'),
+                                                                badge: isFa ? 'موجود' : 'Available',
+                                                                specs: product.specs,
+                                                                imageUrl: product.imageUrl,
+                                                                productUrl: product.productUrl,
+                                                                ctaLabel: isFa ? '🛒 مشاهده و خرید' : 'View / Buy',
+                                                        })
+                                                        cardsSent++
+                                                } catch (cardError) {
+                                                        console.error(`[handler] ${type} product card failed:`, cardError)
+                                                }
+                                        }
+                                        // If no cards went through, send the text fallback so the
+                                        // customer is never left without product info.
+                                        if (cardsSent === 0 && productFallback) {
+                                                await deliveryAdapter.sendText(msg.chatId, productFallback, {
+                                                        quickReplies: settings.quickReplies,
+                                                })
                                         }
                                 } else {
                                         const outboundText = [parsedReply.text, productFallback]
@@ -1044,7 +1095,7 @@ async function processChannelInbound(
                                                 : msg.kind === 'STORY_REACTION'
                                                         ? policy.likeStoryReactionAfterReply
                                                         : policy.likeDmAfterReply
-								await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
+                                                                await reactAfterInstagramReply(deliveryAdapter, msg, likeEnabled, agent.workspaceId)
                         }
 
                         // Optional voice reply when the agent has TTS enabled.

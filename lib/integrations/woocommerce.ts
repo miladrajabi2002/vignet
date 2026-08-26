@@ -1,3 +1,6 @@
+/* === Issue #1: source tag for WooCommerce-synced customers === */
+export const WOO_SOURCE_TAG = 'افزونه ووکامرس'
+
 import crypto from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -1015,7 +1018,7 @@ async function upsertContactFromWoo(
     // (e.g. WhatsApp username, marketing opt-in).
     const current = await prisma.contact.findUnique({
       where: { id: existing.id },
-      select: { metadata: true, name: true, phone: true, lastActivityAt: true },
+      select: { metadata: true, name: true, phone: true, lastActivityAt: true, tags: true },
     })
     const mergedMetadata = {
       ...(current?.metadata && typeof current.metadata === 'object'
@@ -1023,6 +1026,12 @@ async function upsertContactFromWoo(
         : {}),
       ...metadata,
     } as Prisma.InputJsonValue
+    // Ensure the WooCommerce source tag is present. We only add it when
+    // missing — never remove tags the operator may have set manually.
+    const existingTags = current?.tags ?? []
+    const mergedTags = existingTags.includes(WOO_SOURCE_TAG)
+      ? undefined
+      : [...existingTags, WOO_SOURCE_TAG]
     await prisma.contact.update({
       where: { id: existing.id },
       data: {
@@ -1034,6 +1043,7 @@ async function upsertContactFromWoo(
         // empty. We never overwrite a phone that was set by the customer
         // via the chat UI.
         ...(phone && !current?.phone ? { phone } : {}),
+        ...(mergedTags ? { tags: mergedTags } : {}),
         metadata: mergedMetadata,
         // Bump lastActivityAt so this contact surfaces in the "recently
         // active" list — but only if it was null before. We don't want
@@ -1051,6 +1061,9 @@ async function upsertContactFromWoo(
       workspaceId: integration.workspaceId,
       name: name || null,
       phone: phone || null,
+      // Tag the contact with its source so the CRM UI can show a Woo badge
+      // alongside the channel badges (Telegram, Bale, etc.).
+      tags: [WOO_SOURCE_TAG],
       metadata: metadata as Prisma.InputJsonValue,
       // New customers from WooCommerce already have a successful order
       // (the WordPress plugin filters to customers with ≥1 paid order),
