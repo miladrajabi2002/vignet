@@ -503,7 +503,7 @@ export function instagramAdapter(token: string): MessengerAdapter {
 						}
 				},
 
-                async sendTyping(chatId: string): Promise<void> {
+                async sendTyping(chatId: string, signal?: AbortSignal): Promise<void> {
                         // Comments have no typing state. The typing_on sender action works
                         // on both graph.facebook.com (Messenger Platform) and
                         // graph.instagram.com (Instagram Messaging API).
@@ -520,6 +520,27 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         recipient: { id: chatId },
                                         sender_action: 'typing_on',
                                 }),
+                                signal: signal
+                                        ? AbortSignal.any([signal, AbortSignal.timeout(5_000)])
+                                        : AbortSignal.timeout(5_000),
+                        })
+                },
+
+                async stopTyping(chatId: string): Promise<void> {
+                        if (!token || chatId.startsWith(COMMENT_PREFIX) || chatId.startsWith(PRIVATE_REPLY_PREFIX)) return
+                        const h = await host()
+                        if (!h) return
+                        await fetch(`${h.base}/me/messages`, {
+                                method: 'POST',
+                                headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                        recipient: { id: chatId },
+                                        sender_action: 'typing_off',
+                                }),
+                                signal: AbortSignal.timeout(5_000),
                         })
                 },
 

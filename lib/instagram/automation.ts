@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 import type { ChatAgent } from '@/lib/ai/chat-engine'
 import { generateReply } from '@/lib/ai/chat-engine'
+import { startChannelTyping } from '@/lib/channels/typing'
 import { captureError } from '@/lib/errors/capture'
 import { instagramPrivateReplyTarget } from '@/lib/instagram/private-reply'
 import {
@@ -742,18 +743,35 @@ async function executeAction(
 
   // ─── AI reply (route through the agent's AI engine) ───
   if (action.replyMode === 'AI' || action.aiAgentEnabled) {
-    const result = await generateReply({
-      workspaceId: agent.workspaceId,
-      agent,
-      message: msg.text,
-      channel: 'INSTAGRAM',
-      contactId: contactId ?? undefined,
-      contactName: contactName ?? undefined,
-      conversationId: ctx.conversationId,
-      externalId: msg.chatId,
-      inboundEventId: ctx.inboundEventId,
-      inboundAlreadyPersisted: !!ctx.inboundEventId,
-    })
+    let stopTyping: (() => void) | undefined
+    let result: Awaited<ReturnType<typeof generateReply>>
+    try {
+      result = await generateReply(
+        {
+          workspaceId: agent.workspaceId,
+          agent,
+          message: msg.text,
+          channel: 'INSTAGRAM',
+          contactId: contactId ?? undefined,
+          contactName: contactName ?? undefined,
+          conversationId: ctx.conversationId,
+          externalId: msg.chatId,
+          inboundEventId: ctx.inboundEventId,
+          inboundAlreadyPersisted: !!ctx.inboundEventId,
+        },
+        {
+          onGenerationStart: adapter.sendTyping
+            ? () => {
+                stopTyping ??= startChannelTyping(adapter, msg.chatId, (error) =>
+                  console.error('[instagram] automation typing failed:', error),
+                )
+              }
+            : undefined,
+        },
+      )
+    } finally {
+      stopTyping?.()
+    }
     if ('error' in result) return
     await adapter.sendText(msg.chatId, result.reply, {
       quickReplies: isComment ? undefined : quickReplies,

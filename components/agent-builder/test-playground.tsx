@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
-import { Bot, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
+import { Bot, ThumbsUp, ThumbsDown, RotateCcw, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ChatComposer, type ChatComposerHandle } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
+import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { SpeakButton } from '@/components/voice/audio-player'
@@ -331,22 +332,23 @@ export function TestPlayground({
                                                                                 hasShowcase ? 'w-full max-w-[46rem]' : 'max-w-[82%]',
                                                                         )}
                                                                 >
-                                                                        {(showcase.text || !hasShowcase) && (
+                                                                        {showcase.text ? (
                                                                                 <ConversationBubble
                                                                                         side={isUser ? 'end' : 'start'}
                                                                                         tone={isUser ? 'inverse' : 'surface'}
                                                                                         className="max-w-full px-4"
                                                                                 >
-                                                                                        {showcase.text ? (
-                                                                                                <ConversationText
-                                                                                                        text={showcase.text}
-                                                                                                        markdown={m.role === 'assistant'}
-                                                                                                />
-                                                                                        ) : (
-                                                                                                <Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
-                                                                                        )}
+                                                                                        <ConversationText
+                                                                                                text={showcase.text}
+                                                                                                markdown={m.role === 'assistant'}
+                                                                                        />
                                                                                 </ConversationBubble>
-                                                                        )}
+                                                                        ) : !hasShowcase ? (
+                                                                                <TypingIndicator
+                                                                                        label={t('typing')}
+                                                                                        variant="app"
+                                                                                />
+                                                                        ) : null}
                                                                         {m.role === 'assistant' && hasShowcase && (
                                                                                 <ProductShowcaseRail
                                                                                         products={showcase.products}

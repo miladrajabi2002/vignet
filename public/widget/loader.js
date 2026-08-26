@@ -517,9 +517,12 @@
                         '.vgt-msg li{margin:2px 0;}' +
                         '.vgt-msg.vgt-bot ul,.vgt-msg.vgt-bot ol{white-space:normal;}' +
                         // typing
-                        '.vgt-typing{display:flex!important;flex-direction:row!important;gap:4px;align-items:center;padding:14px 16px;}' +
-                        '.vgt-typing span{width:7px;height:7px;border-radius:50%;background:var(--vgt-accent);opacity:.7;animation:vgt-bounce 1.2s infinite;}' +
-                        '.vgt-typing span:nth-child(2){animation-delay:.18s;}.vgt-typing span:nth-child(3){animation-delay:.36s;}' +
+                        '.vgt-typing{display:flex!important;flex-direction:row!important;gap:10px;align-items:center;max-width:min(84%,320px);padding:11px 14px;' +
+                        'animation:vgt-typing-in .18s cubic-bezier(.23,1,.32,1) both;}' +
+                        '.vgt-typing-dots{display:flex;direction:ltr;align-items:center;gap:4px;flex-shrink:0;}' +
+                        '.vgt-typing-dot{width:6px;height:6px;border-radius:50%;background:var(--vgt-accent);opacity:.38;animation:vgt-typing-pulse 1.25s cubic-bezier(.45,0,.2,1) infinite;}' +
+                        '.vgt-typing-dot:nth-child(2){animation-delay:.14s;}.vgt-typing-dot:nth-child(3){animation-delay:.28s;}' +
+                        '.vgt-typing-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--vgt-muted);font-size:11px;font-weight:500;line-height:20px;}' +
                         // input
                         '.vgt-foot{padding:10px 12px 8px;border-top:1px solid var(--vgt-border);background:var(--vgt-bg);}' +
                         // Composer pill. The geometry MUST stay in sync with
@@ -585,6 +588,8 @@
                         '@keyframes vgt-card-in{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}' +
                         '@keyframes vgt-teaser-in{from{opacity:0;transform:translateY(12px) scale(.92);}to{opacity:1;transform:translateY(0) scale(1);}}' +
                         '@keyframes vgt-bounce{0%,60%,100%{transform:translateY(0);opacity:.5;}30%{transform:translateY(-5px);opacity:1;}}' +
+                        '@keyframes vgt-typing-in{from{opacity:0;transform:translateY(5px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}' +
+                        '@keyframes vgt-typing-pulse{0%,60%,100%{transform:translateY(0) scale(.92);opacity:.32;}30%{transform:translateY(-2px) scale(1);opacity:.92;}}' +
                         '@keyframes vgt-ping{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55);}70%{box-shadow:0 0 0 7px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}' +
                         '@keyframes vgt-pulse{0%,100%{box-shadow:0 0 0 2px rgba(34,197,94,.3);}50%{box-shadow:0 0 0 5px rgba(34,197,94,.1);}}' +
                         '@keyframes vgt-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}' +
@@ -680,7 +685,7 @@
                         '.vgt-teaser{max-width:calc(100vw - 40px)!important;}' +
                         '.vgt-teaser-x{width:38px!important;height:38px!important;}' +
                         '}' +
-                        '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}}'
+                        '@media (prefers-reduced-motion:reduce){.vgt-root *,.vgt-root{animation:none!important;transition:none!important;}.vgt-typing-dot{opacity:.45!important;}.vgt-typing-dot:nth-child(2){opacity:.7!important;}}'
                 var st = document.createElement('style')
                 st.id = 'vgt-styles'
                 st.textContent = css
@@ -1196,11 +1201,16 @@
                 body.scrollTop = body.scrollHeight
         }
         function showTyping() {
+                var label = config.name + ' ' + t('در حال نوشتن است', 'is typing')
                 var node = el(
                         'div',
                         'vgt-msg vgt-bot vgt-typing',
-                        '<span></span><span></span><span></span>',
+                        '<span class="vgt-typing-dots" aria-hidden="true"><span class="vgt-typing-dot"></span><span class="vgt-typing-dot"></span><span class="vgt-typing-dot"></span></span><span class="vgt-typing-label" aria-hidden="true"></span>',
                 )
+                node.setAttribute('role', 'status')
+                node.setAttribute('aria-live', 'polite')
+                node.setAttribute('aria-label', label)
+                node.querySelector('.vgt-typing-label').textContent = label
                 body.appendChild(node)
                 scrollDown(true)
                 return node
@@ -1795,6 +1805,7 @@
                                 function pump() {
                                         return reader.read().then(function (r) {
                                                 if (r.done) {
+                                                        if (typing.parentNode) typing.remove()
                                                         if (group) renderAssistantGroup(group, raw, true)
                                                         setStreaming(false)
                                                         return
@@ -1819,6 +1830,7 @@
                                                                         raw = evt.text
                                                                         renderAssistantGroup(ensureGroup(), raw, true)
                                                                 } else if (evt.type === 'done') {
+                                                                        if (typing.parentNode) typing.remove()
                                                                         if (group) renderAssistantGroup(group, raw, true)
                                                                         // The server emits the persisted assistant message id on
                                                                         // `done`; bind it to the group so operator-message polling

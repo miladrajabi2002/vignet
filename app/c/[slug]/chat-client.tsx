@@ -16,6 +16,7 @@ import type { ChatLinkSettings } from '@/lib/chat-link/config'
 import { toEnglishDigits } from '@/lib/phone'
 import { ChatComposer } from '@/components/chat/chat-composer'
 import { ConversationBubble, ConversationText } from '@/components/chat/conversation-bubble'
+import { TypingIndicator } from '@/components/chat/typing-indicator'
 import {
 	parseProductShowcaseContent,
 	type ShowcaseProduct,
@@ -564,7 +565,12 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 								/>
 							))}
 							{streaming && messages[messages.length - 1]?.role === 'user' && (
-								<TypingDots accent={accent} />
+								<div className="flex justify-start">
+									<TypingIndicator
+										label={`${name} در حال نوشتن است`}
+										accentColor={accent}
+									/>
+								</div>
 							)}
 						</div>
 					)}
@@ -978,28 +984,6 @@ function LoadingDots({ accent }: { accent: string }) {
 				))}
 			</div>
 		</div>
-	)
-}
-
-function TypingDots({ accent }: { accent: string }) {
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 8 }}
-			animate={{ opacity: 1, y: 0 }}
-			className="flex justify-start"
-		>
-			<div className="flex items-center gap-1.5 rounded-3xl rounded-ss-lg border border-black/[0.07] bg-white px-4 py-3.5 shadow-sm">
-				{[0, 1, 2].map((i) => (
-					<motion.span
-						key={i}
-						className="h-1.5 w-1.5 rounded-full"
-						style={{ backgroundColor: accent, opacity: 0.5 }}
-						animate={{ y: [0, -4, 0], opacity: [0.35, 0.9, 0.35] }}
-						transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
-					/>
-				))}
-			</div>
-		</motion.div>
 	)
 }
 

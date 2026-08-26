@@ -148,9 +148,23 @@ export function createTelegramLikeAdapter(opts: {
       }
     },
 
-    async sendTyping(chatId: string): Promise<void> {
+    async sendTyping(chatId: string, signal?: AbortSignal): Promise<void> {
       // Shows "typing…" for ~5s in the client. Best-effort.
-      await call('sendChatAction', { chat_id: chatId, action: 'typing' }, NICETY_TIMEOUT_MS)
+      const res = await fetch(`${api}/sendChatAction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(NICETY_TIMEOUT_MS)])
+          : AbortSignal.timeout(NICETY_TIMEOUT_MS),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || (json as { ok?: boolean }).ok === false) {
+        throw new BotApiError(
+          res.status,
+          `${channel} sendChatAction failed (${res.status}): ${JSON.stringify(json)}`,
+        )
+      }
     },
 
     async sendVoice(chatId: string, voice: OutboundVoice): Promise<void> {

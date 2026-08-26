@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
+import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
 import { synthesizeSpeech } from '@/lib/voice/tts'
 import { readBotToken, normalizeMessengerSettings } from '@/lib/channels/config'
@@ -933,30 +934,45 @@ async function processChannelInbound(
                         // DMs, or the message came from the request folder and hasn't been
                         // accepted yet). A failed send is captured below; the stored inbound
                         // remains visible to the operator in the conversations inbox.
-                        const result = await generateReply(
-                                {
-                                        workspaceId: agent.workspaceId,
-                                        agent: chatAgent,
-                                        message: text,
-                                        channel: type,
-                                        contactId,
-                                        contactName,
-                                        conversationId: persistedInbound.conversationId,
-                                        externalId: msg.chatId,
-                                        inboundMetadata,
-                                        inboundEventId: eventLease.id,
-                                        inboundAlreadyPersisted: true,
-                                },
-                                {
-                                        // The engine invokes this only after operator ownership,
-                                        // policy and smart-handoff gates allow an AI generation.
-                                        onGenerationStart: adapter.sendTyping
-                                                ? () => adapter
-                                                        .sendTyping!(msg.chatId)
-                                                        .catch((e) => console.error(`[handler] ${type} typing failed:`, e))
-                                                : undefined,
-                                },
-                        )
+                        let stopTyping: (() => void) | undefined
+                        let result: Awaited<ReturnType<typeof generateReply>>
+                        try {
+                                result = await generateReply(
+                                        {
+                                                workspaceId: agent.workspaceId,
+                                                agent: chatAgent,
+                                                message: text,
+                                                channel: type,
+                                                contactId,
+                                                contactName,
+                                                conversationId: persistedInbound.conversationId,
+                                                externalId: msg.chatId,
+                                                inboundMetadata,
+                                                inboundEventId: eventLease.id,
+                                                inboundAlreadyPersisted: true,
+                                        },
+                                        {
+                                                // The engine invokes this only after operator ownership,
+                                                // policy and smart-handoff gates allow an AI generation.
+                                                // The lifecycle itself is fire-and-forget so a slow
+                                                // provider nicety endpoint can never delay the model.
+                                                onGenerationStart: adapter.sendTyping
+                                                        ? () => {
+                                                                stopTyping ??= startChannelTyping(
+                                                                        adapter,
+                                                                        msg.chatId,
+                                                                        (e) => console.error(`[handler] ${type} typing failed:`, e),
+                                                                )
+                                                        }
+                                                        : undefined,
+                                        },
+                                )
+                        } finally {
+                                // Instagram needs an explicit typing_off. Telegram/Bale clear
+                                // the action when the outgoing message arrives; stopping here
+                                // prevents further heartbeat requests while delivery begins.
+                                stopTyping?.()
+                        }
                         if ('error' in result) {
                                 outcome = `AI_${result.error}`
                                 return

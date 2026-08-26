@@ -1175,6 +1175,40 @@
         }
 }
 
+/* Shared chat typing rhythm: subtle enough for long waits, clear at a glance. */
+.chat-typing-indicator {
+        --chat-typing-accent: var(--accent-strong, #18181b);
+        animation: chat-typing-arrive 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.chat-typing-dot {
+        width: 0.375rem;
+        height: 0.375rem;
+        border-radius: 9999px;
+        background: var(--chat-typing-accent);
+        opacity: 0.38;
+        animation: chat-typing-pulse 1.25s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.chat-typing-dot:nth-child(2) { animation-delay: 140ms; }
+.chat-typing-dot:nth-child(3) { animation-delay: 280ms; }
+
+@keyframes chat-typing-arrive {
+        from { opacity: 0; transform: translateY(5px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes chat-typing-pulse {
+        0%, 60%, 100% { opacity: 0.32; transform: translateY(0) scale(0.92); }
+        30% { opacity: 0.92; transform: translateY(-2px) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+        .chat-typing-indicator { animation: none; }
+        .chat-typing-dot { animation: none; opacity: 0.45; }
+        .chat-typing-dot:nth-child(2) { opacity: 0.7; }
+}
+
 @keyframes beam-pulse {
         0%,
         100% {
