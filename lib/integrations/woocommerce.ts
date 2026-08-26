@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/phone'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { productEmbeddingSourceHash } from '@/lib/products/embedding-source'
 
 export const WOOCOMMERCE_REST_PER_PAGE = 100
 
@@ -554,11 +555,31 @@ async function findLegacyProduct(
   sourceHash: string | null
   sourceUpdatedAt: Date | null
   embeddingUpdatedAt: Date | null
+  active: boolean
+  name: string
+  description: string | null
+  sku: string | null
+  tags: string[]
+  attributes: Prisma.JsonValue
+  categoryId: string | null
 } | null> {
+  const select = {
+    id: true,
+    sourceHash: true,
+    sourceUpdatedAt: true,
+    embeddingUpdatedAt: true,
+    active: true,
+    name: true,
+    description: true,
+    sku: true,
+    tags: true,
+    attributes: true,
+    categoryId: true,
+  } as const
   if (sku) {
     const bySku = await prisma.product.findMany({
       where: { workspaceId, sourceIntegrationId: null, sku },
-      select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+      select,
       take: 2,
     })
     if (bySku.length === 1) return bySku[0]
@@ -570,7 +591,7 @@ async function findLegacyProduct(
         sourceIntegrationId: null,
         name: { equals: name, mode: 'insensitive' },
       },
-      select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+      select,
       take: 2,
     })
     if (byName.length === 1) return byName[0]
@@ -635,7 +656,19 @@ async function upsertProductFromWoo(
   }
   let existing = await prisma.product.findUnique({
     where: key,
-    select: { id: true, sourceHash: true, sourceUpdatedAt: true, embeddingUpdatedAt: true },
+    select: {
+      id: true,
+      sourceHash: true,
+      sourceUpdatedAt: true,
+      embeddingUpdatedAt: true,
+      active: true,
+      name: true,
+      description: true,
+      sku: true,
+      tags: true,
+      attributes: true,
+      categoryId: true,
+    },
   })
   if (!existing) existing = await findLegacyProduct(integration.workspaceId, mapped.sku, mapped.name)
 
@@ -665,6 +698,18 @@ async function upsertProductFromWoo(
   // values (strings + the `_variations` array of plain objects) but
   // TypeScript can't prove that the `unknown`-typed `_variations` entries
   // are JSON-serializable.
+  const embeddingSource = {
+    active: mappedFields.active,
+    name: mappedFields.name,
+    description: mappedFields.description,
+    sku: mappedFields.sku,
+    tags: mappedFields.tags,
+    attributes: persistedAttributes,
+    categoryId,
+  }
+  const embeddingChanged = !existing ||
+    productEmbeddingSourceHash(existing) !== productEmbeddingSourceHash(embeddingSource)
+
   const updateData = {
     ...mappedFields,
     categoryId,
@@ -672,7 +717,10 @@ async function upsertProductFromWoo(
     externalId,
     sourceUpdatedAt: updatedAt,
     sourceHash: hash,
-    embeddingUpdatedAt: null,
+    // Keep a valid vector when only price, stock, image or URL changed. Those
+    // live values are loaded from Product after retrieval and never need to be
+    // encoded into the semantic vector.
+    embeddingUpdatedAt: embeddingChanged ? null : existing?.embeddingUpdatedAt ?? null,
     attributes: persistedAttributes as unknown as Prisma.InputJsonValue,
   }
   let saved: { id: string }
@@ -690,7 +738,9 @@ async function upsertProductFromWoo(
 
   const agentIds = options.agentIds ?? await allAgentIds(integration.workspaceId)
   await assignProduct(saved.id, agentIds)
-  await dispatchProductEmbed({ productId: saved.id, workspaceId: integration.workspaceId })
+  if (embeddingChanged || !existing?.embeddingUpdatedAt) {
+    await dispatchProductEmbed({ productId: saved.id, workspaceId: integration.workspaceId })
+  }
   return { productId: saved.id, changed: true }
 }
 

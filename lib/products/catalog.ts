@@ -44,13 +44,13 @@ function extractVariations(attrs: unknown): Array<Record<string, unknown>> | nul
 }
 
 /**
- * Build a rich, embeddable text representation of a product (Persian).
+ * Build the semantic-search representation of a product (Persian).
  *
  * The text is what gets embedded into the vector store and what the RAG
- * retrieval matches against. It MUST contain every word a customer might
- * search for — including the names of every available color, pattern, size,
- * etc. — otherwise the agent won't surface the product when a customer asks
- * "پیراهن آبی دارید؟".
+ * retrieval matches against. It deliberately excludes volatile commercial
+ * facts such as price and stock. After retrieval, chat loads those facts from
+ * the live Product row, so embedding them here only makes routine inventory
+ * updates expensive and leaves stale numbers inside vectors.
  *
  * For variable products we render each variation's attributes as a separate
  * line ("رنگ: آبی", "رنگ: سبز", …) so the embedding model sees each
@@ -79,18 +79,6 @@ export function buildProductText(p: ProductWithCategory): string {
   const lines = [
     `محصول: ${p.name}`,
     p.category ? `دسته‌بندی: ${p.category.name}` : '',
-    p.price != null ? `قیمت: ${p.price.toLocaleString('fa-IR')} تومان` : '',
-    p.comparePrice != null
-      ? `قیمت اصلی: ${p.comparePrice.toLocaleString('fa-IR')} تومان`
-      : '',
-    // Stock line — for variable products we deliberately emit "تنوع‌محور"
-    // because the parent stock is misleading (null or 0 even when variants
-    // are in stock). The actual per-variant stock is listed below.
-    variations && variations.length > 0
-      ? `موجودی: تنوع‌محور (${variations.length} تنوع)`
-      : p.stock != null
-        ? `موجودی: ${p.stock > 0 ? `${p.stock} عدد` : 'ناموجود'}`
-        : 'موجودی: نامحدود',
     p.sku ? `کد محصول (SKU): ${p.sku}` : '',
     `توضیحات: ${description || 'ندارد'}`,
     p.tags.length ? `تگ‌ها: ${p.tags.join('، ')}` : '',
@@ -101,8 +89,8 @@ export function buildProductText(p: ProductWithCategory): string {
   // attribute values as natural-language tokens rather than JSON.
   //
   // Example output:
-  //   تنوع: رنگ آبی — موجودی 7 عدد — قیمت ۱،۰۹۸،۰۰۰ تومان
-  //   تنوع: رنگ سبز — ناموجود
+  //   تنوع: رنگ آبی، سایز XL
+  //   تنوع: رنگ سبز، سایز L
   //
   // We cap at 60 variations to stay within the embedding model's context
   // window (8K tokens for text-embedding-3-small; 60 lines × ~30 tokens
@@ -118,19 +106,7 @@ export function buildProductText(p: ProductWithCategory): string {
               .join('، ')
           : ''
       if (!attrStr) continue
-      let stockStr: string
-      if (v.manageStock === true) {
-        const qty = typeof v.stockQuantity === 'number' ? v.stockQuantity : 0
-        stockStr = qty > 0 ? `موجودی ${qty} عدد` : 'ناموجود'
-      } else {
-        stockStr = v.inStock === false ? 'ناموجود' : 'موجود'
-      }
-      const varPrice = typeof v.price === 'number' && v.price > 0
-        ? `قیمت ${v.price.toLocaleString('fa-IR')} تومان`
-        : null
-      const pieces = [attrStr, stockStr]
-      if (varPrice) pieces.splice(1, 0, varPrice)
-      lines.push(`تنوع: ${pieces.join(' — ')}`)
+      lines.push(`تنوع: ${attrStr}`)
     }
     if (variations.length > shown.length) {
       lines.push(`(و ${variations.length - shown.length} تنوع دیگر)`)

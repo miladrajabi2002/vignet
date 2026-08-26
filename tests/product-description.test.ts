@@ -17,6 +17,7 @@ import {
   formatAttrValue,
 } from '@/lib/products/description'
 import { buildProductText } from '@/lib/products/catalog'
+import { productEmbeddingSourceHash } from '@/lib/products/embedding-source'
 
 describe('extractListItems', () => {
   it('returns [] when the description has no <li> tags', () => {
@@ -202,5 +203,115 @@ describe('catalog embedding text', () => {
     expect(text).toContain('جنس کار: بابوس')
     expect(text).toContain('سایزبندی: ۴۲ تا ۴۸')
     expect(text).not.toContain('<li>')
+  })
+
+  it('keeps volatile price and stock facts out of semantic-search text', () => {
+    const text = buildProductText({
+      id: 'product-1',
+      workspaceId: 'workspace-1',
+      name: 'پیراهن آبی',
+      description: 'لباس نخی روزمره',
+      price: 1_250_000,
+      comparePrice: 1_500_000,
+      sku: 'BLUE-XL',
+      stock: 7,
+      tags: ['تابستانی'],
+      attributes: {
+        رنگ: 'آبی',
+        _variations: [{
+          price: 1_250_000,
+          stockQuantity: 7,
+          inStock: true,
+          attributes: { رنگ: 'آبی', سایز: 'XL' },
+        }],
+      },
+      category: { name: 'پیراهن' },
+    })
+
+    expect(text).toContain('رنگ آبی')
+    expect(text).toContain('سایز XL')
+    expect(text).not.toContain('1,250,000')
+    expect(text).not.toContain('۱٬۲۵۰٬۰۰۰')
+    expect(text).not.toContain('موجودی')
+    expect(text).not.toContain('ناموجود')
+  })
+})
+
+describe('product embedding source hash', () => {
+  const base = {
+    active: true,
+    name: 'پیراهن آبی',
+    description: '<p>لباس نخی روزمره</p>',
+    sku: 'BLUE-XL',
+    tags: ['تابستانی'],
+    categoryId: 'category-1',
+    attributes: {
+      رنگ: 'آبی',
+      _variations: [{
+        price: 1_250_000,
+        stockQuantity: 7,
+        inStock: true,
+        attributes: { رنگ: 'آبی', سایز: 'XL' },
+      }],
+    },
+  }
+
+  it('ignores variation price, stock and ordering changes', () => {
+    const changedCommercialFacts = {
+      ...base,
+      attributes: {
+        رنگ: 'آبی',
+        _variations: [
+          {
+            price: 1_900_000,
+            stockQuantity: 0,
+            inStock: false,
+            attributes: { سایز: 'L', رنگ: 'آبی' },
+          },
+          {
+            price: 2_000_000,
+            stockQuantity: 12,
+            inStock: true,
+            attributes: { سایز: 'XL', رنگ: 'آبی' },
+          },
+        ],
+      },
+    }
+    const sameSemanticFacts = {
+      ...base,
+      attributes: {
+        رنگ: 'آبی',
+        _variations: [
+          {
+            price: 10,
+            stockQuantity: 99,
+            inStock: true,
+            attributes: { رنگ: 'آبی', سایز: 'XL' },
+          },
+          {
+            price: 20,
+            stockQuantity: 1,
+            inStock: true,
+            attributes: { رنگ: 'آبی', سایز: 'L' },
+          },
+        ],
+      },
+    }
+
+    expect(productEmbeddingSourceHash(changedCommercialFacts))
+      .toBe(productEmbeddingSourceHash(sameSemanticFacts))
+  })
+
+  it('changes when a searchable variation attribute changes', () => {
+    const changedColour = {
+      ...base,
+      attributes: {
+        رنگ: 'قرمز',
+        _variations: [{ attributes: { رنگ: 'قرمز', سایز: 'XL' } }],
+      },
+    }
+
+    expect(productEmbeddingSourceHash(changedColour))
+      .not.toBe(productEmbeddingSourceHash(base))
   })
 })
