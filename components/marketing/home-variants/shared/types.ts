@@ -11,6 +11,8 @@ export type PlanPreview = {
 	price: string
 	maxChannels: string
 	includedCredit: string
+	/** Discounted per-successful-reply price for the fast model, in Toman. */
+	replyPrice: string
 	featured: boolean
 }
 

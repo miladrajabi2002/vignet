@@ -13,6 +13,8 @@
 	color: var(--hv-ink);
 }
 
+/* ---------- backgrounds ---------- */
+
 .paperGrid {
 	background-image:
 		linear-gradient(rgba(17, 17, 17, 0.035) 1px, transparent 1px),
@@ -32,6 +34,11 @@
 	background-size: 18px 18px;
 }
 
+.gridFade {
+	-webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 40%, black 30%, transparent 75%);
+	mask-image: radial-gradient(ellipse 75% 65% at 50% 40%, black 30%, transparent 75%);
+}
+
 .softHalo {
 	background:
 		radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.95), transparent 36%),
@@ -44,10 +51,21 @@
 		radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.075), transparent 34%);
 }
 
+.emeraldGlow {
+	background: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.16), transparent 62%);
+}
+
 .fadeEdges {
 	-webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
 	mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
 }
+
+.fadeEdgesVertical {
+	-webkit-mask-image: linear-gradient(180deg, transparent, black 12%, black 88%, transparent);
+	mask-image: linear-gradient(180deg, transparent, black 12%, black 88%, transparent);
+}
+
+/* ---------- ambient loops ---------- */
 
 .marqueeTrack {
 	display: flex;
@@ -156,6 +174,8 @@
 	pointer-events: none;
 }
 
+/* ---------- rails, markers, cards ---------- */
+
 .routeRail {
 	background: linear-gradient(
 		to bottom,
@@ -194,6 +214,17 @@
 	outline: 3px solid rgba(10, 132, 255, 0.35);
 	outline-offset: 3px;
 }
+
+.noScrollbar {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.noScrollbar::-webkit-scrollbar {
+	display: none;
+}
+
+/* ---------- keyframes ---------- */
 
 @keyframes hv-marquee {
 	to {
@@ -339,6 +370,8 @@
 		transform: translate3d(-120%, 0, 0);
 	}
 }
+
+/* ---------- responsive & motion preferences ---------- */
 
 @media (max-width: 767px) {
 	.tiltCard,

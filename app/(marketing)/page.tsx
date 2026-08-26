@@ -12,8 +12,20 @@ import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 // Below-the-fold sections are code-split so the first paint stays focused on
 // the hero; each product section's JS loads independently.
 // They still render on the server (SSR default), so SEO is unaffected.
-const FeaturesSection = dynamicImport(() =>
-	import('@/components/marketing/features-section').then((m) => m.FeaturesSection),
+const CapabilitiesBento = dynamicImport(() =>
+	import('@/components/marketing/home-sections').then((m) => m.CapabilitiesBento),
+)
+const LiveChatDemo = dynamicImport(() =>
+	import('@/components/marketing/home-sections').then((m) => m.LiveChatDemo),
+)
+const InstagramAutomationSection = dynamicImport(() =>
+	import('@/components/marketing/home-sections').then((m) => m.InstagramAutomationSection),
+)
+const SalesBookingChapter = dynamicImport(() =>
+	import('@/components/marketing/home-sections').then((m) => m.SalesBookingChapter),
+)
+const OnboardingTimeline = dynamicImport(() =>
+	import('@/components/marketing/home-variants/shared/chrome').then((m) => m.OnboardingTimeline),
 )
 const ChannelsSection = dynamicImport(() =>
 	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
@@ -197,9 +209,13 @@ export default async function HomePage() {
 			<Suspense fallback={null}>
 				<LivePlatformStats />
 			</Suspense>
-			<FeaturesSection />
+			<CapabilitiesBento locale={locale} />
+			<LiveChatDemo locale={locale} />
+			<InstagramAutomationSection locale={locale} />
+			<SalesBookingChapter locale={locale} />
 			<ChannelsSection />
 			<VigentoSection />
+			<OnboardingTimeline locale={locale} id="onboarding" />
 			<Suspense fallback={null}>
 				<PricingSection />
 			</Suspense>
