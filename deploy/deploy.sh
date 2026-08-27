@@ -110,6 +110,24 @@ pm2_scripts_match_ecosystem() {
   '
 }
 
+pm2_apps_have_insecure_tls_override() {
+  pm2 jlist 2>/dev/null | node -e '
+    let input = "";
+    process.stdin.on("data", chunk => input += chunk);
+    process.stdin.on("end", () => {
+      try {
+        const managedNames = new Set(["vignet-web", "vignet-worker", "vignet-studio"]);
+        const hasInsecureOverride = JSON.parse(input).some(item =>
+          managedNames.has(item.name) && item.pm2_env?.NODE_TLS_REJECT_UNAUTHORIZED === "0"
+        );
+        process.exit(hasInsecureOverride ? 0 : 1);
+      } catch {
+        process.exit(1);
+      }
+    });
+  '
+}
+
 if [ ! -f .env ]; then
   echo "ERROR: .env is required" >&2
   exit 1
@@ -191,6 +209,11 @@ npm ci
 echo "==> Validating launch-critical production configuration"
 npm run check:production-env
 
+# Never pass this process-wide TLS escape hatch to builds or PM2 children.
+# The validation above deliberately runs first so an explicit unsafe setting
+# in the shell or .env fails closed instead of being silently ignored.
+unset NODE_TLS_REJECT_UNAUTHORIZED
+
 echo "==> Generating Prisma client"
 npx prisma generate
 
@@ -239,6 +262,10 @@ echo "==> Restarting services"
 # Detect the one-time migration from the old npm wrappers before stopping them.
 recreate_pm2_apps=0
 if ! pm2_scripts_match_ecosystem; then
+  recreate_pm2_apps=1
+fi
+if pm2_apps_have_insecure_tls_override; then
+  echo "==> Removing stale insecure TLS override from PM2 services"
   recreate_pm2_apps=1
 fi
 
