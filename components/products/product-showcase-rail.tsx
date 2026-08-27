@@ -273,7 +273,7 @@ export function ProductShowcaseRail({
 						role="region"
 						aria-label={isFa ? 'اسکرول افقی محصولات' : 'Product list, scrolls horizontally'}
 						tabIndex={0}
-						className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-color:rgba(0,0,0,.16)_transparent] [scrollbar-width:thin] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)]/40"
+						className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)]/40"
 					>
 						{items.map((product, index) => (
 							<ShowcaseCard

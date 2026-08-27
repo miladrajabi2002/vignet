@@ -435,7 +435,10 @@
                         // it would visibly lag behind a finger swipe.
                         '.vgt-rail-thumb{height:100%;border-radius:999px;background:var(--vgt-accent);opacity:.7;}' +
                         '.vgt-card-rail{display:flex;gap:12px;max-width:100%;overflow-x:auto;' +
-                        'padding:2px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.16) transparent;overscroll-behavior-inline:contain;}' +
+                        // The custom progress track above is the one visual scroll
+                        // affordance. Keep native scrolling, but hide its second track.
+                        'padding:2px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-inline:contain;}' +
+                        '.vgt-card-rail::-webkit-scrollbar{display:none;}' +
                         // "See all" layout: the same cards reflow into a fluid grid, so
                         // every product is reachable without any horizontal gesture.
                         '.vgt-card-rail.vgt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));' +

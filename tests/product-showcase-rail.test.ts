@@ -67,6 +67,11 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
     // the operator inbox and a 360px phone without per-surface tuning.
     expect(rail).toContain('repeat(auto-fill,minmax(')
     expect(rail).toContain('aria-expanded={expanded}')
+    // There is already a custom progress track. A visible native scrollbar
+    // below it looks like a duplicate rail in every React product surface.
+    expect(rail).toContain('[scrollbar-width:none]')
+    expect(rail).toContain('[&::-webkit-scrollbar]:hidden')
+    expect(rail).not.toContain('[scrollbar-width:thin]')
     // Controls must never appear for a single-card reply.
     expect(rail).toContain('const showNav = !expanded && scroll.overflowing')
   })
@@ -80,6 +85,9 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
     expect(widget).toContain('.vgt-card-rail.vgt-grid{display:grid;')
     // The grid override has to beat the mobile `!important` card width.
     expect(widget).toContain('.vgt-card-rail.vgt-grid .vgt-card{width:auto!important;')
+    expect(widget).toContain('scrollbar-width:none;overscroll-behavior-inline:contain;')
+    expect(widget).toContain('.vgt-card-rail::-webkit-scrollbar{display:none;}')
+    expect(widget).not.toContain('scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.16) transparent;')
     expect(widget).toContain('Math.abs(rail.scrollLeft)')
     expect(widget).toContain("isRtl() ? -1 : 1")
     // One shared resize listener — per-message listeners would leak across a
