@@ -7,6 +7,7 @@ import type {
   SendOptions,
 } from '@/lib/channels/types'
 import { normalizeMessengerText, splitOutboundText } from '@/lib/channels/text-chunks'
+import { createThrottledTextStream } from '@/lib/channels/text-stream'
 
 class BotApiError extends Error {
   constructor(
@@ -50,6 +51,15 @@ export function createTelegramLikeAdapter(opts: {
   const UPLOAD_TIMEOUT_MS = 30_000 // voice uploads carry a real payload
   const TEXT_CHUNK_LIMIT = 4_000 // platform cap is 4096; leave markup headroom
 
+  function quickReplyMarkup(quickReplies: string[] | undefined): Record<string, unknown> | undefined {
+    if (!quickReplies?.length) return undefined
+    const rows: { text: string }[][] = []
+    for (let i = 0; i < quickReplies.length; i += 2) {
+      rows.push(quickReplies.slice(i, i + 2).map((text) => ({ text })))
+    }
+    return { keyboard: rows, resize_keyboard: true, one_time_keyboard: true }
+  }
+
   async function call(
     method: string,
     payload: unknown,
@@ -69,6 +79,36 @@ export function createTelegramLikeAdapter(opts: {
       )
     }
     return (json as { result?: unknown }).result
+  }
+
+  async function sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
+    const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex]
+      const payload: Record<string, unknown> = {
+        chat_id: chatId,
+        text: channel === 'TELEGRAM' ? telegramMarkdownToHtml(chunk) : chunk,
+      }
+      if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
+      if (chunkIndex === chunks.length - 1) {
+        payload.reply_markup = quickReplyMarkup(opts?.quickReplies)
+        if (!payload.reply_markup) delete payload.reply_markup
+      }
+      try {
+        await call('sendMessage', payload)
+      } catch (error) {
+        if (
+          channel !== 'TELEGRAM' ||
+          !(error instanceof BotApiError) ||
+          error.status !== 400
+        ) {
+          throw error
+        }
+        const fallback: Record<string, unknown> = { ...payload, text: chunk }
+        delete fallback.parse_mode
+        await call('sendMessage', fallback)
+      }
+    }
   }
 
   return {
@@ -107,46 +147,81 @@ export function createTelegramLikeAdapter(opts: {
       ]
     },
 
-    async sendText(chatId: string, text: string, opts?: SendOptions): Promise<void> {
-      const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
-      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-        const chunk = chunks[chunkIndex]
-        const payload: Record<string, unknown> = {
-          chat_id: chatId,
-          text: channel === 'TELEGRAM' ? telegramMarkdownToHtml(chunk) : chunk,
-        }
-        if (channel === 'TELEGRAM') payload.parse_mode = 'HTML'
-        // Quick replies belong only to the final part, after the full answer.
-        if (chunkIndex === chunks.length - 1 && opts?.quickReplies?.length) {
-          const rows: { text: string }[][] = []
-          for (let i = 0; i < opts.quickReplies.length; i += 2) {
-            rows.push(opts.quickReplies.slice(i, i + 2).map((q) => ({ text: q })))
+    sendText,
+
+    startTextStream(chatId: string) {
+      let messageId: string | number | undefined
+      const draftId = Math.floor(Math.random() * 2_147_483_646) + 1
+      const telegramChatId = Number(chatId)
+
+      return createThrottledTextStream({
+        intervalMs: channel === 'TELEGRAM' ? 650 : 1_100,
+        prepare: (text) => normalizeMessengerText(text).slice(0, TEXT_CHUNK_LIMIT),
+        publish: async (text) => {
+          if (channel === 'TELEGRAM') {
+            // Bot API 10+: an ephemeral, animated AI draft. The durable final
+            // message is sent by finish(), which also clears the draft.
+            await call('sendMessageDraft', {
+              // Unlike sendMessage, Telegram documents this field as Integer.
+              // Private chat identifiers fit safely in JavaScript's integer range.
+              chat_id: Number.isSafeInteger(telegramChatId) ? telegramChatId : chatId,
+              draft_id: draftId,
+              text: telegramMarkdownToHtml(text),
+              parse_mode: 'HTML',
+            }, NICETY_TIMEOUT_MS)
+            return
           }
-          payload.reply_markup = {
-            keyboard: rows,
-            resize_keyboard: true,
-            one_time_keyboard: true,
+
+          // Bale has no dedicated draft endpoint. Send the first partial once,
+          // then update that same message at a conservative cadence.
+          if (messageId === undefined) {
+            const result = await call('sendMessage', { chat_id: chatId, text }) as {
+              message_id?: string | number
+            } | null
+            messageId = result?.message_id
+            if (messageId === undefined) throw new Error(`${channel} stream message id missing`)
+            return
           }
-        }
-        try {
-          await call('sendMessage', payload)
-        } catch (error) {
-          // Telegram rejects malformed HTML with a deterministic 400 before
-          // accepting the message, so a plain-text fallback is safe there.
-          // Never retry an ambiguous timeout/network/5xx failure here: the API
-          // may already have delivered it, and retrying would duplicate text.
-          if (
-            channel !== 'TELEGRAM' ||
-            !(error instanceof BotApiError) ||
-            error.status !== 400
-          ) {
-            throw error
+          await call('editMessageText', { chat_id: chatId, message_id: messageId, text })
+        },
+        finalize: async (text, sendOpts, state) => {
+          if (channel === 'TELEGRAM' || state.failed || messageId === undefined) {
+            await sendText(chatId, text, sendOpts)
+            return
           }
-          const fallback: Record<string, unknown> = { ...payload, text: chunk }
-          delete fallback.parse_mode
-          await call('sendMessage', fallback)
-        }
-      }
+
+          const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
+          const firstPayload: Record<string, unknown> = {
+            chat_id: chatId,
+            message_id: messageId,
+            text: chunks[0],
+          }
+          if (chunks.length === 1) {
+            firstPayload.reply_markup = quickReplyMarkup(sendOpts?.quickReplies)
+            if (!firstPayload.reply_markup) delete firstPayload.reply_markup
+          }
+          try {
+            await call('editMessageText', firstPayload)
+          } catch {
+            // If the preview cannot be finalized, remove it when possible and
+            // fall back to the adapter's proven durable send path.
+            await call('deleteMessage', { chat_id: chatId, message_id: messageId }, NICETY_TIMEOUT_MS).catch(() => {})
+            await sendText(chatId, text, sendOpts)
+            return
+          }
+          if (chunks.length > 1) {
+            await sendText(chatId, chunks.slice(1).join('\n'), sendOpts)
+          }
+        },
+        cancel: async () => {
+          if (channel !== 'TELEGRAM' && messageId !== undefined) {
+            await call('deleteMessage', { chat_id: chatId, message_id: messageId }, NICETY_TIMEOUT_MS)
+          }
+        },
+        onPreviewError: (error) => {
+          console.warn(`[${channel}] live text preview disabled for this reply:`, error instanceof Error ? error.message : error)
+        },
+      })
     },
 
     async sendTyping(chatId: string, signal?: AbortSignal): Promise<void> {

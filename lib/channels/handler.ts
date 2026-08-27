@@ -943,6 +943,7 @@ async function processChannelInbound(
                         // accepted yet). A failed send is captured below; the stored inbound
                         // remains visible to the operator in the conversations inbox.
                         let stopTyping: (() => void) | undefined
+                        let textStream: ReturnType<NonNullable<typeof deliveryAdapter.startTextStream>> | undefined
                         let result: Awaited<ReturnType<typeof generateReply>>
                         try {
                                 result = await generateReply(
@@ -965,16 +966,37 @@ async function processChannelInbound(
                                                 // The lifecycle itself is fire-and-forget so a slow
                                                 // provider nicety endpoint can never delay the model.
                                                 onGenerationStart: adapter.sendTyping
+                                                        || deliveryAdapter.startTextStream
                                                         ? () => {
-                                                                stopTyping ??= startChannelTyping(
-                                                                        adapter,
-                                                                        msg.chatId,
-                                                                        (e) => console.error(`[handler] ${type} typing failed:`, e),
-                                                                )
+                                                                if (adapter.sendTyping) {
+                                                                        stopTyping ??= startChannelTyping(
+                                                                                adapter,
+                                                                                msg.chatId,
+                                                                                (e) => console.error(`[handler] ${type} typing failed:`, e),
+                                                                        )
+                                                                }
+                                                                textStream ??= deliveryAdapter.startTextStream?.(msg.chatId)
+                                                        }
+                                                        : undefined,
+                                                onTextUpdate: deliveryAdapter.startTextStream
+                                                        ? (partialText) => {
+                                                                // Never expose internal product directives in a
+                                                                // live draft, including an incomplete marker that
+                                                                // has not received its closing brackets yet.
+                                                                const openMarker = partialText.lastIndexOf('[[')
+                                                                const closedMarker = partialText.lastIndexOf(']]')
+                                                                const safePartial = openMarker > closedMarker
+                                                                        ? partialText.slice(0, openMarker)
+                                                                        : partialText
+                                                                textStream?.update(parseProductDirectives(safePartial).text)
                                                         }
                                                         : undefined,
                                         },
                                 )
+                        } catch (error) {
+                                await textStream?.cancel()
+                                textStream = undefined
+                                throw error
                         } finally {
                                 // Instagram needs an explicit typing_off. Telegram/Bale clear
                                 // the action when the outgoing message arrives; stopping here
@@ -982,6 +1004,7 @@ async function processChannelInbound(
                                 stopTyping?.()
                         }
                         if ('error' in result) {
+                                await textStream?.cancel()
                                 outcome = `AI_${result.error}`
                                 return
                         }
@@ -1004,6 +1027,20 @@ async function processChannelInbound(
                                 agent.language !== 'en',
                         )
                         let spokenReply = parsedReply.text
+                        const sendReplyText = async (replyText: string, quickReplies?: string[]) => {
+                                if (textStream) {
+                                        const currentStream = textStream
+                                        textStream = undefined
+                                        try {
+                                                await currentStream.finish(replyText, { quickReplies })
+                                        } catch (error) {
+                                                await currentStream.cancel()
+                                                throw error
+                                        }
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, replyText, { quickReplies })
+                        }
 
                         const canUseInstagramCarousel =
                                 type === 'INSTAGRAM' &&
@@ -1025,9 +1062,7 @@ async function processChannelInbound(
                         try {
                                 if (canUseInstagramCarousel) {
                                         if (parsedReply.text) {
-                                                await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
-                                                        quickReplies: settings.quickReplies,
-                                                })
+                                                await sendReplyText(parsedReply.text, settings.quickReplies)
                                         }
                                         try {
                                                 await ensureDispatchStarted()
@@ -1046,9 +1081,10 @@ async function processChannelInbound(
                                         // then send each product card sequentially. If a card
                                         // send fails, we still send the rest + the text fallback.
                                         if (parsedReply.text) {
-                                                await deliveryAdapter.sendText(msg.chatId, parsedReply.text, {
-                                                        quickReplies: settings.quickReplies,
-                                                })
+                                                await sendReplyText(parsedReply.text, settings.quickReplies)
+                                        } else {
+                                                await textStream?.cancel()
+                                                textStream = undefined
                                         }
                                         const isFa = agent.language !== 'en'
                                         const failedProducts: typeof showcasedProducts = []
@@ -1087,11 +1123,10 @@ async function processChannelInbound(
                                                 .filter(Boolean)
                                                 .join('\n\n')
                                         spokenReply = outboundText
-                                        await deliveryAdapter.sendText(msg.chatId, outboundText || result.reply, {
-                                                quickReplies: settings.quickReplies,
-                                        })
+                                        await sendReplyText(outboundText || result.reply, settings.quickReplies)
                                 }
                         } catch (deliveryError) {
+                                await textStream?.cancel()
                                 await markAssistantDelivery(resultMessageId, 'failed')
                                 throw deliveryError
                         }

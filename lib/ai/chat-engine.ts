@@ -923,6 +923,8 @@ export type GenerateReplyResult =
 export interface GenerateReplyOptions {
         /** Runs only after ownership and handoff gates confirm that AI will generate. */
         onGenerationStart?: () => void | Promise<void>
+        /** Receives the complete text-so-far as provider deltas arrive. */
+        onTextUpdate?: (text: string) => void
 }
 
 /**
@@ -1008,6 +1010,7 @@ export async function generateReply(
                 })
                 if (deterministicReply) {
                         await options.onGenerationStart?.()
+                        options.onTextUpdate?.(deterministicReply)
                         await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
                         try {
                                 const persisted = await persistAssistantTurn({
@@ -1066,6 +1069,21 @@ export async function generateReply(
                         reply = bookingTurn.content.trim()
                         usage = bookingTurn.usage
                         extraReceipts = bookingTurn.receipts
+                        options.onTextUpdate?.(reply)
+                } else if (options.onTextUpdate) {
+                        for await (const delta of streamChat({
+                                model,
+                                messages,
+                                temperature: AGENT_RESPONSE_TEMPERATURE,
+                                maxTokens: AGENT_MAX_RESPONSE_TOKENS,
+                                onUsage: (value) => {
+                                        usage = value
+                                },
+                        })) {
+                                reply += delta
+                                options.onTextUpdate(reply)
+                        }
+                        reply = reply.trim()
                 } else {
                         const result = await chatCompletion({
                                 model,

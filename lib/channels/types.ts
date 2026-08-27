@@ -76,6 +76,19 @@ export interface SendOptions {
 }
 
 /**
+ * A best-effort live preview of a generated text reply.
+ *
+ * `update` never blocks model generation; adapters throttle provider calls and
+ * retain only the newest snapshot. `finish` is the durable final delivery and
+ * must either deliver the complete text or reject so the inbound job can retry.
+ */
+export interface OutboundTextStream {
+  update(text: string): void
+  finish(text: string, opts?: SendOptions): Promise<void>
+  cancel(): Promise<void>
+}
+
+/**
  * A single product card to render in messenger channels that support rich
  * media (Telegram sendPhoto + inline keyboard, Rubika sendPhoto, …).
  *
@@ -107,6 +120,8 @@ export interface MessengerAdapter {
   parseUpdate(body: unknown): InboundMessage[]
   /** Send a plain text reply (with optional platform extras). */
   sendText(chatId: string, text: string, opts?: SendOptions): Promise<void>
+  /** Stream an in-progress AI reply when the provider supports drafts/edits. */
+  startTextStream?(chatId: string): OutboundTextStream
   /**
    * Show a "typing…" indicator while the reply is being generated. Optional and
    * best-effort — platforms that don't support it simply omit this method, and

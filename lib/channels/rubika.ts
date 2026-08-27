@@ -1,5 +1,6 @@
 import type { MessengerAdapter, InboundMessage, ProductCard } from '@/lib/channels/types'
-import { normalizeMessengerText } from '@/lib/channels/text-chunks'
+import { normalizeMessengerText, splitOutboundText } from '@/lib/channels/text-chunks'
+import { createThrottledTextStream } from '@/lib/channels/text-stream'
 
 /**
  * Rubika Bot API adapter.
@@ -16,6 +17,7 @@ export const RUBIKA_BASE = 'https://botapi.rubika.ir/v3'
 
 export function rubikaAdapter(token: string): MessengerAdapter {
   const api = `${RUBIKA_BASE}/${token}`
+  const TEXT_CHUNK_LIMIT = 4_000
 
   async function call(method: string, payload: unknown): Promise<unknown> {
     const res = await fetch(`${api}/${method}`, {
@@ -28,6 +30,35 @@ export function rubikaAdapter(token: string): MessengerAdapter {
       throw new Error(`RUBIKA ${method} failed (${res.status})`)
     }
     return json
+  }
+
+  async function sendText(chatId: string, text: string): Promise<void> {
+    for (const chunk of splitOutboundText(text, TEXT_CHUNK_LIMIT)) {
+      await call('sendMessage', { chat_id: chatId, text: normalizeMessengerText(chunk) })
+    }
+  }
+
+  function resultMessageId(value: unknown): string | number | undefined {
+    if (!value || typeof value !== 'object') return undefined
+    const root = value as Record<string, unknown>
+    const data = root.data && typeof root.data === 'object'
+      ? root.data as Record<string, unknown>
+      : undefined
+    const result = root.result && typeof root.result === 'object'
+      ? root.result as Record<string, unknown>
+      : undefined
+    const message = root.message && typeof root.message === 'object'
+      ? root.message as Record<string, unknown>
+      : undefined
+    const dataMessage = data?.new_message && typeof data.new_message === 'object'
+      ? data.new_message as Record<string, unknown>
+      : undefined
+    const candidate = root.message_id
+      ?? data?.message_id
+      ?? dataMessage?.message_id
+      ?? result?.message_id
+      ?? message?.message_id
+    return typeof candidate === 'string' || typeof candidate === 'number' ? candidate : undefined
   }
 
   return {
@@ -57,8 +88,51 @@ export function rubikaAdapter(token: string): MessengerAdapter {
       ]
     },
 
-    async sendText(chatId: string, text: string): Promise<void> {
-      await call('sendMessage', { chat_id: chatId, text: normalizeMessengerText(text) })
+    sendText,
+
+    startTextStream(chatId: string) {
+      let messageId: string | number | undefined
+      return createThrottledTextStream({
+        intervalMs: 1_200,
+        prepare: (text) => normalizeMessengerText(text).slice(0, TEXT_CHUNK_LIMIT),
+        publish: async (text) => {
+          if (messageId === undefined) {
+            messageId = resultMessageId(await call('sendMessage', { chat_id: chatId, text }))
+            if (messageId === undefined) throw new Error('RUBIKA stream message id missing')
+            return
+          }
+          await call('editMessageText', { chat_id: chatId, message_id: messageId, text })
+        },
+        finalize: async (text, _opts, state) => {
+          if (state.failed || messageId === undefined) {
+            await sendText(chatId, text)
+            return
+          }
+          const chunks = splitOutboundText(text, TEXT_CHUNK_LIMIT)
+          try {
+            await call('editMessageText', {
+              chat_id: chatId,
+              message_id: messageId,
+              text: normalizeMessengerText(chunks[0]),
+            })
+          } catch {
+            await call('deleteMessage', { chat_id: chatId, message_id: messageId }).catch(() => {})
+            await sendText(chatId, text)
+            return
+          }
+          for (const chunk of chunks.slice(1)) {
+            await call('sendMessage', { chat_id: chatId, text: normalizeMessengerText(chunk) })
+          }
+        },
+        cancel: async () => {
+          if (messageId !== undefined) {
+            await call('deleteMessage', { chat_id: chatId, message_id: messageId })
+          }
+        },
+        onPreviewError: (error) => {
+          console.warn('[RUBIKA] live text preview disabled for this reply:', error instanceof Error ? error.message : error)
+        },
+      })
     },
 
     async sendProductCard(chatId: string, card: ProductCard): Promise<void> {
