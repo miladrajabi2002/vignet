@@ -9,12 +9,13 @@
  * Discoverability is the whole point of this component: a bare
  * `overflow-x:auto` rail hid every product past the second or third card —
  * desktop mice have no horizontal wheel and the thin scrollbar reads as
- * decoration, so visitors never learned more products existed. Three
+ * decoration, so visitors never learned more products existed. Four
  * affordances fix that without stealing space from the cards:
  *   1. prev/next buttons (logical direction, so RTL scrolls the right way),
  *   2. a scroll progress bar that shows how much of the rail is left,
  *   3. a "see all" toggle that reflows the rail into a responsive grid —
- *      the mobile-friendly escape hatch when swiping is awkward.
+ *      the mobile-friendly escape hatch when swiping is awkward,
+ *   4. mouse drag-to-scroll with a movement threshold that preserves clicks.
  *
  * The vanilla widget (public/widget/loader.js) mirrors this behaviour.
  */
@@ -25,6 +26,8 @@ import {
 	useRef,
 	useState,
 	type CSSProperties,
+	type MouseEvent as ReactMouseEvent,
+	type PointerEvent as ReactPointerEvent,
 	type ReactNode,
 } from 'react'
 import { ChevronLeft, ChevronRight, ExternalLink, LayoutGrid, Package, Rows3 } from 'lucide-react'
@@ -39,6 +42,15 @@ import {
 const RAIL_GAP_PX = 12
 /** Sub-pixel scroll positions must not flicker the edge buttons. */
 const EDGE_EPSILON = 4
+/** Keep a normal product-link click distinct from an intentional rail drag. */
+const DRAG_THRESHOLD_PX = 8
+
+type RailDragState = {
+	pointerId: number
+	startX: number
+	startScrollLeft: number
+	moved: boolean
+}
 
 type ScrollState = {
 	/** True when at least one card is out of view — all controls hinge on this. */
@@ -81,7 +93,11 @@ export function ProductShowcaseRail({
 	const items = products.slice(0, MAX_SHOWCASE_PRODUCTS)
 	const railRef = useRef<HTMLDivElement | null>(null)
 	const frameRef = useRef<number | null>(null)
+	const dragRef = useRef<RailDragState | null>(null)
+	const suppressClickRef = useRef(false)
+	const clickResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const [expanded, setExpanded] = useState(false)
+	const [dragging, setDragging] = useState(false)
 	const [scroll, setScroll] = useState<ScrollState>(INITIAL_SCROLL)
 
 	// `scrollLeft` is negative in RTL, so every measurement works off its
@@ -137,9 +153,72 @@ export function ProductShowcaseRail({
 	useEffect(
 		() => () => {
 			if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
+			if (clickResetTimerRef.current !== null) clearTimeout(clickResetTimerRef.current)
 		},
 		[],
 	)
+
+	const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+		const el = event.currentTarget
+		// Touch and pen already get the browser's momentum scrolling. Custom handling
+		// is only for a desktop mouse, where click-and-drag is otherwise missing.
+		if (
+			event.pointerType !== 'mouse' ||
+			event.button !== 0 ||
+			el.scrollWidth - el.clientWidth <= EDGE_EPSILON
+		) return
+		if (clickResetTimerRef.current !== null) {
+			clearTimeout(clickResetTimerRef.current)
+			clickResetTimerRef.current = null
+		}
+		suppressClickRef.current = false
+		dragRef.current = {
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startScrollLeft: el.scrollLeft,
+			moved: false,
+		}
+	}, [])
+
+	const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+		const drag = dragRef.current
+		if (!drag || drag.pointerId !== event.pointerId) return
+		const delta = event.clientX - drag.startX
+		if (!drag.moved && Math.abs(delta) < DRAG_THRESHOLD_PX) return
+		if (!drag.moved) {
+			drag.moved = true
+			event.currentTarget.setPointerCapture(event.pointerId)
+			setDragging(true)
+		}
+		// Once horizontal intent is clear, stop text/image selection and track the
+		// pointer directly. `scrollLeft` also handles Chrome's negative RTL model.
+		event.preventDefault()
+		event.currentTarget.scrollLeft = drag.startScrollLeft - delta
+	}, [])
+
+	const finishPointerDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+		const drag = dragRef.current
+		if (!drag || drag.pointerId !== event.pointerId) return
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId)
+		}
+		dragRef.current = null
+		setDragging(false)
+		if (!drag.moved || event.type === 'pointercancel') return
+		// A drag that began over the CTA can otherwise emit a click on release.
+		suppressClickRef.current = true
+		clickResetTimerRef.current = setTimeout(() => {
+			suppressClickRef.current = false
+			clickResetTimerRef.current = null
+		}, 0)
+	}, [])
+
+	const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+		if (!suppressClickRef.current) return
+		event.preventDefault()
+		event.stopPropagation()
+		suppressClickRef.current = false
+	}, [])
 
 	const scrollByCard = useCallback(
 		(towardEnd: boolean) => {
@@ -270,10 +349,21 @@ export function ProductShowcaseRail({
 					<div
 						ref={railRef}
 						onScroll={scheduleMeasure}
+						onPointerDown={handlePointerDown}
+						onPointerMove={handlePointerMove}
+						onPointerUp={finishPointerDrag}
+						onPointerCancel={finishPointerDrag}
+						onClickCapture={handleClickCapture}
+						onDragStart={(event) => event.preventDefault()}
 						role="region"
 						aria-label={isFa ? 'اسکرول افقی محصولات' : 'Product list, scrolls horizontally'}
 						tabIndex={0}
-						className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)]/40"
+						className={cn(
+							'-mx-1 flex gap-3 overflow-x-auto overscroll-x-contain px-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--showcase-accent)]/40',
+							dragging
+								? 'cursor-grabbing select-none'
+								: cn('snap-x snap-mandatory', scroll.overflowing && 'cursor-grab select-none'),
+						)}
 					>
 						{items.map((product, index) => (
 							<ShowcaseCard

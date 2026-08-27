@@ -72,6 +72,12 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
     expect(rail).toContain('[scrollbar-width:none]')
     expect(rail).toContain('[&::-webkit-scrollbar]:hidden')
     expect(rail).not.toContain('[scrollbar-width:thin]')
+    // Mouse drag is direct manipulation, but the threshold keeps normal CTA
+    // clicks working and pointer capture keeps the drag alive outside the rail.
+    expect(rail).toContain('DRAG_THRESHOLD_PX = 8')
+    expect(rail).toContain("event.pointerType !== 'mouse'")
+    expect(rail).toContain('setPointerCapture(event.pointerId)')
+    expect(rail).toContain('onClickCapture={handleClickCapture}')
     // Controls must never appear for a single-card reply.
     expect(rail).toContain('const showNav = !expanded && scroll.overflowing')
   })
@@ -88,6 +94,10 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
     expect(widget).toContain('scrollbar-width:none;overscroll-behavior-inline:contain;')
     expect(widget).toContain('.vgt-card-rail::-webkit-scrollbar{display:none;}')
     expect(widget).not.toContain('scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.16) transparent;')
+    expect(widget).toContain("event.pointerType !== 'mouse'")
+    expect(widget).toContain('if (rail.setPointerCapture) rail.setPointerCapture(event.pointerId)')
+    expect(widget).toContain("rail.classList.add('vgt-dragging')")
+    expect(widget).toContain('if (!drag.moved && Math.abs(delta) < 8) return')
     expect(widget).toContain('Math.abs(rail.scrollLeft)')
     expect(widget).toContain("isRtl() ? -1 : 1")
     // One shared resize listener — per-message listeners would leak across a

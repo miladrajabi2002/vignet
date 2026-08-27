@@ -439,6 +439,8 @@
                         // affordance. Keep native scrolling, but hide its second track.
                         'padding:2px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-inline:contain;}' +
                         '.vgt-card-rail::-webkit-scrollbar{display:none;}' +
+                        '.vgt-card-rail.vgt-draggable{cursor:grab;user-select:none;-webkit-user-select:none;}' +
+                        '.vgt-card-rail.vgt-dragging{cursor:grabbing;scroll-snap-type:none;}' +
                         // "See all" layout: the same cards reflow into a fluid grid, so
                         // every product is reachable without any horizontal gesture.
                         '.vgt-card-rail.vgt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));' +
@@ -1493,6 +1495,8 @@
                         var max = Math.max(0, rail.scrollWidth - rail.clientWidth)
                         var pos = Math.min(Math.abs(rail.scrollLeft), max)
                         var overflowing = !expanded && max > 4
+                        if (overflowing) rail.classList.add('vgt-draggable')
+                        else rail.classList.remove('vgt-draggable')
                         nav.style.display = overflowing ? '' : 'none'
                         track.style.display = overflowing ? '' : 'none'
                         // Once expanded the toggle is the only way back, so it never hides.
@@ -1561,6 +1565,75 @@
                         sync()
                 })
                 rail.addEventListener('scroll', scheduleSync)
+
+                // Touch/pen keep native momentum scrolling. Desktop mouse users can
+                // grab anywhere on the cards and drag the rail with 1:1 tracking.
+                var drag = null
+                var suppressClick = false
+                var clickResetTimer = null
+                rail.addEventListener('pointerdown', function (event) {
+                        if (
+                                event.pointerType !== 'mouse' ||
+                                event.button !== 0 ||
+                                expanded ||
+                                rail.scrollWidth - rail.clientWidth <= 4
+                        ) return
+                        if (clickResetTimer !== null) {
+                                clearTimeout(clickResetTimer)
+                                clickResetTimer = null
+                        }
+                        suppressClick = false
+                        drag = {
+                                pointerId: event.pointerId,
+                                startX: event.clientX,
+                                startScrollLeft: rail.scrollLeft,
+                                moved: false,
+                        }
+                })
+                rail.addEventListener('pointermove', function (event) {
+                        if (!drag || drag.pointerId !== event.pointerId) return
+                        var delta = event.clientX - drag.startX
+                        if (!drag.moved && Math.abs(delta) < 8) return
+                        if (!drag.moved) {
+                                drag.moved = true
+                                if (rail.setPointerCapture) rail.setPointerCapture(event.pointerId)
+                                rail.classList.add('vgt-dragging')
+                        }
+                        event.preventDefault()
+                        rail.scrollLeft = drag.startScrollLeft - delta
+                })
+                function finishDrag(event) {
+                        if (!drag || drag.pointerId !== event.pointerId) return
+                        if (rail.hasPointerCapture && rail.hasPointerCapture(event.pointerId)) {
+                                rail.releasePointerCapture(event.pointerId)
+                        }
+                        var moved = drag.moved
+                        drag = null
+                        rail.classList.remove('vgt-dragging')
+                        if (!moved || event.type === 'pointercancel') return
+                        // Suppress only the click emitted by this drag, then immediately
+                        // restore normal product CTA clicks.
+                        suppressClick = true
+                        clickResetTimer = setTimeout(function () {
+                                suppressClick = false
+                                clickResetTimer = null
+                        }, 0)
+                }
+                rail.addEventListener('pointerup', finishDrag)
+                rail.addEventListener('pointercancel', finishDrag)
+                rail.addEventListener('dragstart', function (event) {
+                        event.preventDefault()
+                })
+                rail.addEventListener(
+                        'click',
+                        function (event) {
+                                if (!suppressClick) return
+                                event.preventDefault()
+                                event.stopPropagation()
+                                suppressClick = false
+                        },
+                        true,
+                )
 
                 paintToggle()
                 shell.vgtSync = sync
