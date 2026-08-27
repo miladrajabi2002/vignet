@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, ArrowRight, ArrowUpLeft, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUpLeft, Phone, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { SocialLinks } from '@/components/marketing/social-links'
 
@@ -24,6 +24,8 @@ const COPY = {
 		resourceLinks: ['مستندات', 'بلاگ', 'وضعیت سرویس'],
 		status: 'همه سرویس‌ها فعال',
 		made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
+		support: 'پشتیبانی',
+		supportAriaLabel: 'تماس با پشتیبانی ویجنت به شماره ۰۹۱۲۸۳۵۲۲۷۱',
 	},
 	en: {
 		eyebrow: 'Vigento AI | Business intelligence core',
@@ -39,6 +41,8 @@ const COPY = {
 		resourceLinks: ['Documentation', 'Blog', 'Service status'],
 		status: 'All services operational',
 		made: 'Built for Iranian businesses',
+		support: 'Support',
+		supportAriaLabel: 'Call Vigent support at 09128352271',
 	},
 } as const
 
@@ -71,6 +75,15 @@ export function Footer() {
 						<div className="text-center lg:text-start">
 							<Logo variant="white" className="mx-auto h-8 w-32 lg:mx-0" />
 							<p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-white/42 lg:mx-0">{copy.desc}</p>
+							<a
+								href="tel:+989128352271"
+								aria-label={copy.supportAriaLabel}
+								className="mx-auto mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white lg:mx-0"
+							>
+								<Phone className="h-4 w-4" aria-hidden="true" />
+								<span>{copy.support}:</span>
+								<bdi dir="ltr" className="font-medium tabular-nums">09128352271</bdi>
+							</a>
 							<SocialLinks variant="default" className="mt-5 justify-center lg:justify-start [&_a]:border-white/15 [&_a]:text-white/60 [&_a:hover]:text-white" />
 						</div>
 						<div className="grid grid-cols-2 gap-8 sm:grid-cols-3">

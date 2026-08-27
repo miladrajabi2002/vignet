@@ -152,6 +152,13 @@ export default async function HomePage() {
 			alternateName: structuredDataCopy.alternateName,
 			url: SITE_URL,
 			logo: `${SITE_URL}/android-chrome-512x512.png`,
+			telephone: '+989128352271',
+			contactPoint: {
+				'@type': 'ContactPoint',
+				telephone: '+989128352271',
+				contactType: 'customer support',
+				availableLanguage: ['fa', 'en'],
+			},
 		},
 		{
 			'@context': 'https://schema.org',

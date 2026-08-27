@@ -106,4 +106,15 @@ describe('marketing homepage UX contracts', () => {
 		expect(page).not.toContain('/icon.png')
 		expect(page).not.toMatch(/alternates:\s*\{[^}]*languages:/s)
 	})
+
+	it('publishes a directly callable support number', () => {
+		const footer = read('components/marketing/footer.tsx')
+		const page = read('app/(marketing)/page.tsx')
+
+		expect(footer).toContain('href="tel:+989128352271"')
+		expect(footer).toContain('09128352271')
+		expect(footer).toContain('aria-label={copy.supportAriaLabel}')
+		expect(page).toContain("telephone: '+989128352271'")
+		expect(page).toContain("contactType: 'customer support'")
+	})
 })
