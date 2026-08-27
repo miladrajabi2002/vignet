@@ -609,6 +609,14 @@ async function processChannelInbound(
                                                 },
                                         }
                                         : {}),
+                                ...(adapter.sendProductCard
+                                        ? {
+                                                async sendProductCard(chatId: string, card: Parameters<NonNullable<MessengerAdapter['sendProductCard']>>[1]) {
+                                                        await ensureDispatchStarted()
+                                                        await adapter.sendProductCard!(chatId, card)
+                                                },
+                                        }
+                                        : {}),
                                 ...(adapter.reactToMessage
                                         ? {
                                                 async reactToMessage(messageId: string, recipientId: string) {
@@ -1043,7 +1051,7 @@ async function processChannelInbound(
                                                 })
                                         }
                                         const isFa = agent.language !== 'en'
-                                        let cardsSent = 0
+                                        const failedProducts: typeof showcasedProducts = []
                                         for (const product of showcasedProducts) {
                                                 try {
                                                         await deliveryAdapter.sendProductCard!(msg.chatId, {
@@ -1060,15 +1068,17 @@ async function processChannelInbound(
                                                                 productUrl: product.productUrl,
                                                                 ctaLabel: isFa ? '🛒 مشاهده و خرید' : 'View / Buy',
                                                         })
-                                                        cardsSent++
                                                 } catch (cardError) {
                                                         console.error(`[handler] ${type} product card failed:`, cardError)
+                                                        failedProducts.push(product)
                                                 }
                                         }
-                                        // If no cards went through, send the text fallback so the
-                                        // customer is never left without product info.
-                                        if (cardsSent === 0 && productFallback) {
-                                                await deliveryAdapter.sendText(msg.chatId, productFallback, {
+                                        // Preserve every failed item as text. Previously a partial
+                                        // failure silently hid the missing product whenever at least
+                                        // one sibling card succeeded.
+                                        const failedProductFallback = formatProductFallback(failedProducts, isFa)
+                                        if (failedProductFallback) {
+                                                await deliveryAdapter.sendText(msg.chatId, failedProductFallback, {
                                                         quickReplies: settings.quickReplies,
                                                 })
                                         }

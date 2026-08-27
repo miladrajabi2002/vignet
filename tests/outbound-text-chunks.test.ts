@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { splitOutboundText } from '@/lib/channels/text-chunks'
+import { normalizeMessengerText, splitOutboundText } from '@/lib/channels/text-chunks'
 
 describe('outbound text splitting', () => {
+  it('removes model-authored Markdown hard-break slashes', () => {
+    const raw = 'سلام.\\\n\\\nدو محصول موجود است.\\'
+
+    expect(normalizeMessengerText(raw)).toBe('سلام.\n\nدو محصول موجود است.')
+  })
+
   it('keeps every part within the platform limit and preserves the full text', () => {
     const text = Array.from({ length: 80 }, (_, i) => `بند ${i + 1}: توضیح سفارش مشتری.`).join('\n')
     const chunks = splitOutboundText(text, 180)

@@ -21,6 +21,11 @@ describe('Telegram response formatting', () => {
     expect(telegramMarkdownToHtml('قیمت < ۱۰۰ & **قطعی**'))
       .toBe('قیمت &lt; ۱۰۰ &amp; <b>قطعی</b>')
   })
+
+  it('does not expose Markdown line-break escapes in Telegram', () => {
+    expect(telegramMarkdownToHtml('سلام\\\n\\\n**محصول**'))
+      .toBe('سلام\n\n<b>محصول</b>')
+  })
 })
 
 describe('additive business capabilities', () => {

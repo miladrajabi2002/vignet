@@ -40,6 +40,25 @@ export function parseProductDirectives(raw: string): {
   }
 }
 
+function normalizedProductMention(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\u200c\u200d]/g, ' ')
+    .toLocaleLowerCase('fa')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Exact catalog-name mentions are a safe fallback when the model forgets the marker. */
+function replyMentionsProduct(reply: string, productName: string): boolean {
+  const name = normalizedProductMention(productName)
+  if (name.length < 2) return false
+  return ` ${normalizedProductMention(reply)} `.includes(` ${name} `)
+}
+
 /** Resolve model markers against products that are active and assigned to the agent. */
 export async function resolveProductShowcases(params: {
   workspaceId: string
@@ -172,7 +191,9 @@ export async function buildTrustedProductReply(params: {
   const preferredDirectives = [...new Set(params.preferredProductIds ?? [])]
     .slice(0, MAX_PRODUCTS_PER_REPLY)
     .map((id) => ({ id, name: '' }))
-  const directives = params.forceShowcase ? preferredDirectives : parsed.directives
+  const directives = params.forceShowcase
+    ? preferredDirectives
+    : [...parsed.directives, ...preferredDirectives]
 
   if (!directives.length) {
     if (params.forceShowcase) {
@@ -188,7 +209,28 @@ export async function buildTrustedProductReply(params: {
     agentId: params.agentId,
     directives,
   })
-  if (!products.length) {
+  // Models occasionally introduce the right catalog rows in prose but omit
+  // the internal [[product:...]] directives. Recover only exact names from
+  // this turn's deterministic catalog result; never trust a model-authored
+  // price, id or URL. This keeps rich cards reliable without turning generic
+  // replies into product dumps.
+  const explicitlyResolved = new Set(products
+    .filter((product) => parsed.directives.some((directive) =>
+      directive.id === product.id || (
+        directive.name &&
+        normalizedProductMention(directive.name) === normalizedProductMention(product.name)
+      ),
+    ))
+    .map((product) => product.id))
+  const preferredIds = new Set(preferredDirectives.map((directive) => directive.id))
+  const selectedProducts = params.forceShowcase
+    ? products
+    : products.filter((product) =>
+      explicitlyResolved.has(product.id) ||
+      (preferredIds.has(product.id) && replyMentionsProduct(parsed.text, product.name)),
+    )
+
+  if (!selectedProducts.length) {
     return params.forceShowcase
       ? params.isFa
         ? 'محصول موجود و منطبقی برای این درخواست در کاتالوگ پیدا نشد.'
@@ -196,7 +238,7 @@ export async function buildTrustedProductReply(params: {
       : parsed.text
   }
 
-  const markers = products.map((product) => {
+  const markers = selectedProducts.map((product) => {
     const price = product.price == null
       ? ''
       : params.isFa
@@ -216,8 +258,8 @@ export async function buildTrustedProductReply(params: {
 
   const visibleText = params.forceShowcase
     ? params.isFa
-      ? `${products.length.toLocaleString('fa-IR')} محصول موجود و مرتبط پیدا کردم:`
-      : `I found ${products.length} available matching product${products.length === 1 ? '' : 's'}:`
+      ? `${selectedProducts.length.toLocaleString('fa-IR')} محصول موجود و مرتبط پیدا کردم:`
+      : `I found ${selectedProducts.length} available matching product${selectedProducts.length === 1 ? '' : 's'}:`
     : parsed.text
 
   return [visibleText, markers.join('\n')].filter(Boolean).join('\n\n')

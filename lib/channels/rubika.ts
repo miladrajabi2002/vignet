@@ -1,4 +1,5 @@
 import type { MessengerAdapter, InboundMessage, ProductCard } from '@/lib/channels/types'
+import { normalizeMessengerText } from '@/lib/channels/text-chunks'
 
 /**
  * Rubika Bot API adapter.
@@ -57,7 +58,7 @@ export function rubikaAdapter(token: string): MessengerAdapter {
     },
 
     async sendText(chatId: string, text: string): Promise<void> {
-      await call('sendMessage', { chat_id: chatId, text })
+      await call('sendMessage', { chat_id: chatId, text: normalizeMessengerText(text) })
     },
 
     async sendProductCard(chatId: string, card: ProductCard): Promise<void> {

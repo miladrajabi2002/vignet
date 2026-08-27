@@ -6,7 +6,7 @@ import type {
   ProductCard,
   SendOptions,
 } from '@/lib/channels/types'
-import { splitOutboundText } from '@/lib/channels/text-chunks'
+import { normalizeMessengerText, splitOutboundText } from '@/lib/channels/text-chunks'
 
 class BotApiError extends Error {
   constructor(
@@ -20,7 +20,7 @@ class BotApiError extends Error {
 
 /** Convert the small Markdown subset our agents use into Telegram-safe HTML. */
 export function telegramMarkdownToHtml(value: string): string {
-  return value
+  return normalizeMessengerText(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

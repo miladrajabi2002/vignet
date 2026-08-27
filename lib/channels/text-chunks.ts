@@ -1,10 +1,21 @@
 /**
+ * Remove Markdown hard-break escapes that some models emit at the end of
+ * every line. Telegram/Bale/Rubika do not interpret a trailing `\` as a line
+ * break, so leaving it untouched exposes formatting syntax to the customer.
+ */
+export function normalizeMessengerText(value: string): string {
+  return value
+    .replace(/[ \t]*\\[ \t]*(?=\r?$)/gm, '')
+    .replace(/\r\n/g, '\n')
+}
+
+/**
  * Split an outbound platform message at readable boundaries without dropping
  * or duplicating content. Limits are measured in UTF-16 code units because
  * Telegram/Meta document their text caps that way.
  */
 export function splitOutboundText(value: string, limit: number): string[] {
-  const text = value.trim()
+  const text = normalizeMessengerText(value).trim()
   if (!text) return []
 
   const chunkLimit = Math.max(32, Math.floor(limit))
