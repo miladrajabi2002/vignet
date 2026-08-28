@@ -4,6 +4,11 @@ import {
   contactPhoneLookupVariants,
   normalizeContactPhone,
 } from '@/lib/phone'
+import {
+  assertWorkspaceResourceCapacity,
+  getWorkspaceResourceLimit,
+  WorkspaceResourceLimitError,
+} from '@/lib/billing/entitlements'
 
 type MessengerType = Extract<
   ChannelType,
@@ -202,7 +207,7 @@ export async function resolveInboundContact(params: {
   senderPhone?: string
   senderUsername?: string
   senderAvatarUrl?: string
-}): Promise<string> {
+}): Promise<string | null> {
   const canonicalPhone = normalizeContactPhone(params.senderPhone)
   const variants = contactPhoneLookupVariants(canonicalPhone)
   const idField = channelIdField(params.channel)
@@ -212,7 +217,9 @@ export async function resolveInboundContact(params: {
     ...(canonicalPhone ? [`phone:${canonicalPhone}`] : []),
   ]
 
-  return withContactIdentityLocks(params.workspaceId, identities, async (tx) => {
+  const { limit } = await getWorkspaceResourceLimit(params.workspaceId, 'customers')
+  try {
+    return await withContactIdentityLocks(params.workspaceId, identities, async (tx) => {
     const candidates = await tx.contact.findMany({
       where: {
         workspaceId: params.workspaceId,
@@ -234,6 +241,7 @@ export async function resolveInboundContact(params: {
 
     let contactId: string
     if (candidates.length === 0) {
+      await assertWorkspaceResourceCapacity(tx, params.workspaceId, 'customers', limit)
       const created = await tx.contact.create({
         data: {
           workspaceId: params.workspaceId,
@@ -270,7 +278,11 @@ export async function resolveInboundContact(params: {
       })
     }
     return contactId
-  })
+    })
+  } catch (error) {
+    if (error instanceof WorkspaceResourceLimitError) return null
+    throw error
+  }
 }
 
 /** Apply a phone/name learned later in a conversation and merge any duplicate. */
@@ -288,7 +300,9 @@ export async function applyContactIdentity(params: {
     ...(canonicalPhone ? [`phone:${canonicalPhone}`] : []),
   ]
 
-  return withContactIdentityLocks(params.workspaceId, identities, async (tx) => {
+  const { limit } = await getWorkspaceResourceLimit(params.workspaceId, 'customers')
+  try {
+    return await withContactIdentityLocks(params.workspaceId, identities, async (tx) => {
     const candidates = await tx.contact.findMany({
       where: {
         workspaceId: params.workspaceId,
@@ -303,6 +317,7 @@ export async function applyContactIdentity(params: {
 
     let contactId: string
     if (candidates.length === 0) {
+      await assertWorkspaceResourceCapacity(tx, params.workspaceId, 'customers', limit)
       const created = await tx.contact.create({
         data: {
           workspaceId: params.workspaceId,
@@ -337,5 +352,9 @@ export async function applyContactIdentity(params: {
       data: { contactId },
     })
     return contactId
-  })
+    })
+  } catch (error) {
+    if (error instanceof WorkspaceResourceLimitError) return null
+    throw error
+  }
 }

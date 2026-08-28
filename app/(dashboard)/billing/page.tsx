@@ -69,7 +69,6 @@ export default async function BillingPage(
     workspace.trialEndsAt < new Date()
 
   const paymentStatus = searchParams?.payment
-  const preferredPlan = PAID_PLANS.find((item) => item === searchParams?.plan)
   const checkoutLabels = {
     rial: t('payRial'),
     crypto: t('payCrypto'),
@@ -213,21 +212,11 @@ export default async function BillingPage(
               plan === p &&
               subscription?.status === 'ACTIVE' &&
               subscription.currentPeriodEnd > new Date()
-            const highlight = preferredPlan ? p === preferredPlan : p === 'PRO'
             return (
               <section
                 key={p}
-                className={`spatial-surface relative flex flex-col rounded-[1.5rem] p-5 ${
-                  highlight
-                    ? 'ring-2 ring-[var(--text-primary)]'
-                    : ''
-                }`}
+                className="spatial-surface relative flex flex-col rounded-[1.5rem] p-5"
               >
-                {highlight && (
-                  <span className="absolute -top-2.5 end-5 rounded-full bg-[var(--text-primary)] px-3 py-0.5 text-[11px] font-bold text-[var(--bg-base)] shadow-sm">
-                    {t('popular')}
-                  </span>
-                )}
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-[var(--text-primary)]">
                     {t(PLAN_KEY[p])}
@@ -259,6 +248,9 @@ export default async function BillingPage(
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {t('featChannelLimit', { count: nf.format(def.maxChannels) })}
                   </li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxProducts)} محصول` : `${nf.format(def.maxProducts)} products`}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxOrders)} سفارش` : `${nf.format(def.maxOrders)} orders`}</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? `${nf.format(def.maxCustomers)} مشتری` : `${nf.format(def.maxCustomers)} customers`}</li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {t('featChannels')}
@@ -267,12 +259,7 @@ export default async function BillingPage(
                     <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                     {t('featUnlimitedAgents')}
                   </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                    {locale === 'fa'
-                      ? `${nf.format(def.replyDiscountBps / 100)}٪ تخفیف هزینهٔ هر پاسخ`
-                      : `${nf.format(def.replyDiscountBps / 100)}% off each reply`}
-                  </li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-emerald-500" />{locale === 'fa' ? 'تعرفه ثابت پاسخ در همه پلن‌ها' : 'Same reply price across every plan'}</li>
                 </ul>
                 <div className="mt-5">
                   {isCurrent ? (

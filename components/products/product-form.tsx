@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Loader2, Plus, X, Layers } from 'lucide-react'
+import { ImagePlus, Layers, Loader2, Plus, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface CategoryOption {
@@ -92,13 +92,41 @@ export function ProductForm({
     },
   )
   const [imageUrl, setImageUrl] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
 
+  async function uploadImages(files: FileList | null) {
+    if (!files?.length || form.images.length >= 10) return
+    setUploadingImage(true)
+    setImageError(null)
+    const available = 10 - form.images.length
+    const nextUrls: string[] = []
+    try {
+      for (const file of Array.from(files).slice(0, available)) {
+        const body = new FormData()
+        body.set('file', file)
+        const response = await fetch('/api/uploads/products', { method: 'POST', body })
+        if (!response.ok) throw new Error('UPLOAD_FAILED')
+        const data = await response.json() as { url?: string }
+        if (!data.url) throw new Error('UPLOAD_FAILED')
+        nextUrls.push(data.url)
+      }
+      setForm((current) => ({ ...current, images: [...current.images, ...nextUrls].slice(0, 10) }))
+    } catch {
+      setImageError(t('imageUploadFailed'))
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   async function submit() {
     setSubmitting(true)
+    setFormError(null)
     // Build the attributes object. Manual attributes stay as flat string
     // values. If the form has any variations, we append them under the
     // `_variations` key so the storage shape matches what the WooCommerce
@@ -168,6 +196,12 @@ export function ProductForm({
       router.push(returnTo ?? '/products')
       router.refresh()
     } else {
+      const result = await res.json().catch(() => null) as { error?: string; limit?: number } | null
+      setFormError(
+        result?.error === 'PRODUCT_LIMIT' && result.limit
+          ? t('productLimitReached', { limit: result.limit })
+          : t('saveFailed'),
+      )
       setSubmitting(false)
     }
   }
@@ -223,35 +257,68 @@ export function ProductForm({
         <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className="input" />
       </Field>
 
-      {/* Images (by URL) */}
-      <Field label="Images">
-        <div className="flex gap-2">
-          <input dir="ltr" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" className="input font-mono text-sm" />
+      <Field label={t('images')}>
+        {form.images.length > 0 && (
+          <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {form.images.map((img, i) => (
+              <div key={`${img}-${i}`} className="group relative aspect-square overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-muted)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt={`${form.name || t('images')} ${i + 1}`} className="h-full w-full object-cover" />
+                {i === 0 && (
+                  <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[10px] font-bold text-white backdrop-blur">
+                    <Star className="h-3 w-3" aria-hidden="true" />{t('primaryImage')}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => set('images', form.images.filter((_, index) => index !== i))}
+                  className="absolute end-2 top-2 grid h-11 w-11 place-items-center rounded-xl bg-white/90 text-black shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  aria-label={t('removeImage')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--bg-muted)]/60 p-4">
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+            {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+            {t('uploadImages')}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              multiple
+              disabled={uploadingImage || form.images.length >= 10}
+              className="sr-only"
+              onChange={(event) => {
+                void uploadImages(event.target.files)
+                event.target.value = ''
+              }}
+            />
+          </label>
+          <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{t('imageHelp')}</p>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <input aria-label={t('imageUrl')} dir="ltr" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t('imageUrl')} className="input font-mono text-sm" />
           <button
             type="button"
+            aria-label={t('imageUrl')}
+            disabled={form.images.length >= 10}
             onClick={() => {
-              if (/^https?:\/\//.test(imageUrl)) {
+              if (/^https?:\/\//.test(imageUrl) && form.images.length < 10) {
                 set('images', [...form.images, imageUrl])
                 setImageUrl('')
               }
             }}
-            className="shrink-0 rounded-xl border border-[var(--border-default)] px-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        {form.images.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {form.images.map((img, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)]">
-                <span className="max-w-[160px] truncate font-mono">{img}</span>
-                <button onClick={() => set('images', form.images.filter((_, j) => j !== i))}>
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+        {imageError && <p role="alert" className="mt-2 text-sm text-danger">{imageError}</p>}
       </Field>
 
       {/* Attributes */}
@@ -380,6 +447,12 @@ export function ProductForm({
         </div>
       </Field>
 
+      {formError && (
+        <p role="alert" className="rounded-xl border border-danger/25 bg-danger/5 p-3 text-sm text-danger">
+          {formError}
+        </p>
+      )}
+
       <button
         onClick={submit}
         disabled={submitting || !form.name.trim()}
@@ -394,9 +467,9 @@ export function ProductForm({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</span>
+    <fieldset className="block min-w-0">
+      <legend className="mb-2 block text-sm text-[var(--text-secondary)]">{label}</legend>
       {children}
-    </label>
+    </fieldset>
   )
 }

@@ -6,6 +6,9 @@ export type ManagedPlanConfig = {
   priceIRR: number
   priceUSD: number
   maxChannels: number
+  maxProducts: number
+  maxOrders: number
+  maxCustomers: number
   replyDiscountBps: number
   includedCreditIRR: number
 }
@@ -59,6 +62,9 @@ function fallbackConfig(): PlatformCommercialConfig {
         priceIRR: 0,
         priceUSD: 0,
         maxChannels: positiveEnv('PLAN_LIMIT_TRIAL_CHANNELS', positiveEnv('PLAN_LIMIT_TRIAL_AGENTS', 1)),
+        maxProducts: positiveEnv('PLAN_LIMIT_TRIAL_PRODUCTS', 50),
+        maxOrders: positiveEnv('PLAN_LIMIT_TRIAL_ORDERS', 100),
+        maxCustomers: positiveEnv('PLAN_LIMIT_TRIAL_CUSTOMERS', 100),
         replyDiscountBps: 0,
         includedCreditIRR: 0,
       },
@@ -66,21 +72,30 @@ function fallbackConfig(): PlatformCommercialConfig {
         priceIRR: positiveEnv('PLAN_PRICE_STARTER_IRR', 8_900_000),
         priceUSD: positiveEnv('PLAN_PRICE_STARTER_USD', 9),
         maxChannels: positiveEnv('PLAN_LIMIT_STARTER_CHANNELS', positiveEnv('PLAN_LIMIT_STARTER_AGENTS', 2)),
-        replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_STARTER_BPS', 0),
+        maxProducts: positiveEnv('PLAN_LIMIT_STARTER_PRODUCTS', 500),
+        maxOrders: positiveEnv('PLAN_LIMIT_STARTER_ORDERS', 2_000),
+        maxCustomers: positiveEnv('PLAN_LIMIT_STARTER_CUSTOMERS', 2_000),
+        replyDiscountBps: 0,
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
       },
       PRO: {
         priceIRR: positiveEnv('PLAN_PRICE_PRO_IRR', 24_900_000),
         priceUSD: positiveEnv('PLAN_PRICE_PRO_USD', 25),
         maxChannels: positiveEnv('PLAN_LIMIT_PRO_CHANNELS', positiveEnv('PLAN_LIMIT_PRO_AGENTS', 5)),
-        replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_PRO_BPS', 1_000),
+        maxProducts: positiveEnv('PLAN_LIMIT_PRO_PRODUCTS', 2_500),
+        maxOrders: positiveEnv('PLAN_LIMIT_PRO_ORDERS', 10_000),
+        maxCustomers: positiveEnv('PLAN_LIMIT_PRO_CUSTOMERS', 10_000),
+        replyDiscountBps: 0,
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
       },
       BUSINESS: {
         priceIRR: positiveEnv('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
         priceUSD: positiveEnv('PLAN_PRICE_BUSINESS_USD', 59),
         maxChannels: positiveEnv('PLAN_LIMIT_BUSINESS_CHANNELS', positiveEnv('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
-        replyDiscountBps: nonNegativeEnv('PLAN_REPLY_DISCOUNT_BUSINESS_BPS', 2_000),
+        maxProducts: positiveEnv('PLAN_LIMIT_BUSINESS_PRODUCTS', 10_000),
+        maxOrders: positiveEnv('PLAN_LIMIT_BUSINESS_ORDERS', 50_000),
+        maxCustomers: positiveEnv('PLAN_LIMIT_BUSINESS_CUSTOMERS', 50_000),
+        replyDiscountBps: 0,
         includedCreditIRR: nonNegativeEnv('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
       },
     },
@@ -127,7 +142,12 @@ export async function getPlatformCommercialConfig(): Promise<PlatformCommercialC
         // Read the former maxAgents key during rollout so existing DB-backed
         // admin settings keep their value until the next save writes maxChannels.
         maxChannels: safePositive(stored.maxChannels ?? stored.maxAgents, base.maxChannels),
-        replyDiscountBps: plan === 'TRIAL' ? 0 : Math.min(9_000, safeNonNegative(stored.replyDiscountBps, base.replyDiscountBps)),
+        maxProducts: safePositive(stored.maxProducts, base.maxProducts),
+        maxOrders: safePositive(stored.maxOrders, base.maxOrders),
+        maxCustomers: safePositive(stored.maxCustomers, base.maxCustomers),
+        // Reply pricing is global and identical across plans. Keep the legacy
+        // field in persisted JSON for a safe rollout, but never apply it.
+        replyDiscountBps: 0,
         includedCreditIRR: plan === 'TRIAL' ? 0 : safeNonNegative(stored.includedCreditIRR, base.includedCreditIRR),
       }]
     })) as Record<Plan, ManagedPlanConfig>

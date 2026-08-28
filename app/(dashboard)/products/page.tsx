@@ -16,7 +16,7 @@ import { WooSetupCard, type WooIntegrationState } from '@/components/products/wo
 import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 20
 
 export default async function ProductsPage(
   props: {

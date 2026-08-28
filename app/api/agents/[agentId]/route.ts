@@ -80,6 +80,8 @@ export async function PATCH(req: Request, props: Params) {
   if (data.promptConfig === null) {
     data.promptConfig = Prisma.JsonNull
   }
+  if (parsed.data.productAccessEnabled !== undefined) data.productAccessConfigured = true
+  if (parsed.data.orderTrackingEnabled !== undefined) data.orderTrackingConfigured = true
 
   const agent = await prisma.agent.update({
     where: { id: params.agentId },

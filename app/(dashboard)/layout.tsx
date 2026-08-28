@@ -13,6 +13,7 @@ import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
+import { BackToTop } from '@/components/marketing/back-to-top'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
@@ -130,6 +131,7 @@ export default async function DashboardLayout({
         <main className="dashboard-shell-content flex-1 pb-24 pt-4 sm:pt-5 md:pb-10">
           <div className="dashboard-main">{children}</div>
         </main>
+        <BackToTop />
       </div>
     </div>
     </ScopedIntlProvider>

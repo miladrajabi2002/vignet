@@ -159,7 +159,7 @@ export default async function AdminOverviewPage(
     ]).then(([total, active, silent]) => ({ total, active, silent })),
     prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, OR: [{ status: 'HANDED_OFF' }, { handedOff: true }] } }),
     prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, aiCreditBalanceIRR: { lte: 20_000 } } }),
-    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, createdAt: { lt: staleOnboarding } } }),
+    prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, onboardingStepUpdatedAt: { lt: staleOnboarding } } }),
     prisma.payment.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, status: 'FAILED', createdAt: { gte: since24h } } }),
     Promise.all([
       prisma.conversation.count({ where: { ...ADMIN_VISIBLE_RELATED_WHERE, createdAt: { gte: since30d } } }),

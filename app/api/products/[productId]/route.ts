@@ -74,6 +74,14 @@ export async function DELETE(_req: Request, props: Params) {
 
   await prisma.product.delete({ where: { id: params.productId } })
 
+  const remainingProducts = await prisma.product.count({ where: { workspaceId: user.workspaceId } })
+  if (remainingProducts === 0) {
+    await prisma.agent.updateMany({
+      where: { workspaceId: user.workspaceId, productAccessConfigured: false },
+      data: { productAccessEnabled: false },
+    })
+  }
+
   await dispatchProductEmbed({
     productId: params.productId,
     workspaceId: user.workspaceId,

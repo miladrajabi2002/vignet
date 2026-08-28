@@ -1,6 +1,5 @@
 import type { Plan } from '@prisma/client'
 import { MODEL_ALIASES, type ModelAlias } from '@/lib/ai/models'
-import { discountedReplyPriceIRR } from '@/lib/billing/credit-estimates'
 import { getPlatformCommercialConfig } from '@/lib/platform/commercial-config'
 
 /**
@@ -24,7 +23,11 @@ export interface PlanDef {
   priceUSD: number
   /** Maximum active channel connections across the workspace. */
   maxChannels: number
-  /** Discount applied to fixed per-reply wallet prices (1000 = 10%). */
+  /** Maximum stored catalog products, store orders, and CRM customers. */
+  maxProducts: number
+  maxOrders: number
+  maxCustomers: number
+  /** Legacy compatibility field. Reply prices are global across every plan. */
   replyDiscountBps: number
   /** Wallet credit granted once for each successful subscription payment. */
   includedCreditIRR: number
@@ -47,6 +50,9 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       priceIRR: 0,
       priceUSD: 0,
       maxChannels: envInt('PLAN_LIMIT_TRIAL_CHANNELS', envInt('PLAN_LIMIT_TRIAL_AGENTS', 1)),
+      maxProducts: envInt('PLAN_LIMIT_TRIAL_PRODUCTS', 50),
+      maxOrders: envInt('PLAN_LIMIT_TRIAL_ORDERS', 100),
+      maxCustomers: envInt('PLAN_LIMIT_TRIAL_CUSTOMERS', 100),
       replyDiscountBps: 0,
       includedCreditIRR: 0,
     },
@@ -55,7 +61,10 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       priceIRR: envInt('PLAN_PRICE_STARTER_IRR', 8_900_000),
       priceUSD: envInt('PLAN_PRICE_STARTER_USD', 9),
       maxChannels: envInt('PLAN_LIMIT_STARTER_CHANNELS', envInt('PLAN_LIMIT_STARTER_AGENTS', 2)),
-      replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_STARTER_BPS', 0),
+      maxProducts: envInt('PLAN_LIMIT_STARTER_PRODUCTS', 500),
+      maxOrders: envInt('PLAN_LIMIT_STARTER_ORDERS', 2_000),
+      maxCustomers: envInt('PLAN_LIMIT_STARTER_CUSTOMERS', 2_000),
+      replyDiscountBps: 0,
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_STARTER_IRR', 2_000_000),
     },
     PRO: {
@@ -63,7 +72,10 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       priceIRR: envInt('PLAN_PRICE_PRO_IRR', 24_900_000),
       priceUSD: envInt('PLAN_PRICE_PRO_USD', 25),
       maxChannels: envInt('PLAN_LIMIT_PRO_CHANNELS', envInt('PLAN_LIMIT_PRO_AGENTS', 5)),
-      replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_PRO_BPS', 1_000),
+      maxProducts: envInt('PLAN_LIMIT_PRO_PRODUCTS', 2_500),
+      maxOrders: envInt('PLAN_LIMIT_PRO_ORDERS', 10_000),
+      maxCustomers: envInt('PLAN_LIMIT_PRO_CUSTOMERS', 10_000),
+      replyDiscountBps: 0,
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_PRO_IRR', 6_000_000),
     },
     BUSINESS: {
@@ -71,7 +83,10 @@ export function getPlanDefs(): Record<Plan, PlanDef> {
       priceIRR: envInt('PLAN_PRICE_BUSINESS_IRR', 59_000_000),
       priceUSD: envInt('PLAN_PRICE_BUSINESS_USD', 59),
       maxChannels: envInt('PLAN_LIMIT_BUSINESS_CHANNELS', envInt('PLAN_LIMIT_BUSINESS_AGENTS', 20)),
-      replyDiscountBps: envNonNegativeInt('PLAN_REPLY_DISCOUNT_BUSINESS_BPS', 2_000),
+      maxProducts: envInt('PLAN_LIMIT_BUSINESS_PRODUCTS', 10_000),
+      maxOrders: envInt('PLAN_LIMIT_BUSINESS_ORDERS', 50_000),
+      maxCustomers: envInt('PLAN_LIMIT_BUSINESS_CUSTOMERS', 50_000),
+      replyDiscountBps: 0,
       includedCreditIRR: envNonNegativeInt('PLAN_INCLUDED_CREDIT_BUSINESS_IRR', 15_000_000),
     },
   }
@@ -93,14 +108,12 @@ export function isPaidPlan(p: string): p is PaidPlan {
 }
 
 export async function getEffectivePlanReplyPricesIRR(plan: Plan): Promise<Record<ModelAlias, number>> {
-  const [defs, commercial] = await Promise.all([
-    getEffectivePlanDefs(),
-    getPlatformCommercialConfig(),
-  ])
+  void plan // Kept in the public signature for backwards-compatible callers.
+  const commercial = await getPlatformCommercialConfig()
   return Object.fromEntries(
     MODEL_ALIASES.map((alias) => [
       alias,
-      discountedReplyPriceIRR(commercial.replyPricesIRR[alias], defs[plan].replyDiscountBps),
+      commercial.replyPricesIRR[alias],
     ]),
   ) as Record<ModelAlias, number>
 }

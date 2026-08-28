@@ -11,6 +11,11 @@ import {
 } from '@/lib/bookings/time'
 import type { AppointmentCreateInput } from '@/lib/bookings/validation'
 import { notifyWorkspace } from '@/lib/notifications/create'
+import {
+  assertWorkspaceResourceCapacity,
+  getWorkspaceResourceLimit,
+  WorkspaceResourceLimitError,
+} from '@/lib/billing/entitlements'
 
 const ACTIVE_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED'] as const
 
@@ -20,6 +25,7 @@ export class BookingError extends Error {
       | 'SERVICE_NOT_FOUND'
       | 'SERVICE_INACTIVE'
       | 'CONTACT_NOT_FOUND'
+      | 'CUSTOMER_LIMIT'
       | 'SLOT_IN_PAST'
       | 'SLOT_TOO_FAR'
       | 'OUTSIDE_AVAILABILITY'
@@ -152,6 +158,7 @@ async function bookInTransaction(
   tx: Prisma.TransactionClient,
   workspaceId: string,
   input: AppointmentCreateInput,
+  customerLimit: number,
 ): Promise<BookResult> {
   if (input.idempotencyKey) {
     const duplicate = await tx.appointment.findFirst({
@@ -253,6 +260,12 @@ async function bookInTransaction(
         })
       }
     } else {
+      try {
+        await assertWorkspaceResourceCapacity(tx, workspaceId, 'customers', customerLimit)
+      } catch (error) {
+        if (error instanceof WorkspaceResourceLimitError) throw new BookingError('CUSTOMER_LIMIT')
+        throw error
+      }
       const created = await tx.contact.create({
         data: {
           workspaceId,
@@ -293,11 +306,12 @@ export async function createAppointment(
   workspaceId: string,
   input: AppointmentCreateInput,
 ): Promise<BookResult> {
+  const { limit: customerLimit } = await getWorkspaceResourceLimit(workspaceId, 'customers')
   let result: BookResult | undefined
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       result = await prisma.$transaction(
-        (tx) => bookInTransaction(tx, workspaceId, input),
+        (tx) => bookInTransaction(tx, workspaceId, input, customerLimit),
         { isolationLevel: 'Serializable' },
       )
       break

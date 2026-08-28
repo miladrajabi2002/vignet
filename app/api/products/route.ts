@@ -3,7 +3,12 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { productCreateSchema } from '@/lib/validations/product'
 import { syncOnboarding } from '@/lib/onboarding'
-import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import {
+  assertWorkspaceResourceCapacity,
+  checkWorkspaceActive,
+  checkWorkspaceResourceCreateAllowed,
+  WorkspaceResourceLimitError,
+} from '@/lib/billing/entitlements'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 
 export async function GET(req: Request) {
@@ -62,23 +67,44 @@ export async function POST(req: Request) {
   }
   const d = parsed.data
 
-  const product = await prisma.product.create({
-    data: {
-      workspaceId: user.workspaceId,
-      name: d.name,
-      description: d.description,
-      price: d.price ?? null,
-      comparePrice: d.comparePrice ?? null,
-      sku: d.sku,
-      stock: d.stock ?? null,
-      categoryId: d.categoryId ?? null,
-      images: d.images ?? [],
-      attributes: d.attributes,
-      tags: d.tags ?? [],
-      externalUrl: d.externalUrl ?? null,
-      active: d.active ?? true,
-    },
+  const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products')
+  if (!capacity.allowed) {
+    return NextResponse.json(
+      { error: capacity.reason, limit: capacity.limit, used: capacity.used },
+      { status: 409 },
+    )
+  }
+
+  const product = await prisma.$transaction(async (tx) => {
+    await assertWorkspaceResourceCapacity(tx, user.workspaceId, 'products', capacity.limit)
+    return tx.product.create({
+      data: {
+        workspaceId: user.workspaceId,
+        name: d.name,
+        description: d.description,
+        price: d.price ?? null,
+        comparePrice: d.comparePrice ?? null,
+        sku: d.sku,
+        stock: d.stock ?? null,
+        categoryId: d.categoryId ?? null,
+        images: d.images ?? [],
+        attributes: d.attributes,
+        tags: d.tags ?? [],
+        externalUrl: d.externalUrl ?? null,
+        active: d.active ?? true,
+      },
+    })
+  }).catch((error: unknown) => {
+    if (error instanceof WorkspaceResourceLimitError) return null
+    throw error
   })
+
+  if (!product) {
+    return NextResponse.json(
+      { error: 'PRODUCT_LIMIT', limit: capacity.limit, used: capacity.limit },
+      { status: 409 },
+    )
+  }
 
   // Auto-assign the new product to every agent in the workspace so catalog
   // injection stays in sync without manual visits to the catalog page.
@@ -88,10 +114,16 @@ export async function POST(req: Request) {
       select: { id: true },
     })
     if (agents.length > 0) {
-      await prisma.agentCatalog.createMany({
-        data: agents.map((a) => ({ agentId: a.id, productId: product.id })),
-        skipDuplicates: true,
-      })
+      await Promise.all([
+        prisma.agentCatalog.createMany({
+          data: agents.map((a) => ({ agentId: a.id, productId: product.id })),
+          skipDuplicates: true,
+        }),
+        prisma.agent.updateMany({
+          where: { workspaceId: user.workspaceId, productAccessConfigured: false },
+          data: { productAccessEnabled: true },
+        }),
+      ])
     }
 
     // Product search is semantic as well as lexical. New dashboard products

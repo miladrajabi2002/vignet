@@ -34,6 +34,7 @@ model Workspace {
   // this flexible lets onboarding evolve without another migration per answer.
   businessProfile               Json?
   onboardingStep                Int          @default(0) // 0-3, tracks contiguous agent/knowledge/channel checks
+  onboardingStepUpdatedAt       DateTime     @default(now())
   onboardingCompleted           Boolean      @default(false)
   onboardingKnowledgeSkipped    Boolean      @default(false)
   onboardingChannelSkipped      Boolean      @default(false)
@@ -166,6 +167,8 @@ model Agent {
   customerInfoPrompt   String?  @db.Text
   productAccessEnabled Boolean  @default(true)
   orderTrackingEnabled Boolean  @default(false)
+  productAccessConfigured Boolean @default(false)
+  orderTrackingConfigured Boolean @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

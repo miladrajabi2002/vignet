@@ -18,6 +18,8 @@ export default async function AgentCatalogPage(
         id: true,
         productAccessEnabled: true,
         orderTrackingEnabled: true,
+        productAccessConfigured: true,
+        orderTrackingConfigured: true,
       },
     }),
     prisma.product.count({
@@ -29,11 +31,27 @@ export default async function AgentCatalogPage(
   ])
   if (!agent) notFound()
 
+  const productAccessEnabled = agent.productAccessConfigured
+    ? agent.productAccessEnabled
+    : productCount > 0
+  const orderTrackingEnabled = agent.orderTrackingConfigured
+    ? agent.orderTrackingEnabled
+    : orderCount > 0
+  if (
+    productAccessEnabled !== agent.productAccessEnabled ||
+    orderTrackingEnabled !== agent.orderTrackingEnabled
+  ) {
+    await prisma.agent.update({
+      where: { id: agent.id },
+      data: { productAccessEnabled, orderTrackingEnabled },
+    })
+  }
+
   return (
     <StoreAccessSettings
       agentId={agent.id}
-      initialProductAccessEnabled={agent.productAccessEnabled}
-      initialOrderTrackingEnabled={agent.orderTrackingEnabled}
+      initialProductAccessEnabled={productAccessEnabled}
+      initialOrderTrackingEnabled={orderTrackingEnabled}
       productCount={productCount}
       orderCount={orderCount}
     />

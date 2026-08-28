@@ -14,6 +14,9 @@ const planSchema = z.object({
   priceIRR: nonNegativeInt,
   priceUSD: nonNegativeInt.max(100_000),
   maxChannels: positiveInt.max(10_000),
+  maxProducts: positiveInt.max(1_000_000),
+  maxOrders: positiveInt.max(10_000_000),
+  maxCustomers: positiveInt.max(10_000_000),
   replyDiscountBps: nonNegativeInt.max(9_000),
   includedCreditIRR: nonNegativeInt,
 })

@@ -410,7 +410,13 @@ export async function sendWelcomeSms(
   })
 }
 
-/** A focused nudge that tells an unfinished trial user only their next step. */
+/**
+ * Nudge an unfinished trial user after 24 hours without stage progress.
+ * IPPanel pattern variables: %step%
+ * Sample pattern:
+ *   به نظر می‌رسد در مرحله «%step%» متوقف شده‌اید. اگر مشکلی دارید از داخل
+ *   پنل به پشتیبانی پیام بدهید یا راهنما را ببینید: vigent.ir/onboarding
+ */
 export async function sendActivationReminderSms(
   mobile: string,
   data: { nextStep: string },

@@ -16,7 +16,7 @@ import { contactLiveVersion } from '@/lib/crm/live-version'
 import { contactPhoneLookupVariants } from '@/lib/phone'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 20
 
 const STAGE_LABELS_FA: Record<string, string> = {
   lead: 'سرنخ',

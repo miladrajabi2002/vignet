@@ -16,11 +16,95 @@ import type { ChannelType, Plan, Prisma } from '@prisma/client'
  */
 
 export type BlockReason = 'TRIAL_EXPIRED' | 'SUBSCRIPTION_EXPIRED' | 'CHANNEL_LIMIT'
+export type ResourceLimitReason = 'PRODUCT_LIMIT' | 'ORDER_LIMIT' | 'CUSTOMER_LIMIT'
+export type WorkspaceResource = 'products' | 'orders' | 'customers'
 export type ChatGate = { allowed: true; plan: Plan } | { allowed: false; reason: BlockReason }
 export type WorkspaceAccessGate = ChatGate
 export type ChannelConnectionTarget =
   | { kind: 'AGENT_CHANNEL'; agentId: string; type: ChannelType }
   | { kind: 'CHAT_LINK'; agentId: string }
+
+const RESOURCE_LIMIT_FIELD = {
+  products: 'maxProducts',
+  orders: 'maxOrders',
+  customers: 'maxCustomers',
+} as const
+
+const RESOURCE_LIMIT_REASON: Record<WorkspaceResource, ResourceLimitReason> = {
+  products: 'PRODUCT_LIMIT',
+  orders: 'ORDER_LIMIT',
+  customers: 'CUSTOMER_LIMIT',
+}
+
+export class WorkspaceResourceLimitError extends Error {
+  constructor(
+    public readonly resource: WorkspaceResource,
+    public readonly limit: number,
+  ) {
+    super(RESOURCE_LIMIT_REASON[resource])
+    this.name = 'WorkspaceResourceLimitError'
+  }
+}
+
+async function resourceCount(
+  client: Pick<Prisma.TransactionClient, 'product' | 'storeOrder' | 'contact'>,
+  workspaceId: string,
+  resource: WorkspaceResource,
+): Promise<number> {
+  if (resource === 'products') return client.product.count({ where: { workspaceId } })
+  if (resource === 'orders') return client.storeOrder.count({ where: { workspaceId } })
+  return client.contact.count({ where: { workspaceId } })
+}
+
+export async function getWorkspaceResourceLimit(
+  workspaceId: string,
+  resource: WorkspaceResource,
+): Promise<{ plan: Plan; limit: number }> {
+  const [workspace, defs] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } }),
+    getEffectivePlanDefs(),
+  ])
+  const plan = workspace?.plan ?? 'TRIAL'
+  return { plan, limit: defs[plan][RESOURCE_LIMIT_FIELD[resource]] }
+}
+
+/** Current usage gate used by both dashboard creates and store/CRM imports. */
+export async function checkWorkspaceResourceCreateAllowed(
+  workspaceId: string,
+  resource: WorkspaceResource,
+  additional = 1,
+): Promise<{
+  allowed: boolean
+  plan: Plan
+  limit: number
+  used: number
+  reason?: ResourceLimitReason
+}> {
+  const [{ plan, limit }, used] = await Promise.all([
+    getWorkspaceResourceLimit(workspaceId, resource),
+    resourceCount(prisma, workspaceId, resource),
+  ])
+  const allowed = used + Math.max(1, additional) <= limit
+  return {
+    allowed,
+    plan,
+    limit,
+    used,
+    ...(allowed ? {} : { reason: RESOURCE_LIMIT_REASON[resource] }),
+  }
+}
+
+/** Re-check under the caller's transaction/lock before inserting a new row. */
+export async function assertWorkspaceResourceCapacity(
+  tx: Prisma.TransactionClient,
+  workspaceId: string,
+  resource: WorkspaceResource,
+  limit: number,
+): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`resource-limit:${workspaceId}:${resource}`}))`
+  const used = await resourceCount(tx, workspaceId, resource)
+  if (used >= limit) throw new WorkspaceResourceLimitError(resource, limit)
+}
 
 /** Canonical workspace usage shared by enforcement and reporting surfaces. */
 export async function getActiveChannelConnectionCount(workspaceId: string): Promise<number> {

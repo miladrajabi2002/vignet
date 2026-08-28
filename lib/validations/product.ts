@@ -9,7 +9,9 @@ export const productCreateSchema = z.object({
   stock: z.number().int().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   images: z.array(z.string().url()).max(10).optional(),
-  attributes: z.record(z.string(), z.string()).optional(),
+  // Values may be simple strings or structured variation data imported from
+  // WooCommerce / entered by the dashboard.
+  attributes: z.record(z.string(), z.any()).optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
   externalUrl: z
     .string()

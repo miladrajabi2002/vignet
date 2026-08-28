@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   agentChannelCount: vi.fn(),
   chatLinkFindUnique: vi.fn(),
   chatLinkCount: vi.fn(),
+  productCount: vi.fn(),
+  storeOrderCount: vi.fn(),
+  contactCount: vi.fn(),
   getEffectivePlanDefs: vi.fn(),
 }))
 
@@ -22,6 +25,9 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: mocks.chatLinkFindUnique,
       count: mocks.chatLinkCount,
     },
+    product: { count: mocks.productCount },
+    storeOrder: { count: mocks.storeOrderCount },
+    contact: { count: mocks.contactCount },
   },
 }))
 
@@ -46,7 +52,10 @@ vi.mock('@/lib/billing/plan-credit', () => ({
   grantIncludedPlanCredit: vi.fn(),
 }))
 
-import { checkChannelConnectAllowed } from '@/lib/billing/entitlements'
+import {
+  checkChannelConnectAllowed,
+  checkWorkspaceResourceCreateAllowed,
+} from '@/lib/billing/entitlements'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -58,8 +67,44 @@ beforeEach(() => {
   mocks.chatLinkFindUnique.mockResolvedValue(null)
   mocks.agentChannelCount.mockResolvedValue(0)
   mocks.chatLinkCount.mockResolvedValue(0)
+  mocks.productCount.mockResolvedValue(0)
+  mocks.storeOrderCount.mockResolvedValue(0)
+  mocks.contactCount.mockResolvedValue(0)
   mocks.getEffectivePlanDefs.mockResolvedValue({
-    TRIAL: { maxChannels: 2 },
+    TRIAL: { maxChannels: 2, maxProducts: 50, maxOrders: 100, maxCustomers: 100 },
+  })
+})
+
+describe('stored resource plan entitlements', () => {
+  it('blocks a new product once the plan product allowance is full', async () => {
+    mocks.productCount.mockResolvedValue(50)
+
+    await expect(
+      checkWorkspaceResourceCreateAllowed('ws-1', 'products'),
+    ).resolves.toEqual({
+      allowed: false,
+      plan: 'TRIAL',
+      limit: 50,
+      used: 50,
+      reason: 'PRODUCT_LIMIT',
+    })
+  })
+
+  it('uses independent allowances for orders and customers', async () => {
+    mocks.storeOrderCount.mockResolvedValue(99)
+    mocks.contactCount.mockResolvedValue(100)
+
+    await expect(
+      checkWorkspaceResourceCreateAllowed('ws-1', 'orders'),
+    ).resolves.toMatchObject({ allowed: true, limit: 100, used: 99 })
+    await expect(
+      checkWorkspaceResourceCreateAllowed('ws-1', 'customers'),
+    ).resolves.toMatchObject({
+      allowed: false,
+      limit: 100,
+      used: 100,
+      reason: 'CUSTOMER_LIMIT',
+    })
   })
 })
 

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sendSubscriptionExpiringSms } from '@/lib/sms/ippanel'
+import {
+  sendActivationReminderSms,
+  sendSubscriptionExpiringSms,
+} from '@/lib/sms/ippanel'
 
 const ORIGINAL_ENV = { ...process.env }
 
@@ -9,6 +12,7 @@ describe('IPPanel dedicated pattern contract', () => {
     process.env.IPPANEL_PROXY_SECRET = 'proxy-secret'
     process.env.IPPANEL_FROM_NUMBER = '+983000505'
     process.env.IPPANEL_SUBSCRIPTION_EXPIRING_PATTERN_CODE = 'expiry-pattern'
+    process.env.IPPANEL_ACTIVATION_REMINDER_PATTERN_CODE = 'stalled-pattern'
   })
 
   afterEach(() => {
@@ -43,5 +47,26 @@ describe('IPPanel dedicated pattern contract', () => {
       },
     })
     expect(body.params).toEqual(expect.objectContaining({ expiry: expect.any(String) }))
+  })
+
+  it('sends the stalled onboarding stage as the pattern step variable', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ meta: { status: true } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(sendActivationReminderSms('09128352271', {
+      nextStep: 'اتصال اولین کانال',
+    })).resolves.toBe(true)
+
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      sending_type: 'pattern',
+      code: 'stalled-pattern',
+      params: { step: 'اتصال اولین کانال' },
+    })
   })
 })

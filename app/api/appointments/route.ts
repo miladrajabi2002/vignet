@@ -38,7 +38,9 @@ function bookingErrorResponse(error: BookingError) {
   const status =
     error.code === 'SERVICE_NOT_FOUND' || error.code === 'CONTACT_NOT_FOUND'
       ? 404
-      : error.code === 'CAPACITY_EXCEEDED' || error.code === 'TRANSACTION_CONFLICT'
+      : error.code === 'CAPACITY_EXCEEDED' ||
+          error.code === 'TRANSACTION_CONFLICT' ||
+          error.code === 'CUSTOMER_LIMIT'
         ? 409
         : 422
   return NextResponse.json({ error: error.code }, { status })

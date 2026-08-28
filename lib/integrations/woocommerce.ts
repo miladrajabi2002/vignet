@@ -10,6 +10,7 @@ import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
 import { productEmbeddingSourceHash } from '@/lib/products/embedding-source'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
 
 export const WOOCOMMERCE_REST_PER_PAGE = 100
 
@@ -728,6 +729,10 @@ async function upsertProductFromWoo(
   }
   let saved: { id: string }
   try {
+    if (!existing) {
+      const capacity = await checkWorkspaceResourceCreateAllowed(integration.workspaceId, 'products')
+      if (!capacity.allowed) throw new Error(`${capacity.reason}:${capacity.limit}`)
+    }
     saved = existing
       ? await prisma.product.update({ where: { id: existing.id }, data: updateData, select: { id: true } })
       : await prisma.product.create({
@@ -740,7 +745,13 @@ async function upsertProductFromWoo(
   }
 
   const agentIds = options.agentIds ?? await allAgentIds(integration.workspaceId)
-  await assignProduct(saved.id, agentIds)
+  await Promise.all([
+    assignProduct(saved.id, agentIds),
+    prisma.agent.updateMany({
+      where: { workspaceId: integration.workspaceId, productAccessConfigured: false },
+      data: { productAccessEnabled: true },
+    }),
+  ])
   if (embeddingChanged || !existing?.embeddingUpdatedAt) {
     await dispatchProductEmbed({ productId: saved.id, workspaceId: integration.workspaceId })
   }
@@ -812,12 +823,14 @@ async function upsertOrderFromWoo(
   if (!order?.id) throw new Error('INVALID_ORDER_PAYLOAD')
   const externalOrderId = String(order.id)
   const incomingUpdatedAt = orderUpdatedAt(order)
-  if (incomingUpdatedAt) {
-    const existing = await prisma.storeOrder.findUnique({
-      where: { integrationId_externalOrderId: { integrationId: integration.id, externalOrderId } },
-      select: { updatedAt: true },
-    })
-    if (existing?.updatedAt && incomingUpdatedAt < existing.updatedAt) return
+  const existing = await prisma.storeOrder.findUnique({
+    where: { integrationId_externalOrderId: { integrationId: integration.id, externalOrderId } },
+    select: { updatedAt: true },
+  })
+  if (incomingUpdatedAt && existing?.updatedAt && incomingUpdatedAt < existing.updatedAt) return
+  if (!existing) {
+    const capacity = await checkWorkspaceResourceCreateAllowed(integration.workspaceId, 'orders')
+    if (!capacity.allowed) throw new Error(`${capacity.reason}:${capacity.limit}`)
   }
   const customerName = [order.billing?.first_name, order.billing?.last_name]
     .filter(Boolean)
@@ -872,15 +885,12 @@ async function upsertOrderFromWoo(
       ...data,
     },
   })
-
-  // Enforce per-integration order retention. Stores with thousands of
-  // historical orders would otherwise bloat the panel's DB forever. We keep
-  // at most MAX_ORDERS_PER_INTEGRATION orders per integration, deleting the
-  // oldest (by orderDate, then createdAt as tiebreaker) when the cap is
-  // exceeded. New orders always survive because they have the newest dates.
-  // Run after every upsert so the cap is enforced incrementally — no need
-  // for a separate cron job.
-  await enforceOrderRetention(integration.id)
+  if (!existing) {
+    await prisma.agent.updateMany({
+      where: { workspaceId: integration.workspaceId, orderTrackingConfigured: false },
+      data: { orderTrackingEnabled: true },
+    })
+  }
 }
 
 /**
@@ -1054,6 +1064,9 @@ async function upsertContactFromWoo(
     return { contactId: existing.id, created: false }
   }
 
+  const capacity = await checkWorkspaceResourceCreateAllowed(integration.workspaceId, 'customers')
+  if (!capacity.allowed) throw new Error(`${capacity.reason}:${capacity.limit}`)
+
   // Create a new contact. We pass `phone` if we have one — this is the
   // primary key for matching future messages from the same customer.
   const created = await prisma.contact.create({
@@ -1077,55 +1090,6 @@ async function upsertContactFromWoo(
     select: { id: true },
   })
   return { contactId: created.id, created: true }
-}
-
-/**
- * Maximum number of orders to retain per integration in the panel DB.
- *
- * The plugin syncs at most 1000 orders (MAX_ORDERS_TO_SYNC) during a full
- * push, but a busy store can receive many more orders over time via the
- * delta queue. To keep the panel responsive and the DB bounded, we cap the
- * stored orders per integration at MAX_ORDERS_PER_INTEGRATION. When the cap
- * is exceeded, the oldest orders (by orderDate) are deleted.
- *
- * Set to 2000 as requested by the product owner — enough history for the
- * agent to answer "where is my order?" questions, while keeping the orders
- * page fast and the DB small.
- */
-const MAX_ORDERS_PER_INTEGRATION = 2000
-
-/**
- * Delete the oldest orders for an integration when the count exceeds the cap.
- *
- * Uses a single DELETE ... WHERE id IN (SELECT id FROM ... ORDER BY orderDate
- * ASC LIMIT N) query — efficient even on large tables because the
- * integrationId index keeps the count + sort fast.
- *
- * Runs inside upsertOrderFromWoo after each upsert, so retention is enforced
- * incrementally. On a sync of 1000 orders, this runs 1000 times — but each
- * call only does work when the cap is exceeded, which is at most once per
- * batch (after that the count stays at or below the cap).
- */
-async function enforceOrderRetention(integrationId: string): Promise<void> {
-  const count = await prisma.storeOrder.count({ where: { integrationId } })
-  if (count <= MAX_ORDERS_PER_INTEGRATION) return
-
-  const excess = count - MAX_ORDERS_PER_INTEGRATION
-  // Delete the oldest `excess` orders. We order by orderDate ASC (oldest
-  // first), then createdAt ASC as a tiebreaker for orders with null orderDate.
-  // Using a subquery to fetch IDs first is safer than DELETE ... ORDER BY ...
-  // LIMIT (which MySQL supports but Postgres doesn't).
-  const oldOrderIds = await prisma.storeOrder.findMany({
-    where: { integrationId },
-    orderBy: [{ orderDate: 'asc' }, { createdAt: 'asc' }],
-    take: excess,
-    select: { id: true },
-  })
-  if (oldOrderIds.length === 0) return
-
-  await prisma.storeOrder.deleteMany({
-    where: { id: { in: oldOrderIds.map((o) => o.id) } },
-  })
 }
 
 export async function syncWooOrders(

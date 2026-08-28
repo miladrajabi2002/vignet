@@ -12,7 +12,7 @@ import { displayPhone } from '@/lib/phone'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { OrdersSearchForm } from '@/components/products/orders-search-form'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = 20
 const ORDER_STATUSES = [
   'pending',
   'processing',

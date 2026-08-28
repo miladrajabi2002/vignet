@@ -473,9 +473,8 @@ async function runSubscriptionExpirySweep(): Promise<void> {
 const ONBOARDING_NEXT_STEP_FA = [
         'ساخت اولین ایجنت',
         'افزودن محصول یا اطلاعات کسب‌وکار',
-        'فعال‌کردن پاسخ‌های هوش مصنوعی',
-        'انجام اولین گفتگوی آزمایشی',
         'اتصال اولین کانال',
+        'تأیید نهایی راه‌اندازی',
 ] as const
 
 /**
@@ -494,6 +493,7 @@ async function runTrialLifecycleSweep(): Promise<void> {
                 select: {
                         id: true,
                         createdAt: true,
+                        onboardingStepUpdatedAt: true,
                         trialEndsAt: true,
                         onboardingStep: true,
                         onboardingCompleted: true,
@@ -530,8 +530,10 @@ async function runTrialLifecycleSweep(): Promise<void> {
                         continue
                 }
 
-                // Give a new user a full day to explore before sending one clear next step.
-                if (now.getTime() - workspace.createdAt.getTime() < 24 * HOUR_MS) continue
+                // Nudge only after a full day without progress in the current
+                // onboarding stage. The dedicated timestamp is not affected by
+                // unrelated workspace changes such as billing or preferences.
+                if (now.getTime() - workspace.onboardingStepUpdatedAt.getTime() < 24 * HOUR_MS) continue
                 const step = Math.min(workspace.onboardingStep, ONBOARDING_NEXT_STEP_FA.length - 1)
                 const key = `lifecycle_sms:activation_step:${workspace.id}:${step}`
                 const acquired = await redis.set(key, '1', 'EX', 21 * 24 * 3600, 'NX')

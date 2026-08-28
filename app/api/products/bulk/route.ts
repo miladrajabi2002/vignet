@@ -83,5 +83,10 @@ export async function DELETE() {
     })
   }
 
+  await prisma.agent.updateMany({
+    where: { workspaceId: user.workspaceId, productAccessConfigured: false },
+    data: { productAccessEnabled: false },
+  })
+
   return NextResponse.json({ ok: true, deleted })
 }

@@ -93,9 +93,9 @@ export function StoreAccessSettings({
             title={t('productsTitle')}
             description={t('productsDescription')}
             count={t('productsCount', { count: productCount })}
-            enabled={productAccessEnabled}
+            enabled={productCount > 0 && productAccessEnabled}
             pending={saving === 'productAccessEnabled'}
-            disabled={saving !== null}
+            disabled={saving !== null || productCount === 0}
             enabledLabel={t('enabled')}
             disabledLabel={t('disabled')}
             onChange={(enabled) => updateAccess('productAccessEnabled', enabled)}
@@ -105,9 +105,9 @@ export function StoreAccessSettings({
             title={t('ordersTitle')}
             description={t('ordersDescription')}
             count={t('ordersCount', { count: orderCount })}
-            enabled={orderTrackingEnabled}
+            enabled={orderCount > 0 && orderTrackingEnabled}
             pending={saving === 'orderTrackingEnabled'}
-            disabled={saving !== null}
+            disabled={saving !== null || orderCount === 0}
             enabledLabel={t('enabled')}
             disabledLabel={t('disabled')}
             onChange={(enabled) => updateAccess('orderTrackingEnabled', enabled)}

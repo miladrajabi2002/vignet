@@ -57,6 +57,10 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data
+  const [productCount, orderCount] = await Promise.all([
+    prisma.product.count({ where: { workspaceId: user.workspaceId, active: true } }),
+    prisma.storeOrder.count({ where: { workspaceId: user.workspaceId } }),
+  ])
   const agent = await prisma.agent.create({
     data: {
       workspaceId: user.workspaceId,
@@ -82,8 +86,10 @@ export async function POST(req: Request) {
       // ─ F3: customer identification
       requireCustomerInfo: data.requireCustomerInfo ?? false,
       customerInfoPrompt: data.customerInfoPrompt ?? undefined,
-      productAccessEnabled: data.productAccessEnabled ?? true,
-      orderTrackingEnabled: data.orderTrackingEnabled ?? false,
+      productAccessEnabled: data.productAccessEnabled ?? productCount > 0,
+      orderTrackingEnabled: data.orderTrackingEnabled ?? orderCount > 0,
+      productAccessConfigured: data.productAccessEnabled !== undefined,
+      orderTrackingConfigured: data.orderTrackingEnabled !== undefined,
     },
   })
 

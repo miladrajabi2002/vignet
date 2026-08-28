@@ -89,7 +89,7 @@ export default async function AdminUsersPage(
       prisma.user.count({ where: { ...ADMIN_VISIBLE_USER_WHERE, createdAt: { gte: startOfToday() } } }),
       prisma.workspace.count({ where: ADMIN_VISIBLE_WORKSPACE_WHERE }),
       prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, plan: { in: ['STARTER', 'PRO', 'BUSINESS'] } } }),
-      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, updatedAt: { lt: stalledSince } } }),
+      prisma.workspace.count({ where: { ...ADMIN_VISIBLE_WORKSPACE_WHERE, onboardingCompleted: false, onboardingStepUpdatedAt: { lt: stalledSince } } }),
       prisma.user.findMany({
         where,
         include: {
@@ -102,7 +102,7 @@ export default async function AdminUsersPage(
               onboardingKnowledgeSkipped: true,
               onboardingChannelSkipped: true,
               businessProfile: true,
-              updatedAt: true,
+              onboardingStepUpdatedAt: true,
               agents: {
                 select: {
                   _count: { select: { knowledgeBases: true, channels: true } },
@@ -257,7 +257,7 @@ export default async function AdminUsersPage(
                   })
                 : null
               const onboardingStalled = Boolean(
-                ws && !ws.onboardingCompleted && ws.updatedAt < stalledSince,
+                ws && !ws.onboardingCompleted && ws.onboardingStepUpdatedAt < stalledSince,
               )
               return (
                 <tr key={u.id} className="hover:bg-zinc-50">

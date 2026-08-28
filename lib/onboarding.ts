@@ -64,9 +64,12 @@ export async function syncOnboarding(
   workspaceId: string,
 ): Promise<OnboardingState> {
   const state = await computeOnboarding(workspaceId)
-  await prisma.workspace.update({
-    where: { id: workspaceId },
-    data: { onboardingStep: state.step },
+  await prisma.workspace.updateMany({
+    where: { id: workspaceId, onboardingStep: { not: state.step } },
+    data: {
+      onboardingStep: state.step,
+      onboardingStepUpdatedAt: new Date(),
+    },
   })
   return state
 }

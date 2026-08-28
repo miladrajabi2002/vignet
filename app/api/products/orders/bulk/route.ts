@@ -62,5 +62,10 @@ export async function DELETE() {
     batch = ids.length
   } while (batch === BATCH_SIZE)
 
+  await prisma.agent.updateMany({
+    where: { workspaceId: user.workspaceId, orderTrackingConfigured: false },
+    data: { orderTrackingEnabled: false },
+  })
+
   return NextResponse.json({ ok: true, deleted })
 }

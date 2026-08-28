@@ -41,7 +41,7 @@ import {
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
 const VALID_CHANNELS = new Set<ChannelType>([
         'TELEGRAM',

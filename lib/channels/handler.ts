@@ -231,7 +231,8 @@ function profileFields(
 }
 
 /** Look up the contact's display name so we can greet them by name. */
-async function getContactName(contactId: string): Promise<string | null> {
+async function getContactName(contactId: string | null): Promise<string | null> {
+        if (!contactId) return null
         const c = await prisma.contact.findUnique({
                 where: { id: contactId },
                 select: { name: true },
@@ -290,7 +291,7 @@ function toChatAgent(agent: ResolvedChannel['agent']): ChatAgent {
 async function persistInboundOnly(args: {
         workspaceId: string
         agentId: string
-        contactId: string
+        contactId: string | null
         externalId: string
         text: string
         channel: MessengerType
@@ -675,7 +676,7 @@ async function processChannelInbound(
                         // auto-reply. Opt-out state is still honored, but no bot ack
                         // is sent while an operator owns the thread.
                         if (persistedInbound.humanOwned) {
-                                if (isMarketingOptOutMessage(text)) await optOutContact(contactId)
+                                if (contactId && isMarketingOptOutMessage(text)) await optOutContact(contactId)
                                 outcome = 'OPERATOR_OWNED'
                                 return
                         }
@@ -683,7 +684,7 @@ async function processChannelInbound(
                         // Universal campaign opt-out. It runs before Instagram
                         // automations or AI so STOP can never trigger a sales reply.
                         if (isMarketingOptOutMessage(text)) {
-                                await optOutContact(contactId)
+                                if (contactId) await optOutContact(contactId)
                                 const confirmation = optOutConfirmation(text)
                                 resultMessageId = await persistFixedAssistantReply(
                                         persistedInbound.conversationId,
@@ -720,7 +721,7 @@ async function processChannelInbound(
                         // + username, so this primarily fetches the avatar. Each field is
                         // written independently with an "only when empty" guard so manual edits
                         // and previously-fetched values aren't clobbered. Fire-and-forget.
-                        if (msg.senderId) {
+                        if (msg.senderId && contactId) {
                                 const pf = profileFields(type)
                                 // For Instagram, use the dedicated multi-token fetcher that
                                 // tries every token × host × fields combination and logs each
@@ -952,7 +953,7 @@ async function processChannelInbound(
                                                 agent: chatAgent,
                                                 message: text,
                                                 channel: type,
-                                                contactId,
+                                                contactId: contactId ?? undefined,
                                                 contactName,
                                                 conversationId: persistedInbound.conversationId,
                                                 externalId: msg.chatId,

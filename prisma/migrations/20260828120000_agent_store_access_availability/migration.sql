@@ -1,0 +1,6 @@
+ALTER TABLE "Agent"
+  ADD COLUMN "productAccessConfigured" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN "orderTrackingConfigured" BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE "Workspace"
+  ADD COLUMN "onboardingStepUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

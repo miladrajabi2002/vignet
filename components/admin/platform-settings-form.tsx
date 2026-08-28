@@ -138,7 +138,7 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
       </section>
 
       <section className="spatial-surface rounded-[1.5rem] p-5 sm:p-6">
-        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه، تخفیف پاسخ و تعداد اتصال کانال از همین تنظیمات خوانده می‌شود. تعداد ایجنت محدود نیست و پاسخ‌های AI بر اساس اعتبار کیف پول محاسبه می‌شوند.</p></div>
+        <div><h2 className="text-lg font-bold">پلن‌ها و ظرفیت سرویس</h2><p className="mt-1 text-xs leading-6 text-black/45">قیمت، اعتبار هدیه و سقف کانال، محصول، سفارش و مشتری از همین تنظیمات خوانده می‌شود. تعرفه هر پاسخ در همه پلن‌ها ثابت و تعداد ایجنت نامحدود است.</p></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((plan) => {
             const meta = PLAN_META[plan]
@@ -146,12 +146,14 @@ export function PlatformSettingsForm({ initial }: { initial: PlatformCommercialC
             return (
               <article key={plan} className={cn('rounded-[1.35rem] border p-4 sm:p-5', plan === 'PRO' ? 'border-black bg-black text-white shadow-[0_18px_48px_-30px_rgba(0,0,0,.8)]' : 'border-black/[0.07] bg-[#f8f8f6] text-black')}>
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{meta.title}</p><p className={cn('mt-1 text-[11px]', plan === 'PRO' ? 'text-white/45' : 'text-black/40')}>{meta.hint}</p></div><span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold', plan === 'PRO' ? 'bg-white text-black' : 'bg-white text-black/55 ring-1 ring-black/[0.06]')}>{plan}</span></div>
-                <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <PlanNumber label="قیمت ماهانه ریال" value={item.priceIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceIRR'], raw)} />
                   <PlanNumber label="قیمت دلاری" value={item.priceUSD} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'priceUSD'], raw)} />
                   <PlanNumber label="اعتبار هدیه ریال" value={item.includedCreditIRR} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'includedCreditIRR'], raw)} />
-                  <PlanNumber label="تخفیف پاسخ (BPS)" value={item.replyDiscountBps} disabled={meta.locked} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'replyDiscountBps'], raw)} />
                   <PlanNumber label="حداکثر اتصال کانال" value={item.maxChannels} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxChannels'], raw)} />
+                  <PlanNumber label="حداکثر محصول" value={item.maxProducts} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxProducts'], raw)} />
+                  <PlanNumber label="حداکثر سفارش" value={item.maxOrders} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxOrders'], raw)} />
+                  <PlanNumber label="حداکثر مشتری" value={item.maxCustomers} dark={plan === 'PRO'} onChange={(raw) => setNumber(['plans', plan, 'maxCustomers'], raw)} />
                 </div>
               </article>
             )
