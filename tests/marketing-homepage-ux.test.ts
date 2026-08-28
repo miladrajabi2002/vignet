@@ -95,6 +95,18 @@ describe('marketing homepage UX contracts', () => {
 		expect(channels).toContain('useReducedMotion')
 	})
 
+	it('shows a faithful Instagram DM simulator alongside comment automation', () => {
+		const mocks = read('components/marketing/home-variants/shared/mocks.tsx')
+
+		expect(mocks).toContain("type InstagramDemoMode = 'direct' | 'automation'")
+		expect(mocks).toContain("fa ? 'دایرکت هوشمند' : 'Smart DM'")
+		expect(mocks).toContain("fa ? 'کامنت خودکار' : 'Comment automation'")
+		expect(mocks).toContain("fa ? 'در حال نوشتن پاسخ هوشمند'")
+		expect(mocks).toContain("fa ? 'از کاتالوگ و موجودی فروشگاه'")
+		expect(mocks).toContain('useReducedMotion()')
+		expect(mocks).toContain('min-h-11')
+	})
+
 	it('advertises the active language without inventing duplicate hreflang URLs', () => {
 		const page = read('app/(marketing)/page.tsx')
 

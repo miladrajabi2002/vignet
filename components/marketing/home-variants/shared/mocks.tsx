@@ -11,12 +11,15 @@ import {
 	Bookmark,
 	BriefcaseBusiness,
 	CalendarCheck2,
+	ChevronLeft,
 	Check,
 	CheckCircle2,
 	CircleDollarSign,
 	Forward,
 	GraduationCap,
 	Heart,
+	Image as ImageIcon,
+	Info,
 	Layers,
 	Link2,
 	MessageCircle,
@@ -25,6 +28,7 @@ import {
 	Mic,
 	MoveRight,
 	PackageCheck,
+	Phone,
 	ScanSearch,
 	Send,
 	ShieldCheck,
@@ -33,6 +37,7 @@ import {
 	Store,
 	Target,
 	UtensilsCrossed,
+	Video,
 	Wand2,
 	Zap,
 } from 'lucide-react'
@@ -471,7 +476,7 @@ export function InboxMock({
 /* Instagram automation mock                                           */
 /* ------------------------------------------------------------------ */
 
-export function InstagramMock({ locale, inverse = true, className }: { locale: HomeLocale; inverse?: boolean; className?: string }) {
+export function InstagramAutomationPostMock({ locale, inverse = true, className }: { locale: HomeLocale; inverse?: boolean; className?: string }) {
 	const fa = locale === 'fa'
 	const steps = [
 		{ id: 'comment', title: fa ? 'کامنت «قیمت» می‌رسد' : 'Comment “price” arrives', detail: fa ? 'کاربر زیر پست جدید کامنت می‌گذارد' : 'A user comments on the new post' },
@@ -625,6 +630,310 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 								<p className={cn('truncate text-[11.5px] font-semibold', index === step && (inverse ? 'text-emerald-200' : 'text-emerald-700'))}>{item.title}</p>
 								<p className={cn('truncate text-[10px]', inverse ? 'text-white/40' : 'text-black/45')}>{item.detail}</p>
 							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+/* ------------------------------------------------------------------ */
+/* Instagram direct simulator — faithful UI + fast AI reply loop      */
+/* ------------------------------------------------------------------ */
+
+type InstagramDemoMode = 'direct' | 'automation'
+
+const DIRECT_STEP_DELAYS = [650, 780, 1450, 680, 780, 1600, 2400] as const
+
+function InstagramTyping({ fa }: { fa: boolean }) {
+	return (
+		<m.div
+			initial={{ opacity: 0, transform: 'translateY(6px) scale(0.97)' }}
+			animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
+			exit={{ opacity: 0, transform: 'translateY(-3px) scale(0.98)' }}
+			transition={{ duration: 0.2, ease: EASE_OUT }}
+			className="mr-auto flex w-fit items-end gap-2"
+		>
+			<span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[8px] font-bold text-white">V</span>
+			<div className="rounded-[18px] rounded-bl-[5px] bg-[#efefef] px-3.5 py-3" aria-label={fa ? 'در حال نوشتن پاسخ هوشمند' : 'Writing an intelligent reply'}>
+				<span className="flex items-center gap-1" aria-hidden>
+					{[0, 1, 2].map((dot) => (
+						<m.span
+							key={dot}
+							className="h-1.5 w-1.5 rounded-full bg-black/45"
+							animate={{ opacity: [0.35, 1, 0.35], transform: ['translateY(0px)', 'translateY(-2px)', 'translateY(0px)'] }}
+							transition={{ duration: 0.75, repeat: Infinity, delay: dot * 0.12, ease: 'easeInOut' }}
+						/>
+					))}
+				</span>
+			</div>
+		</m.div>
+	)
+}
+
+function DirectBubble({
+	children,
+	from,
+	label,
+	className,
+}: {
+	children: ReactNode
+	from: 'customer' | 'agent'
+	label?: string
+	className?: string
+}) {
+	const agent = from === 'agent'
+	return (
+		<m.div
+			initial={{ opacity: 0, transform: `translateY(8px) scale(0.97)` }}
+			animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
+			transition={{ duration: 0.24, ease: EASE_OUT }}
+			className={cn('flex max-w-[86%] flex-col', agent ? 'ml-auto items-end' : 'mr-auto items-start', className)}
+		>
+			{label ? <span className="mb-1 px-1 text-[8px] font-semibold text-[#8e8e93]">{label}</span> : null}
+			<div
+				className={cn(
+					'px-3 py-2 text-[11px] leading-[1.75]',
+					agent
+						? 'rounded-[18px] rounded-br-[5px] bg-gradient-to-br from-[#7c3aed] via-[#a855f7] to-[#d946ef] text-white shadow-[0_5px_14px_rgba(168,85,247,0.18)]'
+						: 'rounded-[18px] rounded-bl-[5px] bg-[#efefef] text-[#101010]',
+				)}
+			>
+				{children}
+			</div>
+		</m.div>
+	)
+}
+
+function InstagramDirectScreen({ locale, step }: { locale: HomeLocale; step: number }) {
+	const fa = locale === 'fa'
+	return (
+		<div className="flex h-full min-h-0 flex-col bg-white text-[#101010]" dir={fa ? 'rtl' : 'ltr'}>
+			<div className="flex h-[48px] shrink-0 items-center border-b border-black/[0.08] px-2">
+				<span className="grid h-10 w-10 shrink-0 place-items-center" aria-hidden>
+					<ChevronLeft className={cn('h-6 w-6', fa && 'rotate-180')} strokeWidth={2.1} />
+				</span>
+				<span className="grid h-8 w-8 shrink-0 place-items-center rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5)' }}>
+					<span className="grid h-full w-full place-items-center rounded-full bg-white p-[1.5px]">
+						<span className="grid h-full w-full place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[9px] font-bold text-white">V</span>
+					</span>
+				</span>
+				<div className="ms-2 min-w-0 flex-1 leading-tight">
+					<p className="flex items-center gap-1 text-[11.5px] font-semibold">vigent.store <BadgeCheck className="h-3 w-3 fill-[#0095f6] text-white" aria-hidden /></p>
+					<p className="text-[8.5px] text-black/45">{fa ? 'فعال الان' : 'Active now'}</p>
+				</div>
+				<span className="grid h-10 w-10 place-items-center" aria-hidden><Phone className="h-[19px] w-[19px]" strokeWidth={1.9} /></span>
+				<span className="grid h-10 w-10 place-items-center" aria-hidden><Video className="h-[21px] w-[21px]" strokeWidth={1.9} /></span>
+			</div>
+
+			<div className="min-h-0 flex-1 overflow-hidden px-3 pb-3 pt-3">
+				<div className="flex justify-center pb-3">
+					<div className="text-center">
+						<span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[14px] font-bold text-white">V</span>
+						<p className="mt-1.5 text-[11px] font-semibold">Vigent Store</p>
+						<p className="text-[8.5px] text-black/45">@vigent.store · Instagram</p>
+					</div>
+				</div>
+				<div className="space-y-2.5" aria-live="polite">
+					<DirectBubble from="customer">{fa ? 'سلام، شال کرم موجوده؟ قیمتش چنده؟' : 'Hi, is the cream scarf in stock? How much is it?'}</DirectBubble>
+
+					<AnimatePresence mode="popLayout" initial={false}>
+						{step === 1 ? <InstagramTyping key="typing-one" fa={fa} /> : null}
+						{step >= 2 ? (
+							<DirectBubble key="answer-one" from="agent" label={fa ? 'پاسخ هوشمند ویجنت' : 'Vigent smart reply'}>
+								{fa ? 'سلام نگار جان 🌿 بله، رنگ کرم موجوده؛ قیمتش ۸۹۰ هزار تومنه.' : 'Hi Negar 🌿 Yes, cream is in stock; it is 890,000 tomans.'}
+							</DirectBubble>
+						) : null}
+					</AnimatePresence>
+
+					{step >= 3 ? <DirectBubble from="customer">{fa ? 'عالیه، لینک خریدش رو می‌فرستی؟' : 'Great, can you send the checkout link?'}</DirectBubble> : null}
+
+					<AnimatePresence mode="popLayout" initial={false}>
+						{step === 4 ? <InstagramTyping key="typing-two" fa={fa} /> : null}
+						{step >= 5 ? (
+							<DirectBubble key="answer-two" from="agent" label={fa ? 'از کاتالوگ و موجودی فروشگاه' : 'From catalog and live stock'}>
+								<p>{fa ? 'حتماً، این هم لینک خرید. ارسال تهران فرداست 👇' : 'Of course — here is the checkout link. Tehran delivery is tomorrow 👇'}</p>
+								<div className="mt-2 flex items-center gap-2 rounded-xl bg-white/95 p-2 text-[#101010] shadow-sm">
+									<span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f1ece7] text-[#7c3aed]"><ShoppingBag className="h-4 w-4" aria-hidden /></span>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-[9.5px] font-semibold">{fa ? 'شال پشمی کرم' : 'Cream wool scarf'}</p>
+										<p className="text-[8.5px] text-black/55">{fa ? '۸۹۰٬۰۰۰ تومان · موجود' : '890,000 tomans · In stock'}</p>
+									</div>
+								</div>
+							</DirectBubble>
+						) : null}
+					</AnimatePresence>
+				</div>
+			</div>
+
+			<div className="shrink-0 px-2.5 pb-2.5">
+				<div className="flex h-10 items-center gap-1.5 rounded-full border border-black/15 px-1.5">
+					<span className="grid h-7 w-7 place-items-center rounded-full bg-[#3797f0] text-white"><InstagramIcon className="h-3.5 w-3.5" aria-hidden /></span>
+					<span className="flex-1 px-1 text-[10px] text-black/38">{fa ? 'پیام...' : 'Message...'}</span>
+					<span className="grid h-7 w-7 place-items-center" aria-hidden><ImageIcon className="h-[17px] w-[17px]" strokeWidth={1.8} /></span>
+					<span className="grid h-7 w-7 place-items-center text-[17px]" aria-hidden>♡</span>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step: number }) {
+	const fa = locale === 'fa'
+	const liked = step >= 1
+	return (
+		<div className="flex h-full min-h-0 flex-col bg-white text-black" dir={fa ? 'rtl' : 'ltr'}>
+			<div className="flex h-[48px] shrink-0 items-center border-b border-black/[0.08] px-2.5">
+				<InstagramIcon className="h-5 w-5" aria-hidden />
+				<p className="ms-2 text-[12px] font-semibold">{fa ? 'پست فروشگاه' : 'Store post'}</p>
+				<span className="ms-auto grid h-10 w-10 place-items-center" aria-hidden><Info className="h-5 w-5" /></span>
+			</div>
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+				<div className="flex items-center gap-2.5 px-3 py-2">
+					<span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[9px] font-bold text-white">V</span>
+					<p className="text-[11.5px] font-semibold">vigent.store</p>
+					<span className="ms-auto text-[15px] tracking-[2px]">•••</span>
+				</div>
+				<div className="relative grid aspect-square max-h-[250px] w-full place-items-center overflow-hidden bg-[radial-gradient(circle_at_30%_25%,#fff8e9_0%,#f5d5b8_40%,#c98b70_100%)]">
+					<div className="absolute h-28 w-28 rotate-[-9deg] rounded-[28px] bg-[#ece1d2] shadow-[0_22px_50px_rgba(66,35,20,0.24)]" />
+					<ShoppingBag className="relative h-12 w-12 text-[#725343] drop-shadow-sm" strokeWidth={1.35} aria-hidden />
+					<span className="absolute bottom-3 end-3 rounded-full bg-black/65 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">{fa ? '۳ رنگ موجود' : '3 colors'}</span>
+				</div>
+				<div className="flex items-center gap-3 px-3 py-2">
+					<Heart className={cn('h-[22px] w-[22px] transition-colors duration-200', liked ? 'fill-[#ff3040] text-[#ff3040]' : 'text-black')} aria-hidden />
+					<MessageCircle className="h-[22px] w-[22px] -scale-x-100" aria-hidden />
+					<Send className="h-[21px] w-[21px]" aria-hidden />
+					<Bookmark className="ms-auto h-[21px] w-[21px]" aria-hidden />
+				</div>
+				<p className="px-3 text-[10.5px] font-semibold">{fa ? '۱٬۲۴۸ پسند' : '1,248 likes'}</p>
+				<p className="mt-1 px-3 text-[10.5px] leading-5"><span className="font-semibold">vigent.store</span> {fa ? 'شال پشمی، سه رنگ. برای قیمت کامنت بذار ✨' : 'Wool scarf, three colors. Comment for price ✨'}</p>
+				<div className="mt-1.5 px-3">
+					<DirectBubble from="customer">{fa ? 'قیمت رنگ کرم؟ 🤍' : 'Cream price? 🤍'}</DirectBubble>
+					<AnimatePresence initial={false}>
+						{step >= 1 ? (
+							<m.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: EASE_OUT }} className="mt-1.5 text-[10px] leading-5">
+								<span className="font-semibold text-[#00376b]">vigent.store</span> {fa ? 'سلام! قیمت و لینک خرید توی دایرکتت ارسال شد 💌' : 'Hi! Price and checkout link sent to your DM 💌'}
+							</m.p>
+						) : null}
+					</AnimatePresence>
+				</div>
+			</div>
+		</div>
+	)
+}
+
+export function InstagramMock({ locale, inverse = true, className }: { locale: HomeLocale; inverse?: boolean; className?: string }) {
+	const fa = locale === 'fa'
+	const reduce = useReducedMotion()
+	const [mode, setMode] = useState<InstagramDemoMode>('direct')
+	const [step, setStep] = useState(reduce ? 6 : 0)
+
+	useEffect(() => {
+		if (reduce) {
+			setStep(mode === 'direct' ? 6 : 3)
+		} else {
+			setStep(0)
+		}
+	}, [mode, reduce])
+
+	useEffect(() => {
+		if (reduce) return
+		const delay = mode === 'direct' ? DIRECT_STEP_DELAYS[step] ?? 1800 : 1450
+		const timer = window.setTimeout(() => {
+			setStep((current) => {
+				const last = mode === 'direct' ? 6 : 3
+				return current >= last ? 0 : current + 1
+			})
+		}, delay)
+		return () => window.clearTimeout(timer)
+	}, [mode, reduce, step])
+
+	const progress = mode === 'direct' ? Math.min(3, step < 2 ? 0 : step < 5 ? 1 : step < 6 ? 2 : 3) : Math.min(step, 3)
+	const directSteps = fa
+		? ['پیام مشتری دریافت شد', 'پاسخ از دانش و موجودی', 'لینک خرید ارسال شد', 'آمادهٔ ادامهٔ گفتگو']
+		: ['Customer message received', 'Answer grounded in stock', 'Checkout link sent', 'Ready for the next message']
+	const automationSteps = fa
+		? ['کامنت «قیمت» تشخیص داده شد', 'پاسخ عمومی ثبت شد', 'دایرکت خصوصی ارسال شد', 'بدون مصرف اعتبار AI']
+		: ['“Price” comment detected', 'Public reply posted', 'Private DM sent', 'Zero AI credit used']
+	const statusSteps = mode === 'direct' ? directSteps : automationSteps
+
+	return (
+		<div
+			dir={fa ? 'rtl' : 'ltr'}
+			className={cn(
+				'relative overflow-hidden rounded-[1.75rem] border p-3 shadow-[0_28px_85px_rgba(0,0,0,0.24)] sm:p-4',
+				inverse ? 'border-white/10 bg-[#070707] text-white' : 'border-black/10 bg-white text-black',
+				className,
+			)}
+		>
+			<div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-4 pt-1 sm:px-2">
+				<div>
+					<p className="flex items-center gap-2 text-[12px] font-semibold"><InstagramIcon className="h-4 w-4" aria-hidden />{fa ? 'شبیه‌ساز زندهٔ اینستاگرام' : 'Live Instagram simulator'}</p>
+					<p className={cn('mt-1 text-[9.5px]', inverse ? 'text-white/40' : 'text-black/45')}>{fa ? 'پاسخ واقعی، با ریتم واقعی دایرکت' : 'Real replies at the pace of a real DM'}</p>
+				</div>
+				<div className={cn('flex rounded-xl border p-1', inverse ? 'border-white/10 bg-white/[0.04]' : 'border-black/10 bg-black/[0.03]')} role="tablist" aria-label={fa ? 'حالت شبیه‌ساز اینستاگرام' : 'Instagram simulator mode'}>
+					{([
+						['direct', fa ? 'دایرکت هوشمند' : 'Smart DM'],
+						['automation', fa ? 'کامنت خودکار' : 'Comment automation'],
+					] as const).map(([value, label]) => (
+						<button
+							key={value}
+							type="button"
+							role="tab"
+							aria-selected={mode === value}
+							onClick={() => setMode(value)}
+							className={cn(
+								'min-h-11 rounded-lg px-3 text-[10px] font-semibold transition-[background-color,color,transform] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a855f7]',
+								mode === value ? 'bg-white text-black shadow-sm' : inverse ? 'text-white/50 hover:text-white' : 'text-black/50 hover:text-black',
+							)}
+						>
+							{label}
+						</button>
+					))}
+				</div>
+			</div>
+
+			<div className="grid items-center gap-4 lg:grid-cols-[minmax(280px,330px)_minmax(150px,1fr)]">
+				<div className="relative mx-auto w-full max-w-[326px]" dir="ltr">
+					<span aria-hidden className="absolute -left-[3px] top-[102px] h-8 w-[3px] rounded-l-full bg-white/20" />
+					<span aria-hidden className="absolute -left-[3px] top-[146px] h-12 w-[3px] rounded-l-full bg-white/20" />
+					<span aria-hidden className="absolute -right-[3px] top-[142px] h-16 w-[3px] rounded-r-full bg-white/20" />
+					<div className="relative rounded-[42px] bg-[#1c1c1e] p-[6px] shadow-[0_26px_60px_rgba(0,0,0,0.45)] ring-1 ring-white/15">
+						<div className="pointer-events-none absolute left-1/2 top-[11px] z-20 h-[23px] w-[78px] -translate-x-1/2 rounded-full bg-black" aria-hidden />
+						<div className="flex h-[18px] items-center justify-between rounded-t-[35px] bg-white px-4 text-[7.5px] font-semibold text-black" aria-hidden>
+							<span>9:41</span><span className="tracking-[1px]">● ◒ ▰</span>
+						</div>
+						<div className="h-[526px] overflow-hidden rounded-b-[35px]">
+							<AnimatePresence mode="wait" initial={false}>
+								<m.div
+									key={mode}
+									initial={reduce ? false : { opacity: 0, transform: 'translateX(10px) scale(0.99)' }}
+									animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
+									exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-8px) scale(0.99)' }}
+									transition={{ duration: 0.22, ease: EASE_OUT }}
+									className="h-full"
+								>
+									{mode === 'direct' ? <InstagramDirectScreen locale={locale} step={step} /> : <InstagramAutomationScreen locale={locale} step={step} />}
+								</m.div>
+							</AnimatePresence>
+						</div>
+						<span aria-hidden className="absolute bottom-[9px] left-1/2 z-20 h-1 w-24 -translate-x-1/2 rounded-full bg-black/85" />
+					</div>
+				</div>
+
+				<div className="hidden min-w-0 space-y-2 lg:block" aria-live="polite">
+					<div className={cn('mb-3 rounded-2xl border p-3.5', inverse ? 'border-fuchsia-300/20 bg-fuchsia-300/[0.06]' : 'border-fuchsia-300/35 bg-fuchsia-50')}>
+						<div className="flex items-center gap-2">
+							<span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-400 opacity-50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-400" /></span>
+							<p className={cn('text-[10px] font-bold', inverse ? 'text-fuchsia-200' : 'text-fuchsia-700')}>{mode === 'direct' ? (fa ? 'ایجنت در حال پاسخ‌گویی' : 'Agent is replying') : fa ? 'اتوماسیون فعال' : 'Automation active'}</p>
+						</div>
+						<p className={cn('mt-2 text-[9.5px] leading-5', inverse ? 'text-white/45' : 'text-black/50')}>{mode === 'direct' ? (fa ? 'پاسخ از روی کاتالوگ، موجودی و لحن برند ساخته می‌شود.' : 'The reply is grounded in catalog, stock and brand voice.') : fa ? 'قانون ثابت اجرا می‌شود و هیچ اعتباری مصرف نمی‌کند.' : 'A fixed rule runs without consuming AI credit.'}</p>
+					</div>
+					{statusSteps.map((item, index) => (
+						<div key={item} className={cn('flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-[background-color,border-color,opacity] duration-200', index <= progress ? inverse ? 'border-white/15 bg-white/[0.06] opacity-100' : 'border-black/10 bg-black/[0.03] opacity-100' : inverse ? 'border-white/[0.06] opacity-35' : 'border-black/[0.05] opacity-35')}>
+							<span className={cn('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[9px] font-bold transition-colors duration-200', index <= progress ? 'bg-emerald-500 text-white' : inverse ? 'bg-white/10 text-white/50' : 'bg-black/[0.07] text-black/45')}>{index <= progress ? <Check className="h-3 w-3" aria-hidden /> : index + 1}</span>
+							<p className="truncate text-[9.5px] font-medium">{item}</p>
 						</div>
 					))}
 				</div>
