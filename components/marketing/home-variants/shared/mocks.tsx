@@ -646,6 +646,12 @@ export function InstagramAutomationPostMock({ locale, inverse = true, className 
 
 type InstagramDemoMode = 'direct' | 'story' | 'comment'
 
+const INSTAGRAM_SCENARIO_DELAYS: Record<InstagramDemoMode, readonly number[]> = {
+	direct: [1600, 850, 2600, 1500, 850, 3200, 1500, 850, 3200],
+	story: [2200, 1300, 1500, 850, 2600, 1400, 850, 2800, 3000],
+	comment: [1700, 1500, 1900, 850, 2600, 1500, 850, 2600, 3000],
+}
+
 function InstagramTyping({ fa }: { fa: boolean }) {
 	return (
 		<m.div
@@ -807,18 +813,19 @@ function InstagramAutomationScreen({ locale, step }: { locale: HomeLocale; step:
 					<Bookmark className="ms-auto h-[21px] w-[21px]" aria-hidden />
 				</div>
 				<p className="px-3 text-[10.5px] font-semibold">{fa ? '۱٬۲۴۸ پسند' : '1,248 likes'}</p>
-				<p className="mt-1 px-3 text-[10.5px] leading-5"><span className="font-semibold">vigent.store</span> {fa ? 'شال پشمی، سه رنگ. برای قیمت کامنت بذار ✨' : 'Wool scarf, three colors. Comment for price ✨'}</p>
+				<p className="mt-1 px-3 text-[10.5px] leading-5"><span className="font-semibold">vigent.store</span> {fa ? 'مانتو کتان در دو رنگ کرم و مشکی. برای لینک خرید کامنت بذار.' : 'Linen coat in cream and black. Comment for the checkout link.'}</p>
 				<div className="mt-2 border-t border-white/10 px-3 pt-2">
 					<m.p initial={{ opacity: 0, transform: 'translateY(6px)' }} animate={{ opacity: 1, transform: 'translateY(0px)' }} transition={{ duration: 0.22, ease: EASE_OUT }} className="text-[11px] leading-5">
-						<span className="font-semibold">maryam.karimi</span> {fa ? 'قیمت رنگ کرم؟ 🤍' : 'Cream price? 🤍'}
+						<span className="font-semibold">maryam.karimi</span> {fa ? 'لینک خرید این مدل رو می‌فرستین؟' : 'Can you send the checkout link for this one?'}
 					</m.p>
 					<AnimatePresence initial={false}>
 						{step >= 1 ? (
 							<m.p initial={{ opacity: 0, transform: 'translateY(5px)' }} animate={{ opacity: 1, transform: 'translateY(0px)' }} transition={{ duration: 0.2, ease: EASE_OUT }} className="mt-1.5 text-[10.5px] leading-5 text-white/70">
-								<span className="font-semibold text-[#a8c7fa]">vigent.store</span> {fa ? 'سلام! قیمت و لینک خرید توی دایرکتت ارسال شد 💌' : 'Hi! Price and checkout link sent to your DM 💌'}
+								<span className="font-semibold text-[#a8c7fa]">vigent.store</span> {fa ? 'حتماً مریم جان؛ دایرکت برات ارسال شد، پیام‌هات رو ببین 💌' : 'Of course, Maryam; I sent you a DM. Check your messages 💌'}
 							</m.p>
 						) : null}
 					</AnimatePresence>
+					{step >= 2 ? <m.span initial={{ opacity: 0, transform: 'translateY(4px)' }} animate={{ opacity: 1, transform: 'translateY(0px)' }} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[8.5px] font-semibold text-emerald-300"><Check className="h-3 w-3" aria-hidden />{fa ? 'دایرکت با موفقیت ارسال شد' : 'DM sent successfully'}</m.span> : null}
 				</div>
 			</div>
 		</div>
@@ -832,7 +839,7 @@ function InstagramDarkTyping({ fa }: { fa: boolean }) {
 			animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
 			exit={{ opacity: 0, transform: 'translateY(-3px) scale(0.98)' }}
 			transition={{ duration: 0.22, ease: EASE_OUT }}
-			className="mr-auto flex h-10 min-w-[68px] items-center justify-center rounded-[18px] rounded-bl-[5px] bg-gradient-to-r from-[#315cff] via-[#6848f5] to-[#8d35ed] px-4"
+			className="mr-auto flex h-10 min-w-[68px] shrink-0 items-center justify-center rounded-[18px] rounded-bl-[5px] bg-gradient-to-r from-[#315cff] via-[#6848f5] to-[#8d35ed] px-4"
 			aria-label={fa ? 'ویجنت در حال نوشتن پاسخ است' : 'Vigent is typing a reply'}
 		>
 			<span className="flex gap-1.5" aria-hidden>
@@ -856,7 +863,7 @@ function InstagramDarkMessage({ children, sent = false, className }: { children:
 			animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
 			transition={{ duration: 0.24, ease: EASE_OUT }}
 			className={cn(
-				'max-w-[82%] rounded-[19px] px-3.5 py-2.5 text-[12px] leading-[1.85] text-white',
+				'max-w-[82%] shrink-0 rounded-[19px] px-3.5 py-2.5 text-[12px] leading-[1.85] text-white',
 				sent ? 'ml-auto rounded-br-[6px] bg-[#262626]' : 'mr-auto rounded-bl-[6px] bg-[#1f1f1f]',
 				className,
 			)}
@@ -866,16 +873,91 @@ function InstagramDarkMessage({ children, sent = false, className }: { children:
 	)
 }
 
+function InstagramProductCatalog({ locale, compact = false }: { locale: HomeLocale; compact?: boolean }) {
+	const fa = locale === 'fa'
+	const products = [
+		{ name: fa ? 'مانتو کتان کرم' : 'Cream linen coat', meta: fa ? 'سایز ۳۶ تا ۴۲' : 'Sizes 36–42', price: fa ? '۱٬۲۸۰٬۰۰۰ تومان' : '1,280,000 tomans', colors: 'from-[#ead9c5] to-[#b88b6d]' },
+		{ name: fa ? 'مانتو کتان مشکی' : 'Black linen coat', meta: fa ? 'سایز ۳۸ تا ۴۴' : 'Sizes 38–44', price: fa ? '۱٬۳۵۰٬۰۰۰ تومان' : '1,350,000 tomans', colors: 'from-[#4b4b4b] to-[#111111]' },
+	]
+	return (
+		<m.div
+			initial={{ opacity: 0, transform: 'translateY(8px)' }}
+			animate={{ opacity: 1, transform: 'translateY(0px)' }}
+			transition={{ duration: 0.26, ease: EASE_OUT }}
+			className="mr-auto flex w-[92%] shrink-0 gap-2 overflow-hidden"
+			aria-label={fa ? 'کاتالوگ محصولات پیشنهادی' : 'Suggested product catalog'}
+		>
+			{products.map((product) => (
+				<div key={product.name} className={cn('min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#171717]', compact && 'first:flex-[1.12] last:flex-[0.88]')}>
+					<div className={cn('relative grid place-items-center bg-gradient-to-br', product.colors, compact ? 'h-[70px]' : 'h-[82px]')}>
+						<div className="h-12 w-10 -rotate-6 rounded-[13px] border border-white/25 bg-white/25 shadow-[0_12px_28px_rgba(0,0,0,0.25)]" />
+						<ShoppingBag className="absolute h-5 w-5 text-white/85" strokeWidth={1.5} aria-hidden />
+						<span className="absolute end-1.5 top-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[7px] font-semibold text-white backdrop-blur">{fa ? 'موجود' : 'In stock'}</span>
+					</div>
+					<div className="p-2">
+						<p className="truncate text-[9px] font-semibold text-white">{product.name}</p>
+						<p className="mt-0.5 truncate text-[7.5px] text-white/45">{product.meta}</p>
+						<p className="mt-1 text-[8px] font-semibold text-white/80">{product.price}</p>
+						<span className="mt-1.5 grid h-6 place-items-center rounded-lg bg-white text-[7.5px] font-bold text-black">{fa ? 'مشاهده محصول' : 'View product'}</span>
+					</div>
+				</div>
+			))}
+		</m.div>
+	)
+}
+
+function InstagramStoryViewer({ locale, step }: { locale: HomeLocale; step: number }) {
+	const fa = locale === 'fa'
+	return (
+		<div className="relative flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_30%_18%,#f8dfc7_0%,#b9816d_38%,#4b3039_72%,#181018_100%)] text-white" dir={fa ? 'rtl' : 'ltr'}>
+			<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34),transparent_28%,transparent_68%,rgba(0,0,0,0.55))]" />
+			<div className="relative z-10 px-3 pt-2">
+				<div className="flex gap-1" aria-hidden>
+					<span className="h-[2px] flex-1 overflow-hidden rounded-full bg-white/35"><m.span className="block h-full origin-right bg-white" initial={{ transform: 'scaleX(0)' }} animate={{ transform: 'scaleX(1)' }} transition={{ duration: 3.5, ease: 'linear' }} /></span>
+					<span className="h-[2px] flex-1 rounded-full bg-white/35" />
+					<span className="h-[2px] flex-1 rounded-full bg-white/35" />
+				</div>
+				<div className="mt-2 flex items-center gap-2">
+					<span className="grid h-8 w-8 place-items-center rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)' }}>
+						<span className="grid h-full w-full place-items-center rounded-full bg-[#1b1118] text-[9px] font-bold">V</span>
+					</span>
+					<p className="text-[10.5px] font-semibold">vigent.store</p>
+					<span className="text-[8px] text-white/65">{fa ? '۲ ساعت' : '2h'}</span>
+					<span className="ms-auto grid h-8 w-8 place-items-center text-[18px] tracking-[2px]" aria-hidden>•••</span>
+				</div>
+			</div>
+
+			<div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-5 text-center">
+				<m.div initial={{ opacity: 0, transform: 'translateY(10px) rotate(-5deg)' }} animate={{ opacity: 1, transform: 'translateY(0px) rotate(-5deg)' }} transition={{ duration: 0.35, ease: EASE_OUT }} className="relative h-52 w-40 rounded-[32px] border border-white/20 bg-[#eadac8]/80 shadow-[0_32px_80px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+					<div className="absolute inset-x-7 top-8 h-28 rounded-[24px] bg-white/22" />
+					<ShoppingBag className="absolute left-1/2 top-[72px] h-12 w-12 -translate-x-1/2 text-[#725343]" strokeWidth={1.25} aria-hidden />
+					<span className="absolute inset-x-3 bottom-4 rounded-full bg-black/60 px-3 py-1.5 text-[9px] font-semibold backdrop-blur">{fa ? 'مانتو کتان · رنگ کرم' : 'Linen coat · Cream'}</span>
+				</m.div>
+				<p className="mt-5 text-[18px] font-bold drop-shadow">{fa ? 'رنگ محبوب دوباره موجود شد' : 'Your favorite color is back'}</p>
+				<p className="mt-1 text-[10px] text-white/75">{fa ? 'برای قیمت و سایز، همین استوری رو ریپلای کن' : 'Reply for price and available sizes'}</p>
+				<span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[9px] font-bold text-black"><Link2 className="h-3 w-3" aria-hidden />{fa ? 'مشاهده محصول' : 'View product'}</span>
+			</div>
+
+			<div className="relative z-10 shrink-0 px-3 pb-4">
+				<m.div
+					initial={{ borderColor: 'rgba(255,255,255,0.28)' }}
+					animate={{ borderColor: step >= 1 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.28)' }}
+					transition={{ duration: 0.2 }}
+					className="flex h-11 items-center rounded-full border bg-black/15 px-4 backdrop-blur-sm"
+				>
+					<span className="min-w-0 flex-1 truncate text-start text-[10.5px] text-white/70">{step >= 1 ? (fa ? 'این رنگ کرمش هنوز موجوده؟' : 'Is this cream color still available?') : fa ? 'ارسال پیام...' : 'Send message...'}</span>
+					<Heart className="h-[18px] w-[18px]" aria-hidden />
+					<Send className="ms-3 h-[18px] w-[18px]" aria-hidden />
+				</m.div>
+			</div>
+		</div>
+	)
+}
+
 function InstagramDarkConversationScreen({ locale, mode, step }: { locale: HomeLocale; mode: InstagramDemoMode; step: number }) {
 	const fa = locale === 'fa'
-	const isComment = mode === 'comment'
-	const typing = isComment ? step === 0 : step === 1
-	const replied = isComment ? step >= 1 : step >= 2
 	const directQuestion = fa ? 'سلام، اون مانتو کتان کرم سایز ۳۸ هست؟' : 'Hi, is that cream linen coat available in size 38?'
-	const directReply = fa ? 'سلام مریم جان، بله موجوده. قیمتش ۱٬۲۸۰٬۰۰۰ تومنه و فردا هم ارسال می‌شه.' : 'Hi Maryam, yes it is in stock. It is 1,280,000 tomans and ships tomorrow.'
 	const storyQuestion = fa ? 'این رنگ کرمش هنوز موجوده؟' : 'Is this cream color still available?'
-	const storyReply = fa ? 'بله، رنگ کرم موجوده؛ سایزهای ۳۶ تا ۴۲ هم الان توی انبار داریم.' : 'Yes, cream is available; sizes 36 through 42 are currently in stock.'
-	const commentReply = fa ? 'سلام مریم جان؛ قیمت رنگ کرم ۸۹۰٬۰۰۰ تومنه. لینک خریدش رو هم همین‌جا برات فرستادم.' : 'Hi Maryam; cream is 890,000 tomans. I also sent the checkout link right here.'
 
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-black text-white" dir={fa ? 'rtl' : 'ltr'}>
@@ -885,12 +967,12 @@ function InstagramDarkConversationScreen({ locale, mode, step }: { locale: HomeL
 				</span>
 				<span className="grid h-10 w-10 shrink-0 place-items-center rounded-full p-[2px]" style={{ background: 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)' }}>
 					<span className="grid h-full w-full place-items-center rounded-full bg-black p-[2px]">
-						<span className="grid h-full w-full place-items-center rounded-full bg-[#252525] text-[13px] font-semibold">م</span>
+						<span className="grid h-full w-full place-items-center rounded-full bg-[#252525] text-[12px] font-semibold">V</span>
 					</span>
 				</span>
 				<div className="ms-2 min-w-0 flex-1 leading-tight">
-					<p className="flex items-center gap-1 text-[13px] font-semibold">{fa ? 'مریم کریمی' : 'Maryam Karimi'} <BadgeCheck className="h-3.5 w-3.5 fill-[#3797f0] text-black" aria-hidden /></p>
-					<p className="mt-1 text-[9.5px] text-white/55">{fa ? 'فعال ۲ دقیقه پیش' : 'Active 2 minutes ago'}</p>
+					<p className="flex items-center gap-1 text-[13px] font-semibold">Vigent Store <BadgeCheck className="h-3.5 w-3.5 fill-[#3797f0] text-black" aria-hidden /></p>
+					<p className="mt-1 text-[9.5px] text-white/55">vigent.store</p>
 				</div>
 				<span className="grid h-11 w-10 place-items-center" aria-hidden><Phone className="h-5 w-5" strokeWidth={1.8} /></span>
 				<span className="grid h-11 w-10 place-items-center" aria-hidden><Video className="h-[22px] w-[22px]" strokeWidth={1.8} /></span>
@@ -903,43 +985,58 @@ function InstagramDarkConversationScreen({ locale, mode, step }: { locale: HomeL
 			</div>
 
 			<div className="flex min-h-0 flex-1 flex-col justify-end gap-2.5 overflow-hidden px-3.5 pb-3 pt-5" aria-live="polite">
-				{mode === 'story' ? (
-					<InstagramDarkMessage sent className="overflow-hidden p-0">
-						<div className="relative h-[92px] w-[186px] overflow-hidden bg-[radial-gradient(circle_at_30%_20%,#fff2dd_0%,#d5a37d_42%,#7c4b43_100%)]">
-							<div className="absolute start-2.5 top-2 flex items-center gap-1.5 text-[8px] font-semibold text-white/90">
-								<span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[7px]">V</span>
-								vigent.store
-							</div>
-							<div className="absolute bottom-3 left-1/2 h-11 w-14 -translate-x-1/2 -rotate-6 rounded-xl bg-[#eee2d4] shadow-lg" />
-							<ShoppingBag className="absolute bottom-5 left-1/2 h-6 w-6 -translate-x-1/2 text-[#725343]" strokeWidth={1.4} aria-hidden />
-						</div>
-						<p className="px-3 py-2.5">{storyQuestion}</p>
-					</InstagramDarkMessage>
-				) : mode === 'direct' ? (
-					<InstagramDarkMessage sent>{directQuestion}</InstagramDarkMessage>
-				) : (
-					<m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto mb-1 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[9px] text-white/55">
-						{fa ? 'در پاسخ به کامنت «قیمت رنگ کرم؟»' : 'Replying to “Cream price?” comment'}
-					</m.div>
-				)}
-
-				<AnimatePresence mode="popLayout" initial={false}>
-					{typing ? <InstagramDarkTyping key={`${mode}-typing`} fa={fa} /> : null}
-					{replied ? (
-						<InstagramDarkMessage key={`${mode}-reply`}>
-							{mode === 'direct' ? directReply : mode === 'story' ? storyReply : commentReply}
-							{step >= (isComment ? 1 : 3) ? (
+				{mode === 'direct' ? (
+					<>
+						<InstagramDarkMessage sent>{directQuestion}</InstagramDarkMessage>
+						<AnimatePresence initial={false}>{step === 1 ? <InstagramDarkTyping key="direct-typing-one" fa={fa} /> : null}</AnimatePresence>
+						{step >= 2 ? <InstagramDarkMessage>{fa ? 'سلام 🌿 آره موجوده! تنش خنکه و قدش بلنده. کرم ۱٬۲۸۰٬۰۰۰ تومنه؛ مشکی‌ش رو هم بفرستم ببینی؟' : 'Hi 🌿 Yes, it is available! It is light and long-cut. Cream is 1,280,000 tomans; want to see the black one too?'}</InstagramDarkMessage> : null}
+						{step >= 3 ? <InstagramDarkMessage sent>{fa ? 'آره، هر دو رنگ رو بفرست لطفاً.' : 'Yes, please send both colors.'}</InstagramDarkMessage> : null}
+						<AnimatePresence initial={false}>{step === 4 ? <InstagramDarkTyping key="direct-typing-two" fa={fa} /> : null}</AnimatePresence>
+						{step >= 5 ? <InstagramDarkMessage>{fa ? 'حتماً؛ این دو مدل الان موجودن. رنگ و سایز رو از همین کارت‌ها می‌تونی ببینی.' : 'Of course; both are in stock. You can check colors and sizes in these cards.'}</InstagramDarkMessage> : null}
+						{step >= 5 ? <InstagramProductCatalog locale={locale} compact /> : null}
+						{step >= 6 ? <InstagramDarkMessage sent>{fa ? 'همون کرم، سایز ۳۸ رو می‌خوام 🙏' : 'I’ll take cream in size 38, please.'}</InstagramDarkMessage> : null}
+						<AnimatePresence initial={false}>{step === 7 ? <InstagramDarkTyping key="direct-typing-three" fa={fa} /> : null}</AnimatePresence>
+						{step >= 8 ? (
+							<InstagramDarkMessage>
+								{fa ? 'چشم! موجودی سایز ۳۸ برات رزرو شد. این هم لینک پرداخت امن 👇' : 'Done! Size 38 is reserved for you. Here is the secure checkout link 👇'}
 								<div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] p-2">
 									<span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/10"><ShoppingBag className="h-4 w-4" aria-hidden /></span>
-									<div className="min-w-0 flex-1">
-										<p className="truncate text-[9.5px] font-semibold">{fa ? 'مشاهده محصول و خرید' : 'View product and checkout'}</p>
-										<p className="text-[8.5px] text-white/45">vigent.store/product</p>
-									</div>
+									<div className="min-w-0 flex-1"><p className="text-[9px] font-semibold">{fa ? 'مانتو کتان کرم · سایز ۳۸' : 'Cream linen coat · Size 38'}</p><p className="text-[8px] text-white/45">{fa ? '۱٬۲۸۰٬۰۰۰ تومان · پرداخت آنلاین' : '1,280,000 tomans · Checkout'}</p></div>
 								</div>
-							) : null}
+							</InstagramDarkMessage>
+						) : null}
+					</>
+				) : mode === 'story' ? (
+					<>
+						<InstagramDarkMessage sent className="overflow-hidden p-0">
+							<div className="relative h-[86px] w-[176px] overflow-hidden bg-[radial-gradient(circle_at_30%_20%,#fff2dd_0%,#d5a37d_42%,#7c4b43_100%)]">
+								<div className="absolute start-2 top-2 flex items-center gap-1 text-[7.5px] font-semibold"><span className="grid h-4 w-4 place-items-center rounded-full bg-gradient-to-tr from-violet-500 to-pink-500 text-[6px]">V</span>vigent.store</div>
+								<div className="absolute bottom-3 left-1/2 h-10 w-12 -translate-x-1/2 -rotate-6 rounded-xl bg-[#eee2d4] shadow-lg" /><ShoppingBag className="absolute bottom-5 left-1/2 h-5 w-5 -translate-x-1/2 text-[#725343]" strokeWidth={1.4} aria-hidden />
+							</div>
+							<p className="px-3 py-2.5">{storyQuestion}</p>
 						</InstagramDarkMessage>
-					) : null}
-				</AnimatePresence>
+						<AnimatePresence initial={false}>{step === 1 ? <InstagramDarkTyping key="story-typing-one" fa={fa} /> : null}</AnimatePresence>
+						{step >= 2 ? <InstagramDarkMessage>{fa ? 'بله، رنگ کرم موجوده؛ سایزهای ۳۶ تا ۴۲ داریم. قد کار ۱۱۸ سانته.' : 'Yes, cream is available in sizes 36–42. The coat length is 118 cm.'}</InstagramDarkMessage> : null}
+						{step >= 3 ? <InstagramDarkMessage sent>{fa ? 'برای قد ۱۶۵، سایز ۳۸ مناسبه؟ ارسال تهران چقدره؟' : 'For 165 cm height, is size 38 right? How long is Tehran delivery?'}</InstagramDarkMessage> : null}
+						<AnimatePresence initial={false}>{step === 4 ? <InstagramDarkTyping key="story-typing-two" fa={fa} /> : null}</AnimatePresence>
+						{step >= 5 ? (
+							<InstagramDarkMessage>
+								{fa ? 'بله، با اندازه‌هایی که گفتی سایز ۳۸ مناسبه. تهران فردا تحویل می‌شه؛ کارت محصول رو هم برات گذاشتم.' : 'Yes, size 38 fits the measurements you shared. Tehran delivery is tomorrow; here is the product card.'}
+								<div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] p-2"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#d8c1a8]/20"><ShoppingBag className="h-4 w-4" aria-hidden /></span><div className="min-w-0 flex-1"><p className="text-[9px] font-semibold">{fa ? 'مانتو کتان کرم' : 'Cream linen coat'}</p><p className="text-[8px] text-white/45">{fa ? 'سایز ۳۸ · موجود' : 'Size 38 · In stock'}</p></div></div>
+							</InstagramDarkMessage>
+						) : null}
+					</>
+				) : (
+					<>
+						<m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto mb-1 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[9px] text-white/55">{fa ? 'از کامنت «لینک خرید این مدل رو می‌فرستین؟»' : 'From comment “Can you send this product link?”'}</m.div>
+						<AnimatePresence initial={false}>{step === 0 ? <InstagramDarkTyping key="comment-typing-one" fa={fa} /> : null}</AnimatePresence>
+						{step >= 1 ? <InstagramDarkMessage>{fa ? 'سلام مریم جان 🌿 حتماً؛ این مدل در دو رنگ کرم و مشکی موجوده. کارت محصول رو برات فرستادم.' : 'Hi Maryam 🌿 Sure; this style is available in cream and black. I sent you the product card.'}</InstagramDarkMessage> : null}
+						{step >= 1 ? <InstagramProductCatalog locale={locale} compact /> : null}
+						{step >= 2 ? <InstagramDarkMessage sent>{fa ? 'کرمش سایز ۳۸ موجوده؟' : 'Is cream available in size 38?'}</InstagramDarkMessage> : null}
+						<AnimatePresence initial={false}>{step === 3 ? <InstagramDarkTyping key="comment-typing-two" fa={fa} /> : null}</AnimatePresence>
+						{step >= 4 ? <InstagramDarkMessage>{fa ? 'بله موجوده و تا ۱۰ دقیقه برات رزرو شد. برای تکمیل خرید روی «مشاهده محصول» بزن.' : 'Yes, it is in stock and reserved for 10 minutes. Tap “View product” to complete checkout.'}</InstagramDarkMessage> : null}
+					</>
+				)}
 			</div>
 
 			<div className="shrink-0 px-3 pb-3">
@@ -959,12 +1056,12 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 	const fa = locale === 'fa'
 	const reduce = useReducedMotion()
 	const [mode, setMode] = useState<InstagramDemoMode>('direct')
-	const [step, setStep] = useState(reduce ? 3 : 0)
+	const [step, setStep] = useState(reduce ? 8 : 0)
 	const scenarioOrder: InstagramDemoMode[] = ['direct', 'story', 'comment']
 
 	useEffect(() => {
 		if (reduce) {
-			setStep(3)
+			setStep(8)
 		} else {
 			setStep(0)
 		}
@@ -972,9 +1069,10 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 
 	useEffect(() => {
 		if (reduce) return
-		const delay = [1050, 900, 1700, 2300][step] ?? 1800
+		const delays = INSTAGRAM_SCENARIO_DELAYS[mode]
+		const delay = delays[step] ?? 2200
 		const timer = window.setTimeout(() => {
-			if (step >= 3) {
+			if (step >= delays.length - 1) {
 				const currentIndex = scenarioOrder.indexOf(mode)
 				setMode(scenarioOrder[(currentIndex + 1) % scenarioOrder.length])
 				setStep(0)
@@ -1005,8 +1103,15 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 		},
 	]
 	const activeScenario = scenarios.findIndex((scenario) => scenario.id === mode)
-	const showCommentFeed = mode === 'comment' && step < 2
-	const conversationStep = mode === 'comment' ? Math.max(0, step - 2) : step
+	const showStoryViewer = mode === 'story' && step < 2
+	const showCommentFeed = mode === 'comment' && step < 3
+	const conversationStep = mode === 'story' ? Math.max(0, step - 2) : mode === 'comment' ? Math.max(0, step - 3) : step
+	const currentDelay = INSTAGRAM_SCENARIO_DELAYS[mode][step] ?? 2200
+	const renderScenarioScreen = () => {
+		if (showStoryViewer) return <InstagramStoryViewer locale={locale} step={step} />
+		if (showCommentFeed) return <InstagramAutomationScreen locale={locale} step={step} />
+		return <InstagramDarkConversationScreen locale={locale} mode={mode} step={conversationStep} />
+	}
 
 	return (
 		<div
@@ -1017,8 +1122,25 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 				className,
 			)}
 		>
-			<div className="grid items-center justify-center gap-5 lg:grid-cols-[minmax(300px,370px)_minmax(170px,220px)] lg:gap-6">
-				<div className="relative mx-auto w-full max-w-[360px]" dir="ltr">
+			<div className="grid items-center justify-center gap-4 md:grid-cols-[minmax(300px,370px)_minmax(170px,220px)] md:gap-6">
+				<div className="mx-auto w-full max-w-[420px] overflow-hidden rounded-[30px] border border-white/[0.12] bg-black shadow-[0_26px_65px_rgba(0,0,0,0.34)] md:hidden" dir="ltr">
+					<div className="h-[560px]">
+						<AnimatePresence mode="wait" initial={false}>
+							<m.div
+								key={showStoryViewer ? 'mobile-story-viewer' : showCommentFeed ? 'mobile-comment-feed' : `mobile-${mode}-conversation`}
+								initial={reduce ? false : { opacity: 0, transform: 'translateX(8px)' }}
+								animate={{ opacity: 1, transform: 'translateX(0px)' }}
+								exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px)' }}
+								transition={{ duration: 0.2, ease: EASE_OUT }}
+								className="h-full"
+							>
+								{renderScenarioScreen()}
+							</m.div>
+						</AnimatePresence>
+					</div>
+				</div>
+
+				<div className="relative mx-auto hidden w-full max-w-[360px] md:block" dir="ltr">
 					<span aria-hidden className="absolute -left-[3px] top-[104px] h-9 w-[3px] rounded-l-full bg-[#33415f]" />
 					<span aria-hidden className="absolute -left-[3px] top-[154px] h-14 w-[3px] rounded-l-full bg-[#33415f]" />
 					<span aria-hidden className="absolute -right-[3px] top-[154px] h-20 w-[3px] rounded-r-full bg-[#33415f]" />
@@ -1030,18 +1152,14 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 						<div className="h-[610px] overflow-hidden rounded-b-[40px] bg-black">
 							<AnimatePresence mode="wait" initial={false}>
 								<m.div
-									key={showCommentFeed ? 'comment-feed' : `${mode}-conversation`}
+									key={showStoryViewer ? 'story-viewer' : showCommentFeed ? 'comment-feed' : `${mode}-conversation`}
 									initial={reduce ? false : { opacity: 0, transform: 'translateX(8px) scale(0.99)' }}
 									animate={{ opacity: 1, transform: 'translateX(0px) scale(1)' }}
 									exit={reduce ? undefined : { opacity: 0, transform: 'translateX(-6px) scale(0.99)' }}
 									transition={{ duration: 0.22, ease: EASE_OUT }}
 									className="h-full"
 								>
-									{showCommentFeed ? (
-										<InstagramAutomationScreen locale={locale} step={step} />
-									) : (
-										<InstagramDarkConversationScreen locale={locale} mode={mode} step={conversationStep} />
-									)}
+									{renderScenarioScreen()}
 								</m.div>
 							</AnimatePresence>
 						</div>
@@ -1049,7 +1167,7 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 					</div>
 				</div>
 
-				<div className="grid grid-cols-3 gap-2 lg:grid-cols-1" role="tablist" aria-label={fa ? 'سناریوهای اینستاگرام' : 'Instagram scenarios'}>
+				<div className="grid grid-cols-3 gap-2 md:grid-cols-1" role="tablist" aria-label={fa ? 'سناریوهای اینستاگرام' : 'Instagram scenarios'}>
 					{scenarios.map((scenario, index) => (
 						<button
 							key={scenario.id}
@@ -1058,7 +1176,7 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 							aria-selected={mode === scenario.id}
 							onClick={() => setMode(scenario.id)}
 							className={cn(
-								'relative min-h-[76px] overflow-hidden rounded-2xl border p-2.5 text-start transition-[background-color,border-color,transform,opacity] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a855f7] lg:min-h-[104px] lg:p-4',
+								'relative min-h-[72px] touch-manipulation overflow-hidden rounded-2xl border p-2.5 text-start transition-[background-color,border-color,transform,opacity] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a855f7] md:min-h-[104px] md:p-4',
 								mode === scenario.id
 									? inverse
 										? 'border-white/20 bg-white/[0.09] text-white shadow-[0_16px_40px_rgba(0,0,0,0.18)]'
@@ -1072,16 +1190,16 @@ export function InstagramMock({ locale, inverse = true, className }: { locale: H
 								<span className={cn('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[9px] font-bold', mode === scenario.id ? 'bg-gradient-to-br from-[#315cff] to-[#9b35ed] text-white' : inverse ? 'bg-white/10' : 'bg-black/[0.06]')}>{fa ? new Intl.NumberFormat('fa-IR').format(index + 1) : index + 1}</span>
 								<span className="text-[9.5px] font-semibold sm:text-[10.5px]">{scenario.label}</span>
 							</span>
-							<span className="mt-2 hidden text-[9.5px] leading-5 opacity-55 lg:block">{scenario.detail}</span>
+							<span className="mt-2 hidden text-[9.5px] leading-5 opacity-55 md:block">{scenario.detail}</span>
 							{mode === scenario.id && !reduce ? (
 								<span className="absolute inset-x-0 bottom-0 h-[2px] bg-white/10" aria-hidden>
-									<m.span key={`${mode}-${step}`} className="block h-full origin-right bg-gradient-to-l from-[#315cff] to-[#9b35ed]" initial={{ transform: 'scaleX(0)' }} animate={{ transform: 'scaleX(1)' }} transition={{ duration: ([1050, 900, 1700, 2300][step] ?? 1800) / 1000, ease: 'linear' }} />
+									<m.span key={`${mode}-${step}`} className="block h-full origin-right bg-gradient-to-l from-[#315cff] to-[#9b35ed]" initial={{ transform: 'scaleX(0)' }} animate={{ transform: 'scaleX(1)' }} transition={{ duration: currentDelay / 1000, ease: 'linear' }} />
 								</span>
 							) : null}
 						</button>
 					))}
-					<p className={cn('col-span-3 mt-1 text-center text-[9.5px] lg:col-span-1 lg:text-start', inverse ? 'text-white/35' : 'text-black/40')} aria-live="polite">
-						{fa ? `سناریوی ${new Intl.NumberFormat('fa-IR').format(activeScenario + 1)} از ۳ · مرحله ${new Intl.NumberFormat('fa-IR').format(step + 1)} از ۴` : `Scenario ${activeScenario + 1} of 3 · Step ${step + 1} of 4`}
+					<p className={cn('col-span-3 mt-1 text-center text-[9.5px] md:col-span-1 md:text-start', inverse ? 'text-white/35' : 'text-black/40')} aria-live="polite">
+						{fa ? `سناریوی ${new Intl.NumberFormat('fa-IR').format(activeScenario + 1)} از ۳ · مرحله ${new Intl.NumberFormat('fa-IR').format(step + 1)} از ۹` : `Scenario ${activeScenario + 1} of 3 · Step ${step + 1} of 9`}
 					</p>
 				</div>
 			</div>
