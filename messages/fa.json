@@ -892,6 +892,11 @@
       "itemsCount": "{count} قلم",
       "rial": "ریال",
       "toman": "تومان",
+      "shippingInfo": "اطلاعات ارسال",
+      "courier": "نام کالارسان",
+      "shippingDate": "تاریخ ارسال",
+      "trackingLink": "لینک پیگیری",
+      "shippingNote": "توضیحات ارسال",
       "statuses": {
         "pending": "در انتظار پرداخت",
         "processing": "در حال پردازش",

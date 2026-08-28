@@ -892,6 +892,11 @@
       "itemsCount": "{count} items",
       "rial": "IRR",
       "toman": "Toman",
+      "shippingInfo": "Shipping information",
+      "courier": "Courier",
+      "shippingDate": "Shipping date",
+      "trackingLink": "Tracking link",
+      "shippingNote": "Shipping note",
       "statuses": {
         "pending": "Pending payment",
         "processing": "Processing",

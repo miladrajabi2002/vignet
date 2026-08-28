@@ -95,16 +95,19 @@ describe('marketing homepage UX contracts', () => {
 		expect(channels).toContain('useReducedMotion')
 	})
 
-	it('shows a faithful Instagram DM simulator alongside comment automation', () => {
+	it('plays DM, story reply and comment-to-DM as one staged Instagram simulation', () => {
 		const mocks = read('components/marketing/home-variants/shared/mocks.tsx')
 
-		expect(mocks).toContain("type InstagramDemoMode = 'direct' | 'automation'")
+		expect(mocks).toContain("type InstagramDemoMode = 'direct' | 'story' | 'comment'")
 		expect(mocks).toContain("fa ? 'دایرکت هوشمند' : 'Smart DM'")
-		expect(mocks).toContain("fa ? 'کامنت خودکار' : 'Comment automation'")
-		expect(mocks).toContain("fa ? 'در حال نوشتن پاسخ هوشمند'")
-		expect(mocks).toContain("fa ? 'از کاتالوگ و موجودی فروشگاه'")
+		expect(mocks).toContain("fa ? 'ریپلای استوری' : 'Story reply'")
+		expect(mocks).toContain("fa ? 'کامنت به دایرکت' : 'Comment to DM'")
+		expect(mocks).toContain('showCommentFeed')
+		expect(mocks).toContain('InstagramDarkConversationScreen')
+		expect(mocks).toContain("fa ? 'ویجنت این گفتگو را هوشمند پاسخ می‌دهد'")
 		expect(mocks).toContain('useReducedMotion()')
-		expect(mocks).toContain('min-h-11')
+		expect(mocks).toContain('min-h-[76px]')
+		expect(mocks).not.toContain('شبیه‌ساز زندهٔ اینستاگرام')
 	})
 
 	it('advertises the active language without inventing duplicate hreflang URLs', () => {

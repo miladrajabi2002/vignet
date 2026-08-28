@@ -315,23 +315,23 @@ export default async function OrdersPage({
                   )}
                   {(order.courierName || order.shippingDate || order.trackingLink || order.shippingNote) && (
                     <div className="col-span-2 border-t border-[var(--border-subtle)] pt-3">
-                      <dt className="text-[var(--text-muted)]">{t('shippingInfo', { fallback: 'اطلاعات ارسال' })}</dt>
+                      <dt className="text-[var(--text-muted)]">{t('shippingInfo')}</dt>
                       <dd className="mt-2 space-y-1 text-sm text-[var(--text-primary)]">
                         {order.courierName && (
                           <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('courier', { fallback: 'نام کالارسان' })}:</span>
+                            <span className="text-[var(--text-muted)]">{t('courier')}:</span>
                             <span className="font-medium">{order.courierName}</span>
                           </div>
                         )}
                         {order.shippingDate && (
                           <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('shippingDate', { fallback: 'تاریخ ارسال' })}:</span>
+                            <span className="text-[var(--text-muted)]">{t('shippingDate')}:</span>
                             <span className="font-medium">{order.shippingDate}</span>
                           </div>
                         )}
                         {order.trackingLink && (
                           <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('trackingLink', { fallback: 'لینک پیگیری' })}:</span>
+                            <span className="text-[var(--text-muted)]">{t('trackingLink')}:</span>
                             <a
                               href={order.trackingLink}
                               target="_blank"
@@ -345,7 +345,7 @@ export default async function OrdersPage({
                         )}
                         {order.shippingNote && (
                           <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('shippingNote', { fallback: 'توضیحات' })}:</span>
+                            <span className="text-[var(--text-muted)]">{t('shippingNote')}:</span>
                             <span>{order.shippingNote}</span>
                           </div>
                         )}
