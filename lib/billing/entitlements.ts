@@ -106,13 +106,31 @@ export async function assertWorkspaceResourceCapacity(
   if (used >= limit) throw new WorkspaceResourceLimitError(resource, limit)
 }
 
+/**
+ * The workspace's plan label regardless of trial/subscription expiry. Used by
+ * the Instagram free-tier exemptions below so plan-aware logic (model policy,
+ * quota defs) keeps a usable plan key even when the gate is bypassed.
+ */
+export async function getNominalWorkspacePlan(workspaceId: string): Promise<Plan> {
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { plan: true },
+  })
+  return ws?.plan ?? 'TRIAL'
+}
+
 /** Canonical workspace usage shared by enforcement and reporting surfaces. */
 export async function getActiveChannelConnectionCount(workspaceId: string): Promise<number> {
   const [agentChannels, chatLinks] = await Promise.all([
     prisma.agentChannel.count({
       // CHAT_LINK uses the canonical ChatLink model below. Excluding any
       // historical AgentChannel rows prevents one public link counting twice.
-      where: { active: true, type: { not: 'CHAT_LINK' }, agent: { workspaceId } },
+      // INSTAGRAM is free — IG connections never consume the paid channel quota.
+      where: {
+        active: true,
+        type: { notIn: ['CHAT_LINK', 'INSTAGRAM'] },
+        agent: { workspaceId },
+      },
     }),
     prisma.chatLink.count({ where: { workspaceId, enabled: true } }),
   ])
@@ -157,8 +175,17 @@ export async function getMonthlyMessageCount(workspaceId: string): Promise<numbe
  * Gate an inbound chat message by workspace access only. Successful AI replies
  * are already protected by the atomic reply-credit reservation flow; there is
  * intentionally no separate monthly message quota.
+ *
+ * Instagram automation is free: conversations arriving on an INSTAGRAM channel
+ * are never blocked by trial/subscription expiry.
  */
-export async function checkChatAllowed(workspaceId: string): Promise<ChatGate> {
+export async function checkChatAllowed(
+  workspaceId: string,
+  channel?: ChannelType,
+): Promise<ChatGate> {
+  if (channel === 'INSTAGRAM') {
+    return { allowed: true, plan: await getNominalWorkspacePlan(workspaceId) }
+  }
   return checkWorkspaceActive(workspaceId)
 }
 
@@ -197,6 +224,12 @@ export async function checkChannelConnectAllowed(
   workspaceId: string,
   target: ChannelConnectionTarget,
 ): Promise<WorkspaceAccessGate> {
+  // Instagram automation is free: IG connections bypass trial/subscription
+  // gates entirely and never consume the paid channel quota.
+  if (target.kind === 'AGENT_CHANNEL' && target.type === 'INSTAGRAM') {
+    return { allowed: true, plan: await getNominalWorkspacePlan(workspaceId) }
+  }
+
   const access = await checkWorkspaceActive(workspaceId)
   if (!access.allowed) return access
 

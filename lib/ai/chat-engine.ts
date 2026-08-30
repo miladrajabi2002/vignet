@@ -287,7 +287,8 @@ async function prepareTurn(params: StartChatParams): Promise<
         }
 
         // Plan gate: expired trial/subscription or exhausted monthly quota.
-        const gate = await checkChatAllowed(workspaceId)
+        // Instagram automation is free — IG-channel conversations are exempt.
+        const gate = await checkChatAllowed(workspaceId, params.channel)
         if (!gate.allowed) {
                 await persistGatedInbound()
                 return { error: 'PLAN_BLOCKED', reason: gate.reason }
@@ -719,7 +720,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 return
                         }
                         if (handoffCheck.handoff) {
-				await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
+                                await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                                 const handoffText = handoffReplyText(handoffCheck, agent)
                                 send({ type: 'delta', text: handoffText })
                                 const persisted = await persistHandoff({
@@ -821,7 +822,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         }
                                 }
                         } catch (e) {
-				providerFailed = true
+                                providerFailed = true
                                 captureError('chat-engine:stream', e, {
                                         workspaceId,
                                         metadata: { agentId: agent.id, model, conversationId },
@@ -874,13 +875,13 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                 }
                         }
 
-			if (providerFailed) {
-				await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
-			} else {
-				await captureChatCredit(reservation, usage).catch((e) =>
-					console.error('[chat-engine] credit capture failed:', e),
-				)
-			}
+                        if (providerFailed) {
+                                await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
+                        } else {
+                                await captureChatCredit(reservation, usage).catch((e) =>
+                                        console.error('[chat-engine] credit capture failed:', e),
+                                )
+                        }
 
                         // Persist assistant reply and update conversation counters.
                         try {
@@ -981,7 +982,7 @@ export async function generateReply(
                 throw error
         }
         if (handoffCheck.handoff) {
-		await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
+                await releaseChatCredit(reservation, 'Human handoff before AI call').catch(() => {})
                 const reply = handoffReplyText(handoffCheck, agent)
                 const persisted = await persistHandoff({
                         workspaceId,
@@ -1095,7 +1096,7 @@ export async function generateReply(
                         usage = result.usage
                 }
         } catch (e) {
-		providerFailed = true
+                providerFailed = true
                 captureError('chat-engine:completion', e, {
                         workspaceId,
                         metadata: { agentId: agent.id, model, conversationId },
@@ -1130,13 +1131,13 @@ export async function generateReply(
                 }
         }
 
-	if (providerFailed) {
-		await releaseChatCredit(reservation, 'Provider completion failed').catch(() => {})
-	} else {
-		await captureChatCredit(reservation, usage).catch((e) =>
-			console.error('[chat-engine] credit capture failed:', e),
-		)
-	}
+        if (providerFailed) {
+                await releaseChatCredit(reservation, 'Provider completion failed').catch(() => {})
+        } else {
+                await captureChatCredit(reservation, usage).catch((e) =>
+                        console.error('[chat-engine] credit capture failed:', e),
+                )
+        }
 
         let persistedMessageId: string | undefined
         try {

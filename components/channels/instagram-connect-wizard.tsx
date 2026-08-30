@@ -43,9 +43,16 @@ import {
 export function InstagramConnectFlow({
   agentId,
   onClose,
+  returnTo,
 }: {
   agentId: string
   onClose?: () => void
+  /**
+   * Internal path the OAuth callback should send the user back to after
+   * connecting (e.g. "/instagram" when the flow starts from the Instagram
+   * workspace tab). Defaults to the agent channels page.
+   */
+  returnTo?: string
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -130,7 +137,7 @@ export function InstagramConnectFlow({
       const res = await fetch('/api/instagram/oauth/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId }),
+        body: JSON.stringify({ agentId, returnTo }),
       })
       const data = (await res.json().catch(() => ({}))) as {
         url?: string
@@ -152,8 +159,9 @@ export function InstagramConnectFlow({
       }
       // Full-page redirect to Instagram's OAuth dialog. After the user
       // authorizes, Meta redirects to /api/instagram/oauth/callback which
-      // connects the channel immediately and redirects to the channels page
-      // with ?ig_connected=1 (or ?ig_error=... on failure).
+      // connects the channel immediately and redirects back to `returnTo`
+      // (or the channels page) with ?ig_connected=1 (or ?ig_error=... on
+      // failure).
       window.location.href = data.url
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

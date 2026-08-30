@@ -12,7 +12,12 @@ module.exports = {
       args: ["start", "-H", "127.0.0.1", "-p", "3003"],
       cwd: appRoot,
       env: { NODE_ENV: "production" },
-      max_memory_restart: "1G",
+      // Safety net against memory leaks, NOT a sizing hint (Next.js normally
+      // idles around 300-500 MB). Unlimited is risky on this 7.6 GB box:
+      // a runaway leak would trigger the kernel OOM killer, which may take
+      // down PostgreSQL/Redis instead of just this app. 1.5 GB gives ~4-5x
+      // headroom over observed usage while still protecting the neighbors.
+      max_memory_restart: "1536M",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,

@@ -55,6 +55,23 @@ export async function GET(req: Request) {
   const channelsPath = (agentId: string) =>
     `/agents/${encodeURIComponent(agentId)}/channels`
 
+  // Where to send the user after the handshake. The start endpoint lets the
+  // caller pin an internal `returnTo` (e.g. "/instagram" when the flow was
+  // launched from the Instagram tab). Only same-app absolute paths are safe —
+  // reject anything that could turn the redirect into an open redirect.
+  const returnPath = (agentId: string, fallback?: string) => {
+    const target = fallback ?? state?.returnTo
+    if (
+      typeof target === 'string' &&
+      target.startsWith('/') &&
+      !target.startsWith('//') &&
+      target.length <= 512
+    ) {
+      return target
+    }
+    return channelsPath(agentId)
+  }
+
   if (!stateRaw) {
     return NextResponse.redirect(new URL(`/?ig_error=state`, base), {
       status: 303,
@@ -108,13 +125,13 @@ export async function GET(req: Request) {
   // A denied flow still consumes the nonce so it cannot be replayed later.
   if (error) {
     return NextResponse.redirect(
-      new URL(`${channelsPath(state.agentId)}?ig_error=denied`, base),
+      new URL(`${returnPath(state.agentId)}?ig_error=denied`, base),
       { status: 303 },
     )
   }
   if (!code) {
     return NextResponse.redirect(
-      new URL(`${channelsPath(state.agentId)}?ig_error=state`, base),
+      new URL(`${returnPath(state.agentId)}?ig_error=state`, base),
       { status: 303 },
     )
   }
@@ -126,7 +143,7 @@ export async function GET(req: Request) {
   })
   if (!gate.allowed) {
     return NextResponse.redirect(
-      new URL(`${channelsPath(state.agentId)}?ig_error=${gate.reason.toLowerCase()}`, base),
+      new URL(`${returnPath(state.agentId)}?ig_error=${gate.reason.toLowerCase()}`, base),
       { status: 303 },
     )
   }
@@ -207,13 +224,13 @@ export async function GET(req: Request) {
     await syncOnboarding(state.workspaceId)
 
     return NextResponse.redirect(
-      new URL(`${channelsPath(state.agentId)}?ig_connected=1`, base),
+      new URL(`${returnPath(state.agentId)}?ig_connected=1`, base),
       { status: 303 },
     )
   } catch (e) {
     console.error('[instagram:oauth:callback] failed:', e)
     return NextResponse.redirect(
-      new URL(`${channelsPath(state.agentId)}?ig_error=exchange`, base),
+      new URL(`${returnPath(state.agentId)}?ig_error=exchange`, base),
       { status: 303 },
     )
   }

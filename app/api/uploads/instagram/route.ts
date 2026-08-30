@@ -10,7 +10,6 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { tmpdir } from 'os'
 import { rateLimit, rateLimitCost } from '@/lib/ratelimit'
 
@@ -210,9 +209,9 @@ export async function POST(req: Request) {
         if (!user) {
                 return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
         }
-        if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
-                return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
-        }
+        // NOTE: no plan/subscription gate here — Instagram automation is free.
+        // Abuse is bounded by the hourly rate limit below plus the daily byte
+        // quotas (INSTAGRAM_UPLOAD_DAILY_BYTES / _GLOBAL_DAILY_BYTES).
         if (!(await rateLimit(`instagram-upload:${user.workspaceId}`, 12, 3600, { failClosed: true }))) {
                 return NextResponse.json({ error: 'RATE_LIMIT' }, { status: 429 })
         }
