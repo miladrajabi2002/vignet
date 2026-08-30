@@ -1,414 +1,408 @@
 'use client'
 
-import { useState, type ComponentType } from 'react'
-import Link from 'next/link'
+import Image from 'next/image'
 import { m, useReducedMotion } from 'framer-motion'
 import { useLocale } from 'next-intl'
-import {
-	ArrowLeft,
-	ArrowRight,
-	Bot,
-	Globe2,
-	Link2,
-	MessageCircleMore,
-	Radio,
-	ShoppingBag,
-	Sparkles,
-	Webhook,
-} from 'lucide-react'
+import { Check, Globe2, Inbox, Link2, Sparkles, Workflow, type LucideIcon } from 'lucide-react'
 import { InstagramIcon, TelegramIcon } from './social-links'
+
+type Locale = 'fa' | 'en'
+type BrandIcon = typeof InstagramIcon | LucideIcon
+
+type ChannelDefinition = {
+	key: string
+	fa: string
+	en: string
+	descriptionFa: string
+	descriptionEn: string
+	icon?: BrandIcon
+	logoSrc?: string
+	iconClass: string
+	iconSurface: string
+}
+
+type ConnectorPath = {
+	id: string
+	d: string
+}
+
+const CHANNELS: ChannelDefinition[] = [
+	{
+		key: 'instagram',
+		fa: 'اینستاگرام',
+		en: 'Instagram',
+		descriptionFa: 'دایرکت و کامنت',
+		descriptionEn: 'DMs and comments',
+		icon: InstagramIcon,
+		iconClass: 'text-fuchsia-600',
+		iconSurface: 'border-fuchsia-200/80 bg-gradient-to-br from-fuchsia-50 to-rose-50',
+	},
+	{
+		key: 'telegram',
+		fa: 'تلگرام',
+		en: 'Telegram',
+		descriptionFa: 'ربات و پیام',
+		descriptionEn: 'Bots and messages',
+		icon: TelegramIcon,
+		iconClass: 'text-sky-500',
+		iconSurface: 'border-sky-200/80 bg-sky-50',
+	},
+	{
+		key: 'bale',
+		fa: 'بله',
+		en: 'Bale',
+		descriptionFa: 'بازو و پیام',
+		descriptionEn: 'Bots and messages',
+		logoSrc: '/brands/bale-logo.svg',
+		iconClass: 'text-[#00B894]',
+		iconSurface: 'border-emerald-200/80 bg-emerald-50',
+	},
+	{
+		key: 'rubika',
+		fa: 'روبیکا',
+		en: 'Rubika',
+		descriptionFa: 'پیام‌رسان روبیکا',
+		descriptionEn: 'Rubika messenger',
+		logoSrc: '/brands/rubika-logo.svg',
+		iconClass: '',
+		iconSurface: 'border-neutral-200/80 bg-white',
+	},
+	{
+		key: 'web',
+		fa: 'ویجت سایت',
+		en: 'Web widget',
+		descriptionFa: 'گفتگو داخل سایت',
+		descriptionEn: 'On-site conversations',
+		icon: Globe2,
+		iconClass: 'text-blue-600',
+		iconSurface: 'border-blue-200/80 bg-blue-50',
+	},
+	{
+		key: 'link',
+		fa: 'لینک چت',
+		en: 'Chat link',
+		descriptionFa: 'لینک اختصاصی گفتگو',
+		descriptionEn: 'Dedicated chat link',
+		icon: Link2,
+		iconClass: 'text-amber-600',
+		iconSurface: 'border-amber-200/80 bg-amber-50',
+	},
+]
+
+const connectorPaths: ConnectorPath[] = [
+	{ id: 'instagram', d: 'M 96 104 C 96 210, 380 214, 600 338' },
+	{ id: 'telegram', d: 'M 298 104 C 298 206, 446 226, 600 338' },
+	{ id: 'bale', d: 'M 500 104 C 500 206, 540 246, 600 338' },
+	{ id: 'rubika', d: 'M 700 104 C 700 206, 660 246, 600 338' },
+	{ id: 'web', d: 'M 902 104 C 902 206, 754 226, 600 338' },
+	{ id: 'link', d: 'M 1104 104 C 1104 210, 820 214, 600 338' },
+]
+
+const mobileConnectorPaths: ConnectorPath[] = [
+	{ id: 'instagram-mobile', d: 'M 82 106 C 82 280, 138 374, 180 486' },
+	{ id: 'telegram-mobile', d: 'M 278 106 C 278 280, 222 374, 180 486' },
+	{ id: 'bale-mobile', d: 'M 82 237 C 82 340, 142 396, 180 486' },
+	{ id: 'rubika-mobile', d: 'M 278 237 C 278 340, 218 396, 180 486' },
+	{ id: 'web-mobile', d: 'M 82 368 C 92 424, 146 444, 180 486' },
+	{ id: 'link-mobile', d: 'M 278 368 C 268 424, 214 444, 180 486' },
+]
 
 const COPY = {
 	fa: {
-		eyebrow: 'اتصالات ویجنت',
-		title: 'همهٔ اتصالات، یک مغز مشترک',
-		subtitle: 'مشتری کانالش را انتخاب می‌کند؛ شما همان دانش، همان لحن و همان کیفیت پاسخ را همه‌جا حفظ می‌کنید.',
-		hubTitle: 'ایجنت ویجنت',
-		hubDesc: 'پاسخ از دانش واقعی کسب‌وکار',
-		inbox: 'همه پیام‌ها وارد یک صندوق می‌شوند',
-		channels: ['اینستاگرام', 'تلگرام', 'بله', 'روبیکا', 'ویجت وب', 'لینک چت', 'ووکامرس'],
-		chatTitle: 'یک لینک چت برای هرجایی که لینک می‌پذیرد',
-		chatDesc: 'در بیو اینستاگرام، پیامک، QR یا سایت بگذارید؛ مشتری بدون نصب برنامه وارد گفتگوی اختصاصی شما می‌شود.',
-		chatCta: 'دیدن لینک چت',
-		storeTitle: 'فروشگاه هم بخشی از گفتگو است',
-		storeDesc: 'محصول، قیمت و موجودی ووکامرس همگام می‌شود تا ایجنت فقط حرف نزند؛ دقیق پیشنهاد بدهد و مشتری را به خرید برساند.',
-		storeCta: 'راهکار فروشگاه‌ها',
+		eyebrow: 'یک ورودی مشترک',
+		title: 'صندوق پیام یکپارچه',
+		subtitle: 'پیام‌ها از هر کانالی که شروع شوند، با تاریخچهٔ کامل مشتری در یک فضای مشترک قرار می‌گیرند تا تیم شما هیچ گفتگویی را از دست ندهد.',
 		connected: 'متصل',
-		customer: 'سلام، این محصول موجوده؟',
-		reply: 'بله، موجوده. چه رنگی مدنظرتونه؟',
-		syncTitle: 'کاتالوگ فروشگاه',
-		updated: 'همگام‌سازی همین حالا',
-		inStock: 'موجود',
-		productCount: '۱۲۸ محصول به‌روز',
+		hubEyebrow: 'مقصد مشترک همهٔ پیام‌ها',
+		hubTitle: 'صندوق یکپارچه',
+		hubSubtitle: 'یک تیم، یک تاریخچه و یک پاسخ هماهنگ',
+		active: '۳۲ گفتگوی فعال',
+		live: 'زنده و همگام',
+		notifications: [
+			{ channel: 'instagram', text: 'پیام جدید از اینستاگرام' },
+			{ channel: 'telegram', text: 'پیام جدید از تلگرام' },
+			{ channel: 'web', text: 'گفتگوی تازه از سایت' },
+		],
+		ariaLabel: 'شش کانال متصل که همه پیام‌هایشان وارد صندوق یکپارچه ویگنت می‌شود',
 	},
 	en: {
-		eyebrow: 'Vigent connections',
-		title: 'Every connection, one shared brain',
-		subtitle: 'Customers pick the channel; you keep the same knowledge, voice and response quality everywhere.',
-		hubTitle: 'Vigent agent',
-		hubDesc: 'Answers from real business knowledge',
-		inbox: 'Every message lands in one inbox',
-		channels: ['Instagram', 'Telegram', 'Bale', 'Rubika', 'Web widget', 'Chat link', 'WooCommerce'],
-		chatTitle: 'One chat link for anywhere a link fits',
-		chatDesc: 'Put it in your Instagram bio, SMS, QR code or website. Customers open your branded chat with no app to install.',
-		chatCta: 'Explore chat links',
-		storeTitle: 'Your store joins the conversation',
-		storeDesc: 'WooCommerce products, prices and stock stay synced so the agent can recommend accurately and move customers toward checkout.',
-		storeCta: 'For online stores',
+		eyebrow: 'One shared entry point',
+		title: 'Every channel flows into one unified inbox',
+		subtitle: 'No matter where a message starts, it arrives with the customer’s full history in one shared workspace so your team never loses a conversation.',
 		connected: 'Connected',
-		customer: 'Hi, is this product in stock?',
-		reply: 'Yes, it is. Which color do you prefer?',
-		syncTitle: 'Store catalog',
-		updated: 'Synced just now',
-		inStock: 'In stock',
-		productCount: '128 products up to date',
+		hubEyebrow: 'The shared destination for every message',
+		hubTitle: 'Unified inbox',
+		hubSubtitle: 'One team, one history and one consistent response',
+		active: '32 active conversations',
+		live: 'Live and synced',
+		notifications: [
+			{ channel: 'instagram', text: 'New Instagram message' },
+			{ channel: 'telegram', text: 'New Telegram message' },
+			{ channel: 'web', text: 'New website conversation' },
+		],
+		ariaLabel: 'Six connected channels whose messages all flow into the Vigent unified inbox',
 	},
 } as const
 
-const CHANNEL_ICONS = [InstagramIcon, TelegramIcon, MessageCircleMore, Radio, MessageCircleMore, Globe2, Link2, ShoppingBag]
+function ChannelLogo({ channel, small = false }: { channel: ChannelDefinition; small?: boolean }) {
+	if (channel.logoSrc) {
+		const isRubika = channel.key === 'rubika'
+		return (
+			<Image
+				src={channel.logoSrc}
+				alt=""
+				width={90}
+				height={40}
+				className={isRubika
+					? (small ? 'size-4 object-contain' : 'size-6 object-contain')
+					: (small ? 'h-auto w-5' : 'h-auto w-9')}
+			/>
+		)
+	}
 
-function ConnectionBoard() {
-	const locale = useLocale() === 'en' ? 'en' : 'fa'
-	const copy = COPY[locale]
-	const reduce = useReducedMotion()
-	const sideY = [109, 179, 249, 319]
-	const hubY = [135, 195, 255, 315]
-	const incomingPaths = sideY.map(
-		(y, index) => `M 180 ${y} C 232 ${y}, 258 ${hubY[index]}, 310 ${hubY[index]}`,
-	)
-	const outgoingPaths = sideY.map(
-		(y, index) => `M 690 ${hubY[index]} C 742 ${hubY[index]}, 768 ${y}, 820 ${y}`,
-	)
-	const connectorPaths = [...incomingPaths, ...outgoingPaths]
+	const Icon = channel.icon
+	if (!Icon) return null
+	return <Icon className={`${small ? 'size-3.5' : 'size-5'} ${channel.iconClass}`} />
+}
 
+function NodePulse({ reducedMotion }: { reducedMotion: boolean }) {
 	return (
-		<div className="relative mx-auto mt-10 max-w-6xl overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-7 lg:p-9">
-			<div className="relative mx-auto h-[428px] max-w-[1040px]">
-				<svg aria-hidden viewBox="0 0 1000 428" className="pointer-events-none absolute inset-0 h-full w-full" preserveAspectRatio="none">
-					{connectorPaths.map((path, index) => (
-						<m.path
-							key={path}
-							d={path}
-							fill="none"
-							stroke="rgba(0,0,0,.2)"
-							strokeWidth="1.35"
-							strokeLinecap="round"
-							initial={reduce ? false : { pathLength: 0, opacity: 0.18 }}
-							whileInView={{ pathLength: 1, opacity: 1 }}
-							viewport={{ once: true, margin: '-80px' }}
-							transition={reduce ? { duration: 0 } : { duration: 0.48, delay: (index % 4) * 0.045, ease: [0.16, 1, 0.3, 1] }}
-						/>
-					))}
-
-					{sideY.map((y, index) => (
-						<g key={`connector-nodes-${y}`}>
-							<circle cx="180" cy={y} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
-							<circle cx="310" cy={hubY[index]} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
-							<circle cx="690" cy={hubY[index]} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
-							<circle cx="820" cy={y} r="3" fill="#fff" stroke="rgba(0,0,0,.34)" strokeWidth="1.2" />
-						</g>
-					))}
-
-					{!reduce && [incomingPaths[0], incomingPaths[2], outgoingPaths[1], outgoingPaths[3]].map((path, index) => (
-						<circle key={`signal-${path}`} r="3.1" fill="#111" opacity="0.82">
-							<animateMotion dur={`${2.7 + index * 0.22}s`} begin={`${index * 0.48}s`} repeatCount="indefinite" path={path} />
-							<animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.12;0.82;1" dur={`${2.7 + index * 0.22}s`} begin={`${index * 0.48}s`} repeatCount="indefinite" />
-						</circle>
-					))}
-				</svg>
-
-				<div className="absolute inset-0 grid grid-cols-[18%_38%_18%] items-center justify-between">
-				<div className="grid gap-[18px]">
-					{copy.channels.slice(0, 4).map((label, index) => {
-						const Icon = CHANNEL_ICONS[index]
-						return <ChannelNode key={label} label={label} Icon={Icon} delay={index * 0.055} side="left" />
-					})}
-				</div>
-
-				<m.div
-					initial={reduce ? false : { opacity: 0, scale: 0.97 }}
-					whileInView={{ opacity: 1, scale: 1 }}
-					viewport={{ once: true, margin: '-80px' }}
-					transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-					className="relative z-10 rounded-[1.4rem] border border-[var(--border-default)] bg-white p-5 text-[var(--text-primary)] sm:p-6"
-					style={{ boxShadow: 'var(--shadow-card)' }}
-				>
-					<div className="flex items-center justify-between">
-						<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]">
-							<Bot className="h-5 w-5" />
-						</span>
-						<span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-white px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">
-							<span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-							{copy.connected}
-						</span>
-					</div>
-					<h3 className="mt-6 text-xl font-medium">{copy.hubTitle}</h3>
-					<p className="mt-1 text-[13px] leading-5 text-[var(--text-muted)]">{copy.hubDesc}</p>
-					<div className="mt-5 space-y-2.5 rounded-2xl bg-[var(--bg-surface)] p-3">
-						<div className="ms-auto max-w-[88%] rounded-xl rounded-ee-sm bg-[var(--text-primary)] px-3 py-2 text-xs leading-5 text-white">{copy.customer}</div>
-						<div className="max-w-[92%] rounded-xl rounded-es-sm border border-[var(--border-default)] bg-white px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">{copy.reply}</div>
-					</div>
-					<p className="mt-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-						<Sparkles className="h-3 w-3" aria-hidden />
-						{copy.inbox}
-					</p>
-				</m.div>
-
-				<div className="grid gap-[18px]">
-					{copy.channels.slice(4).map((label, index) => {
-						const Icon = CHANNEL_ICONS[index + 4]
-						return <ChannelNode key={label} label={label} Icon={Icon} delay={(index + 4) * 0.055} side="right" />
-					})}
-				</div>
-				</div>
-			</div>
-		</div>
+		<span aria-hidden="true" className="absolute -bottom-[7px] start-1/2 z-20 grid size-3 -translate-x-1/2 place-items-center rounded-full border border-white bg-violet-100 shadow-[0_2px_8px_rgba(124,58,237,0.22)]">
+			<m.span
+				className="absolute size-3 rounded-full border border-violet-400"
+				initial={false}
+				animate={reducedMotion ? { opacity: 0 } : { opacity: [0.5, 0], transform: ['scale(1)', 'scale(2.4)'] }}
+				transition={reducedMotion ? { duration: 0 } : { duration: 2.8, repeat: Infinity, ease: [0.23, 1, 0.32, 1] }}
+			/>
+			<span className="relative size-1.5 rounded-full bg-violet-600" />
+		</span>
 	)
 }
 
-function ChannelNode({ label, Icon, delay, side }: { label: string; Icon: ComponentType<{ className?: string }>; delay: number; side: 'left' | 'right' }) {
-	const reduce = useReducedMotion()
+function ChannelCard({ channel, locale, reducedMotion }: { channel: ChannelDefinition; locale: Locale; reducedMotion: boolean }) {
+	const copy = COPY[locale]
 	return (
-		<m.div
-			initial={reduce ? false : { opacity: 0, x: side === 'left' ? -8 : 8 }}
-			whileInView={{ opacity: 1, x: 0 }}
-			viewport={{ once: true, margin: '-40px' }}
-			transition={reduce ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.36, delay }}
-			className="relative z-10 flex min-h-[52px] min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-2.5 py-2"
-			style={{ boxShadow: 'var(--shadow-sm)' }}
-		>
-			<span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)]">
-				<Icon className="h-4 w-4 text-[var(--text-secondary)]" />
+		<li className="relative z-10 flex min-h-[106px] min-w-0 flex-col items-center justify-center rounded-[22px] border border-white bg-white/95 px-2.5 py-3 text-center shadow-[0_14px_42px_rgba(15,23,42,0.075),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.035] backdrop-blur-sm lg:min-h-[104px]">
+			<span className={`grid size-11 place-items-center rounded-[15px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] ${channel.iconSurface}`}>
+				<ChannelLogo channel={channel} />
 			</span>
-			<span className="min-w-0 truncate text-[11px] font-medium leading-4 text-[var(--text-secondary)] xl:text-xs">{label}</span>
-			<span className="ms-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-		</m.div>
+			<p className="mt-2 text-xs font-black text-neutral-950 sm:text-[13px]">{locale === 'fa' ? channel.fa : channel.en}</p>
+			<p className="mt-0.5 hidden text-[9px] font-semibold text-neutral-400 min-[390px]:block">{locale === 'fa' ? channel.descriptionFa : channel.descriptionEn}</p>
+			<span className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-700">
+				<Check className="size-2.5" />
+				{copy.connected}
+			</span>
+			<NodePulse reducedMotion={reducedMotion} />
+		</li>
 	)
 }
 
-function ChatLinkPreview() {
-	const locale = useLocale() === 'en' ? 'en' : 'fa'
-	const copy = COPY[locale]
+function ConnectionLines({
+	connectorPaths,
+	viewBox,
+	gradientId,
+	reducedMotion,
+}: {
+	connectorPaths: ConnectorPath[]
+	viewBox: string
+	gradientId: string
+	reducedMotion: boolean
+}) {
 	return (
-		<div className="relative mx-auto h-[304px] w-[184px] rounded-[2rem] border-[5px] border-[var(--text-primary)] bg-[var(--text-primary)] p-1" style={{ boxShadow: 'var(--shadow-card)' }}>
-			<div className="absolute left-1/2 top-2 z-10 h-3 w-14 -translate-x-1/2 rounded-full bg-[var(--text-primary)]" />
-			<div className="h-full overflow-hidden rounded-[1.55rem] bg-white px-3 pb-3 pt-7">
-				<div className="flex items-center gap-2 border-b border-[var(--border-default)] pb-2.5">
-					<span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--text-primary)] text-white"><Bot className="h-3.5 w-3.5" /></span>
-					<div><p className="text-[10px] font-medium text-[var(--text-primary)]">Vigent</p><p className="text-[9px] text-[var(--text-secondary)]">{copy.connected}</p></div>
-				</div>
-				<div className="mt-4 rounded-xl rounded-es-sm bg-[var(--bg-surface)] p-2 text-[10px] leading-4 text-[var(--text-secondary)]">{copy.reply}</div>
-				<div className="ms-auto mt-2 max-w-[88%] rounded-xl rounded-ee-sm bg-[var(--text-primary)] p-2 text-[10px] leading-4 text-white">{copy.customer}</div>
-				<div className="absolute inset-x-4 bottom-4 h-8 rounded-full border border-[var(--border-default)] bg-[var(--bg-surface)]" />
-			</div>
-		</div>
-	)
-}
-
-function StorePreview() {
-	const locale = useLocale() === 'en' ? 'en' : 'fa'
-	const copy = COPY[locale]
-	const products = locale === 'fa'
-		? [
-					['کفش راه‌رو ۲', '۱٬۸۹۰٬۰۰۰ تومان'],
-					['کتانی روزمره', '۲٬۱۵۰٬۰۰۰ تومان'],
-					['کفش رانینگ پرو', '۲٬۸۹۰٬۰۰۰ تومان'],
-				]
-		: [
-					['Walker 2', '1,890,000 toman'],
-					['Everyday sneaker', '2,150,000 toman'],
-					['Running Pro', '2,890,000 toman'],
-				]
-
-	return (
-		<div className="w-full max-w-[360px] rounded-2xl border border-[var(--border-default)] bg-white p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
-			<div className="flex items-center justify-between border-b border-[var(--border-default)] pb-3">
-				<div>
-					<p className="text-xs font-semibold text-[var(--text-primary)]">{copy.syncTitle}</p>
-					<p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{copy.productCount}</p>
-				</div>
-				<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--text-primary)] text-white"><Webhook className="h-3.5 w-3.5" aria-hidden /></span>
-			</div>
-			<div className="divide-y divide-[var(--border-subtle)]">
-				{products.map(([name, price]) => (
-					<div key={name} className="flex items-center gap-3 py-2.5">
-						<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)]"><ShoppingBag className="h-3.5 w-3.5 text-[var(--text-muted)]" aria-hidden /></span>
-						<div className="min-w-0"><p className="truncate text-[11px] font-medium text-[var(--text-secondary)]">{name}</p><p className="mt-0.5 text-[10px] text-[var(--text-muted)]">{price}</p></div>
-						<span className="ms-auto rounded-full bg-green-50 px-2 py-1 text-[10px] font-medium text-[var(--success)]">{copy.inStock}</span>
-					</div>
-				))}
-			</div>
-			<p className="mt-2 flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />{copy.updated}</p>
-		</div>
-	)
-}
-
-type MobileChannelTab = 'messaging' | 'chat' | 'store'
-
-function MobileChannelExplorer() {
-	const locale = useLocale() === 'en' ? 'en' : 'fa'
-	const copy = COPY[locale]
-	const [active, setActive] = useState<MobileChannelTab>('messaging')
-	const reduce = useReducedMotion()
-	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
-	const tabs: { id: MobileChannelTab; label: string; Icon: ComponentType<{ className?: string }> }[] = [
-		{ id: 'messaging', label: locale === 'fa' ? 'پیام‌رسان‌ها' : 'Messaging', Icon: MessageCircleMore },
-		{ id: 'chat', label: locale === 'fa' ? 'چت سایت' : 'Site chat', Icon: Globe2 },
-		{ id: 'store', label: locale === 'fa' ? 'فروشگاه' : 'Store', Icon: ShoppingBag },
-	]
-	const channelPairs = [0, 2, 4, 6].map((start) =>
-		copy.channels.slice(start, start + 2).map((label, offset) => ({
-			label,
-			Icon: CHANNEL_ICONS[start + offset],
-		})),
-	)
-
-	return (
-		<div className="mt-8 lg:hidden">
-			<div className="rounded-[1.4rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4">
-				<div className="relative z-10 mx-auto flex min-h-14 max-w-[15rem] items-center gap-3 rounded-2xl border border-[var(--border-default)] bg-white px-3.5" style={{ boxShadow: 'var(--shadow-sm)' }}>
-					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span>
-					<div className="min-w-0 flex-1">
-						<p className="text-sm font-semibold text-[var(--text-primary)]">{copy.hubTitle}</p>
-						<p className="mt-0.5 truncate text-[10px] text-[var(--text-muted)]">{copy.inbox}</p>
-					</div>
-					<span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
-				</div>
-
-				<div aria-hidden className="relative mx-auto h-7 w-px bg-[var(--border-hover)]">
-					{!reduce && (
-						<m.span
-							className="absolute left-1/2 top-0 -ml-1 h-2 w-2 rounded-full bg-black"
-							animate={{ y: [0, 20], opacity: [0, 0.8, 0] }}
-							transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.8, ease: [0.4, 0, 0.2, 1] }}
+		<svg aria-hidden="true" viewBox={viewBox} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+			<defs>
+				<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+					<stop offset="0" stopColor="#c4b5fd" stopOpacity="0.42" />
+					<stop offset="0.55" stopColor="#8b5cf6" stopOpacity="0.72" />
+					<stop offset="1" stopColor="#111827" stopOpacity="0.68" />
+				</linearGradient>
+			</defs>
+			{connectorPaths.map((path, index) => (
+				<g key={path.id}>
+					<path d={path.d} fill="none" stroke="#d9dbe3" strokeWidth="1.45" strokeLinecap="round" opacity="0.92" />
+					<path d={path.d} fill="none" stroke={`url(#${gradientId})`} strokeWidth="4.5" strokeLinecap="round" opacity="0.1" />
+					{!reducedMotion && (
+						<m.path
+							d={path.d}
+							fill="none"
+							stroke="#8b5cf6"
+							strokeWidth="2.2"
+							strokeLinecap="round"
+							strokeDasharray="2 18"
+							initial={false}
+							animate={{ strokeDashoffset: [0, -100], opacity: [0.28, 0.9, 0.28] }}
+							transition={{ duration: 4.8 + index * 0.16, delay: index * 0.22, repeat: Infinity, ease: 'linear' }}
 						/>
 					)}
-				</div>
+				</g>
+			))}
+		</svg>
+	)
+}
 
-				<div className="relative space-y-2" role="list" aria-label={locale === 'fa' ? 'کانال‌های متصل به ایجنت' : 'Channels connected to the agent'}>
-					<span aria-hidden className="absolute bottom-[22px] left-1/2 top-0 w-px -translate-x-1/2 bg-[var(--border-default)]" />
-					{channelPairs.map((pair, row) => (
-						<div key={row} className="relative grid grid-cols-2 gap-7">
-							<span aria-hidden className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[var(--border-default)]" />
-							<span aria-hidden className="absolute left-1/2 top-1/2 z-[1] h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--border-hover)] bg-[var(--bg-surface)]" />
-							{pair.map(({ label, Icon }) => (
-								<div key={label} role="listitem" className="relative z-10 flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-2.5">
-									<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)]"><Icon className="h-3.5 w-3.5 text-[var(--text-secondary)]" /></span>
-									<span className="min-w-0 truncate text-[10px] font-medium text-[var(--text-secondary)] min-[375px]:text-[11px]">{label}</span>
-								</div>
-							))}
-						</div>
-					))}
-				</div>
-			</div>
-
-			<div role="tablist" aria-label={locale === 'fa' ? 'جزئیات اتصال‌ها' : 'Connection details'} className="mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-[var(--bg-surface)] p-1">
-				{tabs.map(({ id, label, Icon }) => (
-					<button
-						key={id}
-						type="button"
-						role="tab"
-						aria-selected={active === id}
-						aria-controls={`mobile-channel-${id}`}
-						onClick={() => setActive(id)}
-						className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${active === id ? 'bg-black text-white shadow-sm' : 'text-[var(--text-secondary)]'}`}
-					>
-						<Icon className="h-3.5 w-3.5" />{label}
-					</button>
-				))}
-			</div>
-
+function InboxHub({ locale, reducedMotion }: { locale: Locale; reducedMotion: boolean }) {
+	const copy = COPY[locale]
+	return (
+		<div className="relative mx-auto w-full max-w-[540px]">
 			<m.div
-				key={active}
-				id={`mobile-channel-${active}`}
-				role="tabpanel"
-				initial={reduce ? false : { opacity: 0, y: 8 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={reduce ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
-				className="mt-3 min-h-[255px] overflow-hidden rounded-[1.4rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-5"
-			>
-				{active === 'messaging' && (
-					<div>
-						<div className="flex items-center justify-between">
-							<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><Bot className="h-4 w-4" /></span>
-							<span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] text-[var(--text-secondary)]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{copy.connected}</span>
-						</div>
-						<h3 className="mt-5 text-lg font-semibold text-[var(--text-primary)]">{copy.hubTitle}</h3>
-						<p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{copy.hubDesc}</p>
-						<div className="mt-4 space-y-2 rounded-2xl bg-white p-3">
-							<p className="ms-auto max-w-[82%] rounded-xl rounded-ee-sm bg-black px-3 py-2 text-[10px] leading-5 text-white">{copy.customer}</p>
-							<p className="max-w-[90%] rounded-xl rounded-es-sm border border-[var(--border-default)] px-3 py-2 text-[10px] leading-5 text-[var(--text-secondary)]">{copy.reply}</p>
-						</div>
-					</div>
-				)}
+				aria-hidden="true"
+				className="absolute -inset-5 rounded-[38px] bg-gradient-to-r from-violet-500/25 via-fuchsia-400/18 to-sky-400/20 blur-2xl"
+				initial={false}
+				animate={reducedMotion ? { opacity: 0.42 } : { opacity: [0.28, 0.58, 0.28], transform: ['scale(0.97)', 'scale(1.035)', 'scale(0.97)'] }}
+				transition={reducedMotion ? { duration: 0 } : { duration: 5.2, repeat: Infinity, ease: [0.77, 0, 0.175, 1] }}
+			/>
+			<div className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[#0b0b0e] px-4 py-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-6">
+				<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,0.32),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(56,189,248,0.14),transparent_36%)]" />
+				<span aria-hidden="true" className="absolute start-1/2 top-0 grid size-3 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#0b0b0e] bg-violet-400 shadow-[0_0_18px_#a78bfa]">
+					<m.span
+						className="absolute size-3 rounded-full border border-violet-300"
+						initial={false}
+						animate={reducedMotion ? { opacity: 0 } : { opacity: [0.7, 0], transform: ['scale(1)', 'scale(3)'] }}
+						transition={reducedMotion ? { duration: 0 } : { duration: 3.2, repeat: Infinity, ease: [0.23, 1, 0.32, 1] }}
+					/>
+				</span>
 
-				{active === 'chat' && (
-					<div>
-						<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><Link2 className="h-4 w-4" /></span>
-						<h3 className="mt-5 text-lg font-semibold leading-7 text-[var(--text-primary)]">{copy.chatTitle}</h3>
-						<p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{copy.chatDesc}</p>
-						<Link href="/solutions/persian-ai-chatbot" className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">{copy.chatCta}<Arrow className="h-4 w-4" /></Link>
+				<div className="relative hidden w-full grid-cols-[18%_38%_18%] items-center justify-between sm:grid">
+					<div className="flex justify-start">
+						<span className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.07] text-violet-200 shadow-inner">
+							<Inbox className="size-5" />
+						</span>
 					</div>
-				)}
+					<div className="text-center">
+						<p className="text-[9px] font-black uppercase tracking-[0.12em] text-violet-300">{copy.hubEyebrow}</p>
+						<h3 className="mt-1.5 text-xl font-black tracking-[-0.025em]">{copy.hubTitle}</h3>
+						<p className="mt-1 text-[10px] font-semibold text-white/45">{copy.hubSubtitle}</p>
+					</div>
+					<div className="flex justify-end">
+						<div className="text-end">
+							<p className="text-[10px] font-black text-white">{copy.active}</p>
+							<p className="mt-1 flex items-center justify-end gap-1.5 text-[9px] font-extrabold text-emerald-300">
+								<span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
+								{copy.live}
+							</p>
+						</div>
+					</div>
+				</div>
 
-				{active === 'store' && (
-					<div>
-						<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white"><ShoppingBag className="h-4 w-4" /></span>
-						<h3 className="mt-5 text-lg font-semibold leading-7 text-[var(--text-primary)]">{copy.storeTitle}</h3>
-						<p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">{copy.storeDesc}</p>
-						<Link href="/solutions/ecommerce-ai" className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">{copy.storeCta}<Arrow className="h-4 w-4" /></Link>
+				<div className="relative flex items-center gap-3 sm:hidden">
+					<span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.07] text-violet-200">
+						<Inbox className="size-5" />
+					</span>
+					<div className="min-w-0 flex-1">
+						<p className="text-[9px] font-black text-violet-300">{copy.hubEyebrow}</p>
+						<h3 className="mt-1 text-base font-black">{copy.hubTitle}</h3>
+						<p className="mt-1 truncate text-[9px] font-semibold text-white/45">{copy.hubSubtitle}</p>
 					</div>
-				)}
-			</m.div>
+					<span className="size-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" />
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function IncomingNotifications({ locale, reducedMotion, className }: { locale: Locale; reducedMotion: boolean; className: string }) {
+	const notifications = COPY[locale].notifications
+	if (reducedMotion) return null
+
+	return (
+		<div aria-hidden="true" className={`pointer-events-none absolute start-1/2 z-30 ${className}`}>
+			{notifications.map((notification, index) => {
+				const channel = CHANNELS.find((item) => item.key === notification.channel) ?? CHANNELS[0]
+				return (
+					<m.div
+						key={notification.channel}
+						className="absolute start-0 top-0 flex w-max max-w-[220px] items-center gap-2 rounded-full border border-black/[0.07] bg-white/95 py-1.5 pe-3 ps-1.5 text-[10px] font-extrabold text-neutral-700 opacity-0 shadow-[0_12px_32px_rgba(15,23,42,0.14)] backdrop-blur"
+						initial={false}
+						animate={{
+							opacity: [0, 0, 1, 1, 0, 0],
+							transform: [
+								'translate3d(-50%,-10px,0) scale(0.96)',
+								'translate3d(-50%,-10px,0) scale(0.96)',
+								'translate3d(-50%,0,0) scale(1)',
+								'translate3d(-50%,34px,0) scale(1)',
+								'translate3d(-50%,96px,0) scale(0.97)',
+								'translate3d(-50%,96px,0) scale(0.97)',
+							],
+						}}
+						transition={{ duration: 18, delay: 1.2 + index * 6, repeat: Infinity, times: [0, 0.02, 0.075, 0.17, 0.23, 1], ease: 'linear' }}
+					>
+						<span className={`grid size-7 shrink-0 place-items-center rounded-full border ${channel.iconSurface}`}>
+							<ChannelLogo channel={channel} small />
+						</span>
+						<span>{notification.text}</span>
+						<span className="size-1.5 shrink-0 rounded-full bg-violet-500" />
+					</m.div>
+				)
+			})}
+		</div>
+	)
+}
+
+function DesktopFlow({ locale, reducedMotion }: { locale: Locale; reducedMotion: boolean }) {
+	return (
+		<div className="hidden lg:block">
+			<div className="relative min-h-[430px]">
+				<ConnectionLines connectorPaths={connectorPaths} viewBox="0 0 1200 430" gradientId="desktop-channel-flow" reducedMotion={reducedMotion} />
+				<ul className="relative grid grid-cols-6 gap-3">
+					{CHANNELS.map((channel) => <ChannelCard key={channel.key} channel={channel} locale={locale} reducedMotion={reducedMotion} />)}
+				</ul>
+				<IncomingNotifications locale={locale} reducedMotion={reducedMotion} className="top-[205px]" />
+				<div className="absolute inset-x-0 bottom-2"><InboxHub locale={locale} reducedMotion={reducedMotion} /></div>
+			</div>
+		</div>
+	)
+}
+
+function MobileFlow({ locale, reducedMotion }: { locale: Locale; reducedMotion: boolean }) {
+	const channelPairs = [0, 2, 4, 6]
+	return (
+		<div className="relative min-h-[580px] lg:hidden">
+			<ConnectionLines connectorPaths={mobileConnectorPaths} viewBox="0 0 360 580" gradientId="mobile-channel-flow" reducedMotion={reducedMotion} />
+			<div className="relative space-y-5">
+				{channelPairs.map((start) => {
+					const pair = CHANNELS.slice(start, start + 2)
+					if (pair.length === 0) return null
+					return (
+						<ul key={start} className="relative grid grid-cols-2 gap-7">
+							{pair.map((channel) => <ChannelCard key={channel.key} channel={channel} locale={locale} reducedMotion={reducedMotion} />)}
+						</ul>
+					)
+				})}
+			</div>
+			<IncomingNotifications locale={locale} reducedMotion={reducedMotion} className="top-[382px]" />
+			<div className="absolute inset-x-0 bottom-1"><InboxHub locale={locale} reducedMotion={reducedMotion} /></div>
 		</div>
 	)
 }
 
 export function ChannelsSection() {
-	const locale = useLocale() === 'en' ? 'en' : 'fa'
+	const locale = (useLocale() === 'fa' ? 'fa' : 'en') as Locale
 	const copy = COPY[locale]
-	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
+	const reducedMotion = Boolean(useReducedMotion())
 
 	return (
-		<section id="product" className="marketing-story-section scroll-mt-24 bg-white py-16 sm:py-20 lg:py-24">
-			<div className="mx-auto max-w-7xl px-5 sm:px-8">
-				<div className="mx-auto max-w-4xl border-t border-[var(--border-default)] pt-6 text-center">
-					<p className="marketing-eyebrow">{copy.eyebrow}</p>
-					<h2 className={`marketing-channels-title mx-auto mt-4 font-semibold leading-[1.2] text-[var(--text-primary)] sm:text-[clamp(2rem,4vw,3.35rem)] ${locale === 'fa' ? 'text-[clamp(1.05rem,min(5.35vw,3.35rem),3.35rem)]' : 'text-[clamp(1.05rem,min(5.1vw,3.35rem),3.35rem)]'}`}>{copy.title}</h2>
-					<p className="marketing-subtitle mx-auto mt-4">{copy.subtitle}</p>
-				</div>
+		<section id="product" dir={locale === 'fa' ? 'rtl' : 'ltr'} className="relative overflow-hidden bg-[#fbfbfd] py-20 sm:py-28">
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.10),transparent_36%),radial-gradient(circle_at_8%_72%,rgba(56,189,248,0.07),transparent_26%),radial-gradient(circle_at_92%_68%,rgba(244,114,182,0.065),transparent_24%)]" />
+			<div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
 
-				<div className="hidden lg:block"><ConnectionBoard /></div>
-				<MobileChannelExplorer />
+			<div className="relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-8">
+				<header className="mx-auto max-w-3xl text-center">
+					<div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-white/80 px-3 py-1.5 text-[10px] font-black text-violet-700 shadow-[0_6px_22px_rgba(124,58,237,0.08)] backdrop-blur sm:text-[11px]">
+						<Sparkles className="size-3.5" />
+						{copy.eyebrow}
+					</div>
+					<h2 className="text-balance text-[clamp(2rem,5vw,4.35rem)] font-black leading-[1.05] tracking-[-0.055em] text-neutral-950">{copy.title}</h2>
+					<p className="mx-auto mt-5 max-w-2xl text-pretty text-sm font-medium leading-7 text-neutral-600 sm:text-base sm:leading-8">{copy.subtitle}</p>
+				</header>
 
-				<div className="mt-5 hidden items-stretch gap-5 lg:grid lg:grid-cols-2">
-					<article className="group relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 sm:p-8 lg:min-h-[620px]">
-						<div className="relative z-10">
-							<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white"><Link2 className="h-4 w-4" /></span>
-							<h3 className="mt-6 max-w-[32rem] text-[clamp(1.35rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-[var(--text-primary)] text-balance">{copy.chatTitle}</h3>
-							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-[var(--text-secondary)]">{copy.chatDesc}</p>
-							<Link href="/solutions/persian-ai-chatbot" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--accent-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
-								{copy.chatCta}<Arrow className="h-4 w-4" />
-							</Link>
-						</div>
-						<div className="mx-auto mt-8 flex flex-1 items-end rotate-[-3deg] transition-transform duration-150 group-hover:rotate-0 ltr:rotate-[3deg]">
-							<ChatLinkPreview />
-						</div>
-					</article>
-
-					<article className="relative flex min-h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 sm:p-8 lg:min-h-[620px]">
-						<div className="relative z-10">
-							<span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white"><ShoppingBag className="h-4 w-4" /></span>
-							<h3 className="mt-6 text-balance text-[clamp(1.2rem,2.15vw,1.8rem)] font-medium leading-[1.45] text-[var(--text-primary)] lg:whitespace-nowrap">{copy.storeTitle}</h3>
-							<p className="mt-3 max-w-[34rem] text-sm leading-7 text-[var(--text-secondary)]">{copy.storeDesc}</p>
-							<Link href="/solutions/ecommerce-ai" className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--accent-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
-								{copy.storeCta}<Arrow className="h-4 w-4" />
-							</Link>
-						</div>
-						<div className="mt-8 flex flex-1 items-end justify-center">
-							<StorePreview />
-						</div>
-					</article>
+				<div aria-label={copy.ariaLabel} className="relative mt-10 rounded-[28px] border border-white bg-white/45 p-3 shadow-[0_30px_100px_rgba(15,23,42,0.075)] ring-1 ring-black/[0.035] backdrop-blur-sm sm:mt-14 sm:rounded-[36px] sm:p-5 lg:p-7">
+					<div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/70 to-transparent" />
+					<div className="mb-4 flex items-center justify-center gap-2 text-[9px] font-extrabold text-neutral-400 sm:text-[10px]">
+						<Workflow className="size-3.5 text-violet-500" />
+						<span>{locale === 'fa' ? 'جریان زندهٔ پیام‌ها به سمت صندوق مشترک' : 'Live message flow into the shared inbox'}</span>
+					</div>
+					<DesktopFlow locale={locale} reducedMotion={reducedMotion} />
+					<MobileFlow locale={locale} reducedMotion={reducedMotion} />
 				</div>
 			</div>
 		</section>

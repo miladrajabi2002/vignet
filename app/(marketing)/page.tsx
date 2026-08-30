@@ -30,9 +30,6 @@ const OnboardingTimeline = dynamicImport(() =>
 const ChannelsSection = dynamicImport(() =>
 	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
 )
-const VigentoSection = dynamicImport(() =>
-	import('@/components/marketing/vigento-section').then((m) => m.VigentoSection),
-)
 const PricingSection = dynamicImport(() =>
 	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
 )
@@ -221,7 +218,6 @@ export default async function HomePage() {
 			<InstagramAutomationSection locale={locale} />
 			<SalesBookingChapter locale={locale} />
 			<ChannelsSection />
-			<VigentoSection />
 			<OnboardingTimeline locale={locale} id="onboarding" />
 			<Suspense fallback={null}>
 				<PricingSection />

@@ -3,7 +3,21 @@
 import { useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, m, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Play, Sparkles, Timer } from 'lucide-react'
+import {
+	ArrowLeft,
+	ArrowRight,
+	Bot,
+	Building2,
+	Check,
+	ChevronDown,
+	Database,
+	MessagesSquare,
+	Play,
+	Smartphone,
+	Sparkles,
+	Timer,
+	type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { COMMON_COPY } from './content'
 import type { HomeLocale, HomeVariant, HomeVariantPageProps, PlanPreview } from './types'
@@ -199,69 +213,104 @@ export function TrustRail({ locale, inverse = false }: { locale: HomeLocale; inv
 }
 
 /* ------------------------------------------------------------------ */
-/* Onboarding — scroll-scrubbed vertical timeline                       */
+/* Onboarding — sticky, scroll-focused steps                           */
 /* ------------------------------------------------------------------ */
 
+const ONBOARDING_ICONS: LucideIcon[] = [Smartphone, Building2, Bot, Database, MessagesSquare]
+
 function OnboardingStep({
+	active,
 	index,
 	total,
 	progress,
 	inverse,
 	locale,
 	step,
-	compact = false,
+	staticMode = false,
 }: {
+	active: boolean
 	index: number
 	total: number
 	progress: MotionValue<number>
 	inverse: boolean
 	locale: HomeLocale
 	step: { title: string; description: string; result: string; duration: string }
-	compact?: boolean
+	staticMode?: boolean
 }) {
-	const reduce = useReducedMotion()
-	const threshold = index / total
-	const gate = useTransform(progress, [Math.max(0, threshold - 0.08), threshold + 0.05], [0, 1])
-	const smooth = useSpring(gate, { stiffness: 120, damping: 22 })
-	const scale = useTransform(smooth, [0, 1], [0.8, 1])
-	const y = useTransform(smooth, [0, 1], reduce ? [0, 0] : [18, 0])
 	const fa = locale === 'fa'
+	const Icon = ONBOARDING_ICONS[index] ?? Sparkles
+	const stepSize = 1 / Math.max(1, total - 1)
+	const center = index * stepSize
+	const input = [center - stepSize * 2, center - stepSize, center, center + stepSize, center + stepSize * 2]
+	const y = useTransform(progress, input, [448, 224, 0, -224, -448])
+	const scale = useTransform(progress, input, [0.84, 0.9, 1, 0.9, 0.84])
+	const opacity = useTransform(progress, input, [0, 0.42, 1, 0.42, 0])
+
 	return (
-		<div className="relative grid grid-cols-[44px_1fr] gap-4 sm:grid-cols-[56px_1fr] sm:gap-6">
-			<div className="relative flex justify-center">
-				<m.span
-					style={{ scale: reduce ? 1 : scale, opacity: smooth }}
-					className={cn(
-						'top-1 sticky grid h-11 w-11 place-items-center rounded-2xl text-[13px] font-bold transition-colors sm:h-14 sm:w-14 sm:text-base',
-						inverse ? 'bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.45)]' : 'bg-black text-white shadow-[0_14px_36px_rgba(0,0,0,0.22)]',
-					)}
-				>
-					{fa ? new Intl.NumberFormat('fa-IR').format(index + 1) : index + 1}
-				</m.span>
-			</div>
-			<m.div
-				style={{ opacity: smooth, y }}
+		<li
+			aria-current={active && !staticMode ? 'step' : undefined}
+			className={cn(staticMode ? 'relative' : 'pointer-events-none absolute inset-0 flex items-center justify-center')}
+		>
+			<m.article
+				style={staticMode ? undefined : { y, scale, opacity }}
 				className={cn(
-					'rounded-[1.4rem] border p-5 sm:p-6',
-					inverse ? 'border-white/12 bg-white/[0.05]' : 'border-black/[0.08] bg-white shadow-[0_14px_44px_rgba(0,0,0,0.06)]',
+					'relative w-full max-w-[46rem] transform-gpu overflow-hidden rounded-[1.65rem] border p-5 transition-[border-color,background-color,box-shadow] duration-300 sm:p-7',
+					!staticMode && 'will-change-[transform,opacity]',
+					inverse
+						? active
+							? 'border-emerald-300/45 bg-white/[0.09] shadow-[0_24px_70px_rgba(0,0,0,0.42)]'
+							: 'border-white/10 bg-white/[0.045] shadow-[0_10px_32px_rgba(0,0,0,0.18)]'
+						: active
+							? 'border-emerald-500/30 bg-white shadow-[0_24px_70px_rgba(16,80,60,0.13),0_3px_16px_rgba(0,0,0,0.05)]'
+							: 'border-black/[0.07] bg-white shadow-[0_10px_34px_rgba(0,0,0,0.045)]',
 				)}
 			>
-				<div className="flex flex-wrap items-center justify-between gap-2">
-					<h3 className={cn('text-[15px] font-semibold sm:text-lg', inverse ? 'text-white' : 'text-black')}>{step.title}</h3>
-					<span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold', inverse ? 'bg-emerald-300/12 text-emerald-300' : 'bg-emerald-50 text-emerald-700')}>
-						<Timer className="h-3 w-3" aria-hidden />
-						{step.duration}
-					</span>
-				</div>
-				<p className={cn('mt-2.5 text-[13px] leading-7', inverse ? 'text-white/50' : 'text-black/52')}>{step.description}</p>
-				{compact ? null : (
-					<p className={cn('mt-4 inline-flex items-center gap-1.5 text-[11.5px] font-semibold', inverse ? 'text-emerald-300' : 'text-emerald-700')}>
+				<div
+					aria-hidden
+					className={cn(
+						'absolute inset-x-12 top-0 h-px transition-opacity duration-300',
+						active ? 'opacity-100' : 'opacity-0',
+						inverse ? 'bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent' : 'bg-gradient-to-r from-transparent via-emerald-500/55 to-transparent',
+					)}
+				/>
+				<div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[64px_minmax(0,1fr)] sm:gap-x-5">
+					<div
+						className={cn(
+							'grid h-14 w-14 shrink-0 place-items-center rounded-[1.15rem] transition-[background-color,color,transform,box-shadow] duration-300 sm:h-16 sm:w-16',
+							active ? 'scale-100' : 'scale-[0.92]',
+							inverse
+								? active
+									? 'bg-emerald-300 text-emerald-950 shadow-[0_12px_30px_rgba(52,211,153,0.2)]'
+									: 'bg-white/10 text-white/60'
+								: active
+									? 'bg-emerald-50 text-emerald-700 shadow-[0_12px_30px_rgba(16,185,129,0.12)]'
+									: 'bg-black/[0.045] text-black/45',
+						)}
+					>
+						<Icon className={cn('h-6 w-6 transition-transform duration-300 sm:h-7 sm:w-7', active && 'scale-110')} strokeWidth={1.7} />
+					</div>
+					<div className="min-w-0">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<div className="flex min-w-0 items-center gap-2.5">
+								<span className={cn('shrink-0 text-[10px] font-bold tabular-nums sm:text-[11px]', inverse ? 'text-white/35' : 'text-black/35')}>
+									{fa ? new Intl.NumberFormat('fa-IR').format(index + 1) : index + 1}
+								</span>
+								<h3 className={cn('text-[15px] font-semibold sm:text-lg', inverse ? 'text-white' : 'text-black')}>{step.title}</h3>
+							</div>
+							<span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold', inverse ? 'bg-emerald-300/12 text-emerald-300' : 'bg-emerald-50 text-emerald-700')}>
+								<Timer className="h-3 w-3" aria-hidden />
+								{step.duration}
+							</span>
+						</div>
+					</div>
+					<p className={cn('col-span-2 mt-3 text-[13px] leading-7 sm:col-span-1 sm:col-start-2 sm:mt-2.5 sm:text-sm', inverse ? 'text-white/52' : 'text-black/55')}>{step.description}</p>
+					<p className={cn('col-span-2 mt-3 inline-flex items-center gap-1.5 text-[11.5px] font-semibold sm:col-span-1 sm:col-start-2', inverse ? 'text-emerald-300' : 'text-emerald-700')}>
 						<Check className="h-4 w-4" aria-hidden />
 						{step.result}
 					</p>
-				)}
-			</m.div>
-		</div>
+				</div>
+			</m.article>
+		</li>
 	)
 }
 
@@ -278,10 +327,17 @@ export function OnboardingTimeline({
 }) {
 	const copy = COMMON_COPY[locale]
 	const ref = useRef<HTMLDivElement>(null)
-	const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.75', 'end 0.55'] })
-	const lineScale = useSpring(scrollYProgress, { stiffness: 90, damping: 24 })
+	const reduce = useReducedMotion()
+	const [activeIndex, setActiveIndex] = useState(0)
+	const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
+	const smoothProgress = useSpring(scrollYProgress, { stiffness: 110, damping: 28, restDelta: 0.001 })
+	useMotionValueEvent(smoothProgress, 'change', (value) => {
+		const next = Math.min(copy.onboardingSteps.length - 1, Math.max(0, Math.round(value * (copy.onboardingSteps.length - 1))))
+		setActiveIndex((current) => (current === next ? current : next))
+	})
+
 	return (
-		<section id={id} className={cn('marketing-story-section relative overflow-hidden px-5 py-20 sm:px-8 sm:py-28', inverse ? 'bg-[#070707] text-white' : 'bg-[var(--bg-base)]', className)}>
+		<section id={id} className={cn('marketing-story-section relative px-5 py-20 sm:px-8 sm:py-28', inverse ? 'bg-[#070707] text-white' : 'bg-[var(--bg-base)]', className)}>
 			<div className="mx-auto max-w-4xl">
 				<SectionHeading
 					eyebrow={copy.onboardingEyebrow}
@@ -289,25 +345,49 @@ export function OnboardingTimeline({
 					subtitle={copy.onboardingSubtitle}
 					inverse={inverse}
 				/>
-				<div ref={ref} className="relative mt-12 space-y-5 sm:mt-16 sm:space-y-7">
-					<div aria-hidden className={cn('absolute bottom-6 start-[22px] top-6 w-[2px] rounded-full sm:start-[27px]', inverse ? 'bg-white/10' : 'bg-black/[0.08]')} />
-					<m.div
-						aria-hidden
-						style={{ scaleY: lineScale }}
-						className={cn('absolute bottom-6 start-[22px] top-6 w-[2px] origin-top rounded-full sm:start-[27px]', inverse ? 'bg-emerald-300' : 'bg-emerald-500')}
-					/>
+			</div>
+
+			{reduce ? (
+				<ol className="mx-auto mt-12 max-w-4xl space-y-5 sm:mt-16 sm:space-y-6">
 					{copy.onboardingSteps.map((step, index) => (
-						<OnboardingStep
-							key={step.title}
-							index={index}
-							total={copy.onboardingSteps.length}
-							progress={scrollYProgress}
-							inverse={inverse}
-							locale={locale}
-							step={step}
-						/>
+						<OnboardingStep key={step.title} active index={index} total={copy.onboardingSteps.length} progress={smoothProgress} inverse={inverse} locale={locale} step={step} staticMode />
 					))}
+				</ol>
+			) : (
+				<div ref={ref} className="relative mt-8" style={{ height: `${Math.max(360, copy.onboardingSteps.length * 72)}svh` }}>
+					<div className="sticky top-0 h-[100svh] overflow-hidden">
+						<div aria-hidden className={cn('pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b to-transparent', inverse ? 'from-[#070707]' : 'from-[var(--bg-base)]')} />
+						<div aria-hidden className={cn('pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t to-transparent', inverse ? 'from-[#070707]' : 'from-[var(--bg-base)]')} />
+						<ol className="relative mx-auto h-full max-w-4xl" aria-label={copy.onboardingTitle}>
+							{copy.onboardingSteps.map((step, index) => (
+								<OnboardingStep
+									key={step.title}
+									active={index === activeIndex}
+									index={index}
+									total={copy.onboardingSteps.length}
+									progress={smoothProgress}
+									inverse={inverse}
+									locale={locale}
+									step={step}
+								/>
+							))}
+						</ol>
+						<div aria-hidden className="absolute bottom-7 start-1/2 z-20 flex -translate-x-1/2 gap-1.5 rtl:translate-x-1/2">
+							{copy.onboardingSteps.map((step, index) => (
+								<span
+									key={step.title}
+									className={cn(
+										'h-1.5 rounded-full transition-[width,background-color,opacity] duration-300',
+										index === activeIndex ? 'w-5 bg-emerald-500 opacity-100' : inverse ? 'w-1.5 bg-white opacity-20' : 'w-1.5 bg-black opacity-15',
+									)}
+								/>
+							))}
+						</div>
+					</div>
 				</div>
+			)}
+
+			<div className="mx-auto max-w-4xl">
 				<RevealBlock className="mt-10 flex justify-center">
 					<HeroActions locale={locale} inverse={inverse} secondaryHref="#pricing" />
 				</RevealBlock>
