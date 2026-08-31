@@ -10,7 +10,7 @@ import { Logo } from '@/components/ui/logo'
 import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
-const SECTION_IDS = ['product', 'solutions', 'vigento', 'pricing'] as const
+const SECTION_IDS = ['solutions', 'product', 'vigento', 'pricing'] as const
 const HOME_VARIANT_PATH = /^\/[1-5]$/
 
 const COPY = {
@@ -67,33 +67,27 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 			setActiveSection('')
 			return
 		}
-		let frame = 0
-		const update = () => {
-			cancelAnimationFrame(frame)
-			frame = requestAnimationFrame(() => {
-				const marker = Math.min(window.innerHeight * 0.34, 280)
-				const current = SECTION_IDS.map((id) => document.getElementById(id)).find((section) => {
-					if (!section) return false
-					const rect = section.getBoundingClientRect()
-					return rect.top <= marker && rect.bottom > marker
-				})
-				setActiveSection(current?.id ?? '')
-			})
-		}
-		update()
-		window.addEventListener('scroll', update, { passive: true })
-		window.addEventListener('resize', update, { passive: true })
-		return () => {
-			cancelAnimationFrame(frame)
-			window.removeEventListener('scroll', update)
-			window.removeEventListener('resize', update)
-		}
+		const sections = SECTION_IDS.map((id) => document.getElementById(id)).filter((section): section is HTMLElement => Boolean(section))
+		if (!('IntersectionObserver' in window)) return
+		const visible = new Set<string>()
+		const observer = new IntersectionObserver((entries) => {
+			for (const entry of entries) {
+				if (entry.isIntersecting) visible.add(entry.target.id)
+				else visible.delete(entry.target.id)
+			}
+			setActiveSection(SECTION_IDS.find((id) => visible.has(id)) ?? '')
+		}, {
+			rootMargin: '-30% 0px -60% 0px',
+			threshold: 0,
+		})
+		for (const section of sections) observer.observe(section)
+		return () => observer.disconnect()
 	}, [isLandingPath, pathname])
 
 	const links = [
 		{ href: '/', id: 'home', label: copy.home },
-		{ href: '/#product', id: 'product', label: copy.product },
 		{ href: '/#solutions', id: 'solutions', label: copy.solutions },
+		{ href: '/#product', id: 'product', label: copy.product },
 		{ href: '/#vigento', id: 'vigento', label: copy.vigento },
 		{ href: '/#pricing', id: 'pricing', label: t('pricing') },
 		{ href: '/blog', id: 'blog', label: t('blog') },

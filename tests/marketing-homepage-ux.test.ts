@@ -9,10 +9,10 @@ describe('marketing homepage UX contracts', () => {
 	it('keeps every homepage navigation anchor backed by a real section', () => {
 		const navbar = read('components/marketing/navbar.tsx')
 		const sections = [
-			'components/marketing/channels-section.tsx',
-			'components/marketing/features-section.tsx',
+			'components/marketing/hero.tsx',
+			'components/marketing/capabilities-section.tsx',
+			'components/marketing/home-onboarding.tsx',
 			'components/marketing/pricing-section.tsx',
-			'components/marketing/vigento-section.tsx',
 		].map(read).join('\n')
 		const anchorIds = [...navbar.matchAll(/href: '\/#([^']+)'/g)].map((match) => match[1])
 
@@ -49,7 +49,7 @@ describe('marketing homepage UX contracts', () => {
 		expect(pixelSizes).toEqual([])
 	})
 
-	it('removes the demo and routes its former calls to action to Vigento', () => {
+	it('routes the homepage secondary call to action to the capability overview', () => {
 		const hero = read('components/marketing/hero.tsx')
 		const graph = read('components/marketing/neural-operation-graph.tsx')
 		const page = read('app/(marketing)/page.tsx')
@@ -62,8 +62,8 @@ describe('marketing homepage UX contracts', () => {
 		expect(graph).not.toContain('sharedBrain')
 		expect(existsSync(join(root, 'components/marketing/demo-section.tsx'))).toBe(false)
 		expect(page).not.toContain('DemoSection')
-		expect(hero).toContain('href="#vigento"')
-		expect(hero).not.toContain('#demo')
+		expect(hero).toContain('href="#solutions"')
+		expect(hero).not.toContain('href="#demo"')
 		expect(solutionPage).toContain('href="/#vigento"')
 		expect(solutionPage).not.toContain('/#demo')
 	})
@@ -84,15 +84,26 @@ describe('marketing homepage UX contracts', () => {
 		expect(controller).toContain('mutationObserver.disconnect()')
 	})
 
-	it('keeps both desktop and mobile channel maps visibly connected', () => {
-		const channels = read('components/marketing/channels-section.tsx')
+	it('integrates static channel logos into the operations center without a duplicate inbox section', () => {
+		const page = read('app/(marketing)/page.tsx')
+		const hero = read('components/marketing/hero.tsx')
 
-		expect(channels).toContain('hidden lg:block')
-		expect(channels).toContain('grid-cols-[18%_38%_18%]')
-		expect(channels).toContain('const channelPairs = [0, 2, 4, 6]')
-		expect(channels).toContain('relative grid grid-cols-2 gap-7')
-		expect(channels).toContain('connectorPaths.map')
-		expect(channels).toContain('useReducedMotion')
+		expect(page).not.toContain('ChannelsSection')
+		expect(hero).toContain('ConnectedChannelLogos')
+		expect(hero).toContain('/brands/bale-logo.svg')
+		expect(hero).toContain('/brands/rubika-logo.svg')
+		expect(hero).toContain("fa: 'اینستاگرام'")
+		expect(hero).toContain("fa: 'تلگرام'")
+		expect(hero).not.toContain('پیام جدید از')
+		expect(hero).not.toContain('marketing-node-ring')
+	})
+
+	it('marks the middle pricing plan as the recommended default', () => {
+		const pricing = read('components/marketing/pricing-section.tsx')
+
+		expect(pricing).toContain("recommended: plan === 'PRO'")
+		expect(pricing).toContain('open={view.recommended}')
+		expect(pricing).toContain("locale === 'fa' ? 'پیشنهاد ما' : 'Recommended'")
 	})
 
 	it('plays DM, story reply and comment-to-DM as one staged Instagram simulation', () => {
@@ -146,13 +157,40 @@ describe('marketing homepage UX contracts', () => {
 	})
 
 	it('defers the Instagram simulation until its reserved viewport area is reached', () => {
-		const sections = read('components/marketing/home-sections.tsx')
+		const lazyDemo = read('components/marketing/instagram-demo-lazy.tsx')
+		const demo = read('components/marketing/instagram-demo.tsx')
 
-		expect(sections).toContain('function DeferredInstagramMock')
-		expect(sections).toContain('useInView(containerRef, { amount: 0.08 })')
-		expect(sections).toContain('{isInView ? (')
-		expect(sections).toContain('<InstagramMock locale={locale} inverse active />')
-		expect(sections).toContain('min-h-[47rem] md:min-h-[45rem]')
+		expect(lazyDemo).toContain("import dynamic from 'next/dynamic'")
+		expect(lazyDemo).toContain('ssr: false')
+		expect(lazyDemo).toContain('new IntersectionObserver')
+		expect(lazyDemo).toContain("rootMargin: '600px 0px'")
+		expect(lazyDemo).toContain('min-h-[43rem] md:min-h-[45rem]')
+		expect(demo).toContain('<InstagramMock locale={locale} inverse active />')
+		expect(demo).toContain('LazyMotion')
+	})
+
+	it('keeps the initial homepage motion path free of Framer Motion', () => {
+		for (const file of [
+			'components/marketing/hero.tsx',
+			'components/marketing/neural-operation-graph.tsx',
+			'components/marketing/channels-section.tsx',
+			'components/marketing/social-proof.tsx',
+			'components/marketing/faq-section.tsx',
+		]) {
+			expect(read(file), file).not.toContain('framer-motion')
+		}
+	})
+
+	it('uses one adaptive onboarding flow instead of duplicated or viewport-locking markup', () => {
+		const onboarding = read('components/marketing/home-onboarding.tsx')
+
+		expect(onboarding).toContain('lg:hidden')
+		expect(onboarding).toContain('lg:grid-cols-[0.72fr_1.28fr]')
+		expect(onboarding.match(/<StepCard/g)).toHaveLength(1)
+		expect(onboarding).not.toContain('compact')
+		expect(onboarding).toContain('data-scroll-reveal="up"')
+		expect(onboarding).not.toContain('360svh')
+		expect(onboarding).not.toContain('sticky top-0 h-[100svh]')
 	})
 
 	it('advertises the active language without inventing duplicate hreflang URLs', () => {

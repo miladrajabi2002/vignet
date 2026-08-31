@@ -16,26 +16,25 @@ describe('marketing homepage composition', () => {
 	it('integrates the selected concept sections into the homepage in order', () => {
 		const homepage = read('app/(marketing)/page.tsx')
 		const sections = [
-			'<CapabilitiesBento locale={locale} />',
-			'<LiveChatDemo locale={locale} />',
+			'<CapabilitiesSection locale={locale} />',
 			'<InstagramAutomationSection locale={locale} />',
-			'<SalesBookingChapter locale={locale} />',
-			'<OnboardingTimeline locale={locale} id="onboarding" />',
+			'<HomeOnboarding locale={locale} />',
 		]
 
 		for (const section of sections) expect(homepage).toContain(section)
 		for (let index = 1; index < sections.length; index += 1) {
 			expect(homepage.indexOf(sections[index - 1])).toBeLessThan(homepage.indexOf(sections[index]))
 		}
+		expect(homepage).not.toContain('<ChannelsSection')
 		expect(homepage).not.toContain('<FeaturesSection />')
+		expect(homepage).not.toContain('<SalesBookingChapter locale={locale} />')
 	})
 
 	it('keeps homepage navigation anchors available', () => {
-		const sections = read('components/marketing/home-sections.tsx')
-		expect(sections).toContain('id="solutions"')
-		expect(sections).toContain('id="demo"')
-		expect(sections).toContain('id="product"')
-		expect(read('components/marketing/vigento-section.tsx')).toContain('id="vigento"')
+		expect(read('components/marketing/capabilities-section.tsx')).toContain('id="solutions"')
+		expect(read('components/marketing/hero.tsx')).toContain('id="product"')
+		expect(read('components/marketing/home-onboarding.tsx')).toContain('id="vigento"')
+		expect(existsSync(join(root, 'components/marketing/live-chat-demo.tsx'))).toBe(false)
 		expect(read('components/marketing/pricing-section.tsx')).toContain('id="pricing"')
 	})
 

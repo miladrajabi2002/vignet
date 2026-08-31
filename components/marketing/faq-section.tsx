@@ -1,156 +1,70 @@
-'use client'
-
-import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
-import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
-import { Plus, MessagesSquare, ArrowRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { getLocale, getTranslations } from 'next-intl/server'
+import { ArrowLeft, ArrowRight, MessagesSquare, Plus } from 'lucide-react'
 
 type FaqItem = { q: string; a: string }
 
-function FaqCard({
-  item,
-  isOpen,
-  onToggle,
-  index,
-  reduce,
-}: {
-  item: FaqItem
-  isOpen: boolean
-  onToggle: () => void
-  index: number
-  reduce: boolean | null
-}) {
-  return (
-    <m.div
-      initial={reduce ? false : { opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={reduce ? { duration: 0 } : { duration: 0.45, delay: (index % 5) * 0.06 }}
-      className={cn(
-        'overflow-hidden rounded-2xl border transition-colors duration-150',
-        isOpen
-          ? 'border-[var(--border-hover)] bg-[var(--white-05)]'
-          : 'border-[var(--border-default)] bg-transparent hover:border-[var(--border-hover)]',
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={`marketing-faq-${index}`}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start"
-      >
-        <span className="text-[15px] font-medium text-[var(--text-primary)]">{item.q}</span>
-        <span
-          aria-hidden="true"
-          className={cn(
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors duration-150',
-            isOpen
-              ? 'rotate-45 border-transparent bg-[var(--white)]'
-              : 'border-[var(--border-default)]',
-          )}
-        >
-          <Plus
-            className={cn(
-              'h-3.5 w-3.5 transition-colors duration-150',
-              isOpen ? 'text-[var(--bg-base)]' : 'text-[var(--text-secondary)]',
-            )}
-          />
-        </span>
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <m.div
-            id={`marketing-faq-${index}`}
-            initial={reduce ? false : { height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="mx-5 mb-5 border-s-2 border-[var(--border-hover)] ps-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-              {item.a}
-            </p>
-          </m.div>
-        )}
-      </AnimatePresence>
-    </m.div>
-  )
-}
+export async function FaqSection() {
+	const [requestLocale, t] = await Promise.all([
+		getLocale(),
+		getTranslations('marketing.faq'),
+	])
+	const locale = requestLocale === 'en' ? 'en' : 'fa'
+	const items = t.raw('items') as FaqItem[]
+	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
+	const mid = Math.ceil(items.length / 2)
+	const columns = [items.slice(0, mid), items.slice(mid)]
 
-export function FaqSection() {
-  const t = useTranslations('marketing.faq')
-  const items = t.raw('items') as FaqItem[]
-  const [open, setOpen] = useState<number | null>(0)
-  const reduce = useReducedMotion()
+	return (
+		<section className="marketing-story-section marketing-section-faq bg-white py-16 sm:py-20 lg:py-24">
+			<div className="mx-auto max-w-6xl px-5 sm:px-8">
+				<header data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
+					<span className="marketing-eyebrow">{t('eyebrow')}</span>
+					<h2 className="marketing-heading mx-auto mt-4">{t('title')}</h2>
+					<p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
+				</header>
 
-  // Split into two balanced columns so opening one card only pushes
-  // its own column, keeping the layout calm.
-  const mid = Math.ceil(items.length / 2)
-  const columns = [items.slice(0, mid), items.slice(mid)]
+				<div className="mt-10 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
+					{columns.map((column, columnIndex) => (
+						<div key={columnIndex} className="space-y-3 lg:space-y-4">
+							{column.map((item, itemIndex) => {
+								const index = columnIndex * mid + itemIndex
+								return (
+									<details
+										key={item.q}
+										name="marketing-faq"
+										open={index === 0}
+										data-scroll-reveal="up"
+										style={{ '--reveal-order': itemIndex } as CSSProperties}
+										className="marketing-faq-details group overflow-hidden rounded-2xl border border-[var(--border-default)] bg-white transition-colors open:border-[var(--border-hover)] open:bg-[var(--white-05)]"
+									>
+										<summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3.5 text-start marker:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue-accent)] [&::-webkit-details-marker]:hidden">
+											<span className="text-[15px] font-medium leading-7 text-[var(--text-primary)]">{item.q}</span>
+											<span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] transition-[transform,background-color,color] duration-200 group-open:rotate-45 group-open:border-transparent group-open:bg-black group-open:text-white">
+												<Plus className="size-3.5" />
+											</span>
+										</summary>
+										<div className="marketing-faq-answer px-5 pb-5">
+											<p className="border-s-2 border-emerald-500/45 ps-4 text-sm leading-7 text-[var(--text-secondary)]">{item.a}</p>
+										</div>
+									</details>
+								)
+							})}
+						</div>
+					))}
+				</div>
 
-  return (
-    <section className="marketing-story-section bg-white py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <m.div
-          initial={reduce ? false : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={reduce ? { duration: 0 } : { duration: 0.6 }}
-          className="mx-auto max-w-2xl text-center"
-        >
-          <span className="marketing-eyebrow">
-            {t('eyebrow')}
-          </span>
-          <h2 className="marketing-heading mx-auto mt-4">
-            {t('title')}
-          </h2>
-          <p className="marketing-subtitle mx-auto mt-4">{t('subtitle')}</p>
-        </m.div>
-
-        <div className="mt-10 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
-          {columns.map((col, c) => (
-            <div key={c} className="space-y-3 lg:space-y-4">
-              {col.map((item, i) => {
-                const index = c * mid + i
-                return (
-                  <FaqCard
-                    key={index}
-                    item={item}
-                    index={index}
-                    reduce={reduce}
-                    isOpen={open === index}
-                    onToggle={() => setOpen(open === index ? null : index)}
-                  />
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* Still-have-questions hint */}
-        <m.div
-          initial={reduce ? false : { opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={reduce ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
-          className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] px-6 py-5 text-center sm:flex-row sm:text-start"
-        >
-          <span className="inline-flex items-center gap-2.5 text-sm text-[var(--text-secondary)]">
-            <MessagesSquare aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-            {t('moreQuestion')}
-          </span>
-          <Link
-            href="/docs"
-            className="group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
-          >
-            {t('contact')}
-            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
-          </Link>
-        </m.div>
-      </div>
-    </section>
-  )
+				<div data-scroll-reveal="up" className="mt-12 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--white-05)] px-6 py-5 text-center sm:flex-row sm:text-start">
+					<span className="inline-flex items-center gap-2.5 text-sm text-[var(--text-secondary)]">
+						<MessagesSquare aria-hidden className="size-4 shrink-0 text-[var(--text-muted)]" />
+						{t('moreQuestion')}
+					</span>
+					<Link href="/docs" className="marketing-pressable group inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border border-[var(--border-hover)] bg-white px-5 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--border-strong)] sm:w-auto">
+						{t('contact')}<Arrow aria-hidden className="size-3.5 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+					</Link>
+				</div>
+			</div>
+		</section>
+	)
 }

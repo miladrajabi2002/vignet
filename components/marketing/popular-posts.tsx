@@ -69,10 +69,10 @@ export async function PopularPosts() {
         const isFa = locale === 'fa'
 
         return (
-                <section id="popular" className="marketing-story-section hidden bg-[var(--bg-base)] py-20 md:block lg:py-24">
-                        <div className="mx-auto max-w-6xl px-6">
+				<section id="popular" className="marketing-story-section marketing-section-posts bg-[var(--bg-base)] py-16 sm:py-20 lg:py-24">
+						<div className="mx-auto max-w-6xl px-5 sm:px-6">
                                 {/* Heading */}
-                                <div className="mx-auto max-w-2xl text-center">
+                                <div data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
                                         <span className="marketing-eyebrow">
                                                 {isFa ? 'پر بازدیدترین‌ها' : 'Most viewed'}
                                         </span>
@@ -87,9 +87,9 @@ export async function PopularPosts() {
                                 </div>
 
                                 {/* Three equal cards in a horizontal row */}
-                                <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+								<div aria-label={isFa ? 'مقالات محبوب' : 'Popular articles'} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-14 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 lg:grid-cols-3">
                                         {posts.map((p, i) => (
-										<PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} className={i === 2 ? 'hidden lg:flex' : ''} />
+										<PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
                                         ))}
                                 </div>
 
@@ -186,7 +186,8 @@ function PopularCard({
         return (
                 <Link
                         href={`/blog/${post.slug}`}
-						className={`group flex min-h-44 flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:min-h-0 sm:flex-col ${className}`}
+						data-scroll-reveal="up"
+						className={`group flex min-h-44 min-w-[min(82vw,21rem)] snap-center flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 md:min-h-0 md:min-w-0 md:flex-col ${className}`}
                 >
                         {coverImage && (
                                 // eslint-disable-next-line @next/next/no-img-element

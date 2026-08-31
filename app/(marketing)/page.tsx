@@ -6,30 +6,14 @@ import { Hero } from '@/components/marketing/hero'
 import { SocialProof } from '@/components/marketing/social-proof'
 import { PopularPosts } from '@/components/marketing/popular-posts'
 import { SectionRevealController } from '@/components/marketing/section-reveal'
-import { MarketingMotionProvider } from '@/components/marketing/motion-provider'
+import { CapabilitiesSection } from '@/components/marketing/capabilities-section'
+import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
+import { HomeOnboarding } from '@/components/marketing/home-onboarding'
 import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 
-// Below-the-fold sections are code-split so the first paint stays focused on
-// the hero; each product section's JS loads independently.
-// They still render on the server (SSR default), so SEO is unaffected.
-const CapabilitiesBento = dynamicImport(() =>
-	import('@/components/marketing/home-sections').then((m) => m.CapabilitiesBento),
-)
-const LiveChatDemo = dynamicImport(() =>
-	import('@/components/marketing/home-sections').then((m) => m.LiveChatDemo),
-)
-const InstagramAutomationSection = dynamicImport(() =>
-	import('@/components/marketing/home-sections').then((m) => m.InstagramAutomationSection),
-)
-const SalesBookingChapter = dynamicImport(() =>
-	import('@/components/marketing/home-sections').then((m) => m.SalesBookingChapter),
-)
-const OnboardingTimeline = dynamicImport(() =>
-	import('@/components/marketing/home-variants/shared/chrome').then((m) => m.OnboardingTimeline),
-)
-const ChannelsSection = dynamicImport(() =>
-	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
-)
+// Data-backed Server Components stream independently. Interactive sections
+// keep their own viewport-triggered client boundary instead of hydrating the
+// entire homepage on first paint.
 const PricingSection = dynamicImport(() =>
 	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
 )
@@ -203,7 +187,7 @@ export default async function HomePage() {
 	]
 
 	return (
-		<MarketingMotionProvider>
+		<>
 			<SectionRevealController />
 			<script
 				type="application/ld+json"
@@ -213,12 +197,9 @@ export default async function HomePage() {
 			<Suspense fallback={null}>
 				<LivePlatformStats />
 			</Suspense>
-			<CapabilitiesBento locale={locale} />
-			<LiveChatDemo locale={locale} />
+			<CapabilitiesSection locale={locale} />
 			<InstagramAutomationSection locale={locale} />
-			<SalesBookingChapter locale={locale} />
-			<ChannelsSection />
-			<OnboardingTimeline locale={locale} id="onboarding" />
+			<HomeOnboarding locale={locale} />
 			<Suspense fallback={null}>
 				<PricingSection />
 			</Suspense>
@@ -226,6 +207,6 @@ export default async function HomePage() {
 			<Suspense fallback={null}>
 				<PopularPosts />
 			</Suspense>
-		</MarketingMotionProvider>
+		</>
 	)
 }

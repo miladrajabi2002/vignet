@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import { m, useReducedMotion } from 'framer-motion'
+import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 import {
 	ArrowLeft,
@@ -12,13 +12,17 @@ import {
 	BriefcaseBusiness,
 	CalendarCheck2,
 	Check,
+	Globe2,
 	GraduationCap,
 	Gift,
+	Link2,
 	ShoppingBag,
 	UtensilsCrossed,
 } from 'lucide-react'
 import { NeuralOperationGraph } from './neural-operation-graph'
+import { InstagramIcon, TelegramIcon } from './social-links'
 import { Spotlight } from './spotlight'
+import { useReducedMotionPreference } from './use-motion-preference'
 
 type Locale = 'fa' | 'en'
 
@@ -224,7 +228,50 @@ const BUSINESS_ICONS: ComponentType<{ className?: string }>[] = [
 	GraduationCap,
 ]
 
-function ProductStage({ reduce }: { reduce: boolean | null }) {
+type ConnectedChannel = {
+	key: string
+	fa: string
+	en: string
+	icon?: ComponentType<{ className?: string }>
+	logoSrc?: string
+	surface: string
+}
+
+const CONNECTED_CHANNELS: ConnectedChannel[] = [
+	{ key: 'instagram', fa: 'اینستاگرام', en: 'Instagram', icon: InstagramIcon, surface: 'border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-200' },
+	{ key: 'telegram', fa: 'تلگرام', en: 'Telegram', icon: TelegramIcon, surface: 'border-sky-300/20 bg-sky-300/10 text-sky-200' },
+	{ key: 'bale', fa: 'بله', en: 'Bale', logoSrc: '/brands/bale-logo.svg', surface: 'border-emerald-300/20 bg-emerald-300/10' },
+	{ key: 'rubika', fa: 'روبیکا', en: 'Rubika', logoSrc: '/brands/rubika-logo.svg', surface: 'border-white/15 bg-white/10' },
+	{ key: 'web', fa: 'ویجت سایت', en: 'Web widget', icon: Globe2, surface: 'border-blue-300/20 bg-blue-300/10 text-blue-200' },
+	{ key: 'link', fa: 'لینک چت', en: 'Chat link', icon: Link2, surface: 'border-amber-300/20 bg-amber-300/10 text-amber-200' },
+]
+
+function ConnectedChannelLogos({ locale }: { locale: Locale }) {
+	const label = locale === 'fa' ? 'کانال‌های متصل به مرکز عملیات' : 'Channels connected to the operations center'
+
+	return (
+		<div role="group" aria-label={label} className="order-3 flex w-full items-center justify-center gap-1.5 border-t border-white/10 pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+			{CONNECTED_CHANNELS.map((channel) => {
+				const Icon = channel.icon
+				return (
+					<span
+						key={channel.key}
+						title={locale === 'fa' ? channel.fa : channel.en}
+						className={`grid size-7 shrink-0 place-items-center rounded-lg border ${channel.surface}`}
+					>
+						{channel.logoSrc ? (
+							<Image src={channel.logoSrc} alt="" width={28} height={28} className="size-4 object-contain" />
+						) : Icon ? (
+							<Icon className="size-3.5" />
+						) : null}
+					</span>
+				)
+			})}
+		</div>
+	)
+}
+
+function ProductStage({ reduce }: { reduce: boolean }) {
 	const locale: Locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
 	const [activeIndex, setActiveIndex] = useState(0)
@@ -243,15 +290,9 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 	const scene = copy.scenes[activeIndex]
 
 	return (
-		<m.div
-			initial={false}
-			animate={{ opacity: 1, y: 0, scale: 1 }}
-			transition={
-				reduce
-					? { duration: 0 }
-					: { duration: 0.58, delay: 0.08, ease: [0.16, 1, 0.3, 1] }
-			}
-			className="relative mx-auto w-full max-w-[780px]"
+		<div
+			id="product"
+			className={`relative mx-auto w-full max-w-[780px] scroll-mt-24 ${reduce ? '' : 'marketing-stage-enter'}`}
 			role="region"
 			aria-label={copy.stageAria}
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
@@ -265,7 +306,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 				<div aria-hidden className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl" />
 				<div aria-hidden className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl" />
 
-				<header className="relative flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
+				<header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
 					<div className="flex min-w-0 items-center gap-2.5">
 						<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-black shadow-[0_10px_28px_rgba(255,255,255,0.14)]">
 							<Bot className="h-4 w-4" />
@@ -279,6 +320,8 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 							</p>
 						</div>
 					</div>
+
+					<ConnectedChannelLogos locale={locale} />
 
 					<span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[9.5px] font-medium text-emerald-200 sm:text-[10px]">
 						<span className="relative flex h-1.5 w-1.5">
@@ -313,10 +356,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									}`}
 								>
 									{active ? (
-										<m.span
-											className="absolute inset-0 rounded-[inherit] bg-white"
-											transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-										/>
+										<span className="marketing-tab-surface absolute inset-0 rounded-[inherit] bg-white" />
 									) : null}
 
 									<span
@@ -334,16 +374,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 									</span>
 
 									{active ? (
-										<m.span
-											initial={reduce ? false : { opacity: 0, scaleX: 0.45 }}
-											animate={{ opacity: 1, scaleX: 1 }}
-											transition={
-												reduce
-													? { duration: 0 }
-													: { duration: 0.28, ease: [0.23, 1, 0.32, 1] }
-											}
-											className="absolute -bottom-px inset-x-0 mx-auto h-[2px] w-8 origin-center rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)] sm:w-10"
-										/>
+										<span className={`absolute -bottom-px inset-x-0 mx-auto h-[2px] w-8 origin-center rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.9)] sm:w-10 ${reduce ? '' : 'marketing-tab-indicator'}`} />
 									) : null}
 								</button>
 							)
@@ -361,7 +392,7 @@ function ProductStage({ reduce }: { reduce: boolean | null }) {
 					coreHint={copy.coreHint}
 				/>
 			</div>
-		</m.div>
+		</div>
 	)
 }
 
@@ -369,7 +400,7 @@ export function Hero() {
 	const t = useTranslations('marketing.hero')
 	const locale: Locale = useLocale() === 'en' ? 'en' : 'fa'
 	const copy = COPY[locale]
-	const reduce = useReducedMotion()
+	const reduce = useReducedMotionPreference()
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
 	return (
@@ -421,7 +452,7 @@ export function Hero() {
 						</Link>
 
 						<Link
-							href="#vigento"
+							href="#solutions"
 							className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-6 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
 							style={{ boxShadow: 'var(--shadow-sm)' }}
 						>

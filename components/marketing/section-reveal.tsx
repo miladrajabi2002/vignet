@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react'
 
-const SELECTOR = '.marketing-story-section'
+const SECTION_SELECTOR = '.marketing-story-section'
+const ITEM_SELECTOR = '[data-scroll-reveal]'
+const SELECTOR = `${SECTION_SELECTOR}, ${ITEM_SELECTOR}`
 
 /** A single observer gives every homepage section the same restrained entrance. */
 export function SectionRevealController() {
@@ -13,7 +15,9 @@ export function SectionRevealController() {
 
 		root.classList.add('marketing-motion-ready')
 
-		const reveal = (section: Element) => section.classList.add('is-visible')
+		const reveal = (element: Element) => {
+			element.classList.add(element.matches(SECTION_SELECTOR) ? 'is-visible' : 'is-revealed')
+		}
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -22,13 +26,21 @@ export function SectionRevealController() {
 					observer.unobserve(entry.target)
 				}
 			},
-			{ rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+			{ rootMargin: '0px 0px -6% 0px', threshold: 0.08 },
 		)
+		const register = (element: Element) => {
+			const rect = element.getBoundingClientRect()
+			if (rect.bottom >= 0 && rect.top <= window.innerHeight * 0.92) {
+				reveal(element)
+				return
+			}
+			observer.observe(element)
+		}
 
 		const observeWithin = (node: Node) => {
 			if (!(node instanceof Element)) return
-			if (node.matches(SELECTOR)) observer.observe(node)
-			node.querySelectorAll(SELECTOR).forEach((section) => observer.observe(section))
+			if (node.matches(SELECTOR)) register(node)
+			node.querySelectorAll(SELECTOR).forEach(register)
 		}
 
 		// Async Server Components can stream in after this effect has mounted. Keep
@@ -43,7 +55,7 @@ export function SectionRevealController() {
 			subtree: true,
 		})
 
-		document.querySelectorAll(SELECTOR).forEach((section) => observer.observe(section))
+		document.querySelectorAll(SELECTOR).forEach(register)
 
 		return () => {
 			mutationObserver.disconnect()

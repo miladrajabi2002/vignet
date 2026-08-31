@@ -1,7 +1,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { AnimatePresence, m } from 'framer-motion'
 import {
 	Check,
 	Database,
@@ -198,19 +197,21 @@ function MessageCard({
 	label,
 	activeIndex,
 	reduce,
+	compact = false,
 }: {
 	locale: 'fa' | 'en'
 	scenario: Scenario
 	label: string
 	activeIndex: number
 	reduce: boolean | null
+	compact?: boolean
 }) {
 	const secondaryMessages = SECONDARY_MESSAGES[locale]
 
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[232px] flex-col rounded-[1.4rem] border border-black/[0.08] bg-white p-2.5 text-black shadow-[0_20px_48px_rgba(0,0,0,0.34)]"
+			className={`${compact ? 'h-[136px]' : 'h-[232px]'} flex flex-col rounded-[1.4rem] border border-black/[0.08] bg-white p-2.5 text-black shadow-[0_20px_48px_rgba(0,0,0,0.34)]`}
 		>
 			<div className="flex items-center justify-between gap-2 px-0.5">
 				<p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-black/[0.58]">
@@ -221,17 +222,9 @@ function MessageCard({
 			</div>
 
 			<div className="mt-2.5 flex-1 space-y-1.5">
-				<AnimatePresence mode="wait" initial={false}>
-					<m.div
+				<div
 						key={`${activeIndex}-${scenario.person}`}
-						initial={reduce ? false : { opacity: 0, y: 7, scale: 0.985 }}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
-						exit={reduce ? undefined : { opacity: 0, y: -5, scale: 0.99 }}
-						transition={{
-							duration: reduce ? 0 : 0.3,
-							ease: [0.23, 1, 0.32, 1],
-						}}
-						className="h-[92px] rounded-[1.05rem] border border-black/[0.08] bg-black/[0.025] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+						className={`h-[92px] rounded-[1.05rem] border border-black/[0.08] bg-black/[0.025] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${reduce ? '' : 'marketing-swap-in'}`}
 					>
 						<div className="flex items-center gap-2.5">
 							<MainChannelBadge activeIndex={activeIndex} />
@@ -249,10 +242,9 @@ function MessageCard({
 						<p className="mt-2.5 line-clamp-2 text-[10.5px] font-medium leading-[1.65] text-black/[0.74]">
 							{scenario.text}
 						</p>
-					</m.div>
-				</AnimatePresence>
+					</div>
 
-				{secondaryMessages.map((message) => (
+				{compact ? null : secondaryMessages.map((message) => (
 					<div
 						key={message.channel}
 						className="flex h-[40px] items-center gap-2 rounded-xl border border-black/[0.07] bg-black/[0.018] px-2.5 py-1.5"
@@ -281,18 +273,20 @@ function ResultCard({
 	scenario,
 	activeIndex,
 	reduce,
+	compact = false,
 }: {
 	locale: 'fa' | 'en'
 	scenario: Scenario
 	activeIndex: number
 	reduce: boolean | null
+	compact?: boolean
 }) {
 	const labels = LABELS[locale]
 
 	return (
 		<div
 			dir={locale === 'fa' ? 'rtl' : 'ltr'}
-			className="flex h-[264px] min-h-[264px] max-h-[264px] shrink-0 flex-col overflow-hidden rounded-[1.5rem] bg-white p-3.5 text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]"
+			className={`${compact ? 'h-[184px] min-h-[184px] max-h-[184px] p-3' : 'h-[264px] min-h-[264px] max-h-[264px] p-3.5'} flex shrink-0 flex-col overflow-hidden rounded-[1.5rem] bg-white text-black shadow-[0_24px_60px_rgba(0,0,0,0.4)]`}
 		>
 			<div className="flex items-center justify-between" aria-hidden>
 				<span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)]">
@@ -301,36 +295,29 @@ function ResultCard({
 				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.09)]" />
 			</div>
 
-			<AnimatePresence mode="wait" initial={false}>
-				<m.div
+			<div
 					key={`${activeIndex}-${scenario.reply}`}
-					initial={reduce ? false : { opacity: 0, y: 8 }}
-					animate={{ opacity: 1, y: 0 }}
-					exit={reduce ? undefined : { opacity: 0, y: -5 }}
-					transition={{
-						duration: reduce ? 0 : 0.32,
-						ease: [0.23, 1, 0.32, 1],
-					}}
+					className={reduce ? undefined : 'marketing-swap-in'}
 				>
-					<p className="mt-2.5 h-[52px] overflow-hidden text-[11px] leading-[1.75] text-black/[0.7]">
+					<p className={`${compact ? 'mt-2 h-[38px] line-clamp-2 leading-[1.7]' : 'mt-2.5 h-[52px] leading-[1.75]'} overflow-hidden text-[11px] text-black/[0.7]`}>
 						{scenario.reply}
 					</p>
 
 					<div
-						className={`mt-2.5 grid h-[34px] gap-1.5 ${scenario.quickActions.length > 2 ? 'grid-cols-4' : 'grid-cols-2'}`}
+						className={`${compact ? 'mt-2 h-[30px]' : 'mt-2.5 h-[34px]'} grid gap-1.5 ${compact || scenario.quickActions.length <= 2 ? 'grid-cols-2' : 'grid-cols-4'}`}
 					>
-						{scenario.quickActions.slice(0, 4).map((action) => (
+						{scenario.quickActions.slice(0, compact ? 2 : 4).map((action) => (
 							<span
 								key={action}
-								className="flex h-[34px] items-center justify-center truncate rounded-lg border border-black/[0.08] bg-black/[0.025] px-1.5 text-center text-[9px] font-medium text-black/[0.58]"
+								className={`${compact ? 'h-[30px]' : 'h-[34px]'} flex items-center justify-center truncate rounded-lg border border-black/[0.08] bg-black/[0.025] px-1.5 text-center text-[9px] font-medium text-black/[0.58]`}
 							>
 								{action}
 							</span>
 						))}
 					</div>
 
-					<div className="mt-2.5 rounded-xl border border-black/[0.07] bg-black/[0.025] px-2.5 py-1.5">
-						<div className="flex items-center justify-between gap-2 text-[9px] text-black/[0.48]">
+					<div className={`${compact ? 'mt-2 px-2 py-1' : 'mt-2.5 px-2.5 py-1.5'} rounded-xl border border-black/[0.07] bg-black/[0.025]`}>
+						{compact ? null : <div className="flex items-center justify-between gap-2 text-[9px] text-black/[0.48]">
 							<span className="flex min-w-0 items-center gap-1.5">
 								<PackageSearch className="h-3.5 w-3.5 shrink-0" />
 								<span className="truncate">
@@ -341,7 +328,7 @@ function ResultCard({
 							<span className="shrink-0 whitespace-nowrap">
 								{labels.confidence}: {scenario.confidence}
 							</span>
-						</div>
+						</div>}
 
 						<p className="mt-2 flex min-w-0 items-center gap-1.5 text-emerald-700">
 							<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
@@ -352,8 +339,7 @@ function ResultCard({
 							</span>
 						</p>
 					</div>
-				</m.div>
-			</AnimatePresence>
+				</div>
 		</div>
 	)
 }
@@ -362,42 +348,31 @@ function Core({
 	core,
 	coreHint,
 	reduce,
+	compact = false,
 }: {
 	core: string
 	coreHint: string
 	reduce: boolean | null
+	compact?: boolean
 }) {
 	return (
-		<m.div
-			animate={
-				reduce
-					? undefined
-					: {
-							scale: [1, 1.012, 1],
-							boxShadow: [
-								'0 0 34px rgba(52,211,153,0.10)',
-								'0 0 58px rgba(52,211,153,0.23)',
-								'0 0 34px rgba(52,211,153,0.10)',
-							],
-						}
-			}
-			transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
-			className="relative grid h-[112px] w-[112px] place-items-center rounded-[1.8rem] border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl"
+		<div
+			className={`relative grid ${compact ? 'size-[88px] rounded-[1.45rem]' : 'size-[112px] rounded-[1.8rem]'} place-items-center border border-white/25 bg-white/[0.085] text-center backdrop-blur-xl ${reduce ? '' : 'marketing-core-breathe'}`}
 		>
-			<span aria-hidden className="absolute inset-2 rounded-[1.35rem] border border-white/10" />
+			<span aria-hidden className={`${compact ? 'rounded-[1.05rem]' : 'rounded-[1.35rem]'} absolute inset-2 border border-white/10`} />
 			<span
 				aria-hidden
-				className="absolute -inset-2 -z-10 rounded-[2.05rem] border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]"
+				className={`${compact ? 'rounded-[1.7rem]' : 'rounded-[2.05rem]'} absolute -inset-2 -z-10 border border-emerald-300/20 shadow-[0_0_25px_rgba(52,211,153,0.12)]`}
 			/>
 
 			<div className="relative">
-				<span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]">
+				<span className={`${compact ? 'size-8 rounded-[0.65rem]' : 'size-10 rounded-xl'} mx-auto grid place-items-center bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.2)]`}>
 					<Sparkles className="h-[18px] w-[18px]" />
 				</span>
-				<p className="mt-2 whitespace-nowrap text-[11px] font-semibold text-white">{core}</p>
-				<p className="mt-0.5 max-w-[88px] truncate text-[9px] text-white/[0.46]">{coreHint}</p>
+				<p className={`${compact ? 'mt-1.5 text-[10px]' : 'mt-2 text-[11px]'} whitespace-nowrap font-semibold text-white`}>{core}</p>
+				{compact ? null : <p className="mt-0.5 max-w-[88px] truncate text-[9px] text-white/[0.46]">{coreHint}</p>}
 			</div>
-		</m.div>
+		</div>
 	)
 }
 
@@ -592,27 +567,28 @@ function MobileOperationFlow({
 	coreHint,
 }: NeuralOperationGraphProps) {
 	const labels = LABELS[locale]
-	const incomingPath = 'M 160 0 C 160 20 160 32 160 48'
-	const outgoingPath = 'M 160 174 C 160 192 160 208 160 232'
-	const knowledgePath = 'M 120 52 C 120 78 116 98 112 116'
-	const rulesPath = 'M 200 180 C 200 154 204 132 208 116'
+	const incomingPath = 'M 160 0 C 160 12 160 20 160 30'
+	const outgoingPath = 'M 160 106 C 160 116 160 124 160 136'
+	const knowledgePath = 'M 124 34 C 124 52 120 62 112 68'
+	const rulesPath = 'M 196 102 C 196 84 200 74 208 68'
 	const mobileNetworkPaths = [incomingPath, outgoingPath]
 	const mobileAuxiliaryPaths = [knowledgePath, rulesPath]
 
 	return (
-		<div className="relative px-3 pb-5 pt-5 sm:hidden">
+		<div className="relative px-3 pb-4 pt-4 sm:hidden">
 			<MessageCard
 				locale={locale}
 				scenario={scenario}
 				label={allMessages}
 				activeIndex={activeIndex}
 				reduce={reduce}
+				compact
 			/>
 
-			<div dir="ltr" className="relative mx-auto h-[232px] w-full max-w-[340px]">
+			<div dir="ltr" className="relative mx-auto h-[136px] w-full max-w-[340px]">
 				<svg
 					aria-hidden
-					viewBox="0 0 320 232"
+					viewBox="0 0 320 136"
 					preserveAspectRatio="xMidYMid meet"
 					className="absolute inset-0 h-full w-full"
 				>
@@ -633,8 +609,8 @@ function MobileOperationFlow({
 						/>
 					))}
 
-					<NetworkNode cx={160} cy={32} pulse={!reduce} />
-					<NetworkNode cx={160} cy={204} pulse={!reduce} />
+					<NetworkNode cx={160} cy={22} pulse={!reduce} />
+					<NetworkNode cx={160} cy={116} pulse={!reduce} />
 
 					{!reduce ? (
 						<>
@@ -679,12 +655,12 @@ function MobileOperationFlow({
 				</svg>
 
 				<div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-					<Core core={core} coreHint={coreHint} reduce={reduce} />
+					<Core core={core} coreHint={coreHint} reduce={reduce} compact />
 				</div>
 
 				<NetworkLabel
 					icon={<Database className="h-2.5 w-2.5" />}
-					className="left-[37.5%] top-[15%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
+					className="left-[36%] top-[7%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
 					direction="none"
 				>
 					{labels.knowledge}
@@ -692,7 +668,7 @@ function MobileOperationFlow({
 
 				<NetworkLabel
 					icon={<ShieldCheck className="h-2.5 w-2.5" />}
-					className="bottom-[15%] left-[62.5%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
+					className="bottom-[7%] left-[64%] -translate-x-1/2 shadow-[0_0_16px_rgba(52,211,153,0.14)]"
 					direction="none"
 				>
 					{labels.rules}
@@ -705,6 +681,7 @@ function MobileOperationFlow({
 					scenario={scenario}
 					activeIndex={activeIndex}
 					reduce={reduce}
+					compact
 				/>
 				<CrmChip locale={locale} />
 			</div>
