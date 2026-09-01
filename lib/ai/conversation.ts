@@ -100,11 +100,23 @@ const BUSINESS_POLICY_RE =
 // booking-ish continuation («وقت بگیرم», «وقت مشاوره», «وقت خالی»).
 const SERVICE_ONLY_RE =
         /(?:خدمت|خدمات|سرویس|نوبت|رزرو|وقت\s*(?:بگیر|میخوا|می‌خوا|خالی|آزاد|مشاوره|ویزیت|بد[هی]|دهی)|service|appointment|booking)/i
+/** Explicit SKU/code labels and short leading-zero codes are strong catalog evidence. */
+const PRODUCT_CODE_RE =
+        /(?:(?:کد|شناسه)(?:\s*(?:محصول|کالا))?|sku)\s*[:：#-]?\s*((?=[\p{L}\p{N}_-]*\d)[\p{L}\p{N}][\p{L}\p{N}_-]*)/iu
+// Keep this deliberately shorter than a phone number; a bare "0742" is a
+// common product reference, while an 11-digit 09… value is customer identity.
+// Thousands separators are excluded from the boundaries so the "098" inside
+// a formatted price such as 1,098,000 is never mistaken for a leading-zero SKU.
+const BARE_PRODUCT_CODE_RE = /(?:^|[^\p{L}\p{N}_٬,،])0\d{2,7}(?=$|[^\p{L}\p{N}_٬,،])/u
+/** Codes that belong to authentication, coupons, contacts or order tracking. */
+const NON_CATALOG_CODE_RE =
+        /(?:رمز(?:\s*(?:ورود|عبور|یک\s*بار|یکبار))?|کد\s*(?:تأیید|تایید|ورود|تخفیف|کوپن|پیگیری|سفارش|مرسوله)|شماره\s*(?:موبایل|تماس|تلفن)?|otp|verification\s*code|password|discount\s*code|coupon\s*code|tracking\s*(?:code|number))/iu
+const PRICE_VALUE_RE = /(?:قیمت|تومان|تومن|ریال|هزار|میلیون|price|irr|rial)/iu
 
 const PRODUCT_STOP_WORDS = new Set([
         'سلام', 'درود', 'لطفا', 'لطفاً', 'خواهشاً', 'میشه', 'می‌شه', 'میتونی', 'می‌تونی',
         'محصول', 'محصولات', 'کالا', 'کالاها', 'کاتالوگ', 'فروشگاه', 'قیمت', 'قیمتها', 'قیمت‌ها',
-        'موجود', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
+        'موجود', 'موجوده', 'موجودند', 'موجودن', 'موجودی', 'ناموجود', 'خرید', 'فروش', 'بفرست', 'بفرستید', 'بفرستین', 'ارسال',
         'نشون', 'نشان', 'نمایش', 'بده', 'بدین', 'بدهید', 'معرفی', 'پیشنهاد', 'لیست', 'فهرست',
         'گزینه', 'گزینه‌ها', 'مورد', 'عدد', 'هرچی', 'هرچه', 'همه', 'تمام', 'چند', 'چندتا',
         'دارم', 'داری', 'دارید', 'دارین', 'دارن', 'داریدش', 'دارینش', 'هست', 'هستش', 'هستند',
@@ -113,6 +125,9 @@ const PRODUCT_STOP_WORDS = new Set([
         'فعلاً', 'دیگه', 'دیگر', 'جدید', 'خوب', 'بهترین', 'هر', 'چی', 'هایی', 'های', 'ها',
         'میخوام', 'می‌خوام', 'میخواهم', 'می‌خواهم', 'میخواد', 'می‌خواد', 'ببینم', 'ببین',
         'موجودتون', 'موجودتان', 'محصولاتتون', 'محصولاتتان', 'محصولامون', 'محصولاتون', 'مشخصات',
+        // Identifier labels describe the following value; they are not useful
+        // catalog terms on their own ("کد 0742" must search for 0742, not کد).
+        'کد', 'شناسه', 'sku',
         'بفرستی', 'بفرستم', 'بفرستن', 'بفرستیم',
         'قبلی', 'قبل', 'بیخیال', 'فراموش', 'اطلاعات',
         // Shopping scaffolding and generic attribute labels should not outrank
@@ -154,15 +169,31 @@ function normalizePersianText(value: string): string {
 function extractProductTerms(value: string): string[] {
         const normalized = normalizePersianText(value)
         // Plain counts ("۵ تا محصول") are not search terms, but measurements
-        // and sizes are essential catalog evidence. Keep numeric tokens only
-        // when the message explicitly puts them in an attribute context.
-        const keepNumericTerms =
-                /(?:سایز|اندازه|قد|دور\s*(?:سینه|کمر|باسن)|کد\s*(?:محصول|کالا|sku)|size|length|chest|waist)/iu.test(normalized)
+        // and sizes are essential catalog evidence. Product identifiers also
+        // commonly arrive as "کد 0742" or just "0742 موجوده؟". The latter is
+        // only treated as a code when it looks identifier-like (a leading zero,
+        // or at least three digits in an availability question), so ordinary
+        // counts such as "۵ تا محصول" do not become catalog terms.
+        const numericAttributeContext =
+                /(?:سایز|اندازه|قد|دور\s*(?:سینه|کمر|باسن)|size|length|chest|waist)\s*[:：#-]?\s*\d/iu.test(normalized)
+        const explicitProductCode = normalized.match(PRODUCT_CODE_RE)?.[1]?.toLocaleLowerCase('fa')
+        const bareProductCode = BARE_PRODUCT_CODE_RE.test(normalized)
+        const nonCatalogCode = NON_CATALOG_CODE_RE.test(normalized)
+        const priceValue = PRICE_VALUE_RE.test(normalized)
+        const availabilityQuestion = AVAILABLE_RE.test(normalized)
         const tokens = normalized
                 .toLocaleLowerCase('fa')
                 .split(/[^\p{L}\p{N}_-]+/u)
-                .map((token) => token.trim())
-                .filter((token) => token.length >= 2 && (keepNumericTerms || !/^\d+$/.test(token)))
+                .map((token) => token.trim().replace(/^-+|-+$/g, ''))
+                .filter((token) => {
+                        if (token.length < 2) return false
+                        if (!/^\d+$/.test(token)) return true
+                        if (numericAttributeContext) return true
+                        if (explicitProductCode === token) return true
+                        if (nonCatalogCode || priceValue) return false
+                        if (bareProductCode && /^0\d{2,7}$/.test(token)) return true
+                        return availabilityQuestion && /^\d{3,8}$/.test(token)
+                })
 
         const terms: string[] = []
         for (const token of tokens) {
@@ -236,6 +267,10 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const browseQuery = BROWSE_QUERY_RE.test(normalized)
         const productKeywordSignal = PRODUCT_INTENT_RE.test(normalized)
         const attributeSignal = PRODUCT_ATTRIBUTE_RE.test(normalized)
+        const nonCatalogCode = NON_CATALOG_CODE_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
+        const productCodeSignal = !nonCatalogCode && (
+                PRODUCT_CODE_RE.test(normalized) || BARE_PRODUCT_CODE_RE.test(normalized)
+        )
         const currentTerms = extractProductTerms(normalized)
         const shoppingNeedSignal =
                 SHOPPING_NEED_RE.test(normalized) &&
@@ -246,8 +281,9 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         // queries, but are not product intent when the user explicitly asks
         // about services, appointments or bookings.
         const serviceOnly = SERVICE_ONLY_RE.test(normalized) && !PRODUCT_SUBJECT_RE.test(normalized)
-        const directProductSignal = !policyOnly && (
+        const directProductSignal = !policyOnly && !nonCatalogCode && (
                 productKeywordSignal ||
+                productCodeSignal ||
                 (!serviceOnly && (AVAILABLE_RE.test(normalized) || shoppingNeedSignal || attributeSignal))
         )
 
@@ -266,6 +302,10 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                         if (RESET_CONTEXT_RE.test(previousContent)) break
                         const previousProductKeyword = PRODUCT_INTENT_RE.test(previousContent)
                         const previousAttributeSignal = PRODUCT_ATTRIBUTE_RE.test(previousContent)
+                        const previousProductCodeSignal =
+                                PRODUCT_CODE_RE.test(previousContent) || BARE_PRODUCT_CODE_RE.test(previousContent)
+                        const previousNonCatalogCode =
+                                NON_CATALOG_CODE_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent)
                         const previousTerms = extractProductTerms(previousContent)
                         const previousShoppingNeed =
                                 SHOPPING_NEED_RE.test(previousContent) &&
@@ -274,10 +314,12 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
                                 (!GENERIC_HELP_RE.test(previousContent) || previousTerms.length > 0 || previousProductKeyword || previousAttributeSignal)
                         const previousIsNonProduct =
                                 ORDER_ONLY_RE.test(previousContent) ||
+                                previousNonCatalogCode ||
                                 (SERVICE_ONLY_RE.test(previousContent) && !PRODUCT_SUBJECT_RE.test(previousContent))
                         if (previousIsNonProduct) continue
                         const previousHasProductSignal =
                                 previousProductKeyword ||
+                                previousProductCodeSignal ||
                                 AVAILABLE_RE.test(previousContent) ||
                                 BROWSE_QUERY_RE.test(previousContent) ||
                                 previousAttributeSignal ||
@@ -317,7 +359,7 @@ export function planProductRequest(message: string, history: ChatMessage[]): Pro
         const requestNewTopic =
                 resetRequested && !explicitShowcase && !browseQuery && !directProductSignal
         const isProductTurn =
-                !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly &&
+                !requestNewTopic && !orderOnly && !serviceOnly && !policyOnly && !nonCatalogCode &&
                 (directProductSignal || browseQuery || explicitShowcase)
         // An accepted offer refers to what was discussed before, never to the
         // affirmative word itself.

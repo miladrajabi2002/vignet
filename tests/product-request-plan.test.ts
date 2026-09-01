@@ -44,6 +44,38 @@ describe('product request planning', () => {
     expect(planProductRequest('مدل عبایی', []).searchTerms).toEqual(['عبایی'])
   })
 
+  it('recognizes product codes with or without an explicit code label', () => {
+    const bareCode = planProductRequest('0742 موجوده؟', [])
+    const labeledCode = planProductRequest('کد 0742 دارین؟', [])
+    const persianDigits = planProductRequest('کد محصول ۰۷۴۲ موجوده؟', [])
+    const terseCode = planProductRequest('0742 هست؟', [])
+
+    expect(bareCode.isProductTurn).toBe(true)
+    expect(bareCode.searchTerms).toEqual(['0742'])
+    expect(bareCode.inventoryMode).toBe('AVAILABLE')
+    expect(labeledCode.isProductTurn).toBe(true)
+    expect(labeledCode.searchTerms).toEqual(['0742'])
+    expect(persianDigits.searchTerms).toEqual(['0742'])
+    expect(terseCode.isProductTurn).toBe(true)
+    expect(terseCode.searchTerms).toEqual(['0742'])
+
+    // Counts are still presentation controls, not product identifiers.
+    expect(planProductRequest('۵ تا محصول موجود بفرست', []).searchTerms).toEqual([])
+  })
+
+  it('does not confuse prices, authentication codes or phone numbers with product codes', () => {
+    expect(planProductRequest('قیمت ۱،۰۹۸،۰۰۰ تومنه؟', []).searchTerms)
+      .not.toEqual(expect.arrayContaining(['098', '000']))
+    expect(planProductRequest('کد تایید 123456', []).isProductTurn).toBe(false)
+    expect(planProductRequest('رمز ورود 0742 است', []).isProductTurn).toBe(false)
+    expect(planProductRequest('کد تخفیف دارید؟', []).isProductTurn).toBe(false)
+    expect(planProductRequest('شماره من 09121234567 هست', []).isProductTurn).toBe(false)
+    expect(planProductRequest('کد پیگیری 123456', []).isProductTurn).toBe(false)
+
+    // Alphanumeric catalog identifiers remain supported.
+    expect(planProductRequest('کد AB-0742 موجوده؟', []).searchTerms).toEqual(['ab-0742'])
+  })
+
   it('keeps non-shopping needs out of catalog retrieval', () => {
     expect(planProductRequest('دنبال آدرستون هستم', []).isProductTurn).toBe(false)
     expect(planProductRequest('راهنمایی میخوام', []).isProductTurn).toBe(false)
