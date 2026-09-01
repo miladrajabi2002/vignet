@@ -17,6 +17,17 @@ import { contactPhoneLookupVariants } from '@/lib/phone'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 
 const PAGE_SIZE = 20
+const FILTER_STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
+const FILTER_CHANNELS: ChannelType[] = ['INSTAGRAM', 'WHATSAPP', 'TELEGRAM', 'BALE', 'RUBIKA']
+type FilterStage = (typeof FILTER_STAGES)[number]
+
+const CHANNEL_FILTER_WHERE: Partial<Record<ChannelType, Prisma.ContactWhereInput>> = {
+  INSTAGRAM: { instagramId: { not: null } },
+  WHATSAPP: { whatsappId: { not: null } },
+  TELEGRAM: { telegramId: { not: null } },
+  BALE: { baleId: { not: null } },
+  RUBIKA: { rubikaId: { not: null } },
+}
 
 const STAGE_LABELS_FA: Record<string, string> = {
   lead: 'سرنخ',
@@ -33,7 +44,14 @@ const STAGE_LABELS_EN: Record<string, string> = {
 
 export default async function ContactsPage(
   props: {
-    searchParams: Promise<{ page?: string; q?: string }>
+    searchParams: Promise<{
+      page?: string
+      q?: string
+      stage?: string
+      channel?: string
+      tag?: string
+      contact?: string
+    }>
   }
 ) {
   const searchParams = await props.searchParams;
@@ -42,9 +60,20 @@ export default async function ContactsPage(
   const isFa = locale === 'fa'
   const page = Math.max(1, Number(searchParams.page) || 1)
   const query = searchParams.q?.trim().slice(0, 120) || ''
+  const stage = FILTER_STAGES.includes(searchParams.stage as FilterStage)
+    ? (searchParams.stage as FilterStage)
+    : ''
+  const channel = FILTER_CHANNELS.includes(searchParams.channel as ChannelType)
+    ? (searchParams.channel as ChannelType)
+    : ''
+  const tag = searchParams.tag?.trim().slice(0, 40) || ''
+  const detailContactId = searchParams.contact?.trim().slice(0, 128) || undefined
   const phoneVariants = contactPhoneLookupVariants(query)
   const where: Prisma.ContactWhereInput = {
     workspaceId: user.workspaceId,
+    ...(stage ? { stage } : {}),
+    ...(channel ? (CHANNEL_FILTER_WHERE[channel] ?? {}) : {}),
+    ...(tag ? { tags: { has: tag } } : {}),
     ...(query
       ? {
           OR: [
@@ -116,6 +145,15 @@ export default async function ContactsPage(
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
   const liveVersion = contactLiveVersion({ count: totalCount, latest: latestContact })
+  const listParams = new URLSearchParams()
+  if (page > 1) listParams.set('page', String(page))
+  if (query) listParams.set('q', query)
+  if (stage) listParams.set('stage', stage)
+  if (channel) listParams.set('channel', channel)
+  if (tag) listParams.set('tag', tag)
+  const detailReturnTo = listParams.size > 0
+    ? `/contacts?${listParams.toString()}`
+    : '/contacts'
 
   // Build 14-day TrendPoint[] for the ConversationChart (matches /overview).
   const trendFormatter = new Intl.DateTimeFormat(dateLocaleTag(locale), { month: 'short', day: 'numeric' })
@@ -196,14 +234,19 @@ export default async function ContactsPage(
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <ContactsView
-        key={`contacts:${page}`}
+        key={`contacts:${page}:${query}:${stage}:${channel}:${tag}`}
         initial={rows}
         locale={locale}
         liveVersion={liveVersion}
         liveEnabled={page === 1}
-        liveScope={`contacts:${page}:${query}`}
+        liveScope={`contacts:${page}:${query}:${stage}:${channel}:${tag}`}
         query={query}
+        initialStageFilter={stage}
+        initialChannelFilter={channel}
+        initialTagFilter={tag}
         totalResults={matchedCount}
+        detailContactId={detailContactId}
+        detailReturnTo={detailReturnTo}
         insights={
           <div className="grid gap-4 lg:grid-cols-2">
             <DashboardPanel
@@ -228,7 +271,16 @@ export default async function ContactsPage(
           <Pagination
             page={page}
             hasNext={hasNext}
-            makeHref={(p) => `/contacts?page=${p}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
+            makeHref={(nextPage) => {
+              const params = new URLSearchParams()
+              if (nextPage > 1) params.set('page', String(nextPage))
+              if (query) params.set('q', query)
+              if (stage) params.set('stage', stage)
+              if (channel) params.set('channel', channel)
+              if (tag) params.set('tag', tag)
+              const search = params.toString()
+              return search ? `/contacts?${search}` : '/contacts'
+            }}
           />
         }
       />

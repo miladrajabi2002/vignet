@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { CalendarDays, Check, Clock3, Loader2, MapPin, Pencil, Plus, Power, Sparkles } from 'lucide-react'
+import { CalendarDays, Check, Clock3, Loader2, MapPin, Pencil, Plus, Power, Search, Sparkles } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { SectionHeader } from '@/components/dashboard/section-header'
@@ -33,6 +33,7 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
+  const [query, setQuery] = useState('')
   const lastNewRef = useRef<string | null>(null)
 
   function openCreate() {
@@ -125,6 +126,10 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
     }
   }
 
+  const filteredItems = query.trim()
+    ? items.filter((item) => `${item.name} ${item.description ?? ''} ${item.location ?? ''}`.toLocaleLowerCase('fa').includes(query.trim().toLocaleLowerCase('fa')))
+    : items
+
   return (
     <section className="space-y-4">
       <SectionHeader
@@ -134,9 +139,19 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
 
       {error && !open && <p className="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">{error}</p>}
 
+      {items.length > 0 && (
+        <div className="sticky top-[5.25rem] z-20 -mx-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-2 shadow-sm backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+          <label className="relative block">
+            <span className="sr-only">جستجوی خدمات</span>
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی نام، توضیح یا محل خدمت…" className="input min-h-11 w-full ps-10" />
+          </label>
+        </div>
+      )}
+
       {items.length ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => (
+        filteredItems.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {filteredItems.map((item) => (
             <article key={item.id} className={cn('spatial-surface rounded-[1.5rem] p-4 transition-opacity', !item.active && 'opacity-60')}>
               <div className="flex items-start justify-between gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-black text-white"><Sparkles className="h-4 w-4" /></span>
@@ -155,18 +170,20 @@ export function ServiceCatalogManager({ initialServices }: { initialServices: Se
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/[0.045] px-2.5 py-1"><CalendarDays className="h-3 w-3" />{item._count.appointments.toLocaleString('fa-IR')} رزرو</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black hover:text-white">
+                <button type="button" onClick={() => openEdit(item)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black hover:text-white">
                   <Pencil className="h-3.5 w-3.5" /> ویرایش
                 </button>
-                <button type="button" disabled={busyId === item.id} onClick={() => void toggle(item)} aria-label={item.active ? 'غیرفعال کردن خدمت' : 'فعال کردن خدمت'} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black/[0.04] disabled:opacity-50">
+                <button type="button" disabled={busyId === item.id} onClick={() => void toggle(item)} aria-label={item.active ? 'غیرفعال کردن خدمت' : 'فعال کردن خدمت'} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black/[0.04] disabled:opacity-50">
                   {busyId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
                   {item.active ? 'غیرفعال کردن' : 'فعال کردن'}
                 </button>
               </div>
-              <Link href="/appointments" className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black hover:text-white">تنظیم برنامه و رزرو</Link>
+              <Link href="/appointments" className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-black/10 text-[10px] font-bold transition-colors hover:bg-black hover:text-white">تنظیم برنامه و رزرو</Link>
             </article>
           ))}
-        </div>
+        </div> : (
+          <div className="rounded-2xl border border-dashed border-black/15 bg-white p-8 text-center text-sm text-black/45">خدمتی با این عبارت پیدا نشد.</div>
+        )
       ) : (
         <div className="rounded-[1.5rem] border border-dashed border-black/15 bg-white p-10 text-center">
           <BriefcaseEmpty />

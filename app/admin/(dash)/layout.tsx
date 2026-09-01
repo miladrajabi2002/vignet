@@ -39,7 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 lg:px-8 xl:px-10">
+          <header className="sticky top-0 z-30 px-3 [padding-top:max(0.75rem,env(safe-area-inset-top))] sm:px-6 lg:px-8 xl:px-10">
           <div className="flex min-h-16 items-center justify-between gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 px-2 shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/90 sm:px-3.5">
             <div className="flex min-w-0 items-center gap-3.5">
               <MobileNavTrigger mailUnreadCount={mailUnreadCount} />
@@ -61,7 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
           </header>
 
-          <main className="flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10">
+          <main className="flex-1 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 md:pb-10 lg:px-8 xl:px-10">
             <div className="dashboard-main mx-auto w-full md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]">{children}</div>
           </main>
         </div>

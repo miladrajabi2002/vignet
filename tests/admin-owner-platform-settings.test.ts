@@ -135,7 +135,7 @@ describe('admin control-center regressions', () => {
     const ui = readFileSync(path.join(process.cwd(), 'app/admin/(dash)/ui.tsx'), 'utf8')
 
     expect(layout).toContain('sticky top-3 m-3 me-0')
-    expect(layout).toContain('sticky top-0 z-30 px-3 pt-3 sm:px-6 lg:px-8 xl:px-10')
+    expect(layout).toContain('sticky top-0 z-30 px-3 [padding-top:max(0.75rem,env(safe-area-inset-top))] sm:px-6 lg:px-8 xl:px-10')
     expect(layout).toContain('md:w-[calc(100%_-_1.5rem)] xl:w-[calc(100%_-_3rem)]')
     expect(nav).toContain('Vigento AI')
     expect(nav).toContain('min-h-[2.38rem]')

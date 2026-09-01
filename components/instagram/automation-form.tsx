@@ -39,6 +39,7 @@ import {
         Mic,
         Film,
         Link2,
+        Eye,
         type LucideIcon,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
@@ -46,6 +47,7 @@ import { IphonePreview } from '@/components/instagram/iphone-preview'
 import type { MediaItem } from '@/components/instagram/media-uploader'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { BackButton } from '@/components/dashboard/back-button'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import {
         type Automation,
         type AutomationType,
@@ -502,11 +504,13 @@ export function AutomationForm({
                                 }
                         />
 
+                        <MobileAutomationStepper />
+
                         <form onSubmit={submit} className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                                 {/* ── LEFT: form fields ────────────────────────────────────── */}
                                 <div className="space-y-6">
                                         {/* Scenario name */}
-                                        <Section title="مشخصات سناریو">
+                                        <Section id="automation-condition" title="مشخصات سناریو">
                                                 <div className="space-y-1.5">
                                                         <label className="text-xs font-medium text-[var(--text-secondary)]">
                                                                 نام سناریو
@@ -639,7 +643,7 @@ export function AutomationForm({
                                         </Section>
 
                                         {/* ─── Action section ──────────────────────────────────── */}
-                                        <Section title="سپس" Icon={Sparkles}>
+                                        <Section id="automation-response" title="سپس" Icon={Sparkles}>
                                                 {/* Action selector — depends on type */}
                                                 {isDm && (
                                                         <DmActionSelector
@@ -814,7 +818,7 @@ export function AutomationForm({
                                         )}
 
                                         {/* Footer — sticky action bar */}
-                                        <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-base)]/95 px-5 py-4 backdrop-blur-md">
+                                        <div id="automation-publish" className="sticky z-10 flex scroll-mt-28 items-center justify-between gap-2 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-base)]/95 px-4 py-3 backdrop-blur-md [bottom:calc(6rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-4 md:bottom-0">
                                                 <p className="hidden text-[11px] font-medium text-[var(--text-muted)] sm:block">
                                                         پیش‌نمایش زنده در ستون کناری
                                                 </p>
@@ -887,41 +891,75 @@ export function AutomationForm({
         )
 }
 
-// ── Mobile preview (collapsible) ─────────────────────────────────────────
+function MobileAutomationStepper() {
+        const steps = [
+                { id: 'automation-condition', label: 'شرط' },
+                { id: 'automation-response', label: 'پاسخ' },
+                { id: 'automation-publish', label: 'انتشار' },
+        ]
+
+        return (
+                <nav aria-label="مراحل سناریو" className="sticky top-[5.25rem] z-30 -mx-1 grid grid-cols-3 gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/95 p-1.5 shadow-sm backdrop-blur-xl lg:hidden">
+                        {steps.map((step, index) => (
+                                <button
+                                        key={step.id}
+                                        type="button"
+                                        onClick={() => document.getElementById(step.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                                >
+                                        <span className="grid h-6 w-6 place-items-center rounded-full bg-black text-[10px] text-white">{(index + 1).toLocaleString('fa-IR')}</span>
+                                        {step.label}
+                                </button>
+                        ))}
+                </nav>
+        )
+}
+
+// ── Mobile preview sheet ──────────────────────────────────────────────────
 function MobilePreviewToggle(props: React.ComponentProps<typeof IphonePreview>) {
         const [open, setOpen] = useState(false)
+        const triggerRef = useRef<HTMLButtonElement>(null)
         return (
-                <div className="spatial-surface rounded-[1.5rem] p-4">
+                <>
                         <button
+                                ref={triggerRef}
                                 type="button"
-                                onClick={() => setOpen((v) => !v)}
-                                className="flex w-full items-center justify-between"
+                                onClick={() => setOpen(true)}
+                                aria-expanded={open}
+                                className="fixed end-4 bottom-[calc(10.75rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-black px-4 text-sm font-bold text-white shadow-[0_14px_40px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2 lg:hidden"
                         >
-                                <span className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                                        پیش‌نمایش زنده
-                                </span>
-                                <ChevronDown
-                                        className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`}
-                                />
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                                پیش‌نمایش
                         </button>
-                        {open && (
-                                <div className="mt-4">
+
+                        <MobileBottomSheet
+                                open={open}
+                                title="پیش‌نمایش زنده"
+                                description="نمایی که کاربر در اینستاگرام می‌بیند"
+                                closeLabel="بستن پیش‌نمایش"
+                                size="large"
+                                triggerRef={triggerRef}
+                                onClose={() => setOpen(false)}
+                                contentClassName="flex justify-center bg-[var(--bg-muted)]"
+                        >
+                                <div className="w-full max-w-md py-2">
                                         <IphonePreview {...props} />
                                 </div>
-                        )}
-                </div>
+                        </MobileBottomSheet>
+                </>
         )
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────
 function Section({
+        id,
         title,
         Icon,
         collapsible = false,
         defaultCollapsed = false,
         children,
 }: {
+        id?: string
         title: string
         Icon?: LucideIcon
         collapsible?: boolean
@@ -931,7 +969,7 @@ function Section({
         const [open, setOpen] = useState(!defaultCollapsed)
         if (!collapsible) {
                 return (
-                        <section className="spatial-surface space-y-4 rounded-[1.5rem] p-5 sm:p-6">
+                        <section id={id} className="spatial-surface scroll-mt-28 space-y-4 rounded-[1.5rem] p-5 sm:p-6">
                                 <div className="flex items-center gap-2.5">
                                         {Icon && (
                                                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--text-primary)]/10 text-[var(--text-primary)]">
@@ -945,7 +983,7 @@ function Section({
                 )
         }
         return (
-                <section className="spatial-surface overflow-hidden rounded-[1.5rem]">
+                <section id={id} className="spatial-surface scroll-mt-28 overflow-hidden rounded-[1.5rem]">
                         <button
                                 type="button"
                                 onClick={() => setOpen((v) => !v)}

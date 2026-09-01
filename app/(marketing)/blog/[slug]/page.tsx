@@ -174,7 +174,7 @@ export default async function PublicBlogPostPage(props: Props) {
 				{post.category && (
 					<Link
 						href={`/blog/category/${post.category.slug}`}
-						className="relative z-10 inline-flex min-h-9 items-center rounded-full border border-white/15 bg-white/[0.06] px-3 text-[10px] font-medium text-white/55"
+					className="relative z-10 inline-flex min-h-11 items-center rounded-full border border-white/15 bg-white/[0.06] px-3 text-[11px] font-medium text-white/65"
 					>
 						{post.category.name}
 					</Link>
@@ -239,7 +239,7 @@ export default async function PublicBlogPostPage(props: Props) {
 						>
 							<ArrowRight className="h-5 w-5 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
 							<div>
-								<div className="text-[10px] text-[var(--text-muted)]">
+								<div className="text-[11px] text-[var(--text-muted)]">
 									{locale === 'fa' ? 'قبلی' : 'Previous'}
 								</div>
 								<div className="text-sm text-[var(--text-primary)]">{prev.title}</div>
@@ -254,7 +254,7 @@ export default async function PublicBlogPostPage(props: Props) {
 							className="group flex items-center justify-end gap-3 rounded-xl border border-[var(--border-default)] p-3 text-end hover:border-[var(--border-hover)]"
 						>
 							<div>
-								<div className="text-[10px] text-[var(--text-muted)]">
+								<div className="text-[11px] text-[var(--text-muted)]">
 									{locale === 'fa' ? 'بعدی' : 'Next'}
 								</div>
 								<div className="text-sm text-[var(--text-primary)]">{next.title}</div>

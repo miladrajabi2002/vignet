@@ -59,7 +59,7 @@ export function Card({
     <div
       className={cn(
         'admin-card spatial-surface rounded-[1.5rem]',
-        pad && 'p-5 sm:p-6',
+        pad && 'p-4 sm:p-6',
         className,
       )}
     >
@@ -330,7 +330,7 @@ export function PageHeader({
             {subtitle && <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">{subtitle}</p>}
           </div>
         </div>
-        {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+        {action && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{action}</div>}
       </div>
     </header>
   )
@@ -377,7 +377,7 @@ export function KV({
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
       <span className="text-xs text-zinc-500">{label}</span>
-      <span className={cn('text-sm font-medium text-zinc-900', mono && 'font-mono text-xs')}>
+      <span className={cn('min-w-0 break-words text-end text-sm font-medium text-zinc-900', mono && 'font-mono text-xs')}>
         {children}
       </span>
     </div>

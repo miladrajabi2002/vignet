@@ -8,15 +8,24 @@ import {
   ADMIN_VISIBLE_KNOWLEDGE_WHERE,
   ADMIN_VISIBLE_RELATED_WHERE,
 } from '@/lib/admin/reporting-scope'
+import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminAgentsPage() {
+export default async function AdminAgentsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const q = (await searchParams).q?.trim() ?? ''
   const since = new Date(Date.now() - 7 * 86_400_000)
   const [agents, totalAgents, activeAgents, conversations7d, readyKnowledge, trends] =
     await Promise.all([
       prisma.agent.findMany({
-        where: ADMIN_VISIBLE_RELATED_WHERE,
+        where: {
+          ...ADMIN_VISIBLE_RELATED_WHERE,
+          ...(q ? { OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+            { workspace: { name: { contains: q, mode: 'insensitive' } } },
+          ] } : {}),
+        },
         orderBy: { updatedAt: 'desc' },
         take: 200,
         select: {
@@ -46,6 +55,10 @@ export default async function AdminAgentsPage() {
         subtitle="عملکرد، دانش و وضعیت هر ایجنت هوش مصنوعی در یک نگاه"
       />
 
+      <div className="sticky top-20 z-20 rounded-2xl border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
+        <AdminUsersSearchForm defaultQuery={q} placeholder="جستجوی نام ایجنت یا کسب‌وکار…" ariaLabel="جستجوی ایجنت‌ها" basePath="/admin/agents" />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="کل ایجنت‌ها" value={fa(totalAgents)} icon={<Bot className="h-5 w-5" />} />
         <StatCard label="ایجنت فعال" value={fa(activeAgents)} icon={<Sparkles className="h-5 w-5" />} />
@@ -54,7 +67,7 @@ export default async function AdminAgentsPage() {
       </div>
 
       {agents.length === 0 ? (
-        <EmptyState icon={<Bot className="h-8 w-8" />}>ایجنتی ساخته نشده است</EmptyState>
+        <EmptyState icon={<Bot className="h-8 w-8" />}>{q ? `ایجنتی برای «${q}» پیدا نشد` : 'ایجنتی ساخته نشده است'}</EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {agents.map((agent) => {

@@ -364,7 +364,7 @@ export function InstagramAutomationManager({
 
                         {/* Toast */}
                         {toast && (
-                                <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
+                                <div className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4 [bottom:calc(6rem+env(safe-area-inset-bottom))] md:bottom-6">
                                         <div
                                                 className={`pointer-events-auto inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm shadow-lg ${
                                                         toast.kind === 'ok'

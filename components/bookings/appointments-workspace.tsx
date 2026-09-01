@@ -441,7 +441,9 @@ export function AppointmentsWorkspace({
               <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{fa ? 'برنامه روزانه' : 'Daily schedule'}</h2>
               <p className="mt-1 text-xs text-[var(--text-muted)]">{fa ? 'زمان‌ها با منطقه زمانی تهران نمایش داده می‌شوند.' : 'Times are shown in the service timezone.'}</p>
             </div>
-            <MaterialSelect value={serviceFilter} onValueChange={(value) => { setServiceFilter(value); void loadDay(selectedDate, value) }} ariaLabel={fa ? 'فیلتر خدمات' : 'Filter services'} className="min-w-48" options={[{ value: '', label: fa ? 'همه خدمات' : 'All services' }, ...services.map((service) => ({ value: service.id, label: service.name }))]} />
+            <div className="sticky top-[5.25rem] z-20 -mx-1 w-[calc(100%+0.5rem)] rounded-xl bg-[var(--bg-surface)]/95 p-1 backdrop-blur-xl sm:static sm:mx-0 sm:w-auto sm:bg-transparent sm:p-0">
+              <MaterialSelect value={serviceFilter} onValueChange={(value) => { setServiceFilter(value); void loadDay(selectedDate, value) }} ariaLabel={fa ? 'فیلتر خدمات' : 'Filter services'} className="w-full sm:min-w-48" options={[{ value: '', label: fa ? 'همه خدمات' : 'All services' }, ...services.map((service) => ({ value: service.id, label: service.name }))]} />
+            </div>
           </div>
 
           {/* ── Week navigator — month label + prev/next/today ── */}
@@ -451,7 +453,7 @@ export function AppointmentsWorkspace({
               onClick={goPrevWeek}
               disabled={loadingDay}
               aria-label={fa ? 'هفته قبل' : 'Previous week'}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -461,7 +463,7 @@ export function AppointmentsWorkspace({
                 type="button"
                 onClick={goToday}
                 disabled={weekStart === todayKey && selectedDate === todayKey}
-                className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-base)] disabled:hover:text-[var(--text-secondary)]"
+                className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-base)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-40 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-base)] disabled:hover:text-[var(--text-secondary)]"
                 aria-label={fa ? 'رفتن به امروز' : 'Jump to today'}
               >
                 <CalendarCheck2 className="h-3 w-3" />
@@ -473,7 +475,7 @@ export function AppointmentsWorkspace({
               onClick={goNextWeek}
               disabled={loadingDay}
               aria-label={fa ? 'هفته بعد' : 'Next week'}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>

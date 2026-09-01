@@ -138,7 +138,23 @@ export function ServiceHealthPanel() {
             <div><h3 className="text-sm font-black text-black">صف‌ها و پردازشگرها</h3><p className="mt-0.5 text-[10px] text-black/40">حالت اجرا: {data?.queueMode === 'inline' ? 'درون‌خطی؛ بدون پردازشگر جدا' : 'پردازشگر صف فعال'}</p></div>
             {data && <span className="ms-auto rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-800">{data.queueSummary.failed.toLocaleString('fa-IR')} ناموفق</span>}
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-2 p-3 md:hidden">
+            {(data?.queues ?? []).map((queue) => (
+              <article key={queue.name} className="rounded-2xl border border-black/[0.07] bg-zinc-50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="truncate text-xs font-black text-black">{QUEUE_LABELS[queue.name] ?? queue.name}</h4>
+                  <span className={cn('rounded-full px-2 py-1 text-[10px] font-bold', queue.failed > 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700')}>{queue.failed.toLocaleString('fa-IR')} ناموفق</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div><dt className="text-[9px] text-black/35">فعال</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.active.toLocaleString('fa-IR')}</dd></div>
+                  <div><dt className="text-[9px] text-black/35">در انتظار</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.waiting.toLocaleString('fa-IR')}</dd></div>
+                  <div><dt className="text-[9px] text-black/35">با تأخیر</dt><dd className="mt-1 text-sm font-bold tabular-nums">{queue.delayed.toLocaleString('fa-IR')}</dd></div>
+                </dl>
+              </article>
+            ))}
+            {data && data.queues.length === 0 && <p className="py-6 text-center text-xs text-black/40">{data.queueMode === 'inline' ? 'صف‌ها در حالت Inline اجرا می‌شوند.' : 'اطلاعات صف دریافت نشد.'}</p>}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-xs">
               <thead className="bg-black/[0.025] text-[10px] text-black/40"><tr><th className="px-5 py-3 text-start">صف</th><th className="px-3 py-3">فعال</th><th className="px-3 py-3">در انتظار</th><th className="px-3 py-3">با تأخیر</th><th className="px-3 py-3">ناموفق</th><th className="px-3 py-3">تکمیل</th></tr></thead>
               <tbody className="divide-y divide-black/[0.055]">
@@ -152,7 +168,7 @@ export function ServiceHealthPanel() {
               <details key={`logs-${queue.name}`} className="group overflow-hidden rounded-2xl border border-black/[0.08] bg-zinc-50/70">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1"><p className="text-xs font-bold text-black">لاگ ناموفق · {QUEUE_LABELS[queue.name] ?? queue.name}</p><p className="mt-0.5 text-[10px] text-black/40">{queue.failedJobs.length.toLocaleString('fa-IR')} مورد اخیر برای بررسی</p></div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'retryFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">{queueAction === `${queue.name}:retryFailed` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} تلاش مجدد</button>
                     <button type="button" disabled={queueAction !== null} onClick={(event) => { event.preventDefault(); void runQueueAction(queue.name, 'clearFailed') }} className="admin-toolbar-button min-h-9 px-2.5 text-[10px]">پاک‌کردن لاگ</button>
                   </div>

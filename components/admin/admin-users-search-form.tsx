@@ -20,10 +20,12 @@ export function AdminUsersSearchForm({
   defaultQuery,
   placeholder,
   ariaLabel,
+  basePath = '/admin/users',
 }: {
   defaultQuery: string
   placeholder: string
   ariaLabel: string
+  basePath?: string
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -46,13 +48,13 @@ export function AdminUsersSearchForm({
       sp.delete('page')
       const url = sp.toString()
       startSearchTransition(() => {
-        router.replace(url ? `/admin/users?${url}` : '/admin/users', {
+        router.replace(url ? `${basePath}?${url}` : basePath, {
           scroll: false,
         })
       })
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [searchInput, defaultQuery, searchParams, router])
+  }, [searchInput, defaultQuery, searchParams, router, basePath])
 
   return (
     <form

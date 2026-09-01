@@ -20,6 +20,64 @@ async function ownContact(workspaceId: string, contactId: string) {
   })
 }
 
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const contact = await prisma.contact.findFirst({
+    where: { id: params.contactId, workspaceId: user.workspaceId },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      stage: true,
+      tags: true,
+      notes: true,
+      marketingOptIn: true,
+      createdAt: true,
+      updatedAt: true,
+      lastActivityAt: true,
+      telegramId: true,
+      telegramUsername: true,
+      telegramAvatarUrl: true,
+      whatsappId: true,
+      whatsappName: true,
+      whatsappAvatarUrl: true,
+      instagramId: true,
+      instagramUsername: true,
+      instagramAvatarUrl: true,
+      rubikaId: true,
+      rubikaUsername: true,
+      rubikaAvatarUrl: true,
+      baleId: true,
+      baleUsername: true,
+      baleAvatarUrl: true,
+      conversations: {
+        orderBy: { lastMessageAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          channel: true,
+          status: true,
+          messageCount: true,
+          lastMessageAt: true,
+          createdAt: true,
+          agent: { select: { name: true } },
+        },
+      },
+    },
+  })
+
+  if (!contact)
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  return NextResponse.json(
+    { contact },
+    { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
+  )
+}
+
 export async function PATCH(req: Request, props: Params) {
   const params = await props.params;
   const user = await getCurrentUser()

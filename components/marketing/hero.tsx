@@ -315,7 +315,7 @@ function ProductStage({ reduce }: { reduce: boolean }) {
 							<p className="whitespace-nowrap text-[11px] font-semibold text-white sm:text-xs">
 								{copy.stageTitle}
 							</p>
-							<p className="mt-0.5 whitespace-nowrap text-[9.5px] text-white/45 sm:text-[10px]">
+						<p className="mt-0.5 whitespace-nowrap text-[11px] text-white/50">
 								{copy.connected}
 							</p>
 						</div>
@@ -323,7 +323,7 @@ function ProductStage({ reduce }: { reduce: boolean }) {
 
 					<ConnectedChannelLogos locale={locale} />
 
-					<span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[9.5px] font-medium text-emerald-200 sm:text-[10px]">
+				<span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200">
 						<span className="relative flex h-1.5 w-1.5">
 							<span className="absolute h-full w-full animate-ping rounded-full bg-emerald-300 opacity-50 motion-reduce:animate-none" />
 							<span className="relative h-1.5 w-1.5 rounded-full bg-emerald-300" />
@@ -333,7 +333,7 @@ function ProductStage({ reduce }: { reduce: boolean }) {
 				</header>
 
 				<div className="relative px-3.5 pt-3.5 sm:px-5">
-					<p className="mb-2 whitespace-nowrap text-[10px] font-medium text-white/[0.48]">
+				<p className="mb-2 whitespace-nowrap text-[11px] font-medium text-white/[0.55]">
 						{copy.verticalLabel}
 					</p>
 
@@ -369,7 +369,7 @@ function ProductStage({ reduce }: { reduce: boolean }) {
 										<Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 									</span>
 
-									<span className="relative mt-1.5 block truncate px-0.5 text-[9px] font-medium sm:text-[10px]">
+							<span className="relative mt-1.5 block truncate px-0.5 text-[11px] font-medium">
 										{business.name}
 									</span>
 

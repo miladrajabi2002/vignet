@@ -16,9 +16,86 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { DELETE } from '@/app/api/contacts/[contactId]/route'
+import { DELETE, GET } from '@/app/api/contacts/[contactId]/route'
 
 const params = { params: Promise.resolve({ contactId: 'contact-1' }) }
+
+describe('GET /api/contacts/:contactId', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getCurrentUser.mockResolvedValue({ workspaceId: 'workspace-1' })
+  })
+
+  it('requires authentication before returning mobile-sheet details', async () => {
+    mocks.getCurrentUser.mockResolvedValue(null)
+
+    const response = await GET(
+      new Request('http://localhost/api/contacts/contact-1'),
+      params,
+    )
+
+    expect(response.status).toBe(401)
+    expect(mocks.contactFindFirst).not.toHaveBeenCalled()
+  })
+
+  it('returns a workspace-scoped profile with channel identities and recent conversations', async () => {
+    mocks.contactFindFirst.mockResolvedValue({
+      id: 'contact-1',
+      name: 'Customer',
+      phone: '09120000000',
+      stage: 'lead',
+      tags: [],
+      notes: null,
+      marketingOptIn: false,
+      createdAt: new Date('2026-08-01T10:00:00.000Z'),
+      updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+      lastActivityAt: new Date('2026-08-02T10:00:00.000Z'),
+      telegramId: null,
+      telegramUsername: null,
+      telegramAvatarUrl: null,
+      whatsappId: null,
+      whatsappName: null,
+      whatsappAvatarUrl: null,
+      instagramId: 'instagram-1',
+      instagramUsername: 'customer',
+      instagramAvatarUrl: null,
+      rubikaId: null,
+      rubikaUsername: null,
+      rubikaAvatarUrl: null,
+      baleId: null,
+      baleUsername: null,
+      baleAvatarUrl: null,
+      conversations: [],
+    })
+
+    const response = await GET(
+      new Request('http://localhost/api/contacts/contact-1'),
+      params,
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Cache-Control')).toContain('no-store')
+    expect(mocks.contactFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'contact-1', workspaceId: 'workspace-1' },
+        select: expect.objectContaining({
+          instagramUsername: true,
+          conversations: expect.objectContaining({
+            take: 50,
+            orderBy: { lastMessageAt: 'desc' },
+          }),
+        }),
+      }),
+    )
+    expect(await response.json()).toEqual({
+      contact: expect.objectContaining({
+        id: 'contact-1',
+        instagramUsername: 'customer',
+        conversations: [],
+      }),
+    })
+  })
+})
 
 describe('DELETE /api/contacts/:contactId', () => {
   beforeEach(() => {

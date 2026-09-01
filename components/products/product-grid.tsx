@@ -5,10 +5,11 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Package, Pencil, Trash2, Search as SearchIcon, Loader2, Undo2, X } from 'lucide-react'
+import { Package, Pencil, Trash2, Search as SearchIcon, Loader2, SlidersHorizontal, Undo2, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { MaterialSelect } from '@/components/ui/material-select'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 
 export interface ProductCard {
   id: string
@@ -365,7 +366,7 @@ export function ProductGrid({ products }: { products: ProductCard[] }) {
         <AnimatePresence>
           {undoToast && (
             <motion.div
-              className="fixed bottom-4 left-1/2 z-[100] -translate-x-1/2 px-4"
+              className="fixed left-1/2 z-[100] -translate-x-1/2 px-4 [bottom:calc(6rem+env(safe-area-inset-bottom))] md:bottom-4"
               initial={reduceMotion ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? undefined : { opacity: 0, y: 20 }}
@@ -413,20 +414,33 @@ export function ProductsToolbar({
   defaultSort,
   defaultCategory,
   defaultStock,
+  totalResults,
 }: {
   categories: { id: string; name: string }[]
   defaultQuery: string
   defaultSort: string
   defaultCategory: string
   defaultStock: string
+  totalResults: number
 }) {
   const t = useTranslations('products')
   const router = useRouter()
+  const locale = useLocale()
+  const fa = locale !== 'en'
   // Local state for the search input — we debounce URL updates so we don't
   // trigger a server round-trip on every keystroke. The dropdowns (category,
   // stock, sort) update immediately because each change is a discrete action.
   const [searchInput, setSearchInput] = useState(defaultQuery)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [isSearching, startSearchTransition] = useTransition()
+  const filterTriggerRef = useRef<HTMLButtonElement>(null)
+  const activeFacetCount = [
+    defaultCategory,
+    defaultStock,
+    defaultSort !== 'newest' ? defaultSort : '',
+  ].filter(Boolean).length
+  const hasFilters = Boolean(searchInput.trim() || activeFacetCount)
+  const number = new Intl.NumberFormat(fa ? 'fa-IR' : 'en-US')
 
   // Keep local input in sync when the URL changes (e.g. user clicks "clear").
   useEffect(() => {
@@ -446,10 +460,13 @@ export function ProductsToolbar({
         categoryId: defaultCategory,
         stock: defaultStock,
       }
-      for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, v)
+      for (const [k, v] of Object.entries(merged)) {
+        if (v && !(k === 'sort' && v === 'newest')) sp.set(k, v)
+      }
       sp.delete('page') // back to page 1 on every search change
       startSearchTransition(() => {
-        router.replace(`/products?${sp.toString()}`, { scroll: false })
+        const query = sp.toString()
+        router.replace(query ? `/products?${query}` : '/products', { scroll: false })
       })
     }, 280)
     return () => window.clearTimeout(timer)
@@ -473,60 +490,240 @@ export function ProductsToolbar({
       ...(isFilterChange ? {} : {}),
       ...params,
     }
-    for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, v)
+    for (const [k, v] of Object.entries(merged)) {
+      if (v && !(k === 'sort' && v === 'newest')) sp.set(k, v)
+    }
     // Explicitly drop `page` on filter changes so we go back to page 1.
     if (isFilterChange) sp.delete('page')
-    router.push(`/products?${sp.toString()}`)
+    const query = sp.toString()
+    router.push(query ? `/products?${query}` : '/products', { scroll: false })
+  }
+
+  function clearFilters() {
+    setSearchInput('')
+    router.push('/products', { scroll: false })
+  }
+
+  function searchField(className?: string) {
+    return (
+      <div className={cn('relative min-w-0 flex-1', className)}>
+        {isSearching ? (
+          <Loader2 className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" aria-hidden="true" />
+        ) : (
+          <SearchIcon className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" aria-hidden="true" />
+        )}
+        <input
+          type="search"
+          inputMode="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder={t('search')}
+          aria-label={t('search')}
+          className="input min-h-11 w-full ps-9 pe-11 text-base sm:text-sm"
+        />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => setSearchInput('')}
+            className="absolute end-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/60"
+            aria-label={t('clearFilters')}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    )
   }
 
   return (
-    <div className="spatial-surface flex flex-wrap items-center gap-2 rounded-[1.5rem] p-3 sm:p-4">
-      <div className="relative min-w-[12rem] flex-1">
-        {isSearching ? (
-          <Loader2 className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)] motion-reduce:animate-none" />
-        ) : (
-          <SearchIcon className="absolute top-1/2 ms-3 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-        )}
-        <input
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={t('search')}
-          className="input ps-9"
-        />
+    <>
+      <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
+        <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
+          <div className="flex items-center gap-2 md:hidden">
+            {searchField()}
+            <button
+              ref={filterTriggerRef}
+              type="button"
+              onClick={() => setFilterSheetOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={filterSheetOpen}
+              aria-label={t('filters')}
+              className={cn(
+                'spatial-press relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60',
+                activeFacetCount > 0
+                  ? 'border-black bg-black text-white'
+                  : 'border-[var(--border-default)] text-[var(--text-secondary)]',
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              {activeFacetCount > 0 && (
+                <span className="absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-white bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-black">
+                  {number.format(activeFacetCount)}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {activeFacetCount > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2 md:hidden" aria-label={t('filters')}>
+              {defaultCategory && (
+                <ProductFilterChip
+                  label={categories.find((category) => category.id === defaultCategory)?.name ?? t('allCategories')}
+                  onRemove={() => update({ categoryId: '' })}
+                />
+              )}
+              {defaultStock && (
+                <ProductFilterChip
+                  label={defaultStock === 'in_stock' ? t('inStock') : t('outOfStock')}
+                  onRemove={() => update({ stock: '' })}
+                />
+              )}
+              {defaultSort !== 'newest' && (
+                <ProductFilterChip
+                  label={defaultSort === 'price_asc' ? t('sortPriceAsc') : defaultSort === 'price_desc' ? t('sortPriceDesc') : t('sortQueried')}
+                  onRemove={() => update({ sort: 'newest' })}
+                />
+              )}
+            </div>
+          )}
+
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            {searchField('min-w-[12rem]')}
+            <MaterialSelect
+              value={defaultCategory}
+              onValueChange={(value) => update({ categoryId: value })}
+              ariaLabel={t('allCategories')}
+              className="min-w-40"
+              options={[
+                { value: '', label: t('allCategories') },
+                ...categories.map((category) => ({ value: category.id, label: category.name })),
+              ]}
+            />
+            <MaterialSelect
+              value={defaultStock}
+              onValueChange={(value) => update({ stock: value })}
+              ariaLabel={t('stockFilter')}
+              className="min-w-40"
+              options={[
+                { value: '', label: t('allStockStatuses') },
+                { value: 'in_stock', label: t('inStock') },
+                { value: 'out_of_stock', label: t('outOfStock') },
+              ]}
+            />
+            <MaterialSelect
+              value={defaultSort}
+              onValueChange={(value) => update({ sort: value })}
+              ariaLabel={t('sort')}
+              className="min-w-40"
+              options={[
+                { value: 'newest', label: t('sortNewest') },
+                { value: 'price_asc', label: t('sortPriceAsc') },
+                { value: 'price_desc', label: t('sortPriceDesc') },
+                { value: 'queried', label: t('sortQueried') },
+              ]}
+            />
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                aria-label={t('clearFilters')}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      <MaterialSelect
-        value={defaultCategory}
-        onValueChange={(value) => update({ categoryId: value })}
-        ariaLabel={t('allCategories')}
-        className="min-w-40"
-        options={[
-          { value: '', label: t('allCategories') },
-          ...categories.map((category) => ({ value: category.id, label: category.name })),
-        ]}
-      />
-      <MaterialSelect
-        value={defaultStock}
-        onValueChange={(value) => update({ stock: value })}
-        ariaLabel={t('stockFilter')}
-        className="min-w-40"
-        options={[
-          { value: '', label: t('allStockStatuses') },
-          { value: 'in_stock', label: t('inStock') },
-          { value: 'out_of_stock', label: t('outOfStock') },
-        ]}
-      />
-      <MaterialSelect
-        value={defaultSort}
-        onValueChange={(value) => update({ sort: value })}
-        ariaLabel={t('sortNewest')}
-        className="min-w-40"
-        options={[
-          { value: 'newest', label: t('sortNewest') },
-          { value: 'price_asc', label: t('sortPriceAsc') },
-          { value: 'price_desc', label: t('sortPriceDesc') },
-          { value: 'queried', label: t('sortQueried') },
-        ]}
-      />
+
+      <MobileBottomSheet
+        open={filterSheetOpen}
+        title={t('filters')}
+        description={t('filtersDescription')}
+        closeLabel={t('dismissUndo')}
+        triggerRef={filterTriggerRef}
+        onClose={() => setFilterSheetOpen(false)}
+        footer={
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <button
+              type="button"
+              onClick={clearFilters}
+              disabled={!hasFilters}
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-4 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 disabled:opacity-40"
+            >
+              {t('clearFilters')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterSheetOpen(false)}
+              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-black px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2"
+            >
+              {t('showResults')} ({number.format(totalResults)})
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <ProductFilterField label={t('allCategories')}>
+            <MaterialSelect
+              value={defaultCategory}
+              onValueChange={(value) => update({ categoryId: value })}
+              ariaLabel={t('allCategories')}
+              options={[
+                { value: '', label: t('allCategories') },
+                ...categories.map((category) => ({ value: category.id, label: category.name })),
+              ]}
+            />
+          </ProductFilterField>
+          <ProductFilterField label={t('stockFilter')}>
+            <MaterialSelect
+              value={defaultStock}
+              onValueChange={(value) => update({ stock: value })}
+              ariaLabel={t('stockFilter')}
+              options={[
+                { value: '', label: t('allStockStatuses') },
+                { value: 'in_stock', label: t('inStock') },
+                { value: 'out_of_stock', label: t('outOfStock') },
+              ]}
+            />
+          </ProductFilterField>
+          <ProductFilterField label={t('sort')}>
+            <MaterialSelect
+              value={defaultSort}
+              onValueChange={(value) => update({ sort: value })}
+              ariaLabel={t('sort')}
+              options={[
+                { value: 'newest', label: t('sortNewest') },
+                { value: 'price_asc', label: t('sortPriceAsc') },
+                { value: 'price_desc', label: t('sortPriceDesc') },
+                { value: 'queried', label: t('sortQueried') },
+              ]}
+            />
+          </ProductFilterField>
+        </div>
+      </MobileBottomSheet>
+    </>
+  )
+}
+
+function ProductFilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-xs font-semibold text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+    >
+      <span className="max-w-36 truncate">{label}</span>
+      <X className="h-3.5 w-3.5" aria-hidden="true" />
+    </button>
+  )
+}
+
+function ProductFilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
+      {children}
     </div>
   )
 }

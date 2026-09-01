@@ -33,6 +33,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
+import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import {
         LiveArrivalItem,
@@ -40,6 +41,7 @@ import {
         LiveArrivalStatus,
         LiveRefreshProbe,
 } from '@/components/crm/live-arrivals'
+import { MobileConversationCard } from '@/components/crm/mobile-conversation-card'
 
 const PAGE_SIZE = 20
 const VALID_STATUSES = new Set<ConvStatus>(['OPEN', 'RESOLVED', 'HANDED_OFF'])
@@ -129,6 +131,7 @@ export default async function ConversationsPage(props: {
         const [
                 conversations,
                 totalCount,
+                matchedCount,
                 openCount,
                 resolvedCount,
                 handedOffCount,
@@ -189,6 +192,7 @@ export default async function ConversationsPage(props: {
                         },
                 }),
                 prisma.conversation.count({ where: { workspaceId: user.workspaceId } }),
+                prisma.conversation.count({ where }),
                 prisma.conversation.count({
                         where: { workspaceId: user.workspaceId, status: 'OPEN' },
                 }),
@@ -285,6 +289,62 @@ export default async function ConversationsPage(props: {
                 { label: isFa ? 'حل‌شده' : 'Resolved', value: resolvedCount },
                 { label: isFa ? 'تحویل اپراتور' : 'Handed off', value: handedOffCount },
         ].filter((item) => item.value > 0)
+        const statusLabels: Record<ConvStatus, string> = {
+                OPEN: isFa ? 'باز' : 'Open',
+                RESOLVED: isFa ? 'حل‌شده' : 'Resolved',
+                HANDED_OFF: isFa ? 'نیاز به اپراتور' : 'Needs operator',
+        }
+        const inboxItems = pageItems.map((conversation) => {
+                const last = conversation.messages[0]
+                const lastInbound = conversation.messages.find((message) => message.role === 'USER')
+                const sourceLabel = lastInbound
+                        ? inboundSourceLabel(readInboundSource(lastInbound.metadata), locale)
+                        : null
+                const channelHandle = channelHandleFor({
+                        channel: conversation.channel,
+                        telegramUsername: conversation.contact?.telegramUsername,
+                        baleUsername: conversation.contact?.baleUsername,
+                        rubikaUsername: conversation.contact?.rubikaUsername,
+                        whatsappName: conversation.contact?.whatsappName,
+                        instagramUsername: conversation.contact?.instagramUsername,
+                })
+                const channelAvatar = channelAvatarFor({
+                        channel: conversation.channel,
+                        telegramAvatarUrl: conversation.contact?.telegramAvatarUrl,
+                        baleAvatarUrl: conversation.contact?.baleAvatarUrl,
+                        rubikaAvatarUrl: conversation.contact?.rubikaAvatarUrl,
+                        whatsappAvatarUrl: conversation.contact?.whatsappAvatarUrl,
+                        instagramAvatarUrl: conversation.contact?.instagramAvatarUrl,
+                })
+                const channelAvatarSrc = contactAvatarSrc({
+                        contactId: conversation.contact?.id,
+                        channel: conversation.channel,
+                        rawUrl: channelAvatar,
+                })
+                const who = contactDisplayName({
+                        name: conversation.contact?.name,
+                        phone: conversation.contact?.phone,
+                        handle: channelHandle,
+                        channel: conversation.channel,
+                        channelId: conversation.contact ? conversation.channel : null,
+                        anonymousLabel: t('anonymous'),
+                })
+                const attention = conversation.handedOff && conversation.status !== 'RESOLVED'
+                const displayStatus: ConvStatus = attention ? 'HANDED_OFF' : conversation.status
+
+                return {
+                        conversation,
+                        last,
+                        sourceLabel,
+                        channelHandle,
+                        channelAvatarSrc,
+                        who,
+                        when: conversation.lastMessageAt ?? conversation.createdAt,
+                        attention,
+                        displayStatus,
+                        statusLabel: statusLabels[displayStatus],
+                }
+        })
 
         return (
                 <div className="mx-auto max-w-6xl min-w-0 space-y-6">
@@ -294,19 +354,20 @@ export default async function ConversationsPage(props: {
                                 subtitle={t('subtitle')}
                                 actions={
                                         <>
+                                                <CampaignLaunchButton
+                                                        audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
+                                                        locale={locale}
+                                                        disabled={audienceContacts.length === 0}
+                                                />
                                                 <BulkDeleteButton
                                                         countEndpoint="/api/conversations/bulk"
                                                         deleteEndpoint="/api/conversations/bulk"
                                                         entityLabel={isFa ? 'گفتگو' : 'conversation'}
                                                         buttonLabel={isFa ? 'حذف همه گفتگوها' : 'Delete all'}
+                                                        compactOnMobile
                                                         extraWarning={isFa
                                                                 ? 'تاریخچه پیام‌ها (شامل متن چت) برای همیشه از بین می‌رود. اطلاعات مشتریان حفظ می‌شود.'
                                                                 : 'Message history (including chat content) is permanently destroyed. Customer info is preserved.'}
-                                                />
-                                                <CampaignLaunchButton
-                                                        audience={{ selectedContactIds: audienceContacts.flatMap((row) => row.contactId ? [row.contactId] : []) }}
-                                                        locale={locale}
-                                                        disabled={audienceContacts.length === 0}
                                                 />
                                         </>
                                 }
@@ -329,7 +390,8 @@ export default async function ConversationsPage(props: {
 
                         {/* ─── Filters: search + status + channel + agent (handed-off prioritized) ─── */}
                         <Suspense fallback={<div className="h-16 rounded-[1.5rem] border border-[var(--border-default)] bg-[var(--bg-surface)]" />}>
-                        <div className="spatial-surface rounded-[1.5rem] p-3 sm:p-4">
+                        <div className="sticky top-[5.35rem] z-20 md:static md:z-auto">
+                        <div className="spatial-surface rounded-[1.35rem] p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] md:rounded-[1.5rem] md:p-4 md:shadow-[var(--shadow-card)]">
                         <ConversationFilters
                                 isFa={isFa}
                                 activeStatus={statusFilter}
@@ -337,6 +399,7 @@ export default async function ConversationsPage(props: {
                                 activeAgent={agentFilter}
                                 activeSales={salesFilter}
                                 query={query}
+                                resultCount={matchedCount}
                                 basePath="/conversations"
                                 statusOptions={[
                                         { key: 'ALL', label: isFa ? 'همه' : 'All', count: totalCount },
@@ -375,6 +438,7 @@ export default async function ConversationsPage(props: {
                                 ]}
                         />
                         </div>
+                        </div>
                         </Suspense>
 
                         <LiveArrivalProvider key={liveScope} ids={pageItems.map((item) => item.id)}>
@@ -403,117 +467,74 @@ export default async function ConversationsPage(props: {
                                         )}
                                 </div>
                         ) : (
-                                <div className="spatial-surface min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem]">
-                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
-                                        <div className="min-w-0">
-                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
-                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${totalCount.toLocaleString('fa-IR')} پرونده از همه کانال‌ها` : `${totalCount} cases across all channels`}</p>
-                                        </div>
-                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <div>
+                                        <div className="flex justify-end px-1">
                                                 <SalesInsightBackfill key={missingSalesInsightCount} missingCount={missingSalesInsightCount} locale={locale} />
-                                                <LiveArrivalStatus resource="conversations" locale={locale} />
                                         </div>
-                                </div>
-                                {pageItems.map((c) => {
-                                                const last = c.messages[0]
-                                                const lastInbound = c.messages.find((message) => message.role === 'USER')
-                                                const sourceLabel = lastInbound
-                                                        ? inboundSourceLabel(readInboundSource(lastInbound.metadata), locale)
-                                                        : null
-                                                const when = c.lastMessageAt ?? c.createdAt
-                                                // Resolve the contact's display name + per-channel handle/avatar.
-                                                // For Instagram DMs the webhook only carries the sender id (no
-                                                // name/username/avatar), so without a fallback these contacts
-                                                // show as "ناشناس". The helper provides a per-channel fallback
-                                                // ("کاربر اینستاگرام", etc.) so the operator always sees something
-                                                // meaningful. When the visitor types their name, extractIdentity
-                                                // backfills it and it takes precedence.
-                                                const channelHandle = channelHandleFor({
-                                                        channel: c.channel,
-                                                        telegramUsername: c.contact?.telegramUsername,
-                                                        baleUsername: c.contact?.baleUsername,
-                                                        rubikaUsername: c.contact?.rubikaUsername,
-                                                        whatsappName: c.contact?.whatsappName,
-                                                        instagramUsername: c.contact?.instagramUsername,
-                                                })
-                                                const channelAvatar = channelAvatarFor({
-                                                        channel: c.channel,
-                                                        telegramAvatarUrl: c.contact?.telegramAvatarUrl,
-                                                        baleAvatarUrl: c.contact?.baleAvatarUrl,
-                                                        rubikaAvatarUrl: c.contact?.rubikaAvatarUrl,
-                                                        whatsappAvatarUrl: c.contact?.whatsappAvatarUrl,
-                                                        instagramAvatarUrl: c.contact?.instagramAvatarUrl,
-                                                })
-                                                const channelAvatarSrc = contactAvatarSrc({
-                                                        contactId: c.contact?.id,
-                                                        channel: c.channel,
-                                                        rawUrl: channelAvatar,
-                                                })
-                                                // A channelId proxy: if we have a contact at all, it has a
-                                                // channel-specific id. Use the conversation channel as the
-                                                // signal that a fallback label is appropriate.
-                                                const channelId = c.contact ? (c.channel as string) : null
-                                                const who = contactDisplayName({
-                                                        name: c.contact?.name,
-                                                        phone: c.contact?.phone,
-                                                        handle: channelHandle,
-                                                        channel: c.channel,
-                                                        channelId,
-                                                        anonymousLabel: t('anonymous'),
-                                                })
-                                                return (
-                                                        <LiveArrivalItem key={c.id} itemId={c.id}>
-                                                        <Link
-                                                                href={`/conversations/${c.id}`}
-                                                                className={cn(
-                                                                        'grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5',
-                                                                        c.handedOff && c.status !== 'RESOLVED' && 'bg-amber-500/5',
-                                                                )}
-                                                        >
-                                                                <ContactAvatar src={channelAvatarSrc} alt={who} />
-                                                                <div className="min-w-0 flex-1">
-                                                                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                                                                <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">
-                                                                                        {who}
-                                                                                </span>
-                                                                                {channelHandle && who !== channelHandle && (
-                                                                                        <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]">
-                                                                                                @{channelHandle}
-                                                                                        </span>
-                                                                                )}
-                                                                                {sourceLabel && (
-                                                                                        <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
-                                                                                                {sourceLabel}
-                                                                                        </span>
-                                                                                )}
-                                                                                {c.handedOff && c.status !== 'RESOLVED' && (
-                                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-500">
-                                                                                                <span className="relative flex h-1.5 w-1.5">
-                                                                                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75 motion-reduce:animate-none" />
-                                                                                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                                                                                </span>
-                                                                                                {isFa ? 'تحویل اپراتور' : 'Handed off'}
-                                                                                        </span>
-                                                                                )}
-                                                                        </div>
-                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
-                                                                                {last
-                                                                                        ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}`
-                                                                                        : c.agent.name}
-                                                                        </p>
-                                                                </div>
-                                                                 <span className="flex shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
-                                                                         <ChannelBadge type={c.channel} />
-                                                                         {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && (
-                                                                                 <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />
-                                                                         )}
-                                                                         <span>{relativeTime(when, locale)}</span>
-                                                                        <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
-                                                                        </span>
-                                                        </Link>
+
+                                        <div className="space-y-3 md:hidden">
+                                                <div className="flex items-end justify-between gap-3 px-1">
+                                                        <div className="min-w-0">
+                                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
+                                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${matchedCount.toLocaleString('fa-IR')} گفتگوی منطبق` : `${matchedCount} matching conversations`}</p>
+                                                        </div>
+                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
+                                                </div>
+
+                                                {inboxItems.map(({ conversation: c, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                        <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
+                                                                <MobileConversationCard
+                                                                        conversationId={c.id}
+                                                                        who={who}
+                                                                        avatarSrc={channelAvatarSrc}
+                                                                        channelHandle={channelHandle}
+                                                                        sourceLabel={sourceLabel}
+                                                                        relativeTimeLabel={relativeTime(when, locale)}
+                                                                        messageCountLabel={`${c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} ${isFa ? 'پیام' : 'messages'}`}
+                                                                        channel={c.channel}
+                                                                        status={displayStatus}
+                                                                        statusLabel={statusLabel}
+                                                                        attention={attention}
+                                                                        locale={locale}
+                                                                />
                                                         </LiveArrivalItem>
-                                                )
-                                        })}
+                                                ))}
+                                        </div>
+
+                                        <div className="spatial-surface hidden min-w-0 divide-y divide-[var(--border-subtle)] overflow-hidden rounded-[1.5rem] md:block">
+                                                <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5">
+                                                        <div className="min-w-0">
+                                                                <h2 className="text-base font-bold tracking-tight text-[var(--text-primary)]">{isFa ? 'صندوق گفتگوها' : 'Conversation inbox'}</h2>
+                                                                <p className="mt-1 text-xs text-[var(--text-muted)]">{isFa ? `${matchedCount.toLocaleString('fa-IR')} گفتگوی منطبق از ${totalCount.toLocaleString('fa-IR')} پرونده` : `${matchedCount} matching conversations out of ${totalCount}`}</p>
+                                                        </div>
+                                                        <LiveArrivalStatus resource="conversations" locale={locale} />
+                                                </div>
+                                                {inboxItems.map(({ conversation: c, last, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                        <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
+                                                                <Link
+                                                                        href={`/conversations/${c.id}`}
+                                                                        className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5', attention && 'bg-amber-500/5')}
+                                                                >
+                                                                        <ContactAvatar src={channelAvatarSrc} alt={who} />
+                                                                        <div className="min-w-0 flex-1">
+                                                                                <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                                                                                        <span dir="auto" className="min-w-0 truncate text-sm font-semibold text-[var(--text-primary)]">{who}</span>
+                                                                                        {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]">@{channelHandle}</span>}
+                                                                                        {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
+                                                                                </div>
+                                                                                <p dir="auto" className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                        </div>
+                                                                        <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
+                                                                                <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />
+                                                                                <ChannelBadge type={c.channel} />
+                                                                                {c.salesInsight && c.salesInsight.leadType !== 'UNCLEAR' && <SalesInsightBadge insight={c.salesInsight} locale={locale} compactOnMobile />}
+                                                                                <span>{relativeTime(when, locale)}</span>
+                                                                                <span className="tabular-nums">{c.messageCount.toLocaleString(isFa ? 'fa-IR' : 'en-US')} {isFa ? 'پیام' : 'messages'}</span>
+                                                                        </span>
+                                                                </Link>
+                                                        </LiveArrivalItem>
+                                                ))}
+                                        </div>
                                 </div>
                         )}
 

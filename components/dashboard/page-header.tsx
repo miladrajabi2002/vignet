@@ -66,7 +66,9 @@ export function PageHeader({
           </div>
         </div>
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 sm:shrink-0 sm:justify-end">
+            {actions}
+          </div>
         )}
       </div>
     </header>

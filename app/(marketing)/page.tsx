@@ -11,9 +11,12 @@ import { InstagramAutomationSection } from '@/components/marketing/instagram-aut
 import { HomeOnboarding } from '@/components/marketing/home-onboarding'
 import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 
-// Data-backed Server Components stream independently. Interactive sections
-// keep their own viewport-triggered client boundary instead of hydrating the
-// entire homepage on first paint.
+// Below-the-fold sections are split from the initial route bundle. Their
+// meaningful media also stays lazy, while server rendering keeps the content
+// available to search engines and no client hydration is added unnecessarily.
+const ChannelsSection = dynamicImport(() =>
+	import('@/components/marketing/channels-section').then((m) => m.ChannelsSection),
+)
 const PricingSection = dynamicImport(() =>
 	import('@/components/marketing/pricing-section').then((m) => m.PricingSection),
 )
@@ -198,6 +201,7 @@ export default async function HomePage() {
 				<LivePlatformStats />
 			</Suspense>
 			<CapabilitiesSection locale={locale} />
+			<ChannelsSection locale={locale} />
 			<InstagramAutomationSection locale={locale} />
 			<HomeOnboarding locale={locale} />
 			<Suspense fallback={null}>

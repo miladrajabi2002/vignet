@@ -17,6 +17,7 @@ describe('marketing homepage composition', () => {
 		const homepage = read('app/(marketing)/page.tsx')
 		const sections = [
 			'<CapabilitiesSection locale={locale} />',
+			'<ChannelsSection locale={locale} />',
 			'<InstagramAutomationSection locale={locale} />',
 			'<HomeOnboarding locale={locale} />',
 		]
@@ -25,7 +26,6 @@ describe('marketing homepage composition', () => {
 		for (let index = 1; index < sections.length; index += 1) {
 			expect(homepage.indexOf(sections[index - 1])).toBeLessThan(homepage.indexOf(sections[index]))
 		}
-		expect(homepage).not.toContain('<ChannelsSection')
 		expect(homepage).not.toContain('<FeaturesSection />')
 		expect(homepage).not.toContain('<SalesBookingChapter locale={locale} />')
 	})

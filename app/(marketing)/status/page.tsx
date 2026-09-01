@@ -26,7 +26,7 @@ export default async function StatusPage() {
 				<header className="marketing-page-hero marketing-grid-dark px-6 py-10 sm:px-9 sm:py-14">
 					<div className="relative z-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
 						<div>
-							<p className="inline-flex items-center gap-2 text-[10px] font-medium text-white/40"><Activity className="h-3.5 w-3.5" />Vigent System Status</p>
+						<p className="inline-flex items-center gap-2 text-[11px] font-medium text-white/45"><Activity className="h-3.5 w-3.5" />Vigent System Status</p>
 							<h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl rtl:tracking-normal">{t('title')}</h1>
 							<p className="mt-4 max-w-2xl text-sm leading-7 text-white/50">{t('subtitle')}</p>
 						</div>
@@ -46,20 +46,20 @@ export default async function StatusPage() {
 					<div className="flex items-center justify-between border-b border-black/[0.07] px-5 py-4 sm:px-6">
 						<div>
 							<h2 className="text-sm font-semibold text-black">{locale === 'fa' ? 'زیرساخت‌های ویجنت' : 'Vigent infrastructure'}</h2>
-							<p className="mt-1 text-[10px] text-black/40">{locale === 'fa' ? 'بررسی زنده اتصال و زمان پاسخ هر سرویس' : 'Live connectivity and latency for every service'}</p>
+							<p className="mt-1 text-xs text-black/45">{locale === 'fa' ? 'بررسی زنده اتصال و زمان پاسخ هر سرویس' : 'Live connectivity and latency for every service'}</p>
 						</div>
 						<span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 0 6px color-mix(in srgb, ${color} 12%, transparent)` }} />
 					</div>
 					<div className="grid md:grid-cols-2">
 						{report.checks.map((check, index) => (
-							<div key={check.name} className={`flex min-h-20 items-center justify-between gap-4 px-5 py-4 sm:px-6 ${index % 2 === 0 ? 'md:border-e md:border-black/[0.07]' : ''} ${index < report.checks.length - 2 ? 'border-b border-black/[0.07]' : ''}`}>
+							<div key={check.name} className={`flex min-h-20 items-center justify-between gap-4 px-5 py-4 sm:px-6 ${index % 2 === 0 ? 'md:border-e md:border-black/[0.07]' : ''} ${index < report.checks.length - 1 ? 'border-b border-black/[0.07]' : ''} ${index >= report.checks.length - 2 ? 'md:border-b-0' : ''}`}>
 								<div className="flex min-w-0 items-center gap-3">
 									<span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${check.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
 										{check.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
 									</span>
 									<span className="truncate text-sm font-medium text-black">{t(check.name)}</span>
 								</div>
-								<span className="shrink-0 rounded-full bg-black/[0.035] px-3 py-1.5 font-mono text-[10px] text-black/45">
+								<span className="shrink-0 rounded-full bg-black/[0.035] px-3 py-1.5 font-mono text-xs text-black/50">
 									{check.ok ? `${check.latencyMs} ${t('ms')}` : t('unreachable')}
 								</span>
 							</div>
@@ -75,7 +75,7 @@ function Metric({ icon: Icon, label, value, small = false }: { icon: typeof Acti
 	return (
 		<div className="spatial-surface flex min-h-28 items-center gap-4 rounded-[1.4rem] p-4 sm:p-5">
 			<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white"><Icon className="h-4 w-4" /></span>
-			<div className="min-w-0"><p className="text-[10px] text-black/40">{label}</p><p className={`mt-1 font-semibold text-black ${small ? 'truncate text-xs' : 'text-lg tabular-nums'}`}>{value}</p></div>
+		<div className="min-w-0"><p className="text-xs text-black/45">{label}</p><p className={`mt-1 font-semibold text-black ${small ? 'truncate text-xs' : 'text-lg tabular-nums'}`}>{value}</p></div>
 		</div>
 	)
 }

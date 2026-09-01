@@ -19,6 +19,8 @@ import {
 import { getRevenueKPIs } from '@/lib/admin/revenue'
 import { ADMIN_VISIBLE_RELATED_WHERE } from '@/lib/admin/reporting-scope'
 import { displayPhone } from '@/lib/phone'
+import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
+import { AdminUsersSearchForm } from '@/components/admin/admin-users-search-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,10 +75,11 @@ function StatusBadge({ status }: { status: string }) {
 
 export default async function AdminPaymentsPage(
   props: {
-    searchParams: Promise<{ status?: string; gateway?: string; page?: string }>
+    searchParams: Promise<{ q?: string; status?: string; gateway?: string; page?: string }>
   },
 ) {
   const searchParams = await props.searchParams
+  const q = searchParams.q?.trim().slice(0, 120) ?? ''
 
   // Validate status filter
   const validStatuses = ['PAID', 'PENDING', 'FAILED', 'EXPIRED']
@@ -95,7 +98,20 @@ export default async function AdminPaymentsPage(
   const page = Math.max(1, Number(searchParams.page) || 1)
 
   // Build the where clause
-  const where: Prisma.PaymentWhereInput = { ...ADMIN_VISIBLE_RELATED_WHERE }
+  const where: Prisma.PaymentWhereInput = {
+    ...ADMIN_VISIBLE_RELATED_WHERE,
+    ...(q
+      ? {
+          OR: [
+            { id: { contains: q, mode: 'insensitive' } },
+            { authority: { contains: q, mode: 'insensitive' } },
+            { externalId: { contains: q, mode: 'insensitive' } },
+            { workspace: { owner: { name: { contains: q, mode: 'insensitive' } } } },
+            { workspace: { owner: { phone: { contains: q } } } },
+          ],
+        }
+      : {}),
+  }
   if (status) where.status = status
   if (gateway) where.gateway = gateway
 
@@ -130,6 +146,7 @@ export default async function AdminPaymentsPage(
     const p = overrides.page !== undefined ? overrides.page : String(page)
     if (s) sp.set('status', s)
     if (g) sp.set('gateway', g)
+    if (q) sp.set('q', q)
     if (p && p !== '1') sp.set('page', p)
     const qs = sp.toString()
     return qs ? `/admin/payments?${qs}` : '/admin/payments'
@@ -169,10 +186,30 @@ export default async function AdminPaymentsPage(
         ]}
       />
 
-      {/* Filter bars */}
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterPills options={statusPills} />
-        <FilterPills options={gatewayPills} />
+      {/* Live search + adaptive filters */}
+      <div className="sticky top-20 z-20 flex gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72">
+        <AdminUsersSearchForm
+          defaultQuery={q}
+          placeholder="جستجوی کاربر، شناسه یا کد پرداخت…"
+          ariaLabel="جستجوی پرداخت‌ها"
+          basePath="/admin/payments"
+        />
+        <div className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-2 md:flex">
+          <FilterPills options={statusPills} />
+          <FilterPills options={gatewayPills} />
+        </div>
+        <div className="md:hidden">
+          <AdminFilterSheet
+            title="فیلتر پرداخت‌ها"
+            description="وضعیت و درگاه پرداخت را انتخاب کنید"
+            groups={[
+              { label: 'وضعیت', options: statusPills },
+              { label: 'درگاه', options: gatewayPills },
+            ]}
+            activeCount={(status ? 1 : 0) + (gateway ? 1 : 0)}
+            clearHref={q ? `/admin/payments?q=${encodeURIComponent(q)}` : '/admin/payments'}
+          />
+        </div>
       </div>
 
       {/* KPI row */}
@@ -207,6 +244,36 @@ export default async function AdminPaymentsPage(
       {items.length === 0 ? (
         <EmptyState>پرداختی برای نمایش نیست</EmptyState>
       ) : (
+        <>
+        <div className="grid gap-3 md:hidden">
+          {items.map((payment) => {
+            const user = payment.workspace.owner
+            return (
+              <article key={payment.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 shadow-[var(--shadow-soft)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-zinc-950">
+                      {user ? (user.name || displayPhone(user.phone)) : 'کاربر نامشخص'}
+                    </p>
+                    <p dir="ltr" className="mt-1 truncate text-start text-[11px] text-zinc-400">#{payment.id}</p>
+                  </div>
+                  <StatusBadge status={payment.status} />
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-zinc-50 p-3 text-xs">
+                  <div><dt className="text-zinc-400">مبلغ</dt><dd className="mt-1 font-bold tabular-nums text-zinc-900">{payment.currency === 'IRR' ? fmtIRR(payment.amount) : fmtUSD(payment.amount)}</dd></div>
+                  <div><dt className="text-zinc-400">تاریخ</dt><dd className="mt-1 font-medium text-zinc-700">{fmtDay(payment.createdAt)}</dd></div>
+                  <div><dt className="text-zinc-400">پلن / نوع</dt><dd className="mt-1"><PlanBadge plan={payment.plan} kind={payment.kind} /></dd></div>
+                  <div><dt className="text-zinc-400">درگاه</dt><dd className="mt-1"><GatewayBadge gateway={payment.gateway} /></dd></div>
+                </dl>
+                <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
+                  {user ? <Link href={`/admin/users/${user.id}`} className="inline-flex min-h-11 items-center text-xs font-semibold text-zinc-500">پروفایل کاربر</Link> : <span />}
+                  <Link href={`/admin/payments/${payment.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-zinc-200 px-3 text-xs font-bold text-zinc-900">جزئیات پرداخت</Link>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+        <div className="hidden md:block">
         <TableShell>
           <thead className="border-b border-zinc-200 bg-zinc-50/50">
             <tr>
@@ -261,6 +328,8 @@ export default async function AdminPaymentsPage(
             })}
           </tbody>
         </TableShell>
+        </div>
+        </>
       )}
 
       <AdminPagination

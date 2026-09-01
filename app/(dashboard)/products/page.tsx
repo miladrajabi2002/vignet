@@ -162,19 +162,6 @@ export default async function ProductsPage(
         subtitle={t('subtitle')}
         actions={
           <>
-            <BulkDeleteButton
-              countEndpoint="/api/products/bulk"
-              deleteEndpoint="/api/products/bulk"
-              entityLabel={fa ? 'محصولات' : 'products'}
-              buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
-            />
-            <Link
-              href="/products/categories"
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <FolderTree className="h-4 w-4" />
-              {t('manageCategories')}
-            </Link>
             <Link
               href="/products/new"
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
@@ -182,6 +169,22 @@ export default async function ProductsPage(
               <Plus className="h-4 w-4" />
               {t('new')}
             </Link>
+            <Link
+              href="/products/categories"
+              aria-label={t('manageCategories')}
+              title={t('manageCategories')}
+              className="inline-flex min-h-11 w-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] px-0 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:w-auto sm:px-4"
+            >
+              <FolderTree className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('manageCategories')}</span>
+            </Link>
+            <BulkDeleteButton
+              countEndpoint="/api/products/bulk"
+              deleteEndpoint="/api/products/bulk"
+              entityLabel={fa ? 'محصولات' : 'products'}
+              buttonLabel={fa ? 'حذف همه محصولات' : 'Delete all'}
+              compactOnMobile
+            />
           </>
         }
       />
@@ -244,6 +247,7 @@ export default async function ProductsPage(
             defaultSort={sort}
             defaultCategory={categoryId}
             defaultStock={stock}
+            totalResults={totalProducts}
           />
           <ProductGrid products={pageProducts} />
           <Pagination

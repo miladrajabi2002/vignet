@@ -505,7 +505,7 @@ export function ChatLinkClient({ slug, name, avatar, welcomeMessage, settings }:
 						<button
 							onClick={reset}
 							aria-label="شروع گفتگوی جدید"
-							className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700"
+						className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/50"
 						>
 							<RotateCcw className="h-4 w-4" />
 						</button>
@@ -914,7 +914,7 @@ function MessageRow({
 					<button
 						type="button"
 						onClick={onRetry}
-						className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl border border-red-200 bg-white px-3 font-semibold text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+					className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-red-200 bg-white px-3 font-semibold text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
 					>
 						<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
 						تلاش مجدد

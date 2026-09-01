@@ -180,6 +180,26 @@ export default async function AdminRevenuePage() {
       {/* Bottom row — top workspaces (with sparkline) + plan revenue table */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="پردرآمدترین کسب‌وکارها" subtitle="روند پرداخت ۷ روز اخیر">
+          <div className="grid gap-2 md:hidden">
+            {topWorkspaces.map((workspace) => {
+              const spark = paySparks.get(workspace.id)
+              return (
+                <article key={workspace.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="min-w-0 truncate text-xs font-bold text-zinc-900">{workspace.name}</h3>
+                    <PlanBadge plan={workspace.plan} />
+                  </div>
+                  <p className="mt-3 text-lg font-black tabular-nums text-zinc-950">{fmtIRR(workspace.revenueIRR)}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-zinc-400">
+                    <span>روند ۷ روز</span>
+                    <span className="flex items-center gap-2"><Sparkline data={spark?.series ?? []} color="#18181b" width={82} height={24} />{spark ? fa(spark.total) : '۰'}</span>
+                  </div>
+                </article>
+              )
+            })}
+            {topWorkspaces.length === 0 && <p className="py-8 text-center text-xs text-zinc-400">پرداختی ثبت نشده است</p>}
+          </div>
+          <div className="hidden md:block">
           <TableShell minWidth={0}>
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
@@ -224,9 +244,23 @@ export default async function AdminRevenuePage() {
               )}
             </tbody>
           </TableShell>
+          </div>
         </Panel>
 
         <Panel title="درآمد به تفکیک پلن">
+          <div className="grid gap-2 md:hidden">
+            {planRevenue.map((row) => (
+              <article key={row.plan} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                <div className="flex items-center justify-between gap-2"><PlanBadge plan={row.plan} /><strong className="text-sm tabular-nums text-zinc-950">{fmtIRR(row.revenueIRR)}</strong></div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div><dt className="text-[9px] text-zinc-400">کسب‌وکار</dt><dd className="mt-1 text-xs font-bold">{fa(row.workspaceCount)}</dd></div>
+                  <div><dt className="text-[9px] text-zinc-400">پرداخت</dt><dd className="mt-1 text-xs font-bold">{fa(row.paymentCount)}</dd></div>
+                  <div><dt className="text-[9px] text-zinc-400">ماهانه</dt><dd className="mt-1 truncate text-[10px] font-bold">{fmtIRR(row.monthlyPriceIRR)}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <TableShell minWidth={0}>
             <thead className="border-b border-zinc-200 bg-zinc-50/50">
               <tr>
@@ -255,6 +289,7 @@ export default async function AdminRevenuePage() {
               ))}
             </tbody>
           </TableShell>
+          </div>
         </Panel>
       </div>
     </div>

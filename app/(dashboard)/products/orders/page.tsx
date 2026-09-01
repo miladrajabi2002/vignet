@@ -11,6 +11,8 @@ import { Pagination } from '@/components/ui/pagination'
 import { displayPhone } from '@/lib/phone'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { OrdersSearchForm } from '@/components/products/orders-search-form'
+import { CopyButton } from '@/components/ui/copy-button'
+import { MobileOrderCard } from '@/components/products/mobile-order-card'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -88,7 +90,6 @@ export default async function OrdersPage({
     dateStyle: 'medium',
     timeStyle: 'short',
   })
-
   function makeHref(nextPage: number) {
     const nextParams = new URLSearchParams()
     if (q) nextParams.set('q', q)
@@ -129,6 +130,7 @@ export default async function OrdersPage({
               deleteEndpoint="/api/products/orders/bulk"
               entityLabel={locale === 'en' ? 'orders' : 'سفارش'}
               buttonLabel={locale === 'en' ? 'Delete all' : 'حذف همه سفارشات'}
+              compactOnMobile
             />
             <span className="inline-flex min-h-10 items-center rounded-xl border border-[var(--border-default)] px-3 text-sm text-[var(--text-secondary)]">
               {t('total', { count: totalOrders })}
@@ -155,10 +157,13 @@ export default async function OrdersPage({
         statusLabel={t('statusLabel')}
         allStatuses={t('allStatuses')}
         clearFilters={t('clearFilters')}
+        filtersLabel={t('filters')}
+        closeFilters={t('showResults')}
+        resultsLabel={t('results', { count: totalOrders })}
       />
 
       {orders.length === 0 ? (
-        <section className="flex min-h-72 flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-[var(--bg-surface)] p-8 text-center">
+        <section className="flex min-h-72 flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--border-default)] bg-white p-8 text-center shadow-[var(--shadow-card)]">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--bg-muted)] text-[var(--text-muted)]">
             <ShoppingBag className="h-6 w-6" />
           </span>
@@ -179,7 +184,7 @@ export default async function OrdersPage({
         </section>
       ) : (
         <>
-          <section className="hidden overflow-hidden rounded-[1.5rem] border border-[var(--border-subtle)] bg-[var(--bg-surface)] md:block">
+          <section className="spatial-surface hidden overflow-hidden rounded-[1.5rem] !bg-white md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead className="bg-[var(--bg-muted)] text-start text-xs text-[var(--text-secondary)]">
@@ -267,93 +272,78 @@ export default async function OrdersPage({
 
           <div className="grid gap-3 md:hidden">
             {orders.map((order) => (
-              <article
+              <MobileOrderCard
                 key={order.id}
-                className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
+                orderNumber={order.externalOrderId}
+                customerName={order.customerName || t('unknownCustomer')}
+                statusLabel={statusLabel(order.status)}
+                statusClassName={statusClassName(order.status)}
+                amountLabel={amountLabel(order.total, order.currency)}
+                dateLabel={dateFormatter.format(order.orderDate ?? order.createdAt)}
+                amountTitle={t('amount')}
+                dateTitle={t('date')}
+                detailsLabel={t('details')}
+                closeLabel={t('hideDetails')}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p dir="ltr" className="text-start font-bold text-[var(--text-primary)]">
-                      #{order.externalOrderId}
-                    </p>
-                    <p className="mt-1 truncate text-sm text-[var(--text-secondary)]">
-                      {order.customerName || t('unknownCustomer')}
-                    </p>
-                  </div>
-                  <span className={cn(
-                    'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
-                    statusClassName(order.status),
-                  )}>
-                    {statusLabel(order.status)}
-                  </span>
-                </div>
-
-                <p className="mt-4 line-clamp-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {order.itemsSummary || t('itemsCount', { count: order.itemCount })}
-                </p>
-
-                <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--border-subtle)] pt-4 text-xs">
-                  <div>
-                    <dt className="text-[var(--text-muted)]">{t('amount')}</dt>
-                    <dd className="mt-1 font-semibold tabular-nums text-[var(--text-primary)]">
-                      {amountLabel(order.total, order.currency)}
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-[1.35rem] border border-[var(--border-default)] bg-white p-4 text-xs shadow-[var(--shadow-xs)]">
+                  <div className="col-span-2">
+                    <dt className="text-[var(--text-muted)]">{t('items')}</dt>
+                    <dd className="mt-1 text-sm leading-6 text-[var(--text-primary)]">
+                      {order.itemsSummary || t('itemsCount', { count: order.itemCount })}
                     </dd>
+                    {order.itemsSummary && (
+                      <p className="mt-1 text-[var(--text-muted)]">{t('itemsCount', { count: order.itemCount })}</p>
+                    )}
                   </div>
-                  <div>
-                    <dt className="text-[var(--text-muted)]">{t('date')}</dt>
-                    <dd className="mt-1 text-[var(--text-primary)]">
-                      {dateFormatter.format(order.orderDate ?? order.createdAt)}
-                    </dd>
-                  </div>
-                  {order.trackingCode && (
+
+                  {(order.customerPhone || order.customerEmail) && (
                     <div className="col-span-2">
-                      <dt className="text-[var(--text-muted)]">{t('tracking')}</dt>
-                      <dd dir="ltr" className="mt-1 text-start font-medium text-[var(--text-primary)]">
-                        {order.trackingCode}
+                      <dt className="text-[var(--text-muted)]">{t('customer')}</dt>
+                      <dd dir="ltr" className="mt-1 truncate text-start font-medium text-[var(--text-primary)]">
+                        {order.customerPhone ? displayPhone(order.customerPhone) : order.customerEmail}
                       </dd>
                     </div>
                   )}
+
+                  <div className="col-span-2">
+                    <dt className="text-[var(--text-muted)]">{t('store')}</dt>
+                    <dd dir="ltr" className="mt-1 truncate text-start font-medium text-[var(--text-primary)]">
+                      {shortStoreUrl(order.integration.storeUrl)}
+                    </dd>
+                  </div>
+
+                  {order.trackingCode && (
+                    <div className="col-span-2">
+                      <dt className="text-[var(--text-muted)]">{t('tracking')}</dt>
+                      <dd className="mt-1 flex items-center justify-between gap-2">
+                        <span dir="ltr" className="min-w-0 truncate text-start font-medium text-[var(--text-primary)]">
+                          {order.trackingCode}
+                        </span>
+                        <CopyButton value={order.trackingCode} label={t('copyTracking')} copiedLabel={t('copied')} />
+                      </dd>
+                    </div>
+                  )}
+
                   {(order.courierName || order.shippingDate || order.trackingLink || order.shippingNote) && (
-                    <div className="col-span-2 border-t border-[var(--border-subtle)] pt-3">
-                      <dt className="text-[var(--text-muted)]">{t('shippingInfo')}</dt>
-                      <dd className="mt-2 space-y-1 text-sm text-[var(--text-primary)]">
-                        {order.courierName && (
-                          <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('courier')}:</span>
-                            <span className="font-medium">{order.courierName}</span>
-                          </div>
-                        )}
-                        {order.shippingDate && (
-                          <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('shippingDate')}:</span>
-                            <span className="font-medium">{order.shippingDate}</span>
-                          </div>
-                        )}
+                    <div className="col-span-2 border-t border-[var(--border-subtle)] pt-4">
+                      <dt className="font-semibold text-[var(--text-primary)]">{t('shippingInfo')}</dt>
+                      <dd className="mt-2 space-y-2 text-sm leading-6 text-[var(--text-primary)]">
+                        {order.courierName && <p><span className="text-[var(--text-muted)]">{t('courier')}: </span>{order.courierName}</p>}
+                        {order.shippingDate && <p><span className="text-[var(--text-muted)]">{t('shippingDate')}: </span>{order.shippingDate}</p>}
                         {order.trackingLink && (
-                          <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('trackingLink')}:</span>
-                            <a
-                              href={order.trackingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              dir="ltr"
-                              className="font-medium text-blue-600 hover:underline"
-                            >
+                          <p className="min-w-0">
+                            <span className="text-[var(--text-muted)]">{t('trackingLink')}: </span>
+                            <a href={order.trackingLink} target="_blank" rel="noopener noreferrer" dir="ltr" className="break-all font-medium text-blue-600 hover:underline">
                               {order.trackingLink}
                             </a>
-                          </div>
+                          </p>
                         )}
-                        {order.shippingNote && (
-                          <div className="flex gap-2">
-                            <span className="text-[var(--text-muted)]">{t('shippingNote')}:</span>
-                            <span>{order.shippingNote}</span>
-                          </div>
-                        )}
+                        {order.shippingNote && <p><span className="text-[var(--text-muted)]">{t('shippingNote')}: </span>{order.shippingNote}</p>}
                       </dd>
                     </div>
                   )}
                 </dl>
-              </article>
+              </MobileOrderCard>
             ))}
           </div>
 

@@ -14,8 +14,6 @@ import {
     Globe,
     Download,
     Sparkles,
-    Package,
-    ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
@@ -324,26 +322,6 @@ export function WooSetupCard({
                     </button>
                 </div>
             </div>
-
-            <nav
-                aria-label="مدیریت اطلاعات فروشگاه"
-                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4"
-            >
-                <Link
-                    href="/products"
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
-                >
-                    <Package className="h-4 w-4" />
-                    مشاهده محصولات
-                </Link>
-                <Link
-                    href="/products/orders"
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
-                >
-                    <ShoppingBag className="h-4 w-4" />
-                    مشاهده سفارش‌ها
-                </Link>
-            </nav>
 
             {/* Notice */}
             {notice && (

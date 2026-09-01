@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, Mail, Paperclip, Reply, Send } from 'lucide-react'
+import { ArrowRight, Check, Mail, Paperclip, Reply, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
 
@@ -27,6 +27,7 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) || null,
     [items, selectedId],
@@ -34,6 +35,7 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
 
   async function selectMessage(id: string) {
     setSelectedId(id)
+    setMobileDetailOpen(true)
     setNotice(null)
     const item = items.find((row) => row.id === id)
     if (!item || item.readAt) return
@@ -80,8 +82,8 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
   }
 
   return (
-    <div className="grid min-h-[36rem] gap-4 lg:grid-cols-[minmax(17rem,.78fr)_minmax(0,1.4fr)]">
-      <section aria-label="فهرست ایمیل‌ها" className="spatial-surface overflow-hidden rounded-[1.5rem]">
+    <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:min-h-[36rem] lg:grid-cols-[minmax(17rem,.78fr)_minmax(0,1.4fr)]">
+      <section aria-label="فهرست ایمیل‌ها" className={cn('spatial-surface overflow-hidden rounded-[1.5rem]', mobileDetailOpen ? 'hidden lg:block' : 'block')}>
         <div className="flex items-center justify-between border-b border-black/[0.07] px-4 py-3.5">
           <div>
             <h2 className="text-sm font-bold text-black">پیام‌ها</h2>
@@ -133,10 +135,18 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
         </div>
       </section>
 
-      <section className="spatial-surface flex min-w-0 flex-col overflow-hidden rounded-[1.5rem]">
+      <section className={cn('spatial-surface min-w-0 flex-col overflow-hidden rounded-[1.5rem]', mobileDetailOpen ? 'flex' : 'hidden', 'lg:flex')}>
         {selected ? (
           <>
             <header className="border-b border-black/[0.07] px-5 py-5 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setMobileDetailOpen(false)}
+                className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/[0.08] px-3 text-xs font-bold text-black/65 lg:hidden"
+              >
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                بازگشت به پیام‌ها
+              </button>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p dir="ltr" className="truncate text-xs font-semibold text-black/45">{selected.from}</p>
@@ -157,7 +167,7 @@ export function AdminMailbox({ initialItems }: { initialItems: AdminMailboxItem[
                 <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-emerald-900/75">{selected.replyText}</p>
               </div>
             )}
-            <form onSubmit={replyToMessage} className="border-t border-black/[0.07] bg-black/[0.018] p-4 sm:p-5">
+            <form onSubmit={replyToMessage} className="sticky border-t border-black/[0.07] bg-white/95 p-4 backdrop-blur-xl [bottom:calc(5rem+env(safe-area-inset-bottom))] sm:p-5 lg:static lg:bg-black/[0.018]">
               <label htmlFor="admin-mail-reply" className="mb-2 block text-xs font-bold text-black/65">پاسخ از info@vigent.ir</label>
               <textarea
                 id="admin-mail-reply"

@@ -34,7 +34,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
 				</aside>
 
 				<section className="relative flex h-full min-h-0 flex-col items-center justify-center overflow-hidden px-3 py-16 sm:px-8 sm:py-20 [@media(max-height:700px)]:justify-start [@media(max-height:700px)]:overflow-y-auto [@media(max-height:700px)]:py-14">
-					<Link href="/" className="absolute top-4 text-black sm:top-6" aria-label="Vigent"><Logo priority className="h-9 w-36 sm:h-10 sm:w-40" /></Link>
+					<Link href="/" className="absolute top-4 inline-flex min-h-11 items-center text-black sm:top-6" aria-label="Vigent"><Logo priority className="h-9 w-36 sm:h-10 sm:w-40" /></Link>
 					<div className="relative z-10 w-full max-w-sm">{children}</div>
 					<p className="absolute bottom-4 text-center text-[10px] text-black/30 sm:bottom-6 [@media(max-height:700px)]:hidden">Vigent · Vigento AI</p>
 				</section>

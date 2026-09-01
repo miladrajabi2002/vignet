@@ -327,7 +327,7 @@ export function PhoneOtpForm({
                 setCodeVerified(false)
                 submittingRef.current = false
               }}
-              className="mb-2 inline-flex min-h-10 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
+			  className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:mb-4"
             >
               <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
               {t('changeNumber')}

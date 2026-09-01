@@ -158,7 +158,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 				<Spotlight />
 				<div className="relative mx-auto max-w-7xl px-5 sm:px-8">
 					<nav aria-label={copy.breadcrumb} className="mb-8 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-xs text-black/45 sm:mb-10">
-						<Link href="/" className="transition-colors hover:text-black">{copy.brand}</Link><span>/</span><Link href="/#solutions" className="transition-colors hover:text-black">{copy.solutions}</Link><span>/</span><span className="text-black/60">{meta.channel}</span>
+						<Link href="/" className="inline-flex min-h-11 items-center transition-colors hover:text-black">{copy.brand}</Link><span>/</span><Link href="/#solutions" className="inline-flex min-h-11 items-center transition-colors hover:text-black">{copy.solutions}</Link><span>/</span><span className="text-black/60">{meta.channel}</span>
 					</nav>
 
 					<div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.88fr)] lg:items-start lg:gap-14 xl:gap-20">
@@ -172,16 +172,16 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 							</div>
 							<p className="mt-5 text-[11px] leading-6 text-black/45">{copy.trust}</p>
 							<div className="mt-5 grid max-w-2xl gap-2 sm:grid-cols-2">
-								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-[10px] text-black/40">{copy.automation}</p><p className="mt-1 text-sm font-semibold text-black">{copy.automationValue}</p></div>
-								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-[10px] text-black/40">{copy.aiReplies}</p><p className="mt-1 text-sm font-semibold text-black">{copy.aiRepliesValue}</p></div>
+								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-xs text-black/45">{copy.automation}</p><p className="mt-1 text-sm font-semibold text-black">{copy.automationValue}</p></div>
+								<div className="spatial-surface rounded-2xl px-4 py-3"><p className="text-xs text-black/45">{copy.aiReplies}</p><p className="mt-1 text-sm font-semibold text-black">{copy.aiRepliesValue}</p></div>
 							</div>
 						</div>
 
 						<aside aria-label={`${isFa ? 'نمونه پاسخ' : 'Example reply'} ${solution.serviceType}`} className="relative mx-auto min-w-0 w-full max-w-lg overflow-hidden rounded-[1.8rem] border border-black bg-[#050505] p-4 text-white shadow-[0_32px_90px_rgba(0,0,0,0.22)] sm:p-6 lg:sticky lg:top-28">
 							<div aria-hidden className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-45" />
-							<div className="relative flex items-center justify-between border-b border-white/10 pb-4"><div className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black"><Bot className="h-4 w-4" /></span><div><p className="text-[11px] font-semibold text-white">{copy.agent}</p><p className="mt-0.5 text-[9px] text-emerald-300">{copy.online}</p></div></div><span className="text-[9px] text-white/40">{meta.channel}</span></div>
+							<div className="relative flex items-center justify-between border-b border-white/10 pb-4"><div className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black"><Bot className="h-4 w-4" /></span><div><p className="text-xs font-semibold text-white">{copy.agent}</p><p className="mt-0.5 text-[11px] text-emerald-300">{copy.online}</p></div></div><span className="text-[11px] text-white/50">{meta.channel}</span></div>
 							<div className="relative space-y-3 py-6"><div className="ms-auto max-w-[88%] rounded-2xl rounded-ee-sm bg-white px-3.5 py-3 text-[11px] leading-5 text-black">{meta.question}</div><div className="max-w-[92%] rounded-2xl rounded-es-sm border border-white/10 bg-white/[0.07] px-3.5 py-3 text-[11px] leading-5 text-white/70">{meta.answer}<span className="mt-2 flex w-max max-w-full items-center gap-1.5 rounded-full bg-white/[0.08] px-2 py-1 text-[8px] text-white/45"><Database className="h-2.5 w-2.5 shrink-0" /><span className="truncate">{meta.source}</span></span></div></div>
-							<div className="flex items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-3 py-2.5 text-[10px] font-medium text-emerald-800"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white"><Check className="h-3 w-3" /></span>{copy.result}</div>
+							<div className="flex items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-3 py-2.5 text-[11px] font-medium text-emerald-800"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white"><Check className="h-3 w-3" /></span>{copy.result}</div>
 						</aside>
 					</div>
 				</div>

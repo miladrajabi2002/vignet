@@ -21,6 +21,7 @@ import {
   extractListItems,
   stripListBlocks,
 } from '@/lib/products/description'
+import { CopyButton } from '@/components/ui/copy-button'
 
 export default async function ProductDetailPage(
   props: {
@@ -130,7 +131,7 @@ export default async function ProductDetailPage(
             next to the other action buttons. */}
         <Link
           href={`/products/${product.id}/edit`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
+          className="fixed inset-x-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-floating)] transition-opacity hover:opacity-90 md:static md:min-h-11 md:shadow-[var(--shadow-control)]"
         >
           <Pencil className="h-4 w-4" />
           {t('edit')}
@@ -188,27 +189,41 @@ export default async function ProductDetailPage(
             )}
           </div>
           {product.sku && (
-            <p className="mt-2 text-xs text-[var(--text-muted)]" dir="ltr">
-              SKU: {product.sku}
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <p className="min-w-0 truncate text-xs text-[var(--text-muted)]" dir="ltr">
+                SKU: {product.sku}
+              </p>
+              <CopyButton value={product.sku} label={t('copySku')} copiedLabel={t('copied')} />
+            </div>
           )}
           {/* External product URL — the canonical link on the source store
               (WooCommerce permalink, etc.). Used by the Instagram automation
               engine to render the "View product" button on product cards. */}
           {product.externalUrl && (
-            <a
-              href={product.externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              dir="ltr"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
-            >
-              <ExternalLink className="h-3 w-3" />
-              {product.externalUrl.length > 48
-                ? `${product.externalUrl.slice(0, 48)}…`
-                : product.externalUrl}
-            </a>
+            <div className="mt-2 flex min-w-0 items-center gap-2">
+              <a
+                href={product.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                dir="ltr"
+                className="inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl border border-[var(--border-default)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {product.externalUrl.length > 48
+                    ? `${product.externalUrl.slice(0, 48)}…`
+                    : product.externalUrl}
+                </span>
+              </a>
+              <CopyButton value={product.externalUrl} label={t('copyLink')} copiedLabel={t('copied')} />
+            </div>
           )}
+          <div className="mt-2 flex items-center gap-2">
+            <span dir="ltr" className="min-w-0 truncate text-xs text-[var(--text-hint)]">
+              ID: {product.id}
+            </span>
+            <CopyButton value={product.id} label={t('copyId')} copiedLabel={t('copied')} />
+          </div>
           {/* Description — rendered as plain text; <ul>/<li> blocks were
               extracted into the attributes list above so they don't leak raw
               HTML here. */}
@@ -390,7 +405,7 @@ export default async function ProductDetailPage(
           </div>
         </div>
       )}
-      <p className="text-xs text-[var(--text-muted)]">
+      <p className="pb-16 text-xs text-[var(--text-muted)] md:pb-0">
         {t('detail.updatedAt')}: {formatDateTime(product.updatedAt, locale)}
       </p>
     </div>

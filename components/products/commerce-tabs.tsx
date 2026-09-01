@@ -29,7 +29,7 @@ export function CommerceTabs({
   return (
     <nav
       aria-label={productsLabel}
-      className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1 sm:inline-grid"
+      className="spatial-surface grid grid-cols-2 gap-1 rounded-[1.35rem] p-1.5 sm:inline-grid sm:min-w-[20rem]"
     >
       {items.map((item) => {
         const Icon = item.icon
@@ -40,13 +40,20 @@ export function CommerceTabs({
             href={item.href}
             aria-current={selected ? 'page' : undefined}
             className={cn(
-              'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]',
+              'spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60 focus-visible:ring-offset-2',
               selected
-                ? 'bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]',
+                ? 'bg-black text-white shadow-[0_8px_22px_rgba(0,0,0,0.16)]'
+                : 'text-[var(--text-secondary)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',
             )}
           >
-            <Icon className="h-4 w-4" />
+            <span
+              className={cn(
+                'grid h-7 w-7 place-items-center rounded-lg transition-colors duration-200',
+                selected ? 'bg-white/10' : 'bg-black/[0.045]',
+              )}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
             {item.label}
           </Link>
         )

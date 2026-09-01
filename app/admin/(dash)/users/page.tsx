@@ -23,6 +23,8 @@ import { readBusinessProfile } from '@/lib/verticals/profile'
 import { getOnboardingProgress } from '@/lib/onboarding-progress'
 import { AdminBroadcastDialog } from '@/components/admin/admin-broadcast-form'
 import { ADMIN_VISIBLE_USER_WHERE, ADMIN_VISIBLE_WORKSPACE_WHERE } from '@/lib/admin/reporting-scope'
+import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
+import { AdminUserMobileCards, type AdminMobileUser } from '@/components/admin/admin-user-mobile-cards'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,11 +143,18 @@ export default async function AdminUsersPage(
     : new Map<string, { workspaceId: string; series: number[]; total: number }>()
 
   // Plan filter pills — clicking resets to page 1.
+  const planHref = (plan?: string) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    if (plan) params.set('plan', plan)
+    const query = params.toString()
+    return query ? `/admin/users?${query}` : '/admin/users'
+  }
   const filterPillOptions = [
-    { label: 'همه', href: '/admin/users', active: !planFilter },
+    { label: 'همه', href: planHref(), active: !planFilter },
     ...PLAN_OPTIONS.map((p) => ({
       label: p.label,
-      href: `/admin/users?plan=${p.value}`,
+      href: planHref(p.value),
       active: planFilter === p.value,
     })),
   ]
@@ -158,6 +167,50 @@ export default async function AdminUsersPage(
     const qs = sp.toString()
     return qs ? `/admin/users?${qs}` : '/admin/users'
   }
+
+  const mobileUsers: AdminMobileUser[] = items.map((user) => {
+    const workspace = user.workspace
+    if (!workspace) {
+      return {
+        id: user.id,
+        name: user.name ?? 'بدون نام',
+        phone: displayPhone(user.phone) ?? '—',
+        joinedAt: fmtDay(user.createdAt),
+        workspace: null,
+      }
+    }
+
+    const plan = PLAN_LABEL[workspace.plan] ?? { label: workspace.plan, tone: 'muted' as const }
+    const onboarding = getOnboardingProgress({
+      completed: workspace.onboardingCompleted,
+      hasProfile: Boolean(readBusinessProfile(workspace.businessProfile)),
+      hasAgent: workspace._count.agents > 0,
+      hasKnowledge: workspace._count.products > 0 || workspace.onboardingKnowledgeSkipped || workspace.agents.some((agent) => agent._count.knowledgeBases > 0),
+      hasChannel: workspace.onboardingChannelSkipped || workspace.agents.some((agent) => agent._count.channels > 0),
+    })
+    const stalled = !workspace.onboardingCompleted && workspace.onboardingStepUpdatedAt < stalledSince
+
+    return {
+      id: user.id,
+      name: user.name ?? 'بدون نام',
+      phone: displayPhone(user.phone) ?? '—',
+      joinedAt: fmtDay(user.createdAt),
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+        planLabel: plan.label,
+        planTone: plan.tone,
+        statusLabel: workspace.onboardingCompleted ? 'فعال' : stalled ? 'متوقف' : onboarding.labelFa,
+        statusTone: workspace.onboardingCompleted ? 'success' : stalled ? 'warning' : 'info',
+        counts: {
+          agents: fa(workspace._count.agents),
+          conversations: fa(workspace._count.conversations),
+          payments: fa(workspace._count.payments),
+          products: fa(workspace._count.products),
+        },
+      },
+    }
+  })
 
   return (
     <div className="space-y-6">
@@ -181,14 +234,23 @@ export default async function AdminUsersPage(
         }
       />
 
-      <div className="flex flex-col gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/72 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
+      <div className="sticky top-20 z-20 flex gap-2 rounded-[1.35rem] border border-black/[0.07] bg-white/90 p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl md:static md:bg-white/72 lg:items-center">
         <AdminUsersSearchForm
           defaultQuery={q}
           placeholder="جستجوی نام، تلفن یا کسب‌وکار…"
           ariaLabel="جستجوی کاربرها"
         />
         {planFilter && <input type="hidden" name="plan" value={planFilter} />}
-        <div className="shrink-0 overflow-x-auto"><FilterPills options={filterPillOptions} /></div>
+        <div className="hidden shrink-0 overflow-x-auto md:block"><FilterPills options={filterPillOptions} /></div>
+        <div className="md:hidden">
+          <AdminFilterSheet
+            title="فیلتر پلن"
+            description="کاربران را بر اساس پلن کسب‌وکار ببینید"
+            groups={[{ label: 'پلن', options: filterPillOptions }]}
+            activeCount={planFilter ? 1 : 0}
+            clearHref={q ? `/admin/users?q=${encodeURIComponent(q)}` : '/admin/users'}
+          />
+        </div>
       </div>
 
       {/* Stats — merged from old users + workspaces pages */}
@@ -226,6 +288,9 @@ export default async function AdminUsersPage(
           {q ? `نتیجه‌ای برای «${q}» یافت نشد` : 'کاربری ثبت نشده'}
         </EmptyState>
       ) : (
+        <>
+        <AdminUserMobileCards users={mobileUsers} />
+        <div className="hidden md:block">
         <TableShell>
           <thead className="border-b border-zinc-200 bg-zinc-50/60">
             <tr>
@@ -325,6 +390,8 @@ export default async function AdminUsersPage(
             })}
           </tbody>
         </TableShell>
+        </div>
+        </>
       )}
 
       <AdminPagination page={page} hasNext={hasNext} makeHref={makeHref} />

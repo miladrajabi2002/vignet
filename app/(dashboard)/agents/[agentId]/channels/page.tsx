@@ -23,6 +23,7 @@ import {
 } from '@/lib/chat-link/config'
 import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
+import { ChannelMobileSections, type ChannelMobileSection } from '@/components/channels/channel-mobile-sections'
 
 export default async function AgentChannelsPage(
   props: {
@@ -97,6 +98,79 @@ export default async function AgentChannelsPage(
     { type: 'BALE', label: t('bale'), hint: t('baleHint') },
     { type: 'RUBIKA', label: t('rubika'), hint: t('rubikaHint') },
     { type: 'INSTAGRAM', label: t('instagram'), hint: t('instagramHint') },
+  ]
+
+  const channelSections: ChannelMobileSection[] = [
+    {
+      key: 'WEB_WIDGET',
+      label: t('webWidget'),
+      hint: t('widgetDesc'),
+      content: (
+        <WebWidgetChannel
+          agentId={agent.id}
+          agentName={agent.name}
+          baseUrl={baseUrl}
+          enabled={!!widget}
+          channelId={widget?.id ?? null}
+          config={(widget?.config as Record<string, unknown> | null) ?? null}
+          customerIdentificationRequired={agent.requireCustomerInfo}
+          customerIdentificationMessage={agent.customerInfoPrompt}
+        />
+      ),
+    },
+    {
+      key: 'CHAT_LINK',
+      label: t('chatLink'),
+      hint: t('chatLinkHint'),
+      content: (
+        <ChatLinkChannel
+          agentId={agent.id}
+          agentName={agent.name}
+          appUrl={appUrl}
+          initialLink={chatLink}
+          suggestedSlug={suggestedSlug}
+          customerIdentificationRequired={agent.requireCustomerInfo}
+          customerIdentificationMessage={agent.customerInfoPrompt}
+        />
+      ),
+    },
+    ...messengers.map((messenger) => {
+      const channel = agent.channels.find((item) => item.type === messenger.type)
+      const config = channel?.config && typeof channel.config === 'object'
+        ? channel.config as Record<string, unknown>
+        : null
+      const botUsername = config ? String(config.botUsername ?? '') : ''
+      const botAvatar = config && messenger.type === 'INSTAGRAM'
+        ? String(config.igProfilePictureUrl ?? '')
+        : ''
+      const quickReplies = messenger.type === 'INSTAGRAM'
+        ? []
+        : channel
+          ? normalizeMessengerSettings(channel.config).quickReplies
+          : []
+      const content = (
+        <MessengerChannel
+          agentId={agent.id}
+          type={messenger.type}
+          label={messenger.label}
+          hint={messenger.hint}
+          enabled={!!channel}
+          channelId={channel?.id ?? null}
+          botUsername={botUsername || null}
+          lastInboundAt={channel?.lastInboundAt ? channel.lastInboundAt.toISOString() : null}
+          quickReplies={quickReplies}
+          botAvatar={botAvatar || null}
+        />
+      )
+      return {
+        key: messenger.type,
+        label: messenger.label,
+        hint: messenger.hint,
+        content: messenger.type === 'INSTAGRAM'
+          ? <div id="instagram-connection" className="scroll-mt-24">{content}</div>
+          : content,
+      }
+    }),
   ]
 
   return (
@@ -183,70 +257,7 @@ export default async function AgentChannelsPage(
         </div>
       )}
 
-      <WebWidgetChannel
-        agentId={agent.id}
-        agentName={agent.name}
-        baseUrl={baseUrl}
-        enabled={!!widget}
-        channelId={widget?.id ?? null}
-        config={(widget?.config as Record<string, unknown> | null) ?? null}
-        customerIdentificationRequired={agent.requireCustomerInfo}
-        customerIdentificationMessage={agent.customerInfoPrompt}
-      />
-
-      <ChatLinkChannel
-        agentId={agent.id}
-        agentName={agent.name}
-        appUrl={appUrl}
-        initialLink={chatLink}
-        suggestedSlug={suggestedSlug}
-        customerIdentificationRequired={agent.requireCustomerInfo}
-        customerIdentificationMessage={agent.customerInfoPrompt}
-      />
-
-      {messengers.map((m) => {
-        const ch = agent.channels.find((c) => c.type === m.type)
-        const config =
-          ch && ch.config && typeof ch.config === 'object'
-            ? (ch.config as Record<string, unknown>)
-            : null
-        const botUsername = config ? String(config.botUsername ?? '') : ''
-        const botAvatar =
-          config && m.type === 'INSTAGRAM'
-            ? String(config.igProfilePictureUrl ?? '')
-            : ''
-        // FRONTEND-AUTO-V3: Instagram no longer renders the legacy quick-replies
-        // editor on this page — the dedicated `/agents/{agentId}/instagram`
-        // automation tab is the canonical place for IG message builders.
-        // We deliberately pass an empty array for IG so MessengerChannel never
-        // renders the ChannelSettings card (also guarded by
-        // SUPPORTS_QUICK_REPLIES.INSTAGRAM = false in messenger-channel.tsx).
-        const quickReplies =
-          m.type === 'INSTAGRAM'
-            ? []
-            : ch
-              ? normalizeMessengerSettings(ch.config).quickReplies
-              : []
-
-        const channel = (
-          <MessengerChannel
-            key={m.type}
-            agentId={agent.id}
-            type={m.type}
-            label={m.label}
-            hint={m.hint}
-            enabled={!!ch}
-            channelId={ch?.id ?? null}
-            botUsername={botUsername || null}
-            lastInboundAt={ch?.lastInboundAt ? ch.lastInboundAt.toISOString() : null}
-            quickReplies={quickReplies}
-            botAvatar={botAvatar || null}
-          />
-        )
-        return m.type === 'INSTAGRAM'
-          ? <div key={m.type} id="instagram-connection" className="scroll-mt-24">{channel}</div>
-          : channel
-      })}
+      <ChannelMobileSections sections={channelSections} navigationLabel={t('mobileChannelList')} />
 
       {/* Not a chat channel — a data source. Point users to Store Integrations
           without cluttering the channel list with a toggle that doesn't belong. */}

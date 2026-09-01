@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import { getMainWorkspaceId as getWorkspaceId } from '@/lib/blog/workspace'
-import Link from 'next/link'
 import { getLocale } from 'next-intl/server'
 import { prisma } from '@/lib/prisma'
 import { SocialLinks } from '@/components/marketing/social-links'
-import { PublicPostCard } from '@/components/blog/public-post-card'
+import { PublicBlogIndex } from '@/components/blog/public-blog-index'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -54,8 +53,6 @@ export default async function PublicBlogIndexPage() {
 				})
 			: [],
 	])
-	const [featured, ...rest] = posts
-
 	return (
 		<div className="marketing-page-shell min-h-screen px-3 pb-24 pt-24 sm:px-5 sm:pt-28">
 			<div className="mx-auto max-w-7xl">
@@ -88,36 +85,7 @@ export default async function PublicBlogIndexPage() {
 				</div>
 			</header>
 
-			{categories.length > 0 && (
-				<div className="mb-8 flex flex-wrap justify-start gap-2">
-					<Link
-						href={`/blog`}
-						className="inline-flex min-h-10 items-center rounded-full bg-black px-4 text-xs text-white"
-					>
-						{locale === 'fa' ? 'همه' : 'All'}
-					</Link>
-					{categories.map((c) => (
-						<Link
-							key={c.id}
-							href={`/blog/category/${c.slug}`}
-							className="inline-flex min-h-10 items-center rounded-full border border-black/10 bg-white px-4 text-xs text-black/55 transition-colors hover:border-black/20 hover:text-black"
-						>
-							{c.name}
-						</Link>
-					))}
-				</div>
-			)}
-
-			{!featured ? (
-				<div className="rounded-[1.5rem] border border-dashed border-black/15 bg-[#f7f7f5] p-16 text-center text-black/40">
-					{locale === 'fa' ? 'هنوز پستی منتشر نشده است.' : 'No posts published yet.'}
-				</div>
-			) : (
-				<div className="space-y-5">
-					<PublicPostCard post={featured} locale={locale} featured />
-					{rest.length > 0 && <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{rest.map((post) => <PublicPostCard key={post.id} post={post} locale={locale} />)}</div>}
-				</div>
-			)}
+			<PublicBlogIndex posts={posts} categories={categories} locale={locale} />
 			</div>
 		</div>
 	)

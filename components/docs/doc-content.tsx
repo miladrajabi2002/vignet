@@ -2,6 +2,7 @@ import type { DocPage, Locale } from '@/lib/docs/content'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { DOCS_NAV } from '@/lib/docs/nav'
+import { CopyButton } from '@/components/ui/copy-button'
 
 function pick(t: { fa: string; en: string }, locale: Locale) {
   return locale === 'fa' ? t.fa : t.en
@@ -73,15 +74,22 @@ export function DocContent({
               )
             case 'code':
               return (
-                <figure key={i}>
+                <figure key={i} className="relative">
                   {block.caption && (
                     <figcaption className="mb-2 text-xs text-[var(--text-muted)]">
                       {pick(block.caption, locale)}
                     </figcaption>
                   )}
+                  <CopyButton
+                    value={block.code}
+                    label={locale === 'fa' ? 'کپی کد' : 'Copy code'}
+                    copiedLabel={locale === 'fa' ? 'کپی شد' : 'Copied'}
+                    showLabel
+                    className="absolute end-2 top-8 z-10 border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                  />
                   <pre
                     dir="ltr"
-                    className="overflow-x-auto rounded-2xl border border-white/10 bg-black p-5 text-sm leading-relaxed text-white/70 shadow-[0_16px_45px_rgba(0,0,0,0.12)]"
+                    className="overflow-x-auto rounded-2xl border border-white/10 bg-black px-5 pb-5 pt-16 text-sm leading-relaxed text-white/70 shadow-[0_16px_45px_rgba(0,0,0,0.12)]"
                   >
                     <code>{block.code}</code>
                   </pre>

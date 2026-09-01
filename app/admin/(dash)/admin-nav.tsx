@@ -106,11 +106,11 @@ function NavList({ onNavigate, mailUnreadCount = 0 }: { onNavigate?: () => void;
 }
 
 /** Sidebar brand header — used in both desktop rail and mobile drawer. */
-function BrandHeader() {
+function BrandHeader({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/admin" aria-label="داشبورد مدیریت" className="flex min-h-12 items-center justify-center px-2">
-      <Logo priority className="h-7 w-28" />
-      <span className="ms-2 rounded-full bg-black px-2 py-0.5 text-[9px] font-semibold text-white">ADMIN</span>
+      <Logo priority className={compact ? 'h-7 w-24' : 'h-7 w-28'} />
+      {!compact && <span className="ms-2 rounded-full bg-black px-2 py-0.5 text-[9px] font-semibold text-white">ADMIN</span>}
     </Link>
   )
 }

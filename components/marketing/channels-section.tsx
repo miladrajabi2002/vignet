@@ -150,6 +150,7 @@ function ChannelLogo({ channel, small = false }: { channel: ChannelDefinition; s
 				alt=""
 				width={90}
 				height={40}
+				loading="lazy"
 				className={isRubika
 					? (small ? 'size-4 object-contain' : 'size-6 object-contain')
 					: (small ? 'h-auto w-5' : 'h-auto w-9')}
@@ -309,7 +310,7 @@ export function ChannelsSection({ locale }: { locale: Locale }) {
 	const copy = COPY[locale]
 
 	return (
-		<section id="product" dir={locale === 'fa' ? 'rtl' : 'ltr'} className="marketing-story-section marketing-section-channels relative scroll-mt-24 overflow-hidden bg-[#fbfbfd] py-16 sm:py-24 lg:py-28">
+		<section id="unified-system" dir={locale === 'fa' ? 'rtl' : 'ltr'} className="marketing-story-section marketing-section-channels relative scroll-mt-24 overflow-hidden bg-[#fbfbfd] py-16 sm:py-24 lg:py-28">
 			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.10),transparent_36%),radial-gradient(circle_at_8%_72%,rgba(56,189,248,0.07),transparent_26%),radial-gradient(circle_at_92%_68%,rgba(244,114,182,0.065),transparent_24%)]" />
 			<div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
 

@@ -12,6 +12,7 @@ import { BusinessProfileStep } from '@/components/onboarding/business-profile-st
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import type { BusinessTypeValue } from '@/lib/verticals/registry'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { SettingsMobileTabs } from '@/components/settings/settings-mobile-tabs'
 
 export default async function SettingsPage() {
   const t = await getTranslations()
@@ -92,18 +93,24 @@ export default async function SettingsPage() {
         title={t('settings.title')}
         subtitle={locale === 'fa' ? 'هویت کسب‌وکار، حساب، گزارش‌ها و مسیر تحویل اپراتور را مدیریت کنید.' : 'Manage business identity, account, reports and operator handoff.'}
       />
-      {workspace && (
-        <BusinessProfileStep
-          workspaceName={workspace.name}
-          initialType={workspace.businessType as BusinessTypeValue}
-          initialProfile={readBusinessProfile(workspace.businessProfile)}
-          mode="settings"
-        />
-      )}
-
-      <OperatorChannelSetup current={operatorChannel} stats={operatorStats} />
-
-      <WeeklyReportCard initialEmail={workspace?.reportEmail ?? ''} />
+      <SettingsMobileTabs
+        navigationLabel={locale === 'fa' ? 'بخش‌های تنظیمات' : 'Settings sections'}
+        labels={{
+          business: locale === 'fa' ? 'کسب‌وکار' : 'Business',
+          operator: locale === 'fa' ? 'اپراتور' : 'Operator',
+          reports: locale === 'fa' ? 'گزارش‌ها' : 'Reports',
+        }}
+        business={workspace ? (
+          <BusinessProfileStep
+            workspaceName={workspace.name}
+            initialType={workspace.businessType as BusinessTypeValue}
+            initialProfile={readBusinessProfile(workspace.businessProfile)}
+            mode="settings"
+          />
+        ) : null}
+        operator={<OperatorChannelSetup current={operatorChannel} stats={operatorStats} />}
+        reports={<WeeklyReportCard initialEmail={workspace?.reportEmail ?? ''} />}
+      />
     </div>
   )
 }

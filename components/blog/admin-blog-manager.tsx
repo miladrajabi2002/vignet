@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, Edit3, Trash2, Loader2, X, FileText, Wand2, Search } from 'lucide-react'
+import { Plus, Edit3, Trash2, Loader2, X, FileText, Wand2, Search, SlidersHorizontal } from 'lucide-react'
 import {
         BlogEditor,
         type BlogPostData,
         type BlogCategory,
 } from '@/components/blog/blog-editor'
 import { JsonImportDialog } from '@/components/blog/json-import-dialog'
+import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { toPersianDigits } from '@/lib/blog/helpers'
 import { cn } from '@/lib/utils'
 
@@ -70,6 +71,9 @@ export function AdminBlogManager({
         const [creating, setCreating] = useState(false)
         const [deleting, setDeleting] = useState<string | null>(null)
         const [search, setSearch] = useState('')
+        const [statusFilter, setStatusFilter] = useState('')
+        const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+        const filterTriggerRef = useRef<HTMLButtonElement>(null)
         const [jsonImportOpen, setJsonImportOpen] = useState(false)
         const [importedInitial, setImportedInitial] = useState<BlogPostData | null>(null)
 
@@ -82,6 +86,7 @@ export function AdminBlogManager({
                         if (!p.title.toLowerCase().includes(q) && !p.slug.toLowerCase().includes(q))
                                 return false
                 }
+                if (statusFilter && p.status !== statusFilter) return false
                 return true
         })
 
@@ -192,21 +197,48 @@ export function AdminBlogManager({
         return (
                 <div className="space-y-4 p-5">
                         {/* Action bar: search + buttons */}
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="relative min-w-[240px] flex-1">
+                        <div className="sticky top-20 z-20 -mx-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/95 p-2 backdrop-blur-xl md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+                                <div className="relative min-w-0 flex-1 basis-48">
                                         <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                         <input
-                                                type="text"
+                                                type="search"
+                                                inputMode="search"
                                                 value={search}
                                                 onChange={(e) => setSearch(e.target.value)}
                                                 placeholder={isFa ? 'جستجو در عنوان یا slug…' : 'Search title or slug…'}
-                                                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-800 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                                                className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 pr-10 text-base text-zinc-800 outline-none transition-colors focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 sm:text-sm"
                                         />
                                 </div>
+                                <button
+                                        ref={filterTriggerRef}
+                                        type="button"
+                                        onClick={() => setFilterSheetOpen(true)}
+                                        aria-haspopup="dialog"
+                                        aria-expanded={filterSheetOpen}
+                                        className={cn(
+                                                'relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-bold md:hidden',
+                                                statusFilter
+                                                        ? 'border-black bg-black text-white'
+                                                        : 'border-zinc-200 bg-white text-zinc-700',
+                                        )}
+                                >
+                                        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                                        {isFa ? 'فیلتر' : 'Filter'}
+                                        {statusFilter && <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true" />}
+                                </button>
+                                <select
+                                        value={statusFilter}
+                                        onChange={(event) => setStatusFilter(event.target.value)}
+                                        aria-label={isFa ? 'فیلتر وضعیت نوشته' : 'Filter post status'}
+                                        className="hidden min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-zinc-400 md:block"
+                                >
+                                        <option value="">{isFa ? 'همه وضعیت‌ها' : 'All statuses'}</option>
+                                        {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
                                 <div className="flex flex-wrap items-center gap-2">
                                         <button
                                                 onClick={() => setJsonImportOpen(true)}
-                                                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
                                                 title={isFa ? 'JSON خروجی Grok را بچسبانید تا فیلدها خودکار پر شوند' : 'Paste Grok JSON to auto-fill fields'}
                                         >
                                                 <Wand2 className="h-4 w-4 text-emerald-600" />
@@ -214,13 +246,68 @@ export function AdminBlogManager({
                                         </button>
                                         <button
                                                 onClick={() => setCreating(true)}
-                                                className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
                                         >
                                                 <Plus className="h-4 w-4" />
                                                 {t('newPost')}
                                         </button>
                                 </div>
                         </div>
+
+                        <MobileBottomSheet
+                                open={filterSheetOpen}
+                                title={isFa ? 'فیلتر نوشته‌ها' : 'Filter posts'}
+                                description={isFa ? 'وضعیت انتشار را انتخاب کنید' : 'Choose a publishing status'}
+                                closeLabel={isFa ? 'بستن فیلترها' : 'Close filters'}
+                                triggerRef={filterTriggerRef}
+                                onClose={() => setFilterSheetOpen(false)}
+                                footer={(
+                                        <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setStatusFilter('')}
+                                                        disabled={!statusFilter}
+                                                        className="min-h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 disabled:opacity-40"
+                                                >
+                                                        {isFa ? 'پاک‌کردن' : 'Clear'}
+                                                </button>
+                                                <button
+                                                        type="button"
+                                                        onClick={() => setFilterSheetOpen(false)}
+                                                        className="min-h-11 rounded-xl bg-black px-4 text-sm font-bold text-white"
+                                                >
+                                                        {isFa ? `نمایش ${toPersianDigits(filtered.length)} نتیجه` : `Show ${filtered.length} results`}
+                                                </button>
+                                        </div>
+                                )}
+                        >
+                                <fieldset>
+                                        <legend className="mb-2 text-sm font-bold text-zinc-900">
+                                                {isFa ? 'وضعیت انتشار' : 'Publishing status'}
+                                        </legend>
+                                        <div className="grid grid-cols-2 gap-2">
+                                                {[
+                                                        ['', isFa ? 'همه وضعیت‌ها' : 'All statuses'],
+                                                        ...Object.entries(statusLabels),
+                                                ].map(([value, label]) => (
+                                                        <button
+                                                                key={value || 'all'}
+                                                                type="button"
+                                                                onClick={() => setStatusFilter(value)}
+                                                                aria-pressed={statusFilter === value}
+                                                                className={cn(
+                                                                        'inline-flex min-h-11 items-center justify-center rounded-xl border px-3 text-center text-xs font-semibold',
+                                                                        statusFilter === value
+                                                                                ? 'border-black bg-black text-white'
+                                                                                : 'border-zinc-200 bg-white text-zinc-700',
+                                                                )}
+                                                        >
+                                                                {label}
+                                                        </button>
+                                                ))}
+                                        </div>
+                                </fieldset>
+                        </MobileBottomSheet>
 
                         {/* List */}
                         {filtered.length === 0 ? (
@@ -231,7 +318,34 @@ export function AdminBlogManager({
                                         </p>
                                 </div>
                         ) : (
-                                <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                                <>
+                                <div className="grid gap-3 md:hidden">
+                                        {filtered.map((post) => (
+                                                <article key={post.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                                                        <div className="flex items-start gap-3">
+                                                                {post.coverImage ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img src={post.coverImage} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-xl border border-zinc-200 object-cover" />
+                                                                ) : (
+                                                                        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50"><FileText className="h-5 w-5 text-zinc-300" /></span>
+                                                                )}
+                                                                <div className="min-w-0 flex-1">
+                                                                        <div className="flex items-start justify-between gap-2">
+                                                                                <h3 className="line-clamp-2 text-sm font-bold text-zinc-900">{post.title || (isFa ? 'بدون عنوان' : 'Untitled')}</h3>
+                                                                                <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[10px] font-medium', STATUS_BADGE_CLS[post.status])}>{statusLabels[post.status]}</span>
+                                                                        </div>
+                                                                        <p dir="ltr" className="mt-1 truncate text-start text-[11px] text-zinc-400">/blog/{post.slug}</p>
+                                                                        <p className="mt-2 truncate text-xs text-zinc-500">{post.workspace?.name ?? '—'} · {isFa ? toPersianDigits(post.views) : post.views.toLocaleString('en-US')} {isFa ? 'بازدید' : 'views'}</p>
+                                                                </div>
+                                                        </div>
+                                                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-zinc-100 pt-3">
+                                                                <button type="button" onClick={() => setEditing(post)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-700"><Edit3 className="h-4 w-4" />{t('edit')}</button>
+                                                                <button type="button" onClick={() => handleDelete(post.id)} disabled={deleting === post.id} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-100 text-xs font-bold text-red-600 disabled:opacity-50">{deleting === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}{isFa ? 'حذف' : 'Delete'}</button>
+                                                        </div>
+                                                </article>
+                                        ))}
+                                </div>
+                                <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm md:block">
                                         <table className="w-full text-start text-sm">
                                                 <thead className="border-b border-zinc-200 bg-zinc-50/60 text-xs text-zinc-500">
                                                         <tr>
@@ -333,19 +447,20 @@ export function AdminBlogManager({
                                                 </tbody>
                                         </table>
                                 </div>
+                                </>
                         )}
 
                         {/* ─── Modal: create or edit ─── */}
                         {(creating || editing) && (
                                 <div
-                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-900/40 p-4 backdrop-blur-sm"
+                                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-900/40 p-0 backdrop-blur-sm sm:p-4"
                                         onClick={(e) => {
                                                 if (e.target === e.currentTarget) handleClose()
                                         }}
                                 >
                                         <div
                                                 dir={isFa ? 'rtl' : 'ltr'}
-                                                className="my-8 w-full max-w-5xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+                                                className="min-h-dvh w-full max-w-5xl overflow-hidden rounded-none border border-zinc-200 bg-white shadow-2xl sm:my-8 sm:min-h-0 sm:rounded-2xl"
                                         >
                                                 <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
                                                         <h2 className="text-sm font-semibold text-zinc-900">

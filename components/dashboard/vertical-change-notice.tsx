@@ -71,7 +71,7 @@ export function VerticalChangeNotice({ businessType, services }: { businessType?
 	const title = change.verticalTitle || (fa ? pack.titleFa : pack.titleEn)
 
 	return (
-		<aside className="fixed inset-x-3 bottom-3 z-[90] mx-auto max-w-xl rounded-[1.5rem] border border-white/10 bg-black p-4 text-white shadow-[0_26px_80px_rgba(0,0,0,0.28)] [animation:spatial-pop_240ms_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-none sm:bottom-5 sm:p-5" aria-live="polite">
+		<aside className="fixed inset-x-3 z-[90] mx-auto max-w-xl rounded-[1.5rem] border border-white/10 bg-black p-4 text-white shadow-[0_26px_80px_rgba(0,0,0,0.28)] [animation:spatial-pop_240ms_cubic-bezier(0.23,1,0.32,1)] [bottom:calc(6rem+env(safe-area-inset-bottom))] motion-reduce:animate-none md:bottom-5 md:p-5" aria-live="polite">
 			<div className="flex items-start gap-3">
 				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-black"><Sparkles className="h-4 w-4" /></span>
 				<div className="min-w-0 flex-1">

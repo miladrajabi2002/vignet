@@ -70,7 +70,7 @@ export function DialogShell({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-3 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:grid sm:place-items-center sm:p-3"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -83,14 +83,15 @@ export function DialogShell({
       <motion.div
         ref={panelRef}
         className={cn(
-          'spatial-surface max-h-[92vh] w-full overflow-y-auto rounded-[1.5rem] bg-white shadow-2xl',
+          'spatial-surface max-h-[92dvh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white shadow-2xl sm:rounded-[1.5rem]',
           wide ? 'max-w-4xl' : 'max-w-2xl',
         )}
         initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
       >
-        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] bg-white/95 p-5 backdrop-blur">
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] bg-white/95 p-4 pt-6 backdrop-blur sm:p-5">
+          <span aria-hidden="true" className="absolute start-1/2 top-2 h-1.5 w-11 -translate-x-1/2 rounded-full bg-black/15 sm:hidden" />
           <div>
             <h2 id={titleId} className="text-base font-bold tracking-tight text-[var(--text-primary)]">{title}</h2>
             {subtitle && <p id={subtitleId} className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{subtitle}</p>}
@@ -104,7 +105,7 @@ export function DialogShell({
             <X className="h-4 w-4" />
           </button>
         </header>
-        <div className="p-5">{children}</div>
+        <div className="p-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:p-5">{children}</div>
       </motion.div>
     </motion.div>
   )

@@ -22,18 +22,18 @@ describe('marketing homepage UX contracts', () => {
 		expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('#businesses')
 	})
 
-	it('uses an accessible full-viewport mobile dialog with session-aware actions', () => {
-		const menu = read('components/marketing/mobile-menu.tsx')
+	it('uses a persistent five-destination mobile bar with a session-aware account action', () => {
+		const mobileNav = read('components/marketing/mobile-bottom-nav.tsx')
 		const navbar = read('components/marketing/navbar.tsx')
 
-		expect(menu).toContain('<dialog')
-		expect(menu).toContain('dialog.showModal()')
-		expect(menu).toContain('onCancel=')
-		expect(menu).toContain("document.documentElement.style.overflow = 'hidden'")
-		expect(menu).toContain('h-[100dvh]')
-		expect(menu).toContain('href="/overview"')
-		expect(menu).toContain('href="/login"')
-		expect(navbar).toContain("const mobileLinks = links.filter((link) => link.id !== 'home')")
+		expect(mobileNav).toContain('grid-cols-5')
+		expect(mobileNav).toContain('env(safe-area-inset-bottom)')
+		expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login'}")
+		expect(mobileNav).toContain("activeSection === 'solutions' || activeSection === 'product'")
+		expect(mobileNav).toContain('bg-emerald-400')
+		expect(navbar).toContain('<MarketingMobileBottomNav')
+		expect(navbar).not.toContain('MarketingMobileMenu')
+		expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(false)
 		expect(navbar).toContain('col-start-3 hidden items-center')
 	})
 
@@ -84,11 +84,16 @@ describe('marketing homepage UX contracts', () => {
 		expect(controller).toContain('mutationObserver.disconnect()')
 	})
 
-	it('integrates static channel logos into the operations center without a duplicate inbox section', () => {
+	it('keeps the compact channel logos in the hero and the full unified-inbox story after capabilities', () => {
 		const page = read('app/(marketing)/page.tsx')
 		const hero = read('components/marketing/hero.tsx')
+		const channels = read('components/marketing/channels-section.tsx')
 
-		expect(page).not.toContain('ChannelsSection')
+		expect(page).toContain("import('@/components/marketing/channels-section')")
+		expect(page).toContain('<ChannelsSection locale={locale} />')
+		expect(page.indexOf('<CapabilitiesSection locale={locale} />')).toBeLessThan(
+			page.indexOf('<ChannelsSection locale={locale} />'),
+		)
 		expect(hero).toContain('ConnectedChannelLogos')
 		expect(hero).toContain('/brands/bale-logo.svg')
 		expect(hero).toContain('/brands/rubika-logo.svg')
@@ -96,6 +101,10 @@ describe('marketing homepage UX contracts', () => {
 		expect(hero).toContain("fa: 'تلگرام'")
 		expect(hero).not.toContain('پیام جدید از')
 		expect(hero).not.toContain('marketing-node-ring')
+		expect(channels).toContain("title: 'صندوق پیام یکپارچه'")
+		expect(channels).toContain('id="unified-system"')
+		expect(channels).toContain('loading="lazy"')
+		expect(channels).toContain('marketing-section-channels')
 	})
 
 	it('marks the middle pricing plan as the recommended default', () => {

@@ -25,6 +25,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge, SalesInsightCard } from '@/components/crm/sales-insight'
 import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
+import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-layout'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -225,14 +226,15 @@ export default async function ConversationThreadPage(props: {
                                 <ConversationDeleteAction conversationId={conversation.id} />
                         </div>
 
-                        <div className="grid min-h-[calc(100dvh-11rem)] gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
-                          <ConversationThread
+                        <ConversationMobileLayout
+                          locale={locale}
+                          thread={<ConversationThread
                                 key={conversation.id}
                                 initialMessages={conversation.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString(), contentType: m.contentType, metadata: m.metadata as Record<string, unknown> | null })) as ThreadMessage[]}
                                 conversationId={conversation.id}
                                 locale={locale}
-                          />
-                          <aside className="space-y-3">
+                          />}
+                          details={<>
                         <ConversationActions
                                 conversationId={conversation.id}
                                 status={conversation.status}
@@ -270,9 +272,8 @@ export default async function ConversationThreadPage(props: {
                                         </p>
                                 </div>
                         )}
-
-                          </aside>
-                        </div>
+                          </>}
+                        />
                 </div>
         )
 }

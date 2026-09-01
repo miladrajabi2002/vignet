@@ -45,6 +45,8 @@ interface BulkDeleteButtonProps {
   /** Called after a successful deletion — usually to navigate or
    *  clear local state. router.refresh() is always called automatically. */
   onDeleted?: () => void
+  /** Use an icon-only trigger on narrow screens to keep action rails on one row. */
+  compactOnMobile?: boolean
 }
 
 export function BulkDeleteButton({
@@ -55,6 +57,7 @@ export function BulkDeleteButton({
   dialogTitle,
   extraWarning,
   onDeleted,
+  compactOnMobile = false,
 }: BulkDeleteButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -117,10 +120,14 @@ export function BulkDeleteButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+        aria-label={buttonLabel}
+        title={buttonLabel}
+        className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 ${compactOnMobile ? 'w-11 px-0 sm:w-auto sm:px-3' : 'px-3'}`}
       >
         <Trash2 className="h-3.5 w-3.5" />
-        {buttonLabel}
+        <span className={compactOnMobile ? 'hidden sm:inline' : undefined}>
+          {buttonLabel}
+        </span>
       </button>
 
       <ConfirmDialog

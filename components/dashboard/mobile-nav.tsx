@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { Menu, X, LogOut, Sparkles } from 'lucide-react'
@@ -14,10 +14,9 @@ import { getDashboardModuleLabel } from '@/lib/verticals/registry'
 import { logout } from '@/app/actions/auth'
 
 /**
- * Mobile-only navigation. The desktop Sidebar is `hidden md:flex`, so without
- * this the dashboard has no navigation at all on phones. Renders a hamburger
- * button in the Header (md:hidden) that opens a slide-in drawer mirroring the
- * Sidebar's links.
+ * Mobile-only navigation. Primary destinations live in the persistent bottom
+ * bar; its final "More" item opens the full drawer. The dashboard header does
+ * not render a second hamburger trigger.
  */
 export function MobileNav({ businessType, services = [] }: { businessType?: BusinessTypeValue | null; services?: readonly string[] }) {
         const t = useTranslations('dashboard')
@@ -27,6 +26,24 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
 	const [newModules, setNewModules] = useState<DashboardModuleKey[]>([])
         const [open, setOpen] = useState(false)
         const [mounted, setMounted] = useState(false)
+        const drawerRef = useRef<HTMLElement>(null)
+        const closeRef = useRef<HTMLButtonElement>(null)
+        const openTriggerRef = useRef<HTMLElement | null>(null)
+
+        const bottomNav = (['overview', 'conversations', 'contacts'] as const).flatMap((key) => {
+                const item = nav.find((candidate) => candidate.key === key)
+                return item ? [item] : []
+        })
+        const contextualItem = nav.find(({ key }) =>
+                ['products', 'services', 'appointments', 'menu', 'agents'].includes(key) &&
+                !bottomNav.some((item) => item.key === key),
+        )
+        if (contextualItem) bottomNav.push(contextualItem)
+
+        function showDrawer(trigger: HTMLElement) {
+                openTriggerRef.current = trigger
+                setOpen(true)
+        }
 
         // The drawer is portaled to <body>. Portals require the DOM, so only enable
         // after mount to stay SSR-safe.
@@ -58,62 +75,126 @@ export function MobileNav({ businessType, services = [] }: { businessType?: Busi
                 if (!open) return
                 const prev = document.body.style.overflow
                 document.body.style.overflow = 'hidden'
+                const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus())
                 const onKeyDown = (event: KeyboardEvent) => {
-                        if (event.key === 'Escape') setOpen(false)
+                        if (event.key === 'Escape') {
+                                event.preventDefault()
+                                setOpen(false)
+                                return
+                        }
+                        if (event.key !== 'Tab') return
+                        const focusable = Array.from(
+                                drawerRef.current?.querySelectorAll<HTMLElement>(
+                                        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                                ) ?? [],
+                        )
+                        if (focusable.length === 0) {
+                                event.preventDefault()
+                                drawerRef.current?.focus()
+                                return
+                        }
+                        const first = focusable[0]
+                        const last = focusable[focusable.length - 1]
+                        const active = document.activeElement
+                        if (event.shiftKey && (active === first || !drawerRef.current?.contains(active))) {
+                                event.preventDefault()
+                                last.focus()
+                        } else if (!event.shiftKey && (active === last || !drawerRef.current?.contains(active))) {
+                                event.preventDefault()
+                                first.focus()
+                        }
                 }
                 document.addEventListener('keydown', onKeyDown)
                 return () => {
+                        window.cancelAnimationFrame(focusFrame)
                         document.body.style.overflow = prev
                         document.removeEventListener('keydown', onKeyDown)
+                        openTriggerRef.current?.focus({ preventScroll: true })
                 }
         }, [open])
 
         return (
                 <div className="md:hidden">
-                        <button
-                                onClick={() => setOpen(true)}
-                                aria-label="Open dashboard navigation"
-                                aria-expanded={open}
-                                aria-controls="dashboard-mobile-navigation"
-                                className="spatial-press inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-white text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:text-[var(--text-primary)]"
-                        >
-                                <Menu className="h-5 w-5" />
-                        </button>
-
                         {/*
-                         * Portaled to <body> on purpose. The dashboard Header wrapping this
-                         * component uses `backdrop-blur`, and a `backdrop-filter` ancestor
-                         * becomes the containing block for `position: fixed` descendants — so
-                         * without the portal the drawer would be trapped inside the 64px-tall
-                         * header and render as a broken sliver on mobile.
+                         * The bottom navigation and its secondary drawer are portaled to
+                         * <body>. The drawer opens from the labelled "More" item below, so the
+                         * header does not need a duplicate hamburger action.
                          */}
+                        {mounted &&
+                                createPortal(
+                                        <nav
+                                                aria-label={t('mobileNavigation')}
+                                                className="fixed inset-x-3 z-40 mx-auto grid max-w-lg grid-cols-5 gap-1 rounded-[1.4rem] border border-black/[0.08] bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.18)] backdrop-blur-xl [bottom:max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+                                        >
+                                                {bottomNav.map(({ key, href, icon: Icon }) => {
+                                                        const active = pathname === href || pathname.startsWith(`${href}/`)
+                                                        return (
+                                                                <Link
+                                                                        key={key}
+                                                                        href={href}
+                                                                        aria-current={active ? 'page' : undefined}
+                                                                        className={cn(
+                                                                                'spatial-press flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-medium transition-colors',
+                                                                                active
+                                                                                        ? 'bg-black text-white shadow-[var(--shadow-control)]'
+                                                                                        : 'text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-[var(--text-primary)]',
+                                                                        )}
+                                                                >
+                                                                        <Icon className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
+                                                                        <span className="max-w-full truncate">
+                                                                                {getDashboardModuleLabel(key, businessType, locale, t(key))}
+                                                                        </span>
+                                                                </Link>
+                                                        )
+                                                })}
+                                                <button
+                                                        type="button"
+                                                        onClick={(event) => showDrawer(event.currentTarget)}
+                                                        aria-haspopup="dialog"
+                                                        aria-expanded={open}
+                                                        aria-controls="dashboard-mobile-navigation"
+                                                        aria-label={t('openNavigation')}
+                                                        className="spatial-press flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-medium text-[var(--text-muted)] hover:bg-black/[0.045] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/60"
+                                                >
+                                                        <Menu className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
+                                                        <span>{t('more')}</span>
+                                                </button>
+                                        </nav>,
+                                        document.body,
+                                )}
+
                         {mounted &&
                                 open &&
                                 createPortal(
                                         <div className="fixed inset-0 z-[100]">
                                                 {/* Backdrop */}
                                                 <button
-                                                        aria-label="Close menu"
+                                                        type="button"
+                                                        tabIndex={-1}
+                                                        aria-label={t('closeNavigation')}
                                                         onClick={() => setOpen(false)}
                                                         className="dashboard-mobile-backdrop absolute inset-0 bg-black/38 backdrop-blur-sm"
                                                 />
 
                                                 {/* Drawer panel — anchored to the inline-start edge (RTL-aware). */}
                                                 <aside
+                                                        ref={drawerRef}
                                                         id="dashboard-mobile-navigation"
                                                         role="dialog"
                                                         aria-modal="true"
-                                                        aria-label="Dashboard navigation"
-                                                        className="dashboard-mobile-sheet spatial-control absolute inset-y-3 start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)]"
+                                                        aria-label={t('mobileNavigation')}
+                                                        tabIndex={-1}
+								className="dashboard-mobile-sheet spatial-control absolute start-3 flex w-80 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2rem] p-4 shadow-[var(--shadow-lift)] [bottom:max(0.75rem,env(safe-area-inset-bottom))] [top:max(0.75rem,env(safe-area-inset-top))]"
                                                 >
                                                         <div className="mb-4 flex items-center justify-between px-1">
                                                                 <Link href="/" onClick={() => setOpen(false)} className="flex-1 flex justify-center">
                                                                         <Logo priority className="h-7 w-28" />
                                                                 </Link>
                                                                 <button
+                                                                        ref={closeRef}
+                                                                        type="button"
                                                                         onClick={() => setOpen(false)}
-                                                                        aria-label="Close menu"
-                                                                        autoFocus
+                                                                        aria-label={t('closeNavigation')}
                                                                         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-hover)] hover:text-[var(--text-primary)]"
                                                                 >
                                                                         <X className="h-5 w-5" />

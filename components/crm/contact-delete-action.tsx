@@ -7,7 +7,13 @@ import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Loader2, Trash2 } from 'lucide-react'
 
-export function ContactDeleteAction({ contactId }: { contactId: string }) {
+export function ContactDeleteAction({
+  contactId,
+  returnTo = '/contacts',
+}: {
+  contactId: string
+  returnTo?: string
+}) {
   const t = useTranslations('contacts.detail')
   const router = useRouter()
   const reduceMotion = useReducedMotion()
@@ -30,6 +36,11 @@ export function ContactDeleteAction({ contactId }: { contactId: string }) {
     cancelRef.current?.focus()
 
     function onKeyDown(event: KeyboardEvent) {
+      const dialogs = Array.from(
+        document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'),
+      )
+      if (dialogs.at(-1) !== dialogRef.current) return
+
       if (event.key === 'Escape' && !deletingRef.current) {
         setShowDialog(false)
         return
@@ -82,7 +93,8 @@ export function ContactDeleteAction({ contactId }: { contactId: string }) {
       })
       if (response.ok) {
         setShowDialog(false)
-        router.replace('/contacts')
+        router.replace(returnTo)
+        router.refresh()
         return
       }
       setError(t('deleteFailed'))

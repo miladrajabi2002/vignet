@@ -16,6 +16,7 @@ import { BarList, TrendChart } from '@/components/admin/trend-chart'
 import { errorsDaily, errorsDailyByLevel, errorsDailyBySource } from '@/lib/admin/charts'
 import { getAdminHiddenWorkspaceIds } from '@/lib/admin/reporting-scope'
 import { ClearErrorLogsButton } from '@/components/admin/clear-error-logs-button'
+import { AdminFilterSheet } from '@/components/admin/admin-filter-sheet'
 
 const PAGE_SIZE = 50
 
@@ -81,6 +82,13 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
     const value = params.toString()
     return `${value ? `/admin/system?${value}` : '/admin/system'}#errors`
   }
+  const levelOptions = [
+    { label: 'همه', href: filterHref(), active: !activeLevel },
+    { label: 'خطا', href: filterHref('error'), active: activeLevel === 'error' },
+    { label: 'هشدار', href: filterHref('warn'), active: activeLevel === 'warn' },
+    { label: 'اطلاعات', href: filterHref('info'), active: activeLevel === 'info' },
+    { label: 'دیباگ', href: filterHref('debug'), active: activeLevel === 'debug' },
+  ]
 
   return (
     <section id="errors" className="scroll-mt-24 space-y-4">
@@ -112,14 +120,11 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
               جست‌وجو
             </button>
           </form>
-          <div className="overflow-x-auto">
-            <FilterPills options={[
-              { label: 'همه', href: filterHref(), active: !activeLevel },
-              { label: 'خطا', href: filterHref('error'), active: activeLevel === 'error' },
-              { label: 'هشدار', href: filterHref('warn'), active: activeLevel === 'warn' },
-              { label: 'اطلاعات', href: filterHref('info'), active: activeLevel === 'info' },
-              { label: 'دیباگ', href: filterHref('debug'), active: activeLevel === 'debug' },
-            ]} />
+          <div className="hidden overflow-x-auto md:block">
+            <FilterPills options={levelOptions} />
+          </div>
+          <div className="md:hidden">
+            <AdminFilterSheet groups={[{ label: 'سطح رخداد', options: levelOptions }]} clearHref={filterHref()} activeCount={activeLevel ? 1 : 0} title="فیلتر سطح" />
           </div>
           <ClearErrorLogsButton disabled={allLogCount === 0} />
         </div>

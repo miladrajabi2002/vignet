@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Check, LogIn } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { Logo } from '@/components/ui/logo'
-import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
+import { MarketingMobileBottomNav } from '@/components/marketing/mobile-bottom-nav'
 import { cn } from '@/lib/utils'
 
 const SECTION_IDS = ['solutions', 'product', 'vigento', 'pricing'] as const
@@ -25,8 +25,6 @@ const COPY = {
 		dashboardAria: 'رفتن به داشبورد',
 		login: 'ورود',
 		primaryNav: 'ناوبری اصلی',
-		openMenu: 'باز کردن منو',
-		closeMenu: 'بستن منو',
 	},
 	en: {
 		home: 'Home',
@@ -39,8 +37,6 @@ const COPY = {
 		dashboardAria: 'Go to dashboard',
 		login: 'Log in',
 		primaryNav: 'Primary navigation',
-		openMenu: 'Open menu',
-		closeMenu: 'Close menu',
 	},
 } as const
 
@@ -100,8 +96,6 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 		}
 		return link
 	})
-	const mobileLinks = links.filter((link) => link.id !== 'home')
-
 	return (
 		<header className="fixed inset-x-0 top-0 z-50 px-3 pt-2 sm:px-5 sm:pt-3">
 			<nav
@@ -113,20 +107,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 						: 'border-black/[0.07] bg-white/[0.82] shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-lg',
 				)}
 			>
-				{/* Mobile entry point — the desktop nav below is hidden under lg. */}
 				<div className="col-start-1 flex items-center justify-start lg:hidden">
-					<MarketingMobileMenu
-						links={mobileLinks}
-						ctaHref="/login?next=/onboarding"
-						ctaLabel={copy.start}
-						loginLabel={copy.login}
-						dashboardLabel={copy.dashboard}
-						openLabel={copy.openMenu}
-						closeLabel={copy.closeMenu}
-						navLabel={copy.primaryNav}
-						authenticated={authenticated}
-						activeSection={activeSection}
-					/>
+					<LanguageSwitcher className="min-w-11 justify-center px-2 [&_span]:hidden" />
 				</div>
 
 				<div className="hidden items-center gap-1 lg:flex">
@@ -141,7 +123,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 								key={link.id}
 								href={link.href}
 								className={cn(
-									'inline-flex min-h-10 items-center rounded-xl px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
+									'inline-flex min-h-11 items-center rounded-xl px-3 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black',
 									active ? 'bg-black text-white' : 'text-black/50 hover:bg-black/[0.045] hover:text-black',
 								)}
 							>
@@ -175,13 +157,32 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 							<Link href="/login" className="inline-flex min-h-11 min-w-12 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-2.5 text-[11px] font-medium text-black/60 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
 								<LogIn className="hidden h-3.5 w-3.5 sm:block" />{t('login')}
 							</Link>
-							<Link href="/login?next=/onboarding" className="marketing-pressable hidden min-h-10 items-center gap-1.5 rounded-xl bg-black px-3.5 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 lg:inline-flex">
+							<Link href="/login?next=/onboarding" className="marketing-pressable hidden min-h-11 items-center gap-1.5 rounded-xl bg-black px-3.5 text-[11px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 lg:inline-flex">
 								{copy.start}<Arrow className="h-3.5 w-3.5" />
 							</Link>
 						</>
 					)}
 				</div>
+
+				<span aria-hidden className="col-start-3 h-11 w-11 justify-self-end lg:hidden" />
 			</nav>
+
+			<MarketingMobileBottomNav
+				authenticated={authenticated}
+				homeHref={homeVariantPath ?? '/'}
+				isLandingPath={isLandingPath}
+				activeSection={activeSection}
+				copy={{
+					home: copy.home,
+					solutions: copy.solutions,
+					vigento: copy.vigento,
+					pricing: t('pricing'),
+					login: copy.login,
+					dashboard: copy.dashboard,
+					primaryNav: copy.primaryNav,
+					dashboardAria: copy.dashboardAria,
+				}}
+			/>
 		</header>
 	)
 }

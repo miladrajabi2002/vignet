@@ -128,7 +128,7 @@ export default async function DashboardLayout({
           businessType={workspace?.businessType}
           services={businessProfile?.services ?? []}
         />
-        <main className="dashboard-shell-content flex-1 pb-24 pt-4 sm:pt-5 md:pb-10">
+        <main className="dashboard-shell-content flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:pt-5 md:pb-10">
           <div className="dashboard-main">{children}</div>
         </main>
         <BackToTop />

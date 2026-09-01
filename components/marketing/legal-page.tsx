@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import { LegalMobileNavigation } from '@/components/marketing/legal-mobile-navigation'
 
 export type LegalSection = {
 	title: string
@@ -37,6 +38,8 @@ export function LegalPage({
 				</header>
 
 				<div className="relative z-10 -mt-5 grid gap-4 px-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+					<LegalMobileNavigation sections={sections.map((section) => section.title)} />
+
 					<article className="spatial-surface rounded-[1.75rem] bg-white p-6 sm:p-9">
 						<div className="mx-auto max-w-3xl space-y-10">
 							{sections.map((section, index) => (
@@ -45,7 +48,7 @@ export function LegalPage({
 						</div>
 					</article>
 
-					<aside className="spatial-surface rounded-[1.5rem] bg-white p-5 lg:sticky lg:top-24">
+					<aside className="spatial-surface hidden rounded-[1.5rem] bg-white p-5 lg:sticky lg:top-24 lg:block">
 						<p className="text-xs font-semibold text-black">خلاصه سند</p>
 						<nav className="mt-3" aria-label="فهرست سند">
 							<ol className="space-y-1">
@@ -55,7 +58,7 @@ export function LegalPage({
 											href={`#section-${index + 1}`}
 											className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-[11px] leading-5 text-black/50 transition-colors hover:bg-black/[0.035] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
 										>
-											<span className="font-mono text-[9px] text-black/25">{String(index + 1).padStart(2, '0')}</span>
+										<span className="font-mono text-xs text-black/35">{String(index + 1).padStart(2, '0')}</span>
 											{section.title}
 										</a>
 									</li>
@@ -79,7 +82,7 @@ function LegalSectionBlock({
 	return (
 		<section id={`section-${index}`} className="scroll-mt-28">
 			<div className="flex items-start gap-3">
-				<span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black font-mono text-[10px] text-white">
+				<span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black font-mono text-xs text-white">
 					{String(index).padStart(2, '0')}
 				</span>
 				<div className="min-w-0 flex-1">

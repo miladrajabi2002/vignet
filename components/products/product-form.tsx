@@ -207,7 +207,7 @@ export function ProductForm({
   }
 
   return (
-    <div className="spatial-surface space-y-5 rounded-[1.5rem] p-6">
+    <div className="spatial-surface space-y-5 rounded-[1.5rem] p-4 sm:p-6">
       <Field label={t('name')}>
         <input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('namePlaceholder')} className="input" />
       </Field>
@@ -215,7 +215,7 @@ export function ProductForm({
         <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} className="input resize-none" />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('price')}>
           <input type="number" value={form.price} onChange={(e) => set('price', e.target.value)} className="input" />
         </Field>
@@ -338,7 +338,7 @@ export function ProductForm({
                 placeholder={t('attrValue')}
                 className="input"
               />
-              <button onClick={() => set('attributes', form.attributes.filter((_, j) => j !== i))} className="shrink-0 px-2 text-[var(--text-muted)] hover:text-danger">
+              <button type="button" onClick={() => set('attributes', form.attributes.filter((_, j) => j !== i))} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-danger/5 hover:text-danger" aria-label={t('removeAttribute')}>
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -370,7 +370,7 @@ export function ProductForm({
                 <button
                   type="button"
                   onClick={() => set('variations', form.variations.filter((_, j) => j !== i))}
-                  className="text-[var(--text-muted)] hover:text-danger"
+                  className="grid h-11 w-11 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-danger/5 hover:text-danger"
                   aria-label={t('removeVariation')}
                 >
                   <X className="h-4 w-4" />
@@ -395,7 +395,8 @@ export function ProductForm({
                     <button
                       type="button"
                       onClick={() => set('variations', form.variations.map((vv, j) => (j === i ? { ...vv, attributes: vv.attributes.filter((_, k) => k !== ai) } : vv)))}
-                      className="shrink-0 px-2 text-[var(--text-muted)] hover:text-danger"
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[var(--text-muted)] hover:bg-danger/5 hover:text-danger"
+                      aria-label={t('removeAttribute')}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -411,7 +412,7 @@ export function ProductForm({
                 </button>
               </div>
               {/* Stock + price + image for this variation */}
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <input
                   type="number"
                   value={v.stock}
@@ -456,7 +457,7 @@ export function ProductForm({
       <button
         onClick={submit}
         disabled={submitting || !form.name.trim()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transform-none"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[var(--shadow-control)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transform-none sm:w-auto"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {mode === 'edit' ? t('save') : submitting ? t('creating') : returnTo ? 'ذخیره و ادامه' : t('create')}

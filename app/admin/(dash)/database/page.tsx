@@ -3,6 +3,7 @@ import { Database, ExternalLink, LockKeyhole, RefreshCw } from 'lucide-react'
 import { DATABASE_MODELS, readDatabaseModel } from '@/lib/admin/database-explorer'
 import { cn } from '@/lib/utils'
 import { Badge, EmptyState, PageHeader, fa } from '../ui'
+import { DatabaseMobileRows, DatabaseModelPicker } from '@/components/admin/database-mobile-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,8 +53,10 @@ export default async function AdminDatabasePage({
         </div>
       )}
 
-      <div className="grid min-h-[36rem] gap-4 lg:grid-cols-[13rem_minmax(0,1fr)]">
-        <aside className="spatial-surface overflow-hidden rounded-[1.5rem] p-2.5">
+      <DatabaseModelPicker models={DATABASE_MODELS.map(({ key, label }) => ({ key, label }))} selectedKey={selectedKey} />
+
+      <div className="grid min-h-[24rem] gap-4 lg:min-h-[36rem] lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <aside className="spatial-surface hidden overflow-hidden rounded-[1.5rem] p-2.5 lg:block">
           <div className="mb-2 flex items-center gap-2 px-2 py-1.5 text-[11px] font-semibold text-black/45">
             <LockKeyhole className="h-3.5 w-3.5" /> فقط‌خواندنی
           </div>
@@ -94,7 +97,9 @@ export default async function AdminDatabasePage({
               {result.rows.length === 0 ? (
                 <EmptyState className="m-4 min-h-80" icon={<Database className="h-8 w-8" />}>این مدل هنوز رکوردی ندارد.</EmptyState>
               ) : (
-                <div className="max-h-[34rem] overflow-auto [scrollbar-width:thin]">
+                <>
+                <DatabaseMobileRows modelLabel={result.model.label} columns={result.columns} rows={result.rows} />
+                <div className="hidden max-h-[34rem] overflow-auto [scrollbar-width:thin] md:block">
                   <table dir="ltr" className="w-max min-w-full text-left">
                     <thead className="sticky top-0 z-10 bg-zinc-50/95 backdrop-blur-xl">
                       <tr>{result.columns.map((column) => <th key={column} className="whitespace-nowrap border-b border-black/[0.06] px-3 py-2.5 font-mono text-[10px] font-semibold text-zinc-500">{column}</th>)}</tr>
@@ -108,6 +113,7 @@ export default async function AdminDatabasePage({
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
 
               <nav className="flex items-center justify-between border-t border-black/[0.06] px-4 py-3 text-xs">

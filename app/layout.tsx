@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale } from 'next-intl/server'
@@ -22,6 +22,12 @@ const geistMono = localFont({
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
+
+export const viewport: Viewport = {
+	width: 'device-width',
+	initialScale: 1,
+	viewportFit: 'cover',
+}
 
 const ROOT_METADATA_COPY = {
 	fa: {

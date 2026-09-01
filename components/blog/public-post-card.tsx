@@ -4,7 +4,7 @@ import { deriveExcerpt, toPersianDigits } from '@/lib/blog/helpers'
 import { relativeTime } from '@/lib/format'
 import { TrendSpark } from './trend-spark'
 
-type PublicPost = {
+export type PublicPost = {
 	id: string
 	slug: string
 	title: string
@@ -28,22 +28,22 @@ export function PublicPostCard({ post, locale, featured = false }: { post: Publi
 				</Link>
 			) : (
 				<Link href={`/blog/${post.slug}`} className={`marketing-grid-dark flex items-end bg-black p-6 text-white ${featured ? 'min-h-64' : 'min-h-52'}`}>
-					<span className="text-[10px] text-white/35">Vigent Journal</span>
+				<span className="text-[11px] text-white/45">Vigent Journal</span>
 				</Link>
 			)}
 			<div className={`flex flex-1 flex-col ${featured ? 'p-6 sm:p-8' : 'p-5'}`}>
 				<div className="flex items-center justify-between gap-3">
-					{post.category ? <Link href={`/blog/category/${post.category.slug}`} className="text-[10px] font-medium text-black/45 hover:text-black">{post.category.name}</Link> : <span className="text-[10px] text-black/35">Vigent Journal</span>}
+				{post.category ? <Link href={`/blog/category/${post.category.slug}`} className="inline-flex min-h-11 items-center text-[11px] font-medium text-black/55 hover:text-black">{post.category.name}</Link> : <span className="text-[11px] text-black/45">Vigent Journal</span>}
 					<TrendSpark seed={post.id} width={featured ? 82 : 58} height={22} />
 				</div>
 				<h2 className={`mt-4 font-semibold leading-[1.55] text-black ${featured ? 'text-2xl sm:text-3xl' : 'text-base'}`}><Link href={`/blog/${post.slug}`}>{post.title}</Link></h2>
 				<p className={`mt-3 flex-1 text-black/50 ${featured ? 'text-sm leading-7' : 'line-clamp-3 text-xs leading-6'}`}>{post.excerpt || deriveExcerpt(post.content)}</p>
 				<div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.07] pt-4">
-					<div className="flex items-center gap-3 text-[10px] text-black/35">
+				<div className="flex items-center gap-3 text-[11px] text-black/45">
 						<span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{relativeTime(post.publishedAt ?? post.createdAt, locale)}</span>
 						<span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{locale === 'fa' ? `${toPersianDigits(post.readingMinutes)} دقیقه` : `${post.readingMinutes} min`}</span>
 					</div>
-					<Link href={`/blog/${post.slug}`} aria-label={locale === 'fa' ? `مطالعه ${post.title}` : `Read ${post.title}`} className="marketing-pressable flex h-9 w-9 items-center justify-center rounded-full bg-black text-white"><Arrow className="h-3.5 w-3.5" /></Link>
+				<Link href={`/blog/${post.slug}`} aria-label={locale === 'fa' ? `مطالعه ${post.title}` : `Read ${post.title}`} className="marketing-pressable flex h-11 w-11 items-center justify-center rounded-full bg-black text-white"><Arrow className="h-4 w-4" /></Link>
 				</div>
 			</div>
 		</article>

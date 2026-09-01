@@ -6,8 +6,8 @@ const navbar = readFileSync(
 	join(process.cwd(), 'components', 'marketing', 'navbar.tsx'),
 	'utf8',
 )
-const mobileMenu = readFileSync(
-	join(process.cwd(), 'components', 'marketing', 'mobile-menu.tsx'),
+const mobileNav = readFileSync(
+	join(process.cwd(), 'components', 'marketing', 'mobile-bottom-nav.tsx'),
 	'utf8',
 )
 
@@ -22,9 +22,10 @@ describe('marketing navbar landing variants', () => {
 		expect(navbar).toContain(': isLandingPath && activeSection === link.id')
 	})
 
-	it('keeps the active variant context inside the mobile menu', () => {
-		expect(mobileMenu).toContain("const landingHomeHref = /^\\/[1-5]$/.test(pathname) ? pathname : '/'")
-		expect(mobileMenu).toContain('href={landingHomeHref}')
-		expect(mobileMenu).toContain(': activeSection === link.id')
+	it('keeps the active variant context inside the mobile bottom navigation', () => {
+		expect(navbar).toContain("homeHref={homeVariantPath ?? '/'}")
+		expect(mobileNav).toContain('href: `${homeHref}#solutions`')
+		expect(mobileNav).toContain('href: `${homeHref}#vigento`')
+		expect(mobileNav).toContain('href: `${homeHref}#pricing`')
 	})
 })

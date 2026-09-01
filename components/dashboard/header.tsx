@@ -45,10 +45,49 @@ export async function Header({
     : getVerticalPack(businessType).titleEn
 
   return (
-    <header className="dashboard-shell-header sticky top-0 z-30 pt-3">
+    <header className="dashboard-shell-header sticky top-0 z-30 [padding-top:max(0.75rem,env(safe-area-inset-top))]">
       {impersonatedUserName && <ImpersonationBanner userName={impersonatedUserName} />}
       <div className="mx-auto flex min-h-[4.5rem] max-w-[112rem] items-center justify-between gap-3 rounded-[1.6rem] border border-black/[0.07] bg-white/[0.76] px-3 shadow-[0_10px_34px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-[background-color,box-shadow] duration-200 supports-[backdrop-filter:none]:bg-white/[0.92] sm:px-4 xl:min-h-[5.5rem] xl:rounded-[2rem] xl:px-5">
-        <div className="flex min-w-0 items-center gap-3.5 xl:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3.5 xl:gap-4">
+          {/* On mobile the plan stays on the physical right, while notifications
+              remain in the opposite action group on the physical left. */}
+          <Link
+            href="/billing"
+            dir="ltr"
+            aria-label={fa
+              ? isTrial ? 'مشاهده دوره آزمایشی و اعتبار' : 'مشاهده پلن و اعتبار'
+              : isTrial ? 'View trial and credit' : 'View plan and credit'}
+            className="spatial-press group flex h-14 min-w-0 w-full max-w-[10.75rem] items-center gap-2 rounded-[1.45rem] border border-black/[0.08] bg-white/90 px-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.15] hover:shadow-[0_12px_34px_rgba(0,0,0,0.09)] sm:w-[14rem] sm:max-w-none sm:gap-2.5 sm:px-3 lg:w-[15rem] xl:h-[4.25rem] xl:w-[18rem] xl:rounded-[1.7rem] xl:px-3.5"
+          >
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border shadow-[inset_0_1px_0_white,0_3px_10px_rgba(0,0,0,0.06)] sm:h-10 sm:w-10 xl:h-12 xl:w-12 ${isTrial
+              ? 'border-amber-200/70 bg-[radial-gradient(circle_at_35%_30%,white_0%,#fff9eb_50%,#fef3c7_100%)] text-amber-700'
+              : 'border-black/[0.06] bg-[radial-gradient(circle_at_35%_30%,white_0%,#f7f7f7_48%,#eeeeee_100%)] text-black'
+            }`}>
+              <PlanIcon aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-[1.8] sm:h-[1.15rem] sm:w-[1.15rem] xl:h-5 xl:w-5" />
+            </span>
+
+            <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>
+              <span className="block truncate text-xs font-bold leading-4 text-[var(--text-primary)] sm:text-[13px] xl:text-[15px] xl:leading-5">
+                {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
+                {daysLeft !== null && (
+                  <span className="ms-1.5 text-[11px] font-normal text-[var(--text-muted)] xl:text-xs">
+                    {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)] xl:text-xs">
+                {nf.format(Math.round(creditIRR / 10))}
+                <span className="ms-0.5">{fa ? 'تومان' : 'toman'}</span>
+              </span>
+              <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075] xl:mt-1.5 xl:h-[5px]">
+                <span className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${remaining}%` }} />
+              </span>
+            </span>
+
+            <span className="flex shrink-0 items-center text-black/65" dir="ltr">
+              <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none xl:h-[1.1rem] xl:w-[1.1rem]" />
+            </span>
+          </Link>
           <MobileNav businessType={businessType} services={services} />
           <div className="hidden min-w-0 sm:block md:hidden lg:block">
             <div className="truncate text-sm font-extrabold leading-5 text-[var(--text-primary)] xl:text-[15px] xl:leading-6">
@@ -64,49 +103,7 @@ export async function Header({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none xl:gap-2.5">
-          {/* Plan / credit pill — shows plan name, credit amount with progress bar,
-              and days left (if any) above the bar. Progress reflects credit remaining. */}
-          <Link
-            href="/billing"
-            dir="ltr"
-            aria-label={fa
-              ? isTrial ? 'مشاهده دوره آزمایشی و اعتبار' : 'مشاهده پلن و اعتبار'
-              : isTrial ? 'View trial and credit' : 'View plan and credit'}
-            className="spatial-press group flex h-14 min-w-0 w-full max-w-[13rem] items-center gap-2 rounded-[1.45rem] border border-black/[0.08] bg-white/90 px-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.15] hover:shadow-[0_12px_34px_rgba(0,0,0,0.09)] sm:w-[14rem] sm:max-w-none sm:gap-2.5 sm:px-3 lg:w-[15rem] xl:h-[4.25rem] xl:w-[18rem] xl:rounded-[1.7rem] xl:px-3.5"
-          >
-            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border shadow-[inset_0_1px_0_white,0_3px_10px_rgba(0,0,0,0.06)] sm:h-10 sm:w-10 xl:h-12 xl:w-12 ${isTrial
-              ? 'border-amber-200/70 bg-[radial-gradient(circle_at_35%_30%,white_0%,#fff9eb_50%,#fef3c7_100%)] text-amber-700'
-              : 'border-black/[0.06] bg-[radial-gradient(circle_at_35%_30%,white_0%,#f7f7f7_48%,#eeeeee_100%)] text-black'
-            }`}>
-              <PlanIcon aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-[1.8] sm:h-[1.15rem] sm:w-[1.15rem] xl:h-5 xl:w-5" />
-            </span>
-
-            <span className="min-w-0 flex-1" dir={fa ? 'rtl' : 'ltr'}>
-              {/* Line 1: Plan name + days left (inline, compact) */}
-              <span className="block truncate text-xs font-bold leading-4 text-[var(--text-primary)] sm:text-[13px] xl:text-[15px] xl:leading-5">
-                {fa ? `پلن ${planLabel}` : `${planLabel} plan`}
-                {daysLeft !== null && (
-                  <span className="ms-1.5 text-[11px] font-normal text-[var(--text-muted)] xl:text-xs">
-                    {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
-                  </span>
-                )}
-              </span>
-              {/* Line 2: Credit amount (number only, no "تومان اعتبار" to avoid overflow) */}
-              <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)] xl:text-xs">
-                {nf.format(Math.round(creditIRR / 10))}
-                <span className="ms-0.5">{fa ? 'تومان' : 'toman'}</span>
-              </span>
-              {/* Progress bar — reflects CREDIT remaining */}
-              <span className="mt-1 block h-1 overflow-hidden rounded-full bg-black/[0.075] xl:mt-1.5 xl:h-[5px]">
-                <span className="block h-full rounded-full bg-black transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${remaining}%` }} />
-              </span>
-            </span>
-
-            <span className="flex shrink-0 items-center text-black/65" dir="ltr">
-              <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none xl:h-[1.1rem] xl:w-[1.1rem]" />
-            </span>
-          </Link>
+        <div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">
           <NotificationBell />
           <form action={logout}>
             <button
