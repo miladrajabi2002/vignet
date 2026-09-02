@@ -12,7 +12,7 @@ import {
         sendSubscriptionExpiringSms,
         sendTrialExpiringSms,
 } from '@/lib/sms/ippanel'
-import { captureError } from '@/lib/errors/capture'
+import { captureError, persistLog } from '@/lib/errors/capture'
 import {
         syncWooOrders,
         syncWooProducts,
@@ -481,67 +481,159 @@ const ONBOARDING_NEXT_STEP_FA = [
  * Send only milestone SMS messages: one nudge per unfinished step, one success
  * message, and one trial-expiry reminder. Redis keys keep every message unique.
  */
-async function runTrialLifecycleSweep(): Promise<void> {
-        const now = new Date()
-        const reminderHorizon = new Date(now.getTime() + 3 * 24 * HOUR_MS)
-        const workspaces = await prisma.workspace.findMany({
-                where: {
-                        plan: 'TRIAL',
-                        trialEndsAt: { gt: now },
-                        owner: { isNot: null },
-                },
-                select: {
-                        id: true,
-                        createdAt: true,
-                        onboardingStepUpdatedAt: true,
-                        trialEndsAt: true,
-                        onboardingStep: true,
-                        onboardingCompleted: true,
-                        owner: {
-                                select: { phone: true },
+export async function runTrialLifecycleSweep(): Promise<void> {
+        const startedAt = Date.now()
+        const stats = {
+                scanned: 0,
+                notDue: 0,
+                missingPhone: 0,
+                deduplicated: 0,
+                attempted: 0,
+                delivered: 0,
+                failed: 0,
+        }
+
+        try {
+                const now = new Date()
+                const reminderHorizon = new Date(now.getTime() + 3 * 24 * HOUR_MS)
+                const workspaces = await prisma.workspace.findMany({
+                        where: {
+                                plan: 'TRIAL',
+                                trialEndsAt: { gt: now },
+                                owner: { isNot: null },
                         },
-                },
-                take: 300,
-        })
-        const redis = getRedis()
+                        select: {
+                                id: true,
+                                createdAt: true,
+                                onboardingStepUpdatedAt: true,
+                                trialEndsAt: true,
+                                onboardingStep: true,
+                                onboardingCompleted: true,
+                                owner: {
+                                        select: { phone: true },
+                                },
+                        },
+                        take: 300,
+                })
+                stats.scanned = workspaces.length
+                await persistLog('info', 'scheduler:trial-lifecycle:start', 'Trial lifecycle sweep started', {
+                        metadata: { candidates: workspaces.length, reminderHorizon },
+                })
 
-        for (const workspace of workspaces) {
-                const phone = workspace.owner?.phone
-                if (!phone || !workspace.trialEndsAt) continue
+                const redis = getRedis()
+                for (const workspace of workspaces) {
+                        const phone = workspace.owner?.phone
+                        if (!phone || !workspace.trialEndsAt) {
+                                stats.missingPhone += 1
+                                await persistLog('warn', 'scheduler:trial-lifecycle:skipped', 'Trial lifecycle SMS skipped because the owner phone is missing', {
+                                        workspaceId: workspace.id,
+                                        metadata: { reason: 'missing_owner_phone' },
+                                })
+                                continue
+                        }
 
-                if (workspace.onboardingCompleted) {
-                        const key = `lifecycle_sms:activation_complete:${workspace.id}`
-                        const acquired = await redis.set(key, '1', 'EX', 45 * 24 * 3600, 'NX')
-                        if (acquired) await sendActivationCompleteSms(phone)
-                        continue
-                }
+                        let kind: 'activation_complete' | 'trial_expiring' | 'activation_reminder'
+                        let dedupKey: string
+                        let dedupTtlSeconds: number
+                        let send: () => Promise<boolean>
 
-                if (workspace.trialEndsAt <= reminderHorizon) {
-                        const period = workspace.trialEndsAt.getTime().toString(36)
-                        const key = `lifecycle_sms:trial_expiring:${workspace.id}:${period}`
-                        const acquired = await redis.set(key, '1', 'EX', 7 * 24 * 3600, 'NX')
-                        if (acquired) {
+                        if (workspace.onboardingCompleted) {
+                                kind = 'activation_complete'
+                                dedupKey = `lifecycle_sms:activation_complete:${workspace.id}`
+                                dedupTtlSeconds = 45 * 24 * 3600
+                                send = () => sendActivationCompleteSms(phone, {
+                                        workspaceId: workspace.id,
+                                        metadata: { lifecycleKind: kind },
+                                })
+                        } else if (workspace.trialEndsAt <= reminderHorizon) {
+                                kind = 'trial_expiring'
+                                const period = workspace.trialEndsAt.getTime().toString(36)
                                 const daysRemaining = Math.max(
                                         1,
                                         Math.ceil((workspace.trialEndsAt.getTime() - now.getTime()) / (24 * HOUR_MS)),
                                 )
-                                await sendTrialExpiringSms(phone, { daysRemaining })
+                                dedupKey = `lifecycle_sms:trial_expiring:${workspace.id}:${period}`
+                                dedupTtlSeconds = 7 * 24 * 3600
+                                send = () => sendTrialExpiringSms(phone, { daysRemaining }, {
+                                        workspaceId: workspace.id,
+                                        metadata: { lifecycleKind: kind, daysRemaining, trialEndsAt: workspace.trialEndsAt },
+                                })
+                        } else {
+                                const inactiveMs = now.getTime() - workspace.onboardingStepUpdatedAt.getTime()
+                                if (inactiveMs < 24 * HOUR_MS) {
+                                        stats.notDue += 1
+                                        continue
+                                }
+                                kind = 'activation_reminder'
+                                const step = Math.min(workspace.onboardingStep, ONBOARDING_NEXT_STEP_FA.length - 1)
+                                const nextStep = ONBOARDING_NEXT_STEP_FA[step]
+                                dedupKey = `lifecycle_sms:activation_step:${workspace.id}:${step}`
+                                dedupTtlSeconds = 21 * 24 * 3600
+                                send = () => sendActivationReminderSms(phone, { nextStep }, {
+                                        workspaceId: workspace.id,
+                                        metadata: {
+                                                lifecycleKind: kind,
+                                                onboardingStep: step,
+                                                nextStep,
+                                                inactiveHours: Math.floor(inactiveMs / HOUR_MS),
+                                        },
+                                })
                         }
-                        continue
+
+                        let acquired = false
+                        try {
+                                acquired = Boolean(await redis.set(dedupKey, '1', 'EX', dedupTtlSeconds, 'NX'))
+                                if (!acquired) {
+                                        stats.deduplicated += 1
+                                        await persistLog('info', 'scheduler:trial-lifecycle:deduplicated', 'Trial lifecycle SMS was already processed', {
+                                                workspaceId: workspace.id,
+                                                metadata: { lifecycleKind: kind, dedupKey },
+                                        })
+                                        continue
+                                }
+
+                                stats.attempted += 1
+                                const delivered = await send()
+                                if (delivered) {
+                                        stats.delivered += 1
+                                        await persistLog('info', 'scheduler:trial-lifecycle:delivered', 'Trial lifecycle SMS delivery was accepted', {
+                                                workspaceId: workspace.id,
+                                                metadata: { lifecycleKind: kind, dedupKey },
+                                        })
+                                        continue
+                                }
+
+                                await redis.del(dedupKey)
+                                acquired = false
+                                stats.failed += 1
+                                await persistLog('warn', 'scheduler:trial-lifecycle:retry-enabled', 'Trial lifecycle SMS failed; deduplication claim was released for retry', {
+                                        workspaceId: workspace.id,
+                                        metadata: { lifecycleKind: kind, dedupKey },
+                                })
+                        } catch (error) {
+                                stats.failed += 1
+                                if (acquired) {
+                                        await redis.del(dedupKey).catch((releaseError) => {
+                                                captureError('scheduler:trial-lifecycle:dedup-release', releaseError, {
+                                                        workspaceId: workspace.id,
+                                                        metadata: { lifecycleKind: kind, dedupKey },
+                                                })
+                                        })
+                                }
+                                await persistLog('error', 'scheduler:trial-lifecycle:workspace-failed', error, {
+                                        workspaceId: workspace.id,
+                                        metadata: { lifecycleKind: kind, dedupKey },
+                                })
+                        }
                 }
 
-                // Nudge only after a full day without progress in the current
-                // onboarding stage. The dedicated timestamp is not affected by
-                // unrelated workspace changes such as billing or preferences.
-                if (now.getTime() - workspace.onboardingStepUpdatedAt.getTime() < 24 * HOUR_MS) continue
-                const step = Math.min(workspace.onboardingStep, ONBOARDING_NEXT_STEP_FA.length - 1)
-                const key = `lifecycle_sms:activation_step:${workspace.id}:${step}`
-                const acquired = await redis.set(key, '1', 'EX', 21 * 24 * 3600, 'NX')
-                if (acquired) {
-                        await sendActivationReminderSms(phone, {
-                                nextStep: ONBOARDING_NEXT_STEP_FA[step],
-                        })
-                }
+                await persistLog('info', 'scheduler:trial-lifecycle:complete', 'Trial lifecycle sweep completed', {
+                        metadata: { ...stats, durationMs: Date.now() - startedAt },
+                })
+        } catch (error) {
+                await persistLog('error', 'scheduler:trial-lifecycle:sweep-failed', error, {
+                        metadata: { ...stats, durationMs: Date.now() - startedAt },
+                })
         }
 }
 
