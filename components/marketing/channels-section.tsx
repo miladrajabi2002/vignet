@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import Image from 'next/image'
-import { Check, Globe2, Inbox, Link2, Sparkles, Workflow, type LucideIcon } from 'lucide-react'
+import { Check, Globe2, Inbox, Link2, MessageCircle, Sparkles, Workflow, type LucideIcon } from 'lucide-react'
 import { InstagramIcon, TelegramIcon } from './social-links'
 
 type Locale = 'fa' | 'en'
@@ -87,57 +87,63 @@ const CHANNELS: ChannelDefinition[] = [
 ]
 
 const connectorPaths: ConnectorPath[] = [
-	{ id: 'instagram', d: 'M 96 104 C 96 210, 380 214, 600 338' },
-	{ id: 'telegram', d: 'M 298 104 C 298 206, 446 226, 600 338' },
-	{ id: 'bale', d: 'M 500 104 C 500 206, 540 246, 600 338' },
-	{ id: 'rubika', d: 'M 700 104 C 700 206, 660 246, 600 338' },
-	{ id: 'web', d: 'M 902 104 C 902 206, 754 226, 600 338' },
-	{ id: 'link', d: 'M 1104 104 C 1104 210, 820 214, 600 338' },
+	{ id: 'instagram', d: 'M 96 104 C 96 210, 380 214, 600 292' },
+	{ id: 'telegram', d: 'M 298 104 C 298 206, 446 226, 600 292' },
+	{ id: 'bale', d: 'M 500 104 C 500 206, 540 246, 600 292' },
+	{ id: 'rubika', d: 'M 700 104 C 700 206, 660 246, 600 292' },
+	{ id: 'web', d: 'M 902 104 C 902 206, 754 226, 600 292' },
+	{ id: 'link', d: 'M 1104 104 C 1104 210, 820 214, 600 292' },
 ]
 
 const mobileConnectorPaths: ConnectorPath[] = [
-	{ id: 'instagram-mobile', d: 'M 82 106 C 82 280, 138 374, 180 486' },
-	{ id: 'telegram-mobile', d: 'M 278 106 C 278 280, 222 374, 180 486' },
-	{ id: 'bale-mobile', d: 'M 82 237 C 82 340, 142 396, 180 486' },
-	{ id: 'rubika-mobile', d: 'M 278 237 C 278 340, 218 396, 180 486' },
-	{ id: 'web-mobile', d: 'M 82 368 C 92 424, 146 444, 180 486' },
-	{ id: 'link-mobile', d: 'M 278 368 C 268 424, 214 444, 180 486' },
+	{ id: 'instagram-mobile', d: 'M 87 100 C 87 268, 140 372, 180 456' },
+	{ id: 'telegram-mobile', d: 'M 273 100 C 273 268, 220 372, 180 456' },
+	{ id: 'bale-mobile', d: 'M 87 216 C 87 322, 142 398, 180 456' },
+	{ id: 'rubika-mobile', d: 'M 273 216 C 273 322, 218 398, 180 456' },
+	{ id: 'web-mobile', d: 'M 87 332 C 94 388, 148 430, 180 456' },
+	{ id: 'link-mobile', d: 'M 273 332 C 266 388, 212 430, 180 456' },
 ]
 
 const COPY = {
 	fa: {
-		eyebrow: 'یک ورودی مشترک',
+		eyebrow: 'همهٔ پیام‌ها، یک‌جا',
 		title: 'صندوق پیام یکپارچه',
-		subtitle: 'پیام‌ها از هر کانالی که شروع شوند، با تاریخچهٔ کامل مشتری در یک فضای مشترک قرار می‌گیرند تا تیم شما هیچ گفتگویی را از دست ندهد.',
+		subtitle: 'پیام‌ها از هر برنامه‌ای که شروع شوند، با تاریخچهٔ کامل مشتری در یک فضای مشترک قرار می‌گیرند تا تیم شما هیچ گفتگویی را از دست ندهد.',
 		connected: 'متصل',
-		hubEyebrow: 'مقصد مشترک همهٔ پیام‌ها',
-		hubTitle: 'صندوق یکپارچه',
-		hubSubtitle: 'یک تیم، یک تاریخچه و یک پاسخ هماهنگ',
+		flowLabel: 'اتصال برنامه‌ها به صندوق پیام یکپارچه',
+		hubEyebrow: 'مرکز پاسخ‌گویی تیم',
+		hubTitle: 'صندوق پیام یکپارچه',
+		hubSubtitle: 'همهٔ گفتگوها با تاریخچهٔ کامل مشتری',
 		active: '۳۲ گفتگوی فعال',
-		live: 'زنده و همگام',
-		notifications: [
-			{ channel: 'instagram', text: 'پیام جدید از اینستاگرام' },
-			{ channel: 'telegram', text: 'پیام جدید از تلگرام' },
-			{ channel: 'web', text: 'گفتگوی تازه از سایت' },
+		connectedApps: '۶ برنامه متصل',
+		live: 'همگام‌سازی لحظه‌ای',
+		liveShort: 'آنلاین',
+		previewLabel: 'پیام‌ها اینجا جمع می‌شوند',
+		previewMessages: [
+			{ channel: 'instagram', message: 'سلام، برای انتخاب محصول راهنمایی می‌خواستم', time: 'اکنون' },
+			{ channel: 'telegram', message: 'سفارش من چه زمانی ارسال می‌شود؟', time: '۱ دقیقه پیش' },
 		],
-		ariaLabel: 'شش کانال متصل که همه پیام‌هایشان وارد صندوق یکپارچه ویگنت می‌شود',
+		ariaLabel: 'شش برنامهٔ متصل که همهٔ پیام‌هایشان وارد صندوق پیام یکپارچه ویگنت می‌شود',
 	},
 	en: {
-		eyebrow: 'One shared entry point',
-		title: 'Every channel flows into one unified inbox',
-		subtitle: 'No matter where a message starts, it arrives with the customer’s full history in one shared workspace so your team never loses a conversation.',
+		eyebrow: 'Every message, in one place',
+		title: 'Unified message inbox',
+		subtitle: 'No matter which app a message starts in, it arrives with the customer’s full history in one shared workspace so your team never loses a conversation.',
 		connected: 'Connected',
-		hubEyebrow: 'The shared destination for every message',
-		hubTitle: 'Unified inbox',
-		hubSubtitle: 'One team, one history and one consistent response',
+		flowLabel: 'Connected apps, one unified message inbox',
+		hubEyebrow: 'Team response center',
+		hubTitle: 'Unified message inbox',
+		hubSubtitle: 'Every conversation with the full customer history',
 		active: '32 active conversations',
-		live: 'Live and synced',
-		notifications: [
-			{ channel: 'instagram', text: 'New Instagram message' },
-			{ channel: 'telegram', text: 'New Telegram message' },
-			{ channel: 'web', text: 'New website conversation' },
+		connectedApps: '6 connected apps',
+		live: 'Real-time sync',
+		liveShort: 'Online',
+		previewLabel: 'Messages arrive here',
+		previewMessages: [
+			{ channel: 'instagram', message: 'Hi, I need help choosing the right product', time: 'Now' },
+			{ channel: 'telegram', message: 'When will my order be shipped?', time: '1 min ago' },
 		],
-		ariaLabel: 'Six connected channels whose messages all flow into the Vigent unified inbox',
+		ariaLabel: 'Six connected apps whose messages all flow into the Vigent unified message inbox',
 	},
 } as const
 
@@ -163,29 +169,26 @@ function ChannelLogo({ channel, small = false }: { channel: ChannelDefinition; s
 	return <Icon className={`${small ? 'size-3.5' : 'size-5'} ${channel.iconClass}`} />
 }
 
-function NodePulse() {
+function ConnectionPort() {
 	return (
-		<span aria-hidden="true" className="absolute -bottom-[7px] start-1/2 z-20 grid size-3 -translate-x-1/2 place-items-center rounded-full border border-white bg-violet-100 shadow-[0_2px_8px_rgba(124,58,237,0.22)]">
-			<span className="marketing-node-ring absolute size-3 rounded-full border border-violet-400" />
-			<span className="relative size-1.5 rounded-full bg-violet-600" />
-		</span>
+		<span aria-hidden="true" className="absolute -bottom-1 left-1/2 z-20 size-2 -translate-x-1/2 rounded-full border-2 border-white bg-violet-600 shadow-[0_2px_8px_rgba(124,58,237,0.26)]" />
 	)
 }
 
 function ChannelCard({ channel, locale, index }: { channel: ChannelDefinition; locale: Locale; index: number }) {
 	const copy = COPY[locale]
 	return (
-		<li data-scroll-reveal="up" style={{ '--reveal-order': index } as CSSProperties} className="relative z-10 flex min-h-[106px] min-w-0 flex-col items-center justify-center rounded-[22px] border border-white bg-white px-2.5 py-3 text-center shadow-[0_14px_42px_rgba(15,23,42,0.075),0_2px_8px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.035] lg:min-h-[104px]">
-			<span className={`grid size-11 place-items-center rounded-[15px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] ${channel.iconSurface}`}>
+		<li data-scroll-reveal="up" style={{ '--reveal-order': index } as CSSProperties} className="relative z-10 flex h-[100px] min-w-0 flex-col items-center justify-center rounded-[18px] border border-white bg-white px-2 py-2.5 text-center shadow-[0_10px_28px_rgba(15,23,42,0.07),0_2px_6px_rgba(15,23,42,0.035)] ring-1 ring-black/[0.035] lg:h-auto lg:min-h-[104px] lg:rounded-[22px] lg:px-2.5 lg:py-3 lg:shadow-[0_14px_42px_rgba(15,23,42,0.075),0_2px_8px_rgba(15,23,42,0.04)]">
+			<span className={`grid size-10 place-items-center rounded-[13px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] lg:size-11 lg:rounded-[15px] ${channel.iconSurface}`}>
 				<ChannelLogo channel={channel} />
 			</span>
-			<p className="mt-2 text-xs font-black text-neutral-950 sm:text-[13px]">{locale === 'fa' ? channel.fa : channel.en}</p>
-			<p className="mt-0.5 hidden text-[9px] font-semibold text-neutral-400 min-[390px]:block">{locale === 'fa' ? channel.descriptionFa : channel.descriptionEn}</p>
-			<span className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-700">
+			<p className="mt-1.5 text-[11px] font-black text-neutral-950 lg:mt-2 lg:text-[13px]">{locale === 'fa' ? channel.fa : channel.en}</p>
+			<p className="mt-0.5 hidden text-[9px] font-semibold text-neutral-400 lg:block">{locale === 'fa' ? channel.descriptionFa : channel.descriptionEn}</p>
+			<span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[8px] font-extrabold text-emerald-700 lg:mt-1.5 lg:bg-transparent lg:px-0 lg:py-0 lg:text-[9px]">
 				<Check className="size-2.5" />
 				{copy.connected}
 			</span>
-			<NodePulse />
+			<ConnectionPort />
 		</li>
 	)
 }
@@ -225,37 +228,64 @@ function ConnectionLines({
 function InboxHub({ locale }: { locale: Locale }) {
 	const copy = COPY[locale]
 	return (
-		<div className="relative mx-auto w-full max-w-[540px]">
+		<div className="relative mx-auto h-[260px] w-full max-w-[580px]">
 			<div
 				aria-hidden="true"
-				className="marketing-hub-glow absolute -inset-5 rounded-[38px] bg-gradient-to-r from-violet-500/25 via-fuchsia-400/18 to-sky-400/20 blur-2xl"
+				className="absolute -inset-5 rounded-[38px] bg-gradient-to-r from-violet-500/18 via-fuchsia-400/10 to-sky-400/14 opacity-70 blur-2xl"
 			/>
-			<div className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[#0b0b0e] px-4 py-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-6">
-				<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,0.32),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(56,189,248,0.14),transparent_36%)]" />
-				<span aria-hidden="true" className="absolute start-1/2 top-0 grid size-3 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[#0b0b0e] bg-violet-400 shadow-[0_0_18px_#a78bfa]">
-					<span className="marketing-node-ring absolute size-3 rounded-full border border-violet-300" />
-				</span>
+			<div aria-hidden="true" className="absolute -top-3 left-1/2 z-20 h-3 w-px -translate-x-1/2 bg-gradient-to-b from-violet-400/20 to-violet-400" />
+			<span aria-hidden="true" className="absolute left-1/2 top-0 z-30 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-[#0b0b0e] bg-violet-400 shadow-[0_0_0_4px_rgba(167,139,250,0.16),0_0_18px_rgba(167,139,250,0.7)]" />
 
-				<div className="relative flex w-full items-center gap-3 sm:grid sm:grid-cols-[18%_38%_18%] sm:justify-between sm:gap-0">
-					<div className="flex shrink-0 sm:justify-start">
-						<span className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.07] text-violet-200 shadow-inner">
-							<Inbox className="size-5" />
+			<div className="relative h-full overflow-hidden rounded-[24px] border border-white/15 bg-[#0b0b0e] p-3.5 text-white shadow-[0_24px_64px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.08)] sm:rounded-[30px] sm:p-5 sm:shadow-[0_30px_80px_rgba(15,23,42,0.30),inset_0_1px_0_rgba(255,255,255,0.08)]">
+				<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(139,92,246,0.32),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(56,189,248,0.14),transparent_36%)]" />
+				<div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/70 to-transparent" />
+
+				<div className="relative flex w-full items-center gap-2.5 sm:gap-3.5">
+					<div className="flex shrink-0">
+						<span className="grid size-11 place-items-center rounded-[15px] border border-violet-300/20 bg-gradient-to-br from-violet-500/30 to-violet-400/[0.08] text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_rgba(124,58,237,0.16)] sm:size-14 sm:rounded-[17px]">
+							<Inbox className="size-5 sm:size-6" />
 						</span>
 					</div>
-					<div className="min-w-0 flex-1 sm:text-center">
-						<p className="text-[9px] font-black text-violet-300 sm:uppercase sm:tracking-[0.12em] rtl:tracking-normal">{copy.hubEyebrow}</p>
-						<h3 className="mt-1 text-base font-black sm:mt-1.5 sm:text-xl sm:tracking-[-0.025em] rtl:tracking-normal">{copy.hubTitle}</h3>
-						<p className="mt-1 truncate text-[9px] font-semibold text-white/45 sm:text-[10px]">{copy.hubSubtitle}</p>
+					<div className="min-w-0 flex-1">
+						<p className="text-[9px] font-black text-violet-300 sm:text-[10px] sm:uppercase sm:tracking-[0.12em] rtl:tracking-normal">{copy.hubEyebrow}</p>
+						<h3 className="mt-0.5 text-[15px] font-black sm:mt-1 sm:text-xl sm:tracking-[-0.025em] rtl:tracking-normal">{copy.hubTitle}</h3>
+						<p className="mt-0.5 hidden text-[9px] font-semibold leading-4 text-white/50 min-[360px]:block sm:mt-1 sm:text-[10px]">{copy.hubSubtitle}</p>
 					</div>
-					<div className="flex shrink-0 justify-end">
-						<span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399] sm:hidden" />
-						<div className="hidden text-end sm:block">
-							<p className="text-[10px] font-black text-white">{copy.active}</p>
-							<p className="mt-1 flex items-center justify-end gap-1.5 text-[9px] font-extrabold text-emerald-300">
-								<span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
-								{copy.live}
-							</p>
+					<div className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300/15 bg-emerald-400/[0.08] px-2 py-1.5 text-[8px] font-extrabold text-emerald-300 sm:px-2.5 sm:text-[9px]">
+						<span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
+						<span className="sm:hidden">{copy.liveShort}</span>
+						<span className="hidden sm:inline">{copy.live}</span>
+					</div>
+				</div>
+
+				<div className="relative mt-3 rounded-[17px] border border-white/[0.09] bg-white/[0.055] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:mt-4 sm:rounded-[19px] sm:p-3">
+					<div className="mb-2 flex items-center justify-between gap-3 px-1">
+						<div className="flex items-center gap-1.5 text-[9px] font-black text-white/70 sm:text-[10px]">
+							<MessageCircle className="size-3.5 text-violet-300" />
+							{copy.previewLabel}
 						</div>
+						<span className="hidden text-[8px] font-bold text-white/35 sm:inline sm:text-[9px]">{copy.active}</span>
+					</div>
+
+					<div className="space-y-1.5">
+						{copy.previewMessages.map((preview) => {
+							const channel = CHANNELS.find((item) => item.key === preview.channel) ?? CHANNELS[0]
+							return (
+								<div key={preview.channel} className="flex min-w-0 items-center gap-2 rounded-[12px] border border-white/[0.07] bg-black/20 px-2 py-2 sm:gap-2.5 sm:rounded-[13px] sm:px-2.5">
+									<span className={`grid size-8 shrink-0 place-items-center rounded-[11px] border ${channel.iconSurface}`}>
+										<ChannelLogo channel={channel} small />
+									</span>
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-[9px] font-black text-white/85 sm:text-[10px]">{locale === 'fa' ? channel.fa : channel.en}</p>
+											<span className="hidden shrink-0 text-[8px] font-semibold text-white/35 min-[390px]:inline">{preview.time}</span>
+										</div>
+										<p className="mt-0.5 truncate text-[8px] font-medium text-white/45 sm:text-[9px]">{preview.message}</p>
+									</div>
+									<span className="size-1.5 shrink-0 rounded-full bg-violet-400" />
+								</div>
+							)
+						})}
 					</div>
 				</div>
 			</div>
@@ -263,44 +293,18 @@ function InboxHub({ locale }: { locale: Locale }) {
 	)
 }
 
-function IncomingNotifications({ locale, className }: { locale: Locale; className: string }) {
-	const notifications = COPY[locale].notifications
-
-	return (
-		<div aria-hidden="true" className={`pointer-events-none absolute start-1/2 z-30 ${className}`}>
-			{notifications.map((notification, index) => {
-				const channel = CHANNELS.find((item) => item.key === notification.channel) ?? CHANNELS[0]
-				return (
-					<div
-						key={notification.channel}
-						className="marketing-incoming-note absolute start-0 top-0 flex w-max max-w-[220px] items-center gap-2 rounded-full border border-black/[0.07] bg-white/95 py-1.5 pe-3 ps-1.5 text-[10px] font-extrabold text-neutral-700 opacity-0 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
-						style={{ animationDelay: `${1.2 + index * 6}s` }}
-					>
-						<span className={`grid size-7 shrink-0 place-items-center rounded-full border ${channel.iconSurface}`}>
-							<ChannelLogo channel={channel} small />
-						</span>
-						<span>{notification.text}</span>
-						<span className="size-1.5 shrink-0 rounded-full bg-violet-500" />
-					</div>
-				)
-			})}
-		</div>
-	)
-}
-
 function ChannelFlow({ locale }: { locale: Locale }) {
 	return (
-		<div className="relative min-h-[580px] lg:min-h-[430px]">
+		<div className="relative min-h-[720px] lg:min-h-[560px]">
 			<div aria-hidden className="absolute inset-0 hidden lg:block">
-				<ConnectionLines connectorPaths={connectorPaths} viewBox="0 0 1200 430" gradientId="desktop-channel-flow" />
+				<ConnectionLines connectorPaths={connectorPaths} viewBox="0 0 1200 560" gradientId="desktop-channel-flow" />
 			</div>
 			<div aria-hidden className="absolute inset-0 lg:hidden">
-				<ConnectionLines connectorPaths={mobileConnectorPaths} viewBox="0 0 360 580" gradientId="mobile-channel-flow" />
+				<ConnectionLines connectorPaths={mobileConnectorPaths} viewBox="0 0 360 720" gradientId="mobile-channel-flow" />
 			</div>
-			<ul className="relative grid grid-cols-2 gap-x-7 gap-y-5 lg:grid-cols-6 lg:gap-3">
+			<ul className="relative grid grid-cols-2 gap-x-3 gap-y-4 lg:grid-cols-6 lg:gap-3">
 				{CHANNELS.map((channel, index) => <ChannelCard key={channel.key} channel={channel} locale={locale} index={index} />)}
 			</ul>
-			<IncomingNotifications locale={locale} className="top-[382px] lg:top-[205px]" />
 			<div className="absolute inset-x-0 bottom-1 lg:bottom-2"><InboxHub locale={locale} /></div>
 		</div>
 	)
@@ -324,11 +328,11 @@ export function ChannelsSection({ locale }: { locale: Locale }) {
 					<p className="mx-auto mt-5 max-w-2xl text-pretty text-sm font-medium leading-7 text-neutral-600 sm:text-base sm:leading-8">{copy.subtitle}</p>
 				</header>
 
-				<div aria-label={copy.ariaLabel} className="relative mt-10 rounded-[28px] border border-white bg-white/45 p-3 shadow-[0_30px_100px_rgba(15,23,42,0.075)] ring-1 ring-black/[0.035] backdrop-blur-sm sm:mt-14 sm:rounded-[36px] sm:p-5 lg:p-7">
+				<div aria-label={copy.ariaLabel} className="relative mt-10 rounded-[24px] border border-white bg-white/55 p-2.5 shadow-[0_24px_72px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.035] backdrop-blur-sm sm:mt-14 sm:rounded-[36px] sm:bg-white/45 sm:p-5 sm:shadow-[0_30px_100px_rgba(15,23,42,0.075)] lg:p-7">
 					<div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/70 to-transparent" />
-					<div className="mb-4 flex items-center justify-center gap-2 text-[9px] font-extrabold text-neutral-400 sm:text-[10px]">
+					<div className="mb-3 flex items-center justify-center gap-2 px-2 text-center text-[9px] font-extrabold leading-5 text-neutral-500 sm:mb-4 sm:text-[10px] sm:text-neutral-400">
 						<Workflow className="size-3.5 text-violet-500" />
-						<span>{locale === 'fa' ? 'جریان زندهٔ پیام‌ها به سمت صندوق مشترک' : 'Live message flow into the shared inbox'}</span>
+						<span>{copy.flowLabel}</span>
 					</div>
 					<ChannelFlow locale={locale} />
 				</div>

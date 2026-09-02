@@ -993,17 +993,6 @@
                 animation: marketing-core-breathe 4.8s ease-in-out infinite;
                 will-change: transform;
         }
-        .marketing-node-ring {
-                animation: marketing-node-ring 2.8s var(--ease-spatial) infinite;
-        }
-        .marketing-hub-glow {
-                animation: marketing-hub-glow 5.2s ease-in-out infinite;
-                will-change: transform, opacity;
-        }
-        .marketing-incoming-note {
-                animation: marketing-incoming-note 18s linear infinite;
-                will-change: transform, opacity;
-        }
         .marketing-demo-skeleton {
                 animation: marketing-skeleton-breathe 1.8s ease-in-out infinite;
         }
@@ -1047,20 +1036,6 @@
         @keyframes marketing-core-breathe {
                 0%, 100% { transform: scale(1); }
                 50% { transform: scale(1.015); }
-        }
-        @keyframes marketing-node-ring {
-                from { opacity: 0.55; transform: scale(1); }
-                to { opacity: 0; transform: scale(2.6); }
-        }
-        @keyframes marketing-hub-glow {
-                0%, 100% { opacity: 0.28; transform: scale(0.98); }
-                50% { opacity: 0.56; transform: scale(1.025); }
-        }
-        @keyframes marketing-incoming-note {
-                0%, 2% { opacity: 0; transform: translate3d(-50%, -0.6rem, 0) scale(0.96); }
-                7.5% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
-                17% { opacity: 1; transform: translate3d(-50%, 2.1rem, 0) scale(1); }
-                23%, 100% { opacity: 0; transform: translate3d(-50%, 6rem, 0) scale(0.97); }
         }
         @keyframes marketing-skeleton-breathe {
                 0%, 100% { opacity: 0.48; }
@@ -1268,16 +1243,12 @@
         .marketing-tab-indicator,
         .marketing-swap-in,
         .marketing-core-breathe,
-        .marketing-node-ring,
-        .marketing-hub-glow,
-        .marketing-incoming-note,
         .marketing-demo-skeleton,
         .marketing-faq-details[open] .marketing-faq-answer {
                 animation: none;
         }
 
-        .marketing-channel-signal,
-        .marketing-incoming-note {
+        .marketing-channel-signal {
                 display: none;
         }
 
