@@ -1,4 +1,4 @@
-const CHUNK_LOAD_RE = /(?:chunkloaderror|loading chunk [\d-]+ failed|failed to load chunk|failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module)/i
+const CHUNK_LOAD_RE = /(?:chunkloaderror|loading chunk [\d-]+ failed|failed to load chunk|failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module|cannot read properties of undefined \(reading ['"]call['"]\))/i
 const RECOVERY_KEY = 'vigent:chunk-load-recovery-at'
 const RECOVERY_COOLDOWN_MS = 60_000
 

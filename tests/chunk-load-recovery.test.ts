@@ -10,6 +10,9 @@ describe('Next.js chunk load recovery', () => {
   it('recognizes browser and webpack chunk failure variants', () => {
     expect(isChunkLoadError(Object.assign(new Error('Loading chunk 586 failed.'), { name: 'ChunkLoadError' }))).toBe(true)
     expect(isChunkLoadError(new TypeError('Failed to fetch dynamically imported module'))).toBe(true)
+    // Webpack throws this when stale route code requests a module factory that
+    // is absent from the currently loaded runtime after a deployment.
+    expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'call')"))).toBe(true)
     expect(isChunkLoadError(new Error('ordinary render failure'))).toBe(false)
   })
 
