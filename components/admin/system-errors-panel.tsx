@@ -37,6 +37,7 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
         { message: { contains: activeQuery, mode: 'insensitive' } },
         { workspaceId: { contains: activeQuery, mode: 'insensitive' } },
         { metadata: { path: ['requestId'], string_contains: activeQuery } },
+        { metadata: { path: ['smsAttemptId'], string_contains: activeQuery } },
         { metadata: { path: ['phone'], string_contains: activeQuery } },
         { metadata: { path: ['otpCode'], string_contains: activeQuery } },
       ],
@@ -110,7 +111,7 @@ export async function SystemErrorsPanel({ level, page, query }: { level?: string
                   name="errorQuery"
                   defaultValue={activeQuery}
                   maxLength={200}
-                  placeholder="مثلاً auth:otp یا request id"
+                  placeholder="مثلاً sms:activation یا attempt id"
                   className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white pe-3 ps-9 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
                 />
               </div>

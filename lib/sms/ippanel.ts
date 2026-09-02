@@ -1,6 +1,6 @@
 import { getRedis } from '@/lib/redis'
 import { normalizePhone } from '@/lib/phone'
-import { randomInt } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { captureError, captureWarning, persistLog } from '@/lib/errors/capture'
 
@@ -72,7 +72,10 @@ function isSmsConfigured(): boolean {
   return Boolean(process.env.IPPANEL_PROXY_URL || process.env.IPPANEL_API_KEY)
 }
 
-async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
+async function ippanelSend(
+  body: Record<string, unknown>,
+  audit?: { workspaceId?: string; metadata?: Record<string, unknown> },
+): Promise<boolean> {
   const proxyUrl = process.env.IPPANEL_PROXY_URL
   const apiKey = process.env.IPPANEL_API_KEY
 
@@ -104,7 +107,9 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
     const text = await res.text().catch(() => '')
     const params = body.params
     captureError('sms:ippanel:http', new Error(`IPPanel request failed with HTTP ${res.status}`), {
+      workspaceId: audit?.workspaceId,
       metadata: {
+        ...(audit?.metadata ?? {}),
         status: res.status,
         sendingType: body.sending_type,
         patternCode: body.code,
@@ -118,7 +123,8 @@ async function ippanelSend(body: Record<string, unknown>): Promise<boolean> {
   const json = (await res.json().catch(() => null)) as { meta?: IppanelMeta } | null
   if (json?.meta && json.meta.status !== true) {
     captureError('sms:ippanel:rejected', new Error(json.meta.message ?? 'IPPanel rejected the message'), {
-      metadata: { messageCode: json.meta.message_code ?? 'unknown' },
+      workspaceId: audit?.workspaceId,
+      metadata: { ...(audit?.metadata ?? {}), messageCode: json.meta.message_code ?? 'unknown' },
     })
     return false
   }
@@ -242,32 +248,80 @@ async function sendPatternSms(
   mobile: string,
   patternCode: string | undefined,
   params: Record<string, string>,
+  audit: {
+    source: string
+    workspaceId?: string
+    metadata?: Record<string, unknown>
+  },
 ): Promise<boolean> {
   const normalized = normalizePhone(mobile)
-  if (!normalized) return false
+  const smsAttemptId = randomUUID()
+  const logOptions = {
+    workspaceId: audit.workspaceId,
+    metadata: {
+      phone: normalized ?? mobile,
+      smsAttemptId,
+      paramKeys: Object.keys(params),
+      ...(audit.metadata ?? {}),
+    },
+  }
+
+  if (!normalized) {
+    await persistLog('warn', `${audit.source}:invalid-recipient`, 'Pattern SMS recipient is invalid', logOptions)
+    return false
+  }
 
   const fromNumber = process.env.IPPANEL_FROM_NUMBER
 
   if (!isSmsConfigured() || !fromNumber) {
-    console.warn('[ippanel] pattern SMS skipped: provider or sender is not configured')
+    const missing = [
+      !isSmsConfigured() && 'IPPANEL_PROXY_URL_OR_API_KEY',
+      !fromNumber && 'IPPANEL_FROM_NUMBER',
+    ].filter(Boolean)
+    await persistLog('warn', `${audit.source}:configuration`, 'Pattern SMS skipped because provider configuration is incomplete', {
+      ...logOptions,
+      metadata: { ...logOptions.metadata, missing },
+    })
     return false
   }
 
   if (!patternCode) {
-    console.error('[ippanel] cannot send pattern SMS: missing pattern code')
+    await persistLog('error', `${audit.source}:configuration`, new Error('Pattern SMS skipped because its pattern code is missing'), logOptions)
     return false
   }
 
+  const provider = process.env.IPPANEL_PROXY_URL ? 'ippanel-proxy' : 'ippanel-direct'
+  await persistLog('info', `${audit.source}:attempt`, 'Sending pattern SMS to provider', {
+    ...logOptions,
+    metadata: { ...logOptions.metadata, provider, patternCode },
+  })
+
   try {
-    return await ippanelSend({
-      sending_type: 'pattern',
-      from_number: fromNumber,
-      code: patternCode,
-      recipients: [normalized],
-      params,
+    const accepted = await ippanelSend(
+      {
+        sending_type: 'pattern',
+        from_number: fromNumber,
+        code: patternCode,
+        recipients: [normalized],
+        params,
+      },
+      {
+        workspaceId: audit.workspaceId,
+        metadata: { smsAttemptId, lifecycleSource: audit.source, phone: normalized },
+      },
+    )
+    await persistLog(accepted ? 'info' : 'warn', `${audit.source}:${accepted ? 'accepted' : 'failed'}`, accepted
+      ? 'Pattern SMS accepted by provider'
+      : 'Pattern SMS was not accepted by provider', {
+      ...logOptions,
+      metadata: { ...logOptions.metadata, provider, patternCode, accepted },
     })
+    return accepted
   } catch (e) {
-    console.error('[ippanel] pattern send threw:', e)
+    await persistLog('error', `${audit.source}:exception`, e, {
+      ...logOptions,
+      metadata: { ...logOptions.metadata, provider, patternCode },
+    })
     return false
   }
 }
@@ -322,7 +376,7 @@ export async function sendSubscriptionPurchasedSms(
   return sendPatternSms(mobile, process.env.IPPANEL_SUBSCRIPTION_PURCHASED_PATTERN_CODE, {
     plan: planLabelFa(data.plan),
     expiry: formatPersianDate(data.currentPeriodEnd),
-  })
+  }, { source: 'sms:subscription-purchased' })
 }
 
 type AdminSubscriptionPatternData = {
@@ -352,6 +406,7 @@ export async function sendAdminSubscriptionPurchasedSms(
     mobile,
     process.env.IPPANEL_ADMIN_SUBSCRIPTION_PURCHASED_PATTERN_CODE,
     data,
+    { source: 'sms:admin-subscription-purchased' },
   )
 }
 
@@ -363,6 +418,7 @@ export async function sendAdminSubscriptionRenewedSms(
     mobile,
     process.env.IPPANEL_ADMIN_SUBSCRIPTION_RENEWED_PATTERN_CODE,
     data,
+    { source: 'sms:admin-subscription-renewed' },
   )
 }
 
@@ -374,6 +430,7 @@ export async function sendAdminCreditTopupSms(
     mobile,
     process.env.IPPANEL_ADMIN_CREDIT_TOPPED_UP_PATTERN_CODE,
     data,
+    { source: 'sms:admin-credit-topped-up' },
   )
 }
 
@@ -397,7 +454,7 @@ export async function sendSubscriptionExpiringSms(
     plan: planLabelFa(data.plan),
     days: String(data.daysRemaining),
     expiry: formatPersianDate(data.currentPeriodEnd),
-  })
+  }, { source: 'sms:subscription-expiring' })
 }
 
 /** Welcome message sent once after the first successful sign-up. */
@@ -407,7 +464,7 @@ export async function sendWelcomeSms(
 ): Promise<boolean> {
   return sendPatternSms(mobile, process.env.IPPANEL_WELCOME_PATTERN_CODE, {
     name: data.name,
-  })
+  }, { source: 'sms:welcome' })
 }
 
 /**
@@ -420,27 +477,32 @@ export async function sendWelcomeSms(
 export async function sendActivationReminderSms(
   mobile: string,
   data: { nextStep: string },
+  context?: { workspaceId?: string; metadata?: Record<string, unknown> },
 ): Promise<boolean> {
   return sendPatternSms(mobile, process.env.IPPANEL_ACTIVATION_REMINDER_PATTERN_CODE, {
     step: data.nextStep,
-  })
+  }, { source: 'sms:activation-reminder', ...context })
 }
 
 /** Celebrate the first complete setup without adding an email lifecycle. */
-export async function sendActivationCompleteSms(mobile: string): Promise<boolean> {
+export async function sendActivationCompleteSms(
+  mobile: string,
+  context?: { workspaceId?: string; metadata?: Record<string, unknown> },
+): Promise<boolean> {
   return sendPatternSms(mobile, process.env.IPPANEL_ACTIVATION_COMPLETE_PATTERN_CODE, {
     status: 'فعال',
-  })
+  }, { source: 'sms:activation-complete', ...context })
 }
 
 /** Trial reminder is separate from paid-subscription expiry messaging. */
 export async function sendTrialExpiringSms(
   mobile: string,
   data: { daysRemaining: number },
+  context?: { workspaceId?: string; metadata?: Record<string, unknown> },
 ): Promise<boolean> {
   return sendPatternSms(mobile, process.env.IPPANEL_TRIAL_EXPIRING_PATTERN_CODE, {
     days: String(data.daysRemaining),
-  })
+  }, { source: 'sms:trial-expiring', ...context })
 }
 
 /** Verify a code against the value stored in Redis. Consumes it on success. */
