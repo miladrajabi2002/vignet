@@ -6,8 +6,8 @@ const navbar = readFileSync(
 	join(process.cwd(), 'components', 'marketing', 'navbar.tsx'),
 	'utf8',
 )
-const mobileMenu = readFileSync(
-	join(process.cwd(), 'components', 'marketing', 'mobile-menu.tsx'),
+const mobileNav = readFileSync(
+	join(process.cwd(), 'components', 'marketing', 'mobile-bottom-nav.tsx'),
 	'utf8',
 )
 
@@ -19,12 +19,13 @@ describe('marketing navbar landing variants', () => {
 		expect(navbar).toContain('href: `${homeVariantPath}#${link.id}`')
 		expect(navbar).toContain("href={homeVariantPath ?? '/'}")
 		expect(navbar).toContain("? isLandingPath && activeSection === ''")
-		expect(navbar).toContain(': isLandingPath && activeSection === id')
+		expect(navbar).toContain(': isLandingPath && activeSection === link.id')
 	})
 
-	it('passes variant-aware links into the mobile menu while onboarding stays stable', () => {
-		expect(navbar).toContain('links={mobileLinks}')
-		expect(navbar).toContain('href: `${homeVariantPath}#${link.id}`')
-		expect(mobileMenu).toContain('href="/login?next=/onboarding"')
+	it('keeps variant pricing context while docs and onboarding use stable routes', () => {
+		expect(navbar).toContain("homeHref={homeVariantPath ?? '/'}")
+		expect(mobileNav).toContain("href: '/docs'")
+		expect(mobileNav).toContain('href="/login?next=/onboarding"')
+		expect(mobileNav).toContain('href: `${homeHref}#pricing`')
 	})
 })

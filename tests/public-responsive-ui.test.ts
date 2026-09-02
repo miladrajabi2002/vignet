@@ -4,18 +4,17 @@ import { describe, expect, it } from 'vitest'
 const source = (path: string) => readFileSync(path, 'utf8')
 
 describe('public adaptive UI contracts', () => {
-  it('keeps public mobile navigation accessible without covering page content', () => {
+  it('keeps public mobile navigation persistent and reserves its safe area', () => {
     const layout = source('app/(marketing)/layout.tsx')
     const navbar = source('components/marketing/navbar.tsx')
-    const mobileMenu = source('components/marketing/mobile-menu.tsx')
+    const mobileNav = source('components/marketing/mobile-bottom-nav.tsx')
     const backToTop = source('components/marketing/back-to-top.tsx')
 
-    expect(layout).not.toContain('env(safe-area-inset-bottom)')
-    expect(mobileMenu).toContain('env(safe-area-inset-bottom)')
-    expect(mobileMenu).toContain('min-h-11 min-w-11')
-    expect(navbar).toContain('MarketingMobileMenu')
-    expect(navbar).not.toContain('MarketingMobileBottomNav')
-    expect(existsSync('components/marketing/mobile-menu.tsx')).toBe(true)
+    expect(layout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
+    expect(mobileNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
+    expect(mobileNav).toContain('grid-cols-5')
+    expect(navbar).not.toContain('MarketingMobileMenu')
+    expect(existsSync('components/marketing/mobile-menu.tsx')).toBe(false)
     expect(backToTop).toContain('lg:bottom-6')
   })
 
