@@ -22,10 +22,10 @@ describe('marketing navbar landing variants', () => {
 		expect(navbar).toContain(': isLandingPath && activeSection === link.id')
 	})
 
-	it('keeps the active variant context inside the mobile bottom navigation', () => {
+	it('keeps variant pricing context while docs and onboarding use stable routes', () => {
 		expect(navbar).toContain("homeHref={homeVariantPath ?? '/'}")
-		expect(mobileNav).toContain('href: `${homeHref}#solutions`')
-		expect(mobileNav).toContain('href: `${homeHref}#vigento`')
+		expect(mobileNav).toContain("href: '/docs'")
+		expect(mobileNav).toContain('href="/login?next=/onboarding"')
 		expect(mobileNav).toContain('href: `${homeHref}#pricing`')
 	})
 })

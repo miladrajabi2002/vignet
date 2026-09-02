@@ -20,6 +20,7 @@ const COPY = {
 		vigento: 'ویجنتو',
 		solutions: 'راهکارها',
 		start: 'شروع رایگان — یک ماه',
+		startShort: 'شروع رایگان',
 		dashboard: 'داشبورد من',
 		signedIn: 'وارد شده‌اید',
 		dashboardAria: 'رفتن به داشبورد',
@@ -32,6 +33,7 @@ const COPY = {
 		vigento: 'Vigento',
 		solutions: 'Solutions',
 		start: 'Start free — one month',
+		startShort: 'Start free',
 		dashboard: 'My dashboard',
 		signedIn: 'Signed in',
 		dashboardAria: 'Go to dashboard',
@@ -174,8 +176,8 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 				activeSection={activeSection}
 				copy={{
 					home: copy.home,
-					solutions: copy.solutions,
-					vigento: copy.vigento,
+					docs: t('docs'),
+					startFree: copy.startShort,
 					pricing: t('pricing'),
 					login: copy.login,
 					dashboard: copy.dashboard,

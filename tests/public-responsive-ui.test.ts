@@ -10,7 +10,7 @@ describe('public adaptive UI contracts', () => {
     const mobileNav = source('components/marketing/mobile-bottom-nav.tsx')
     const backToTop = source('components/marketing/back-to-top.tsx')
 
-    expect(layout).toContain('pb-[calc(5.75rem+env(safe-area-inset-bottom))]')
+    expect(layout).toContain('pb-[calc(7rem+env(safe-area-inset-bottom))]')
     expect(mobileNav).toContain('[bottom:max(0.75rem,env(safe-area-inset-bottom))]')
     expect(mobileNav).toContain('grid-cols-5')
     expect(navbar).not.toContain('MarketingMobileMenu')
