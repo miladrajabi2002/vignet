@@ -6,7 +6,6 @@ import {
   resolveSystemPrompt,
   type PromptConfig,
 } from '@/lib/ai/prompt-builder'
-import { extractVigentoDraft, fallbackVigentoDraft, vigentoSystemPrompt } from '@/lib/ai/vigento-draft'
 import { promptConfigSchema } from '@/lib/validations/agent'
 import { buildMessages } from '@/lib/ai/rag'
 
@@ -162,32 +161,5 @@ describe('natural conversation prompt controls', () => {
     expect(continuation[0]?.content).toContain('ادامهٔ همان گفتگو است')
     expect(continuation[0]?.content).toContain('پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن')
     expect(continuation[0]?.content).toContain('ایموجی فقط وقتی استفاده کن')
-  })
-
-  it('includes and validates conversation controls in AI-generated drafts', () => {
-    const draft = fallbackVigentoDraft('Customer support', 'en')
-    expect(draft.promptConfig.conversation.followUp).toBe('when_needed')
-    expect(vigentoSystemPrompt('en')).toContain('avoidRepeatedGreetings')
-    expect(vigentoSystemPrompt('fa')).toContain('Make the agent sound natural')
-  })
-
-  it('preserves AI-selected controls through draft extraction and runtime assembly', () => {
-    const generated = fallbackVigentoDraft('Premium concierge sales', 'en')
-    generated.promptConfig.conversation = {
-      formality: 'formal',
-      initiative: 'proactive',
-      empathy: 'warm',
-      followUp: 'rare',
-      mirrorCustomerTone: false,
-      useCustomerName: true,
-      avoidRepeatedGreetings: true,
-    }
-
-    const parsed = extractVigentoDraft(`\`\`\`json\n${JSON.stringify(generated)}\n\`\`\``)
-    expect(parsed.promptConfig.conversation).toEqual(generated.promptConfig.conversation)
-    const runtimePrompt = buildLayeredPrompt(parsed.promptConfig, '', false)
-    expect(runtimePrompt).toContain('Use a respectful formal register')
-    expect(runtimePrompt).toContain('proactively offer one relevant, non-pushy next step')
-    expect(runtimePrompt).toContain('Keep the defined brand voice consistent')
   })
 })

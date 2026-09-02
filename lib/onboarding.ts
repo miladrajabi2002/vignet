@@ -19,11 +19,12 @@ export interface OnboardingState {
 export async function computeOnboarding(
   workspaceId: string,
 ): Promise<OnboardingState> {
-  const [agentCount, kbCount, productCount, channelCount, workspace] =
+  const [agentCount, kbCount, productCount, serviceCount, channelCount, workspace] =
     await Promise.all([
       prisma.agent.count({ where: { workspaceId } }),
       prisma.knowledgeBase.count({ where: { workspaceId } }),
       prisma.product.count({ where: { workspaceId } }),
+      prisma.service.count({ where: { workspaceId } }),
       prisma.agentChannel.count({ where: { agent: { workspaceId } } }),
       prisma.workspace.findUnique({
         where: { id: workspaceId },
@@ -33,9 +34,9 @@ export async function computeOnboarding(
 
   const checks = {
     hasAgent: agentCount >= 1,
-    hasKnowledge: kbCount >= 1 || productCount >= 1 || !!workspace?.onboardingKnowledgeSkipped,
+    hasKnowledge: kbCount >= 1 || productCount >= 1 || serviceCount >= 1 || !!workspace?.onboardingKnowledgeSkipped,
     hasChannel: channelCount >= 1 || !!workspace?.onboardingChannelSkipped,
-    knowledgeSkipped: !!workspace?.onboardingKnowledgeSkipped && kbCount === 0 && productCount === 0,
+    knowledgeSkipped: !!workspace?.onboardingKnowledgeSkipped && kbCount === 0 && productCount === 0 && serviceCount === 0,
     channelSkipped: !!workspace?.onboardingChannelSkipped && channelCount === 0,
   }
 

@@ -1,4 +1,4 @@
-import { AgentBuilderEntry } from '@/components/agent-builder/agent-builder-entry'
+import { AgentWizard } from '@/components/agent-builder/agent-wizard'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getPlatformAiConfig } from '@/lib/ai/platform-config'
@@ -38,7 +38,7 @@ export default async function NewAgentPage({
 
   return (
     <div className="py-4">
-      <AgentBuilderEntry
+      <AgentWizard
         initialBusiness={business}
         businessType={workspace?.businessType}
         workspaceProductCount={workspaceProductCount}

@@ -30,9 +30,8 @@ import {
  *   3. Success → "با موفقیت وصل شد" card, then auto-advance to the next
  *      onboarding step after a short delay.
  *
- * The wizard is dismissible — the user can close it and pick the "manual
- * product entry" path instead. Closing resets all local state so reopening
- * starts fresh.
+ * The wizard is dismissible — the user can return to the optional products
+ * and services step. Closing resets local state so reopening starts fresh.
  *
  * ─── Polling design note ──────────────────────────────────────────
  * The integration ID is stored in a ref (not state) so the polling
@@ -228,7 +227,7 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-6 py-4">
+      <div className="flex items-center border-b border-[var(--border-subtle)] px-6 py-4">
         <div className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
             <Plug className="h-4 w-4" />
@@ -244,16 +243,6 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          disabled={submitting}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:opacity-50"
-          aria-label="بستن"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-          بازگشت
-        </button>
       </div>
 
       {/* Body — animated step transitions */}
@@ -375,14 +364,6 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
                 )}
               </div>
 
-              {/* Skip / dismiss */}
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="block w-full text-center text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                بعداً وصل می‌کنم — افزودن دستی محصولات
-              </button>
             </motion.div>
           )}
 
@@ -421,6 +402,19 @@ export function WooConnectWizard({ onConnected, onDismiss }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
+        {step !== 'success' && (
+          <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={submitting}
+              className="spatial-press inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-4 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50"
+            >
+              <ArrowLeft className="h-4 w-4 rotate-180" />
+              بازگشت به محصولات و خدمات
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   )

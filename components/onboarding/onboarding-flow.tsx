@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
 import {
   Briefcase,
@@ -10,6 +9,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  CircleAlert,
   GraduationCap,
   Headphones,
   Loader2,
@@ -101,7 +101,6 @@ interface Props {
   hasKnowledge: boolean
   hasChannel: boolean
   agentId: string | null
-  workspaceName: string
   businessType: string | null
   businessProfile: { businessName: string; services: string[] } | null
   agentTemplate?: string
@@ -113,14 +112,16 @@ export function OnboardingFlow({
   hasKnowledge,
   hasChannel,
   agentId,
-  workspaceName,
   businessType,
   businessProfile,
   agentTemplate,
 }: Props) {
   const router = useRouter()
+  const phaseContentRef = useRef<HTMLDivElement>(null)
   const [direction, setDirection] = useState(1)
   const [phaseOverride, setPhaseOverride] = useState<Phase | null>(null)
+  const [detailsFromTypeSelection, setDetailsFromTypeSelection] = useState(false)
+  const [resolvedAgentId, setResolvedAgentId] = useState(agentId)
   const [draftBusinessType, setDraftBusinessType] = useState<BusinessTypeValue | null>(
     hasProfile ? businessType as BusinessTypeValue : null,
   )
@@ -144,6 +145,20 @@ export function OnboardingFlow({
     setPhaseOverride(null)
   }, [serverPhase])
 
+  useEffect(() => {
+    setResolvedAgentId(agentId)
+  }, [agentId])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    const frame = window.requestAnimationFrame(() => {
+      phaseContentRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [currentPhase])
+
   // Poll for state updates when user completes an external CTA
   useEffect(() => {
     if (currentPhase === 'done' || currentPhase === 'type' || currentPhase === 'details') return
@@ -162,7 +177,10 @@ export function OnboardingFlow({
       <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-5rem)] max-w-6xl flex-col justify-center px-4 py-5 sm:px-8 lg:overflow-hidden">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
+            ref={phaseContentRef}
             key={currentPhase}
+            tabIndex={-1}
+            className="outline-none"
             custom={direction}
             variants={stepVariants}
             initial="enter"
@@ -176,6 +194,7 @@ export function OnboardingFlow({
                 onSelect={(type) => {
                   setDirection(1)
                   setDraftBusinessType(type)
+                  setDetailsFromTypeSelection(true)
                   setPhaseOverride('details')
                 }}
               />
@@ -183,27 +202,31 @@ export function OnboardingFlow({
 
             {currentPhase === 'details' && (
               <DetailsStep
-                workspaceName={workspaceName}
                 initialType={draftBusinessType ?? businessType as BusinessTypeValue}
-                initialProfile={businessProfile}
+                initialProfile={detailsFromTypeSelection ? null : businessProfile}
                 onBack={() => { setDirection(-1); setPhaseOverride('type') }}
-                onNext={() => { setDirection(1); setPhaseOverride('agent'); router.refresh() }}
+                onNext={() => {
+                  setDirection(1)
+                  setDetailsFromTypeSelection(false)
+                  setPhaseOverride('agent')
+                  router.refresh()
+                }}
               />
             )}
 
             {currentPhase === 'agent' && (
-              <CtaStep
-                icon={Sparkles}
-                step={2}
-                title="ایجنت هوشمند بسازید"
-                subtitle="دستیار شما برای پاسخ‌گویی به مشتریان"
-                tip="ایجنت پیام مشتری را می‌فهمد، از محصولات شما پاسخ می‌دهد و سفارش می‌گیرد. با هوش مصنوعی یا دستی — انتخاب با شماست."
-                ctaLabel="ساخت ایجنت"
-                ctaHref={agentTemplate ? `/agents/new?business=${agentTemplate}&onboarding=1` : '/agents/new?onboarding=1'}
+              <AgentStep
                 done={hasAgent}
-                backLabel="بازگشت به اطلاعات کسب‌وکار"
+                businessLabel={getVerticalPack(draftBusinessType ?? businessType).titleFa}
+                customHref={agentTemplate ? `/agents/new?business=${agentTemplate}&onboarding=1` : '/agents/new?onboarding=1'}
                 onBack={() => { setDirection(-1); setPhaseOverride('details') }}
                 onContinue={() => { setDirection(1); setPhaseOverride('knowledge') }}
+                onRecommendedCreated={(createdAgentId) => {
+                  setDirection(1)
+                  setResolvedAgentId(createdAgentId)
+                  setPhaseOverride('knowledge')
+                  router.refresh()
+                }}
               />
             )}
 
@@ -219,7 +242,11 @@ export function OnboardingFlow({
                   setWooJustConnected(true)
                   setPhaseOverride('channel')
                 }}
-                onSkip={() => skipSetupStep('SKIP_KNOWLEDGE', router)}
+                onSkip={async () => {
+                  await skipSetupStep('SKIP_KNOWLEDGE', router)
+                  setDirection(1)
+                  setPhaseOverride('channel')
+                }}
               />
             )}
 
@@ -227,16 +254,20 @@ export function OnboardingFlow({
               <CtaStep
                 icon={Plug}
                 step={4}
-                title="یک کانال متصل کنید"
-                subtitle="ایجنت را به اینستاگرام، تلگرام یا وب متصل کنید"
-                tip="پس از اتصال، پیام‌های مشتریان مستقیماً به ایجنت می‌رسند و پاسخ می‌گیرند — بدون کار اضافه از شما."
-                ctaLabel="اتصال کانال"
+                title="در صورت تمایل یک برنامه متصل کنید"
+                subtitle="می‌توانید ایجنت را به اینستاگرام، تلگرام یا گفتگوی سایت متصل کنید"
+                tip="این مرحله اختیاری است. با اتصال یک برنامه، پیام مشتری مستقیماً به ایجنت می‌رسد؛ هر زمان بخواهید از پنل هم می‌توانید این کار را انجام دهید."
+                ctaLabel="اتصال یک برنامه"
                 ctaHref={businessType === 'SOCIAL'
                   ? '/instagram'
-                  : agentId ? `/agents/${agentId}/channels` : '/agents'}
+                  : resolvedAgentId ? `/agents/${resolvedAgentId}/channels` : '/agents'}
                 done={hasChannel}
-                skipLabel="بعداً اتصال می‌دهم"
-                onSkip={() => skipSetupStep('SKIP_CHANNEL', router)}
+                skipLabel="فعلاً بدون اتصال ادامه می‌دهم"
+                onSkip={async () => {
+                  await skipSetupStep('SKIP_CHANNEL', router)
+                  setDirection(1)
+                  setPhaseOverride('done')
+                }}
                 backLabel="بازگشت به محصولات و خدمات"
                 onBack={() => { setDirection(-1); setWooJustConnected(false); setPhaseOverride('knowledge') }}
                 onContinue={() => { setDirection(1); setWooJustConnected(false); setPhaseOverride('done') }}
@@ -343,13 +374,11 @@ function TypeStep({
 
 // ─── Step 2: Name + services ────────────────────────────────────
 function DetailsStep({
-  workspaceName,
   initialType,
   initialProfile,
   onBack,
   onNext,
 }: {
-  workspaceName: string
   initialType: BusinessTypeValue
   initialProfile: { businessName: string; services: string[] } | null
   onBack: () => void
@@ -357,18 +386,28 @@ function DetailsStep({
 }) {
   const pack = getVerticalPack(initialType)
   const suggestions = getBusinessServiceOptions(initialType)
-  const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? workspaceName)
+  const [businessName, setBusinessName] = useState(initialProfile?.businessName ?? '')
   const [services, setServices] = useState<string[]>(initialProfile?.services ?? suggestions.slice(0, 2).map((option) => option.fa))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [nameInvalid, setNameInvalid] = useState(false)
+  const businessNameRef = useRef<HTMLInputElement>(null)
+  const reduceMotion = useReducedMotion()
 
   const Icon = ICONS[initialType]
 
   async function save() {
     if (businessName.trim().length < 2) {
-      setError('نام کسب‌وکار را وارد کنید')
+      setNameInvalid(true)
+      setError('')
+      requestAnimationFrame(() => {
+        const field = businessNameRef.current
+        field?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+        field?.focus({ preventScroll: true })
+      })
       return
     }
+    setNameInvalid(false)
     if (services.length === 0) {
       setError('حداقل یک خدمت انتخاب کنید')
       return
@@ -418,17 +457,47 @@ function DetailsStep({
 
         {/* Name input */}
         <div>
-          <label htmlFor="business-name" className="mb-2 block text-[13px] font-medium text-[var(--text-primary)]">
+          <label
+            htmlFor="business-name"
+            className={cn(
+              'mb-2 block text-[13px] font-medium',
+              nameInvalid ? 'text-red-600' : 'text-[var(--text-primary)]',
+            )}
+          >
             نام کسب‌وکار
           </label>
           <input
+            ref={businessNameRef}
             id="business-name"
             value={businessName}
-            onChange={(e) => { setBusinessName(e.target.value); setError('') }}
+            onChange={(e) => {
+              const nextName = e.target.value
+              setBusinessName(nextName)
+              if (nameInvalid) setNameInvalid(nextName.trim().length < 2)
+              setError('')
+            }}
             placeholder="مثلاً فروشگاه رزین‌مهر"
-            className="input min-h-12 text-[15px]"
+            required
+            aria-invalid={nameInvalid}
+            aria-describedby={nameInvalid ? 'business-name-error' : undefined}
+            className={cn(
+              'input min-h-12 text-[15px] transition-[border-color,box-shadow,background-color]',
+              nameInvalid && 'border-red-500 bg-red-50/40 ring-4 ring-red-500/10 focus:border-red-500 focus:ring-red-500/15',
+            )}
             autoFocus
           />
+          {nameInvalid && (
+            <p
+              id="business-name-error"
+              role="alert"
+              className="mt-2 flex items-center gap-1.5 text-[12px] font-medium leading-5 text-red-600"
+            >
+              <CircleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
+              {businessName.trim().length === 0
+                ? 'این فیلد خالی است؛ لطفاً نام کسب‌وکار را وارد کنید.'
+                : 'نام کسب‌وکار باید حداقل دو حرف داشته باشد.'}
+            </p>
+          )}
         </div>
 
         {/* Services */}
@@ -475,7 +544,151 @@ function DetailsStep({
   )
 }
 
-// ─── Steps 3-5: CTA steps ───────────────────────────────────────
+// ─── Step 2: Create a recommended or customized agent ───────────
+function AgentStep({
+  done,
+  businessLabel,
+  customHref,
+  onBack,
+  onContinue,
+  onRecommendedCreated,
+}: {
+  done: boolean
+  businessLabel: string
+  customHref: string
+  onBack: () => void
+  onContinue: () => void
+  onRecommendedCreated: (agentId: string) => void
+}) {
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
+
+  async function createRecommended() {
+    if (creating) return
+    setCreating(true)
+    setError('')
+    try {
+      const response = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setupMode: 'recommended' }),
+      })
+      if (!response.ok) throw new Error('CREATE_FAILED')
+      const data = await response.json().catch(() => null)
+      const createdAgentId = data?.agent?.id
+      if (typeof createdAgentId !== 'string' || !createdAgentId) throw new Error('INVALID_AGENT')
+      onRecommendedCreated(createdAgentId)
+    } catch {
+      setError('ساخت ایجنت انجام نشد؛ دوباره تلاش کنید.')
+      setCreating(false)
+    }
+  }
+
+  return (
+    <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-2xl text-center">
+      <motion.div variants={staggerChild} className="mx-auto flex justify-center">
+        <div className="relative">
+          <motion.div
+            animate={done ? {} : { scale: [1, 1.04, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="grid h-20 w-20 place-items-center rounded-3xl bg-[var(--text-primary)] text-white"
+            style={{ boxShadow: 'var(--shadow-lift)' }}
+          >
+            {done ? <Check className="h-9 w-9" strokeWidth={2} /> : <Sparkles className="h-9 w-9" strokeWidth={1.5} />}
+          </motion.div>
+          {!done && (
+            <motion.span
+              className="absolute -inset-2 rounded-3xl border-2 border-[var(--text-primary)]"
+              animate={{ opacity: [0.15, 0, 0.15], scale: [1, 1.1, 1] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+        </div>
+      </motion.div>
+
+      <motion.p variants={staggerChild} className="mt-6 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        مرحله ۲ از ۴
+      </motion.p>
+      <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
+        {done ? 'ایجنت شما ساخته شد' : 'ایجنت هوشمند خود را بسازید'}
+      </motion.h2>
+      <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
+        {done
+          ? 'ایجنت آماده است؛ حالا می‌توانید محصولات و خدمات را به آن متصل کنید.'
+          : `یک ایجنت آماده و متناسب با «${businessLabel}» بسازید یا جزئیات را خودتان شخصی‌سازی کنید.`}
+      </motion.p>
+
+      {done ? (
+        <motion.button
+          variants={staggerChild}
+          type="button"
+          onClick={onContinue}
+          className="spatial-press mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+        >
+          ادامه به محصولات و خدمات
+          <ArrowLeft className="h-4 w-4" />
+        </motion.button>
+      ) : (
+        <motion.div variants={staggerChild} className="mt-7 grid gap-3 text-start sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => void createRecommended()}
+            disabled={creating}
+            aria-busy={creating}
+            className="group spatial-press flex min-h-44 w-full cursor-pointer items-start gap-3 rounded-2xl border border-transparent bg-[var(--text-primary)] p-4 text-start text-white shadow-[var(--shadow-control)] transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[var(--shadow-lift)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--border-strong)] disabled:cursor-wait disabled:opacity-70"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            </span>
+            <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
+              <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold text-white/90">پیشنهاد ویجنت</span>
+              <span className="mt-3 text-sm font-semibold leading-6">
+                {creating ? 'در حال ساخت ایجنت…' : 'ساخت ایجنت هوشمند متناسب با کسب‌وکار من'}
+              </span>
+              <span className="mt-1 text-[11px] leading-5 text-white/70">نام، نقش و رفتار پیشنهادی به‌صورت خودکار تنظیم می‌شود.</span>
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[11px] font-semibold text-white">
+                {creating ? 'لطفاً صبر کنید' : 'ساخت خودکار ایجنت'}
+                {!creating && <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />}
+              </span>
+            </span>
+          </button>
+
+          <a
+            href={customHref}
+            className="group spatial-surface spatial-press flex min-h-44 w-full cursor-pointer items-start gap-3 rounded-2xl border border-[var(--border-default)] p-4 text-start transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-lift)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--border-default)]"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+              <Settings2 className="h-4 w-4" />
+            </span>
+            <span className="flex min-w-0 flex-1 self-stretch flex-col items-start">
+              <span className="rounded-full bg-[var(--bg-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)]">انتخاب شخصی‌سازی‌شده</span>
+              <span className="mt-3 text-sm font-semibold leading-6 text-[var(--text-primary)]">ساخت ایجنت با شخصی‌سازی</span>
+              <span className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">نام، نقش، لحن، زبان و قواعد پاسخ‌گویی را خودتان تنظیم کنید.</span>
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[11px] font-semibold text-[var(--text-primary)]">
+                انتخاب و شخصی‌سازی
+                <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+              </span>
+            </span>
+          </a>
+        </motion.div>
+      )}
+
+      {error && <p role="alert" className="mt-3 text-xs font-medium text-red-600">{error}</p>}
+
+      <motion.button
+        variants={staggerChild}
+        type="button"
+        onClick={onBack}
+        className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
+      >
+        <ArrowLeft className="h-4 w-4 rotate-180" />
+        بازگشت به اطلاعات کسب‌وکار
+      </motion.button>
+    </motion.div>
+  )
+}
+
+// ─── Shared CTA step ────────────────────────────────────────────
 function CtaStep({
   icon: Icon,
   step,
@@ -590,12 +803,12 @@ function CtaStep({
       </motion.div>
 
       {/* CTA */}
-      <motion.div variants={staggerChild} className="mt-8 flex flex-col items-center gap-2">
+      <motion.div variants={staggerChild} className="mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-3">
         {done ? (
           <button
             type="button"
             onClick={onContinue}
-            className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+            className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
           >
             <motion.span
               initial={{ scale: 0.92, opacity: 0 }}
@@ -612,7 +825,7 @@ function CtaStep({
           <>
             <a
               href={ctaHref}
-              className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black"
+              className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-8 text-[13px] font-medium text-white shadow-[var(--shadow-control)] hover:bg-black"
             >
               {ctaLabel}
               <ArrowLeft className="h-4 w-4 rtl:rotate-0" />
@@ -622,10 +835,11 @@ function CtaStep({
                 type="button"
                 onClick={() => void skip()}
                 disabled={skipping}
-                className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)] disabled:opacity-50"
+                className="spatial-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-5 text-[13px] font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] transition-[border-color,color,box-shadow] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] hover:shadow-[var(--shadow-control)] disabled:cursor-wait disabled:opacity-50"
               >
                 {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {skipping ? 'در حال ثبت…' : skipLabel}
+                {!skipping && <ArrowLeft className="h-4 w-4" />}
               </button>
             )}
           </>
@@ -644,7 +858,7 @@ function CtaStep({
   )
 }
 
-// ─── Step 3: Knowledge / Products (with WooCommerce connect option) ────
+// ─── Step 3: Optional products / services and WooCommerce ──────────────
 function KnowledgeStep({
   done,
   onBack,
@@ -664,10 +878,6 @@ function KnowledgeStep({
   onWooConnected?: () => void
 }) {
   const [skipping, setSkipping] = useState(false)
-  // WooConnectWizard visibility — when open, the wizard renders INLINE
-  // (replacing the two-option grid). After a successful connect, we call
-  // onWooConnected() (if provided) so the parent can flag the success
-  // banner on the next step, then advance to the channel step.
   const [showWizard, setShowWizard] = useState(false)
 
   async function skip() {
@@ -682,10 +892,6 @@ function KnowledgeStep({
 
   return (
     <motion.div variants={staggerParent} initial="hidden" animate="show" className="mx-auto max-w-lg text-center">
-      {/* Parent step header (icon / badge / title / subtitle) is hidden when
-          the wizard is open — the wizard has its own header and the
-          "two ways to add products" subtitle is irrelevant once the user has
-          committed to the WordPress path. */}
       {!showWizard && (
         <>
           <motion.div variants={staggerChild} className="mx-auto flex justify-center">
@@ -713,26 +919,20 @@ function KnowledgeStep({
           </motion.p>
 
           <motion.h2 variants={staggerChild} className="mt-3 text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
-            محصولات یا خدمات را اضافه کنید
+            محصولات و خدمات کسب‌وکار
           </motion.h2>
 
           <motion.p variants={staggerChild} className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--text-muted)]">
-            ایجنت برای پاسخ دقیق، به شناخت کسب‌وکار شما نیاز دارد. دو راه برای افزودن محصولات دارید:
+            این مرحله اختیاری است. پس از پایان راه‌اندازی هم می‌توانید محصولات و خدمات را از منوی پنل اضافه کنید.
           </motion.p>
         </>
       )}
 
-      {/* When the wizard is open, render it INLINE (replacing the two-option
-          grid) instead of as a modal overlay. The user wanted the wizard to
-          NOT be a popup. */}
       {showWizard ? (
         <motion.div variants={staggerChild} className="mt-2 text-start">
           <WooConnectWizard
             onConnected={() => {
               setShowWizard(false)
-              // Prefer onWooConnected so the parent can flag the success
-              // banner on the channel step. Fall back to onContinue if the
-              // parent didn't wire it up.
               if (onWooConnected) onWooConnected()
               else onContinue()
             }}
@@ -740,108 +940,75 @@ function KnowledgeStep({
           />
         </motion.div>
       ) : (
-      <motion.div variants={staggerChild} className="mt-6 grid gap-3 sm:grid-cols-2 text-start">
-        {/* Option A: Connect WooCommerce — opens the in-onboarding wizard.
-            No longer navigates away to /products; the wizard runs in-place
-            and advances the onboarding when the plugin connects. */}
-        <button
-          type="button"
-          onClick={() => setShowWizard(true)}
-          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 text-start transition-[border-color] hover:border-[var(--border-strong)]"
-        >
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
-              <Link2 className="h-4 w-4" strokeWidth={2} />
+        <motion.div variants={staggerChild} className="mt-6 text-start">
+          <button
+            type="button"
+            onClick={() => setShowWizard(true)}
+            className="spatial-surface spatial-press group relative w-full overflow-hidden rounded-[1.5rem] p-5 text-start transition-[border-color] hover:border-[var(--border-strong)]"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--text-primary)] text-[var(--bg-base)] shadow-[var(--shadow-control)]">
+                <Link2 className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="rounded-full border border-[var(--accent-border)] bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--accent-strong)]">
+                پیشنهادی در صورت داشتن سایت
+              </span>
+            </div>
+            <h3 className="mt-4 text-[15px] font-bold text-[var(--text-primary)]">
+              اتصال سایت وردپرس یا فروشگاه ووکامرس
+            </h3>
+            <p className="mt-1.5 text-[12px] leading-6 text-[var(--text-muted)]">
+              اگر سایت وردپرسی دارید یا محصولاتتان در ووکامرس ثبت شده، سایت را متصل کنید تا محصولات و سفارش‌ها خودکار وارد و همگام شوند.
+            </p>
+            <span className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-xs font-semibold text-white shadow-[var(--shadow-control)]">
+              برای اتصال کلیک کنید
+              <ArrowLeft className="h-3.5 w-3.5" />
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">پیشنهادی</span>
-          </div>
-          <h3 className="mt-3 text-[14px] font-bold text-[var(--text-primary)]">
-            اتصال سایت وردپرس یا ووکامرس
-          </h3>
-          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
-            سایت وردپرسی یا فروشگاهی دارید؟ با چند کلیک وصل کنید — محصولات و سفارش‌ها خودکار بروز و اضافه می‌شوند به پنل.
-          </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--text-primary)]">
-            شروع اتصال
-            <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
-          </div>
-        </button>
-
-        {/* Option B: Manual product entry */}
-        <Link
-          href="/products/new?onboarding=1"
-          className="spatial-surface spatial-press group relative overflow-hidden rounded-[1.5rem] p-4 transition-[border-color] hover:border-[var(--border-strong)]"
-        >
-          <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-              <Package className="h-4 w-4" strokeWidth={2} />
-            </span>
-            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">دستی</span>
-          </div>
-          <h3 className="mt-3 text-[14px] font-bold text-[var(--text-primary)]">
-            افزودن دستی محصولات
-          </h3>
-          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-muted)]">
-            محصول را با نام، قیمت و موجودی وارد کنید. ایجنت از این داده‌ها برای پیشنهاد و فروش استفاده می‌کند.
-          </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--text-primary)]">
-            افزودن محصول
-            <ArrowLeft className="h-3 w-3 rtl:rotate-0" />
-          </div>
-        </Link>
-      </motion.div>
+          </button>
+        </motion.div>
       )}
 
-      {/* CTA buttons — only shown when the wizard is NOT open (the wizard
-          has its own back button and dismissal flow). */}
       {!showWizard && (
-      <>
-      <motion.div variants={staggerChild} className="mt-8 flex flex-col items-center gap-2">
-        {done ? (
-          <button
+        <>
+          <motion.div variants={staggerChild} className="mt-4 flex flex-col items-stretch gap-2">
+            {done ? (
+              <button
+                type="button"
+                onClick={onContinue}
+                className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+              >
+                <Check className="h-4 w-4" strokeWidth={3} />
+                ادامه به برنامه‌های متصل
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void skip()}
+                disabled={skipping}
+                className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-white px-5 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-wait disabled:opacity-50"
+              >
+                {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {skipping ? 'در حال ثبت…' : 'فعلاً سایت، محصول یا خدمتی برای اتصال ندارم'}
+              </button>
+            )}
+          </motion.div>
+          <motion.button
+            variants={staggerChild}
             type="button"
-            onClick={onContinue}
-            className="spatial-press inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-black px-8 text-[13px] font-semibold text-white shadow-[var(--shadow-control)]"
+            onClick={onBack}
+            className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
           >
-            <motion.span
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3, ease: EASE }}
-              className="grid h-7 w-7 place-items-center rounded-full bg-[var(--text-primary)] text-white"
-            >
-              <Check className="h-4 w-4" strokeWidth={3} />
-            </motion.span>
-            ادامه به مرحله بعد
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void skip()}
-            disabled={skipping}
-            className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)] disabled:opacity-50"
-          >
-            {skipping && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {skipping ? 'در حال ثبت…' : 'بعداً اضافه می‌کنم'}
-          </button>
-        )}
-      </motion.div>
-      <motion.button
-        variants={staggerChild}
-        type="button"
-        onClick={onBack}
-        className="spatial-press mx-auto mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium text-[var(--text-muted)] hover:bg-white hover:text-[var(--text-primary)]"
-      >
-        <ArrowLeft className="h-4 w-4 rotate-180" />
-        بازگشت به مرحله ایجنت
-      </motion.button>
-      </>
+            <ArrowLeft className="h-4 w-4 rotate-180" />
+            بازگشت به مرحله ایجنت
+          </motion.button>
+        </>
       )}
     </motion.div>
   )
 }
 
-// ─── Step 6: Done ───────────────────────────────────────────────
+// ─── Final step ─────────────────────────────────────────────────
 function DoneStep() {
   const router = useRouter()
   const reduce = useReducedMotion()

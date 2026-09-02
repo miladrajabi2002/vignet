@@ -281,6 +281,8 @@ export default async function OverviewPage() {
     hasActiveChannel: activeChannels > 0,
     hasConversation: totalConversations > 0,
     hasOperator: !!operatorChannel?.active && !!operatorChannel.operatorChatId,
+    knowledgePostponed: onboarding.checks.knowledgeSkipped,
+    channelPostponed: onboarding.checks.channelSkipped,
   }
   const checklistCompleted = checklistFacts.hasConfiguredAgent
     && checklistFacts.hasKnowledge
@@ -315,7 +317,7 @@ export default async function OverviewPage() {
                 {businessLabel}
               </span>
               <span className="text-[11px] text-[var(--text-muted)]">
-                {fa ? `${nf.format(activeChannels)} کانال متصل` : `${nf.format(activeChannels)} channels connected`}
+                {fa ? `${nf.format(activeChannels)} برنامه متصل` : `${nf.format(activeChannels)} apps connected`}
               </span>
             </div>
 

@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
   const [workspace, firstAgent] = await Promise.all([
     prisma.workspace.findUniqueOrThrow({
       where: { id: user.workspaceId },
-      select: { name: true, businessType: true, businessProfile: true },
+      select: { businessType: true, businessProfile: true },
     }),
     prisma.agent.findFirst({
       where: { workspaceId: user.workspaceId },
@@ -36,7 +36,6 @@ export default async function OnboardingPage() {
       hasKnowledge={state.checks.hasKnowledge}
       hasChannel={state.checks.hasChannel}
       agentId={firstAgent?.id ?? null}
-      workspaceName={workspace.name}
       businessType={workspace.businessType}
       businessProfile={businessProfile}
       agentTemplate={pack?.agentTemplate}

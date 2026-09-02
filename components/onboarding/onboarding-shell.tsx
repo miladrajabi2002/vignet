@@ -11,7 +11,7 @@ const STEPS = [
   { label: 'کسب‌وکار', icon: Store },
   { label: 'ایجنت', icon: Bot },
   { label: 'محصولات و خدمات', icon: Package },
-  { label: 'اتصال کانال', icon: Plug },
+  { label: 'اتصال برنامه', icon: Plug },
 ] as const
 
 export function OnboardingShell({

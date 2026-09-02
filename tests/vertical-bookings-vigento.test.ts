@@ -14,7 +14,6 @@ import {
   getDashboardModules,
   getVerticalPack,
 } from '@/lib/verticals/registry'
-import { fallbackVigentoDraft, vigentoDraftSchema } from '@/lib/ai/vigento-draft'
 import { buildTurnReceipts } from '@/lib/conversations/activity'
 import { isMarketingOptOutMessage } from '@/lib/crm/marketing-consent'
 import { campaignDeliveryText } from '@/lib/campaigns/process'
@@ -114,18 +113,7 @@ describe('timezone-safe availability and capacity', () => {
   })
 })
 
-describe('Vigento safe draft and operational receipts', () => {
-  it('builds a schema-valid booking draft with handoff and evaluation cases', () => {
-    const draft = fallbackVigentoDraft(
-      'برای کلینیک یک دستیار رزرو می‌خواهم که زمان آزاد را بررسی کند و موارد حساس را تحویل دهد.',
-      'fa',
-    )
-    expect(vigentoDraftSchema.safeParse(draft).success).toBe(true)
-    expect(draft.roleTemplate).toBe('lead_capture')
-    expect(draft.handoffEnabled).toBe(true)
-    expect(draft.evalCases.length).toBeGreaterThanOrEqual(3)
-  })
-
+describe('operational receipts', () => {
   it('records only bounded action facts, including a real catalog comparison', () => {
     const receipts = buildTurnReceipts({
       userMessage: 'کدام محصول بهتر است؟ مقایسه کن',

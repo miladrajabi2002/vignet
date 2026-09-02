@@ -26,6 +26,8 @@ export interface DashboardChecklistFacts {
   hasActiveChannel: boolean
   hasConversation: boolean
   hasOperator: boolean
+  knowledgePostponed: boolean
+  channelPostponed: boolean
 }
 
 interface ChecklistItem {
@@ -66,7 +68,9 @@ export function DashboardCompletionChecklist({
     {
       key: 'knowledge',
       title: fa ? 'دانش و جزئیات کسب‌وکار' : 'Business knowledge and details',
-      description: fa ? 'اطلاعات، خدمات یا محصولات واقعی را در اختیار ایجنت بگذارید.' : 'Add real business information, services or products.',
+      description: fa
+        ? (facts.knowledgePostponed ? 'این مرحله را در آنبوردینگ رد کردید؛ حالا اطلاعات، خدمات یا محصولات واقعی را اضافه کنید.' : 'اطلاعات، خدمات یا محصولات واقعی را در اختیار ایجنت بگذارید.')
+        : (facts.knowledgePostponed ? 'You postponed this during onboarding; add real information, services or products now.' : 'Add real business information, services or products.'),
       cta: fa ? 'تکمیل دانش' : 'Complete knowledge',
       href: facts.agentId ? `${agentBase}/knowledge` : agentBase,
       done: facts.hasKnowledge,
@@ -74,8 +78,10 @@ export function DashboardCompletionChecklist({
     },
     {
       key: 'channel',
-      title: fa ? 'اتصال کانال مشتری' : 'Connect a customer channel',
-      description: fa ? 'حداقل یک کانال را فعال کنید تا پیام واقعی دریافت شود.' : 'Activate at least one channel for real customer messages.',
+      title: fa ? 'اتصال یک برنامه ارتباطی' : 'Connect a customer app',
+      description: fa
+        ? (facts.channelPostponed ? 'این مرحله را در آنبوردینگ رد کردید؛ هر زمان آماده بودید یک برنامه را متصل کنید.' : 'یک برنامه را فعال کنید تا پیام واقعی مشتری دریافت شود.')
+        : (facts.channelPostponed ? 'You postponed this during onboarding; connect an app whenever you are ready.' : 'Activate an app to receive real customer messages.'),
       cta: fa ? 'مدیریت اتصال‌ها' : 'Manage connections',
       href: facts.agentId ? `${agentBase}/channels` : agentBase,
       done: facts.hasActiveChannel,
@@ -105,6 +111,11 @@ export function DashboardCompletionChecklist({
   const completedCount = requiredItems.filter((item) => item.done).length
   const progress = Math.round((completedCount / requiredItems.length) * 100)
   const requiredComplete = completedCount === requiredItems.length
+  const remainingCount = requiredItems.length - completedCount
+  const orderedItems = [
+    ...items.filter((item) => !item.done),
+    ...items.filter((item) => item.done),
+  ]
 
   async function dismiss() {
     if (dismissing) return
@@ -140,7 +151,9 @@ export function DashboardCompletionChecklist({
                 {fa ? 'مسیر پیشنهادی شروع' : 'Recommended launch path'}
               </span>
               <span className="text-[11px] font-medium text-[var(--text-muted)]">
-                {fa ? '۴ گام اصلی + ۱ پیشنهاد حرفه‌ای' : '4 essentials + 1 pro recommendation'}
+                {fa
+                  ? `${remainingCount.toLocaleString('fa-IR')} کار اصلی باقی مانده`
+                  : `${remainingCount} essential ${remainingCount === 1 ? 'task' : 'tasks'} remaining`}
               </span>
             </div>
             <h2 id="dashboard-checklist-title" className="mt-3 text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)] rtl:tracking-normal sm:text-2xl">
@@ -150,8 +163,8 @@ export function DashboardCompletionChecklist({
             </h2>
             <p className="mt-1.5 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
               {fa
-                ? 'از تنظیم ایجنت تا اتصال و کنترل پاسخ‌ها؛ هر مرحله شما را به یک راه‌اندازی مطمئن‌تر نزدیک می‌کند.'
-                : 'From agent setup to connections and response review, each step creates a more reliable launch.'}
+                ? 'کارهایی که در آنبوردینگ انجام دادید تکمیل شده‌اند؛ موارد باقی‌مانده در ابتدای این مسیر قرار گرفته‌اند.'
+                : 'Tasks completed during onboarding are marked done; the remaining work appears first.'}
             </p>
           </div>
 
@@ -198,7 +211,7 @@ export function DashboardCompletionChecklist({
       </div>
 
       <ol className="relative grid gap-px bg-[var(--border-subtle)] md:grid-cols-2 xl:grid-cols-5">
-        {items.map((item, index) => {
+        {orderedItems.map((item, index) => {
           const Icon = item.icon
           return (
             <li key={item.key} className="bg-[var(--bg-surface)]">

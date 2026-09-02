@@ -10,6 +10,8 @@ import {
   AGENT_MAX_RESPONSE_TOKENS,
   AGENT_RESPONSE_TEMPERATURE,
 } from '@/lib/ai/agent-runtime'
+import { readBusinessProfile } from '@/lib/verticals/profile'
+import { getRecommendedAgentPreset } from '@/lib/agents/recommended-preset'
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -37,7 +39,36 @@ export async function POST(req: Request) {
   }
 
   const json = await req.json().catch(() => null)
-  const parsed = agentCreateSchema.safeParse(json)
+  const recommendedSetup = !!json
+    && typeof json === 'object'
+    && (json as { setupMode?: unknown }).setupMode === 'recommended'
+
+  let agentInput = json
+  if (recommendedSetup) {
+    const [workspace, existingAgent] = await Promise.all([
+      prisma.workspace.findUnique({
+        where: { id: user.workspaceId },
+        select: { businessType: true, businessProfile: true },
+      }),
+      prisma.agent.findFirst({
+        where: { workspaceId: user.workspaceId },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ])
+    if (existingAgent) {
+      const catalogCount = await prisma.agentCatalog.count({
+        where: { agentId: existingAgent.id },
+      })
+      return NextResponse.json({ agent: existingAgent, catalogCount, reused: true })
+    }
+    if (!workspace) {
+      return NextResponse.json({ error: 'WORKSPACE_NOT_FOUND' }, { status: 404 })
+    }
+    const profile = readBusinessProfile(workspace.businessProfile)
+    agentInput = getRecommendedAgentPreset(workspace.businessType, profile?.businessName)
+  }
+
+  const parsed = agentCreateSchema.safeParse(agentInput)
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'INVALID', issues: parsed.error.flatten() },
