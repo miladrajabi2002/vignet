@@ -177,4 +177,23 @@ describe('shared adaptive mobile UI contract', () => {
       dashboardHeader.indexOf('<NotificationBell'),
     )
   })
+
+  it('keeps plan status beside notifications and derives its ring from subscription days', () => {
+    const dashboardHeader = source('components/dashboard/header.tsx')
+    const actionGroupStart = dashboardHeader.indexOf(
+      '<div className="flex shrink-0 items-center justify-end gap-1.5 xl:gap-2.5">',
+    )
+    const actionGroup = dashboardHeader.slice(actionGroupStart)
+
+    expect(actionGroupStart).toBeGreaterThan(-1)
+    expect(actionGroup.indexOf('<HeaderPlan')).toBeLessThan(
+      actionGroup.indexOf('<NotificationBell'),
+    )
+    expect(dashboardHeader).toContain('(daysLeft / PERIOD_DAYS) * 100')
+    expect(dashboardHeader).toContain('daysLeft !== null && daysLeft > 0')
+    expect(dashboardHeader).toContain('bg-emerald-500')
+    expect(dashboardHeader).toContain('href="/vigento"')
+    expect(dashboardHeader).not.toContain('remainingPercent')
+    expect(dashboardHeader).not.toContain('percentLabel')
+  })
 })

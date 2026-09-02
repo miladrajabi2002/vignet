@@ -9,7 +9,6 @@ import { computeOnboarding } from '@/lib/onboarding'
 import { readBusinessProfile } from '@/lib/verticals/profile'
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell'
 import { VerticalChangeNotice } from '@/components/dashboard/vertical-change-notice'
-import { getEffectivePlanDefs } from '@/lib/billing/plans'
 import { ScopedIntlProvider } from '@/components/i18n/scoped-intl-provider'
 import { DASHBOARD_CLIENT_MESSAGE_PATHS } from '@/lib/i18n/client-messages'
 import { ImpersonationBanner } from '@/components/dashboard/impersonation-banner'
@@ -82,15 +81,6 @@ export default async function DashboardLayout({
   const daysLeft = planEnd
     ? Math.max(0, Math.ceil((planEnd.getTime() - Date.now()) / 86_400_000))
     : null
-  // Credit percentage: how much of the plan's included credit remains.
-  // (Was time-based; now reflects actual AI credit balance so the progress
-  // bar in the header tracks real spending, not the billing cycle.)
-  const planDefs = await getEffectivePlanDefs()
-  const includedCreditIRR = planDefs[plan]?.includedCreditIRR ?? 100_000
-  const creditBalanceIRR = workspace?.aiCreditBalanceIRR ?? 0
-  const remainingPercent = includedCreditIRR > 0
-    ? Math.max(0, Math.min(100, Math.round((creditBalanceIRR / includedCreditIRR) * 100)))
-    : 0
   const accessExpired = plan === 'TRIAL'
     ? Boolean(workspace?.trialEndsAt && workspace.trialEndsAt < new Date())
     : Boolean(planEnd && planEnd < new Date())
@@ -107,7 +97,6 @@ export default async function DashboardLayout({
           services={businessProfile?.services}
           plan={plan}
           creditIRR={workspace?.aiCreditBalanceIRR ?? 0}
-          remainingPercent={remainingPercent}
           daysLeft={daysLeft}
           impersonatedUserName={user.impersonatedByAdmin ? (user.name ?? user.phone) : undefined}
         />
