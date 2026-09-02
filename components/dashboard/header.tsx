@@ -140,27 +140,13 @@ function HeaderPlan({
           )}
         </span>
 
-        {compact ? (
-          <span className={cn(
-            'mt-0.5 block truncate whitespace-nowrap text-[10px] font-medium leading-4',
-            expired ? 'text-red-600' : 'text-[var(--text-muted)]',
-          )}>
-            {daysLeft !== null
-              ? expired
-                ? statusLabel
-                : fa
-                  ? `${nf.format(daysLeft)} روز مانده`
-                  : `${nf.format(daysLeft)} days left`
-              : statusLabel}
-          </span>
-        ) : (
-          <span className="mt-1 block min-w-0 truncate whitespace-nowrap text-[10px] leading-4 text-[var(--text-muted)] xl:text-[11px]">
-            <span className="min-w-0 truncate">
-              <span className="font-bold tabular-nums text-[var(--text-secondary)]">{nf.format(creditToman)}</span>
-              <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
-            </span>
-          </span>
-        )}
+        <span className={cn(
+          'block min-w-0 truncate whitespace-nowrap text-[10px] leading-4 text-[var(--text-muted)]',
+          compact ? 'mt-0.5' : 'mt-1 xl:text-[11px]',
+        )}>
+          <span className="font-bold tabular-nums text-[var(--text-secondary)]">{nf.format(creditToman)}</span>
+          <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
+        </span>
       </span>
 
       {!compact && (
