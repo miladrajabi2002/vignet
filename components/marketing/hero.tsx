@@ -43,6 +43,9 @@ type HeroCopy = {
 	kicker: string
 	headlineTop: string
 	headlineBottom: string
+	startShort: string
+	featuresShort: string
+	mobilePromise: string
 	stageAria: string
 	stageTitle: string
 	connected: string
@@ -60,6 +63,9 @@ const COPY: Record<Locale, HeroCopy> = {
 		kicker: 'هوش مصنوعی فارسی برای فروش و پشتیبانی',
 		headlineTop: 'هر پیام، یک پاسخ دقیق',
 		headlineBottom: 'از همه‌جا، در یک پنل',
+		startShort: 'شروع رایگان',
+		featuresShort: 'امکانات',
+		mobilePromise: 'یک ماه رایگان · پرداخت فقط برای پاسخ موفق',
 		stageAria:
 			'نمایش زنده پنج پنل تخصصی فروشگاه، سفارش غذا، نوبت‌دهی، خدمات و آموزش که به هسته هوشمند ویجنت و کانال‌های ارتباطی متصل‌اند.',
 		stageTitle: 'مرکز عملیات هوشمند کسب‌وکار',
@@ -141,6 +147,9 @@ const COPY: Record<Locale, HeroCopy> = {
 		kicker: 'Persian AI for sales and support',
 		headlineTop: 'Every message gets a clear answer',
 		headlineBottom: 'Every channel, one inbox',
+		startShort: 'Start free',
+		featuresShort: 'Features',
+		mobilePromise: 'One month free · pay only for successful AI replies',
 		stageAria:
 			'A live presentation of five specialized workspaces connected to the Vigent intelligence core.',
 		stageTitle: 'The intelligent business operating system',
@@ -250,7 +259,7 @@ function ConnectedChannelLogos({ locale }: { locale: Locale }) {
 	const label = locale === 'fa' ? 'کانال‌های متصل به مرکز عملیات' : 'Channels connected to the operations center'
 
 	return (
-		<div role="group" aria-label={label} className="order-3 flex w-full items-center justify-center gap-1.5 border-t border-white/10 pt-3 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+		<div role="group" aria-label={label} className="order-3 hidden w-full items-center justify-center gap-1.5 border-t border-white/10 pt-3 sm:order-none sm:flex sm:w-auto sm:border-0 sm:pt-0">
 			{CONNECTED_CHANNELS.map((channel) => {
 				const Icon = channel.icon
 				return (
@@ -301,7 +310,7 @@ function ProductStage({ reduce }: { reduce: boolean }) {
 			onFocusCapture={() => setPaused(true)}
 			onBlurCapture={() => setPaused(false)}
 		>
-			<div className="relative overflow-hidden rounded-[2rem] border border-black bg-[#050505] text-white shadow-[0_34px_100px_rgba(0,0,0,0.27)]">
+			<div className="relative overflow-hidden rounded-[1.5rem] border border-black bg-[#050505] text-white shadow-[0_26px_70px_rgba(0,0,0,0.22)] sm:rounded-[2rem] sm:shadow-[0_34px_100px_rgba(0,0,0,0.27)]">
 				<div aria-hidden className="marketing-grid-dark pointer-events-none absolute inset-0 opacity-55" />
 				<div aria-hidden className="pointer-events-none absolute -start-28 top-16 h-64 w-64 rounded-full bg-emerald-300/[0.045] blur-3xl" />
 				<div aria-hidden className="pointer-events-none absolute -end-24 bottom-8 h-56 w-56 rounded-full bg-white/[0.035] blur-3xl" />
@@ -404,13 +413,13 @@ export function Hero() {
 	const Arrow = locale === 'fa' ? ArrowLeft : ArrowRight
 
 	return (
-		<section className="marketing-hero-spatial relative overflow-hidden pb-14 pt-[94px] sm:pb-16 sm:pt-28 lg:flex lg:min-h-[min(820px,100svh)] lg:items-center lg:pb-14 lg:pt-24">
+		<section className="marketing-hero-spatial relative overflow-hidden pb-10 pt-[82px] sm:pb-16 sm:pt-28 lg:flex lg:min-h-[min(820px,100svh)] lg:items-center lg:pb-14 lg:pt-24">
 			<Spotlight />
 
-			<div className="marketing-hero-content relative mx-auto grid w-full max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-8 xl:gap-12">
+			<div className="marketing-hero-content relative mx-auto grid w-full max-w-7xl items-center gap-7 px-4 sm:gap-10 sm:px-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-8 xl:gap-12">
 				<div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-start">
 					<div
-						className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[var(--accent-border)] bg-white px-3.5 text-[11px] font-medium text-[var(--text-secondary)]"
+						className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[var(--accent-border)] bg-white px-3 text-[11px] font-medium text-[var(--text-secondary)] sm:min-h-9 sm:px-3.5"
 						style={{ boxShadow: 'var(--shadow-xs)' }}
 					>
 						<span className="relative flex h-2 w-2">
@@ -421,7 +430,7 @@ export function Hero() {
 					</div>
 
 					<h1
-						className="mt-5 text-[clamp(1.5rem,6vw,2.15rem)] font-semibold leading-[1.18] tracking-[-0.03em] text-[var(--text-primary)] rtl:tracking-normal sm:text-[clamp(1.7rem,4.6vw,2.6rem)] md:text-[clamp(1.85rem,3.4vw,2.85rem)] lg:text-[clamp(2rem,2.9vw,3.1rem)] xl:text-[clamp(2.1rem,2.6vw,3.4rem)]"
+						className="mt-4 text-[clamp(1.55rem,6.4vw,2.15rem)] font-semibold leading-[1.18] tracking-[-0.03em] text-[var(--text-primary)] rtl:tracking-normal sm:mt-5 sm:text-[clamp(1.7rem,4.6vw,2.6rem)] md:text-[clamp(1.85rem,3.4vw,2.85rem)] lg:text-[clamp(2rem,2.9vw,3.1rem)] xl:text-[clamp(2.1rem,2.6vw,3.4rem)]"
 					>
 						<span className="marketing-hero-line block md:whitespace-nowrap">
 							{copy.headlineTop}
@@ -432,19 +441,20 @@ export function Hero() {
 					</h1>
 
 					<p
-						className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-[var(--text-secondary)] sm:text-base sm:leading-8 lg:mx-0"
+						className="mx-auto mt-4 max-w-lg text-[15px] leading-7 text-[var(--text-secondary)] sm:mt-5 sm:text-base sm:leading-8 lg:mx-0"
 					>
 						{t('subtitle')}
 					</p>
 
 					<div
-						className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:justify-start"
+						className="mt-5 grid grid-cols-[1.08fr_0.92fr] items-center justify-center gap-2.5 sm:mt-7 sm:flex sm:gap-3 lg:justify-start"
 					>
 						<Link
 							href="/login?next=/onboarding"
-							className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 text-sm font-medium text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+							className="marketing-pressable group inline-flex min-h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--text-primary)] px-3 text-[13px] font-medium text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)] hover:bg-[var(--text-primary)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:gap-2 sm:px-6 sm:text-sm"
 						>
-							{t('ctaPrimary')}
+							<span className="sm:hidden">{copy.startShort}</span>
+							<span className="hidden sm:inline">{t('ctaPrimary')}</span>
 							<Arrow
 								className="h-4 w-4 transition-transform group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5"
 								aria-hidden
@@ -453,21 +463,26 @@ export function Hero() {
 
 						<Link
 							href="#solutions"
-							className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-6 text-sm font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+							className="inline-flex min-h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--bg-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 sm:gap-2 sm:px-6 sm:text-sm"
 							style={{ boxShadow: 'var(--shadow-sm)' }}
 						>
 							<Bot className="h-3.5 w-3.5" aria-hidden />
-							{t('ctaSecondary')}
+							<span className="sm:hidden">{copy.featuresShort}</span>
+							<span className="hidden sm:inline">{t('ctaSecondary')}</span>
 						</Link>
 					</div>
 
 					<div
-						className="mt-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
+						className="mt-4 flex items-center justify-center sm:mt-5 sm:flex-wrap sm:gap-2 lg:justify-start"
 					>
+						<span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-medium text-black/[0.58] shadow-[0_4px_14px_rgba(0,0,0,0.04)] sm:hidden">
+							<Gift className="h-3 w-3" />
+							{copy.mobilePromise}
+						</span>
 						{copy.promises.map((promise, index) => (
 							<span
 								key={promise}
-								className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-medium text-black/[0.58] shadow-[0_4px_14px_rgba(0,0,0,0.04)]"
+								className="hidden min-h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 text-[11px] font-medium text-black/[0.58] shadow-[0_4px_14px_rgba(0,0,0,0.04)] sm:inline-flex"
 							>
 								{index === 0 ? <Gift className="h-3 w-3" /> : <Check className="h-3 w-3" />}
 								{promise}

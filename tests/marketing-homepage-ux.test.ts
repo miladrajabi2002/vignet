@@ -22,20 +22,19 @@ describe('marketing homepage UX contracts', () => {
 		expect(read('app/(marketing)/solutions/[slug]/page.tsx')).not.toContain('#businesses')
 	})
 
-	it('uses a persistent five-destination mobile bar with a session-aware account action', () => {
-		const mobileNav = read('components/marketing/mobile-bottom-nav.tsx')
+	it('uses a compact mobile menu without covering the product preview', () => {
+		const mobileMenu = read('components/marketing/mobile-menu.tsx')
 		const navbar = read('components/marketing/navbar.tsx')
 
-		expect(mobileNav).toContain('grid-cols-5')
-		expect(mobileNav).toContain('env(safe-area-inset-bottom)')
-		expect(mobileNav).toContain("href={authenticated ? '/overview' : '/login'}")
-		expect(mobileNav).toContain("href: '/docs'")
-		expect(mobileNav).toContain('copy.startFree')
-		expect(mobileNav).toContain('bg-emerald-500')
-		expect(navbar).toContain('<MarketingMobileBottomNav')
-		expect(navbar).not.toContain('MarketingMobileMenu')
-		expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(false)
-		expect(navbar).toContain('col-start-3 hidden items-center')
+		expect(mobileMenu).toContain('min-h-11 min-w-11')
+		expect(mobileMenu).toContain('env(safe-area-inset-bottom)')
+		expect(mobileMenu).toContain("href={authenticated ? '/overview' : '/login'}")
+		expect(mobileMenu).toContain('aria-expanded={open}')
+		expect(mobileMenu).toContain('href="/login?next=/onboarding"')
+		expect(navbar).toContain('<MarketingMobileMenu')
+		expect(navbar).not.toContain('<MarketingMobileBottomNav')
+		expect(existsSync(join(root, 'components/marketing/mobile-menu.tsx'))).toBe(true)
+		expect(existsSync(join(root, 'components/marketing/mobile-bottom-nav.tsx'))).toBe(false)
 	})
 
 	it('does not render sub-nine-pixel copy inside the hero product mockup', () => {

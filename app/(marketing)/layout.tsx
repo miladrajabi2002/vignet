@@ -22,7 +22,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
 	// the dashboard and admin.
 	return (
 		<ScopedIntlProvider messagePaths={MARKETING_CLIENT_MESSAGE_PATHS}>
-		<div className="min-h-screen overflow-x-clip bg-[var(--bg-base)] pb-[calc(7rem+env(safe-area-inset-bottom))] text-[var(--text-primary)] lg:pb-0">
+		<div className="min-h-screen overflow-x-clip bg-[var(--bg-base)] text-[var(--text-primary)]">
 			{/* Entrance animations SSR with opacity:0 and only reveal after JS runs.
 			    Without JS (or if hydration fails) that text would stay invisible on
 			    the white page — force it visible. */}

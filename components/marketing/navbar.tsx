@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Check, LogIn } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { Logo } from '@/components/ui/logo'
-import { MarketingMobileBottomNav } from '@/components/marketing/mobile-bottom-nav'
+import { MarketingMobileMenu } from '@/components/marketing/mobile-menu'
 import { cn } from '@/lib/utils'
 
 const SECTION_IDS = ['solutions', 'product', 'vigento', 'pricing'] as const
@@ -26,6 +26,9 @@ const COPY = {
 		dashboardAria: 'رفتن به داشبورد',
 		login: 'ورود',
 		primaryNav: 'ناوبری اصلی',
+		mobileMenu: 'منوی سایت',
+		openMenu: 'باز کردن منوی سایت',
+		closeMenu: 'بستن منوی سایت',
 	},
 	en: {
 		home: 'Home',
@@ -39,6 +42,9 @@ const COPY = {
 		dashboardAria: 'Go to dashboard',
 		login: 'Log in',
 		primaryNav: 'Primary navigation',
+		mobileMenu: 'Site menu',
+		openMenu: 'Open site menu',
+		closeMenu: 'Close site menu',
 	},
 } as const
 
@@ -98,6 +104,13 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 		}
 		return link
 	})
+	const isLinkActive = (id: string) => id === 'home'
+		? isLandingPath && activeSection === ''
+		: id === 'blog' || id === 'docs'
+		? pathname.startsWith(`/${id}`)
+		: isLandingPath && activeSection === id
+	const mobileLinks = links.map((link) => ({ ...link, active: isLinkActive(link.id) }))
+
 	return (
 		<header className="fixed inset-x-0 top-0 z-50 px-3 pt-2 sm:px-5 sm:pt-3">
 			<nav
@@ -115,11 +128,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 
 				<div className="hidden items-center gap-1 lg:flex">
 					{links.map((link) => {
-						const active = link.id === 'home'
-							? isLandingPath && activeSection === ''
-							: link.id === 'blog' || link.id === 'docs'
-							? pathname.startsWith(`/${link.id}`)
-							: isLandingPath && activeSection === link.id
+						const active = isLinkActive(link.id)
 						return (
 							<Link
 								key={link.id}
@@ -166,25 +175,19 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 					)}
 				</div>
 
-				<span aria-hidden className="col-start-3 h-11 w-11 justify-self-end lg:hidden" />
+				<MarketingMobileMenu
+					links={mobileLinks}
+					authenticated={authenticated}
+					copy={{
+						open: copy.openMenu,
+						close: copy.closeMenu,
+						label: copy.mobileMenu,
+						start: copy.startShort,
+						account: authenticated ? copy.dashboard : copy.login,
+						accountAria: authenticated ? copy.dashboardAria : copy.login,
+					}}
+				/>
 			</nav>
-
-			<MarketingMobileBottomNav
-				authenticated={authenticated}
-				homeHref={homeVariantPath ?? '/'}
-				isLandingPath={isLandingPath}
-				activeSection={activeSection}
-				copy={{
-					home: copy.home,
-					docs: t('docs'),
-					startFree: copy.startShort,
-					pricing: t('pricing'),
-					login: copy.login,
-					dashboard: copy.dashboard,
-					primaryNav: copy.primaryNav,
-					dashboardAria: copy.dashboardAria,
-				}}
-			/>
 		</header>
 	)
 }
