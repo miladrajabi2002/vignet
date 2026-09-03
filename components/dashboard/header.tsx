@@ -63,7 +63,7 @@ function HeaderPlan({
         'spatial-press group flex min-w-0 items-center border border-black/[0.08] bg-white/90 text-[var(--text-primary)] shadow-[0_8px_28px_rgba(0,0,0,0.06)] outline-none transition-[border-color,box-shadow,transform] duration-200 hover:border-black/[0.15] hover:shadow-[0_12px_34px_rgba(0,0,0,0.09)] focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:transform-none motion-reduce:active:transform-none',
         compact
           ? 'h-12 w-[7.25rem] gap-1.5 rounded-[1.1rem] px-1.5'
-          : 'h-14 w-[14.5rem] gap-2.5 rounded-[1.45rem] px-3 lg:w-[15.5rem] xl:h-[4.25rem] xl:w-[18rem] xl:rounded-[1.7rem] xl:px-3.5',
+          : 'h-14 w-[14rem] gap-2.5 rounded-[1.45rem] px-3 lg:w-[14.5rem] xl:h-[4.25rem] xl:w-[16rem] xl:rounded-[1.7rem] xl:px-3.5',
       )}
     >
       <span className={cn(
@@ -133,11 +133,6 @@ function HeaderPlan({
               </span>
             )}
           </span>
-          {!compact && active && daysLeft !== null && (
-            <span className="ms-1.5 shrink-0 text-[10px] font-medium text-[var(--text-muted)] xl:text-xs">
-              {fa ? `· ${nf.format(daysLeft)} روز` : `· ${nf.format(daysLeft)}d`}
-            </span>
-          )}
         </span>
 
         <span className={cn(
@@ -146,6 +141,12 @@ function HeaderPlan({
         )}>
           <span className="font-bold tabular-nums text-[var(--text-secondary)]">{nf.format(creditToman)}</span>
           <span className="ms-1">{fa ? 'تومان' : 'toman'}</span>
+          {!compact && active && daysLeft !== null && (
+            <>
+              <span aria-hidden="true" className="mx-1 text-black/25">-</span>
+              <span className="tabular-nums">{fa ? `${nf.format(daysLeft)} روز` : `${nf.format(daysLeft)} days`}</span>
+            </>
+          )}
         </span>
       </span>
 
