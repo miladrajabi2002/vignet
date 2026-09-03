@@ -19,7 +19,7 @@ import { prisma } from '@/lib/prisma'
  * can be scored without a second LLM request or an unbounded transcript read.
  */
 
-export const SALES_INTELLIGENCE_VERSION = 'sales-heuristic-v1'
+export const SALES_INTELLIGENCE_VERSION = 'sales-heuristic-v2'
 export const SALES_INTELLIGENCE_MESSAGE_LIMIT = 24
 
 export interface SalesConversationMessage {
@@ -355,6 +355,27 @@ function readinessFor(probability: number, stage: SalesIntentStage): SalesBuyerR
         return 'COLD'
 }
 
+/**
+ * Keep the displayed percentage aligned with the already-detected sales stage.
+ *
+ * The raw heuristic score is useful for choosing a lead type, but recency
+ * discounting can otherwise leave an explicit order request looking like a
+ * weak 40–50% lead. These bands make the percentage understandable to an
+ * operator while reserving 100% for a completed purchase.
+ */
+function calibrateBuyerProbability(
+        probability: number,
+        leadType: SalesLeadType,
+        stage: SalesIntentStage,
+): number {
+        const rounded = Math.round(clamp(probability, 0, 100))
+        if (leadType === 'EXISTING_CUSTOMER' || stage === 'POST_PURCHASE') return 100
+        if (leadType !== 'BUYER') return rounded
+        if (stage === 'PURCHASE_INTENT') return Math.round(clamp(rounded, 85, 99))
+        if (stage === 'NEGOTIATION') return Math.round(clamp(rounded, 70, 84))
+        return Math.round(clamp(rounded, 60, 69))
+}
+
 function localize(language: string, fa: string, en: string): string {
         return language.toLowerCase().startsWith('en') ? en : fa
 }
@@ -634,6 +655,8 @@ export function analyzeSalesConversation(input: {
         ) leadType = 'BUYER'
         else if (stage === 'INFORMATION_GATHERING') leadType = 'INFORMATION_SEEKER'
 
+        probability = calibrateBuyerProbability(probability, leadType, stage)
+
         let sentiment: SalesSentiment = 'NEUTRAL'
         if (severeDistress) sentiment = 'DISTRESSED'
         else if (positiveStrength > 0 && negativeStrength > 0) sentiment = 'MIXED'
@@ -868,8 +891,11 @@ export async function backfillWorkspaceSalesInsights(
         const conversations = await prisma.conversation.findMany({
                 where: {
                         workspaceId,
-                        salesInsight: { is: null },
                         messages: { some: { role: 'USER' } },
+                        OR: [
+                                { salesInsight: { is: null } },
+                                { salesInsight: { is: { modelVersion: { not: SALES_INTELLIGENCE_VERSION } } } },
+                        ],
                 },
                 orderBy: [
                         { lastMessageAt: { sort: 'desc', nulls: 'last' } },

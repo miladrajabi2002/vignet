@@ -26,6 +26,39 @@ describe('sales conversation intelligence', () => {
     expect(analysis.evidence[0]).toHaveProperty('excerpt')
   })
 
+  it('keeps purchase-stage percentages aligned with strong buying intent', () => {
+    const analysis = analyzeSalesConversation({
+      businessType: 'COMMERCE',
+      language: 'fa',
+      messages: [
+        { role: 'USER', content: 'چطوری سفارش بدم؟' },
+        { role: 'USER', content: 'سلام قیمت لطفا' },
+        { role: 'USER', content: 'کد ۶۸۲' },
+      ],
+    })
+
+    expect(analysis.leadType).toBe('BUYER')
+    expect(analysis.stage).toBe('PURCHASE_INTENT')
+    expect(analysis.buyerProbability).toBeGreaterThanOrEqual(85)
+    expect(analysis.buyerProbability).toBeLessThan(100)
+    expect(analysis.buyerReadiness).toBe('HOT')
+  })
+
+  it('gives every potential buyer a percentage consistent with the label', () => {
+    const analysis = analyzeSalesConversation({
+      businessType: 'COMMERCE',
+      language: 'fa',
+      messages: [
+        { role: 'USER', content: 'این مدل موجوده؟ هزینه ارسالش چقدره؟' },
+        { role: 'USER', content: 'چه فرقی با مدل قبلی داره؟' },
+      ],
+    })
+
+    expect(analysis.leadType).toBe('BUYER')
+    expect(analysis.stage).toBe('CONSIDERATION')
+    expect(analysis.buyerProbability).toBeGreaterThanOrEqual(60)
+  })
+
   it('distinguishes an English information seeker from a buyer', () => {
     const analysis = analyzeSalesConversation({
       businessType: 'SERVICES',

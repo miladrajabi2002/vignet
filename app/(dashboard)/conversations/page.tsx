@@ -33,6 +33,7 @@ import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge } from '@/components/crm/sales-insight'
 import { SalesInsightBackfill } from '@/components/crm/sales-insight-backfill'
+import { SALES_INTELLIGENCE_VERSION } from '@/lib/ai/sales-intelligence'
 import { ConversationStatusBadge } from '@/components/crm/conversation-status-badge'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import {
@@ -249,8 +250,11 @@ export default async function ConversationsPage(props: {
                 prisma.conversation.count({
                         where: {
                                 workspaceId: user.workspaceId,
-                                salesInsight: { is: null },
                                 messages: { some: { role: 'USER' } },
+                                OR: [
+                                        { salesInsight: { is: null } },
+                                        { salesInsight: { is: { modelVersion: { not: SALES_INTELLIGENCE_VERSION } } } },
+                                ],
                         },
                 }),
         ])

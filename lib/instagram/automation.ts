@@ -314,6 +314,109 @@ function kindToType(
   }
 }
 
+/** Return the first active scenario whose trigger matches this inbound. */
+async function findMatchingScenario(args: {
+  agentId: string
+  channelId: string
+  msg: InboundMessage
+}): Promise<AutomationRow | null> {
+  const type = kindToType(args.msg.kind)
+  if (!type) return null
+
+  const scenarios = await prisma.instagramAutomation.findMany({
+    where: { agentId: args.agentId, channelId: args.channelId, active: true, type },
+    orderBy: { priority: 'desc' },
+  })
+
+  for (const row of scenarios as AutomationRow[]) {
+    const trigger = readTrigger(row.trigger)
+    let matched = false
+
+    if (type === 'STORY') {
+      matched = trigger.storyScope === 'ALL' || matchKeywords(args.msg.text, trigger)
+    } else if (type === 'COMMENT') {
+      if (
+        trigger.postIds?.length &&
+        args.msg.postId &&
+        !trigger.postIds.includes(args.msg.postId)
+      ) {
+        continue
+      }
+      matched = matchKeywords(args.msg.text, trigger)
+    } else {
+      // Empty DM keywords represent the dashboard's "any message" option.
+      const keywords = trigger.keywords ?? []
+      matched = keywords.length === 0 || matchKeywords(args.msg.text, trigger)
+    }
+
+    if (matched) return row
+  }
+
+  return null
+}
+
+/**
+ * Read-only routing probe used before creating a Conversation. It mirrors the
+ * automation engine's gate/scenario matching but performs no delivery or
+ * mutation, allowing AUTOMATION_ONLY traffic with no matching route to be
+ * acknowledged without polluting the conversations inbox.
+ */
+export async function willInstagramAutomationHandle(args: {
+  agentId: string
+  channelId: string
+  msg: InboundMessage
+}): Promise<boolean> {
+  if (args.msg.kind === 'DM' || args.msg.kind === undefined) {
+    const gate = await prisma.instagramFollowGate.findFirst({
+      where: {
+        agentId: args.agentId,
+        igSenderId: args.msg.senderId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    })
+    if (gate) {
+      const payload = (gate.payload && typeof gate.payload === 'object'
+        ? gate.payload
+        : {}) as Record<string, unknown>
+      const confirmKeyword = typeof payload.gateConfirmKeyword === 'string'
+        ? payload.gateConfirmKeyword.trim().toLowerCase()
+        : ''
+      const gateMode = typeof payload.gateMode === 'string' ? payload.gateMode : 'SOFT'
+      if (
+        gateMode !== 'STORY_MENTION' &&
+        confirmKeyword &&
+        args.msg.text.trim().toLowerCase() === confirmKeyword
+      ) {
+        return true
+      }
+    }
+  }
+
+  if (args.msg.kind === 'STORY_MENTION') {
+    const gate = await prisma.instagramFollowGate.findFirst({
+      where: {
+        agentId: args.agentId,
+        igSenderId: args.msg.senderId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    })
+    if (gate) {
+      const payload = (gate.payload && typeof gate.payload === 'object'
+        ? gate.payload
+        : {}) as Record<string, unknown>
+      if (payload.gateMode === 'STORY_MENTION') return true
+    }
+  }
+
+  return (await findMatchingScenario(args)) !== null
+}
+
 const GATE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 export interface AutomationContext {
@@ -362,69 +465,33 @@ export async function runInstagramAutomation(
   }
 
   // ─── 3. Scenario matching ──────────────────────────────────────────
-  const type = kindToType(msg.kind)
-  if (!type) return { handled: false, replied: false }
+  const row = await findMatchingScenario({ agentId: agent.id, channelId, msg })
+  if (!row) return { handled: false, replied: false }
+  const action = readAction(row.action)
 
-  const scenarios = await prisma.instagramAutomation.findMany({
-    where: { agentId: agent.id, channelId, active: true, type },
-    orderBy: { priority: 'desc' },
-  })
-  if (!scenarios.length) return { handled: false, replied: false }
-
-  for (const row of scenarios as AutomationRow[]) {
-    const trigger = readTrigger(row.trigger)
-    const action = readAction(row.action)
-
-    let matched = false
-    if (type === 'STORY') {
-      // Story scenarios match on scope: ALL (any reply/mention) or KEYWORD.
-      matched =
-        trigger.storyScope === 'ALL' || matchKeywords(msg.text, trigger)
-    } else if (type === 'COMMENT') {
-      // Optionally restrict to specific posts.
-      if (
-        trigger.postIds?.length &&
-        msg.postId &&
-        !trigger.postIds.includes(msg.postId)
-      ) {
-        continue
-      }
-      matched = matchKeywords(msg.text, trigger)
-    } else {
-      // DIRECT_MESSAGE: when no keywords are configured (the form's
-      // "هر کلمه‌ای" / ANY option), the scenario matches every inbound DM.
-      // When keywords are present, apply normal keyword matching.
-      const kws = trigger.keywords ?? []
-      matched = kws.length === 0 || matchKeywords(msg.text, trigger)
+  // ─── Matched. Execute the action. ───
+  try {
+    let sent = false
+    const beforeDispatch = async () => {
+      await ctx.beforeDispatch?.()
+      sent = true
     }
-    if (!matched) continue
-
-    // ─── Matched. Execute the action. ───
-    try {
-      let sent = false
-      const beforeDispatch = async () => {
-        await ctx.beforeDispatch?.()
-        sent = true
-      }
-      const trackingAdapter: MessengerAdapter = {
-        ...ctx.adapter,
-        async sendText(chatId, text, opts) {
-          await beforeDispatch()
-          await ctx.adapter.sendText(chatId, text, opts)
-        },
-      }
-      await executeAction({ ...ctx, adapter: trackingAdapter, beforeDispatch }, row, action)
-      return { handled: true, replied: sent }
-    } catch (e) {
-      captureError(`instagram:automation:${row.id}`, e, {
-        workspaceId: agent.workspaceId,
-        metadata: { agentId: agent.id, automationId: row.id },
-      })
+    const trackingAdapter: MessengerAdapter = {
+      ...ctx.adapter,
+      async sendText(chatId, text, opts) {
+        await beforeDispatch()
+        await ctx.adapter.sendText(chatId, text, opts)
+      },
     }
-    return { handled: true, replied: false }
+    await executeAction({ ...ctx, adapter: trackingAdapter, beforeDispatch }, row, action)
+    return { handled: true, replied: sent }
+  } catch (e) {
+    captureError(`instagram:automation:${row.id}`, e, {
+      workspaceId: agent.workspaceId,
+      metadata: { agentId: agent.id, automationId: row.id },
+    })
   }
-
-  return { handled: false, replied: false }
+  return { handled: true, replied: false }
 }
 
 /** Send the configured reply for a matched scenario. */
@@ -1050,8 +1117,10 @@ async function tryFulfillGateByMention(
 //   3. the per-conversation `metadata.aiPaused` flag (set by STOP_AI scenarios)
 //   4. whether the inbound text matches a stop-word (also pauses AI)
 //
-// When this returns false, the handler records the inbound (still happens in
-// generateReply — see handler) but SKIPS the AI turn / outbound reply.
+// When this returns false, the handler normally records the inbound but skips
+// the AI turn. The one deliberate exception is an unmatched AUTOMATION_ONLY
+// event: the handler now rejects that before creating a Conversation because
+// neither a scenario nor the AI owns it.
 
 /** Snapshot of the per-(agent × channel) automation policy + toggles. */
 export interface AutomationPolicy {

@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { readUserToken, readIgUserId } from '@/lib/instagram/config'
+import { readUserToken } from '@/lib/instagram/config'
 
 /**
  * Fetch the DM sender's profile (name, username, avatar).
@@ -27,17 +27,7 @@ export async function fetchInstagramSenderProfile(
 	if (!senderId || senderId.startsWith('comment:')) return null
 
 	const userToken = readUserToken(channelConfig)
-	if (!userToken) {
-		console.warn(
-			`[ig-profile] sender=${senderId} → no IG user token in channel config`,
-		)
-		return null
-	}
-
-	const igUserId = readIgUserId(channelConfig)
-	console.log(
-		`[ig-profile] sender=${senderId} → graph.instagram.com/v21.0 (igUserId=${igUserId ?? 'n/a'})`,
-	)
+	if (!userToken) return null
 
 	// Try a few field combinations on graph.instagram.com (the ONLY host that
 	// accepts IG User Tokens). Different API versions expose different field
@@ -52,48 +42,29 @@ export async function fetchInstagramSenderProfile(
 	for (const fields of fieldSets) {
 		try {
 			const url = `https://graph.instagram.com/v21.0/${senderId}?fields=${fields}`
-			console.log(`[ig-profile] → fields=${fields}`)
 			const res = await fetch(url, {
 				headers: { Authorization: `Bearer ${userToken}` },
 				signal: AbortSignal.timeout(7_000),
 			})
 			const bodyText = await res.text().catch(() => '')
-			if (!res.ok) {
-				console.warn(
-					`[ig-profile] ✗ fields=${fields} → ${res.status}: ${bodyText.slice(0, 300)}`,
-				)
-				continue
-			}
+			if (!res.ok) continue
 			let json: Record<string, unknown>
 			try {
 				json = JSON.parse(bodyText) as Record<string, unknown>
 			} catch {
 				continue
 			}
-			if (json.error) {
-				console.warn(
-					`[ig-profile] ✗ fields=${fields} → error: ${JSON.stringify(json.error).slice(0, 300)}`,
-				)
-				continue
-			}
+			if (json.error) continue
 			const name = typeof json.name === 'string' ? json.name : undefined
 			const username = typeof json.username === 'string' ? json.username : undefined
 			const avatarUrl =
 				(typeof json.profile_pic === 'string' ? json.profile_pic : undefined) ??
 				(typeof json.profile_picture_url === 'string' ? json.profile_picture_url : undefined)
-			console.log(
-				`[ig-profile] ✓ SUCCESS fields=${fields} → name=${name ?? '∅'} username=${username ?? '∅'} avatar=${avatarUrl ? 'yes' : 'no'}`,
-			)
 			if (name || username || avatarUrl) {
 				return { name, username, avatarUrl }
 			}
-		} catch (e) {
-			console.warn(`[ig-profile] ✗ fields=${fields} → exception: ${(e as Error).message}`)
-		}
+		} catch {}
 	}
 
-	console.warn(
-		`[ig-profile] sender=${senderId} → profile unavailable for this token or messaging consent`,
-	)
 	return null
 }

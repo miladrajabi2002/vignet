@@ -52,7 +52,10 @@ vi.mock('@/lib/instagram/config', () => ({
   readPageToken: vi.fn(() => 'token'),
 }))
 
-import { runInstagramAutomation } from '@/lib/instagram/automation'
+import {
+  runInstagramAutomation,
+  willInstagramAutomationHandle,
+} from '@/lib/instagram/automation'
 import type { InboundMessage, MessengerAdapter } from '@/lib/channels/types'
 
 function makeDmMessage(text: string): InboundMessage {
@@ -158,5 +161,50 @@ describe('runInstagramAutomation — DM keyword matching', () => {
     const result = await runInstagramAutomation(makeCtx(makeDmMessage('سلام')))
     expect(result.handled).toBe(false)
     expect(result.replied).toBe(false)
+  })
+})
+
+describe('willInstagramAutomationHandle — read-only routing probe', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.followGateFindFirst.mockResolvedValue(null)
+  })
+
+  it('returns false without sending when no active scenario matches', async () => {
+    mocks.automationFindMany.mockResolvedValue([{
+      id: 'auto-price',
+      agentId: 'agent-1',
+      channelId: 'ig-channel-1',
+      type: 'DIRECT_MESSAGE',
+      name: 'price',
+      active: true,
+      priority: 0,
+      trigger: { keywords: ['قیمت'], matchMode: 'EXACT', storyScope: 'KEYWORD', postIds: [] },
+      action: { replyMode: 'STATIC', replyText: 'پاسخ قیمت' },
+    }])
+
+    const result = await willInstagramAutomationHandle({
+      agentId: 'agent-1',
+      channelId: 'ig-channel-1',
+      msg: makeDmMessage('سلام'),
+    })
+
+    expect(result).toBe(false)
+    expect(mocks.sendText).not.toHaveBeenCalled()
+  })
+
+  it('keeps a pending follow-gate confirmation routable', async () => {
+    mocks.followGateFindFirst.mockResolvedValue({
+      payload: { gateMode: 'SOFT', gateConfirmKeyword: 'دنبال کردم' },
+    })
+
+    const result = await willInstagramAutomationHandle({
+      agentId: 'agent-1',
+      channelId: 'ig-channel-1',
+      msg: makeDmMessage('دنبال کردم'),
+    })
+
+    expect(result).toBe(true)
+    expect(mocks.automationFindMany).not.toHaveBeenCalled()
   })
 })

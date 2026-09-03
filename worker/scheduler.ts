@@ -585,10 +585,6 @@ export async function runTrialLifecycleSweep(): Promise<void> {
                                 acquired = Boolean(await redis.set(dedupKey, '1', 'EX', dedupTtlSeconds, 'NX'))
                                 if (!acquired) {
                                         stats.deduplicated += 1
-                                        await persistLog('info', 'scheduler:trial-lifecycle:deduplicated', 'Trial lifecycle SMS was already processed', {
-                                                workspaceId: workspace.id,
-                                                metadata: { lifecycleKind: kind, dedupKey },
-                                        })
                                         continue
                                 }
 
