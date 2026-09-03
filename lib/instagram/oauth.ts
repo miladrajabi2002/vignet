@@ -307,7 +307,10 @@ export async function refreshLongLivedToken(
 
 /** Instagram profile snapshot fetched right after OAuth. */
 export interface InstagramProfile {
+  /** App-scoped account id returned as `id`; used for Graph API calls. */
   igUserId: string
+  /** Native Instagram user id returned as `user_id`; used in webhook owner fields. */
+  webhookIgId: string
   username: string
   name?: string
   profilePictureUrl?: string
@@ -328,12 +331,13 @@ export async function getInstagramProfile(
   const url = new URL(`${GRAPH_BASE}/me`)
   url.searchParams.set(
     'fields',
-    'id,username,name,profile_picture_url,followers_count,media_count,account_type,biography',
+    'id,user_id,username,name,profile_picture_url,followers_count,media_count,account_type,biography',
   )
   url.searchParams.set('access_token', igToken)
   const res = await fetch(url)
   const data = (await res.json()) as {
     id?: string
+    user_id?: string | number
     username?: string
     name?: string
     profile_picture_url?: string
@@ -343,11 +347,18 @@ export async function getInstagramProfile(
     biography?: string
     error?: unknown
   }
-  if (!res.ok || !data.id || !data.username) {
+  if (
+    !res.ok ||
+    !data.id ||
+    data.user_id === undefined ||
+    data.user_id === null ||
+    !data.username
+  ) {
     throw new Error(`Instagram profile fetch failed: ${JSON.stringify(data)}`)
   }
   return {
     igUserId: data.id,
+    webhookIgId: String(data.user_id),
     username: data.username,
     name: data.name,
     profilePictureUrl: data.profile_picture_url,

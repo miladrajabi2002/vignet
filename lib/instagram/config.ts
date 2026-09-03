@@ -34,10 +34,15 @@ export interface InstagramOAuthConfig {
   /** ISO time when the long-lived user token expires (≈ now + 60 days). */
   userTokenExpiresAt?: string
   /**
-   * Instagram user id — the identity of the connected account. Used as the
-   * webhook demux key (the global webhook's `entry[].id` is this id).
+   * App-scoped Instagram account id returned as `id` by `GET /me`. This is the
+   * stable identity used for Graph API calls such as subscriptions.
    */
   igUserId?: string
+  /**
+   * Native Instagram user id returned as `user_id` by `GET /me`. Meta uses
+   * this id in webhook owner fields (`entry[].id` / `recipient.id`).
+   */
+  webhookIgId?: string
   /** IG @username (display). */
   botUsername?: string
   /** IG profile picture URL. */
@@ -71,6 +76,7 @@ export function buildInstagramOAuthConfig(input: {
   userToken: string
   userTokenExpiresAt: Date
   igUserId: string
+  webhookIgId: string
   username: string
   profilePictureUrl?: string
   followersCount?: number
@@ -82,6 +88,7 @@ export function buildInstagramOAuthConfig(input: {
     userTokenEnc: encrypt(input.userToken),
     userTokenExpiresAt: input.userTokenExpiresAt.toISOString(),
     igUserId: input.igUserId,
+    webhookIgId: input.webhookIgId,
     botUsername: input.username,
     igProfilePictureUrl: input.profilePictureUrl,
     igFollowersCount: input.followersCount,
@@ -135,7 +142,7 @@ export function readUserToken(config: Prisma.JsonValue): string | null {
   }
 }
 
-/** Read the IG user id — the routing key for the global webhook (Instagram Login). */
+/** Read the app-scoped IG id used for Graph API calls (not the webhook alias). */
 export function readIgUserId(
   config: Prisma.JsonValue,
 ): string | null {

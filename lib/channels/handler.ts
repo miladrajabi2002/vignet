@@ -139,9 +139,11 @@ async function resolveChannel(
  * Resolve an Instagram channel by its identity id — used by the GLOBAL webhook
  * (`/api/webhook/instagram`) which receives all events for the platform's
  * single Meta App. The `entry[].id` in the webhook payload is:
- *   - For Instagram Login channels: the IG user id (config.igUserId)
+ *   - For Instagram Login channels: the native `user_id`
+ *     (config.webhookIgId; distinct from the app-scoped config.igUserId)
  *   - For legacy FB Login channels: the Facebook Page id (config.pageId)
- * We try both fields to cover both connection models.
+ * We try every historical identity field to cover both connection models and
+ * channels created before webhookIgId was captured during OAuth.
  */
 async function resolveInstagramChannelById(
         entityId: string,
@@ -1316,10 +1318,9 @@ export async function handleInstagramGlobalInbound(body: unknown): Promise<void>
         }
 
         if (unresolvedEntries.length) {
-                // No channel matched an entry's owner-side ids. This happens with
-                // Instagram API with Instagram Login because the id returned by
-                // `GET /me` (what we store as igUserId) can DIFFER from the id Meta
-                // sends in webhook payloads (entry[].id / recipient.id).
+                // No channel matched an entry's owner-side ids. Older Instagram
+                // Login channels may only have the app-scoped `GET /me.id`, while
+                // Meta sends `GET /me.user_id` in entry[].id / recipient.id.
                 //
                 // FALLBACK: if there is exactly ONE Instagram channel in the entire
                 // database, assume the unmatched entries are for it. This is safe for

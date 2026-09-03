@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   INSTAGRAM_WEBHOOK_FIELDS,
+  getInstagramProfile,
   subscribeIgUserToWebhook,
   unsubscribeIgUserFromWebhook,
 } from '@/lib/instagram/oauth'
@@ -10,6 +11,27 @@ describe('Instagram webhook subscription', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('fetches and returns both the Graph id and webhook user_id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: '38072185465760663',
+        user_id: '17841401976835496',
+        username: 'example',
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getInstagramProfile('token-1')).resolves.toMatchObject({
+      igUserId: '38072185465760663',
+      webhookIgId: '17841401976835496',
+      username: 'example',
+    })
+
+    const url = new URL(fetchMock.mock.calls[0][0] as string | URL)
+    expect(url.searchParams.get('fields')?.split(',')).toContain('user_id')
   })
 
   it('subscribes only to valid fields and receives story mentions through messages', async () => {

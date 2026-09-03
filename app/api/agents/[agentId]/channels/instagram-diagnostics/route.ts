@@ -172,12 +172,12 @@ export async function POST(_req: Request, props: Params) {
 }
 
 /**
- * Fix the stored igUserId when it doesn't match what Meta sends in webhooks.
+ * Fix the stored webhook alias when it doesn't match what Meta sends.
  *
- * With Instagram API with Instagram Login, the id returned by `GET /me`
- * (which we store as igUserId) can DIFFER from the id Meta sends as
- * `recipient.id` in webhook payloads. This is a known Meta behavior. When that
- * happens, the demux can't find the channel and messages are silently dropped.
+ * Instagram Login's `GET /me` returns both an app-scoped `id` (used for Graph
+ * calls) and a native `user_id` (used in webhook owner fields). Older channel
+ * records only stored the former. Never overwrite `igUserId` here: doing so
+ * would repair routing while breaking subscriptions and other Graph calls.
  *
  * SECURITY: this value IS the global webhook's routing key, so an unvalidated
  * write let one workspace claim another workspace's Instagram id and receive
@@ -251,7 +251,7 @@ export async function PUT(req: Request, props: Params) {
 		//    owner-side id from a recent unclaimed webhook payload.
 		const token = readPageToken(channel.config)
 		const profile = token ? await getInstagramProfile(token).catch(() => null) : null
-		let verified = profile?.igUserId === newId
+		let verified = profile?.webhookIgId === newId
 
 		if (!verified) {
 			const { payloads } = getScopedWebhookPayloads(
@@ -278,7 +278,7 @@ export async function PUT(req: Request, props: Params) {
 
 	const updated: Record<string, unknown> = {
 		...config,
-		igUserId: newId,
+		webhookIgId: newId,
 	}
 	await prisma.agentChannel.update({
 		where: { id: channel.id },
@@ -287,7 +287,7 @@ export async function PUT(req: Request, props: Params) {
 
 	return NextResponse.json({
 		ok: true,
-		igUserId: newId,
-		note: 'igUserId به‌روز شد. حالا demux باید مطابقت داشته باشه. یک پیام تست بفرستید.',
+		webhookIgId: newId,
+		note: 'شناسه وب‌هوک ثبت شد؛ شناسه اصلی Graph بدون تغییر باقی ماند.',
 	})
 }

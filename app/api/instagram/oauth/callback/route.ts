@@ -174,18 +174,26 @@ export async function GET(req: Request) {
       userToken: longTok.token,
       userTokenExpiresAt: longTok.expiresAt,
       igUserId: profile.igUserId,
+      webhookIgId: profile.webhookIgId,
       username: profile.username,
       profilePictureUrl: profile.profilePictureUrl,
       followersCount: profile.followersCount,
       biography: profile.biography,
     })
+    const previousConfig = previousChannel?.config as Record<string, unknown> | null
+    const previousWebhookIgId = previousConfig?.webhookIgId == null
+      ? null
+      : String(previousConfig.webhookIgId)
     if (previousIgUserId && previousIgUserId !== profile.igUserId) {
-      const previousConfig = previousChannel?.config as Record<string, unknown> | null
       const previousIgnoredIds = Array.isArray(previousConfig?.ignoredWebhookIds)
         ? previousConfig.ignoredWebhookIds.map(String)
         : []
       config.ignoredWebhookIds = Array.from(
-        new Set([...previousIgnoredIds, previousIgUserId]),
+        new Set([
+          ...previousIgnoredIds,
+          previousIgUserId,
+          ...(previousWebhookIgId ? [previousWebhookIgId] : []),
+        ]),
       ).slice(-10)
     }
     const configJson = config as unknown as Prisma.InputJsonValue
