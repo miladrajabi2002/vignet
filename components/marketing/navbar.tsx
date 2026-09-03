@@ -103,7 +103,7 @@ export function Navbar({ authenticated }: { authenticated: boolean }) {
 			<nav
 				aria-label={copy.primaryNav}
 				className={cn(
-					'relative mx-auto grid h-[58px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-[1.15rem] border px-2.5 transition-[background-color,border-color,box-shadow] duration-200 lg:flex lg:justify-between lg:px-3.5',
+					'marketing-navbar-surface relative mx-auto grid h-[58px] max-w-7xl grid-cols-[1fr_auto_1fr] items-center rounded-[1.15rem] border px-2.5 transition-[background-color,border-color,box-shadow] duration-200 lg:flex lg:justify-between lg:px-3.5',
 					scrolled
 						? 'border-black/10 bg-white/[0.9] shadow-[0_14px_45px_rgba(0,0,0,0.09)] backdrop-blur-xl'
 						: 'border-black/[0.07] bg-white/[0.82] shadow-[0_8px_28px_rgba(0,0,0,0.055)] backdrop-blur-lg',

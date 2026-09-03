@@ -57,7 +57,7 @@ export function MarketingMobileBottomNav({
 	return (
 		<nav
 			aria-label={copy.primaryNav}
-			className="fixed inset-x-3 isolate z-50 mx-auto grid h-[4.65rem] max-w-lg grid-cols-5 items-end gap-0.5 rounded-[1.65rem] border border-black/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,249,247,0.9))] p-1.5 shadow-[0_1px_1px_rgba(255,255,255,0.95)_inset,0_18px_45px_-18px_rgba(0,0,0,0.38),0_4px_12px_-6px_rgba(0,0,0,0.12)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-px before:z-0 before:rounded-[calc(1.65rem-2px)] before:border before:border-white/70 [bottom:max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+			className="marketing-mobile-bottom-nav fixed inset-x-3 isolate z-50 mx-auto grid h-[4.65rem] max-w-lg grid-cols-5 items-end gap-0.5 rounded-[1.65rem] border border-black/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,249,247,0.9))] p-1.5 shadow-[0_1px_1px_rgba(255,255,255,0.95)_inset,0_18px_45px_-18px_rgba(0,0,0,0.38),0_4px_12px_-6px_rgba(0,0,0,0.12)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-px before:z-0 before:rounded-[calc(1.65rem-2px)] before:border before:border-white/70 [bottom:max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
 		>
 			{items.slice(0, 2).map(({ id, href, label, icon: Icon, active }) => (
 				<Link

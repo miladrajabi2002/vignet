@@ -12,6 +12,7 @@ export function SectionRevealController() {
 		const root = document.documentElement
 		const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 		if (reduce || !('IntersectionObserver' in window)) return
+		const mobile = window.matchMedia('(max-width: 767px)').matches
 
 		root.classList.add('marketing-motion-ready')
 
@@ -26,7 +27,9 @@ export function SectionRevealController() {
 					observer.unobserve(entry.target)
 				}
 			},
-			{ rootMargin: '0px 0px -6% 0px', threshold: 0.08 },
+			mobile
+				? { rootMargin: '0px 0px 30% 0px', threshold: 0.01 }
+				: { rootMargin: '0px 0px -6% 0px', threshold: 0.08 },
 		)
 		const register = (element: Element) => {
 			const rect = element.getBoundingClientRect()

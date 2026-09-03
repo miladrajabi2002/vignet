@@ -76,6 +76,18 @@ describe('marketing homepage UX contracts', () => {
 		expect(styles).toContain('html.marketing-motion-ready .marketing-story-section:target')
 	})
 
+	it('renders stable section geometry and primes reveals before they enter a mobile viewport', () => {
+		const styles = read('app/globals.css')
+		const controller = read('components/marketing/section-reveal.tsx')
+
+		expect(styles).toContain('@media (max-width: 767px)')
+		expect(styles).toContain('content-visibility: visible')
+		expect(styles).toContain('contain-intrinsic-size: none')
+		expect(styles).toContain('.marketing-mobile-bottom-nav')
+		expect(controller).toContain("rootMargin: '0px 0px 30% 0px'")
+		expect(controller).toContain('threshold: 0.01')
+	})
+
 	it('registers marketing sections that stream in after the reveal controller mounts', () => {
 		const controller = read('components/marketing/section-reveal.tsx')
 
@@ -186,7 +198,7 @@ describe('marketing homepage UX contracts', () => {
 		expect(lazyDemo).toContain("import dynamic from 'next/dynamic'")
 		expect(lazyDemo).toContain('ssr: false')
 		expect(lazyDemo).toContain('new IntersectionObserver')
-		expect(lazyDemo).toContain("rootMargin: '600px 0px'")
+		expect(lazyDemo).toContain("mobile ? '1400px 0px' : '600px 0px'")
 		expect(lazyDemo).toContain('min-h-[43rem] md:min-h-[45rem]')
 		expect(demo).toContain('<InstagramMock locale={locale} inverse active />')
 		expect(demo).toContain('LazyMotion')

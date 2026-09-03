@@ -31,6 +31,7 @@ export function InstagramDemoLazy({ locale }: { locale: HomeLocale }) {
 			setEnabled(true)
 			return
 		}
+		const mobile = window.matchMedia('(max-width: 767px)').matches
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -38,7 +39,7 @@ export function InstagramDemoLazy({ locale }: { locale: HomeLocale }) {
 				setEnabled(true)
 				observer.disconnect()
 			},
-			{ rootMargin: '600px 0px', threshold: 0.01 },
+			{ rootMargin: mobile ? '1400px 0px' : '600px 0px', threshold: 0.01 },
 		)
 		observer.observe(root)
 		return () => observer.disconnect()
