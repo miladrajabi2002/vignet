@@ -23,10 +23,19 @@ import {
         markInboundEventDeliveryUncertain,
         withInboundEventLease,
         InboundEventLeaseBusyError,
+        InboundEventLeaseLostError,
 } from '@/lib/channels/idempotency'
 import { withConversationTurnLock } from '@/lib/channels/conversation-lock'
 import { inboundMessageMetadata } from '@/lib/conversations/source'
 import { captureError } from '@/lib/errors/capture'
+import {
+        absorbConsecutiveInboundMessages,
+        combineTurnText,
+        isInboundEventMergedIntoAnotherTurn,
+        shouldBatchConsecutiveMessages,
+        type AbsorbedInbound,
+} from '@/lib/channels/batching'
+import { greetingReplyText, isGreetingOnlyMessage } from '@/lib/channels/greeting'
 import {
         isMarketingOptOutMessage,
         optOutConfirmation,
@@ -713,7 +722,12 @@ async function processChannelInbound(
                                         : {}),
                         }
                         await (async () => {
-                        const text = await resolveText(agent.workspaceId, adapter, msg)
+                        // Fast abort for events that were absorbed into a concurrent
+                        // turn while this job sat waiting on the conversation lease.
+                        // The fencing assert throws LeaseLost; the outer catch treats
+                        // the MERGED_INTO_TURN completion as a normal skip.
+                        await eventGuard.assertActive()
+                        let text = await resolveText(agent.workspaceId, adapter, msg)
                         if (!text) return
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
@@ -1092,13 +1106,91 @@ async function processChannelInbound(
                                 }
                         }
 
+                        // Start the typing lifecycle BEFORE the batching quiet-window so
+                        // the customer sees the indicator while we deliberately wait for
+                        // sibling messages, and keep it alive through retrieval + model
+                        // generation. onGenerationStart below is a no-op via the ??= guard.
+                        let stopTyping: (() => void) | undefined
+                        if (adapter.sendTyping) {
+                                stopTyping = startChannelTyping(
+                                        adapter,
+                                        msg.chatId,
+                                        (e) => console.error(`[handler] ${type} typing failed:`, e),
+                                )
+                        }
+
+                        // ─── Consecutive-message batching (wait-and-merge) ─────────
+                        // «سلام» «خوبین» «محصول فلان رو دارین؟» arrive as three events;
+                        // answering each one interrupting the customer with no shared
+                        // context. The first turn to reach the AI holds the conversation
+                        // lease, absorbs newer sibling events from the ledger and
+                        // answers ONCE with the combined text. Comments stay instant.
+                        let absorbedMessages: AbsorbedInbound[] = []
+                        if (shouldBatchConsecutiveMessages(type, msg)) {
+                                try {
+                                        absorbedMessages = await absorbConsecutiveInboundMessages({
+                                                workspaceId: agent.workspaceId,
+                                                channelId,
+                                                conversationKey: msg.chatId,
+                                                conversationId: persistedInbound.conversationId,
+                                                currentEventId: eventLease.id,
+                                                persistInbound: async (absorbedText, absorbedEventId, absorbedKind) => {
+                                                        const persisted = await persistInboundOnly({
+                                                                workspaceId: agent.workspaceId,
+                                                                agentId: agent.id,
+                                                                contactId,
+                                                                externalId: msg.chatId,
+                                                                text: absorbedText,
+                                                                channel: type,
+                                                                metadata: {
+                                                                        ...inboundMetadata,
+                                                                        batchedKind: absorbedKind ?? 'DM',
+                                                                },
+                                                        })
+                                                        return persisted.messageId
+                                                },
+                                        })
+                                } catch (e) {
+                                        // Batching is a UX nicety; never let it break the turn.
+                                        console.error(`[handler] ${type} inbound batching failed:`, e)
+                                }
+                                if (absorbedMessages.length > 0) {
+                                        text = combineTurnText(text, absorbedMessages)
+                                }
+                        }
+
+                        // ─── Greeting fast-path (zero AI cost) ─────────────────────
+                        // A greeting-only turn («سلام», «hello») is answered locally:
+                        // no RAG, no model round-trip, no reserved AI credit. Runs
+                        // AFTER batching so «سلام» + «خوبین» still merge into one
+                        // free welcome instead of two AI turns.
+                        if (isGreetingOnlyMessage(text)) {
+                                const greeting = greetingReplyText(text)
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        greeting,
+                                        eventLease.id,
+                                )
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, greeting, {
+                                        quickReplies: settings.quickReplies,
+                                })
+                                outcome = 'GREETING_REPLIED'
+                                return
+                        }
+
                         // generateReply stores the inbound message in the conversation AND
                         // generates the reply. We ALWAYS call it so the inbound is persisted —
                         // even if the outbound reply will fail (e.g. IG-user token can't send
                         // DMs, or the message came from the request folder and hasn't been
                         // accepted yet). A failed send is captured below; the stored inbound
                         // remains visible to the operator in the conversations inbox.
-                        let stopTyping: (() => void) | undefined
                         let textStream: ReturnType<NonNullable<typeof deliveryAdapter.startTextStream>> | undefined
                         let result: Awaited<ReturnType<typeof generateReply>>
                         try {
@@ -1342,6 +1434,16 @@ async function processChannelInbound(
                         )
                         })
                 } catch (e) {
+                        // An event absorbed into a concurrent turn dies with LeaseLost BY
+                        // DESIGN — that is the merge path succeeding, not a failure. Skip
+                        // silently: no error capture, no BullMQ retry (a retry would just
+                        // re-claim into the COMPLETED ledger row anyway).
+                        if (e instanceof InboundEventLeaseLostError
+                                || (e instanceof Error && e.name === 'InboundEventLeaseLostError')) {
+                                const mergedAway = await isInboundEventMergedIntoAnotherTurn(eventLease.id)
+                                    .catch(() => false)
+                                if (mergedAway) continue
+                        }
                         await failInboundEvent(eventLease, e).catch(() => {})
                         captureError(`webhook:${type}`, e, {
                                 workspaceId: agent.workspaceId,
