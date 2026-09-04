@@ -28,11 +28,16 @@ export default auth((req) => {
     // Never rewrite API, build assets or auth-protected dashboard paths —
     // those must keep flowing through their own matcher rules/auth checks.
     // A 308 redirect strips the prefix and re-enters middleware normally.
+    // Blog and status pages are fa-only ISR pages (Persian content; a shared
+    // rewrite would let /en/* serve the cached fa HTML at an English URL), so
+    // they redirect too instead of pretending to be bilingual.
     const isPassthrough =
       rest.startsWith('/api/') ||
       rest.startsWith('/_next/') ||
       rest === '/api' ||
       rest === '/_next' ||
+      rest.startsWith('/blog') ||
+      rest === '/status' ||
       PROTECTED_PREFIXES.some((p) => rest === p || rest.startsWith(`${p}/`))
     if (isPassthrough) {
       const url = req.nextUrl.clone()
