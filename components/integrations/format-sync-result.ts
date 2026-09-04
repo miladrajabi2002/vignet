@@ -30,6 +30,10 @@ export function formatWooSyncResult(
   const errorCount =
     (result.products?.errors?.length ?? 0) +
     (result.orders?.errors?.length ?? 0)
+  const errorText = [
+    ...(result.products?.errors ?? []),
+    ...(result.orders?.errors ?? []),
+  ].map(String).join('\n')
   const skipped =
     result.products?.skipped === true ||
     result.orders?.skipped === true
@@ -42,6 +46,13 @@ export function formatWooSyncResult(
     return {
       type: 'ok',
       msg: 'همگام‌سازی خودکار فعال است؛ تغییرات افزونه لحظه‌ای دریافت می‌شود.',
+    }
+  }
+
+  if (/(?:PRODUCT|ORDER|CUSTOMER)_LIMIT(?::\d+)?/.test(errorText)) {
+    return {
+      type: 'err',
+      msg: 'اتصال افزونه برقرار است، اما ظرفیت پلن تکمیل شده؛ برای ادامه همگام‌سازی پلن را ارتقا دهید.',
     }
   }
 

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import type { ChannelType } from '@prisma/client'
 import {
         Globe,
@@ -18,6 +18,9 @@ import {
         type StoreIntegrationItem,
 } from '@/components/integrations/store-integrations-section'
 import { PageHeader } from '@/components/dashboard/page-header'
+import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
+import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan, type LimitedPlanResource } from '@/lib/billing/plans'
 
 const CHANNELS: {
         type: ChannelType
@@ -35,6 +38,7 @@ const CHANNELS: {
 export default async function IntegrationsPage() {
         const user = await requireUser()
         const t = await getTranslations('integrations')
+        const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 
         const [groups, primaryAgent] = await Promise.all([
                 prisma.agentChannel.groupBy({
@@ -79,6 +83,37 @@ export default async function IntegrationsPage() {
                 },
         })
 
+        const [productCapacity, orderCapacity, customerCapacity, planDefs] = await Promise.all([
+                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
+                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'orders'),
+                checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers'),
+                getEffectivePlanDefs(),
+        ])
+        const capacities = [
+                ['products', productCapacity],
+                ['orders', orderCapacity],
+                ['customers', customerCapacity],
+        ] as const
+        const planLimits: PlanLimitInfo[] = capacities.flatMap(([resource, capacity]) => {
+                if (capacity.allowed) return []
+                const recommendedPlan = recommendedUpgradePlan(
+                        planDefs,
+                        capacity.plan,
+                        resource as LimitedPlanResource,
+                        capacity.used,
+                )
+                return [{
+                        resource,
+                        plan: capacity.plan,
+                        used: capacity.used,
+                        limit: capacity.limit,
+                        recommendedPlan,
+                        recommendedLimit: recommendedPlan
+                                ? planResourceLimit(planDefs[recommendedPlan], resource)
+                                : null,
+                }]
+        })
+
         // Strip encrypted credential ciphertext — only non-sensitive fields are visible.
         const storeIntegrations: StoreIntegrationItem[] = storeIntegrationsRaw.map(
                 (row) => {
@@ -119,7 +154,11 @@ export default async function IntegrationsPage() {
                                 subtitle={t('subtitle')}
                         />
 
-                        <StoreIntegrationsSection integrations={storeIntegrations} />
+                        <StoreIntegrationsSection
+                                integrations={storeIntegrations}
+                                planLimits={planLimits}
+                                locale={locale}
+                        />
 
                         <div className="flex items-center justify-between pt-2">
                                 <h2 className="text-sm font-medium text-[var(--text-secondary)]">

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
+import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 
 /**
  * Integrations page — "WordPress/WooCommerce" section.
@@ -51,8 +52,12 @@ export interface StoreIntegrationItem {
 
 export function StoreIntegrationsSection({
     integrations: initial,
+    planLimits = [],
+    locale = 'fa',
 }: {
     integrations: StoreIntegrationItem[]
+    planLimits?: PlanLimitInfo[]
+    locale?: 'fa' | 'en'
 }) {
     const router = useRouter()
     const [integrations, setIntegrations] = useState(initial)
@@ -184,6 +189,16 @@ export function StoreIntegrationsSection({
                 </div>
             )}
 
+            {planLimits.map((limit) => (
+                <PlanLimitNotice
+                    key={limit.resource}
+                    limit={limit}
+                    locale={locale}
+                    syncContext
+                    compact
+                />
+            ))}
+
             {/* Form */}
             {showForm && (
                 <AddSiteForm
@@ -222,6 +237,7 @@ export function StoreIntegrationsSection({
                     onSync={() => syncNow(integration)}
                     onToggle={() => toggleActive(integration)}
                     onDelete={() => remove(integration)}
+                    planLimits={planLimits}
                 />
             ))}
 
@@ -303,6 +319,7 @@ function IntegrationCard({
     onSync,
     onToggle,
     onDelete,
+    planLimits,
 }: {
     integration: StoreIntegrationItem
     syncing: boolean
@@ -310,10 +327,16 @@ function IntegrationCard({
     onSync: () => void
     onToggle: () => void
     onDelete: () => void
+    planLimits: PlanLimitInfo[]
 }) {
-    const isPluginConfigured = isIntegrationConnected(integration)
+    const limitFromError = planLimitFromError(integration.lastSyncError, planLimits)
+    const hasPlanLimitError = isResourceLimitError(integration.lastSyncError)
+    const isPluginConfigured = isIntegrationConnected(integration) || hasPlanLimitError
+    const syncPausedByPlan = limitFromError !== null
     const statusLabel = !integration.active
         ? 'غیرفعال'
+        : syncPausedByPlan
+            ? 'متصل · محدودیت پلن'
         : isPluginConfigured
             ? 'متصل'
             : 'در انتظار اتصال افزونه'
@@ -325,7 +348,7 @@ function IntegrationCard({
                 <div className="flex min-w-0 items-start gap-3">
                     <span className={cn(
                         'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
+                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
                     )}>
                         {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
@@ -338,6 +361,8 @@ function IntegrationCard({
                                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
                                 !integration.active
                                     ? 'bg-gray-100 text-gray-600'
+                                    : syncPausedByPlan
+                                        ? 'bg-amber-100 text-amber-800'
                                     : isPluginConfigured
                                         ? 'bg-green-50 text-green-700'
                                         : 'bg-yellow-50 text-yellow-700',
@@ -438,7 +463,7 @@ function IntegrationCard({
             )}
 
             {/* Error */}
-            {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
+            {integration.lastSyncStatus === 'error' && integration.lastSyncError && !hasPlanLimitError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs leading-relaxed text-red-700">
                     <strong>خطا:</strong> {integration.lastSyncError}
                 </div>
@@ -464,4 +489,20 @@ function isIntegrationConnected(integration: StoreIntegrationItem): boolean {
         integration.lastWebhookAt ||
         integration.lastSyncAt,
     )
+}
+
+function isResourceLimitError(error: string | null): boolean {
+    return Boolean(error && /(?:PRODUCT|ORDER|CUSTOMER)_LIMIT(?::\d+)?/.test(error))
+}
+
+function planLimitFromError(error: string | null, limits: PlanLimitInfo[]): PlanLimitInfo | null {
+    if (!error) return null
+    const resource = error.includes('PRODUCT_LIMIT')
+        ? 'products'
+        : error.includes('ORDER_LIMIT')
+            ? 'orders'
+            : error.includes('CUSTOMER_LIMIT')
+                ? 'customers'
+                : null
+    return resource ? limits.find((limit) => limit.resource === resource) ?? null : null
 }

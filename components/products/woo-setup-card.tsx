@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatLocalizedDateTime } from '@/lib/localized-date'
 import { formatWooSyncResult } from '@/components/integrations/format-sync-result'
+import type { PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 
 /**
  * Vigent connection card — uses the same `spatial-surface` design language
@@ -60,8 +61,10 @@ export interface WooIntegrationState {
 
 export function WooSetupCard({
     integration: initial,
+    productLimit = null,
 }: {
     integration: WooIntegrationState | null
+    productLimit?: PlanLimitInfo | null
 }) {
     const router = useRouter()
     const [integration, setIntegration] = useState(initial)
@@ -251,9 +254,16 @@ export function WooSetupCard({
     }
 
     // ── Connected ────────────────────────────────────────────────────────
-    const isPluginConfigured = isWooConnected(integration)
+    const hasPlanLimitError = isResourceLimitError(integration.lastSyncError)
+    // A limit error can only be recorded after an authenticated webhook was
+    // received. Treat it as proof of connection instead of telling the user
+    // to reinstall an already working plugin.
+    const isPluginConfigured = isWooConnected(integration) || hasPlanLimitError
+    const syncPausedByPlan = hasPlanLimitError && productLimit !== null
     const statusLabel = !integration.active
         ? 'غیرفعال'
+        : syncPausedByPlan
+            ? 'متصل · محدودیت پلن'
         : isPluginConfigured
             ? 'متصل'
             : 'در انتظار اتصال افزونه'
@@ -265,7 +275,7 @@ export function WooSetupCard({
                 <div className="flex min-w-0 items-start gap-3">
                     <span className={cn(
                         'grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[var(--bg-base)] shadow-[var(--shadow-control)]',
-                        isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
+                        syncPausedByPlan ? 'bg-amber-500' : isPluginConfigured ? 'bg-green-600' : 'bg-[var(--text-primary)]',
                     )}>
                         {isPluginConfigured ? <CheckCircle2 className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
                     </span>
@@ -278,6 +288,8 @@ export function WooSetupCard({
                                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
                                 !integration.active
                                     ? 'bg-gray-100 text-gray-600'
+                                    : syncPausedByPlan
+                                        ? 'bg-amber-100 text-amber-800'
                                     : isPluginConfigured
                                         ? 'bg-green-50 text-green-700'
                                         : 'bg-yellow-50 text-yellow-700',
@@ -369,7 +381,7 @@ export function WooSetupCard({
             )}
 
             {/* Error */}
-            {integration.lastSyncStatus === 'error' && integration.lastSyncError && (
+            {integration.lastSyncStatus === 'error' && integration.lastSyncError && !hasPlanLimitError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs leading-relaxed text-red-700">
                     <strong>خطای هم‌گام‌سازی:</strong> {integration.lastSyncError}
                 </div>
@@ -392,4 +404,8 @@ function isWooConnected(integration: WooIntegrationState): boolean {
         integration.lastWebhookAt ||
         integration.lastSyncAt,
     )
+}
+
+function isResourceLimitError(error: string | null): boolean {
+    return Boolean(error && /(?:PRODUCT|ORDER|CUSTOMER)_LIMIT(?::\d+)?/.test(error))
 }
