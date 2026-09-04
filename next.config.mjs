@@ -5,80 +5,116 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-	// Appended to asset URLs so proxies and long-lived browser tabs never mix
-	// files from two production releases. deploy/deploy.sh supplies the commit.
-	deploymentId: process.env.VIGENT_DEPLOYMENT_ID,
-	poweredByHeader: false,
-	async redirects() {
-		return [
-			{
-				source: '/signup',
-				destination: '/login',
-				permanent: true,
-			},
-			{
-				source: '/blog/sakht-chatbot-telegram',
-				destination: '/blog/telegram-chatbot-for-business-in-10-minutes',
-				permanent: true,
-			},
-			{
-				source: '/blog/automation-pashtibani-moshtari',
-				destination: '/blog/reduce-customer-support-cost-with-ai-chatbot',
-				permanent: true,
-			},
-			{
-				source: '/blog/ai-agent-chist',
-				destination: '/blog/ai-agent-chist-va-taghir-kasb-o-kar-irani',
-				permanent: true,
-			},
-			{
-				source: '/blog/automation-forosh',
-				destination: '/blog/woocommerce-ai-sales-automation',
-				permanent: true,
-			},
-		]
-	},
-	async headers() {
-		return [
-			{
-				source: '/:path*',
-				headers: [
-					{ key: 'X-Content-Type-Options', value: 'nosniff' },
-					{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-				],
-			},
-			// Embeddable widget loader: the file rarely changes, but customer sites
-			// re-download it on every page view without a cache policy. Widget
-			// *settings* are fetched live from /api/widget/<id> (no-store below), so
-			// dashboard theme changes stay instant for every visitor.
-			{
-				source: '/widget/loader.js',
-				headers: [
-					{ key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=604800' },
-				],
-			},
-			// Font files: content only changes alongside a CSS/code release.
-			{
-				source: '/fonts/:path*',
-				headers: [
-					{ key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
-				],
-			},
-			// Brand SVGs and static logos.
-			{
-				source: '/brands/:path*',
-				headers: [
-					{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
-				],
-			},
-			{
-				source: '/logo-:file',
-				headers: [
-					{ key: 'Cache-Control', value: 'public, max-age=86400' },
-				],
-			},
-		]
-	},
+        // Appended to asset URLs so proxies and long-lived browser tabs never mix
+        // files from two production releases. deploy/deploy.sh supplies the commit.
+        deploymentId: process.env.VIGENT_DEPLOYMENT_ID,
+        poweredByHeader: false,
+        async redirects() {
+                return [
+                        {
+                                source: '/signup',
+                                destination: '/login',
+                                permanent: true,
+                        },
+                        {
+                                source: '/blog/sakht-chatbot-telegram',
+                                destination: '/blog/telegram-chatbot-for-business-in-10-minutes',
+                                permanent: true,
+                        },
+                        {
+                                source: '/blog/automation-pashtibani-moshtari',
+                                destination: '/blog/reduce-customer-support-cost-with-ai-chatbot',
+                                permanent: true,
+                        },
+                        {
+                                source: '/blog/ai-agent-chist',
+                                destination: '/blog/ai-agent-chist-va-taghir-kasb-o-kar-irani',
+                                permanent: true,
+                        },
+                        {
+                                source: '/blog/automation-forosh',
+                                destination: '/blog/woocommerce-ai-sales-automation',
+                                permanent: true,
+                        },
+                ]
+        },
+        async headers() {
+                // Baseline browser hardening for every response. Kept pragmatic:
+                // - script-src 'unsafe-inline' is unavoidable without nonce-based
+                //   CSP (Next.js inlines its bootstrap + our JSON-LD blocks);
+                //   a nonce upgrade is a separate, larger change.
+                // - 'wasm-unsafe-eval' keeps onnxruntime-web (voice activity
+                //   detection) working in Chromium under CSP.
+                // - img-src https: stays open because product images, avatars and
+                //   blog covers legitimately come from Instagram/Supabase CDNs.
+                // - frame-ancestors 'none' / X-Frame-Options DENY: nothing frames
+                //   this app (the web widget runs inside customer pages via a
+                //   loader script + CORS fetch, never an iframe back to us).
+                const securityHeaders = [
+                        { key: 'X-Content-Type-Options', value: 'nosniff' },
+                        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                        { key: 'X-Frame-Options', value: 'DENY' },
+                        { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()' },
+                        // All subdomains are HTTPS-only today; preload submission
+                        // is deliberately left for later (removal is slow).
+                        { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+                ]
+                if (process.env.NODE_ENV === 'production') {
+                        securityHeaders.push({
+                                key: 'Content-Security-Policy',
+                                value: [
+                                        "default-src 'self'",
+                                        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+                                        "style-src 'self' 'unsafe-inline'",
+                                        "img-src 'self' data: blob: https:",
+                                        "font-src 'self' data:",
+                                        "connect-src 'self'",
+                                        "media-src 'self' blob:",
+                                        "worker-src 'self' blob:",
+                                        "object-src 'none'",
+                                        "base-uri 'self'",
+                                        "form-action 'self'",
+                                        "frame-ancestors 'none'",
+                                ].join('; '),
+                        })
+                }
+                return [
+                        {
+                                source: '/:path*',
+                                headers: securityHeaders,
+                        },
+                        // Embeddable widget loader: the file rarely changes, but customer sites
+                        // re-download it on every page view without a cache policy. Widget
+                        // *settings* are fetched live from /api/widget/<id> (no-store below), so
+                        // dashboard theme changes stay instant for every visitor.
+                        {
+                                source: '/widget/loader.js',
+                                headers: [
+                                        { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=604800' },
+                                ],
+                        },
+                        // Font files: content only changes alongside a CSS/code release.
+                        {
+                                source: '/fonts/:path*',
+                                headers: [
+                                        { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+                                ],
+                        },
+                        // Brand SVGs and static logos.
+                        {
+                                source: '/brands/:path*',
+                                headers: [
+                                        { key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
+                                ],
+                        },
+                        {
+                                source: '/logo-:file',
+                                headers: [
+                                        { key: 'Cache-Control', value: 'public, max-age=86400' },
+                                ],
+                        },
+                ]
+        },
   // Keep production builds reliable on the small-memory hosts used for
   // deployment. This only limits build-time workers; runtime concurrency is
   // unaffected.
