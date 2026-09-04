@@ -1015,6 +1015,14 @@ async function executeAction(
   // ─── AI reply (route through the agent's AI engine) ───
   if (action.replyMode === 'AI' || action.aiAgentEnabled) {
     let stopTyping: (() => void) | undefined
+    // Start typing BEFORE the engine call so the indicator also covers the
+    // retrieval/turn-preparation phase, not just the model round-trip.
+    // onGenerationStart below is a no-op via the ??= guard.
+    if (adapter.sendTyping) {
+      stopTyping = startChannelTyping(adapter, msg.chatId, (error) =>
+        console.error('[instagram] automation typing failed:', error),
+      )
+    }
     let result: Awaited<ReturnType<typeof generateReply>>
     try {
       result = await generateReply(
