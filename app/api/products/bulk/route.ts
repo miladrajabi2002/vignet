@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
+import { cleanupProductMarkersFromMessages } from '@/lib/products/marker-cleanup'
+import { cleanupProductIdsFromAutomations } from '@/lib/instagram/automation-cleanup'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +72,22 @@ export async function DELETE() {
       where: { id: { in: batch } },
     })
     deleted += result.count
+  }
+
+  // ── Clean up [[product:{…}]] markers from existing messages ──
+  // See single-product DELETE for the rationale. Here we batch-strip
+  // markers for every deleted product in one pass.
+  try {
+    await cleanupProductMarkersFromMessages(user.workspaceId, productIds)
+  } catch (e) {
+    console.error('[products:bulk-delete] marker cleanup failed:', e)
+  }
+
+  // ── Clean up productIds from Instagram automation scenarios ──
+  try {
+    await cleanupProductIdsFromAutomations(user.workspaceId, new Set(productIds))
+  } catch (e) {
+    console.error('[products:bulk-delete] automation cleanup failed:', e)
   }
 
   // Fire a single embed-deletion job covering all agents + all deleted

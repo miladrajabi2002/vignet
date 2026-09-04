@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   checkWorkspaceActive: vi.fn(),
+  checkWorkspaceResourceCreateAllowed: vi.fn(),
+  assertWorkspaceResourceCapacity: vi.fn(),
+  transaction: vi.fn(),
   contactFindFirst: vi.fn(),
   contactCreate: vi.fn(),
   contactFindMany: vi.fn(),
@@ -11,9 +14,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/session', () => ({ getCurrentUser: mocks.getCurrentUser }))
 vi.mock('@/lib/billing/entitlements', () => ({
   checkWorkspaceActive: mocks.checkWorkspaceActive,
+  checkWorkspaceResourceCreateAllowed: mocks.checkWorkspaceResourceCreateAllowed,
+  assertWorkspaceResourceCapacity: mocks.assertWorkspaceResourceCapacity,
+  WorkspaceResourceLimitError: class WorkspaceResourceLimitError extends Error {},
 }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
+    $transaction: mocks.transaction,
     contact: {
       findFirst: mocks.contactFindFirst,
       create: mocks.contactCreate,
@@ -30,8 +37,18 @@ describe('POST /api/contacts', () => {
     vi.clearAllMocks()
     mocks.getCurrentUser.mockResolvedValue({ workspaceId: 'workspace-1' })
     mocks.checkWorkspaceActive.mockResolvedValue({ allowed: true })
+    mocks.checkWorkspaceResourceCreateAllowed.mockResolvedValue({
+      allowed: true,
+      plan: 'TRIAL',
+      limit: 100,
+      used: 1,
+    })
+    mocks.assertWorkspaceResourceCapacity.mockResolvedValue(undefined)
     mocks.contactFindFirst.mockResolvedValue(null)
     mocks.contactCreate.mockResolvedValue({ id: 'contact-new' })
+    mocks.transaction.mockImplementation((callback) => callback({
+      contact: { create: mocks.contactCreate },
+    }))
   })
 
   it('requires an authenticated active workspace', async () => {
@@ -111,6 +128,33 @@ describe('POST /api/contacts', () => {
     )
     expect(malformed.status).toBe(400)
     expect(await malformed.json()).toEqual({ error: 'INVALID_PHONE' })
+  })
+
+  it('returns actionable plan details when customer capacity is full', async () => {
+    mocks.checkWorkspaceResourceCreateAllowed.mockResolvedValue({
+      allowed: false,
+      reason: 'CUSTOMER_LIMIT',
+      plan: 'STARTER',
+      limit: 2_000,
+      used: 2_000,
+    })
+
+    const response = await POST(
+      new Request('http://localhost/api/contacts', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Sara' }),
+      }),
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'CUSTOMER_LIMIT',
+      plan: 'STARTER',
+      limit: 2_000,
+      used: 2_000,
+      upgradeUrl: '/billing#vigent-plans',
+    })
+    expect(mocks.transaction).not.toHaveBeenCalled()
   })
 })
 

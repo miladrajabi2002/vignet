@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
-import { Plus, Package, FolderTree } from 'lucide-react'
+import { ArrowUpLeft, Plus, Package, FolderTree } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { requireUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -15,6 +15,9 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import { WooSetupCard, type WooIntegrationState } from '@/components/products/woo-setup-card'
 import { CommerceTabs } from '@/components/products/commerce-tabs'
 import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
+import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
+import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 
 const PAGE_SIZE = 20
 
@@ -70,7 +73,7 @@ export default async function ProductsPage(
   //    The recent-events panel was noisy and duplicated what the WooSetupCard
   //    already shows. Removing it keeps the products page focused on the
   //    catalog itself.
-  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw] = await Promise.all([
+  const [products, categories, totalProducts, topProductsByQuery, productTrend7, wooIntegrationRaw, productCapacity, planDefs] = await Promise.all([
     prisma.product.findMany({
       where: productWhere,
       orderBy,
@@ -111,7 +114,24 @@ export default async function ProductsPage(
         _count: { select: { orders: true, syncLogs: true } },
       },
     }),
+    checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products'),
+    getEffectivePlanDefs(),
   ])
+
+  const recommendedPlan = recommendedUpgradePlan(
+    planDefs,
+    productCapacity.plan,
+    'products',
+    productCapacity.used,
+  )
+  const productLimit: PlanLimitInfo = {
+    resource: 'products',
+    plan: productCapacity.plan,
+    used: productCapacity.used,
+    limit: productCapacity.limit,
+    recommendedPlan,
+    recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'products') : null,
+  }
 
   // Map the raw Prisma row to the client component's expected shape.
   let wooIntegration: WooIntegrationState | null = null
@@ -163,11 +183,11 @@ export default async function ProductsPage(
         actions={
           <>
             <Link
-              href="/products/new"
+              href={productCapacity.allowed ? '/products/new' : recommendedPlan ? `/billing?plan=${recommendedPlan}#plan-${recommendedPlan}` : '/billing#vigent-plans'}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 text-sm font-bold text-[var(--bg-base)] shadow-[var(--shadow-control)] transition-opacity hover:opacity-90"
             >
-              <Plus className="h-4 w-4" />
-              {t('new')}
+              {productCapacity.allowed ? <Plus className="h-4 w-4" /> : <ArrowUpLeft className="h-4 w-4" />}
+              {productCapacity.allowed ? t('new') : fa ? 'افزایش ظرفیت' : 'Increase capacity'}
             </Link>
             <Link
               href="/products/categories"
@@ -195,7 +215,14 @@ export default async function ProductsPage(
         ordersLabel={t('orders.title')}
       />
 
-      <WooSetupCard integration={wooIntegration} />
+      {!productCapacity.allowed && (
+        <PlanLimitNotice limit={productLimit} locale={fa ? 'fa' : 'en'} />
+      )}
+
+      <WooSetupCard
+        integration={wooIntegration}
+        productLimit={!productCapacity.allowed ? productLimit : null}
+      />
 
       {/* ─── 7-day trend chart + top products (hidden when filtering/searching) ─── */}
       {!q && !categoryId && !stock && (

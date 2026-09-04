@@ -15,6 +15,9 @@ import { dateLocaleTag } from '@/lib/localized-date'
 import { contactLiveVersion } from '@/lib/crm/live-version'
 import { contactPhoneLookupVariants } from '@/lib/phone'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
+import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
+import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 
 const PAGE_SIZE = 20
 const FILTER_STAGES = ['lead', 'qualified', 'customer', 'lost'] as const
@@ -91,7 +94,7 @@ export default async function ContactsPage(
       : {}),
   }
 
-  const [contacts, totalCount, matchedCount, stageGroups, contactTrend, latestContact] = await Promise.all([
+  const [contacts, totalCount, matchedCount, stageGroups, contactTrend, latestContact, customerCapacity, planDefs] = await Promise.all([
     prisma.contact.findMany({
       where,
       // Order by denormalized "last activity" first (bumped on every inbound/
@@ -140,7 +143,27 @@ export default async function ContactsPage(
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       select: { id: true, updatedAt: true },
     }),
+    checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers'),
+    getEffectivePlanDefs(),
   ])
+
+  const recommendedPlan = recommendedUpgradePlan(
+    planDefs,
+    customerCapacity.plan,
+    'customers',
+    customerCapacity.used,
+  )
+  const customerLimit: PlanLimitInfo = {
+    resource: 'customers',
+    plan: customerCapacity.plan,
+    used: customerCapacity.used,
+    limit: customerCapacity.limit,
+    recommendedPlan,
+    recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'customers') : null,
+  }
+  const upgradeHref = recommendedPlan
+    ? `/billing?plan=${recommendedPlan}#plan-${recommendedPlan}`
+    : '/billing#vigent-plans'
 
   const hasNext = contacts.length > PAGE_SIZE
   const pageContacts = hasNext ? contacts.slice(0, PAGE_SIZE) : contacts
@@ -247,6 +270,11 @@ export default async function ContactsPage(
         totalResults={matchedCount}
         detailContactId={detailContactId}
         detailReturnTo={detailReturnTo}
+        customerLimitReached={!customerCapacity.allowed}
+        upgradeHref={upgradeHref}
+        limitNotice={!customerCapacity.allowed
+          ? <PlanLimitNotice limit={customerLimit} locale={locale} />
+          : null}
         insights={
           <div className="grid gap-4 lg:grid-cols-2">
             <DashboardPanel

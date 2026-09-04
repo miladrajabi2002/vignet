@@ -1,9 +1,10 @@
 'use client'
 
 import { type FormEvent, useId, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, Loader2, UserPlus } from 'lucide-react'
+import { ArrowRight, ArrowUpLeft, Check, Loader2, UserPlus } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/ui/mobile-bottom-sheet'
 import { MaterialSelect } from '@/components/ui/material-select'
 import {
@@ -23,9 +24,18 @@ type CreateError =
   | 'INVALID_PHONE'
   | 'NAME_OR_PHONE_REQUIRED'
   | 'PLAN_BLOCKED'
+  | 'CUSTOMER_LIMIT'
   | 'UNKNOWN'
 
-export function ContactQuickAdd({ locale }: { locale: 'fa' | 'en' }) {
+export function ContactQuickAdd({
+  locale,
+  limitReached = false,
+  upgradeHref = '/billing#vigent-plans',
+}: {
+  locale: 'fa' | 'en'
+  limitReached?: boolean
+  upgradeHref?: string
+}) {
   const t = useTranslations('contacts')
   const router = useRouter()
   const formId = useId()
@@ -84,6 +94,7 @@ export function ContactQuickAdd({ locale }: { locale: 'fa' | 'en' }) {
           'INVALID_PHONE',
           'NAME_OR_PHONE_REQUIRED',
           'PLAN_BLOCKED',
+          'CUSTOMER_LIMIT',
         ]
         setError(
           knownErrors.includes(body?.error as CreateError)
@@ -108,6 +119,18 @@ export function ContactQuickAdd({ locale }: { locale: 'fa' | 'en' }) {
   const errorLabel = error
     ? t(`quickAdd.errors.${error}`)
     : null
+
+  if (limitReached) {
+    return (
+      <Link
+        href={upgradeHref}
+        className="spatial-press inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-3.5 text-xs font-bold text-white shadow-[var(--shadow-control)] sm:px-4 sm:text-sm"
+      >
+        <ArrowUpLeft className="h-4 w-4" aria-hidden="true" />
+        {t('quickAdd.increaseCapacity')}
+      </Link>
+    )
+  }
 
   return (
     <>
@@ -168,12 +191,21 @@ export function ContactQuickAdd({ locale }: { locale: 'fa' | 'en' }) {
       >
         <form id={formId} onSubmit={createContact} className="space-y-4">
           {errorLabel && (
-            <p
+            <div
               role="alert"
               className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-6 text-red-700"
             >
-              {errorLabel}
-            </p>
+              <p>{errorLabel}</p>
+              {(error === 'PLAN_BLOCKED' || error === 'CUSTOMER_LIMIT') && (
+                <Link
+                  href="/billing#vigent-plans"
+                  className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white"
+                >
+                  {t('quickAdd.upgradePlan')}
+                  <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">

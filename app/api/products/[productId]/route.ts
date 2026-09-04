@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { productUpdateSchema } from '@/lib/validations/product'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import { cleanupProductMarkersFromMessages } from '@/lib/products/marker-cleanup'
+import { cleanupProductIdsFromAutomations } from '@/lib/instagram/automation-cleanup'
 
 type Params = { params: Promise<{ productId: string }> }
 
@@ -73,6 +75,28 @@ export async function DELETE(_req: Request, props: Params) {
   const agentIds = links.map((l) => l.agentId)
 
   await prisma.product.delete({ where: { id: params.productId } })
+
+  // ── Clean up [[product:{…}]] markers from existing messages ──
+  // When a product is deleted, old assistant replies that recommended it
+  // still carry the marker. Without cleanup, the inbox/showcase renders a
+  // card for a product that no longer exists — confusing the operator and
+  // the customer. Strip those markers so old conversations stay clean.
+  try {
+    await cleanupProductMarkersFromMessages(user.workspaceId, [params.productId])
+  } catch (e) {
+    console.error('[products:delete] marker cleanup failed:', e)
+  }
+
+  // ── Clean up productIds from Instagram automation scenarios ──
+  // PRODUCT_LIST automations store product IDs in their action JSON. When
+  // a product is deleted, those IDs become stale — the automation's
+  // showcase would show a missing/empty card slot. Strip the deleted ID
+  // from every automation in this workspace.
+  try {
+    await cleanupProductIdsFromAutomations(user.workspaceId, new Set([params.productId]))
+  } catch (e) {
+    console.error('[products:delete] automation cleanup failed:', e)
+  }
 
   const remainingProducts = await prisma.product.count({ where: { workspaceId: user.workspaceId } })
   if (remainingProducts === 0) {

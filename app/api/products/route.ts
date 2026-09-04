@@ -74,8 +74,17 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
-  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
-    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  const access = await checkWorkspaceActive(user.workspaceId)
+  if (!access.allowed) {
+    const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products')
+    return NextResponse.json({
+      error: 'PLAN_BLOCKED',
+      reason: access.reason,
+      plan: capacity.plan,
+      limit: capacity.limit,
+      used: capacity.used,
+      upgradeUrl: '/billing#vigent-plans',
+    }, { status: 402 })
   }
 
   const json = await req.json().catch(() => null)
@@ -91,7 +100,13 @@ export async function POST(req: Request) {
   const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'products')
   if (!capacity.allowed) {
     return NextResponse.json(
-      { error: capacity.reason, limit: capacity.limit, used: capacity.used },
+      {
+        error: capacity.reason,
+        plan: capacity.plan,
+        limit: capacity.limit,
+        used: capacity.used,
+        upgradeUrl: '/billing#vigent-plans',
+      },
       { status: 409 },
     )
   }
@@ -122,7 +137,13 @@ export async function POST(req: Request) {
 
   if (!product) {
     return NextResponse.json(
-      { error: 'PRODUCT_LIMIT', limit: capacity.limit, used: capacity.limit },
+      {
+        error: 'PRODUCT_LIMIT',
+        plan: capacity.plan,
+        limit: capacity.limit,
+        used: capacity.limit,
+        upgradeUrl: '/billing#vigent-plans',
+      },
       { status: 409 },
     )
   }

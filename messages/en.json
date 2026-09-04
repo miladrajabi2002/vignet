@@ -737,8 +737,11 @@
         "INVALID_PHONE": "Enter a valid phone number.",
         "NAME_OR_PHONE_REQUIRED": "Enter at least a name or phone number.",
         "PLAN_BLOCKED": "Activate your plan before adding a customer.",
+        "CUSTOMER_LIMIT": "Your current plan's customer allowance is full. Increase capacity to add another customer.",
         "UNKNOWN": "The customer could not be added. Please try again."
-      }
+      },
+      "increaseCapacity": "Increase customer capacity",
+      "upgradePlan": "Upgrade and pay"
     },
     "detail": {
       "name": "Name",
@@ -1007,6 +1010,8 @@
       "imageHelp": "Up to 10 JPG, PNG, WebP or AVIF images; 5 MB per file.",
       "imageUploadFailed": "The image could not be uploaded. Check its format and size.",
       "productLimitReached": "Your current plan's {limit}-product limit is full. Delete a product or upgrade before adding another.",
+      "planBlocked": "Your plan is not active. Activate or renew a plan before saving this product.",
+      "upgradePlan": "Upgrade and pay",
       "saveFailed": "The product could not be saved. Check the fields and try again.",
       "attributes": "Attributes",
       "attrKey": "Attribute",
@@ -1679,6 +1684,7 @@
       "noKeyword": "No keyword — applies to all messages",
       "messagesCount": "({count} messages)",
       "dmToCommenter": "DM to commenter",
+      "commentAck": "Comment reply",
       "followGate": "Follow gate",
       "followUp": "Follow-up",
       "storyScopeAll": "All stories",

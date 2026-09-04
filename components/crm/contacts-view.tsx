@@ -96,6 +96,9 @@ export function ContactsView({
         detailContactId,
         detailReturnTo,
         insights,
+        limitNotice,
+        customerLimitReached = false,
+        upgradeHref,
         footer,
 }: {
         initial: ContactRow[]
@@ -111,6 +114,9 @@ export function ContactsView({
         detailContactId?: string
         detailReturnTo: string
         insights?: React.ReactNode
+        limitNotice?: React.ReactNode
+        customerLimitReached?: boolean
+        upgradeHref?: string
         footer?: React.ReactNode
 }) {
         const t = useTranslations('contacts')
@@ -294,7 +300,11 @@ export function ContactsView({
                                 subtitle={t('subtitle')}
                                 actions={
                                         <>
-                                                <ContactQuickAdd locale={locale} />
+                                                <ContactQuickAdd
+                                                        locale={locale}
+                                                        limitReached={customerLimitReached}
+                                                        upgradeHref={upgradeHref}
+                                                />
                                                 <a
                                                         href={exportHref}
                                                         download
@@ -341,6 +351,8 @@ export function ContactsView({
                                         </>
                                 }
                         />
+
+                        {limitNotice}
 
                         {insights}
 

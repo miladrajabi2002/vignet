@@ -7,7 +7,8 @@ import { PlanCheckout } from '@/components/dashboard/plan-checkout'
 import { CreditTopup } from '@/components/dashboard/credit-topup'
 import { ReplyCreditEstimator } from '@/components/dashboard/reply-credit-estimator'
 import { formatDateTime } from '@/lib/format'
-import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, PAID_PLANS } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, getEffectivePlanReplyPricesIRR, isPaidPlan, PAID_PLANS } from '@/lib/billing/plans'
+import { cn } from '@/lib/utils'
 import { getMonthlyMessageCount } from '@/lib/billing/entitlements'
 import { PageHeader } from '@/components/dashboard/page-header'
 
@@ -69,6 +70,9 @@ export default async function BillingPage(
     workspace.trialEndsAt < new Date()
 
   const paymentStatus = searchParams?.payment
+  const requestedPlan = searchParams?.plan && isPaidPlan(searchParams.plan)
+    ? searchParams.plan
+    : null
   const checkoutLabels = {
     rial: t('payRial'),
     crypto: t('payCrypto'),
@@ -208,6 +212,7 @@ export default async function BillingPage(
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {PAID_PLANS.map((p) => {
             const def = defs[p]
+            const isRecommended = requestedPlan === p
             const isCurrent =
               plan === p &&
               subscription?.status === 'ACTIVE' &&
@@ -215,12 +220,21 @@ export default async function BillingPage(
             return (
               <section
                 key={p}
-                className="spatial-surface relative flex flex-col rounded-[1.5rem] p-5"
+                id={`plan-${p}`}
+                className={cn(
+                  'spatial-surface relative flex scroll-mt-24 flex-col rounded-[1.5rem] p-5',
+                  isRecommended && 'border-amber-400 ring-2 ring-amber-300/60',
+                )}
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-[var(--text-primary)]">
                     {t(PLAN_KEY[p])}
                   </h3>
+                  {isRecommended && (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-900">
+                      {locale === 'fa' ? 'پیشنهاد متناسب با ظرفیت شما' : 'Recommended for your capacity'}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-3">
                   <span className="text-2xl font-bold text-[var(--text-primary)]">

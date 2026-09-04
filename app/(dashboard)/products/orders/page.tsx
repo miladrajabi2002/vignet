@@ -13,6 +13,9 @@ import { BulkDeleteButton } from '@/components/ui/bulk-delete-button'
 import { OrdersSearchForm } from '@/components/products/orders-search-form'
 import { CopyButton } from '@/components/ui/copy-button'
 import { MobileOrderCard } from '@/components/products/mobile-order-card'
+import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
+import { checkWorkspaceResourceCreateAllowed } from '@/lib/billing/entitlements'
+import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 
 const PAGE_SIZE = 20
 const ORDER_STATUSES = [
@@ -68,7 +71,7 @@ export default async function OrdersPage({
       : {}),
   }
 
-  const [orders, totalOrders] = await Promise.all([
+  const [orders, totalOrders, orderCapacity, planDefs] = await Promise.all([
     prisma.storeOrder.findMany({
       where,
       orderBy: [{ orderDate: 'desc' }, { createdAt: 'desc' }],
@@ -81,7 +84,24 @@ export default async function OrdersPage({
       },
     }),
     prisma.storeOrder.count({ where }),
+    checkWorkspaceResourceCreateAllowed(user.workspaceId, 'orders'),
+    getEffectivePlanDefs(),
   ])
+
+  const recommendedPlan = recommendedUpgradePlan(
+    planDefs,
+    orderCapacity.plan,
+    'orders',
+    orderCapacity.used,
+  )
+  const orderLimit: PlanLimitInfo = {
+    resource: 'orders',
+    plan: orderCapacity.plan,
+    used: orderCapacity.used,
+    limit: orderCapacity.limit,
+    recommendedPlan,
+    recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'orders') : null,
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalOrders / PAGE_SIZE))
   const hasFilters = Boolean(q || status)
@@ -144,6 +164,10 @@ export default async function OrdersPage({
         productsLabel={productsT('title')}
         ordersLabel={t('title')}
       />
+
+      {!orderCapacity.allowed && (
+        <PlanLimitNotice limit={orderLimit} locale={locale === 'en' ? 'en' : 'fa'} syncContext />
+      )}
 
       <OrdersSearchForm
         defaultQuery={q}

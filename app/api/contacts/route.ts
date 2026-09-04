@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { checkWorkspaceActive } from '@/lib/billing/entitlements'
+import {
+  assertWorkspaceResourceCapacity,
+  checkWorkspaceActive,
+  checkWorkspaceResourceCreateAllowed,
+  WorkspaceResourceLimitError,
+} from '@/lib/billing/entitlements'
 import { contactPhoneLookupVariants, normalizeContactPhone } from '@/lib/phone'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/session'
@@ -24,8 +29,17 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
-    return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  const access = await checkWorkspaceActive(user.workspaceId)
+  if (!access.allowed) {
+    const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers')
+    return NextResponse.json({
+      error: 'PLAN_BLOCKED',
+      reason: access.reason,
+      plan: capacity.plan,
+      limit: capacity.limit,
+      used: capacity.used,
+      upgradeUrl: '/billing#vigent-plans',
+    }, { status: 402 })
   }
 
   const json = await request.json().catch(() => null)
@@ -66,21 +80,48 @@ export async function POST(request: Request) {
     }
   }
 
+  const capacity = await checkWorkspaceResourceCreateAllowed(user.workspaceId, 'customers')
+  if (!capacity.allowed) {
+    return NextResponse.json({
+      error: capacity.reason,
+      plan: capacity.plan,
+      limit: capacity.limit,
+      used: capacity.used,
+      upgradeUrl: '/billing#vigent-plans',
+    }, { status: 409 })
+  }
+
   const uniqueTags = [...new Set(parsed.data.tags.map((tag) => tag.trim()))]
   const now = new Date()
-  const contact = await prisma.contact.create({
-    data: {
-      workspaceId: user.workspaceId,
-      name: parsed.data.name || null,
-      phone,
-      stage: parsed.data.stage,
-      tags: uniqueTags,
-      notes: parsed.data.notes || null,
-      marketingOptIn: parsed.data.marketingOptIn,
-      marketingOptInAt: parsed.data.marketingOptIn ? now : null,
-    },
-    select: { id: true },
+  const contact = await prisma.$transaction(async (tx) => {
+    await assertWorkspaceResourceCapacity(tx, user.workspaceId, 'customers', capacity.limit)
+    return tx.contact.create({
+      data: {
+        workspaceId: user.workspaceId,
+        name: parsed.data.name || null,
+        phone,
+        stage: parsed.data.stage,
+        tags: uniqueTags,
+        notes: parsed.data.notes || null,
+        marketingOptIn: parsed.data.marketingOptIn,
+        marketingOptInAt: parsed.data.marketingOptIn ? now : null,
+      },
+      select: { id: true },
+    })
+  }).catch((error: unknown) => {
+    if (error instanceof WorkspaceResourceLimitError) return null
+    throw error
   })
+
+  if (!contact) {
+    return NextResponse.json({
+      error: 'CUSTOMER_LIMIT',
+      plan: capacity.plan,
+      limit: capacity.limit,
+      used: capacity.limit,
+      upgradeUrl: '/billing#vigent-plans',
+    }, { status: 409 })
+  }
 
   return NextResponse.json({ contact }, { status: 201 })
 }

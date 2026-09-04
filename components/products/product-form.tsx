@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ImagePlus, Layers, Loader2, Plus, Star, X } from 'lucide-react'
+import { ArrowRight, ImagePlus, Layers, Loader2, Plus, Star, X } from 'lucide-react'
 import { MaterialSelect } from '@/components/ui/material-select'
 
 export interface CategoryOption {
@@ -95,6 +96,7 @@ export function ProductForm({
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [upgradeRequired, setUpgradeRequired] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const set = <K extends keyof ProductFormData>(k: K, v: ProductFormData[K]) =>
@@ -127,6 +129,7 @@ export function ProductForm({
   async function submit() {
     setSubmitting(true)
     setFormError(null)
+    setUpgradeRequired(false)
     // Build the attributes object. Manual attributes stay as flat string
     // values. If the form has any variations, we append them under the
     // `_variations` key so the storage shape matches what the WooCommerce
@@ -196,10 +199,14 @@ export function ProductForm({
       router.push(returnTo ?? '/products')
       router.refresh()
     } else {
-      const result = await res.json().catch(() => null) as { error?: string; limit?: number } | null
+      const result = await res.json().catch(() => null) as { error?: string; limit?: number; upgradeUrl?: string } | null
+      const isPlanLimit = result?.error === 'PRODUCT_LIMIT' || result?.error === 'PLAN_BLOCKED'
+      setUpgradeRequired(isPlanLimit)
       setFormError(
         result?.error === 'PRODUCT_LIMIT' && result.limit
           ? t('productLimitReached', { limit: result.limit })
+          : result?.error === 'PLAN_BLOCKED'
+            ? t('planBlocked')
           : t('saveFailed'),
       )
       setSubmitting(false)
@@ -449,9 +456,18 @@ export function ProductForm({
       </Field>
 
       {formError && (
-        <p role="alert" className="rounded-xl border border-danger/25 bg-danger/5 p-3 text-sm text-danger">
-          {formError}
-        </p>
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger/25 bg-danger/5 p-3 text-sm text-danger sm:flex-row sm:items-center">
+          <p className="min-w-0 flex-1 leading-6">{formError}</p>
+          {upgradeRequired && (
+            <Link
+              href="/billing#vigent-plans"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-4 text-xs font-bold text-white"
+            >
+              {t('upgradePlan')}
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
       )}
 
       <button

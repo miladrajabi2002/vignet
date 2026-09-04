@@ -103,6 +103,39 @@ export async function getEffectivePlanDefs(): Promise<Record<Plan, PlanDef>> {
 export const PAID_PLANS = ['STARTER', 'PRO', 'BUSINESS'] as const satisfies readonly Plan[]
 export type PaidPlan = (typeof PAID_PLANS)[number]
 
+export type LimitedPlanResource = 'products' | 'orders' | 'customers' | 'channels'
+
+const PLAN_RESOURCE_LIMIT_FIELD: Record<LimitedPlanResource, keyof Pick<PlanDef,
+  'maxProducts' | 'maxOrders' | 'maxCustomers' | 'maxChannels'
+>> = {
+  products: 'maxProducts',
+  orders: 'maxOrders',
+  customers: 'maxCustomers',
+  channels: 'maxChannels',
+}
+
+export function planResourceLimit(def: PlanDef, resource: LimitedPlanResource): number {
+  return def[PLAN_RESOURCE_LIMIT_FIELD[resource]]
+}
+
+/**
+ * Pick the smallest real upgrade that can hold the workspace's next item.
+ * Plans at or below the current tier are intentionally excluded, even when
+ * their runtime limits were customized to unusual values by an admin.
+ */
+export function recommendedUpgradePlan(
+  defs: Record<Plan, PlanDef>,
+  currentPlan: Plan,
+  resource: LimitedPlanResource,
+  used: number,
+): PaidPlan | null {
+  const currentIndex = currentPlan === 'TRIAL'
+    ? -1
+    : PAID_PLANS.indexOf(currentPlan as PaidPlan)
+  const field = PLAN_RESOURCE_LIMIT_FIELD[resource]
+  return PAID_PLANS.find((plan, index) => index > currentIndex && defs[plan][field] > used) ?? null
+}
+
 export function isPaidPlan(p: string): p is PaidPlan {
   return (PAID_PLANS as readonly string[]).includes(p)
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import {
   Store,
   ArrowRight,
@@ -21,9 +21,10 @@ import {
   normalizeSlug,
   chatLinkUrl,
 } from '@/lib/chat-link/config'
-import { getEffectivePlanDefs } from '@/lib/billing/plans'
+import { getEffectivePlanDefs, planResourceLimit, recommendedUpgradePlan } from '@/lib/billing/plans'
 import { getActiveChannelConnectionCount } from '@/lib/billing/entitlements'
 import { ChannelMobileSections, type ChannelMobileSection } from '@/components/channels/channel-mobile-sections'
+import { PlanLimitNotice, type PlanLimitInfo } from '@/components/billing/plan-limit-notice'
 
 export default async function AgentChannelsPage(
   props: {
@@ -35,6 +36,7 @@ export default async function AgentChannelsPage(
   const searchParams = await props.searchParams
   const user = await requireUser()
   const t = await getTranslations('channels')
+  const locale = (await getLocale()) === 'en' ? 'en' : 'fa'
 
   const [agent, workspace, planDefs, usedChannels] = await Promise.all([
     prisma.agent.findFirst({
@@ -61,8 +63,18 @@ export default async function AgentChannelsPage(
   ])
   if (!agent) notFound()
 
-  const maxChannels = planDefs[workspace?.plan ?? 'TRIAL'].maxChannels
+  const currentPlan = workspace?.plan ?? 'TRIAL'
+  const maxChannels = planDefs[currentPlan].maxChannels
   const channelUsagePercent = Math.min(100, Math.round((usedChannels / maxChannels) * 100))
+  const recommendedPlan = recommendedUpgradePlan(planDefs, currentPlan, 'channels', usedChannels)
+  const channelLimit: PlanLimitInfo = {
+    resource: 'channels',
+    plan: currentPlan,
+    used: usedChannels,
+    limit: maxChannels,
+    recommendedPlan,
+    recommendedLimit: recommendedPlan ? planResourceLimit(planDefs[recommendedPlan], 'channels') : null,
+  }
 
   const widget = agent.channels.find((c) => c.type === 'WEB_WIDGET')
 
@@ -208,6 +220,10 @@ export default async function AgentChannelsPage(
           />
         </div>
       </section>
+
+      {usedChannels >= maxChannels && (
+        <PlanLimitNotice limit={channelLimit} locale={locale} />
+      )}
 
       {/* ── Instagram OAuth status banners ──────────────────────────────── */}
       {igConnected && (
