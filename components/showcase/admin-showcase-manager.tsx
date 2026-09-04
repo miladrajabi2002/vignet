@@ -256,6 +256,8 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 							<span className={labelClass}>تصویر (لوگو یا اسکرین‌شات پیج)</span>
 							<div className="flex items-center gap-3">
 								{form.imageUrl ? (
+									// Admin-provided preview URLs can use arbitrary hosts.
+									// eslint-disable-next-line @next/next/no-img-element
 									<img
 										src={form.imageUrl}
 										alt=""
@@ -436,9 +438,11 @@ export function AdminShowcaseManager({ initialEntries }: { initialEntries: Showc
 									entry.active ? 'border-zinc-200 bg-white' : 'border-dashed border-zinc-200 bg-zinc-50 opacity-70',
 								)}
 							>
-								<GripVertical className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
-								{entry.imageUrl ? (
-									<img src={entry.imageUrl} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 object-cover" />
+									<GripVertical className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+									{entry.imageUrl ? (
+										// Admin-provided preview URLs can use arbitrary hosts.
+										// eslint-disable-next-line @next/next/no-img-element
+										<img src={entry.imageUrl} alt="" width={40} height={40} loading="lazy" className="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 object-cover" />
 								) : (
 									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-500">
 										{entry.name.trim().charAt(0)}

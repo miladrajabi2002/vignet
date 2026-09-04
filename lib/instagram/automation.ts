@@ -13,6 +13,7 @@ import {
         sendProductCard,
         sendRichEntry,
         sendButtonMessage,
+        pickTemplateImageUrl,
         type ProductShowcase,
         type ButtonAction,
 } from '@/lib/instagram/media'
@@ -179,13 +180,21 @@ function readTrigger(t: Prisma.JsonValue): AutomationTrigger {
 
 function readAction(a: Prisma.JsonValue): AutomationAction {
   const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>
-  return {
-    replyMode: isReplyMode(o.replyMode) ? o.replyMode : 'STATIC',
-    replyText: typeof o.replyText === 'string' ? o.replyText : '',
-    messages: Array.isArray(o.messages)
-      ? (o.messages
-          .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
-          .map((m) => {
+  // LEGACY FIX (v3.1): comment "ارسال در دایرکت" scenarios created by older
+  // builds stored replyMode 'SILENT' + dmOnComment true. The engine's SILENT
+  // branch returned before any DM was sent, so those funnels silently no-op'd
+  // (the "commented the keyword but never got the DM" bug). SILENT+
+  // dmOnComment is really a STATIC comment→DM sequence — normalize here so
+  // legacy rows and newly saved rows execute identically.
+  const dmOnComment = o.dmOnComment === true
+  const storedReplyMode = isReplyMode(o.replyMode) ? o.replyMode : 'STATIC'
+  const replyMode =
+    dmOnComment && storedReplyMode === 'SILENT' ? 'STATIC' : storedReplyMode
+  const contentText = typeof o.contentText === 'string' ? o.contentText : ''
+  const parsedMessages: AutomationAction['messages'] = Array.isArray(o.messages)
+    ? (o.messages
+        .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
+        .map((m) => {
             const type = (
               m.type === 'IMAGE' ||
               m.type === 'AUDIO' ||
@@ -240,7 +249,18 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
                     ? !!m.productIds?.length
                     : !!m.mediaUrl,
           ))
-      : [],
+      : []
+  // Legacy comment→DM rows stored the DM body in `contentText` (the old
+  // single-textarea UI) — seed it as the message sequence so old scenarios
+  // keep delivering after this fix instead of matching and staying silent.
+  const messages =
+    dmOnComment && parsedMessages.length === 0 && contentText
+      ? [{ type: 'TEXT' as const, text: contentText }]
+      : parsedMessages
+  return {
+    replyMode,
+    replyText: typeof o.replyText === 'string' ? o.replyText : '',
+    messages,
     mediaType:
       o.mediaType === 'IMAGE' ||
       o.mediaType === 'AUDIO' ||
@@ -250,14 +270,14 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
         : 'TEXT',
     mediaUrl: typeof o.mediaUrl === 'string' ? o.mediaUrl : '',
     productId: typeof o.productId === 'string' ? o.productId : '',
-    dmOnComment: o.dmOnComment === true,
+    dmOnComment,
     followGate: o.followGate === true,
     gateMode: o.gateMode === 'STORY_MENTION' ? 'STORY_MENTION' : 'SOFT',
     gatePrompt: typeof o.gatePrompt === 'string' ? o.gatePrompt : '',
     gateConfirmKeyword:
       typeof o.gateConfirmKeyword === 'string' ? o.gateConfirmKeyword : '',
     gateQuickReply: typeof o.gateQuickReply === 'string' ? o.gateQuickReply : '',
-    contentText: typeof o.contentText === 'string' ? o.contentText : '',
+    contentText,
     aiAgentEnabled: o.aiAgentEnabled === true,
     followUpEnabled: o.followUpEnabled === true,
     followUpDelayMin:
@@ -434,6 +454,94 @@ export interface AutomationContext {
   inboundEventId?: string
   /** Write-ahead provider-delivery marker; called immediately before a send. */
   beforeDispatch?: () => Promise<void>
+  /** v3.1: receipt collector — every outbound piece the engine actually sent
+   * (text bodies + `[[product:{…}]]` markers + media notes) so the operator
+   * sees the scenario reply in the CRM inbox, including the showcase rail. */
+  receipt?: string[]
+}
+
+/** Build the inbox-visible `[[product:{…}]]` marker from a showcase snapshot
+ * (same shape `parseProductShowcaseContent` in the CRM thread parses). */
+function productMarker(p: ProductShowcase): string {
+  return `[[product:${JSON.stringify({
+    id: p.id,
+    name: p.name,
+    price: p.price == null ? '' : p.price.toLocaleString('fa-IR') + ' تومان',
+    desc: cleanReceiptDescription(p.description),
+    badge: 'موجود',
+    image: p.imageUrl ?? '',
+    url: p.productUrl ?? '',
+    specs: [],
+  })}]]`
+}
+
+/** Strip WooCommerce HTML from a product description before it goes into a
+ * receipt marker (mirrors `cleanProductDescription` in presentation.ts). */
+function cleanReceiptDescription(value: string | null | undefined): string {
+  if (!value) return ''
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240)
+}
+
+/** v3.1 receipt: media entries (IMAGE/AUDIO/VIDEO) can't be replayed in the
+ * inbox as binary, so the receipt records a compact Persian note per part. */
+function pushMediaNote(
+  receipt: string[],
+  entry: { type?: string },
+): void {
+  if (entry.type === 'IMAGE') receipt.push('[تصویر]')
+  else if (entry.type === 'AUDIO') receipt.push('[وویس]')
+  else if (entry.type === 'VIDEO') receipt.push('[ویدیو]')
+}
+
+/**
+ * v3.1: persist what a scenario actually sent as the conversation's assistant
+ * message (idempotent via resultForInboundEventId, same pattern the fixed-reply
+ * and AI paths use). Text bodies + product markers — the CRM inbox renders the
+ * markers as the showcase rail with images, so "what did the bot send?" is
+ * answerable from the conversation itself instead of only from Instagram.
+ */
+async function persistScenarioReceipt(
+  ctx: AutomationContext,
+  receipt: string[],
+): Promise<void> {
+  const text = receipt.filter(Boolean).join('\n\n').trim()
+  if (!text || !ctx.conversationId || !ctx.inboundEventId) return
+  try {
+    await prisma.$transaction(async (tx) => {
+      const inserted = await tx.message.createMany({
+        data: [{
+          conversationId: ctx.conversationId!,
+          role: 'ASSISTANT',
+          content: text,
+          resultForInboundEventId: ctx.inboundEventId!,
+        }],
+        skipDuplicates: true,
+      })
+      if (inserted.count === 1) {
+        await tx.conversation.update({
+          where: { id: ctx.conversationId! },
+          data: { messageCount: { increment: 1 }, lastMessageAt: new Date() },
+        })
+      }
+    })
+  } catch (e) {
+    // Receipt persistence must never fail the reply itself — the outbound send
+    // already happened on the provider side.
+    captureError('instagram:automation:receipt', e, {
+      workspaceId: ctx.agent.workspaceId,
+      metadata: { automationConversationId: ctx.conversationId },
+    })
+  }
 }
 
 /**
@@ -472,6 +580,7 @@ export async function runInstagramAutomation(
   // ─── Matched. Execute the action. ───
   try {
     let sent = false
+    const receipt: string[] = []
     const beforeDispatch = async () => {
       await ctx.beforeDispatch?.()
       sent = true
@@ -481,9 +590,16 @@ export async function runInstagramAutomation(
       async sendText(chatId, text, opts) {
         await beforeDispatch()
         await ctx.adapter.sendText(chatId, text, opts)
+        // Receipt: plain-text sends are recorded verbatim (one entry per send).
+        receipt.push(text)
       },
     }
-    await executeAction({ ...ctx, adapter: trackingAdapter, beforeDispatch }, row, action)
+    await executeAction(
+      { ...ctx, adapter: trackingAdapter, beforeDispatch, receipt },
+      row,
+      action,
+    )
+    if (receipt.length > 0) await persistScenarioReceipt(ctx, receipt)
     return { handled: true, replied: sent }
   } catch (e) {
     captureError(`instagram:automation:${row.id}`, e, {
@@ -663,6 +779,19 @@ async function executeAction(
       Math.floor(Math.random() * action.messages.length)
     ]
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    // v3.1 receipt: capture resolved products as [[product:…]] markers; text
+    // sends are already receipted by the tracking adapter.
+    const capturedProducts: ProductShowcase[] = []
+    const captureResolveProduct = async (productId: string) => {
+      const p = await resolveProduct(agent.id, productId)
+      if (p) capturedProducts.push(p)
+      return p
+    }
+    const captureResolveProducts = async (productIds: string[]) => {
+      const list = await resolveProducts(agent.id, productIds)
+      capturedProducts.push(...list)
+      return list
+    }
     await ctx.beforeDispatch?.()
     await sendRichEntry(
       channelConfig ?? null,
@@ -672,19 +801,17 @@ async function executeAction(
         adapter.sendText(cid, text, {
           quickReplies: isComment ? undefined : quickReplies,
         }),
-      (productId) => resolveProduct(agent.id, productId),
-      (productIds) => resolveProducts(agent.id, productIds),
+      captureResolveProduct,
+      captureResolveProducts,
       agent.workspaceId,
     )
-    // Optionally also push the public reply text on a comment→DM funnel.
-    if (
-      isComment &&
-      action.dmOnComment &&
-      entry.type === 'TEXT' &&
-      entry.text
-    ) {
-      await adapter.sendText(msg.chatId, entry.text).catch(() => undefined)
+    if (ctx.receipt) {
+      pushMediaNote(ctx.receipt, entry)
+      for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
     }
+    // NOTE (v3.1): the comment→DM funnel no longer posts the DM body back as
+    // a public comment reply — "ارسال در دایرکت" means INSTEAD of the public
+    // reply, and posting it would leak DM content (links, prices) publicly.
     return
   }
 
@@ -696,6 +823,19 @@ async function executeAction(
   // was silently ignored.
   if (action.replyMode === 'STATIC' && action.messages?.length && channelConfig) {
     const target = isComment && action.dmOnComment ? commentDmTarget(msg) : msg.chatId
+    // v3.1 receipt: capture resolved products as [[product:…]] markers; text
+    // sends are already receipted by the tracking adapter.
+    const capturedProducts: ProductShowcase[] = []
+    const captureResolveProduct = async (productId: string) => {
+      const p = await resolveProduct(agent.id, productId)
+      if (p) capturedProducts.push(p)
+      return p
+    }
+    const captureResolveProducts = async (productIds: string[]) => {
+      const list = await resolveProducts(agent.id, productIds)
+      capturedProducts.push(...list)
+      return list
+    }
     for (const entry of action.messages) {
       // QUICK_REPLY entries carry `buttons`. The `buttonType` field controls
       // how they're rendered:
@@ -717,6 +857,7 @@ async function executeAction(
           } else {
             // Button Template — inside the bubble (default).
             await sendButtonMessage(channelConfig, target, entry.text || '', buttonActions)
+            if (ctx.receipt && entry.text) ctx.receipt.push(entry.text)
           }
         } catch (e) {
           captureError('instagram:automation:quick-reply', e, {
@@ -739,15 +880,17 @@ async function executeAction(
           adapter.sendText(cid, text, {
             quickReplies: isComment ? undefined : quickReplies,
           }),
-        (productId) => resolveProduct(agent.id, productId),
-        (productIds) => resolveProducts(agent.id, productIds),
+        captureResolveProduct,
+        captureResolveProducts,
         agent.workspaceId,
       )
+      if (ctx.receipt) pushMediaNote(ctx.receipt, entry)
     }
-    // For comment→DM funnels, also leave a public ack on the comment.
-    if (isComment && action.dmOnComment && action.replyText) {
-      await adapter.sendText(msg.chatId, action.replyText).catch(() => undefined)
+    if (ctx.receipt) {
+      for (const p of capturedProducts) ctx.receipt.push(productMarker(p))
     }
+    // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
+    // MULTI_MESSAGE branch above.
 
     // ─── Follow-up message (delayed) ───
     // Per-scenario follow-up: send `followUpMessage` after `followUpDelayMin`
@@ -772,18 +915,22 @@ async function executeAction(
     await ctx.beforeDispatch?.()
     if (action.mediaType === 'IMAGE' && action.mediaUrl) {
       await sendImage(channelConfig, target, action.mediaUrl, action.replyText || undefined)
+      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'IMAGE' })
     } else if (action.mediaType === 'AUDIO' && action.mediaUrl) {
       await sendAudio(channelConfig, target, action.mediaUrl)
+      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'AUDIO' })
     } else if (action.mediaType === 'VIDEO' && action.mediaUrl) {
       await sendVideo(channelConfig, target, action.mediaUrl)
+      if (ctx.receipt) pushMediaNote(ctx.receipt, { type: 'VIDEO' })
     } else if (action.mediaType === 'PRODUCT' && action.productId) {
       const product = await resolveProduct(agent.id, action.productId)
-      if (product) await sendProductCard(channelConfig, target, product)
+      if (product) {
+        await sendProductCard(channelConfig, target, product)
+        if (ctx.receipt) ctx.receipt.push(productMarker(product))
+      }
     }
-    // For comment→DM funnels, also leave a public ack on the comment.
-    if (isComment && action.dmOnComment && action.replyText) {
-      await adapter.sendText(msg.chatId, action.replyText).catch(() => undefined)
-    }
+    // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
+    // MULTI_MESSAGE branch above.
     // Per-scenario follow-up applies to single-media STATIC replies too —
     // previously this branch skipped it, so media scenarios couldn't nudge.
     scheduleFollowUp(ctx, action, target)
@@ -793,8 +940,9 @@ async function executeAction(
   // ─── STATIC reply (text) ───
   if (action.replyMode === 'STATIC' && action.replyText) {
     if (isComment && action.dmOnComment) {
-      // Public acknowledgment + private DM with the real content.
-      await adapter.sendText(msg.chatId, action.replyText)
+      // v1 fallback (messages[] empty): deliver the DM body only — no public
+      // comment ack, per the v3.1 "ارسال در دایرکت" semantics (see the note
+      // in the MULTI_MESSAGE branch).
       await adapter.sendText(commentDmTarget(msg), action.contentText || action.replyText, {
         quickReplies,
       })
@@ -1401,7 +1549,9 @@ async function resolveProduct(
       name: p.name,
       description: p.description,
       price: p.price,
-      imageUrl: p.images?.[0] ?? null,
+      // v3.1: pick the first JPG/PNG/GIF over webp (Meta's Generic Template
+      // silently drops webp) and percent-encode Persian path segments.
+      imageUrl: pickTemplateImageUrl(p.images),
       productUrl: p.externalUrl ?? null,
     }
   }
@@ -1430,7 +1580,8 @@ async function resolveProduct(
     name: product.name,
     description: product.description,
     price: product.price,
-    imageUrl: product.images?.[0] ?? null,
+    // v3.1: same Meta-safe image selection as the catalog branch above.
+    imageUrl: pickTemplateImageUrl(product.images),
     productUrl: product.externalUrl ?? null,
   }
 }

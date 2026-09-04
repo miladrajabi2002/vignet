@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { productCreateSchema } from '@/lib/validations/product'
@@ -21,6 +22,16 @@ export async function GET(req: Request) {
   const stock = searchParams.get('stock')
   const sort = searchParams.get('sort') ?? 'newest'
 
+  // v3.3: optional pagination for pickers. `limit` (1–100) + `offset` enable
+  // "newest 10 first + infinite scroll" in the automation product pickers.
+  // Omitting `limit` keeps the legacy behaviour (return the full list) so the
+  // catalog page and other existing callers are unaffected.
+  const limitRaw = Number(searchParams.get('limit'))
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(100, Math.floor(limitRaw)) : undefined
+  const offsetRaw = Number(searchParams.get('offset'))
+  const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? Math.floor(offsetRaw) : 0
+
   const orderBy =
     sort === 'price_asc'
       ? { price: 'asc' as const }
@@ -30,24 +41,34 @@ export async function GET(req: Request) {
           ? { queryCount: 'desc' as const }
           : { createdAt: 'desc' as const }
 
-  const products = await prisma.product.findMany({
-    where: {
-      workspaceId: user.workspaceId,
-      categoryId,
-      ...(stock === 'in_stock'
-        ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
-        : stock === 'out_of_stock'
-          ? { stock: 0 }
-          : {}),
-      ...(q
-        ? { AND: [{ OR: [{ name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] }] }
+  const where: Prisma.ProductWhereInput = {
+    workspaceId: user.workspaceId,
+    categoryId,
+    ...(stock === 'in_stock'
+      ? { OR: [{ stock: null }, { stock: { gt: 0 } }] }
+      : stock === 'out_of_stock'
+        ? { stock: 0 }
         : {}),
-    },
-    orderBy,
-    include: { category: { select: { name: true } } },
-  })
+    ...(q
+      ? { AND: [{ OR: [{ name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } }] }] }
+      : {}),
+  }
 
-  return NextResponse.json({ products })
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      orderBy,
+      include: { category: { select: { name: true } } },
+      // Pagination is opt-in: without `limit` the full list is returned
+      // (legacy callers). With `limit`, offset pages through the results.
+      ...(limit ? { take: limit, skip: offset } : {}),
+    }),
+    // Total count drives the pickers' "x از y محصول" label and lets the UI
+    // stop infinite-scrolling exactly at the end of the result set.
+    prisma.product.count({ where }),
+  ])
+
+  return NextResponse.json({ products, total })
 }
 
 export async function POST(req: Request) {

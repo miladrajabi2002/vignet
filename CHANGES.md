@@ -465,3 +465,117 @@ bun run db:migrate   # یا npx prisma migrate deploy
 - `npx vitest run` — ۶۸ فایل / ۳۵۰ تست، همه پاس ✓
 - `npm run lint` — صفر خطا و Warning ✓
 - `git diff --check` — تمیز ✓
+
+
+---
+
+## فاز v3.1 — رفع باگ سناریوی کامنت «ارسال در دایرکت» + بیلدر کامل پیام در دایرکت
+
+### باگ
+سناریوی COMMENT با گزینه «ارسال در دایرکت» هیچ دایرکتی ارسال نمی‌کرد: فرم، این گزینه را با `replyMode: "SILENT"` + `dmOnComment: true` ذخیره می‌کرد و موتور اجرا پیش از هر ارسالی در شاخه SILENT متوقف می‌شد (`outcome: AUTOMATION_HANDLED` بدون هیچ پیام). متن دایرکت هم به‌دلیل شرط `buildPayload` هرگز در `messages[]` ذخیره نمی‌شد و فیلد «متن دایرکت» فقط یک textarea ساده بود بدون پشتیبانی از پیام چندگانه، عکس، وویس، ویدیو، کلید و ویترین.
+
+### فایل‌های تغییر یافته
+
+#### `components/instagram/automation-form.tsx`
+- `CommentActionSelector.pick('SEND_DM')` اکنون `replyMode='STATIC'` تنظیم می‌کند (نه SILENT) — قیف ارسال در دایرکت یک دنباله STATIC است.
+- انتخاب «ارسال در دایرکت» حالا همان MessageBuilder کامل سناریوهای دایرکت را نشان می‌دهد (متن، عکس، صوت، ویدیو، کلید، ویترین محصولات) با عنوان «پیام‌های دایرکت». فیلد قدیمی textarea «متن دایرکت» حذف شد.
+- `buildPayload`: برای COMMENT با `dmOnComment` کل دنباله غنی ذخیره می‌شود؛ ریپلای عمومی (MULTI_MESSAGE) فقط متن.
+- اعتبارسنجی جدید: سناریوی «ارسال در دایرکت» بدون حداقل یک پیام ذخیره نمی‌شود.
+- `toFormState`: نرمال‌سازی ردیف‌های قدیمی (SILENT+dm → STATIC) و بازیابی متن legacy از `contentText`.
+
+#### `lib/instagram/automation.ts`
+- `readAction`: نرمال‌سازی legacy — `SILENT + dmOnComment` به STATIC تبدیل و `contentText` به‌عنوان messages[] بازیابی می‌شود؛ سناریوهای قدیمی بدون ویرایش مجدد کار می‌کنند.
+- حذف public-ack از قیف‌های comment→DM در هر سه مسیر (rich STATIC، تک‌رسانه و MULTI_MESSAGE): «ارسال در دایرکت» یعنی به‌جای ریپلای عمومی؛ نشت محتوای دایرکت (لینک/قیمت) در کامنت عمومی برطرف شد.
+
+#### `components/instagram/iphone-preview.tsx`
+- `CommentScreen`: در حالت dmOnComment ریپلای عمومی دیگر نمایش داده نمی‌شود؛ باکس «ارسال دایرکت» کل دنباله پیام‌ها را با آیکون نوع هر پیام (عکس/وویس/ویدیو/کلید/ویترین) و شمارنده رندر می‌کند.
+
+### اعتبارسنجی
+- `npx tsc --noEmit` — صفر خطا ✓
+- `npx next build` — موفق ✓
+- تست End-to-End با تزریق وب‌هوک امضاشده (کامنت «333»): نتیجه از `AUTOMATION_HANDLED` (بدون ارسال) به `AUTOMATION_REPLIED` تغییر کرد و درخواست ارسال دایرکت با target صحیح `private:<commentId>:<senderId>` تا Graph API رفت ✓
+
+
+---
+
+## فاز v3.2 — رفع مشکل عکس‌های ویترین محصولات در همه سطوح
+
+### باگ
+عکس‌های ویترین محصولات در چند سطح نمایش داده نمی‌شدند:
+1. **پیش‌نمایش آیفون فرم سناریو**: کارت‌های PRODUCT/PRODUCT_LIST همیشه placeholder بودند (گرادیانت + «محصول ۱» + «قیمت: —») — هیچ‌وقت عکس واقعی فچ نمی‌شد؛ دقیقاً شبیه «عکس‌ها خرابه».
+2. **ارسال واقعی DM به متا**: Generic Template متا فقط JPG/PNG/GIF را رندر می‌کند — تصاویر webp (مثل محصولات haftmin.shop) و URLهای فارسی بدون percent-encoding بی‌صدا drop می‌شدند (کارت بدون عکس).
+3. **اینباکس CRM**: پاسخ‌های سناریو اصلاً به‌عنوان پیام ASSISTANT ذخیره نمی‌شدند — اپراتور در گفتگو فقط پیام مشتری را می‌دید و ویترین هیچ‌وقت رندر نمی‌شد.
+
+### فایل‌های تغییر یافته
+
+#### `components/instagram/iphone-preview.tsx`
+- `ProductCardBubble` (جدید): کارت محصول با عکس/نام/قیمت واقعی از `/api/products/{id}` با کش ماژول‌سطحی (بدون refetch هنگام تایپ).
+- PRODUCT و PRODUCT_LIST حالا کارت‌های واقعی رندر می‌کنند؛ حالت لودینگ (پالس) و خطا (آیکون کم‌رنگ) هم دارد.
+- `DmProductRow` (جدید): در باکس «ارسال دایرکت» پیش‌نمایش کامنت، ردیف محصول با thumbnail واقعی + نام + قیمت + نشان تعداد.
+
+#### `lib/instagram/media.ts`
+- `metaSafeUrl` (جدید صادرشده): percent-encode امن URL برای payload های متا (مسیرهای فارسی).
+- `pickTemplateImageUrl` (جدید صادرشده): انتخاب بهترین عکس برای Generic Template — اولویت JPG/PNG/GIF، webp فقط به‌عنوان آخرین راه، با انکودینگ.
+- `sendProductCard` و `sendProductCarousel`: `image_url` و دکمه‌های `web_url` حالا meta-safe هستند.
+
+#### `lib/instagram/automation.ts`
+- `resolveProduct`: انتخاب عکس با `pickTemplateImageUrl` (به‌جای images[0] خام).
+- رسید (receipt) v3.1: هرچه سناریو واقعاً ارسال می‌کند (متن‌ها، مارکرهای `[[product:{…}]]` از محصولات resolve شده، یادداشت رسانه «[تصویر]/[وویس]/[ویدیو]») به‌صورت idempotent با `resultForInboundEventId` به‌عنوان پیام ASSISTANT ذخیره می‌شود — اینباکس حالا پاسخ سناریو + ریل ویترین با عکس را نشان می‌دهد.
+- `cleanReceiptDescription`: پاک‌سازی HTML ووکامرس قبل از نوشتن مارکر.
+
+#### `lib/products/presentation.ts`
+- `resolveProductShowcases`: انتخاب عکس با همان قانون Meta-safe (JPG/PNG/GIF) — مسیر AI/وب‌چت هم benefite می‌شود.
+
+### اعتبارسنجی
+- `npx tsc --noEmit` — صفر خطا ✓
+- `npx next build` — موفق ✓ (+ ری‌استارت vignet-web و vignet-worker)
+- تست E2E با تزریق وب‌هوک DM امضاشده («تست»): outcome=AUTOMATION_REPLIED؛ پیام ASSISTANT با مارکرهای ویترین ذخیره شد؛ عکس‌های مارکر percent-encoded و JPG انتخاب شدند؛ تلاش ارسال متن + کاروسل ۳محصولی + کارت تکی تا Graph API رفت ✓
+- داده‌های تست پاکسازی شد (گفتگو/پیام/رویداد)
+
+### نکته عملیاتی
+پس از هر تغییر کد بک‌اند، هم `vignet-web` و هم `vignet-worker` باید ری‌استارت شوند — پردازش وب‌هوک در worker انجام می‌شود.
+
+## فاز v3.3 — رفع عکس ویترین در اینستاگرام (پروکسی تصویر) + آپلود عکس محصول + صفحه‌بندی انتخابگر محصولات
+
+### باگ‌ها
+۱. **عکس ویترین در دایرکت اینستاگرام نمی‌آمد** (کاربر «صمدی»، سناریو «تست»): ریشه واقعی **دو** مشکل بود:
+   - هاست فروشگاه کاربر (ceeports.ir) به کرالر متا (User-Agent `facebookexternalhit`) **۴۰۳** برمی‌گرداند (محافظت hotlink/WAF) — در حالی که همان URL از سرور ما با UA معمولی ۲۰۰ است. متا عکس Generic Template را server-side فچ می‌کند، پس URL مستقیم ووکامرس هرگز برایش در دسترس نبود. (فرمت jpg مشکلی ندارد؛ haftmin با webp کار می‌کرد چون آن هاست کرالر را بلاک نمی‌کند.)
+   - **انکودینگ دوباره URLهای فارسی**: `pickTemplateImageUrl` خروجی percent-encoded می‌دهد و `sendProductCard` دوباره `metaSafeUrl` رویش اجرا می‌کرد → `%D8` تبدیل به `%25D8` می‌شد → کرالر متا ۴۰۴ می‌گرفت → کارت بدون عکس.
+۲. **آپلود عکس در «محصول جدید» کار نمی‌کرد**: فایل روی دیسک در `public/uploads/products/...` نوشته می‌شد، اما `next start` فقط فایل‌های موجود در زمان build را از `public/` سرو می‌کند → URL برگشتی ۴۰۴ → تصویر «لود نشده» نمایش داده می‌شد. (الگوی حل‌شدهٔ `app/api/uploads/instagram/[...key]` برای products تکرار نشده بود.)
+۳. **کندی انتخاب محصول در ویترین**: انتخابگرها (ProductPicker/MultiProductPicker) کل لیست محصولات را یکجا لود می‌کردند (`/api/products?sort=newest` بدون limit) — با ده‌ها/صدها محصول، کوئری و payload سنگین و لودینگ طولانی.
+
+### فایل‌های تغییر یافته
+
+#### `lib/instagram/media.ts`
+- `metaSafeUrl`: **idempotent** شد — اگر URL از قبل percent-escape دارد، دست نمی‌زند (رفع انکودینگ دوباره در همه مسیرها).
+- `templateImageUrl` (جدید): قبل از تحویل `image_url` به متا، عکس خارجی را **server-side دانلود** می‌کند (با `safeHttpGet`؛ محدود ۸MB، فقط image/*)، در bucket مشترک `products/proxy/{sha1}.{ext}` روی MinIO/S3 کش می‌کند و URL روی دامنه خودمان (`S3_PUBLIC_URL`/`NEXT_PUBLIC_APP_URL`) برمی‌گرداند — کرالر متا دیگر با هاست بلاک‌کننده طرف نیست. URLهای روی دامنه خودمان hand-off مستقیم؛ در خطا fallback به کش دیسک قدیمی یا URL اصلی. هرگز throw نمی‌کند.
+- `sendProductCard` و `sendProductCarousel`: `image_url` حالا از `templateImageUrl` می‌گذرد (کاروسل با `Promise.all` موازی).
+
+#### `app/api/uploads/products/[...key]/route.ts` (جدید)
+- GET عمومی (بدون لاگین) برای سرو فایل‌های bucket اشتراکی `products` (شامل `proxy/`) با fallback فایل‌های قدیمی روی دیسک، Content-Type درست، **Content-Length صریح** (الزام کرالر متا)، Cache-Control یک‌ساله، CORS برای متا، و محافظت path-traversal.
+- DELETE با احراز هویت، scoped به workspace، و غیرمجاز برای کش مشترک `proxy/`.
+
+#### `app/api/uploads/products/route.ts`
+- فایل جدید در MinIO/S3 ذخیره می‌شود و URL برگشتی POST حالا `/media/products/{ws}/{y}/{m}/{file}` است (مسیر عمومی خارج از `/api`)؛ در محیط توسعه بدون object storage، دیسک fallback است.
+
+#### `app/api/products/route.ts`
+- GET: پارامترهای اختیاری `limit` (۱..۱۰۰) و `offset` + شمارش `total` در پاسخ — بدون `limit` رفتار قبلی (لیست کامل) برای سازگاری با صفحه کاتالوگ.
+
+#### `components/instagram/automation-form.tsx`
+- `useProductPickerPages` (هوک جدید مشترک): صفحه اول = **۱۰ محصول آخر** (sort=newest)، جستجوی server-side با debounce ۳۰۰ms، **اسکرول بی‌نهایت** (فچ صفحه بعد نزدیک انتهای لیست) + دکمه «نمایش بیشتر»، sequence-guard برای رد پاسخ‌های قدیمی، dedup بر اساس id.
+- `PickerListFooter` (جدید): نمایش «x از y محصول» + اسپینر «در حال بارگذاری».
+- `ProductPicker` و `MultiProductPicker` از هوک مشترک استفاده می‌کنند؛ کش `{id→ProductLite}` در MultiProductPicker از آیتم‌های لودشده گرم نگه داشته می‌شود.
+
+### اعتبارسنجی
+- `npx tsc --noEmit` — صفر خطا ✓
+- `npx next build` — موفق ✓ (مسیر `/api/uploads/products/[...key]` در build ثبت شد) + ری‌استارت vignet-web و vignet-worker ✓
+- سرو فایل آپلود شده قبلی (که ۴۰۴ بود): حالا ۲۰۰ `image/png` — هم مستقیم و هم از `https://vigent.ir` با UA کرالر متا ✓؛ path-traversal بلاک ✓
+- تست مستقیم `templateImageUrl` روی ۳ محصول واقعی (۲ URL فارسی + ۱ ASCII): هر ۳ تا دانلود و کش شدند (۶۱/۸۰/۴۷KB)، سرو ۲۰۰ `image/jpeg` با UA کرالر متا ✓؛ قبل از فیکس idempotent، URLهای فارسی با خطای double-encoding به fallback می‌افتادند (تایید باگ ریشه)
+- E2E با تزریق وب‌هوک DM امضاشده («تست»): رویداد COMPLETED، رسید با مارکر محصول ذخیره، ارسال TEXT/کاروسل/کارت تا Graph رفت و خطای «کاربر یافت نشد» فقط به‌خاطر گیرنده فیک؛ کاروسل بعد از فیکس ۱۶۰ms بعد از متن ارسال شد (cache-hit) ✓
+- صفحه‌بندی: صفحه۱=۱۰ جدیدترین، صفحه۲=۱۰ بعدی بدون هم‌پوشانی، جستجوی «تیشرت»=۱۰ نتیجه ✓
+- داده‌های تست پاکسازی شد (گفتگو/پیام/رویداد m_test)
+
+### نکته عملیاتی
+- کش `proxy/` با sha1(URL) کلید می‌شود — تغییر عکس روی همان URL در ووکامرس تا تغییر خود URL دیده نمی‌شود (فایل‌های ووکامرس عملاً immutable هستند).
+- عکس‌های آپلودی کاربر از این پس از `/media/products/...` سرو می‌شوند و در bucket اشتراکی `products` قرار می‌گیرند؛ فایل‌های قدیمیِ موجود روی دیسک بدون مهاجرت همچنان خوانده می‌شوند.
+- `public/uploads/products/` در `.gitignore` است؛ فایل‌های واقعی کاربران و کش تصاویر وارد repository و commit نمی‌شوند.

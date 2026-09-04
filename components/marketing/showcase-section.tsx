@@ -89,6 +89,9 @@ export async function ShowcaseSection({ locale }: { locale: HomeLocale }) {
 							<>
 								<div className="flex items-start gap-3">
 									{entry.imageUrl ? (
+										// Showcase image hosts are admin-defined and cannot be
+										// enumerated safely in next/image remotePatterns.
+										// eslint-disable-next-line @next/next/no-img-element
 										<img
 											src={entry.imageUrl}
 											alt={entry.name}

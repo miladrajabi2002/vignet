@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import type { ProductShowcase } from '@/lib/instagram/media'
+import {
+  pickTemplateImageUrl,
+  type ProductShowcase,
+} from '@/lib/instagram/media'
 import { extractListItems, normalizeAttributes, stripListBlocks } from '@/lib/products/description'
 
 const PRODUCT_TOKEN = /\[\[product:(\{[\s\S]*?\})\]\]/g
@@ -129,9 +132,11 @@ export async function resolveProductShowcases(params: {
       name: product.name,
       description: product.description,
       price: product.price,
-      // Woo fields are tenant-controlled. Only pass web URLs to renderers or
-      // channel APIs; everything else is silently omitted.
-      imageUrl: safeProductUrl(product.images[0]) ?? null,
+      // v3.1: prefer JPG/PNG/GIF over webp and percent-encode Persian paths —
+      // Instagram's Generic Template silently drops webp images, which showed
+      // up as product cards without photos. Web renderers handle the picked
+      // jpg/png equally well, so one selection rule serves every surface.
+      imageUrl: pickTemplateImageUrl(product.images),
       productUrl: safeProductUrl(product.externalUrl),
       specs,
     })

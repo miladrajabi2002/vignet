@@ -6,7 +6,11 @@ export default function robots(): MetadataRoute.Robots {
 		rules: [
 			{
 				userAgent: '*',
-				allow: '/',
+				// Product images are intentionally public: Meta fetches Generic
+				// Template images server-side. Keep this more-specific allow rule
+				// ahead of the blanket /api exclusion so Instagram cards retain
+				// their media while the rest of the private API stays uncrawlable.
+				allow: ['/', '/api/uploads/products/'],
 				disallow: [
 					'/admin',
 					'/api',

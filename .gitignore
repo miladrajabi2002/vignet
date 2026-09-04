@@ -17,6 +17,11 @@ node_modules/
 # production
 /build
 
+# Runtime uploads and generated image-proxy cache belong in object storage,
+# never in source control. The directory is still used as a local-dev and
+# pre-object-storage migration fallback.
+/public/uploads/products/
+
 # misc
 .DS_Store
 *.pem

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect, useState } from 'react'
 import {
         Heart,
         Send,
@@ -13,6 +13,9 @@ import {
         Plus,
         Bookmark,
         MessageCircle,
+        KeyRound,
+        ShoppingBag,
+        Film,
 } from 'lucide-react'
 import type {
         AutomationType,
@@ -43,6 +46,65 @@ import type {
 const IG_BLUE = '#5e5ce6'
 const IG_GRADIENT = 'linear-gradient(45deg, #f58529 0%, #dd2a7b 50%, #8134af 100%)'
 const IG_GRADIENT_SOFT = 'linear-gradient(45deg, rgba(245,133,41,0.15) 0%, rgba(221,42,123,0.15) 50%, rgba(129,52,175,0.15) 100%)'
+
+// ── Product preview data (v3.1) ────────────────────────────────────────────
+// The scenario builder's product pickers show real thumbnails, but the iPhone
+// preview used to render gradient placeholders ("محصول ۱ / قیمت: —"), which
+// looked exactly like "the showcase images are broken". These helpers fetch
+// the real product rows so the preview mirrors what the DM will actually look
+// like — photo, name and price per card. A module-level cache dedupes refetches
+// while the form re-renders on every keystroke.
+
+interface PreviewProduct {
+        id: string
+        name: string
+        price: number | null
+        images: string[]
+}
+
+const productCache = new Map<string, Promise<PreviewProduct | null>>()
+
+function loadProduct(id: string): Promise<PreviewProduct | null> {
+        if (!productCache.has(id)) {
+                productCache.set(
+                        id,
+                        fetch(`/api/products/${id}`)
+                                .then((r) => (r.ok ? r.json() : null))
+                                .then((d) => {
+                                        const p = d?.product
+                                        if (!p) return null
+                                        return {
+                                                id: p.id,
+                                                name: p.name,
+                                                price: p.price ?? null,
+                                                images: Array.isArray(p.images) ? p.images.filter((i: unknown) => typeof i === 'string') : [],
+                                        }
+                                })
+                                .catch(() => null),
+                )
+        }
+        return productCache.get(id)!
+}
+
+/** undefined = loading, null = not found/failed, object = loaded. */
+function usePreviewProduct(id: string | undefined): PreviewProduct | null | undefined {
+        const [product, setProduct] = useState<PreviewProduct | null | undefined>(id ? undefined : null)
+        useEffect(() => {
+                if (!id) {
+                        setProduct(null)
+                        return
+                }
+                let cancelled = false
+                setProduct(undefined)
+                loadProduct(id).then((p) => {
+                        if (!cancelled) setProduct(p)
+                })
+                return () => {
+                        cancelled = true
+                }
+        }, [id])
+        return product
+}
 
 export interface IphonePreviewProps {
         mode: AutomationType
@@ -382,32 +444,15 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                         </Bubble>
                 )
         }
-        // PRODUCT — card view
+        // PRODUCT — card view (v3.1: real photo/name/price from /api/products)
         if (message.type === 'PRODUCT' && message.productId) {
                 return (
                         <Bubble side="bot" flush>
-                                <div className="w-[210px] overflow-hidden rounded-2xl rounded-br-md border border-black/10 bg-white">
-                                        <div
-                                                className="flex h-24 items-center justify-center text-white"
-                                                style={{ background: IG_GRADIENT }}
-                                        >
-                                                <ImageIcon className="h-8 w-8 opacity-80" />
-                                        </div>
-                                        <div className="p-2.5">
-                                                <p className="truncate text-[11px] font-semibold text-black">محصول انتخاب‌شده</p>
-                                                <p className="text-[10px] text-black/60">قیمت: —</p>
-                                                <button
-                                                        className="mt-1.5 w-full rounded-lg py-1 text-[10px] font-medium text-white"
-                                                        style={{ background: IG_GRADIENT }}
-                                                >
-                                                        مشاهده محصول
-                                                </button>
-                                        </div>
-                                </div>
+                                <ProductCardBubble productId={message.productId} />
                         </Bubble>
                 )
         }
-        // PRODUCT_LIST — horizontal carousel of product cards.
+        // PRODUCT_LIST — horizontal carousel of product cards (v3.1: real data).
         // Renders up to 3 cards (3 = what visually fits in the phone preview
         // width without overcrowding; the real Instagram carousel supports up
         // to 10 — the preview is just an indicator, not an exact rendering).
@@ -435,30 +480,8 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                 return (
                         <Bubble side="bot" flush>
                                 <div className="flex w-[210px] gap-1.5 overflow-x-auto rounded-2xl rounded-br-md p-1.5 bg-transparent">
-                                        {cards.map((id, i) => (
-                                                <div
-                                                        key={id}
-                                                        className="w-[150px] shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white"
-                                                >
-                                                        <div
-                                                                className="flex h-20 items-center justify-center text-white"
-                                                                style={{ background: IG_GRADIENT }}
-                                                        >
-                                                                <ImageIcon className="h-6 w-6 opacity-80" />
-                                                        </div>
-                                                        <div className="p-2">
-                                                                <p className="truncate text-[10px] font-semibold text-black">
-                                                                        محصول {i + 1}
-                                                                </p>
-                                                                <p className="text-[9px] text-black/60">قیمت: —</p>
-                                                                <button
-                                                                        className="mt-1 w-full rounded-md py-0.5 text-[9px] font-medium text-white"
-                                                                        style={{ background: IG_GRADIENT }}
-                                                                >
-                                                                        مشاهده
-                                                                </button>
-                                                        </div>
-                                                </div>
+                                        {cards.map((id) => (
+                                                <ProductCardBubble key={id} productId={id} small />
                                         ))}
                                 </div>
                         </Bubble>
@@ -543,6 +566,57 @@ function MessageBubble({ message }: { message: AutomationMessage }) {
                                         })}
                                 </div>
                         )}
+                </div>
+        )
+}
+
+// ── Product card bubble (v3.1) ─────────────────────────────────────────────
+// A generic-template product card rendered with the REAL product photo, name
+// and price — matching what Instagram shows in the DM. `small` is the carousel
+// variant (narrower card inside the PRODUCT_LIST rail).
+
+function ProductCardBubble({ productId, small }: { productId: string; small?: boolean }) {
+        const product = usePreviewProduct(productId)
+        const img = product?.images?.[0]
+        const width = small ? 'w-[150px]' : 'w-[210px]'
+        return (
+                <div
+                        className={`${width} shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white`}
+                >
+                        <div className={`flex items-center justify-center bg-black/[0.04] ${small ? 'h-20' : 'h-24'}`}>
+                                {img ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                                src={img}
+                                                alt={product?.name ?? 'محصول'}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="h-full w-full object-cover"
+                                        />
+                                ) : product === null ? (
+                                        <ImageIcon className={small ? 'h-6 w-6' : 'h-8 w-8'} opacity={0.35} />
+                                ) : (
+                                        <div className={`animate-pulse rounded ${small ? 'h-5 w-5' : 'h-6 w-6'} bg-black/10`} />
+                                )}
+                        </div>
+                        <div className={small ? 'p-2' : 'p-2.5'}>
+                                <p className={`truncate font-semibold text-black ${small ? 'text-[10px]' : 'text-[11px]'}`}>
+                                        {product ? product.name : '…'}
+                                </p>
+                                <p className={`${small ? 'text-[9px]' : 'text-[10px]'} text-black/60`}>
+                                        {product === undefined
+                                                ? '…'
+                                                : product?.price != null
+                                                        ? `قیمت: ${product.price.toLocaleString('fa-IR')} تومان`
+                                                        : 'بدون قیمت'}
+                                </p>
+                                <button
+                                        className={`mt-1 w-full rounded-md font-medium text-white ${small ? 'py-0.5 text-[9px]' : 'mt-1.5 rounded-lg py-1 text-[10px]'}`}
+                                        style={{ background: IG_GRADIENT }}
+                                >
+                                        {small ? 'مشاهده' : 'مشاهده محصول'}
+                                </button>
+                        </div>
                 </div>
         )
 }
@@ -684,8 +758,20 @@ function CommentScreen(props: ScreenProps) {
                 dmOnComment,
         } = props
 
-        const publicReply = (messages[0]?.text ?? '').trim()
-        const dmContent = (messages[1]?.text ?? '').trim()
+        // v3.1: comment→DM funnels no longer post a public reply — the DM
+        // sequence IS the reply. The public bubble only renders for public
+        // random replies (MULTI_MESSAGE without dmOnComment).
+        const publicReply = dmOnComment ? '' : (messages[0]?.text ?? '').trim()
+        const dmMessages = dmOnComment
+                ? messages.filter(
+                          (m) =>
+                                  m.text.trim() ||
+                                  m.mediaUrl ||
+                                  m.productId ||
+                                  (m.productIds && m.productIds.length > 0) ||
+                                  (m.buttons && m.buttons.length > 0),
+                  )
+                : []
 
         return (
                 <div
@@ -782,16 +868,30 @@ function CommentScreen(props: ScreenProps) {
                                         </div>
                                 )}
 
-                                {/* DM funnel */}
+                                {/* DM funnel — renders the builder sequence that will be
+                                    delivered to the commenter's DM (v3.1: full rich preview). */}
                                 {dmOnComment && (
                                         <div className="rounded-xl border border-[#dd2a7b]/30 p-2.5" style={{ background: IG_GRADIENT_SOFT }}>
                                                 <p className="flex items-center gap-1 text-[10px] font-semibold text-[#dd2a7b]">
                                                         <Send className="h-3 w-3 -rotate-12" />
                                                         ارسال دایرکت
+                                                        {dmMessages.length > 0 && (
+                                                                <span className="font-normal text-black/40">
+                                                                        ({dmMessages.length.toLocaleString('fa-IR')} پیام)
+                                                                </span>
+                                                        )}
                                                 </p>
-                                                <p className="mt-1 text-[11px] text-black leading-snug">
-                                                        {dmContent || 'متن دایرکت نمونه…'}
-                                                </p>
+                                                {dmMessages.length === 0 ? (
+                                                        <p className="mt-1 text-[11px] text-black/50 leading-snug">
+                                                                متن دایرکت نمونه…
+                                                        </p>
+                                                ) : (
+                                                        <div className="mt-1.5 space-y-1">
+                                                                {dmMessages.map((m) => (
+                                                                        <DmEntryRow key={m.id} message={m} />
+                                                                ))}
+                                                        </div>
+                                                )}
                                         </div>
                                 )}
                         </div>
@@ -809,6 +909,106 @@ function CommentScreen(props: ScreenProps) {
 
                         {/* Home indicator */}
                         <div className="absolute bottom-[6px] left-1/2 z-30 h-[5px] w-[110px] -translate-x-1/2 rounded-full bg-black/30" />
+                </div>
+        )
+}
+
+// ── Comment→DM funnel entry row (v3.1) ─────────────────────────────────────
+// Compact row inside the "ارسال دایرکت" box: an icon per message type + the
+// text (or a type label for media entries) so the operator sees exactly what
+// the commenter will receive in DM — same as the DM chat preview, but fitted
+// to the comment screen's small canvas.
+
+function DmEntryRow({ message }: { message: AutomationMessage }) {
+        const Icon =
+                message.type === 'IMAGE'
+                        ? ImageIcon
+                        : message.type === 'AUDIO'
+                                ? Mic
+                                : message.type === 'VIDEO'
+                                        ? Film
+                                        : message.type === 'QUICK_REPLY'
+                                                ? KeyRound
+                                                : message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST'
+                                                        ? ShoppingBag
+                                                        : MessageCircle
+        const label =
+                message.type === 'IMAGE'
+                        ? 'عکس'
+                        : message.type === 'AUDIO'
+                                ? 'پیام صوتی'
+                                : message.type === 'VIDEO'
+                                        ? 'ویدیو'
+                                        : message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST'
+                                                ? 'ویترین محصولات'
+                                                : ''
+        const body = (message.text ?? '').trim()
+        // v3.1: product rows show the real product image + name + count.
+        if (message.type === 'PRODUCT' || message.type === 'PRODUCT_LIST') {
+                const firstId = message.productId ?? message.productIds?.[0]
+                const count = message.type === 'PRODUCT_LIST' ? (message.productIds?.length ?? 1) : 1
+                if (firstId) return <DmProductRow productId={firstId} count={count} />
+        }
+        return (
+                <div className="flex items-start gap-1.5 rounded-lg bg-white/70 px-2 py-1.5">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[#dd2a7b]">
+                                <Icon className="h-3 w-3" />
+                        </span>
+                        <p className="min-w-0 flex-1 text-[11px] leading-snug text-black">
+                                {body ? (
+                                        message.type === 'QUICK_REPLY' && message.buttons?.length ? (
+                                                <>
+                                                        {body}
+                                                        <span className="ms-1 text-black/45">
+                                                                + {message.buttons.length.toLocaleString('fa-IR')} کلید
+                                                        </span>
+                                                </>
+                                        ) : (
+                                                body
+                                        )
+                                ) : (
+                                        <span className="text-black/55">{label}</span>
+                                )}
+                        </p>
+                </div>
+        )
+}
+
+// ── Comment→DM product row (v3.1) ──────────────────────────────────────────
+// A compact row inside the «ارسال دایرکت» box for PRODUCT / PRODUCT_LIST
+// entries: real product thumbnail + name + price, with a count badge when the
+// showcase carries more than one product.
+
+function DmProductRow({ productId, count }: { productId: string; count: number }) {
+        const product = usePreviewProduct(productId)
+        const img = product?.images?.[0]
+        return (
+                <div className="flex items-center gap-2 rounded-lg bg-white/70 px-2 py-1.5">
+                        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/[0.04]">
+                                {img ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={img} alt={product?.name ?? ''} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                                ) : (
+                                        <ShoppingBag className="h-4 w-4 text-black/30" />
+                                )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                                <p className="truncate text-[11px] font-medium leading-snug text-black">
+                                        {product ? product.name : '…'}
+                                </p>
+                                <p className="text-[10px] leading-snug text-black/50">
+                                        {product?.price != null
+                                                ? `${product.price.toLocaleString('fa-IR')} تومان`
+                                                : product === undefined
+                                                        ? '…'
+                                                        : 'بدون قیمت'}
+                                </p>
+                        </div>
+                        {count > 1 && (
+                                <span className="shrink-0 rounded-full bg-[#dd2a7b]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[#dd2a7b]">
+                                        {count.toLocaleString('fa-IR')} محصول
+                                </span>
+                        )}
                 </div>
         )
 }

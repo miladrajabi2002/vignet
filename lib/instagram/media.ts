@@ -1,8 +1,13 @@
 import type { Prisma } from '@prisma/client'
+import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { readPageToken } from '@/lib/instagram/config'
 import { GRAPH_BASE } from '@/lib/instagram/oauth'
 import { captureError } from '@/lib/errors/capture'
 import { safeHttpGet } from '@/lib/security/safe-http'
+import { BUCKETS, fileExists, isStorageConfigured, uploadFile } from '@/lib/storage'
 import { cleanDescriptionForChat } from '@/lib/products/description'
 import { igRecipient } from '@/lib/instagram/private-reply'
 
@@ -50,6 +55,235 @@ function resolveToken(channelConfig: Prisma.JsonValue): string | null {
         return readPageToken(channelConfig)
 }
 
+// ── Meta-safe image URL helpers (v3.1) ─────────────────────────────────────────
+// WooCommerce product images frequently break Instagram's Generic Template in
+// two ways, both of which show up as "the card renders without a photo":
+//   1. `.webp` files — Meta's template renderer only supports JPG/PNG/GIF, so
+//      webp URLs are silently dropped.
+//   2. Non-ASCII (Persian) path segments — the crawler needs a percent-encoded
+//      URL; raw unicode in `image_url` fails intermittently.
+
+/** True when the URL points at a Generic-Template-supported image format. */
+function isTemplateSupportedImage(url: string): boolean {
+        return /\.(jpe?g|png|gif)(?:[?#]|$)/i.test(url)
+}
+
+/** True when the URL points at a webp (unsupported by the template renderer). */
+function isWebpUrl(url: string): boolean {
+        return /\.webp(?:[?#]|$)/i.test(url)
+}
+
+/**
+ * Percent-encode a URL for Meta payloads: keeps the reserved ASCII structure
+ * intact, encodes non-ASCII (Persian) path segments. `encodeURI` semantics are
+ * exactly what a browser address bar does, and Meta's crawler accepts it.
+ *
+ * IDEMPOTENT (v3.3): callers upstream (`pickTemplateImageUrl`, `safeProductUrl`)
+ * frequently pass an ALREADY percent-encoded URL. Naively re-encoding would
+ * escape the percent signs themselves (%D8 → %25D8 — double encoding), which
+ * made Meta's crawler 404 on Persian product-image URLs and drop the image.
+ * We only encode when the URL contains no percent-escapes yet.
+ */
+export function metaSafeUrl(url: string): string {
+        try {
+                if (/%[0-9A-Fa-f]{2}/.test(url)) return url
+                return encodeURI(url)
+        } catch {
+                return url
+        }
+}
+
+/**
+ * Pick the best image URL for a Meta Generic Template card from a product's
+ * image list: the first JPG/PNG/GIF beats any webp; a webp is used only as a
+ * last resort (better a maybe-broken image than none). Returns a percent-
+ * encoded URL, or null when the list is empty.
+ */
+export function pickTemplateImageUrl(images: string[] | null | undefined): string | null {
+        if (!images?.length) return null
+        const supported = images.find((u) => typeof u === 'string' && isTemplateSupportedImage(u))
+        const fallback = images.find((u) => typeof u === 'string' && !isWebpUrl(u))
+        const chosen = supported ?? fallback ?? images.find((u) => typeof u === 'string')
+        return chosen ? metaSafeUrl(chosen) : null
+}
+
+// ─── v3.3: SERVER-SIDE IMAGE PROXY FOR TEMPLATE CARDS ────────────────────
+//
+// Meta's Generic Template `image_url` is fetched SERVER-SIDE by Meta's
+// crawler (User-Agent "facebookexternalhit/*"). Many WooCommerce shops —
+// including the tenants' own (e.g. ceeports.ir) — return 403 to that
+// crawler (hotlink protection / WAF rules), even though the same URL is
+// perfectly reachable from our server with a normal User-Agent. The result:
+// product cards arrived in the DM with NO image while the panel preview
+// looked fine.
+//
+// Fix: before handing an image URL to Meta, download it ourselves (our
+// egress is not blocked), cache the bytes in shared object storage keyed by
+// SHA-1 of the source URL, and give Meta a URL on OUR origin served by the public route
+// `app/media/products/[...key]` (GET /media/products/proxy/…). Keeping the
+// crawler-facing path outside `/api` also avoids stale robots.txt denials.
+// URLs already on our own origin are passed through untouched.
+
+const IMAGE_PROXY_DIR = join(process.cwd(), 'public', 'uploads', 'products', 'proxy')
+const PUBLIC_PRODUCT_MEDIA_PATH = '/media/products/'
+const LEGACY_PRODUCT_MEDIA_PATHS = ['/api/uploads/products/', '/uploads/products/'] as const
+const PROXY_IMAGE_EXTS = ['jpg', 'png', 'webp', 'gif', 'avif'] as const
+const PROXY_MIME_EXT: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+        'image/avif': 'avif',
+}
+
+let warnedNoPublicBase = false
+
+/** The public origin Meta's crawler can reach (S3_PUBLIC_URL / NEXT_PUBLIC_APP_URL). */
+function publicBaseUrl(): string {
+        const base =
+                process.env.S3_PUBLIC_URL ??
+                process.env.NEXT_PUBLIC_APP_URL ??
+                process.env.NEXT_PUBLIC_SITE_URL
+        return base ? base.replace(/\/+$/, '') : ''
+}
+
+/** True when the URL is already hosted on our own origin (nothing to proxy). */
+function isOwnOriginUrl(url: string): boolean {
+        const base = publicBaseUrl()
+        if (!base) return false
+        try {
+                return new URL(url).hostname === new URL(base).hostname
+        } catch {
+                return false
+        }
+}
+
+/**
+ * Return an own-origin image through the crawler-facing public media route.
+ * Existing catalog rows can still contain either the old API URL or the old
+ * runtime-static URL, so normalize both at send time without a data migration.
+ */
+function publicOwnOriginImageUrl(url: string): string {
+        const safe = metaSafeUrl(url)
+        const base = publicBaseUrl()
+        if (!base) return safe
+
+        try {
+                const parsed = new URL(safe)
+                const legacyPrefix = LEGACY_PRODUCT_MEDIA_PATHS.find((prefix) =>
+                        parsed.pathname.startsWith(prefix),
+                )
+                if (!legacyPrefix) return safe
+
+                const key = parsed.pathname.slice(legacyPrefix.length)
+                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}${key}${parsed.search}${parsed.hash}`
+        } catch {
+                return safe
+        }
+}
+
+/**
+ * Resolve an image URL for a Meta Generic Template element.
+ *
+ * - own-origin URLs → percent-encoded as-is
+ * - external URLs → downloaded server-side, cached under
+ *   products/proxy/{sha1}.{ext}, and served from OUR origin
+ *   so Meta's crawler never talks to the (possibly blocking) source host
+ * - on failure → falls back to the legacy disk cache, then the original URL
+ *
+ * Never throws.
+ */
+export async function templateImageUrl(rawUrl: string): Promise<string> {
+        // rawUrl usually arrives ALREADY percent-encoded (pickTemplateImageUrl
+        // output). metaSafeUrl is idempotent, so this encodes exactly once —
+        // never double-escapes.
+        const safe = metaSafeUrl(rawUrl)
+        if (isOwnOriginUrl(rawUrl)) return publicOwnOriginImageUrl(safe)
+
+        const base = publicBaseUrl()
+        if (!base) {
+                if (!warnedNoPublicBase) {
+                        warnedNoPublicBase = true
+                        console.warn(
+                                '[ig-product] no public base URL env (S3_PUBLIC_URL / NEXT_PUBLIC_APP_URL) — ' +
+                                        'cannot proxy external product images for Meta',
+                        )
+                }
+                return safe
+        }
+
+        let localCacheFallback: string | null = null
+        try {
+                const hash = createHash('sha1').update(safe).digest('hex')
+                // Cache hit? (extension unknown until first download — probe all)
+                for (const ext of PROXY_IMAGE_EXTS) {
+                        const filename = `${hash}.${ext}`
+                        if (existsSync(join(IMAGE_PROXY_DIR, filename))) {
+                                localCacheFallback = `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${filename}`
+                                if (!isStorageConfigured()) return localCacheFallback
+                        }
+                        if (
+                                isStorageConfigured() &&
+                                (await fileExists(BUCKETS.products, `proxy/${filename}`))
+                        ) {
+                                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${hash}.${ext}`
+                        }
+                }
+
+                const res = await safeHttpGet(safe, {
+                        timeoutMs: 15_000,
+                        maxBytes: 8 * 1024 * 1024,
+                        maxRedirects: 3,
+                        allowedContentTypes: ['image/'],
+                })
+                if (res.status < 200 || res.status >= 300) {
+                        throw new Error(`source returned HTTP ${res.status}`)
+                }
+                const ct = String(res.headers['content-type'] ?? '')
+                        .split(';')[0]
+                        .trim()
+                        .toLowerCase()
+                const ext = PROXY_MIME_EXT[ct]
+                if (!ext) throw new Error(`unsupported content-type "${ct}"`)
+
+                const filename = `${hash}.${ext}`
+                if (isStorageConfigured()) {
+                        // Deterministic keys make concurrent writes harmless and keep
+                        // the cache shared when the app runs on multiple instances.
+                        await uploadFile({
+                                bucket: BUCKETS.products,
+                                path: `proxy/${filename}`,
+                                body: res.body,
+                                contentType: ct,
+                                cacheControl: 'public, max-age=31536000, immutable',
+                        })
+                } else {
+                        await mkdir(IMAGE_PROXY_DIR, { recursive: true })
+                        try {
+                                await writeFile(join(IMAGE_PROXY_DIR, filename), res.body, {
+                                        flag: 'wx',
+                                })
+                        } catch (e) {
+                                // Two sends racing on the same image: the loser gets EEXIST —
+                                // the cache file is already there, which is success.
+                                if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
+                        }
+                }
+                console.log(
+                        `[ig-product] proxied image ${res.body.byteLength}B → ${filename} (src: ${safe.slice(0, 120)})`,
+                )
+                return `${base}${PUBLIC_PRODUCT_MEDIA_PATH}proxy/${filename}`
+        } catch (e) {
+                console.warn(
+                        `[ig-product] image proxy failed for ${safe.slice(0, 140)}: ${(e as Error).message} ` +
+                                (localCacheFallback
+                                        ? '— using the legacy local cache'
+                                        : '— falling back to the direct URL (Meta may not be able to fetch it)'),
+                )
+                return localCacheFallback ?? safe
+        }
+}
+
 /** Build the absolute /me/messages URL for the configured Graph version. */
 function messagesUrl(): string {
         return `${GRAPH_BASE}/me/messages`
@@ -68,11 +302,7 @@ interface MetaErrorBody {
 }
 
 /** Throw a uniform, code-tagged error for a non-2xx Graph API response. */
-async function throwIfError(
-        res: Response,
-        context: string,
-        mediaUrl?: string,
-): Promise<void> {
+async function throwIfError(res: Response, context: string, mediaUrl?: string): Promise<void> {
         if (res.ok) return
         const detail = await res.text().catch(() => '')
         let parsed: MetaErrorBody | null = null
@@ -111,7 +341,8 @@ async function throwIfError(
                 hint =
                         ' [راه‌حل: توکن دسترسی لازم را ندارد. اپ باید App Review بگیرد برای instagram_manage_messages.]'
         } else if (code === 613) {
-                hint = ' [راه‌حل: اکانت اینستاگرام قابلیت پاسخ‌دهی از طریق API را ندارد — Business/Creator باشد.]'
+                hint =
+                        ' [راه‌حل: اکانت اینستاگرام قابلیت پاسخ‌دهی از طریق API را ندارد — Business/Creator باشد.]'
         }
 
         throw new Error(
@@ -142,13 +373,13 @@ async function preflightMedia(
 ): Promise<PreparedMedia> {
         const kindLabel = kind.toLowerCase()
         const maxBytes =
-                kind === 'IMAGE' ? 8 * 1024 * 1024 : kind === 'AUDIO' ? 8 * 1024 * 1024 : 25 * 1024 * 1024
-        const allowedPrefixes =
                 kind === 'IMAGE'
-                        ? ['image/']
+                        ? 8 * 1024 * 1024
                         : kind === 'AUDIO'
-                                ? ['audio/']
-                                : ['video/']
+                          ? 8 * 1024 * 1024
+                          : 25 * 1024 * 1024
+        const allowedPrefixes =
+                kind === 'IMAGE' ? ['image/'] : kind === 'AUDIO' ? ['audio/'] : ['video/']
 
         const parsedUrl = new URL(url)
         if (parsedUrl.protocol !== 'https:') {
@@ -223,14 +454,26 @@ async function uploadMediaAttachment(
         // from attacker-controlled URL text (which could inject headers).
         const normalizedMime = prepared.contentType.split(';', 1)[0].trim().toLowerCase()
         const mimeToExt: Record<string, string> = {
-                'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
-                'image/gif': 'gif', 'image/avif': 'avif',
-                'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/wav': 'wav',
-                'audio/ogg': 'ogg', 'audio/aac': 'aac',
-                'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+                'image/jpeg': 'jpg',
+                'image/png': 'png',
+                'image/webp': 'webp',
+                'image/gif': 'gif',
+                'image/avif': 'avif',
+                'audio/mp4': 'm4a',
+                'audio/mpeg': 'mp3',
+                'audio/wav': 'wav',
+                'audio/ogg': 'ogg',
+                'audio/aac': 'aac',
+                'video/mp4': 'mp4',
+                'video/quicktime': 'mov',
+                'video/webm': 'webm',
         }
-        const ext = mimeToExt[normalizedMime] ?? (type === 'image' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4')
-        const mime = normalizedMime || (type === 'image' ? 'image/jpeg' : type === 'audio' ? 'audio/mp4' : 'video/mp4')
+        const ext =
+                mimeToExt[normalizedMime] ??
+                (type === 'image' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4')
+        const mime =
+                normalizedMime ||
+                (type === 'image' ? 'image/jpeg' : type === 'audio' ? 'audio/mp4' : 'video/mp4')
         const filename = `media.${ext}`
 
         // Build multipart/form-data: message field + filedata field.
@@ -243,7 +486,9 @@ async function uploadMediaAttachment(
                 Buffer.from(`Content-Disposition: form-data; name="message"\r\n\r\n`),
                 Buffer.from(`${messageJson}\r\n`),
                 Buffer.from(`--${boundary}\r\n`),
-                Buffer.from(`Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`),
+                Buffer.from(
+                        `Content-Disposition: form-data; name="filedata"; filename="${filename}"\r\n`,
+                ),
                 Buffer.from(`Content-Type: ${mime}\r\n\r\n`),
                 mediaBuf,
                 Buffer.from(`\r\n--${boundary}--\r\n`),
@@ -420,7 +665,9 @@ export async function sendProductCard(
         const token = resolveToken(channelConfig)
         if (!token) throw new Error('INSTAGRAM sendProductCard: missing access token')
 
-        console.log(`[ig-product] sending product card: id=${product.id} name="${product.name}" image=${product.imageUrl ? 'yes' : 'no'} price=${product.price ?? 'n/a'}`)
+        console.log(
+                `[ig-product] sending product card: id=${product.id} name="${product.name}" image=${product.imageUrl ? 'yes' : 'no'} price=${product.price ?? 'n/a'}`,
+        )
 
         const cleanDesc = cleanDescriptionForChat(product.description, 80)
         const subtitle = cleanDesc
@@ -428,11 +675,17 @@ export async function sendProductCard(
                         ? `${cleanDesc} — ${formatPrice(product.price)}`
                         : cleanDesc
                 : product.price != null
-                        ? formatPrice(product.price)
-                        : 'محصول'
+                  ? formatPrice(product.price)
+                  : 'محصول'
 
-        const buttonUrl =
-                product.productUrl ?? product.imageUrl ?? undefined
+        // v3.3: Meta-safe + crawler-reachable URL — external images are proxied
+        // through our own origin because Meta's crawler gets 403 from many
+        // WooCommerce hosts (hotlink protection) even when our server can fetch
+        // the same URL fine.
+        const safeImageUrl = product.imageUrl ? await templateImageUrl(product.imageUrl) : null
+        const buttonUrl = product.productUrl
+                ? metaSafeUrl(product.productUrl)
+                : (safeImageUrl ?? undefined)
 
         const buttons: Array<Record<string, unknown>> = []
         if (buttonUrl) {
@@ -456,8 +709,8 @@ export async function sendProductCard(
         }
         // image_url is optional in Generic Template but Meta sometimes rejects
         // elements without it. Only set it when we actually have a URL.
-        if (product.imageUrl) {
-                element.image_url = product.imageUrl
+        if (safeImageUrl) {
+                element.image_url = safeImageUrl
         }
 
         const res = await fetch(messagesUrl(), {
@@ -482,7 +735,9 @@ export async function sendProductCard(
         })
         if (!res.ok) {
                 const errText = await res.text().catch(() => '')
-                console.warn(`[ig-product] sendProductCard failed (${res.status}): ${errText.slice(0, 300)}`)
+                console.warn(
+                        `[ig-product] sendProductCard failed (${res.status}): ${errText.slice(0, 300)}`,
+                )
         }
         await throwIfError(res, 'sendProductCard')
 }
@@ -513,44 +768,53 @@ export async function sendProductCarousel(
                 return
         }
 
-        const elements = products.slice(0, 10).map((product) => {
-                const cleanDesc = cleanDescriptionForChat(product.description, 80)
-                const subtitle = cleanDesc
-                        ? product.price != null
-                                ? `${cleanDesc} — ${formatPrice(product.price)}`
-                                : cleanDesc
-                        : product.price != null
-                                ? formatPrice(product.price)
-                                : 'محصول'
+        const elements = await Promise.all(
+                products.slice(0, 10).map(async (product) => {
+                        const cleanDesc = cleanDescriptionForChat(product.description, 80)
+                        const subtitle = cleanDesc
+                                ? product.price != null
+                                        ? `${cleanDesc} — ${formatPrice(product.price)}`
+                                        : cleanDesc
+                                : product.price != null
+                                  ? formatPrice(product.price)
+                                  : 'محصول'
 
-                const buttonUrl =
-                        product.productUrl ?? product.imageUrl ?? undefined
+                        // v3.3: Meta-safe + crawler-reachable URLs — external images are
+                        // proxied through our own origin (many shop hosts 403 Meta's
+                        // crawler); percent-encode Persian paths for the rest.
+                        const safeImageUrl = product.imageUrl
+                                ? await templateImageUrl(product.imageUrl)
+                                : null
+                        const buttonUrl = product.productUrl
+                                ? metaSafeUrl(product.productUrl)
+                                : (safeImageUrl ?? undefined)
 
-                const buttons: Array<Record<string, unknown>> = []
-                if (buttonUrl) {
-                        buttons.push({
-                                type: 'web_url',
-                                url: buttonUrl,
-                                title: 'مشاهده محصول',
-                        })
-                } else {
-                        buttons.push({
-                                type: 'postback',
-                                title: 'مشاهده محصول',
-                                payload: `product:${product.id}`,
-                        })
-                }
+                        const buttons: Array<Record<string, unknown>> = []
+                        if (buttonUrl) {
+                                buttons.push({
+                                        type: 'web_url',
+                                        url: buttonUrl,
+                                        title: 'مشاهده محصول',
+                                })
+                        } else {
+                                buttons.push({
+                                        type: 'postback',
+                                        title: 'مشاهده محصول',
+                                        payload: `product:${product.id}`,
+                                })
+                        }
 
-                const element: Record<string, unknown> = {
-                        title: product.name.slice(0, 80),
-                        subtitle: subtitle.slice(0, 80),
-                        buttons,
-                }
-                if (product.imageUrl) {
-                        element.image_url = product.imageUrl
-                }
-                return element
-        })
+                        const element: Record<string, unknown> = {
+                                title: product.name.slice(0, 80),
+                                subtitle: subtitle.slice(0, 80),
+                                buttons,
+                        }
+                        if (safeImageUrl) {
+                                element.image_url = safeImageUrl
+                        }
+                        return element
+                }),
+        )
 
         console.log(`[ig-product] sending product carousel: count=${elements.length}`)
 
@@ -576,7 +840,9 @@ export async function sendProductCarousel(
         })
         if (!res.ok) {
                 const errText = await res.text().catch(() => '')
-                console.warn(`[ig-product] sendProductCarousel failed (${res.status}): ${errText.slice(0, 300)}`)
+                console.warn(
+                        `[ig-product] sendProductCarousel failed (${res.status}): ${errText.slice(0, 300)}`,
+                )
         }
         await throwIfError(res, 'sendProductCarousel')
 }
@@ -593,10 +859,8 @@ export async function sendButtonMessage(
         buttons: ButtonAction[],
 ): Promise<void> {
         const token = resolveToken(channelConfig)
-        if (!token)
-                throw new Error('INSTAGRAM sendButtonMessage: missing access token')
-        if (!buttons.length)
-                throw new Error('INSTAGRAM sendButtonMessage: no buttons provided')
+        if (!token) throw new Error('INSTAGRAM sendButtonMessage: missing access token')
+        if (!buttons.length) throw new Error('INSTAGRAM sendButtonMessage: no buttons provided')
 
         const sanitizedButtons = buttons.slice(0, 3).map((b) => {
                 const title = (b.title ?? '').trim().slice(0, 20) || 'انتخاب'
@@ -653,7 +917,14 @@ export async function sendRichEntry(
         channelConfig: Prisma.JsonValue,
         chatId: string,
         entry: {
-                type: 'TEXT' | 'IMAGE' | 'AUDIO' | 'VIDEO' | 'QUICK_REPLY' | 'PRODUCT' | 'PRODUCT_LIST'
+                type:
+                        | 'TEXT'
+                        | 'IMAGE'
+                        | 'AUDIO'
+                        | 'VIDEO'
+                        | 'QUICK_REPLY'
+                        | 'PRODUCT'
+                        | 'PRODUCT_LIST'
                 text?: string
                 mediaUrl?: string
                 productId?: string
@@ -664,16 +935,12 @@ export async function sendRichEntry(
         /** Called for TEXT entries (which need the adapter's quick-reply support). */
         sendText: (chatId: string, text: string) => Promise<void>,
         /** Called for PRODUCT entries — the caller resolves the product snapshot. */
-        resolveProduct?: (
-                productId: string,
-        ) => Promise<ProductShowcase | null>,
+        resolveProduct?: (productId: string) => Promise<ProductShowcase | null>,
         /** Called for PRODUCT_LIST entries — the caller resolves a list of product
          *  snapshots. Falls back to calling `resolveProduct` for each id when this
          *  is not provided, so callers that already have a batched lookup can pass
          *  it for efficiency, and callers that don't don't have to. */
-        resolveProducts?: (
-                productIds: string[],
-        ) => Promise<ProductShowcase[]>,
+        resolveProducts?: (productIds: string[]) => Promise<ProductShowcase[]>,
         workspaceId?: string,
 ): Promise<void> {
         try {
@@ -684,7 +951,12 @@ export async function sendRichEntry(
                         case 'IMAGE':
                                 if (entry.mediaUrl) {
                                         assertPublicHttps(entry.mediaUrl, 'IMAGE')
-                                        await sendImage(channelConfig, chatId, entry.mediaUrl, entry.text)
+                                        await sendImage(
+                                                channelConfig,
+                                                chatId,
+                                                entry.mediaUrl,
+                                                entry.text,
+                                        )
                                 }
                                 break
                         case 'AUDIO':
@@ -713,7 +985,12 @@ export async function sendRichEntry(
                                                 await sendText(chatId, entry.text || '')
                                         } else {
                                                 // Button Template — inside the bubble (default).
-                                                await sendButtonMessage(channelConfig, chatId, entry.text || '', buttons)
+                                                await sendButtonMessage(
+                                                        channelConfig,
+                                                        chatId,
+                                                        entry.text || '',
+                                                        buttons,
+                                                )
                                         }
                                 } else if (entry.text) {
                                         await sendText(chatId, entry.text)
@@ -734,12 +1011,23 @@ export async function sendRichEntry(
                                 const products = resolveProducts
                                         ? await resolveProducts(ids)
                                         : (
-                                                await Promise.all(
-                                                        ids
-                                                                .slice(0, 10)
-                                                                .map((id) => resolveProduct?.(id).catch(() => null) ?? Promise.resolve(null)),
-                                                )
-                                        ).filter((p): p is ProductShowcase => p != null)
+                                                  await Promise.all(
+                                                          ids
+                                                                  .slice(0, 10)
+                                                                  .map(
+                                                                          (id) =>
+                                                                                  resolveProduct?.(
+                                                                                          id,
+                                                                                  ).catch(
+                                                                                          () =>
+                                                                                                  null,
+                                                                                  ) ??
+                                                                                  Promise.resolve(
+                                                                                          null,
+                                                                                  ),
+                                                                  ),
+                                                  )
+                                          ).filter((p): p is ProductShowcase => p != null)
                                 if (products.length === 0) return
                                 if (products.length === 1) {
                                         // One product — send as a single card (smaller payload,

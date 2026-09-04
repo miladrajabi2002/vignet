@@ -41,8 +41,10 @@ describe('managed model policy', () => {
   })
 
   it('uses the configured fixed reply prices', () => {
-    // Matches the synced .env fallbacks and the live DB platformAiSettings
-    // values (fast = 400 toman, balanced = 750 toman per reply).
+    // Keep this contract test independent from the developer/production .env.
+    vi.stubEnv('AI_REPLY_PRICE_FAST_IRR', '4000')
+    vi.stubEnv('AI_REPLY_PRICE_BALANCED_IRR', '7500')
+    vi.stubEnv('AI_REPLY_PRICE_PREMIUM_IRR', '30000')
     expect(getReplyPriceIRR('fast')).toBe(4_000)
     expect(getReplyPriceIRR('balanced')).toBe(7_500)
     expect(getReplyPriceIRR('premium')).toBe(30_000)

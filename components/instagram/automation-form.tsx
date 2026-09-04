@@ -7,6 +7,7 @@ import {
         useEffect,
         type FormEvent,
         type KeyboardEvent,
+        type UIEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -116,6 +117,26 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                         : (a?.trigger.keywords?.length ?? 0) > 0
                                 ? 'SPECIFIC'
                                 : 'ANY'
+        // LEGACY FIX (v3.1): older builds mapped the comment "ارسال در دایرکت"
+        // option to replyMode SILENT + dmOnComment true — which the engine then
+        // skipped as silent, so the funnel never delivered anything. When
+        // editing such a row, surface it as what it was meant to be: a STATIC
+        // comment→DM sequence.
+        const legacyCommentDm = type === 'COMMENT' && a?.action.dmOnComment === true
+        const storedReplyMode = a?.action.replyMode ?? defaultReplyMode(type)
+        const effectiveReplyMode =
+                legacyCommentDm && storedReplyMode === 'SILENT' ? 'STATIC' : storedReplyMode
+        // Legacy comment→DM rows stored the DM body in `contentText` (the old
+        // single-textarea UI) — seed it into the builder so nothing is lost.
+        let seededMessages: AutomationMessage[] = a?.action.messages?.length
+                ? a.action.messages.map(normalizeMessage)
+                : type === 'COMMENT'
+                        ? [emptyTextMessage()]
+                        : []
+        if (legacyCommentDm && !a?.action.messages?.length) {
+                const legacyBody = a?.action.contentText || a?.action.replyText || ''
+                if (legacyBody) seededMessages = [{ id: newMessageId(), type: 'TEXT', text: legacyBody }]
+        }
         const base: FormState = {
                 name: a?.name ?? '',
                 active: a?.active ?? true,
@@ -126,12 +147,8 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 postFilter: (a?.trigger.postIds?.length ?? 0) > 0 ? 'SPECIFIC' : 'ANY',
                 postIdsText: (a?.trigger.postIds ?? []).join(', '),
                 keywordFilter,
-                replyMode: a?.action.replyMode ?? defaultReplyMode(type),
-                messages: a?.action.messages?.length
-                        ? a.action.messages.map(normalizeMessage)
-                        : type === 'COMMENT'
-                                ? [emptyTextMessage()]
-                                : [],
+                replyMode: effectiveReplyMode,
+                messages: seededMessages,
                 dmOnComment: a?.action.dmOnComment ?? false,
                 followGate: a?.action.followGate ?? false,
                 gateMode: a?.action.gateMode ?? 'SOFT',
@@ -184,7 +201,6 @@ function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
 // ── Public component ────────────────────────────────────────────────────
 export function AutomationForm({
         agentId,
-        channelId,
         accountUsername,
         accountAvatarUrl,
         type,
@@ -321,15 +337,19 @@ export function AutomationForm({
                 }
 
                 // Build messages based on type + replyMode.
+                // COMMENT funnels deliver in the commenter's DM, so the full rich
+                // sequence (text/image/voice/video/keys/showcase) is allowed there;
+                // public comment replies stay TEXT-only (Instagram API constraint).
                 let messages: AutomationMessage[] = []
                 if (form.replyMode === 'STATIC' || form.replyMode === 'MULTI_MESSAGE') {
                         if (type === 'DIRECT_MESSAGE' || type === 'STORY') {
                                 messages = form.messages
-                        } else if (type === 'COMMENT' && form.replyMode === 'MULTI_MESSAGE') {
-                                messages = form.messages.filter((m) => m.text.trim() || m.mediaUrl)
                         } else if (type === 'COMMENT' && form.dmOnComment) {
-                                // SEND_DM: a single message sent in DM.
+                                // SEND_DM: the rich sequence goes to the commenter's DM.
                                 messages = form.messages
+                        } else if (type === 'COMMENT' && form.replyMode === 'MULTI_MESSAGE') {
+                                // Public random reply — text only.
+                                messages = form.messages.filter((m) => m.text.trim())
                         }
                 }
 
@@ -403,6 +423,23 @@ export function AutomationForm({
                 ) {
                         setError('حداقل یک پیام به دنباله اضافه کنید.')
                         return
+                }
+                // COMMENT SEND_DM: the funnel delivers the builder sequence in DM —
+                // require at least one non-empty message so the scenario can't be
+                // saved in a state that silently no-ops.
+                if (type === 'COMMENT' && form.dmOnComment) {
+                        const hasDmContent = form.messages.some(
+                                (m) =>
+                                        m.text.trim() ||
+                                        m.mediaUrl ||
+                                        m.productId ||
+                                        (m.productIds && m.productIds.length > 0) ||
+                                        (m.buttons && m.buttons.length > 0),
+                        )
+                        if (!hasDmContent) {
+                                setError('برای «ارسال در دایرکت» حداقل یک پیام اضافه کنید.')
+                                return
+                        }
                 }
                 setBusy(true)
                 setError(null)
@@ -479,13 +516,13 @@ export function AutomationForm({
         const HeaderIcon: LucideIcon =
                 type === 'DIRECT_MESSAGE' ? MessageCircle : type === 'COMMENT' ? MessageSquare : Circle
 
-        const showBuilder = isDm
-                ? form.replyMode === 'STATIC'
-                : isStory
-                        ? form.replyMode === 'STATIC'
-                        : isComment
-                                ? form.replyMode === 'MULTI_MESSAGE' || form.dmOnComment
-                                : false
+        // The rich message builder renders for STATIC sequences — DM, STORY and
+        // the comment→DM funnel (SEND_DM), which delivers in the commenter's DM
+        // so it supports the full media toolkit. COMMENT public replies
+        // (MULTI_MESSAGE) are text-only and use their own section below.
+        const showBuilder =
+                form.replyMode === 'STATIC' &&
+                (isDm || isStory || (isComment && form.dmOnComment))
 
         return (
                 <div className="mx-auto max-w-7xl space-y-5">
@@ -668,50 +705,23 @@ export function AutomationForm({
                                         </Section>
 
                                         {/* ─── MESSAGE BUILDER (DM/STORY STATIC, COMMENT SEND_DM) ── */}
-                                        {showBuilder && form.replyMode === 'STATIC' && (
-                                                <Section title="دنباله پیام‌ها" Icon={MessageCircle}>
+                                        {showBuilder && (
+                                                <Section
+                                                        title={isComment && form.dmOnComment ? 'پیام‌های دایرکت' : 'دنباله پیام‌ها'}
+                                                        Icon={isComment && form.dmOnComment ? Send : MessageCircle}
+                                                >
                                                         <MessageBuilder
                                                                 messages={form.messages}
-                                                                channelId={channelId}
                                                                 onAdd={addMessage}
                                                                 onUpdate={updateMessage}
                                                                 onRemove={removeMessage}
                                                                 onMove={moveMessage}
                                                         />
                                                         <p className="text-[11px] text-[var(--text-muted)]">
-                                                                پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.
+                                                                {isComment && form.dmOnComment
+                                                                        ? 'به‌جای ریپلای عمومی، این پیام‌ها در دایرکتِ کامنت‌گذار ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول اضافه کنید.'
+                                                                        : 'پیام‌ها به‌ترتیب ارسال می‌شوند. می‌توانید متن، عکس، وویس، ویدیو، کلید و ویترین محصول را به دنباله اضافه کنید.'}
                                                         </p>
-                                                </Section>
-                                        )}
-
-                                        {/* ─── COMMENT SEND_DM: also show message builder ────── */}
-                                        {isComment && form.dmOnComment && (
-                                                <Section title="متن دایرکت" Icon={Send}>
-                                                        <div className="space-y-1.5">
-                                                                <label className="text-xs font-medium text-[var(--text-secondary)]">
-                                                                        متن دایرکت (به کامنت‌گذار)
-                                                                </label>
-                                                                <textarea
-                                                                        value={form.messages[0]?.text ?? ''}
-                                                                        onChange={(e) =>
-                                                                                updateMessage(form.messages[0]?.id ?? '', {
-                                                                                        type: 'TEXT',
-                                                                                        text: e.target.value,
-                                                                                })
-                                                                        }
-                                                                        onFocus={() => {
-                                                                                if (form.messages.length === 0) {
-                                                                                        addMessage('TEXT')
-                                                                                }
-                                                                        }}
-                                                                        placeholder="متن دایرکتی که برای کامنت‌گذار ارسال می‌شود."
-                                                                        rows={3}
-                                                                        className="input resize-none"
-                                                                />
-                                                                <p className="text-[11px] text-[var(--text-muted)]">
-                                                                        کاربر پس از کامنت، این پیام را در دایرکت دریافت می‌کند.
-                                                                </p>
-                                                        </div>
                                                 </Section>
                                         )}
 
@@ -1145,14 +1155,18 @@ function CommentActionSelector({
                         onReplyModeChange('MULTI_MESSAGE')
                         onDmOnCommentChange(false)
                 } else {
-                        onReplyModeChange('SILENT')
+                        // SEND_DM is a STATIC sequence delivered in the commenter's DM —
+                        // NOT 'SILENT'. (Older builds stored SILENT here, which made the
+                        // engine skip the reply entirely — the "commented the keyword
+                        // but nothing was sent" bug.)
+                        onReplyModeChange('STATIC')
                         onDmOnCommentChange(true)
                 }
         }
         const opts: { value: 'SILENT' | 'MULTI_MESSAGE' | 'SEND_DM'; label: string; desc: string; Icon: LucideIcon }[] = [
                 { value: 'SILENT', label: 'ریپلای نکن', desc: 'کامنت بدون پاسخ رها می‌شود', Icon: Circle },
                 { value: 'MULTI_MESSAGE', label: 'یکی از پیام‌ها', desc: 'به‌صورت تصادفی یکی از گزینه‌ها', Icon: MessageSquare },
-                { value: 'SEND_DM', label: 'ارسال در دایرکت', desc: 'به‌جای ریپلای عمومی، دایرکت بفرست', Icon: Send },
+                { value: 'SEND_DM', label: 'ارسال در دایرکت', desc: 'به‌جای ریپلای عمومی، پیام‌ها در دایرکت ارسال می‌شود', Icon: Send },
         ]
         return (
                 <div className="grid grid-cols-1 gap-2">
@@ -1247,14 +1261,12 @@ function StoryActionSelector({
 // ── Message Builder (the key feature) ────────────────────────────────────
 function MessageBuilder({
         messages,
-        channelId,
         onAdd,
         onUpdate,
         onRemove,
         onMove,
-}: {
-        messages: AutomationMessage[]
-        channelId: string
+	}: {
+	        messages: AutomationMessage[]
         onAdd: (t: MessageType) => void
         onUpdate: (id: string, patch: Partial<AutomationMessage>) => void
         onRemove: (id: string) => void
@@ -1312,7 +1324,6 @@ function MessageBuilder({
                                         message={m}
                                         index={idx}
                                         total={messages.length}
-                                        channelId={channelId}
                                         onUpdate={(patch) => onUpdate(m.id, patch)}
                                         onRemove={() => onRemove(m.id)}
                                         onMoveUp={() => onMove(m.id, -1)}
@@ -1352,7 +1363,6 @@ function MessageCard({
         message,
         index,
         total,
-        channelId,
         onUpdate,
         onRemove,
         onMoveUp,
@@ -1361,7 +1371,6 @@ function MessageCard({
         message: AutomationMessage
         index: number
         total: number
-        channelId: string
         onUpdate: (patch: Partial<AutomationMessage>) => void
         onRemove: () => void
         onMoveUp: () => void
@@ -1657,7 +1666,6 @@ function MessageCard({
                         {message.type === 'PRODUCT' && (
                                 <div className="space-y-3">
                                         <ProductPicker
-                                                channelId={channelId}
                                                 selectedId={message.productId}
                                                 onSelect={(p) =>
                                                         onUpdate({
@@ -1687,7 +1695,6 @@ function MessageCard({
                                                 یک محصول = کارت محصول تکی، دو یا بیشتر = ویترین افقی قابل‌scroll. ترتیب با فلش‌های بالا/پایین قابل تغییره. حداکثر ۱۰ محصول.
                                         </p>
                                         <MultiProductPicker
-                                                channelId={channelId}
                                                 selectedIds={message.productIds ?? []}
                                                 onChange={(ids) => onUpdate({ productIds: ids })}
                                         />
@@ -1848,58 +1855,155 @@ interface ProductLite {
         images: string[]
 }
 
+// ── Shared paged product list (v3.3) ────────────────────────────────────
+// Pickers used to load the FULL product list on open — with hundreds of
+// products that meant a slow first paint and a heavy payload. Now the first
+// page is the 10 NEWEST products ("۱۰ تا آخر"), search runs server-side, and
+// more pages stream in via infinite scroll (or the "نمایش بیشتر" button).
+const PICKER_PAGE_SIZE = 10
+
+interface PagedProductList {
+        items: ProductLite[]
+        total: number
+        loading: boolean
+        loadingMore: boolean
+        hasMore: boolean
+        loadMore: () => void
+        handleListScroll: (e: UIEvent<HTMLDivElement>) => void
+}
+
+function useProductPickerPages(open: boolean, q: string): PagedProductList {
+        const [items, setItems] = useState<ProductLite[]>([])
+        const [total, setTotal] = useState(0)
+        const [loading, setLoading] = useState(false)
+        const [loadingMore, setLoadingMore] = useState(false)
+        const [hasMore, setHasMore] = useState(false)
+        // Request sequence — guards against an older page-1 response arriving
+        // after a newer one (typing while a fetch is in flight).
+        const seqRef = useRef(0)
+        // Latest items/query for the imperative loadMore (avoids stale closure).
+        const stateRef = useRef({ items: [] as ProductLite[], q: '' })
+        stateRef.current = { items, q: q.trim() }
+
+        // (Re)load the FIRST page: immediately when the picker opens or the
+        // query is cleared, debounced 300 ms while the user is typing.
+        useEffect(() => {
+                if (!open) return
+                let cancelled = false
+                const run = () => {
+                        const seq = ++seqRef.current
+                        setLoading(true)
+                        const params = new URLSearchParams({
+                                sort: 'newest',
+                                limit: String(PICKER_PAGE_SIZE),
+                        })
+                        if (q.trim()) params.set('q', q.trim())
+                        fetch(`/api/products?${params.toString()}`)
+                                .then((r) => r.json())
+                                .then((d: { products?: ProductLite[]; total?: number }) => {
+                                        if (cancelled || seq !== seqRef.current) return
+                                        const list = (d.products ?? []) as ProductLite[]
+                                        const t = d.total ?? list.length
+                                        setItems(list)
+                                        setTotal(t)
+                                        setHasMore(list.length < t)
+                                })
+                                .catch(() => {})
+                                .finally(() => {
+                                        if (!cancelled && seq === seqRef.current) setLoading(false)
+                                })
+                }
+                if (q.trim()) {
+                        const timer = setTimeout(run, 300)
+                        return () => {
+                                cancelled = true
+                                clearTimeout(timer)
+                        }
+                }
+                run()
+                return () => {
+                        cancelled = true
+                }
+        }, [open, q])
+
+        // Append the next page (called by the scroll handler / "نمایش بیشتر").
+        async function loadMore() {
+                const { items: current, q: query } = stateRef.current
+                if (loading || loadingMore || !hasMore || current.length === 0) return
+                const seq = ++seqRef.current
+                setLoadingMore(true)
+                const params = new URLSearchParams({
+                        sort: 'newest',
+                        limit: String(PICKER_PAGE_SIZE),
+                        offset: String(current.length),
+                })
+                if (query) params.set('q', query)
+                try {
+                        const r = await fetch(`/api/products?${params.toString()}`)
+                        const d = (await r.json()) as { products?: ProductLite[]; total?: number }
+                        if (seq !== seqRef.current) return
+                        const list = (d.products ?? []) as ProductLite[]
+                        const seen = new Set(current.map((x) => x.id))
+                        const merged = [...current, ...list.filter((x) => x.id && !seen.has(x.id))]
+                        const newTotal = d.total ?? merged.length
+                        setItems(merged)
+                        setTotal(newTotal)
+                        setHasMore(merged.length < newTotal)
+                } catch {
+                        // Keep the current page; scrolling again retries.
+                } finally {
+                        if (seq === seqRef.current) setLoadingMore(false)
+                }
+        }
+
+        // Infinite scroll: fetch the next page when the list nears its bottom.
+        function handleListScroll(e: UIEvent<HTMLDivElement>) {
+                const el = e.currentTarget
+                if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) void loadMore()
+        }
+
+        return { items, total, loading, loadingMore, hasMore, loadMore, handleListScroll }
+}
+
+/** Footer chip: "x از y محصول" + load-more affordance for paged pickers. */
+function PickerListFooter({ loadingMore, hasMore, shown, total, onMore }: { loadingMore: boolean; hasMore: boolean; shown: number; total: number; onMore: () => void }) {
+        if (total <= 0 && !hasMore) return null
+        return (
+                <div className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] px-3 py-2 text-[11px] text-[var(--text-muted)]">
+                        {loadingMore ? (
+                                <>
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        در حال بارگذاری…
+                                </>
+                        ) : hasMore ? (
+                                <button
+                                        type="button"
+                                        onClick={onMore}
+                                        className="transition-colors hover:text-[var(--text-secondary)]"
+                                >
+                                        نمایش بیشتر ({shown.toLocaleString('fa-IR')} از {total.toLocaleString('fa-IR')})
+                                </button>
+                        ) : (
+                                <span>
+                                        {shown.toLocaleString('fa-IR')} از {total.toLocaleString('fa-IR')} محصول
+                                </span>
+                        )}
+                </div>
+        )
+}
+
 function ProductPicker({
-        channelId,
         selectedId,
         onSelect,
 }: {
-        channelId: string
         selectedId?: string
         onSelect: (p: ProductLite) => void
 }) {
         const [open, setOpen] = useState(false)
         const [q, setQ] = useState('')
-        const [loading, setLoading] = useState(false)
-        const [items, setItems] = useState<ProductLite[]>([])
         const [selected, setSelected] = useState<ProductLite | null>(null)
-        const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-        // Load initial 20 products when first opened (or when channelId changes).
-        useEffect(() => {
-                if (!open) return
-                let cancelled = false
-                setLoading(true)
-                fetch(`/api/products?sort=newest`)
-                        .then((r) => r.json())
-                        .then((d) => {
-                                if (cancelled) return
-                                const list: ProductLite[] = ((d.products ?? []) as ProductLite[]).slice(0, 20)
-                                setItems(list)
-                        })
-                        .catch(() => {})
-                        .finally(() => !cancelled && setLoading(false))
-                return () => {
-                        cancelled = true
-                }
-        }, [open, channelId])
-
-        // Debounced search.
-        useEffect(() => {
-                if (!open) return
-                if (debounceRef.current) clearTimeout(debounceRef.current)
-                if (!q.trim()) return
-                debounceRef.current = setTimeout(() => {
-                        setLoading(true)
-                        fetch(`/api/products?q=${encodeURIComponent(q)}`)
-                                .then((r) => r.json())
-                                .then((d) => setItems(((d.products ?? []) as ProductLite[]).slice(0, 20)))
-                                .catch(() => {})
-                                .finally(() => setLoading(false))
-                }, 300)
-                return () => {
-                        if (debounceRef.current) clearTimeout(debounceRef.current)
-                }
-        }, [q, open])
+        const { items, total, loading, loadingMore, hasMore, loadMore, handleListScroll } =
+                useProductPickerPages(open, q)
 
         // Resolve the selected product (for the chip display).
         useEffect(() => {
@@ -1975,7 +2079,7 @@ function ProductPicker({
                                                         />
                                                 </div>
                                         </div>
-                                        <div className="max-h-56 overflow-y-auto">
+                                        <div className="max-h-56 overflow-y-auto" onScroll={handleListScroll}>
                                                 {loading && (
                                                         <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--text-muted)]">
                                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2012,6 +2116,15 @@ function ProductPicker({
                                                                         </div>
                                                                 </button>
                                                         ))}
+                                                {!loading && (
+                                                        <PickerListFooter
+                                                                loadingMore={loadingMore}
+                                                                hasMore={hasMore}
+                                                                shown={items.length}
+                                                                total={total}
+                                                                onMore={() => void loadMore()}
+                                                        />
+                                                )}
                                         </div>
                                 </div>
                         )}
@@ -2040,23 +2153,20 @@ function ProductThumb({ product }: { product: ProductLite }) {
 // drag-free reorder via up/down arrows, click X to remove. Same API as the
 // single ProductPicker above so the data shape (`ProductLite`) is shared.
 function MultiProductPicker({
-        channelId,
         selectedIds,
         onChange,
 }: {
-        channelId: string
         selectedIds: string[]
         onChange: (ids: string[]) => void
 }) {
         const MAX = 10
         const [open, setOpen] = useState(false)
         const [q, setQ] = useState('')
-        const [loading, setLoading] = useState(false)
-        const [items, setItems] = useState<ProductLite[]>([])
         // Cache of {id -> ProductLite} for the selected rows so the UI shows
         // thumbnails/names without re-fetching on every render.
         const [cache, setCache] = useState<Record<string, ProductLite>>({})
-        const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+        const { items, total, loading, loadingMore, hasMore, loadMore, handleListScroll } =
+                useProductPickerPages(open, q)
 
         // Resolve any selected ids that aren't in the cache yet (e.g. on form load).
         useEffect(() => {
@@ -2086,55 +2196,15 @@ function MultiProductPicker({
                 // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [selectedIds.join(',')])
 
-        // Load initial 20 products when the picker opens.
+        // Keep the cache warm from whatever page the list has loaded.
         useEffect(() => {
-                if (!open) return
-                let cancelled = false
-                setLoading(true)
-                fetch(`/api/products?sort=newest`)
-                        .then((r) => r.json())
-                        .then((d) => {
-                                if (cancelled) return
-                                const list: ProductLite[] = ((d.products ?? []) as ProductLite[]).slice(0, 20)
-                                setItems(list)
-                                setCache((prev) => {
-                                        const next = { ...prev }
-                                        for (const p of list) next[p.id] = p
-                                        return next
-                                })
-                        })
-                        .catch(() => {})
-                        .finally(() => !cancelled && setLoading(false))
-                return () => {
-                        cancelled = true
-                }
-        }, [open, channelId])
-
-        // Debounced search.
-        useEffect(() => {
-                if (!open) return
-                if (debounceRef.current) clearTimeout(debounceRef.current)
-                if (!q.trim()) return
-                debounceRef.current = setTimeout(() => {
-                        setLoading(true)
-                        fetch(`/api/products?q=${encodeURIComponent(q)}`)
-                                .then((r) => r.json())
-                                .then((d) => {
-                                        const list = ((d.products ?? []) as ProductLite[]).slice(0, 20)
-                                        setItems(list)
-                                        setCache((prev) => {
-                                                const next = { ...prev }
-                                                for (const p of list) next[p.id] = p
-                                                return next
-                                        })
-                                })
-                                .catch(() => {})
-                                .finally(() => setLoading(false))
-                }, 300)
-                return () => {
-                        if (debounceRef.current) clearTimeout(debounceRef.current)
-                }
-        }, [q, open])
+                if (items.length === 0) return
+                setCache((prev) => {
+                        const next = { ...prev }
+                        for (const p of items) next[p.id] = p
+                        return next
+                })
+        }, [items])
 
         function add(id: string) {
                 if (selectedIds.includes(id)) return
@@ -2248,7 +2318,7 @@ function MultiProductPicker({
                                                         />
                                                 </div>
                                         </div>
-                                        <div className="max-h-56 overflow-y-auto">
+                                        <div className="max-h-56 overflow-y-auto" onScroll={handleListScroll}>
                                                 {loading && (
                                                         <div className="flex items-center justify-center gap-2 py-6 text-xs text-[var(--text-muted)]">
                                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2290,6 +2360,15 @@ function MultiProductPicker({
                                                                         </button>
                                                                 )
                                                         })}
+                                                {!loading && (
+                                                        <PickerListFooter
+                                                                loadingMore={loadingMore}
+                                                                hasMore={hasMore}
+                                                                shown={items.length}
+                                                                total={total}
+                                                                onMore={() => void loadMore()}
+                                                        />
+                                                )}
                                         </div>
                                 </div>
                         )}

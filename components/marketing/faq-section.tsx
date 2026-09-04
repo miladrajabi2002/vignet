@@ -28,9 +28,8 @@ export async function FaqSection() {
                                 <div className="mt-6 grid grid-cols-1 items-start gap-2.5 sm:mt-10 lg:grid-cols-2 lg:gap-4">
                                         {columns.map((column, columnIndex) => (
                                                 <div key={columnIndex} className="space-y-2.5 lg:space-y-4">
-                                                        {column.map((item, itemIndex) => {
-                                                                const index = columnIndex * mid + itemIndex
-                                                                return (
+								{column.map((item, itemIndex) => {
+									return (
                                                                         <details
                                                                                 key={item.q}
                                                                                 name="marketing-faq"

@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/session'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
 import { rateLimitCost } from '@/lib/ratelimit'
+import { BUCKETS, isStorageConfigured, uploadFile } from '@/lib/storage'
 
 export const runtime = 'nodejs'
 
@@ -26,7 +27,10 @@ function publicOrigin(request: Request): string {
     if (!candidate) continue
     try {
       const url = new URL(candidate)
-      if (url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')) {
+      if (
+        url.protocol === 'https:' ||
+        (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')
+      ) {
         return url.origin
       }
     } catch {
@@ -51,13 +55,17 @@ export async function POST(request: Request) {
   const ext = MIME_EXT[mime]
   if (!ext) return NextResponse.json({ error: 'INVALID_IMAGE_TYPE' }, { status: 400 })
   if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
-    return NextResponse.json({ error: 'IMAGE_TOO_LARGE', maxBytes: MAX_IMAGE_BYTES }, { status: 413 })
+    return NextResponse.json(
+      { error: 'IMAGE_TOO_LARGE', maxBytes: MAX_IMAGE_BYTES },
+      { status: 413 },
+    )
   }
 
   const configuredDailyBytes = Number(process.env.PRODUCT_IMAGE_UPLOAD_DAILY_BYTES)
-  const dailyBytes = Number.isFinite(configuredDailyBytes) && configuredDailyBytes >= MAX_IMAGE_BYTES
-    ? Math.floor(configuredDailyBytes)
-    : DEFAULT_DAILY_BYTES
+  const dailyBytes =
+    Number.isFinite(configuredDailyBytes) && configuredDailyBytes >= MAX_IMAGE_BYTES
+      ? Math.floor(configuredDailyBytes)
+      : DEFAULT_DAILY_BYTES
   const withinQuota = await rateLimitCost(
     `product-image-upload:${user.workspaceId}`,
     dailyBytes,
@@ -71,11 +79,46 @@ export async function POST(request: Request) {
   const year = String(now.getUTCFullYear())
   const month = String(now.getUTCMonth() + 1).padStart(2, '0')
   const filename = `${now.getTime()}-${randomUUID()}.${ext}`
+  // The public URL goes through the crawler-facing [...key] serving route, NOT the
+  // /uploads/... static path. Next.js production (`next start`) only serves
+  // `public/` files that existed at build time — a file written at runtime
+  // 404s from the static handler. The serving route streams it from disk so
+  // the operator's browser AND Meta's crawler can fetch it. Its public URL is
+  // deliberately outside `/api`: crawlers may retain a cached robots.txt deny
+  // for that prefix even after a more-specific allow rule is deployed.
+  const urlPath = `/media/products/${user.workspaceId}/${year}/${month}/${filename}`
   const relativePath = `/uploads/products/${user.workspaceId}/${year}/${month}/${filename}`
-  const directory = join(process.cwd(), 'public', 'uploads', 'products', user.workspaceId, year, month)
+  const storagePath = `${user.workspaceId}/${year}/${month}/${filename}`
+  const bytes = Buffer.from(await file.arrayBuffer())
 
-  await mkdir(directory, { recursive: true })
-  await writeFile(join(directory, filename), Buffer.from(await file.arrayBuffer()), { flag: 'wx' })
+  if (isStorageConfigured()) {
+    // Shared object storage keeps uploads available across deploys and across
+    // multiple application instances. The public route below remains stable,
+    // so moving MinIO to external S3/CDN later requires no database migration.
+    await uploadFile({
+      bucket: BUCKETS.products,
+      path: storagePath,
+      body: bytes,
+      contentType: mime,
+      cacheControl: 'public, max-age=31536000, immutable',
+    })
+  } else {
+    // Local-development fallback. Production validates S3/MinIO variables.
+    const directory = join(
+      process.cwd(),
+      'public',
+      'uploads',
+      'products',
+      user.workspaceId,
+      year,
+      month,
+    )
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, filename), bytes, { flag: 'wx' })
+  }
 
-  return NextResponse.json({ url: `${publicOrigin(request)}${relativePath}` }, { status: 201 })
+  return NextResponse.json(
+    { url: `${publicOrigin(request)}${urlPath}`, path: relativePath },
+    { status: 201 },
+  )
 }

@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3'
 
 // S3-compatible object storage (self-hosted MinIO, or any S3 provider).
@@ -37,6 +38,7 @@ export async function uploadFile(params: {
   path: string
   body: Buffer | Uint8Array
   contentType: string
+  cacheControl?: string
 }): Promise<string> {
   await getClient().send(
     new PutObjectCommand({
@@ -44,19 +46,28 @@ export async function uploadFile(params: {
       Key: params.path,
       Body: params.body,
       ContentType: params.contentType,
+      CacheControl: params.cacheControl,
     }),
   )
   return params.path
 }
 
+/** Check whether an object exists without downloading its bytes. */
+export async function fileExists(bucket: string, path: string): Promise<boolean> {
+  try {
+    await getClient().send(new HeadObjectCommand({ Bucket: bucket, Key: path }))
+    return true
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    const name = (error as { name?: string }).name
+    if (status === 404 || name === 'NotFound' || name === 'NoSuchKey') return false
+    throw error
+  }
+}
+
 /** Download a file from storage as a Buffer. */
-export async function downloadFile(
-  bucket: string,
-  path: string,
-): Promise<Buffer> {
-  const res = await getClient().send(
-    new GetObjectCommand({ Bucket: bucket, Key: path }),
-  )
+export async function downloadFile(bucket: string, path: string): Promise<Buffer> {
+  const res = await getClient().send(new GetObjectCommand({ Bucket: bucket, Key: path }))
   if (!res.Body) throw new Error(`Storage download failed: empty body for ${path}`)
   const bytes = await res.Body.transformToByteArray()
   return Buffer.from(bytes)
@@ -68,9 +79,5 @@ export async function deleteFile(bucket: string, path: string): Promise<void> {
 }
 
 export function isStorageConfigured(): boolean {
-  return !!(
-    process.env.S3_ENDPOINT &&
-    process.env.S3_ACCESS_KEY &&
-    process.env.S3_SECRET_KEY
-  )
+  return !!(process.env.S3_ENDPOINT && process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY)
 }
