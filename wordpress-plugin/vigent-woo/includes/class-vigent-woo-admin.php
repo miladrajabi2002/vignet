@@ -863,10 +863,9 @@ class Vigent_Woo_Admin {
                         //   2. New version available → banner appears at the TOP of the
                         //      page with "نصب بروزرسانی" button. JS auto-scrolls to it
                         //      so the user immediately sees it. The button calls
-                        //      vgInstallUpdate() which runs our custom AJAX installer
-                        //      (no page navigation). If the AJAX installer fails (e.g.
-                        //      filesystem credentials needed), the user is offered
-                        //      the fallback URL to update.php.
+                        //      vgInstallUpdate() which runs the same bulk-upgrader path
+                        //      as WordPress Core's native AJAX updater. This preserves
+                        //      the plugin's active state while files are replaced.
                         //   3. Network error → toast with error message.
                         var vgUpdateChecked = false;
                         function vgCheckUpdate(btn) {
@@ -937,7 +936,7 @@ class Vigent_Woo_Admin {
                         var vgInstalling = false;
                         function vgInstallUpdate(btn) {
                                 if (vgInstalling) return;
-                                if (!confirm('<?php echo esc_js( __( "آیا از نصب بروزرسانی مطمئن هستید؟ افزونه به‌طور موقت غیرفعال خواهد شد.", "vigent-woo" ) ); ?>')) return;
+                                if (!confirm('<?php echo esc_js( __( "آیا از نصب بروزرسانی مطمئن هستید؟", "vigent-woo" ) ); ?>')) return;
 
                                 vgInstalling = true;
                                 var orig = btn ? btn.innerHTML : '';

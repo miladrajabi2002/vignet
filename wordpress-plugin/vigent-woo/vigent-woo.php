@@ -3,7 +3,7 @@
  * Plugin Name:       ویجنت — اتصال وردپرس و ووکامرس
  * Plugin URI:        https://vigent.ir/docs/woocommerce
  * Description:       سایت وردپرس شما را به ایجنت هوشمند ویجنت متصل می‌کند و محصولات و سفارش‌ها را همگام می‌سازد.
- * Version:           4.3.8
+ * Version:           4.3.11
  * Update URI:        https://vigent.ir/api/wordpress-plugin/info
  * Author:            Vigent
  * Author URI:        https://vigent.ir
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         exit;
 }
 
-define( 'VIGENT_WOO_VERSION', '4.3.8' );
+define( 'VIGENT_WOO_VERSION', '4.3.11' );
 define( 'VIGENT_WOO_FILE', __FILE__ );
 define( 'VIGENT_WOO_OPTION', 'vigent_woo_settings' );
 define( 'VIGENT_WOO_NONCE', 'vigent_woo_nonce' );
@@ -80,6 +80,7 @@ function vigent_woo_activate() {
         wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
+        wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
 }
 register_activation_hook( __FILE__, 'vigent_woo_activate' );
 
@@ -93,6 +94,7 @@ function vigent_woo_deactivate() {
         wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
         wp_clear_scheduled_hook( 'vigent_woo_status_check' );
         wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
+        wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
 }
 register_deactivation_hook( __FILE__, 'vigent_woo_deactivate' );
 
@@ -132,6 +134,12 @@ function vigent_woo_setup_cron() {
                 }
                 if ( ! wp_next_scheduled( 'vigent_woo_delta_flush' ) ) {
                         wp_schedule_event( time() + 300, 'five_minutes', 'vigent_woo_delta_flush' );
+                }
+                $tracking_state = get_option( 'vigent_woo_tracking_backfill_state', array() );
+                if ( is_array( $tracking_state )
+                        && in_array( isset( $tracking_state['status'] ) ? $tracking_state['status'] : '', array( 'running', 'retrying' ), true )
+                        && ! wp_next_scheduled( 'vigent_woo_tracking_backfill' ) ) {
+                        wp_schedule_single_event( time() + 30, 'vigent_woo_tracking_backfill' );
                 }
         }
         // بررسی بروزرسانی افزونه — هر ۲۴ ساعت یک‌بار به‌صورت خودکار.
@@ -219,6 +227,36 @@ function vigent_woo_migrate_4_2_0() {
 }
 add_action( 'admin_init', 'vigent_woo_migrate_4_2_0' );
 
+/** Queue one bounded repair pass for orders affected by the 4.3.8 postcode bug. */
+function vigent_woo_migrate_4_3_9() {
+        if ( get_option( 'vigent_woo_migrated_4_3_9', false ) ) {
+                return;
+        }
+        if ( class_exists( 'Vigent_Woo_Core' )
+                && Vigent_Woo_Core::instance()->is_configured()
+                && ! wp_next_scheduled( 'vigent_woo_tracking_backfill' ) ) {
+                wp_schedule_single_event( time() + 10, 'vigent_woo_tracking_backfill' );
+        }
+        update_option( 'vigent_woo_migrated_4_3_9', 1, false );
+}
+add_action( 'admin_init', 'vigent_woo_migrate_4_3_9' );
+
+/** Start a resumable, all-order tracking repair after the optional-field fix. */
+function vigent_woo_migrate_4_3_11() {
+        if ( get_option( 'vigent_woo_migrated_4_3_11', false ) ) {
+                return;
+        }
+        if ( ! class_exists( 'Vigent_Woo_Core' ) || ! Vigent_Woo_Core::instance()->is_configured() ) {
+                return; // Keep trying after a new store finishes connecting.
+        }
+        delete_option( 'vigent_woo_tracking_backfill_state' );
+        delete_option( 'vigent_woo_tracking_backfill_lock' );
+        wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );
+        wp_schedule_single_event( time() + 10, 'vigent_woo_tracking_backfill' );
+        update_option( 'vigent_woo_migrated_4_3_11', 1, false );
+}
+add_action( 'admin_init', 'vigent_woo_migrate_4_3_11' );
+
 // ─── راه‌اندازی کلاس‌ها (با چک امنیتی) ─────────────────────────────────────
 
 if ( class_exists( 'Vigent_Woo_Core' ) ) {
@@ -230,6 +268,7 @@ if ( class_exists( 'Vigent_Woo_Sync' ) ) {
         // Cron hooks.
         add_action( 'vigent_woo_retry_cron', array( Vigent_Woo_Sync::instance(), 'process_retry_queue' ) );
         add_action( 'vigent_woo_delta_flush', array( Vigent_Woo_Sync::instance(), 'flush_delta_queue' ) );
+        add_action( 'vigent_woo_tracking_backfill', array( Vigent_Woo_Sync::instance(), 'backfill_all_order_tracking' ) );
 }
 
 if ( class_exists( 'Vigent_Woo_REST' ) ) {

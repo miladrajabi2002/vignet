@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
-import { contactPhoneLookupVariants, toEnglishDigits } from '@/lib/phone'
+import { toEnglishDigits } from '@/lib/phone'
 
 const ORDER_INTENT = /(?:سفارش|پیگیری\s*(?:خرید|مرسوله|ارسال)?|کد\s*رهگیری|وضعیت\s*(?:خرید|ارسال)|order|tracking|shipment)/i
 const ORDER_MUTATION_INTENT = /(?:ثبت\s*سفارش|سفارش\s*(?:بدم|بدهم|ثبت|لغو)|لغو\s*سفارش|تغییر\s*سفارش|مرجوع|خرید\s*(?:کنم|انجام)|place\s+an?\s*order|cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order)/i
+const ORDER_FOLLOWUP_CONTEXT = /(?:شماره|کد)\s*(?:سفارش|مرسوله)|پیگیری\s*(?:سفارش|مرسوله)|order\s*(?:number|id|code)|tracking\s*(?:number|code)/i
 
 const FA_STATUS: Record<string, string> = {
   pending: 'در انتظار پرداخت',
@@ -29,6 +30,12 @@ function extractOrderId(message: string): string | null {
   return null
 }
 
+function extractBareOrderId(message: string): string | null {
+  const normalized = toEnglishDigits(message).trim()
+  const match = normalized.match(/^#?\s*([a-z0-9_-]*\d[a-z0-9_-]{0,31})\s*[.!?؟]*$/i)
+  return match?.[1] ?? null
+}
+
 function formatDate(value: Date | null, isFa: boolean): string | null {
   if (!value) return null
   return new Intl.DateTimeFormat(isFa ? 'fa-IR' : 'en-US', {
@@ -52,7 +59,7 @@ function safeValue(value: string, maxLength = 300): string {
  * customer even when the shipping plugin only recorded a tracking code.
  *
  * Recognized couriers:
- *  • Iran Post (post.ir) — codes are 13–20 digits → tracking.post.ir/?id=<code>
+ *  • Iran Post (post.ir) — codes are 13–24 digits → tracking.post.ir/?id=<code>
  *  • Tipax (tipax.ir)   — codes are typically 10–14 digits → tipax.ir/track/<code>
  *  • Chapar (chapar.ir) — codes are 13 digits → chapar.ir/track/<code>
  *
@@ -64,8 +71,8 @@ function synthesizeTrackingLink(trackingCode: string | null, courierName: string
   const code = trackingCode.trim()
   const courier = (courierName ?? '').toLowerCase()
 
-  // Iran Post — 13 to 20 digit numeric codes.
-  if (/^\d{13,20}$/.test(code)) {
+  // Iran Post — legacy codes plus the current 24-digit barcode.
+  if (/^\d{13,24}$/.test(code)) {
     // If the courier name explicitly says Tipax or Chapar, prefer the
     // courier-specific URL; otherwise default to Iran Post.
     if (/tipax|تیپاکس/.test(courier)) {
@@ -86,19 +93,25 @@ function synthesizeTrackingLink(trackingCode: string | null, courierName: string
 }
 
 /**
- * Return a small, identity-scoped order block only when the current message is
- * actually about order tracking. This is deliberately read-only: the model is
- * never given a tool or instruction that can create, cancel, or mutate orders.
+ * Return a small order-number-scoped block only when the current message is
+ * actually about order tracking. Knowing the exact order number is sufficient
+ * for this storefront's support flow; no phone challenge is required. This is
+ * deliberately read-only: the model is never given a tool or instruction that
+ * can create, cancel, or mutate orders.
  */
 export async function buildOrderContext(params: {
   workspaceId: string
-  contactId: string | null
-  contactPhone: string | null
   message: string
+  history?: Array<{ role: string; content: string | null }>
   enabled: boolean
   language: string
 }): Promise<string> {
-  if (!ORDER_INTENT.test(params.message)) return ''
+  const bareOrderId = extractBareOrderId(params.message)
+  const isOrderContinuation = Boolean(
+    bareOrderId && params.history?.slice(-4).some((turn) =>
+      typeof turn.content === 'string' && ORDER_FOLLOWUP_CONTEXT.test(turn.content)),
+  )
+  if (!ORDER_INTENT.test(params.message) && !isOrderContinuation) return ''
   const isFa = params.language !== 'en'
 
   if (ORDER_MUTATION_INTENT.test(params.message)) {
@@ -113,28 +126,17 @@ export async function buildOrderContext(params: {
       : '\n\nOrder tracking access is disabled for this agent. Do not expose order data; direct the customer to human support.'
   }
 
-  const externalOrderId = extractOrderId(params.message)
+  const externalOrderId = extractOrderId(params.message) ?? (isOrderContinuation ? bareOrderId : null)
   if (!externalOrderId) {
     return isFa
-      ? '\n\nدرخواست پیگیری سفارش تشخیص داده شد. برای حفظ حریم خصوصی، شماره سفارش را از مشتری بخواه. فقط وضعیت سفارش موجود را گزارش کن؛ ثبت، لغو یا ویرایش سفارش مجاز نیست.'
-      : '\n\nAn order-tracking request was detected. Ask for the order number to protect customer privacy. You may only report an existing order; creating, cancelling, or changing orders is not allowed.'
-  }
-
-  const phoneVariants = contactPhoneLookupVariants(params.contactPhone)
-  if (!params.contactId && !phoneVariants.length) {
-    return isFa
-      ? '\n\nشماره سفارش دریافت شد، اما هویت مشتری به سفارشی متصل نیست. شماره تلفن ثبت‌شده هنگام خرید را بخواه و هیچ اطلاعات سفارشی را حدس نزن یا نمایش نده.'
-      : '\n\nThe order number was provided, but the customer identity is not linked. Ask for the phone used at checkout and do not guess or expose order details.'
+      ? '\n\nدرخواست پیگیری سفارش تشخیص داده شد. فقط شماره سفارش را از مشتری بخواه؛ شماره موبایل یا اطلاعات هویتی دیگری درخواست نکن. ثبت، لغو یا ویرایش سفارش مجاز نیست.'
+      : '\n\nAn order-tracking request was detected. Ask only for the order number; do not request a phone number or other identity information. Creating, cancelling, or changing orders is not allowed.'
   }
 
   const order = await prisma.storeOrder.findFirst({
     where: {
       workspaceId: params.workspaceId,
       externalOrderId,
-      OR: [
-        ...(params.contactId ? [{ contactId: params.contactId }] : []),
-        ...(phoneVariants.length ? [{ customerPhone: { in: phoneVariants } }] : []),
-      ],
     },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -156,8 +158,8 @@ export async function buildOrderContext(params: {
 
   if (!order) {
     return isFa
-      ? '\n\nسفارشی با این شماره برای هویت فعلی پیدا نشد. فقط بگو اطلاعات منطبق پیدا نشد و از مشتری بخواه شماره سفارش و تلفن خرید را بررسی کند؛ هیچ جزئیاتی افشا نکن.'
-      : '\n\nNo order matching this number and the current identity was found. Say that no matching record was found and ask the customer to verify the order number and checkout phone; expose no details.'
+      ? '\n\nسفارشی با این شماره پیدا نشد. فقط از مشتری بخواه شماره سفارش را دوباره بررسی کند؛ شماره موبایل نخواه و هیچ وضعیت یا کد رهگیری‌ای حدس نزن.'
+      : '\n\nNo order with this number was found. Ask the customer to verify only the order number; do not request a phone number and do not guess any status or tracking code.'
   }
 
   const status = isFa ? FA_STATUS[order.status] ?? order.status : order.status
@@ -174,18 +176,18 @@ export async function buildOrderContext(params: {
     `total: ${order.total} ${order.currency}`,
     `item_count: ${order.itemCount}`,
     order.itemsSummary ? `items: ${safeValue(order.itemsSummary)}` : '',
-    order.trackingCode ? `tracking_code: ${safeValue(order.trackingCode, 100)}` : '',
+    `tracking_code: ${order.trackingCode ? safeValue(order.trackingCode, 100) : 'NOT_AVAILABLE'}`,
     order.courierName ? `courier_name: ${safeValue(order.courierName, 120)}` : '',
     order.shippingDate ? `shipping_date: ${safeValue(order.shippingDate, 80)}` : '',
-    effectiveTrackingLink ? `tracking_link: ${safeValue(effectiveTrackingLink, 300)}` : '',
+    `tracking_link: ${effectiveTrackingLink ? safeValue(effectiveTrackingLink, 300) : 'NOT_AVAILABLE'}`,
     order.shippingMethod ? `shipping_method: ${safeValue(order.shippingMethod, 120)}` : '',
     order.shippingNote ? `shipping_note: ${safeValue(order.shippingNote, 500)}` : '',
     orderDate ? `order_date: ${orderDate}` : '',
   ].filter(Boolean)
 
   const guard = isFa
-    ? 'این داده فقط برای اعلام وضعیت/رهگیری است. ثبت، لغو، مرجوع یا ویرایش سفارش انجام نده و اطلاعاتی خارج از این بلوک نساز. اگر tracking_code یا tracking_link موجود است، آن را به مشتری بده تا خودش پیگیری کند.'
-    : 'This data is read-only for status/tracking. Never create, cancel, return, or change an order, and do not invent details outside this block. If a tracking_code or tracking_link is present, share it with the customer so they can track their parcel.'
+    ? 'این بلوک تنها منبع معتبر پاسخ است. شماره موبایل نخواه. فقط مقدار دقیق tracking_code کد رهگیری مرسوله است؛ شماره سفارش، کدپستی، تلفن، مبلغ یا هر عدد دیگری را کد رهگیری تلقی نکن. اگر tracking_code برابر NOT_AVAILABLE است، صریحاً بگو کد رهگیری هنوز ثبت نشده و هیچ کدی نساز. اگر موجود است، همان رشته را کامل و بدون تغییر داخل `...` اعلام کن و tracking_link را هم بده. وضعیت «تکمیل‌شده» به‌تنهایی به معنی تحویل به پست نیست؛ مرحله ارسال یا زمان تحویل را حدس نزن. پاسخ را مستقیم بده و نگو «یک لحظه بررسی می‌کنم». ثبت، لغو، مرجوع یا ویرایش سفارش انجام نده.'
+    : 'This block is the only authoritative source. Do not ask for a phone number. Only the exact tracking_code value is a parcel tracking code; never reinterpret an order number, postal code, phone, amount, or any other number as tracking. If tracking_code is NOT_AVAILABLE, clearly say it has not been registered yet and invent nothing. If present, reproduce the complete exact string inside `...` and share tracking_link. A completed order status alone does not prove carrier handoff; never guess shipment stage or delivery time. Answer directly without saying you will check. Never create, cancel, return, or change an order.'
 
   return `\n\n<verified_order>\n${lines.join('\n')}\n</verified_order>\n${guard}`
 }

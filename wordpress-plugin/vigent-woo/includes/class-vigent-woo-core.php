@@ -724,7 +724,7 @@ class Vigent_Woo_Core {
                         'timestamp'      => current_time( 'mysql' ),
                         'has_wc'         => $this->has_wc(),
                         'plugin_version' => defined( 'VIGENT_WOO_VERSION' ) ? VIGENT_WOO_VERSION : '',
-                        'capabilities'   => array( 'sync.batch', 'product.categories', 'delta.queue.v1' ),
+                        'capabilities'   => array( 'sync.batch', 'product.categories', 'delta.queue.v1', 'order.tracking.updated' ),
                 );
                 $result = $this->send_event( 'test.connection', $payload, false );
                 return $this->update_connection_status( $result['success'], (int) $result['code'], $result['success'] ? null : $result['body'] );
@@ -1374,6 +1374,26 @@ class Vigent_Woo_Core {
         }
 
         /**
+         * Build the lightweight payload used by the all-order tracking repair.
+         *
+         * It deliberately omits customer, totals and line items: the repair may
+         * inspect tens of thousands of historical orders and must only update an
+         * existing Vigent order's optional shipment fields.
+         */
+        public function order_tracking_to_payload( $order ) {
+                if ( ! $order || ! ( $order instanceof \WC_Order ) || 'shop_order_refund' === $order->get_type() ) {
+                        return array();
+                }
+                $shipping_info = $this->get_order_shipping_info( $order );
+                return array(
+                        'id'            => $order->get_id(),
+                        'number'        => method_exists( $order, 'get_order_number' ) ? $order->get_order_number() : (string) $order->get_id(),
+                        'tracking_code' => isset( $shipping_info['tracking_code'] ) ? $shipping_info['tracking_code'] : '',
+                        'shipping_info' => $shipping_info,
+                );
+        }
+
+        /**
          * Extract shipping/delivery info from an order.
          *
          * Iranian WooCommerce stores use a variety of plugins to record shipment
@@ -1415,10 +1435,39 @@ class Vigent_Woo_Core {
                         // Generic WooCommerce Shipment Tracking
                         '_tracking_number',
                         '_shipment_tracking_number',
+                        '_shipment_code',
+                        'shipment_code',
+                        '_shipment_number',
+                        'shipment_number',
                         'tracking_number',
                         '_tracking_code',
-                        // WooCommerce Shipment Tracking (official)
-                        '_wc_shipment_tracking_items',
+                        'tracking_code',
+                        '_order_tracking_code',
+                        '_order_tracking_number',
+                        '_wc_shipment_tracking_number',
+                        '_ast_tracking_number',
+                        '_aftership_tracking_number',
+                        '_ywot_tracking_code',
+                        'ywot_tracking_code',
+                        '_parcel_tracking_code',
+                        'parcel_tracking_code',
+                        '_parcel_code',
+                        'parcel_code',
+                        '_consignment_number',
+                        'consignment_number',
+                        '_waybill_number',
+                        'waybill_number',
+                        '_awb_number',
+                        'awb_number',
+                        '_awb',
+                        'awb',
+                        '_dispatch_code',
+                        'dispatch_code',
+                        '_post_barcode',
+                        'post_barcode',
+                        '_shipping_barcode',
+                        'shipping_barcode',
+                        'wf_woocommerce_packing_list_tracking_number',
                         // Persian WooCommerce Shipping (PWS)
                         '_pws_tracking_code',
                         '_pws_tracking_number',
@@ -1427,8 +1476,6 @@ class Vigent_Woo_Core {
                         '_post_tracking_number',
                         '_postex_tracking_code',
                         '_postex_tracking_number',
-                        '_post_code',
-                        '_post_id',
                         '_pishtaz_tracking_code',
                         // Tipax (باربری تیپاکس)
                         '_tipax_tracking_code',
@@ -1449,8 +1496,9 @@ class Vigent_Woo_Core {
                 );
                 foreach ( $tracking_keys as $key ) {
                         $value = $order->get_meta( $key, true );
-                        if ( is_scalar( $value ) && '' !== trim( (string) $value ) && '0' !== (string) $value ) {
-                                $info['tracking_code'] = trim( (string) $value );
+                        $code  = $this->normalize_tracking_code_candidate( $value );
+                        if ( '' !== $code ) {
+                                $info['tracking_code'] = $code;
                                 break;
                         }
                 }
@@ -1467,7 +1515,7 @@ class Vigent_Woo_Core {
                         $first = reset( $items );
                         if ( is_array( $first ) ) {
                                 if ( '' === $info['tracking_code'] && ! empty( $first['tracking_number'] ) ) {
-                                        $info['tracking_code'] = trim( (string) $first['tracking_number'] );
+                                        $info['tracking_code'] = $this->normalize_tracking_code_candidate( $first['tracking_number'] );
                                 }
                                 if ( '' === $info['courier_name'] && ! empty( $first['tracking_provider'] ) ) {
                                         $info['courier_name'] = trim( (string) $first['tracking_provider'] );
@@ -1491,6 +1539,14 @@ class Vigent_Woo_Core {
                         '_pws_courier_name',
                         '_shipping_courier',
                         'shipping_company',
+                        '_tracking_provider',
+                        'tracking_provider',
+                        '_shipment_provider',
+                        'shipment_provider',
+                        '_shipping_provider',
+                        'shipping_provider',
+                        '_post_company',
+                        'post_company',
                         '_postex_courier_name',
                         '_tipax_courier_name',
                         '_chapar_courier_name',
@@ -1504,6 +1560,10 @@ class Vigent_Woo_Core {
                                 $info['courier_name'] = trim( (string) $value );
                                 break;
                         }
+                }
+
+                if ( '' === $info['courier_name'] ) {
+                        $this->scan_all_meta_for_courier_name( $order, $info );
                 }
 
                 // If the courier name is still empty, fall back to the shipping method
@@ -1598,10 +1658,24 @@ class Vigent_Woo_Core {
                 // Some Iranian themes store tracking under completely custom keys
                 // (e.g. `_mytheme_tracking`, `_custom_ship_code`). If we still don't
                 // have a tracking_code, scan every meta key on the order for one that
-                // LOOKS like a tracking number (13–20 digits for Iran Post, 10–14 for
+                // LOOKS like a tracking number (13–24 digits for Iran Post, 10–14 for
                 // Tipax, etc.).
                 if ( '' === $info['tracking_code'] ) {
                         $this->scan_all_meta_for_tracking_code( $order, $info );
+                }
+
+                // Shipment fields are optional. A normal WooCommerce shipping
+                // method is not proof that the parcel has been dispatched. When
+                // there is no real tracking code, return an entirely empty block;
+                // this also lets the repair pass clear legacy false positives.
+                if ( '' === $info['tracking_code'] ) {
+                        return array(
+                                'tracking_code' => '',
+                                'courier_name'  => '',
+                                'shipping_date' => '',
+                                'tracking_link' => '',
+                                'shipping_note' => '',
+                        );
                 }
 
                 // ─── Phase 4: synthesize tracking link from the code ───────────────
@@ -1764,10 +1838,10 @@ class Vigent_Woo_Core {
                         }
                 }
 
-                // Fallback: any standalone 13–20 digit number (Iran Post format).
+                // Fallback: any standalone 13–24 digit number (Iran Post format).
                 // We require it to be «standalone» (surrounded by whitespace or
                 // punctuation) so we don't pick up phone numbers or prices.
-                $matched = @preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\x{06F0}-\x{06F9}]{13,20})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m );
+                $matched = @preg_match( '/(?:^|\s|[\(\[\{,:;|])([0-9\x{06F0}-\x{06F9}]{13,24})(?:$|\s|[\)\]\},:;|\.<])/', $text, $m );
                 if ( $matched && ! empty( $m[1] ) ) {
                         return $this->normalize_digits( $m[1] );
                 }
@@ -1937,28 +2011,49 @@ class Vigent_Woo_Core {
                         return;
                 }
 
-                // Keyword whitelist: a meta key must contain at least one of these
-                // substrings for us to consider its value as a tracking code.
-                // This prevents us from picking up phone numbers, prices, etc.
+                // A meta key must contain an unambiguous shipment-tracking keyword.
+                // Do not use loose fragments such as "cod", "post" or "ship":
+                // `_billing_postcode` contains both "post" and "cod" and older
+                // versions consequently sent the customer's 10-digit postal code as
+                // a parcel tracking number.
                 $key_keywords = array(
-                        'track', 'ship', 'post', 'tipax', 'chapar', 'rahgiri',
-                        'cod', 'consig', 'parcel', 'waybill', 'follow',
+                        'track', 'rahgiri', 'peygiri', 'consig', 'parcel', 'waybill',
+                        'barcode', 'bar_code', 'shipment_id', 'shipment_code',
+                        'shipment_number', 'dispatch_code', 'awb_number', 'waybill',
+                        'رهگیری', 'پیگیری', 'مرسوله', 'بارکد',
+                );
+                $excluded_key_fragments = array(
+                        'postcode', 'post_code', 'postal_code', 'postalcode', 'zip',
+                        'billing_address', 'shipping_address', 'phone', 'mobile',
+                        'transaction', 'payment', 'coupon', 'product_code', 'sku',
                 );
 
                 foreach ( $meta_data as $meta ) {
-                        $key   = is_object( $meta ) && method_exists( $meta, 'get_data' )
-                                ? (string) ( $meta->get_data()['key'] ?? '' )
-                                : (string) ( $meta->key ?? '' );
-                        $value = is_object( $meta ) && method_exists( $meta, 'get_data' )
-                                ? (string) ( $meta->get_data()['value'] ?? '' )
-                                : (string) ( $meta->value ?? '' );
+                        if ( is_object( $meta ) && method_exists( $meta, 'get_data' ) ) {
+                                $meta_row = $meta->get_data();
+                                $key      = isset( $meta_row['key'] ) ? (string) $meta_row['key'] : '';
+                                $value    = isset( $meta_row['value'] ) ? $meta_row['value'] : '';
+                        } else {
+                                $key   = is_object( $meta ) && isset( $meta->key ) ? (string) $meta->key : '';
+                                $value = is_object( $meta ) && isset( $meta->value ) ? $meta->value : '';
+                        }
 
-                        if ( '' === $key || '' === $value || ! is_scalar( $value ) ) {
+                        if ( '' === $key ) {
                                 continue;
                         }
 
-                        $key_lower   = strtolower( $key );
-                        $value_trim  = trim( (string) $value );
+                        $key_lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $key ) : strtolower( $key );
+                        $is_excluded = false;
+                        foreach ( $excluded_key_fragments as $fragment ) {
+                                if ( false !== strpos( $key_lower, $fragment ) ) {
+                                        $is_excluded = true;
+                                        break;
+                                }
+                        }
+                        if ( $is_excluded ) {
+                                continue;
+                        }
+
                         $matches_keyword = false;
                         foreach ( $key_keywords as $kw ) {
                                 if ( false !== strpos( $key_lower, $kw ) ) {
@@ -1970,16 +2065,176 @@ class Vigent_Woo_Core {
                                 continue;
                         }
 
-                        // Accept 13–20 digit numeric (Iran Post) or 10–14
-                        // alphanumeric (Tipax-style). Use @ to suppress any PCRE
-                        // warning on hosts without Unicode support.
-                        $is_post_code    = @preg_match( '/^[0-9\x{06F0}-\x{06F9}]{13,20}$/', $value_trim );
-                        $is_tipax_code   = @preg_match( '/^[A-Za-z0-9]{10,14}$/', $value_trim );
-                        if ( $is_post_code || $is_tipax_code ) {
-                                $info['tracking_code'] = $this->normalize_digits( $value_trim );
+                        // The key itself proves this is tracking data, so accept the
+                        // common 6–40 character range. In particular Iran Post now
+                        // uses 24-digit barcodes; the old 20-digit ceiling dropped
+                        // exactly the value shown in the store's «شماره رهگیری» box.
+                        $code = $this->normalize_tracking_code_candidate( $value );
+                        if ( '' !== $code ) {
+                                $info['tracking_code'] = $code;
+                                return;
+                        }
+
+                        // Some shipment plugins store an array/serialized object under
+                        // one tracking meta key. Inspect only tracking-labelled children
+                        // so dates or provider IDs cannot be mistaken for the code.
+                        $code = $this->extract_tracking_code_from_structured_value( $value );
+                        if ( '' !== $code ) {
+                                $info['tracking_code'] = $code;
                                 return;
                         }
                 }
+        }
+
+        /** Read a courier/provider saved under a custom shipment meta key. */
+        private function scan_all_meta_for_courier_name( $order, &$info ) {
+                if ( ! method_exists( $order, 'get_meta_data' ) ) {
+                        return;
+                }
+                $meta_data = $order->get_meta_data();
+                if ( ! is_array( $meta_data ) ) {
+                        return;
+                }
+
+                $keywords = array(
+                        'courier', 'carrier', 'tracking_provider', 'shipment_provider',
+                        'shipping_provider', 'shipping_company', 'post_company',
+                        'شرکت_پستی', 'شرکت پستی', 'باربری',
+                );
+                foreach ( $meta_data as $meta ) {
+                        if ( is_object( $meta ) && method_exists( $meta, 'get_data' ) ) {
+                                $row   = $meta->get_data();
+                                $key   = isset( $row['key'] ) ? (string) $row['key'] : '';
+                                $value = isset( $row['value'] ) ? $row['value'] : '';
+                        } else {
+                                $key   = is_object( $meta ) && isset( $meta->key ) ? (string) $meta->key : '';
+                                $value = is_object( $meta ) && isset( $meta->value ) ? $meta->value : '';
+                        }
+                        if ( '' === $key ) {
+                                continue;
+                        }
+
+                        $key_lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $key ) : strtolower( $key );
+                        $matches   = false;
+                        foreach ( $keywords as $keyword ) {
+                                if ( false !== strpos( $key_lower, $keyword ) ) {
+                                        $matches = true;
+                                        break;
+                                }
+                        }
+                        if ( ! $matches ) {
+                                continue;
+                        }
+
+                        if ( is_scalar( $value ) ) {
+                                $name = trim( wp_strip_all_tags( (string) $value ) );
+                                if ( '' !== $name && strlen( $name ) <= 160 && ! preg_match( '/^[0-9]+$/', $name ) ) {
+                                        $info['courier_name'] = $name;
+                                        return;
+                                }
+                        }
+                        $name = $this->extract_courier_from_structured_value( $value );
+                        if ( '' !== $name ) {
+                                $info['courier_name'] = $name;
+                                return;
+                        }
+                }
+        }
+
+        /** Normalize and validate a scalar tracking value from a trusted meta key. */
+        private function normalize_tracking_code_candidate( $value ) {
+                if ( ! is_scalar( $value ) ) {
+                        return '';
+                }
+                $code = $this->normalize_digits( trim( (string) $value ) );
+                if ( '' === $code || '0' === $code ) {
+                        return '';
+                }
+
+                // Remove visual whitespace/direction markers often inserted by RTL
+                // inputs, while preserving hyphens used by alphanumeric couriers.
+                $compact = @preg_replace( '/[\s\x{200C}\x{200E}\x{200F}]+/u', '', $code );
+                if ( null === $compact ) {
+                        $compact = preg_replace( '/\s+/', '', $code );
+                }
+                if ( ! is_string( $compact ) || ! preg_match( '/^[A-Za-z0-9\-]{6,40}$/', $compact ) ) {
+                        return '';
+                }
+                return $compact;
+        }
+
+        /** Find a tracking-labelled scalar inside a shipment plugin's meta array. */
+        private function extract_tracking_code_from_structured_value( $value, $depth = 0 ) {
+                if ( $depth > 4 ) {
+                        return '';
+                }
+                if ( is_object( $value ) ) {
+                        $value = get_object_vars( $value );
+                }
+                if ( ! is_array( $value ) ) {
+                        return '';
+                }
+
+                foreach ( $value as $key => $child ) {
+                        $key_lower = strtolower( (string) $key );
+                        $is_tracking_field = false !== strpos( $key_lower, 'track' )
+                                || false !== strpos( $key_lower, 'rahgiri' )
+                                || false !== strpos( $key_lower, 'peygiri' )
+                                || false !== strpos( $key_lower, 'consign' )
+                                || false !== strpos( $key_lower, 'waybill' )
+                                || false !== strpos( $key_lower, 'barcode' )
+                                || false !== strpos( (string) $key, 'رهگیری' )
+                                || false !== strpos( (string) $key, 'پیگیری' )
+                                || false !== strpos( (string) $key, 'بارکد' );
+                        if ( $is_tracking_field ) {
+                                $code = $this->normalize_tracking_code_candidate( $child );
+                                if ( '' !== $code ) {
+                                        return $code;
+                                }
+                        }
+                        if ( is_array( $child ) || is_object( $child ) ) {
+                                $code = $this->extract_tracking_code_from_structured_value( $child, $depth + 1 );
+                                if ( '' !== $code ) {
+                                        return $code;
+                                }
+                        }
+                }
+                return '';
+        }
+
+        /** Find a provider-labelled scalar inside a shipment plugin's meta array. */
+        private function extract_courier_from_structured_value( $value, $depth = 0 ) {
+                if ( $depth > 4 ) {
+                        return '';
+                }
+                if ( is_object( $value ) ) {
+                        $value = get_object_vars( $value );
+                }
+                if ( ! is_array( $value ) ) {
+                        return '';
+                }
+                foreach ( $value as $key => $child ) {
+                        $key_lower = strtolower( (string) $key );
+                        $is_provider = false !== strpos( $key_lower, 'provider' )
+                                || false !== strpos( $key_lower, 'courier' )
+                                || false !== strpos( $key_lower, 'carrier' )
+                                || false !== strpos( $key_lower, 'company' )
+                                || false !== strpos( (string) $key, 'شرکت' )
+                                || false !== strpos( (string) $key, 'باربری' );
+                        if ( $is_provider && is_scalar( $child ) ) {
+                                $name = trim( wp_strip_all_tags( (string) $child ) );
+                                if ( '' !== $name && strlen( $name ) <= 160 && ! preg_match( '/^[0-9]+$/', $name ) ) {
+                                        return $name;
+                                }
+                        }
+                        if ( is_array( $child ) || is_object( $child ) ) {
+                                $name = $this->extract_courier_from_structured_value( $child, $depth + 1 );
+                                if ( '' !== $name ) {
+                                        return $name;
+                                }
+                        }
+                }
+                return '';
         }
 
         /**
@@ -2005,8 +2260,8 @@ class Vigent_Woo_Core {
                         return 'https://chapar.ir/track/' . rawurlencode( $code );
                 }
 
-                // Iran Post — 13–20 digit numeric codes.
-                if ( preg_match( '/^[0-9]{13,20}$/', $code ) ) {
+                // Iran Post — legacy codes plus the current 24-digit barcode.
+                if ( preg_match( '/^[0-9]{13,24}$/', $code ) ) {
                         return 'https://tracking.post.ir/?id=' . rawurlencode( $code );
                 }
 

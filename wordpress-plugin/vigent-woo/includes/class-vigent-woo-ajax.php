@@ -486,13 +486,15 @@ class Vigent_Woo_Ajax {
         }
 
         /**
-         * AJAX: Install the latest plugin update using WP Core's Plugin_Upgrader.
+         * AJAX: Install the latest plugin update using WordPress's bulk upgrader.
          *
-         * This is the primary install path — the user clicks "نصب بروزرسانی"
-         * in the banner, JS calls this endpoint, and we use WP Core's own
-         * Plugin_Upgrader (the same code that powers the Plugins screen's
-         * "Update now" link) to download the ZIP from the Vigent server
-         * and replace the plugin files in place.
+         * WordPress's single-plugin `upgrade()` path deliberately deactivates an
+         * active plugin before replacing its files. Reactivating from the same
+         * request can then fail on hosts with a persistent object cache because
+         * the plugin headers were cached before the replacement. The native AJAX
+         * updater avoids that race by using `bulk_upgrade()` even for one plugin;
+         * it records the active state and replaces the files without removing the
+         * plugin from `active_plugins`. Mirror that stable core path here.
          *
          * Why we do this instead of redirecting to update-core.php:
          *   - update-core.php?action=upgrade-plugin shows a blank page on
@@ -565,27 +567,13 @@ class Vigent_Woo_Ajax {
                 // AJAX use — it doesn't print HTML, just collects feedback
                 // and errors. If anything fails (filesystem creds, download,
                 // unzip, etc.) we get a WP_Error back.
-                $skin     = new WP_Ajax_Upgrader_Skin();
-                $upgrader = new Plugin_Upgrader( $skin );
-                $result   = $upgrader->upgrade( Vigent_Woo_Updater::plugin_file() );
+                $plugin_file = Vigent_Woo_Updater::plugin_file();
+                $was_active  = is_plugin_active( $plugin_file );
+                $skin        = new WP_Ajax_Upgrader_Skin();
+                $upgrader    = new Plugin_Upgrader( $skin );
+                $results     = $upgrader->bulk_upgrade( array( $plugin_file ) );
 
-                if ( is_wp_error( $result ) ) {
-                        wp_send_json_error(
-                                array(
-                                        'message' => sprintf(
-                                                /* translators: %s: error message */
-                                                __( 'خطا در نصب بروزرسانی: %s', 'vigent-woo' ),
-                                                $result->get_error_message()
-                                        ),
-                                ),
-                                500
-                        );
-                }
-
-                if ( false === $result ) {
-                        // The upgrader returned false — usually means no update
-                        // was found in the transient (race condition) OR the
-                        // filesystem method isn't 'direct' (needs FTP creds).
+                if ( false === $results ) {
                         $fs_method = function_exists( 'get_filesystem_method' ) ? get_filesystem_method() : 'unknown';
                         $msg = 'direct' === $fs_method
                                 ? __( 'بروزرسانی انجام نشد. لطفاً دوباره دکمه «بررسی بروزرسانی» را بزنید و امتحان کنید.', 'vigent-woo' )
@@ -595,6 +583,43 @@ class Vigent_Woo_Ajax {
                                         $fs_method
                                 );
                         wp_send_json_error( array( 'message' => $msg ), 500 );
+                }
+
+                $result = is_array( $results ) && array_key_exists( $plugin_file, $results )
+                        ? $results[ $plugin_file ]
+                        : false;
+
+                if ( is_wp_error( $skin->result ) ) {
+                        wp_send_json_error(
+                                array(
+                                        'message' => sprintf(
+                                                /* translators: %s: error message */
+                                                __( 'خطا در نصب بروزرسانی: %s', 'vigent-woo' ),
+                                                $skin->result->get_error_message()
+                                        ),
+                                ),
+                                500
+                        );
+                }
+
+                if ( $skin->get_errors()->has_errors() ) {
+                        wp_send_json_error(
+                                array(
+                                        'message' => sprintf(
+                                                /* translators: %s: error message */
+                                                __( 'خطا در نصب بروزرسانی: %s', 'vigent-woo' ),
+                                                $skin->get_error_messages()
+                                        ),
+                                ),
+                                500
+                        );
+                }
+
+                if ( true === $result || false === $result || is_wp_error( $result ) ) {
+                        $message = is_wp_error( $result )
+                                ? $result->get_error_message()
+                                : __( 'بروزرسانی انجام نشد یا افزونه از قبل روی آخرین نسخه بود. صفحه را تازه‌سازی و دوباره بررسی کنید.', 'vigent-woo' );
+                        wp_send_json_error( array( 'message' => $message ), 500 );
                 }
 
                 // Success — read the new version from the freshly-installed
@@ -613,10 +638,14 @@ class Vigent_Woo_Ajax {
                 delete_transient( 'vigent_woo_update_info' );
                 delete_option( 'vigent_woo_last_update_check' );
 
-                // Reactivate the plugin if it was active before the upgrade
-                // (Plugin_Upgrader preserves activation state, but be defensive).
-                if ( ! is_plugin_active( Vigent_Woo_Updater::plugin_file() ) ) {
-                        activate_plugin( Vigent_Woo_Updater::plugin_file() );
+                // `bulk_upgrade()` must preserve activation. Do not call
+                // activate_plugin() in this same request: WordPress documents that
+                // plugin-header caches can make that reactivation falsely fail.
+                if ( $was_active && ! is_plugin_active( $plugin_file ) ) {
+                        wp_send_json_error(
+                                array( 'message' => __( 'فایل‌های بروزرسانی نصب شدند، اما وضعیت فعال افزونه حفظ نشد. لطفاً افزونه را از صفحه افزونه‌های وردپرس فعال کنید.', 'vigent-woo' ) ),
+                                500
+                        );
                 }
 
                 wp_send_json_success( array(

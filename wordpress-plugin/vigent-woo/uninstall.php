@@ -16,6 +16,9 @@ delete_option( 'vigent_woo_delta_queue' );
 delete_option( 'vigent_woo_sync_state' );
 delete_option( 'vigent_woo_delta_queue_lock' );
 delete_option( 'vigent_woo_delta_flush_lock' );
+delete_option( 'vigent_woo_tracking_backfill_state' );
+delete_option( 'vigent_woo_tracking_backfill_lock' );
+delete_option( 'vigent_woo_migrated_4_3_11' );
 // Clean up any rate-limit transients (keyed by IP+action, so we use a LIKE
 // pattern via direct DB query — these are short-lived and would expire on
 // their own, but cleaning them keeps the options table tidy).
@@ -33,3 +36,4 @@ wp_clear_scheduled_hook( 'vigent_woo_delta_flush' );
 wp_clear_scheduled_hook( 'vigent_woo_enqueue_delta_retry' );
 wp_clear_scheduled_hook( 'vigent_woo_status_check' );
 wp_clear_scheduled_hook( 'vigent_woo_daily_update_check' );
+wp_clear_scheduled_hook( 'vigent_woo_tracking_backfill' );

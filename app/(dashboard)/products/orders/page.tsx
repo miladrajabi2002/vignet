@@ -210,7 +210,7 @@ export default async function OrdersPage({
         <>
           <section className="spatial-surface hidden overflow-hidden rounded-[1.5rem] !bg-white md:block">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-sm">
+              <table className="w-full min-w-[1120px] border-collapse text-sm">
                 <thead className="bg-[var(--bg-muted)] text-start text-xs text-[var(--text-secondary)]">
                   <tr>
                     <th scope="col" className="px-4 py-3 text-start font-medium">
@@ -221,6 +221,9 @@ export default async function OrdersPage({
                     </th>
                     <th scope="col" className="px-4 py-3 text-start font-medium">
                       {t('status')}
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-start font-medium">
+                      {t('shippingInfo')}
                     </th>
                     <th scope="col" className="px-4 py-3 text-start font-medium">
                       {t('items')}
@@ -243,11 +246,6 @@ export default async function OrdersPage({
                         <p dir="ltr" className="mt-1 max-w-44 truncate text-start text-xs text-[var(--text-muted)]">
                           {shortStoreUrl(order.integration.storeUrl)}
                         </p>
-                        {order.trackingCode && (
-                          <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                            {t('tracking')}: <span dir="ltr">{order.trackingCode}</span>
-                          </p>
-                        )}
                       </td>
                       <td className="px-4 py-4">
                         <p className="font-medium text-[var(--text-primary)]">
@@ -270,6 +268,40 @@ export default async function OrdersPage({
                         )}>
                           {statusLabel(order.status)}
                         </span>
+                      </td>
+                      <td className="min-w-64 px-4 py-4">
+                        {order.trackingCode || order.courierName || order.trackingLink ? (
+                          <div className="space-y-2">
+                            {order.trackingCode && (
+                              <div>
+                                <p className="text-xs text-[var(--text-muted)]">{t('tracking')}</p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <span dir="ltr" className="break-all text-start font-mono text-xs font-semibold text-[var(--text-primary)]">
+                                    {order.trackingCode}
+                                  </span>
+                                  <CopyButton value={order.trackingCode} label={t('copyTracking')} copiedLabel={t('copied')} />
+                                </div>
+                              </div>
+                            )}
+                            {order.courierName && (
+                              <p className="text-xs text-[var(--text-secondary)]">
+                                {t('courier')}: {friendlyCourierName(order.courierName, locale)}
+                              </p>
+                            )}
+                            {order.trackingLink && (
+                              <a
+                                href={order.trackingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex min-h-8 items-center text-xs font-semibold text-blue-600 hover:underline"
+                              >
+                                {t('trackingLink')}
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[var(--text-muted)]">—</span>
+                        )}
                       </td>
                       <td className="max-w-64 px-4 py-4">
                         <p className="line-clamp-2 leading-relaxed text-[var(--text-secondary)]">
@@ -352,7 +384,7 @@ export default async function OrdersPage({
                     <div className="col-span-2 border-t border-[var(--border-subtle)] pt-4">
                       <dt className="font-semibold text-[var(--text-primary)]">{t('shippingInfo')}</dt>
                       <dd className="mt-2 space-y-2 text-sm leading-6 text-[var(--text-primary)]">
-                        {order.courierName && <p><span className="text-[var(--text-muted)]">{t('courier')}: </span>{order.courierName}</p>}
+                        {order.courierName && <p><span className="text-[var(--text-muted)]">{t('courier')}: </span>{friendlyCourierName(order.courierName, locale)}</p>}
                         {order.shippingDate && <p><span className="text-[var(--text-muted)]">{t('shippingDate')}: </span>{order.shippingDate}</p>}
                         {order.trackingLink && (
                           <p className="min-w-0">
@@ -389,6 +421,16 @@ function isOrderStatus(value: string): value is OrderStatus {
 
 function shortStoreUrl(storeUrl: string) {
   return storeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+}
+
+function friendlyCourierName(courierName: string, locale: string) {
+  const normalized = courierName.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (['iran_post', 'iranpost', 'post', 'national_post'].includes(normalized)) {
+    return locale === 'en' ? 'Iran Post' : 'شرکت ملی پست ایران'
+  }
+  if (normalized === 'tipax') return locale === 'en' ? 'Tipax' : 'تیپاکس'
+  if (normalized === 'chapar') return locale === 'en' ? 'Chapar' : 'چاپار'
+  return courierName
 }
 
 function statusClassName(status: string) {

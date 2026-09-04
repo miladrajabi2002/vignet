@@ -25,7 +25,7 @@ export interface ChatAgent {
         customerInfoPrompt: string | null
         /** Whether product catalog retrieval and recommendations are available. */
         productAccessEnabled: boolean
-        /** Read-only access to identity-scoped synced order status. */
+        /** Read-only access to order-number-scoped synced order status. */
         orderTrackingEnabled: boolean
 }
 

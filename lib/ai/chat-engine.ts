@@ -428,9 +428,8 @@ async function prepareTurn(params: StartChatParams): Promise<
                                 : Promise.resolve([]),
                         buildOrderContext({
                                 workspaceId,
-                                contactId,
-                                contactPhone: resolvedContactPhone,
                                 message,
+                                history,
                                 enabled: agent.orderTrackingEnabled,
                                 language: agent.language,
                         }),

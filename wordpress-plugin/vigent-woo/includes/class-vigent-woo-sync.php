@@ -17,6 +17,9 @@ class Vigent_Woo_Sync {
         const FLUSH_LOCK_OPTION  = 'vigent_woo_delta_flush_lock';
         const MAX_QUEUE_SIZE     = 5000;
         const MAX_BATCH_SIZE     = 50;
+        const TRACKING_BACKFILL_BATCH_SIZE = 200;
+        const TRACKING_BACKFILL_STATE_OPTION = 'vigent_woo_tracking_backfill_state';
+        const TRACKING_BACKFILL_LOCK_OPTION  = 'vigent_woo_tracking_backfill_lock';
         /**
          * Maximum number of ORDERS to sync during a full push.
          *
@@ -125,6 +128,15 @@ class Vigent_Woo_Sync {
                 add_action( 'woocommerce_new_order', array( $this, 'on_order_new' ), 10, 2 );
                 add_action( 'woocommerce_update_order', array( $this, 'on_order_update' ), 10, 2 );
                 add_action( 'woocommerce_order_status_changed', array( $this, 'on_order_status_changed' ), 10, 4 );
+                // A number of Iranian tracking meta boxes save their custom field
+                // directly with update_post_meta() and do not call WC_Order::save().
+                // In that path WooCommerce's update-order hook never fires. Watching
+                // post-meta changes ensures the latest order is materialized by the
+                // normal five-minute delta flush without requiring a status change.
+                add_action( 'added_post_meta', array( $this, 'on_order_meta_change' ), 20, 4 );
+                add_action( 'updated_post_meta', array( $this, 'on_order_meta_change' ), 20, 4 );
+                add_action( 'deleted_post_meta', array( $this, 'on_order_meta_change' ), 20, 4 );
+                add_action( 'woocommerce_order_note_added', array( $this, 'on_order_note_added' ), 20, 2 );
 
                 // Customer hooks — fire on:
                 //   • user_register / profile_update       → covers WP-level signups + edits.
@@ -211,6 +223,144 @@ class Vigent_Woo_Sync {
 
         public function on_order_update( $order_id, $order = null ) {
                 $this->queue_order( $order_id, 'order.updated' );
+        }
+
+        /** Queue legacy/CPT orders when a tracking plugin writes meta directly. */
+        public function on_order_meta_change( $meta_id, $object_id, $meta_key, $meta_value ) {
+                $object_id = absint( $object_id );
+                if ( ! $object_id || ! $this->core()->sync_orders_enabled() ) {
+                        return;
+                }
+                if ( function_exists( 'get_post_type' ) && 'shop_order' !== get_post_type( $object_id ) ) {
+                        return;
+                }
+                $this->queue_order( $object_id, 'order.updated' );
+        }
+
+        /** Order notes are another common place for Iranian shops to enter a code. */
+        public function on_order_note_added( $note_id, $order ) {
+                if ( is_object( $order ) && method_exists( $order, 'get_id' ) ) {
+                        $this->queue_order( $order->get_id(), 'order.updated' );
+                }
+        }
+
+        /** Compatibility callback for the one-off event scheduled by v4.3.9. */
+        public function backfill_recent_order_tracking() {
+                return $this->backfill_all_order_tracking();
+        }
+
+        /**
+         * Progressively inspect every non-cancelled order for optional tracking.
+         *
+         * One run handles at most 200 orders and schedules the next page shortly
+         * afterwards. This keeps memory/request time bounded on large stores and is
+         * compatible with both legacy order posts and HPOS through wc_get_orders().
+         * Lightweight `order.tracking.updated` events only repair existing Vigent
+         * rows, so the pass cannot bypass plan limits or create unwanted history.
+         */
+        public function backfill_all_order_tracking() {
+                if ( ! $this->core()->is_configured() || ! $this->core()->has_wc() || ! $this->core()->sync_orders_enabled() ) {
+                        return array( 'done' => false, 'processed' => 0 );
+                }
+                if ( ! $this->acquire_lock( self::TRACKING_BACKFILL_LOCK_OPTION, 180 ) ) {
+                        $this->schedule_tracking_backfill( 60 );
+                        return array( 'done' => false, 'processed' => 0 );
+                }
+
+                $state = get_option( self::TRACKING_BACKFILL_STATE_OPTION, array() );
+                if ( ! is_array( $state ) ) {
+                        $state = array();
+                }
+                $page      = max( 1, isset( $state['page'] ) ? absint( $state['page'] ) : 1 );
+                $processed = isset( $state['processed'] ) ? absint( $state['processed'] ) : 0;
+                $args = array(
+                        'limit'    => self::TRACKING_BACKFILL_BATCH_SIZE,
+                        'page'     => $page,
+                        'paginate' => true,
+                        'orderby'  => 'ID',
+                        'order'    => 'ASC',
+                        'return'   => 'objects',
+                        'type'     => 'shop_order',
+                );
+                if ( function_exists( 'wc_get_order_statuses' ) ) {
+                        $included = array_values( array_diff( array_keys( wc_get_order_statuses() ), self::EXCLUDED_ORDER_STATUSES ) );
+                        if ( ! empty( $included ) ) {
+                                $args['status'] = $included;
+                        }
+                }
+
+                $result    = wc_get_orders( $args );
+                $orders    = is_object( $result ) && isset( $result->orders ) ? $result->orders : ( is_array( $result ) ? $result : array() );
+                $total     = is_object( $result ) && isset( $result->total ) ? absint( $result->total ) : count( $orders );
+                $max_pages = is_object( $result ) && isset( $result->max_num_pages ) ? max( 1, absint( $result->max_num_pages ) ) : 1;
+                $events = array();
+                foreach ( $orders as $order ) {
+                        if ( ! is_a( $order, 'WC_Order' )
+                                || 'shop_order_refund' === $order->get_type()
+                                || $this->is_order_excluded( $order->get_status() ) ) {
+                                continue;
+                        }
+                        $payload = $this->core()->order_tracking_to_payload( $order );
+                        if ( ! empty( $payload ) ) {
+                                $events[] = $this->make_event( 'order.tracking.updated', $payload );
+                        }
+                }
+
+                $all_ok     = true;
+                $last_error = '';
+                foreach ( $this->chunk_events_by_budget( $events ) as $chunk ) {
+                        $send = $this->core()->send_batch_events( array_values( $chunk ), false );
+                        if ( empty( $send['success'] ) ) {
+                                $all_ok     = false;
+                                $last_error = isset( $send['body'] ) ? wp_strip_all_tags( (string) $send['body'] ) : __( 'خطای نامشخص', 'vigent-woo' );
+                                break;
+                        }
+                }
+
+                if ( ! $all_ok ) {
+                        $state['status']       = 'retrying';
+                        $state['page']         = $page;
+                        $state['processed']    = $processed;
+                        $state['total']        = $total;
+                        $state['last_error']   = substr( $last_error, 0, 500 );
+                        $state['last_attempt'] = current_time( 'mysql' );
+                        update_option( self::TRACKING_BACKFILL_STATE_OPTION, $state, false );
+                        $this->release_lock( self::TRACKING_BACKFILL_LOCK_OPTION );
+                        $this->schedule_tracking_backfill( 300 );
+                        return array( 'done' => false, 'processed' => $processed, 'error' => $last_error );
+                }
+
+                $processed += count( $orders );
+                $done = empty( $orders ) || $page >= $max_pages || count( $orders ) < self::TRACKING_BACKFILL_BATCH_SIZE;
+                $state = array(
+                        'status'       => $done ? 'complete' : 'running',
+                        'page'         => $done ? $page : $page + 1,
+                        'processed'    => $processed,
+                        'total'        => $total,
+                        'last_error'   => '',
+                        'last_attempt' => current_time( 'mysql' ),
+                        'finished_at'  => $done ? current_time( 'mysql' ) : '',
+                );
+                update_option( self::TRACKING_BACKFILL_STATE_OPTION, $state, false );
+                $this->release_lock( self::TRACKING_BACKFILL_LOCK_OPTION );
+
+                $this->core()->debug_log( 'tracking_backfill PAGE', array(
+                        'page'      => $page,
+                        'processed' => $processed,
+                        'total'     => $total,
+                        'done'      => $done,
+                ) );
+                if ( ! $done ) {
+                        $this->schedule_tracking_backfill( 20 );
+                }
+                return array( 'done' => $done, 'processed' => $processed, 'total' => $total );
+        }
+
+        /** Schedule the next repair page without creating duplicate cron events. */
+        private function schedule_tracking_backfill( $delay ) {
+                if ( ! wp_next_scheduled( 'vigent_woo_tracking_backfill' ) ) {
+                        wp_schedule_single_event( time() + max( 10, absint( $delay ) ), 'vigent_woo_tracking_backfill' );
+                }
         }
 
         public function on_order_status_changed( $order_id, $old_status, $new_status, $order = null ) {

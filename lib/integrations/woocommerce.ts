@@ -5,7 +5,7 @@ import crypto from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/crypto'
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone, toEnglishDigits } from '@/lib/phone'
 import { dispatchProductEmbed } from '@/lib/queue/jobs'
 import type { WooWebhookBatchJobData, WooWebhookEvent } from '@/lib/queue/jobs'
 import { safeHttpGet } from '@/lib/security/safe-http'
@@ -816,6 +816,60 @@ function summarizeItems(items: NonNullable<WooOrder['line_items']>) {
   }
 }
 
+/** Normalize optional shipment fields without manufacturing tracking data. */
+function shippingFieldsFromWoo(order: WooOrder) {
+  const si = order.shipping_info ?? {}
+  const trackingCode = toEnglishDigits(
+    si.tracking_code ?? (order.tracking_code == null ? '' : String(order.tracking_code)),
+  ).replace(/[\s\u200c\u200e\u200f]+/g, '').trim() || null
+
+  // A shipping method such as «ارسال رایگان» exists on almost every order,
+  // but it is not shipment-tracking information. Keep all tracking fields null
+  // until a real tracking code exists, so stores without a tracking plugin show
+  // no empty/misleading shipping block in Vigent.
+  if (!trackingCode) {
+    return {
+      trackingCode: null,
+      courierName: null,
+      shippingDate: null,
+      trackingLink: null,
+      shippingNote: null,
+    }
+  }
+
+  return {
+    trackingCode,
+    courierName: (si.courier_name ?? '').trim() || order.shipping?.method_title?.trim() || null,
+    shippingDate: (si.shipping_date ?? '').trim() || null,
+    trackingLink: (si.tracking_link ?? '').trim() || null,
+    shippingNote: (si.shipping_note ?? '').trim() || null,
+  }
+}
+
+/** Repair only shipment fields on an order already mirrored in Vigent. */
+async function updateOrderTrackingFromWoo(
+  integration: StoreIntegrationInput,
+  order: WooOrder,
+): Promise<boolean> {
+  if (!order?.id) throw new Error('INVALID_ORDER_TRACKING_PAYLOAD')
+  const externalOrderId = String(order.id)
+  const existing = await prisma.storeOrder.findUnique({
+    where: { integrationId_externalOrderId: { integrationId: integration.id, externalOrderId } },
+    select: { id: true },
+  })
+
+  // The tracking repair pass intentionally cannot create historical orders or
+  // bypass a workspace's order limit. Normal order.created/order.updated events
+  // remain responsible for creating rows.
+  if (!existing) return false
+
+  await prisma.storeOrder.update({
+    where: { id: existing.id },
+    data: shippingFieldsFromWoo(order),
+  })
+  return true
+}
+
 async function upsertOrderFromWoo(
   integration: StoreIntegrationInput,
   order: WooOrder,
@@ -846,14 +900,7 @@ async function upsertOrderFromWoo(
   const { summary, count: itemCount } = summarizeItems(order.line_items ?? [])
   const orderDate = parseDate(order.date_created_gmt, true) ?? parseDate(order.date_created)
 
-  // Extract shipping info. Prefer the v4.2.4+ shipping_info object; fall
-  // back to the legacy top-level tracking_code for older plugins.
-  const si = order.shipping_info ?? {}
-  const trackingCode = (si.tracking_code ?? (order.tracking_code == null ? '' : String(order.tracking_code))).trim() || null
-  const courierName = (si.courier_name ?? '').trim() || order.shipping?.method_title?.trim() || null
-  const shippingDate = (si.shipping_date ?? '').trim() || null
-  const trackingLink = (si.tracking_link ?? '').trim() || null
-  const shippingNote = (si.shipping_note ?? '').trim() || null
+  const shippingFields = shippingFieldsFromWoo(order)
 
   const data = {
     contactId: byPhone?.id ?? byEmail?.id ?? null,
@@ -867,11 +914,7 @@ async function upsertOrderFromWoo(
     itemsSummary: summary || null,
     paymentMethod: order.payment_method_title || order.payment_method || null,
     shippingMethod: order.shipping?.method_title || null,
-    trackingCode,
-    courierName,
-    shippingDate,
-    trackingLink,
-    shippingNote,
+    ...shippingFields,
     orderDate,
     updatedAt: incomingUpdatedAt ?? new Date(),
   }
@@ -1219,6 +1262,9 @@ export async function processWebhookEvent(
   if (event.topic === 'order.created' || event.topic === 'order.updated') {
     await upsertOrderFromWoo(integration, event.data as WooOrder)
     return 1
+  }
+  if (event.topic === 'order.tracking.updated') {
+    return await updateOrderTrackingFromWoo(integration, event.data as WooOrder) ? 1 : 0
   }
   if (event.topic === 'order.deleted') {
     // Sent by the v4.3.3+ WP plugin when an order is trashed OR when an
