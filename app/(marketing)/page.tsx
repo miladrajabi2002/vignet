@@ -10,6 +10,7 @@ import { CapabilitiesSection } from '@/components/marketing/capabilities-section
 import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
 import { HomeOnboarding } from '@/components/marketing/home-onboarding'
 import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
+import { jsonLdScript } from '@/lib/seo/json-ld'
 
 // Below-the-fold sections are split from the initial route bundle. Their
 // meaningful media also stays lazy, while server rendering keeps the content
@@ -194,7 +195,7 @@ export default async function HomePage() {
 			<SectionRevealController />
 			<script
 				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+				dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
 			/>
 			<Hero />
 			<Suspense fallback={null}>
