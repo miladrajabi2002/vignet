@@ -96,6 +96,10 @@ interface FormState {
         messages: AutomationMessage[]
         // Comment funnel
         dmOnComment: boolean
+        // COMMENT + dmOnComment: short public reply on the comment itself
+        // (e.g. «تو دایرکت فرستادم 🌟») so the comment isn't left unanswered.
+        commentAckEnabled: boolean
+        commentAckText: string
         // Follow gate (collapsed by default)
         followGate: boolean
         gateMode: GateMode
@@ -150,6 +154,13 @@ function toFormState(a: Automation | undefined, type: AutomationType): FormState
                 replyMode: effectiveReplyMode,
                 messages: seededMessages,
                 dmOnComment: a?.action.dmOnComment ?? false,
+                // New COMMENT funnels default the public comment-ack ON (with the
+                // default text) — the #1 operator complaint was comments left
+                // unanswered while the reply went to DM. Existing rows keep their
+                // stored value (absent field → OFF) so nothing changes until the
+                // operator opts in.
+                commentAckEnabled: a ? a.action.commentAckEnabled === true : true,
+                commentAckText: a?.action.commentAckText ?? (a === undefined ? DEFAULT_COMMENT_ACK_TEXT : ''),
                 followGate: a?.action.followGate ?? false,
                 gateMode: a?.action.gateMode ?? 'SOFT',
                 gateButtonType: a?.action.gateButtonType ?? 'button',
@@ -169,6 +180,9 @@ function defaultReplyMode(type: AutomationType): ReplyMode {
 function emptyTextMessage(): AutomationMessage {
         return { id: newMessageId(), type: 'TEXT', text: '' }
 }
+
+/** Default public ack posted on the comment when the reply goes to DM. */
+const DEFAULT_COMMENT_ACK_TEXT = 'تو دایرکت فرستادم 🌟'
 
 function normalizeMessage(m: Partial<AutomationMessage>): AutomationMessage {
         // Buttons may be in the new object form ({title, url?}) or the legacy
@@ -389,6 +403,11 @@ export function AutomationForm({
                                         ? form.messages[0].text
                                         : '',
                         dmOnComment: type === 'COMMENT' ? form.dmOnComment : false,
+                        // Public comment ack — only meaningful for the comment→DM
+                        // funnel; the text is always persisted so toggling it back
+                        // on later keeps the operator's draft (same as gate fields).
+                        commentAckEnabled: type === 'COMMENT' && form.dmOnComment && form.commentAckEnabled,
+                        commentAckText: type === 'COMMENT' && form.dmOnComment ? form.commentAckText.trim() : '',
                         // Follow gate — save all fields so the engine can build the gate row
                         // and verify fulfillment on the user's reply. When the gate is OFF,
                         // send the fields anyway so re-enabling later keeps the user's draft.
@@ -725,6 +744,56 @@ export function AutomationForm({
                                                 </Section>
                                         )}
 
+                                        {/* ─── COMMENT SEND_DM: public ack on the comment ─────── */}
+                                        {/* The DM body must never leak publicly; this only posts a
+                                            short operator-configured line under the comment itself
+                                            so the comment isn't left unanswered. */}
+                                        {isComment && form.dmOnComment && (
+                                                <Section title="پاسخ روی کامنت" Icon={MessageSquare}>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                                <div className="flex min-w-0 items-start gap-2.5">
+                                                                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                                                                        <div className="min-w-0">
+                                                                                <p className="text-sm font-medium text-[var(--text-primary)]">
+                                                                                        ریپلای عمومی روی کامنت
+                                                                                </p>
+                                                                                <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                                                                                        بعد از ارسال دایرکت، یک پاسخ کوتاه زیر همان کامنت ثبت می‌شود تا کامنت بی‌جواب نماند.
+                                                                                </p>
+                                                                        </div>
+                                                                </div>
+                                                                <Switch
+                                                                        checked={form.commentAckEnabled}
+                                                                        onChange={(v) => {
+                                                                                set('commentAckEnabled', v)
+                                                                                if (v && !form.commentAckText.trim()) {
+                                                                                        set('commentAckText', DEFAULT_COMMENT_ACK_TEXT)
+                                                                                }
+                                                                        }}
+                                                                        aria-label="ریپلای عمومی روی کامنت"
+                                                                />
+                                                        </div>
+                                                        {form.commentAckEnabled && (
+                                                                <div className="space-y-1.5">
+                                                                        <label className="text-xs font-medium text-[var(--text-secondary)]">
+                                                                                متن ریپلای
+                                                                        </label>
+                                                                        <textarea
+                                                                                value={form.commentAckText}
+                                                                                onChange={(e) => set('commentAckText', e.target.value)}
+                                                                                placeholder="مثلاً: تو دایرکت فرستادم 🌟"
+                                                                                rows={2}
+                                                                                maxLength={200}
+                                                                                className="input resize-none"
+                                                                        />
+                                                                        <p className="text-[11px] text-[var(--text-muted)]">
+                                                                                این متن فقط زیر کامنت نمایش داده می‌شود و محتوای دایرکت را فاش نمی‌کند.
+                                                                        </p>
+                                                                </div>
+                                                        )}
+                                                </Section>
+                                        )}
+
                                         {/* ─── COMMENT MULTI_MESSAGE: list of reply options ─────── */}
                                         {isComment && form.replyMode === 'MULTI_MESSAGE' && (
                                                 <Section title="گزینه‌های پاسخ" Icon={MessageSquare}>
@@ -875,6 +944,8 @@ export function AutomationForm({
                                                                 replyMode={form.replyMode}
                                                                 messages={previewMessages}
                                                                 dmOnComment={form.dmOnComment}
+                                                                commentAckEnabled={form.commentAckEnabled}
+                                                                commentAckText={form.commentAckText}
                                                                 followGate={form.followGate}
                                                         />
                                                 </div>
@@ -892,6 +963,8 @@ export function AutomationForm({
                                                         replyMode: form.replyMode,
                                                         messages: previewMessages,
                                                         dmOnComment: form.dmOnComment,
+                                                        commentAckEnabled: form.commentAckEnabled,
+                                                        commentAckText: form.commentAckText,
                                                         followGate: form.followGate,
                                                 }}
                                         />
@@ -1265,8 +1338,8 @@ function MessageBuilder({
         onUpdate,
         onRemove,
         onMove,
-	}: {
-	        messages: AutomationMessage[]
+        }: {
+                messages: AutomationMessage[]
         onAdd: (t: MessageType) => void
         onUpdate: (id: string, patch: Partial<AutomationMessage>) => void
         onRemove: (id: string) => void

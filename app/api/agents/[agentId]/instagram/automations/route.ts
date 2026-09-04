@@ -50,6 +50,10 @@ const actionSchema = z.object({
         mediaUrl: z.string().default(''),
         productId: z.string().default(''),
         dmOnComment: z.boolean().default(false),
+        // COMMENT + dmOnComment: short public reply posted on the comment
+        // itself (e.g. «تو دایرکت فرستادم») so it isn't left unanswered.
+        commentAckEnabled: z.boolean().default(false),
+        commentAckText: z.string().default(''),
         followGate: z.boolean().default(false),
         gateMode: z.enum(['SOFT', 'STORY_MENTION']).default('SOFT'),
         gateButtonType: z.enum(['button', 'quick_reply']).default('button'),

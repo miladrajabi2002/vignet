@@ -120,6 +120,10 @@ export interface IphonePreviewProps {
         messages: AutomationMessage[]
         /** DM funnel: also send this content as a DM to the commenter. */
         dmOnComment?: boolean
+        /** DM funnel: post a short public ack on the comment itself. */
+        commentAckEnabled?: boolean
+        /** The public ack text rendered as the comment reply bubble. */
+        commentAckText?: string
         /** Follow gate enabled? Shows a gate prompt bubble. */
         followGate?: boolean
 }
@@ -756,12 +760,18 @@ function CommentScreen(props: ScreenProps) {
                 replyMode,
                 messages,
                 dmOnComment,
+                commentAckEnabled,
+                commentAckText,
         } = props
 
         // v3.1: comment→DM funnels no longer post a public reply — the DM
         // sequence IS the reply. The public bubble only renders for public
         // random replies (MULTI_MESSAGE without dmOnComment).
         const publicReply = dmOnComment ? '' : (messages[0]?.text ?? '').trim()
+        // v3.2: an optional short ack (e.g. «تو دایرکت فرستادم 🌟») is posted
+        // as a public reply on the comment after the DM goes out.
+        const ackReply =
+                dmOnComment && commentAckEnabled ? (commentAckText ?? '').trim() : ''
         const dmMessages = dmOnComment
                 ? messages.filter(
                           (m) =>
@@ -846,6 +856,26 @@ function CommentScreen(props: ScreenProps) {
                                                         <p className="text-[11px] text-black leading-snug">
                                                                 <span className="font-semibold">{accountUsername}</span>{' '}
                                                                 {publicReply}
+                                                        </p>
+                                                        <div className="mt-0.5 flex items-center gap-3 text-[9px] text-black/40">
+                                                                <span>اکنون</span>
+                                                                <span>پاسخ</span>
+                                                        </div>
+                                                </div>
+                                                <Heart className="mt-0.5 h-2.5 w-2.5 text-black/30" />
+                                        </div>
+                                )}
+
+                                {/* Bot's public comment-ack (v3.2) — a short sent-you-a-DM
+                                    line posted under the comment so it is not left
+                                    unanswered when the reply goes to DM. */}
+                                {ackReply && (
+                                        <div className="flex gap-2 ps-7">
+                                                <Avatar url={accountAvatarUrl} name={accountUsername} size={28} />
+                                                <div className="min-w-0 flex-1">
+                                                        <p className="text-[11px] text-black leading-snug">
+                                                                <span className="font-semibold">{accountUsername}</span>{' '}
+                                                                {ackReply}
                                                         </p>
                                                         <div className="mt-0.5 flex items-center gap-3 text-[9px] text-black/40">
                                                                 <span>اکنون</span>

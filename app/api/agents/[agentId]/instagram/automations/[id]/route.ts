@@ -57,6 +57,9 @@ const updateSchema = z.object({
       mediaUrl: z.string().optional(),
       productId: z.string().optional(),
       dmOnComment: z.boolean().optional(),
+      // COMMENT + dmOnComment: short public reply posted on the comment.
+      commentAckEnabled: z.boolean().optional(),
+      commentAckText: z.string().optional(),
       followGate: z.boolean().optional(),
       gateMode: z.enum(['SOFT', 'STORY_MENTION']).optional(),
       gateButtonType: z.enum(['button', 'quick_reply']).optional(),

@@ -192,6 +192,12 @@ export function AutomationCard({
                                                                 {t('card.dmToCommenter')}
                                                         </span>
                                                 )}
+                                                {ac.dmOnComment && ac.commentAckEnabled && (
+                                                        <span className="inline-flex items-center gap-1">
+                                                                <MessageSquare className="h-3 w-3" />
+                                                                {t('card.commentAck')}
+                                                        </span>
+                                                )}
                                                 {ac.followGate && (
                                                         <span className="inline-flex items-center gap-1">
                                                                 <Shield className="h-3 w-3" />

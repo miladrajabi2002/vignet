@@ -106,6 +106,11 @@ export interface AutomationAction {
         productId?: string
         // ── Comment funnel ────────────────────────────────────────────────────
         dmOnComment?: boolean
+        /** COMMENT + dmOnComment: also post a short public reply ON the comment
+         *  (e.g. «تو دایرکت فرستادم 🌟») so the comment isn't left unanswered.
+         *  The DM body itself is never posted publicly — only this ack line. */
+        commentAckEnabled?: boolean
+        commentAckText?: string
         // ── Follow gate (kept for v1 compatibility) ───────────────────────────
         followGate?: boolean
         gateMode?: GateMode

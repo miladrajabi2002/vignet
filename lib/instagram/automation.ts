@@ -105,6 +105,15 @@ export interface AutomationAction {
   productId?: string
   /** COMMENT: also send a DM to the commenter. */
   dmOnComment?: boolean
+  /**
+   * COMMENT + dmOnComment: ALSO post a short public reply on the comment
+   * itself (e.g. «تو دایرکت فرستادم 🌟») so the public comment isn't left
+   * unanswered when the reply goes to DM. The DM body itself is never posted
+   * publicly — only this operator-configured ack line.
+   */
+  commentAckEnabled?: boolean
+  /** The public ack text posted on the comment when `commentAckEnabled`. */
+  commentAckText?: string
   /** Require a follow before sending the content. */
   followGate?: boolean
   gateMode?: 'SOFT' | 'STORY_MENTION'
@@ -278,6 +287,8 @@ function readAction(a: Prisma.JsonValue): AutomationAction {
       typeof o.gateConfirmKeyword === 'string' ? o.gateConfirmKeyword : '',
     gateQuickReply: typeof o.gateQuickReply === 'string' ? o.gateQuickReply : '',
     contentText,
+    commentAckEnabled: o.commentAckEnabled === true,
+    commentAckText: typeof o.commentAckText === 'string' ? o.commentAckText : '',
     aiAgentEnabled: o.aiAgentEnabled === true,
     followUpEnabled: o.followUpEnabled === true,
     followUpDelayMin:
@@ -610,6 +621,37 @@ export async function runInstagramAutomation(
   return { handled: true, replied: false }
 }
 
+/**
+ * Post the public "sent you a DM" ack on the commenter's comment.
+ *
+ * COMMENT scenarios with `dmOnComment` deliver their content in the
+ * commenter's DM — which leaves the public comment itself unanswered (the
+ * operator's #1 complaint: "این کامنت بدون جواب می‌مونه"). When the operator
+ * enables `commentAckEnabled`, we additionally post `commentAckText` as a
+ * public reply ON the comment: for comments `msg.chatId` is
+ * `comment:<commentId>`, which the adapter routes to `/{comment-id}/replies`.
+ *
+ * Best-effort by design: a failed ack must never break (or retry) the DM
+ * delivery that already happened, so errors are captured and swallowed.
+ */
+async function postCommentAck(
+  ctx: AutomationContext,
+  action: AutomationAction,
+): Promise<void> {
+  if (ctx.msg.kind !== 'COMMENT' || !action.dmOnComment) return
+  if (!action.commentAckEnabled) return
+  const ackText = (action.commentAckText ?? '').trim()
+  if (!ackText) return
+  try {
+    await ctx.adapter.sendText(ctx.msg.chatId, ackText)
+  } catch (e) {
+    captureError('instagram:automation:comment-ack', e, {
+      workspaceId: ctx.agent.workspaceId,
+      metadata: { commentId: ctx.msg.commentId },
+    })
+  }
+}
+
 /** Send the configured reply for a matched scenario. */
 async function executeAction(
   ctx: AutomationContext,
@@ -713,6 +755,9 @@ async function executeAction(
             }
           }
         }
+        // The content went to the commenter's DM — acknowledge the public
+        // comment too so it isn't left unanswered.
+        await postCommentAck(ctx, action)
         return // Gate skipped — content delivered, done.
       }
       // follows === false → send gate prompt (below)
@@ -770,6 +815,9 @@ async function executeAction(
         } as Prisma.InputJsonValue,
       },
     })
+    // The gate prompt went to the commenter's DM — acknowledge the public
+    // comment as well so it isn't left unanswered.
+    await postCommentAck(ctx, action)
     return
   }
 
@@ -812,6 +860,8 @@ async function executeAction(
     // NOTE (v3.1): the comment→DM funnel no longer posts the DM body back as
     // a public comment reply — "ارسال در دایرکت" means INSTEAD of the public
     // reply, and posting it would leak DM content (links, prices) publicly.
+    // v3.2: an optional short ack (commentAck*) is posted on the comment.
+    await postCommentAck(ctx, action)
     return
   }
 
@@ -891,6 +941,8 @@ async function executeAction(
     }
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
     // MULTI_MESSAGE branch above.
+    // v3.2: optional commentAck — post the short public ack on the comment.
+    await postCommentAck(ctx, action)
 
     // ─── Follow-up message (delayed) ───
     // Per-scenario follow-up: send `followUpMessage` after `followUpDelayMin`
@@ -931,6 +983,8 @@ async function executeAction(
     }
     // NOTE (v3.1): no public ack on comment→DM funnels — see the note in the
     // MULTI_MESSAGE branch above.
+    // v3.2: optional commentAck — post the short public ack on the comment.
+    await postCommentAck(ctx, action)
     // Per-scenario follow-up applies to single-media STATIC replies too —
     // previously this branch skipped it, so media scenarios couldn't nudge.
     scheduleFollowUp(ctx, action, target)
@@ -946,6 +1000,8 @@ async function executeAction(
       await adapter.sendText(commentDmTarget(msg), action.contentText || action.replyText, {
         quickReplies,
       })
+      // v3.2: optional commentAck — acknowledge the public comment too.
+      await postCommentAck(ctx, action)
       scheduleFollowUp(ctx, action, msg.senderId)
       return
     }
@@ -1001,6 +1057,10 @@ async function executeAction(
       action.contentText,
       { quickReplies: isComment ? undefined : quickReplies },
     )
+    if (isComment) {
+      // v3.2: optional commentAck — acknowledge the public comment too.
+      await postCommentAck(ctx, action)
+    }
   }
 }
 
