@@ -237,7 +237,10 @@ describe('marketing homepage UX contracts', () => {
 		expect(page).toContain('title: { absolute: copy.title }')
 		expect(page).toContain('/android-chrome-512x512.png')
 		expect(page).not.toContain('/icon.png')
-		expect(page).not.toMatch(/alternates:\s*\{[^}]*languages:/s)
+		// /en URLs are real (middleware rewrite + x-vigent-locale), so hreflang
+		// alternates are now expected — and must point at the /en prefix.
+		expect(page).toMatch(/languages:\s*\{[^}]*en:\s*`\$\{SITE_URL\}\/en`/s)
+		expect(page).toContain("'x-default': SITE_URL")
 	})
 
 	it('publishes a directly callable support number from the shared constant', () => {

@@ -38,11 +38,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://vigent.ir'
 	const entries: MetadataRoute.Sitemap = [
 		{ url: `${base}/`, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
+		// English landing pages (middleware renders /en/* from the same routes).
+		{ url: `${base}/en`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
 		{
 			url: `${base}/pricing`,
 			lastModified: new Date(),
 			changeFrequency: 'monthly',
 			priority: 0.8,
+		},
+		{
+			url: `${base}/en/pricing`,
+			lastModified: new Date(),
+			changeFrequency: 'monthly',
+			priority: 0.7,
 		},
 		{
 			url: `${base}/privacy`,

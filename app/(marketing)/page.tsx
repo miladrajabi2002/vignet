@@ -56,7 +56,16 @@ export async function generateMetadata(): Promise<Metadata> {
 		keywords: [...copy.keywords],
 		applicationName: 'Vigent',
 		category: 'business software',
-		alternates: { canonical: SITE_URL },
+		alternates: {
+			canonical: SITE_URL,
+			// Real English URLs now exist (/en via middleware rewrite), so
+			// hreflang alternates are sound; crawlers pick the right locale.
+			languages: {
+				fa: SITE_URL,
+				en: `${SITE_URL}/en`,
+				'x-default': SITE_URL,
+			},
+		},
 		openGraph: {
 			type: 'website',
 			url: SITE_URL,

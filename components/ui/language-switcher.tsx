@@ -14,6 +14,29 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     setIsPending(true)
 
     try {
+      const pathname = window.location.pathname
+      const onEnPrefix = pathname === '/en' || pathname.startsWith('/en/')
+
+      if (next === 'en' && !onEnPrefix) {
+        // English gets a shareable, indexable URL prefix. Middleware rewrites
+        // /en/<path> to <path> with an English locale override and persists
+        // the locale cookie — no separate API call needed.
+        window.location.assign(`/en${pathname === '/' ? '' : pathname}`)
+        return
+      }
+
+      if (next === 'fa' && onEnPrefix) {
+        // Back to Persian: flip the cookie, then drop the URL prefix.
+        await fetch('/api/locale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locale: 'fa' }),
+        })
+        window.location.assign(pathname.slice(3) || '/')
+        return
+      }
+
+      // Same-URL toggle (locale-cookie only, unchanged legacy behavior).
       const response = await fetch('/api/locale', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
