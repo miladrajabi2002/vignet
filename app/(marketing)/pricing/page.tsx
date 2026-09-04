@@ -16,6 +16,14 @@ export const metadata: Metadata = {
 		url: `${SITE_URL}/pricing`,
 		title: 'تعرفه‌ها و پلن‌های ویجنت',
 		description: 'مقایسه شفاف پلن‌ها، اعتبار پاسخ هوش مصنوعی و امکانات هر سطح از ویجنت.',
+		// The page replaces the root openGraph object, so reference the shared
+		// 1200x630 file-convention card explicitly (see homepage for details).
+		images: [{
+			url: `${SITE_URL}/opengraph-image`,
+			width: 1200,
+			height: 630,
+			alt: 'تعرفه‌ها و پلن‌های ویجنت',
+		}],
 	},
 	twitter: {
 		card: 'summary_large_image',
