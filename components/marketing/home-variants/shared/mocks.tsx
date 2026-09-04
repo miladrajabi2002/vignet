@@ -1385,7 +1385,7 @@ export function InstagramMock({ locale, inverse = true, className, active = true
 			)}
 		>
 			<div className="grid items-center justify-center gap-4 md:grid-cols-[minmax(300px,370px)_minmax(170px,220px)] md:gap-6">
-				<div className="relative mx-auto w-full max-w-[284px] sm:max-w-[320px]" dir="ltr">
+				<div className="relative mx-auto w-full max-w-[232px] sm:max-w-[320px]" dir="ltr">
 					<span aria-hidden className="absolute -left-[4px] top-[106px] h-7 w-[4px] rounded-l-full bg-gradient-to-b from-[#536079] to-[#1d2536] shadow-[-1px_0_1px_rgba(255,255,255,0.14)]" />
 					<span aria-hidden className="absolute -left-[4px] top-[151px] h-12 w-[4px] rounded-l-full bg-gradient-to-b from-[#536079] to-[#1d2536] shadow-[-1px_0_1px_rgba(255,255,255,0.14)]" />
 					<span aria-hidden className="absolute -left-[4px] top-[213px] h-12 w-[4px] rounded-l-full bg-gradient-to-b from-[#536079] to-[#1d2536] shadow-[-1px_0_1px_rgba(255,255,255,0.14)]" />

@@ -71,7 +71,7 @@ export async function ShowcaseSection({ locale }: { locale: HomeLocale }) {
 	const labels = CHANNEL_LABELS[locale]
 
 	return (
-		<section id="showcase" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-16 sm:py-20">
+		<section id="showcase" className="marketing-story-section scroll-mt-24 bg-[var(--bg-surface)] py-9 sm:py-20">
 			<div className="mx-auto max-w-7xl px-5 sm:px-8">
 				<MarketingSectionHeading
 					align="center"

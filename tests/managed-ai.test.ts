@@ -41,8 +41,10 @@ describe('managed model policy', () => {
   })
 
   it('uses the configured fixed reply prices', () => {
-    expect(getReplyPriceIRR('fast')).toBe(3_000)
-    expect(getReplyPriceIRR('balanced')).toBe(6_500)
+    // Matches the synced .env fallbacks and the live DB platformAiSettings
+    // values (fast = 400 toman, balanced = 750 toman per reply).
+    expect(getReplyPriceIRR('fast')).toBe(4_000)
+    expect(getReplyPriceIRR('balanced')).toBe(7_500)
     expect(getReplyPriceIRR('premium')).toBe(30_000)
   })
 })

@@ -22,38 +22,38 @@ import { TrendSpark } from '@/components/blog/trend-spark'
  * nothing) instead of throwing.
  */
 const loadPopularPosts = unstable_cache(async () => {
-	const workspace = await prisma.workspace.findFirst({
-		orderBy: { createdAt: 'asc' },
-		select: { id: true },
-	})
-	if (!workspace) return []
+        const workspace = await prisma.workspace.findFirst({
+                orderBy: { createdAt: 'asc' },
+                select: { id: true },
+        })
+        if (!workspace) return []
 
-	return prisma.blogPost.findMany({
-		where: { workspaceId: workspace.id, status: 'PUBLISHED' },
-		orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
-		take: 3,
-		select: {
-			id: true,
-			title: true,
-			slug: true,
-			excerpt: true,
-			content: true,
-			coverImage: true,
-			views: true,
-			publishedAt: true,
-			createdAt: true,
-			readingMinutes: true,
-			category: { select: { name: true, slug: true } },
-		},
-	})
+        return prisma.blogPost.findMany({
+                where: { workspaceId: workspace.id, status: 'PUBLISHED' },
+                orderBy: [{ views: 'desc' }, { publishedAt: 'desc' }],
+                take: 3,
+                select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                        excerpt: true,
+                        content: true,
+                        coverImage: true,
+                        views: true,
+                        publishedAt: true,
+                        createdAt: true,
+                        readingMinutes: true,
+                        category: { select: { name: true, slug: true } },
+                },
+        })
 }, ['marketing-popular-posts-v1'], {
-	revalidate: 300,
-	tags: ['marketing-popular-posts'],
+        revalidate: 300,
+        tags: ['marketing-popular-posts'],
 })
 
 async function getPopularPosts() {
         try {
-		return await loadPopularPosts()
+                return await loadPopularPosts()
         } catch (err) {
                 console.error('[PopularPosts] failed to load posts:', err)
                 return []
@@ -69,8 +69,8 @@ export async function PopularPosts() {
         const isFa = locale === 'fa'
 
         return (
-				<section id="popular" className="marketing-story-section marketing-section-posts bg-[var(--bg-base)] py-16 sm:py-20 lg:py-24">
-						<div className="mx-auto max-w-6xl px-5 sm:px-6">
+                                <section id="popular" className="marketing-story-section marketing-section-posts bg-[var(--bg-base)] py-9 sm:py-20 lg:py-24">
+                                                <div className="mx-auto max-w-6xl px-5 sm:px-6">
                                 {/* Heading */}
                                 <div data-scroll-reveal="up" className="mx-auto max-w-2xl text-center">
                                         <span className="marketing-eyebrow">
@@ -87,14 +87,14 @@ export async function PopularPosts() {
                                 </div>
 
                                 {/* Three equal cards in a horizontal row */}
-								<div aria-label={isFa ? 'مقالات محبوب' : 'Popular articles'} className="mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-14 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 lg:grid-cols-3">
+                                                                <div aria-label={isFa ? 'مقالات محبوب' : 'Popular articles'} className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-10 md:mt-14 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 lg:grid-cols-3">
                                         {posts.map((p, i) => (
-										<PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
+                                                                                <PopularCard key={p.id} post={p} rank={i + 1} locale={locale} isFa={isFa} />
                                         ))}
                                 </div>
 
                                 {/* CTA to the full blog */}
-                                <div className="mt-12 text-center">
+                                <div className="mt-8 text-center sm:mt-12">
                                         <Link
                                                 href="/blog"
                                                 className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border-hover)] px-5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--white-05)]"
@@ -169,39 +169,39 @@ function ViewsLabel({ views, isFa }: { views: number; isFa: boolean }) {
 function PopularCard({
         post,
         rank,
-	locale,
-	isFa,
-	className = '',
+        locale,
+        isFa,
+        className = '',
 }: {
         post: PostPreview
         rank: number
         locale: 'fa' | 'en'
-	isFa: boolean
-	className?: string
+        isFa: boolean
+        className?: string
 }) {
         const excerpt = post.excerpt || deriveExcerpt(post.content)
         const time = relativeTime(post.publishedAt ?? post.createdAt, locale)
-	const coverImage = post.coverImage?.trim()
+        const coverImage = post.coverImage?.trim()
 
         return (
                 <Link
                         href={`/blog/${post.slug}`}
-						data-scroll-reveal="up"
-						className={`group flex min-h-44 min-w-[min(82vw,21rem)] snap-center flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 md:min-h-0 md:min-w-0 md:flex-col ${className}`}
+                                                data-scroll-reveal="up"
+                                                className={`group flex min-h-44 min-w-[min(82vw,21rem)] snap-center flex-row overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-surface)] transition-colors duration-150 hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 md:min-h-0 md:min-w-0 md:flex-col ${className}`}
                 >
                         {coverImage && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-					src={coverImage}
+                                        src={coverImage}
                                         alt={post.title}
-					width={560}
-					height={373}
+                                        width={560}
+                                        height={373}
                                         loading="lazy"
                                         decoding="async"
-										className="hidden aspect-[3/2] w-full shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] md:block"
+                                                                                className="hidden aspect-[3/2] w-full shrink-0 object-cover transition-transform duration-150 group-hover:scale-[1.02] md:block"
                                 />
                         )}
-						<div className="min-w-0 flex flex-1 flex-col p-4 sm:p-5">
+                                                <div className="min-w-0 flex flex-1 flex-col p-4 sm:p-5">
                                 <div className="flex items-center justify-between gap-3">
                                         <RankBadge rank={rank} isFa={isFa} />
                                         {post.category && (
@@ -213,14 +213,14 @@ function PopularCard({
                                 <h3 className="mt-3 line-clamp-2 text-base font-medium leading-snug text-[var(--text-primary)]">
                                         {post.title}
                                 </h3>
-								<p className="mt-2 hidden flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2 sm:block">
+                                                                <p className="mt-2 hidden flex-1 text-sm leading-relaxed text-[var(--text-secondary)] line-clamp-2 sm:block">
                                         {excerpt}
                                 </p>
-								<div className="mt-auto flex items-center justify-between gap-3 pt-3 sm:mt-4 sm:pt-0">
+                                                                <div className="mt-auto flex items-center justify-between gap-3 pt-3 sm:mt-4 sm:pt-0">
                                         <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
                                                 <ViewsLabel views={post.views} isFa={isFa} />
-												<span className="hidden sm:inline">{time}</span>
-												<span className="hidden sm:inline">
+                                                                                                <span className="hidden sm:inline">{time}</span>
+                                                                                                <span className="hidden sm:inline">
                                                         {isFa
                                                                 ? `${toPersianDigits(post.readingMinutes)} دقیقه`
                                                                 : `${post.readingMinutes} min`}
