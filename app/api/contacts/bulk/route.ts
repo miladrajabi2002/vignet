@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceActive } from '@/lib/billing/entitlements'
@@ -10,7 +11,9 @@ export const dynamic = 'force-dynamic'
  *
  * GET  → returns { count } for the confirm dialog.
  *
- * DELETE → wipes ALL Contact rows in the workspace. Cascades:
+ * DELETE → deletes the supplied contact ids, or all Contact rows when no JSON
+ * body is supplied. Every delete remains scoped to the current workspace.
+ * Cascades:
  *   • Conversation.contactId has onDelete: SetNull — so conversations
  *     are preserved, but their contactId is set to NULL. This means
  *     chat history is NOT lost; it just becomes "anonymous" until a
@@ -29,6 +32,7 @@ export const dynamic = 'force-dynamic'
  */
 
 const BATCH_SIZE = 1000
+const deleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1).max(BATCH_SIZE) })
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -37,11 +41,27 @@ export async function GET() {
   return NextResponse.json({ count })
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   if (!(await checkWorkspaceActive(user.workspaceId)).allowed) {
     return NextResponse.json({ error: 'PLAN_BLOCKED' }, { status: 402 })
+  }
+
+  const contentType = request.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) {
+    const parsed = deleteSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'INVALID_INPUT' }, { status: 400 })
+    }
+
+    const result = await prisma.contact.deleteMany({
+      where: {
+        workspaceId: user.workspaceId,
+        id: { in: parsed.data.ids },
+      },
+    })
+    return NextResponse.json({ ok: true, deleted: result.count })
   }
 
   let deleted = 0

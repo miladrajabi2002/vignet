@@ -309,12 +309,23 @@ export function ContactsView({
                                                         countEndpoint="/api/contacts/bulk"
                                                         deleteEndpoint="/api/contacts/bulk"
                                                         entityLabel={locale === 'fa' ? 'مشتری' : 'contact'}
-                                                        buttonLabel={locale === 'fa' ? 'حذف همه مشتریان' : 'Delete all'}
+                                                        buttonLabel={selected.size > 0
+                                                                ? locale === 'fa'
+                                                                        ? `حذف ${selected.size.toLocaleString('fa-IR')} مشتری`
+                                                                        : `Delete ${selected.size} customers`
+                                                                : locale === 'fa' ? 'حذف همه مشتریان' : 'Delete all customers'}
+                                                        dialogTitle={selected.size > 0
+                                                                ? locale === 'fa'
+                                                                        ? `حذف ${selected.size.toLocaleString('fa-IR')} مشتری؟`
+                                                                        : `Delete ${selected.size} customers?`
+                                                                : undefined}
+                                                        countOverride={selected.size > 0 ? selected.size : undefined}
+                                                        deleteBody={selected.size > 0 ? { ids: [...selected] } : undefined}
                                                         extraWarning={locale === 'fa'
                                                                 ? 'گفتگوهای مشتریان حفظ می‌شوند اما به‌صورت «ناشناس» در می‌آیند. تاریخچه چت از بین نمی‌رود.'
                                                                 : 'Conversations are preserved but become anonymous. Chat history is NOT lost.'}
                                                         compactOnMobile
-                                                        onDeleted={() => router.refresh()}
+                                                        onDeleted={() => setSelected(new Set())}
                                                 />
                                                 <CampaignLaunchButton
                                                         audience={campaignAudience}

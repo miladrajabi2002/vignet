@@ -2,7 +2,8 @@
 
 /**
  * Bulk-delete button — used on the products / orders / conversations /
- * contacts pages to wipe ALL records in the current workspace.
+ * contacts pages to remove all records in the current workspace, or a caller-
+ * supplied selection.
  *
  * Shows a confirm dialog with the actual count of records that will be
  * deleted (fetched from a count endpoint), then sends DELETE to the
@@ -35,6 +36,10 @@ interface BulkDeleteButtonProps {
   entityLabel: string
   /** Optional: label for the button itself (defaults to «حذف همه»). */
   buttonLabel?: string
+  /** Optional fixed count. When provided, the count endpoint is not queried. */
+  countOverride?: number
+  /** Optional JSON body sent with the DELETE request. */
+  deleteBody?: unknown
   /** Optional: title for the confirm dialog (defaults to «حذف همه ${entityLabel}»).
    *  Set this when the button label is not "حذف همه" — e.g. the
    *  "delete cancelled orders" button should have dialogTitle="حذف سفارش‌های
@@ -54,6 +59,8 @@ export function BulkDeleteButton({
   deleteEndpoint,
   entityLabel,
   buttonLabel = 'حذف همه',
+  countOverride,
+  deleteBody,
   dialogTitle,
   extraWarning,
   onDeleted,
@@ -73,19 +80,32 @@ export function BulkDeleteButton({
     if (!open) return
     setCount(null)
     setError(null)
+    if (countOverride !== undefined) {
+      setCount(countOverride)
+      setCountLoading(false)
+      return
+    }
     setCountLoading(true)
     fetch(countEndpoint, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('COUNT_FAILED'))))
       .then((data) => setCount(typeof data.count === 'number' ? data.count : 0))
       .catch(() => setCount(0))
       .finally(() => setCountLoading(false))
-  }, [open, countEndpoint])
+  }, [open, countEndpoint, countOverride])
 
   async function handleConfirm() {
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(deleteEndpoint, { method: 'DELETE' })
+      const res = await fetch(deleteEndpoint, {
+        method: 'DELETE',
+        ...(deleteBody === undefined
+          ? {}
+          : {
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(deleteBody),
+            }),
+      })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `HTTP ${res.status}`)

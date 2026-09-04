@@ -124,6 +124,19 @@ describe('CRM avatar and customer deletion contract', () => {
     expect(route).toContain('data: { contactId: null }')
     expect(route).toContain('preservedConversations')
   })
+
+  it('targets selected customers from the bulk-delete action', () => {
+    const view = source('components/crm/contacts-view.tsx')
+    const bulkAction = source('components/ui/bulk-delete-button.tsx')
+    const route = source('app/api/contacts/bulk/route.ts')
+
+    expect(view).toContain('`حذف ${selected.size.toLocaleString(\'fa-IR\')} مشتری`')
+    expect(view).toContain('deleteBody={selected.size > 0 ? { ids: [...selected] } : undefined}')
+    expect(view).toContain('countOverride={selected.size > 0 ? selected.size : undefined}')
+    expect(bulkAction).toContain("body: JSON.stringify(deleteBody)")
+    expect(route).toContain('workspaceId: user.workspaceId')
+    expect(route).toContain('id: { in: parsed.data.ids }')
+  })
 })
 
 describe('conversation sales intelligence UI contract', () => {
