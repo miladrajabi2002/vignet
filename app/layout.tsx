@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
+import ReactDOM from 'react-dom'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale } from 'next-intl/server'
 import { Providers } from '@/components/providers'
@@ -22,6 +23,17 @@ const geistMono = localFont({
 })
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vigent.ir'
+
+// Preload the Persian UI font weights actually used above the fold.
+// @font-face in globals.css is discovered only after CSS download+parse,
+// which used to leave Persian text on a fallback font for the first paint.
+for (const font of [
+	'/fonts/IRANSansWeb.woff2',
+	'/fonts/IRANSansWeb_Medium.woff2',
+	'/fonts/IRANSansWeb_Bold.woff2',
+]) {
+	ReactDOM.preload(font, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
+}
 
 export const viewport: Viewport = {
 	width: 'device-width',

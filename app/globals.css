@@ -3,52 +3,36 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────────────────────
-   IRANSansWeb — Persian web font
-   Place the .ttf files in: public/fonts/
-   Files needed:
-     IRANSansWeb.ttf            (regular 400)
-     IRANSansWeb_Bold.ttf       (bold 700)
-     IRANSansWeb_Light.ttf      (light 300)
-     IRANSansWeb_Medium.ttf     (medium 500)
-     IRANSansWeb_UltraLight.ttf (ultra-light 200)
+   IRANSansWeb — Persian web font (woff2 only; every browser since 2016
+   supports woff2, older ones fall back to the system-ui stack).
+   Weights shipped: 400 / 500 / 700 (plus 300 Light used by dashboard
+   headings). Weights with no usage are intentionally NOT shipped.
    ─────────────────────────────────────────────────────────────── */
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb.woff2') format('woff2'),
-             url('/fonts/IRANSansWeb.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb.woff2') format('woff2');
         font-weight: 400;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Light.woff2') format('woff2'),
-             url('/fonts/IRANSansWeb_Light.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Light.woff2') format('woff2');
         font-weight: 300;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Medium.woff2') format('woff2'),
-             url('/fonts/IRANSansWeb_Medium.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Medium.woff2') format('woff2');
         font-weight: 500;
         font-style: normal;
         font-display: swap;
 }
 @font-face {
         font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_Bold.woff2') format('woff2'),
-             url('/fonts/IRANSansWeb_Bold.ttf') format('truetype');
+        src: url('/fonts/IRANSansWeb_Bold.woff2') format('woff2');
         font-weight: 700;
-        font-style: normal;
-        font-display: swap;
-}
-@font-face {
-        font-family: 'IRANSansWeb';
-        src: url('/fonts/IRANSansWeb_UltraLight.woff2') format('woff2'),
-             url('/fonts/IRANSansWeb_UltraLight.ttf') format('truetype');
-        font-weight: 200;
         font-style: normal;
         font-display: swap;
 }
