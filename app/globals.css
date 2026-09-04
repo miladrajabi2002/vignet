@@ -201,6 +201,16 @@
                 font-family: var(--font-fa), system-ui, sans-serif !important;
         }
 
+        /* Persian web fonts often contain monochrome emoji placeholders. Keep
+           emoji glyphs on the platform's native color font in every locale. */
+        .emoji-glyph,
+        html[lang='fa'] body .emoji-glyph,
+        html[dir='rtl'] body .emoji-glyph {
+                font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif !important;
+                font-variant-emoji: emoji;
+                letter-spacing: normal;
+        }
+
         button,
         input,
         textarea,

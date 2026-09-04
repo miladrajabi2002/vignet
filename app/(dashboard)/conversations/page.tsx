@@ -28,6 +28,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { dateLocaleTag } from '@/lib/localized-date'
 import { CampaignLaunchButton } from '@/components/crm/campaign-launch-button'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { presentConversationMessages } from '@/lib/conversations/reactions'
 import { conversationLiveVersion } from '@/lib/crm/live-version'
 import { ContactAvatar } from '@/components/crm/contact-avatar'
 import { contactAvatarSrc } from '@/lib/crm/avatar'
@@ -184,8 +185,10 @@ export default async function ConversationsPage(props: {
                                 },
                                 messages: {
                                         orderBy: { createdAt: 'desc' },
-                                        take: 3,
-                                        select: { content: true, role: true, metadata: true },
+                                        // Keep enough history to fold a short run of legacy
+                                        // standalone reactions into the message they belong to.
+                                        take: 12,
+                                        select: { id: true, content: true, role: true, metadata: true, createdAt: true },
                                 },
                                 salesInsight: {
                                         select: { leadType: true, buyerProbability: true },
@@ -299,8 +302,11 @@ export default async function ConversationsPage(props: {
                 HANDED_OFF: isFa ? 'نیاز به اپراتور' : 'Needs operator',
         }
         const inboxItems = pageItems.map((conversation) => {
-                const last = conversation.messages[0]
-                const lastInbound = conversation.messages.find((message) => message.role === 'USER')
+                const presentation = presentConversationMessages([...conversation.messages].reverse())
+                const last = presentation.messages.at(-1)
+                const lastInbound = [...presentation.messages].reverse().find((message) => message.role === 'USER')
+                const lastReactions = last ? presentation.reactionsByMessageId.get(last.id) ?? [] : []
+                const reactionEmoji = lastReactions.at(-1)?.emoji ?? null
                 const sourceLabel = lastInbound
                         ? inboundSourceLabel(readInboundSource(lastInbound.metadata), locale)
                         : null
@@ -339,6 +345,7 @@ export default async function ConversationsPage(props: {
                 return {
                         conversation,
                         last,
+                        reactionEmoji,
                         sourceLabel,
                         channelHandle,
                         channelAvatarSrc,
@@ -485,7 +492,7 @@ export default async function ConversationsPage(props: {
                                                         <LiveArrivalStatus resource="conversations" locale={locale} />
                                                 </div>
 
-                                                {inboxItems.map(({ conversation: c, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
                                                         <LiveArrivalItem key={`mobile-${c.id}`} itemId={c.id}>
                                                                 <MobileConversationCard
                                                                         conversationId={c.id}
@@ -500,6 +507,8 @@ export default async function ConversationsPage(props: {
                                                                         statusLabel={statusLabel}
                                                                         attention={attention}
                                                                         locale={locale}
+                                                                        lastMessage={last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}
+                                                                        reactionEmoji={reactionEmoji}
                                                                 />
                                                         </LiveArrivalItem>
                                                 ))}
@@ -513,10 +522,11 @@ export default async function ConversationsPage(props: {
                                                         </div>
                                                         <LiveArrivalStatus resource="conversations" locale={locale} />
                                                 </div>
-                                                {inboxItems.map(({ conversation: c, last, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
+                                                {inboxItems.map(({ conversation: c, last, reactionEmoji, sourceLabel, channelHandle, channelAvatarSrc, who, when, attention, displayStatus, statusLabel }) => (
                                                         <LiveArrivalItem key={`desktop-${c.id}`} itemId={c.id}>
                                                                 <Link
                                                                         href={`/conversations/${c.id}`}
+                                                                        dir={isFa ? 'rtl' : 'ltr'}
                                                                         className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-4 py-3.5 transition-colors hover:bg-[var(--bg-hover)] sm:px-5', attention && 'bg-amber-500/5')}
                                                                 >
                                                                         <ContactAvatar src={channelAvatarSrc} alt={who} />
@@ -526,7 +536,18 @@ export default async function ConversationsPage(props: {
                                                                                         {channelHandle && who !== channelHandle && <span dir="ltr" className="max-w-28 shrink truncate rounded-full bg-[var(--bg-base)] px-1.5 py-0.5 text-[11px] text-[var(--text-secondary)]">@{channelHandle}</span>}
                                                                                         {sourceLabel && <span className="shrink-0 rounded-full border border-black/[0.07] bg-black/[0.035] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">{sourceLabel}</span>}
                                                                                 </div>
-                                                                                <p dir="auto" className="mt-1 min-w-0 truncate text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                                                                        {reactionEmoji && (
+                                                                                                <span
+                                                                                                        dir="ltr"
+                                                                                                        className="emoji-glyph inline-flex h-5 shrink-0 items-center rounded-full border border-black/[0.08] bg-white px-1.5 text-[13px] leading-none shadow-sm"
+                                                                                                        aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}
+                                                                                                >
+                                                                                                        {reactionEmoji}
+                                                                                                </span>
+                                                                                        )}
+                                                                                        <p dir={isFa ? 'rtl' : 'ltr'} className="min-w-0 flex-1 truncate text-start text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">{last ? `${stripProductTokens(last.content)}${last.role === 'ASSISTANT' ? ' ↩' : ''}` : c.agent.name}</p>
+                                                                                </div>
                                                                         </div>
                                                                         <span className="flex max-w-sm shrink-0 flex-row flex-wrap items-center justify-end gap-1.5 text-[11px] leading-5 text-[var(--text-muted)]">
                                                                                 <ConversationStatusBadge status={displayStatus} label={statusLabel} attention={attention} />

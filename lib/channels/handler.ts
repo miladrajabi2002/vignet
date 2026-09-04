@@ -383,6 +383,80 @@ async function persistInboundOnly(args: {
         return persisted
 }
 
+/** Persist a native Instagram reaction as a non-counted event carrier. The UI
+ * folds this row into its target message, while keeping a durable cursor so an
+ * already-open conversation receives the reaction through normal polling. */
+async function persistInstagramReaction(args: {
+        workspaceId: string
+        agentId: string
+        contactId: string | null
+        externalId: string
+        emoji: string
+        metadata: Prisma.InputJsonValue
+        inboundEventId: string
+}): Promise<{
+        conversationId: string
+        messageId: string
+        humanOwned: boolean
+        created: boolean
+}> {
+        return prisma.$transaction(async (tx) => {
+                const conversation = await tx.conversation.upsert({
+                        where: {
+                                agentId_channel_externalId: {
+                                        agentId: args.agentId,
+                                        channel: 'INSTAGRAM',
+                                        externalId: args.externalId,
+                                },
+                        },
+                        create: {
+                                workspaceId: args.workspaceId,
+                                agentId: args.agentId,
+                                contactId: args.contactId,
+                                channel: 'INSTAGRAM',
+                                externalId: args.externalId,
+                                customerInfoState: 'skipped',
+                        },
+                        update: { contactId: args.contactId },
+                        select: { id: true, status: true, handedOff: true },
+                })
+                const inserted = await tx.message.createMany({
+                        data: [{
+                                conversationId: conversation.id,
+                                role: 'USER',
+                                content: args.emoji,
+                                metadata: args.metadata,
+                                inboundEventId: args.inboundEventId,
+                        }],
+                        skipDuplicates: true,
+                })
+                const created = inserted.count === 1
+                const eventMessage = await tx.message.findUniqueOrThrow({
+                        where: { inboundEventId: args.inboundEventId },
+                        select: { id: true, conversationId: true },
+                })
+                if (eventMessage.conversationId !== conversation.id) {
+                        throw new Error('Instagram reaction event is linked to a different conversation')
+                }
+
+                // A reaction is activity, but not a message and must not inflate
+                // the conversation's visible message count.
+                if (created) {
+                        await tx.conversation.update({
+                                where: { id: conversation.id },
+                                data: { lastMessageAt: new Date() },
+                        })
+                }
+
+                return {
+                        conversationId: conversation.id,
+                        messageId: eventMessage.id,
+                        humanOwned: conversation.handedOff || conversation.status === 'HANDED_OFF',
+                        created,
+                }
+        })
+}
+
 async function persistFixedAssistantReply(
         conversationId: string,
         text: string,
@@ -710,22 +784,51 @@ async function processChannelInbound(
                                 senderUsername: msg.senderUsername,
                                 senderAvatarUrl: msg.senderAvatarUrl,
                         })
+                        if (!contactId) {
+                                // This happens when the workspace has hit its
+                                // customer limit (TRIAL=100, STARTER=2000, …).
+                                // The conversation is still persisted (with
+                                // contactId=null), but it shows as «ناشناس» in
+                                // the inbox and no profile backfill runs. Surface
+                                // it loudly so the operator knows to upgrade or
+                                // clean up old contacts — silently dropping the
+                                // inbound contact is the worst UX.
+                                captureError(
+                                        'inbound:contact-resolve-failed',
+                                        new Error(
+                                                `Workspace ${agent.workspaceId} could not resolve a contact for sender ${msg.senderId} on ${type}. ` +
+                                                `This usually means the workspace has reached its customer limit. ` +
+                                                `Upgrade the plan or remove old contacts.`,
+                                        ),
+                                        { workspaceId: agent.workspaceId, metadata: { channelId: resolved.channelId, channel: type } },
+                                )
+                        }
                         const contactName = await getContactName(contactId)
 
-                        // Persist and count the USER row before any automation,
-                        // typing indicator or provider send. The unique event link
-                        // makes this safe after a crash. The upsert also gives us
-                        // the sticky operator-ownership state atomically.
-                        const persistedInbound = await persistInboundOnly({
-                                workspaceId: agent.workspaceId,
-                                agentId: agent.id,
-                                contactId,
-                                externalId: msg.chatId,
-                                text,
-                                channel: type,
-                                metadata: inboundMetadata,
-                                inboundEventId: eventLease.id,
-                        })
+                        // Persist ordinary inbound messages before automation. A
+                        // native reaction is instead folded into its target message
+                        // in the UI and never increments the visible messageCount.
+                        // The upsert also gives us sticky operator ownership.
+                        const persistedInbound = type === 'INSTAGRAM' && msg.kind === 'REACTION'
+                                ? await persistInstagramReaction({
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        contactId,
+                                        externalId: msg.chatId,
+                                        emoji: text,
+                                        metadata: inboundMetadata,
+                                        inboundEventId: eventLease.id,
+                                })
+                                : await persistInboundOnly({
+                                        workspaceId: agent.workspaceId,
+                                        agentId: agent.id,
+                                        contactId,
+                                        externalId: msg.chatId,
+                                        text,
+                                        channel: type,
+                                        metadata: inboundMetadata,
+                                        inboundEventId: eventLease.id,
+                                })
                         committedConversationId = persistedInbound.conversationId
                         inboundMessageId = persistedInbound.messageId
                         outcome = 'INBOUND_PERSISTED'
@@ -906,7 +1009,7 @@ async function processChannelInbound(
                                                                                                 ? policy.storyReplyPolicy
                                                                                                 : policy.dmReplyPolicy
                                                                                 if (reactionClassInput || effectivePolicy !== 'ALL_AGENT') {
-                                                                                        await persistInboundOnly({
+                                                                                        if (msg.kind !== 'REACTION') await persistInboundOnly({
                                                                                                 workspaceId: agent.workspaceId,
                                                                                                 agentId: agent.id,
                                                                                                 contactId,
@@ -921,7 +1024,7 @@ async function processChannelInbound(
                                                                                 }
                                 }
                                                                 if (reactionClassInput) {
-                                                                                await persistInboundOnly({
+                                                                                if (msg.kind !== 'REACTION') await persistInboundOnly({
                                                                                         workspaceId: agent.workspaceId,
                                                                                         agentId: agent.id,
                                                                                         contactId,

@@ -39,6 +39,7 @@ import {
         MessageActivityReceipts,
 } from './conversation-activity'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { presentConversationMessages } from '@/lib/conversations/reactions'
 
 export type ThreadMessage = {
         id: string
@@ -158,15 +159,16 @@ export function ConversationThread({
         // Order: server messages first, then polled (new from server), then
         // pending (optimistic operator messages not yet confirmed by server).
         const seenIds = new Set<string>()
-        const messages: ThreadMessage[] = []
+        const allMessages: ThreadMessage[] = []
         for (const m of [...initialMessages, ...polledMessages, ...pendingMessages]) {
                 if (seenIds.has(m.id)) continue
                 seenIds.add(m.id)
-                messages.push(m)
+                allMessages.push(m)
         }
-        if (messages.length > 0) {
-                lastMessageIdRef.current = messages[messages.length - 1].id
+        if (allMessages.length > 0) {
+                lastMessageIdRef.current = allMessages[allMessages.length - 1].id
         }
+        const { messages, reactionsByMessageId } = presentConversationMessages(allMessages)
 
         // Clean up pending messages that are now in the server list (after refresh).
         useEffect(() => {
@@ -249,6 +251,7 @@ export function ConversationThread({
                                                 ? { text: m.content, products: [] }
                                                 : parseProductShowcaseContent(m.content)
                                         const hasShowcase = showcase.products.length > 0
+                                        const reactions = reactionsByMessageId.get(m.id) ?? []
                                         return (
                                                 <motion.div
                                                         key={m.id}
@@ -323,6 +326,23 @@ export function ConversationThread({
                                                                         <span className="mt-0.5 px-1 text-[10px] text-[var(--text-muted)]">
                                                                                 {formatDateTime(new Date(m.createdAt), locale)}
                                                                         </span>
+                                                                )}
+                                                                {reactions.length > 0 && (
+                                                                        <div
+                                                                                className={cn(
+                                                                                        '-mt-1 flex max-w-full px-2',
+                                                                                        isUser ? 'justify-end' : 'justify-start',
+                                                                                )}
+                                                                                aria-label={locale === 'fa' ? 'واکنش مشتری به این پیام' : 'Customer reaction to this message'}
+                                                                        >
+                                                                                <span dir="ltr" className="inline-flex min-h-6 items-center gap-0.5 rounded-full border border-black/[0.09] bg-white px-2 py-0.5 shadow-sm">
+                                                                                        {reactions.slice(-3).map((reaction) => (
+                                                                                                <span key={reaction.id} className="emoji-glyph text-[15px] leading-none">
+                                                                                                        {reaction.emoji}
+                                                                                                </span>
+                                                                                        ))}
+                                                                                </span>
+                                                                        </div>
                                                                 )}
                                                                 {!isUser && (
                                                                         <MessageActivityReceipts

@@ -23,6 +23,8 @@ export function MobileConversationCard({
   statusLabel,
   attention,
   locale,
+  lastMessage,
+  reactionEmoji,
 }: {
   conversationId: string
   who: string
@@ -36,6 +38,8 @@ export function MobileConversationCard({
   statusLabel: string
   attention: boolean
   locale: 'fa' | 'en'
+  lastMessage: string
+  reactionEmoji?: string | null
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -80,6 +84,23 @@ export function MobileConversationCard({
                   attention={attention}
                 />
                 <ChannelBadge type={channel} />
+              </div>
+              <div className="mt-2 flex min-w-0 items-center gap-1.5">
+                {reactionEmoji && (
+                  <span
+                    dir="ltr"
+                    className="emoji-glyph inline-flex h-5 shrink-0 items-center rounded-full border border-black/[0.08] bg-white px-1.5 text-[13px] leading-none shadow-sm"
+                    aria-label={isFa ? 'واکنش مشتری' : 'Customer reaction'}
+                  >
+                    {reactionEmoji}
+                  </span>
+                )}
+                <p
+                  dir={isFa ? 'rtl' : 'ltr'}
+                  className="min-w-0 flex-1 truncate text-start text-xs text-[var(--text-secondary)]"
+                >
+                  {lastMessage}
+                </p>
               </div>
             </div>
             <ArrowLeft
