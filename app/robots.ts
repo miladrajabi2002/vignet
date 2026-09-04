@@ -16,8 +16,6 @@ export default function robots(): MetadataRoute.Robots {
 					'/conversations',
 					'/contacts',
 					'/products',
-					'/blog/new',
-					'/blog/*/edit',
 				],
 			},
 		],
