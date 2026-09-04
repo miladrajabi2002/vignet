@@ -10,6 +10,7 @@ import { CapabilitiesSection } from '@/components/marketing/capabilities-section
 import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
 import { HomeOnboarding } from '@/components/marketing/home-onboarding'
 import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
+import { SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
 // Below-the-fold sections are split from the initial route bundle. Their
@@ -137,10 +138,10 @@ export default async function HomePage() {
 			alternateName: structuredDataCopy.alternateName,
 			url: SITE_URL,
 			logo: `${SITE_URL}/android-chrome-512x512.png`,
-			telephone: '+989128352271',
+			telephone: SUPPORT_PHONE_E164,
 			contactPoint: {
 				'@type': 'ContactPoint',
-				telephone: '+989128352271',
+				telephone: SUPPORT_PHONE_E164,
 				contactType: 'customer support',
 				availableLanguage: ['fa', 'en'],
 			},

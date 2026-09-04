@@ -240,14 +240,18 @@ describe('marketing homepage UX contracts', () => {
 		expect(page).not.toMatch(/alternates:\s*\{[^}]*languages:/s)
 	})
 
-	it('publishes a directly callable support number', () => {
+	it('publishes a directly callable support number from the shared constant', () => {
 		const footer = read('components/marketing/footer.tsx')
 		const page = read('app/(marketing)/page.tsx')
+		const contact = read('lib/marketing/contact.ts')
 
-		expect(footer).toContain('href="tel:+989128352271"')
-		expect(footer).toContain('09128352271')
+		// The number lives in exactly one place; every surface must consume it.
+		expect(contact).toContain("export const SUPPORT_PHONE_E164 = '+989128352271'")
+		expect(contact).toContain("export const SUPPORT_PHONE_DISPLAY = '09128352271'")
+		expect(footer).toContain('href={`tel:${SUPPORT_PHONE_E164}`}')
+		expect(footer).toContain('{SUPPORT_PHONE_DISPLAY}')
 		expect(footer).toContain('aria-label={copy.supportAriaLabel}')
-		expect(page).toContain("telephone: '+989128352271'")
+		expect(page).toContain('telephone: SUPPORT_PHONE_E164')
 		expect(page).toContain("contactType: 'customer support'")
 	})
 })

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, ArrowUpLeft, Phone, Sparkles } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 import { SocialLinks } from '@/components/marketing/social-links'
+import { SUPPORT_PHONE_E164, SUPPORT_PHONE_DISPLAY } from '@/lib/marketing/contact'
 
 const COPY = {
 	fa: {
@@ -25,7 +26,7 @@ const COPY = {
 		status: 'همه سرویس‌ها فعال',
 		made: 'ساخته‌شده برای کسب‌وکارهای ایرانی',
 		support: 'پشتیبانی',
-		supportAriaLabel: 'تماس با پشتیبانی ویجنت به شماره ۰۹۱۲۸۳۵۲۲۷۱',
+		supportAriaLabel: `تماس با پشتیبانی ویجنت به شماره ${SUPPORT_PHONE_DISPLAY}`,
 	},
 	en: {
 		eyebrow: 'Vigento AI | Business intelligence core',
@@ -42,7 +43,7 @@ const COPY = {
 		status: 'All services operational',
 		made: 'Built for Iranian businesses',
 		support: 'Support',
-		supportAriaLabel: 'Call Vigent support at 09128352271',
+		supportAriaLabel: `Call Vigent support at ${SUPPORT_PHONE_DISPLAY}`,
 	},
 } as const
 
@@ -76,13 +77,13 @@ export function Footer() {
 							<Logo variant="white" className="mx-auto h-8 w-32 lg:mx-0" />
 							<p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-white/42 lg:mx-0">{copy.desc}</p>
 							<a
-								href="tel:+989128352271"
+								href={`tel:${SUPPORT_PHONE_E164}`}
 								aria-label={copy.supportAriaLabel}
 								className="mx-auto mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white lg:mx-0"
 							>
 								<Phone className="h-4 w-4" aria-hidden="true" />
 								<span>{copy.support}:</span>
-								<bdi dir="ltr" className="font-medium tabular-nums">09128352271</bdi>
+								<bdi dir="ltr" className="font-medium tabular-nums">{SUPPORT_PHONE_DISPLAY}</bdi>
 							</a>
 							<SocialLinks variant="default" className="mt-5 justify-center lg:justify-start [&_a]:border-white/15 [&_a]:text-white/60 [&_a:hover]:text-white" />
 						</div>
