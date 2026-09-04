@@ -580,6 +580,9 @@ model Contact {
   @@index([telegramId])
   @@index([phone])
   @@index([lastActivityAt])
+  // Contact lists search and sort by name; keeps prefix searches and
+  // name-ordered listings index-backed.
+  @@index([name])
 }
 
 // ─── CONVERSATION ─────────────────────────────────────────────────
@@ -622,6 +625,9 @@ model Conversation {
   @@index([agentId])
   @@index([contactId])
   @@index([externalId])
+  // Inbox lists filter by workspace + status; the pair avoids a filter+sort
+  // over the whole workspace partition as conversation volume grows.
+  @@index([workspaceId, status])
 }
 
 enum ConvStatus {
@@ -738,6 +744,9 @@ model Message {
 
   @@index([conversationId])
   @@index([parentId])
+  // Threads are rendered in createdAt order — the composite lets Postgres
+  // walk the index instead of sorting each conversation's messages.
+  @@index([conversationId, createdAt])
 }
 
 enum MessageRole {
@@ -928,6 +937,7 @@ model CreditAlertState {
 
 // Singleton runtime policy for the platform-owned AI account. Secrets remain
 // in environment variables; this table stores only safe aliases and budgets.
+
 model PlatformAiSettings {
   id                String   @id @default("primary")
   defaultModel      String   @default("fast")
@@ -1166,6 +1176,8 @@ model BlogPost {
   @@index([workspaceId, status, publishedAt])
   @@index([workspaceId, featured])
   @@index([categoryId])
+  // Admin "most viewed posts" orders by views across all posts.
+  @@index([views])
 }
 
 enum BlogStatus {
