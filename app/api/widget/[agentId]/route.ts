@@ -49,6 +49,13 @@ export async function GET(_req: Request, props: Params) {
                         leadCaptureRequired: effectiveSettings.leadCaptureRequired,
                         leadCaptureMessage: effectiveSettings.leadCaptureMessage,
                 },
-                { headers: corsHeaders },
+                {
+                        headers: {
+                                ...corsHeaders,
+                                // Dashboard theme/settings changes must reach customer
+                                // sites immediately — never let an intermediary hold this.
+                                'Cache-Control': 'no-store',
+                        },
+                },
         )
 }

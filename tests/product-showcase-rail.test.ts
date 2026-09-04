@@ -83,7 +83,13 @@ describe('product showcase rail exposes a way to reach hidden cards', () => {
   })
 
   it('mirrors the same affordances in the vanilla widget', () => {
-    const widget = source('public/widget/loader.js')
+    // loader.js is now the terser-minified build artifact (scripts/minify-widget.mjs);
+    // the behavioural mirror contract lives in the maintained source.
+    const widget = source('public/widget/loader.src.js')
+    const built = source('public/widget/loader.js')
+    // The built artifact must still ship the user-facing strings and CSS.
+    expect(built).toContain('محصول قبلی')
+    expect(built).toContain('همه محصولات')
 
     expect(widget).toContain('function createRailShell()')
     expect(widget).toContain('محصول قبلی')

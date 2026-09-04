@@ -47,6 +47,36 @@ const nextConfig = {
 					{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
 				],
 			},
+			// Embeddable widget loader: the file rarely changes, but customer sites
+			// re-download it on every page view without a cache policy. Widget
+			// *settings* are fetched live from /api/widget/<id> (no-store below), so
+			// dashboard theme changes stay instant for every visitor.
+			{
+				source: '/widget/loader.js',
+				headers: [
+					{ key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=604800' },
+				],
+			},
+			// Font files: content only changes alongside a CSS/code release.
+			{
+				source: '/fonts/:path*',
+				headers: [
+					{ key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+				],
+			},
+			// Brand SVGs and static logos.
+			{
+				source: '/brands/:path*',
+				headers: [
+					{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
+				],
+			},
+			{
+				source: '/logo-:file',
+				headers: [
+					{ key: 'Cache-Control', value: 'public, max-age=86400' },
+				],
+			},
 		]
 	},
   // Keep production builds reliable on the small-memory hosts used for
