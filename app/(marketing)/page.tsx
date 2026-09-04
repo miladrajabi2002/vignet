@@ -65,18 +65,14 @@ export async function generateMetadata(): Promise<Metadata> {
 			alternateLocale: locale === 'fa' ? ['en_US'] : ['fa_IR'],
 			title: copy.openGraphTitle,
 			description: copy.openGraphDescription,
-			images: [{
-				url: `${SITE_URL}/android-chrome-512x512.png`,
-				width: 512,
-				height: 512,
-				alt: locale === 'fa' ? 'نشان ویجنت' : 'Vigent logo',
-			}],
+			// No `images` override: app/opengraph-image.tsx renders the
+			// 1200x630 branded card for every route; overriding it here
+			// used to shrink the shared card to the square PWA logo.
 		},
 		twitter: {
-			card: 'summary',
+			card: 'summary_large_image',
 			title: copy.openGraphTitle,
 			description: copy.twitterDescription,
-			images: [`${SITE_URL}/android-chrome-512x512.png`],
 		},
 		other: {
 			'content-language': locale === 'fa' ? 'fa-IR' : 'en-US',
