@@ -938,6 +938,36 @@ model CreditAlertState {
 // Singleton runtime policy for the platform-owned AI account. Secrets remain
 // in environment variables; this table stores only safe aliases and budgets.
 
+// ─── MARKETING SHOWCASE ───────────────────────────────────────────
+// Customer stories shown on the public homepage. Fully managed from the
+// admin panel (add / edit / reorder / hide) — no deploy needed. Platform-level
+// content: intentionally NOT scoped to a workspace.
+model ShowcaseEntry {
+  id          String   @id @default(cuid())
+  // Business display name, e.g. «فروشگاه مانتو آیدا»
+  name        String
+  // Instagram username without @ (rendered as the card link when set)
+  handle      String?
+  // Explicit link (customer site/page); falls back to instagram.com/<handle>
+  url         String?
+  // Uploaded square image (logo or page screenshot) — /api/uploads/showcase/
+  imageUrl    String?
+  // Channels this customer runs on: INSTAGRAM / TELEGRAM / BALE / RUBIKA / WEB
+  channels    String[] @default([])
+  // One-line customer quote or outcome
+  quote       String?  @db.Text
+  // Highlighted metric, e.g. value «۹۸٪» label «پاسخ خودکار»
+  metricValue String?
+  metricLabel String?
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
 model PlatformAiSettings {
   id                String   @id @default("primary")
   defaultModel      String   @default("fast")

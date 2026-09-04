@@ -9,6 +9,7 @@ import { SectionRevealController } from '@/components/marketing/section-reveal'
 import { CapabilitiesSection } from '@/components/marketing/capabilities-section'
 import { InstagramAutomationSection } from '@/components/marketing/instagram-automation-section'
 import { HomeOnboarding } from '@/components/marketing/home-onboarding'
+import { ShowcaseSection } from '@/components/marketing/showcase-section'
 import { getPublicPlatformStats } from '@/lib/marketing/platform-stats'
 import { SUPPORT_PHONE_E164 } from '@/lib/marketing/contact'
 import { jsonLdScript } from '@/lib/seo/json-ld'
@@ -211,6 +212,9 @@ export default async function HomePage() {
 			<ChannelsSection locale={locale} />
 			<InstagramAutomationSection locale={locale} />
 			<HomeOnboarding locale={locale} />
+			<Suspense fallback={null}>
+				<ShowcaseSection locale={locale} />
+			</Suspense>
 			<Suspense fallback={null}>
 				<PricingSection />
 			</Suspense>

@@ -44,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
       { href: '/admin/settings', label: 'تعرفه و پلن‌ها', icon: Settings2 },
       { href: '/admin/database/studio', label: 'دیتابیس Prisma Studio', icon: Database, openInNewTab: true },
       { href: '/admin/blog', label: 'مدیریت بلاگ', icon: FileText },
+  { href: '/admin/showcase', label: 'مشتریان ویجنت', icon: Users },
 ]
 
 function NavList({ onNavigate, mailUnreadCount = 0 }: { onNavigate?: () => void; mailUnreadCount?: number }) {
