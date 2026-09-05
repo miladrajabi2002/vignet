@@ -120,7 +120,31 @@ async function ippanelSend(
     return false
   }
 
-  const json = (await res.json().catch(() => null)) as { meta?: IppanelMeta } | null
+  const json = (await res.json().catch(() => null)) as
+    | { meta?: IppanelMeta; data?: { message_id?: string; sender?: string } & Record<string, unknown> }
+    | null
+
+  // Keep delivery diagnostics limited to status, message ID and sender fields.
+  // Raw responses and free-form messages may echo OTPs or SMS content.
+  const providerResponseSummary: Record<string, unknown> = {
+    httpStatus: res.status,
+    metaStatus: json?.meta?.status,
+    messageCode: json?.meta?.message_code,
+    messageId: json?.data?.message_id,
+    sender: json?.data?.sender ?? json?.data?.from_number,
+  }
+  await persistLog('info', 'sms:ippanel:provider-response', 'IPPanel send response', {
+    workspaceId: audit?.workspaceId,
+    metadata: {
+      ...(audit?.metadata ?? {}),
+      sendingType: body.sending_type,
+      patternCode: body.code,
+      requestedFromNumber: body.from_number,
+      recipients: body.recipients,
+      providerResponse: providerResponseSummary,
+    },
+  })
+
   if (json?.meta && json.meta.status !== true) {
     captureError('sms:ippanel:rejected', new Error(json.meta.message ?? 'IPPanel rejected the message'), {
       workspaceId: audit?.workspaceId,
@@ -179,6 +203,8 @@ export async function sendOTP(mobile: string, context?: OtpAuditContext): Promis
       ip: context?.ip,
       ttlSeconds: OTP_TTL_SECONDS,
       provider,
+      fromNumber,
+      patternCode,
     },
     exposeOtpCode,
   })
@@ -218,7 +244,7 @@ export async function sendOTP(mobile: string, context?: OtpAuditContext): Promis
 
     await recordOtpSent(normalized, context)
     await persistLog('info', 'auth:otp:sent', 'OTP SMS accepted by provider', {
-      metadata: { phone: normalized, requestId: context?.requestId, provider },
+      metadata: { phone: normalized, requestId: context?.requestId, provider, fromNumber, patternCode },
     })
   } catch (error) {
     await redis.del(`otp:${normalized}`).catch((cleanupError) => {

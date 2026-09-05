@@ -115,4 +115,35 @@ describe('IPPanel dedicated pattern contract', () => {
       }),
     )
   })
+
+  it('records sender diagnostics without retaining echoed SMS content', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        meta: { status: true, message_code: '200', message: 'echoed credential 123456' },
+        data: { message_id: 'message-1', from_number: '+981000505', params: { code: '123456' } },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    ))
+
+    await expect(sendActivationReminderSms('09128352271', {
+      nextStep: 'اتصال اولین کانال',
+    })).resolves.toBe(true)
+
+    const responseLog = logMocks.persistLog.mock.calls.find(
+      ([, source]) => source === 'sms:ippanel:provider-response',
+    )
+    expect(responseLog?.[3]).toMatchObject({
+      metadata: {
+        requestedFromNumber: '+983000505',
+        providerResponse: {
+          httpStatus: 200,
+          metaStatus: true,
+          messageCode: '200',
+          messageId: 'message-1',
+          sender: '+981000505',
+        },
+      },
+    })
+    expect(JSON.stringify(responseLog)).not.toContain('123456')
+    expect(responseLog?.[3].metadata).not.toHaveProperty('rawResponse')
+  })
 })
