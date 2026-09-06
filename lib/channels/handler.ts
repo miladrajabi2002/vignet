@@ -1165,7 +1165,20 @@ async function processChannelInbound(
                         // AFTER batching so «سلام» + «خوبین» still merge into one
                         // free welcome instead of two AI turns.
                         if (isGreetingOnlyMessage(text)) {
-                                const greeting = greetingReplyText(text)
+                                const priorReply = await prisma.message.findFirst({
+                                        where: {
+                                                conversationId: persistedInbound.conversationId,
+                                                role: 'ASSISTANT',
+                                                // Retrying the first greeting must not mistake
+                                                // this event's own committed reply for history.
+                                                OR: [
+                                                        { resultForInboundEventId: null },
+                                                        { resultForInboundEventId: { not: eventLease.id } },
+                                                ],
+                                        },
+                                        select: { id: true },
+                                })
+                                const greeting = greetingReplyText(text, !!priorReply)
                                 resultMessageId = await persistFixedAssistantReply(
                                         persistedInbound.conversationId,
                                         greeting,

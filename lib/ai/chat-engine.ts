@@ -7,6 +7,7 @@ import {
 } from '@/lib/ai/openrouter'
 import { retrieveContext, buildMessages } from '@/lib/ai/rag'
 import { resolveSystemPrompt } from '@/lib/ai/prompt-builder'
+import { closingReplyText } from '@/lib/ai/response-policy'
 import {
         extractIdentity,
         applyExtractedIdentity,
@@ -135,7 +136,8 @@ function appendSalesGuidance(
 ): void {
         const system = messages.find((item) => item.role === 'system')
         if (!system) return
-        system.content = `${system.content ?? ''}\n\n${guidance}`
+        // Keep the authoritative per-turn rules after historical sales advice.
+        system.content = `${guidance}\n\n${system.content ?? ''}`
 }
 
 async function buildDeterministicTurnReply(params: {
@@ -145,12 +147,14 @@ async function buildDeterministicTurnReply(params: {
         catalogProducts: CatalogProduct[]
         productRequest: ProductRequestPlan
         canBypass: boolean
+        closingReply: string | null
 }): Promise<string | null> {
+        if (params.closingReply) return params.closingReply
         if (!params.canBypass || params.channel === 'API') return null
         if (params.productRequest.requestNewTopic) {
                 return params.agent.language === 'en'
-                        ? 'Okay, I cleared the previous topic. Please tell me your new request.'
-                        : 'باشه؛ موضوع قبلی را کنار گذاشتم. لطفاً درخواست جدیدتان را بگویید.'
+                        ? 'Okay, I set the previous topic aside.'
+                        : 'باشه؛ موضوع قبلی را کنار گذاشتم.'
         }
         if (!params.productRequest.explicitShowcase) return null
         if (!params.agent.productAccessEnabled) {
@@ -246,6 +250,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                   catalogProducts: CatalogProduct[]
                   productRequest: ProductRequestPlan
                   canBypassDeterministicReply: boolean
+                  closingReply: string | null
           }
 > {
         const { workspaceId, agent, message } = params
@@ -397,6 +402,18 @@ async function prepareTurn(params: StartChatParams): Promise<
 
         // Retrieve context and build the prompt.
                 const productRequest = planProductRequest(message, history)
+                const closingReply = closingReplyText(message, history, agent.language)
+                if (closingReply) {
+                        // A pure closing needs neither embedding/catalog retrieval
+                        // nor an LLM call. The normal ownership, handoff, persistence
+                        // and credit-release paths still apply on every channel.
+                        return {
+                                model, modelAlias, reservation, conversationId, contactId,
+                                contactName: resolvedContactName, contactPhone: resolvedContactPhone,
+                                messages: [], retrievedChunks: [], catalogProducts: [], productRequest,
+                                canBypassDeterministicReply: freshState !== 'pending', closingReply,
+                        }
+                }
                 const retrievalQuery = productRequest.isProductTurn && productRequest.searchTerms.length
                         ? productRequest.searchTerms.join(' ')
                         : message
@@ -469,6 +486,7 @@ async function prepareTurn(params: StartChatParams): Promise<
                         catalogProducts,
                         productRequest,
                         canBypassDeterministicReply: freshState !== 'pending',
+                        closingReply: null,
                 }
         } catch (error) {
                 await releaseChatCredit(reservation, 'Turn preparation failed').catch(() => {})
@@ -673,6 +691,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                 catalogProducts,
                 productRequest,
                 canBypassDeterministicReply,
+                closingReply,
         } = prep
 
         const encoder = new TextEncoder()
@@ -748,11 +767,12 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         catalogProducts,
                                         productRequest,
                                         canBypass: canBypassDeterministicReply,
+                                        closingReply,
                                 })
                                 if (deterministicReply) {
                                         // No model call and therefore no AI charge. The DB
                                         // result itself is the trusted response and marker source.
-                                        await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
+                                        await releaseChatCredit(reservation, closingReply ? 'Conversation closing without AI' : 'Deterministic catalog reply').catch(() => {})
                                         send({ type: 'delta', text: deterministicReply })
                                         try {
                                                 const { messageId } = await persistAssistantTurn({
@@ -970,6 +990,7 @@ export async function generateReply(
                 catalogProducts,
                 productRequest,
                 canBypassDeterministicReply,
+                closingReply,
         } = prep
 
         // Smart handoff: check before calling AI.
@@ -1007,11 +1028,12 @@ export async function generateReply(
                         catalogProducts,
                         productRequest,
                         canBypass: canBypassDeterministicReply,
+                        closingReply,
                 })
                 if (deterministicReply) {
                         await options.onGenerationStart?.()
                         options.onTextUpdate?.(deterministicReply)
-                        await releaseChatCredit(reservation, 'Deterministic catalog reply').catch(() => {})
+                        await releaseChatCredit(reservation, closingReply ? 'Conversation closing without AI' : 'Deterministic catalog reply').catch(() => {})
                         try {
                                 const persisted = await persistAssistantTurn({
                                         workspaceId,

@@ -6,6 +6,32 @@ const user = (content: string): ChatMessage => ({ role: 'user', content })
 const assistant = (content: string): ChatMessage => ({ role: 'assistant', content })
 
 describe('product request planning', () => {
+  it.each([
+    'لینک اشتباهه',
+    'مبلغ رو اشتباه حساب کردین',
+    'این پاسخ ربطی به سؤال من نداره',
+    'سایزم رو فراموش کردی؟',
+    'از اول همین مشکل رو داشتم',
+    'The tracking link is wrong',
+    'Did you forget my size?',
+  ])('preserves context for a correction instead of forcing a new topic: %s', (message) => {
+    const history = [user('کد 0740 موجوده؟'), assistant('بله، موجود است.')]
+    const plan = planProductRequest(message, history)
+    expect(plan.requestNewTopic).toBe(false)
+    expect(plan.resetProductContext).toBe(false)
+    expect(historyForProductTurn(history, plan)).toEqual(history)
+
+    const correctedHistory = [...history, user(message), assistant('بررسی می‌کنم.')]
+    expect(historyForProductTurn(correctedHistory, planProductRequest('و قیمتش؟', correctedHistory)))
+      .toEqual(correctedHistory)
+  })
+
+  it.each(['بی‌خیال', 'فراموش کن', 'از اول شروع کن', 'forget that', 'start over'])(
+    'still honors an explicit context reset: %s', (message) => {
+      expect(planProductRequest(message, []).resetProductContext).toBe(true)
+    },
+  )
+
   it('does not turn generic send/list verbs into a product showcase', () => {
     expect(planProductRequest('این پیام رو بفرست', []).explicitShowcase).toBe(false)
     expect(planProductRequest('لیست سفارش‌ها رو نشون بده', []).isProductTurn).toBe(false)

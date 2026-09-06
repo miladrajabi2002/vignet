@@ -97,6 +97,24 @@ function booleanOrDefault(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
+// These exact strings shipped in older presets and remain in saved JSON even
+// after knowledge is rebuilt. Repair only known defaults; retain custom prose.
+const LEGACY_FOLLOW_UP_RULES: Record<string, string> = {
+  'اول نیاز، کاربرد و بودجه را بپرس، بعد محصول پیشنهاد بده': 'اگر نیاز فعلی مبهم است فقط اطلاعات ضروری را بپرس؛ سؤال روشن درباره قیمت یا مشخصات را مستقیم پاسخ بده',
+  'بعد از پاسخ، یک سؤال باز بپرس تا گفتگو ادامه پیدا کند': 'پس از پاسخ کامل تمام کن؛ فقط برای رفع ابهام ضروری در درخواست فعلی یک سؤال بپرس',
+  'بعد از پاسخ، یک سؤال باز بپرس': 'پس از پاسخ کامل تمام کن؛ فقط برای رفع ابهام ضروری در درخواست فعلی یک سؤال بپرس',
+  'در هر نوبت فقط یک سؤال بپرس و سؤال بعدی را به نوبت بعد بسپار': 'فقط اگر اطلاعات ضروری برای درخواست فعلی کم است، حداکثر یک سؤال بپرس',
+  'اگر مشتری گفت «بعداً»، زمان مشخص بپرس و همان‌جا جمع‌بندی کن': 'اگر مشتری گفت «بعداً»، کوتاه تأیید کن؛ فقط اگر خودش درخواست زمان‌بندی پیگیری کرد زمان لازم را بپرس',
+  'اگر مشتری گفت «بعداً»، وقت مشخص بپرس': 'فقط اگر مشتری خودش درخواست تماس یا پیگیری در زمان دیگری کرد، زمان آن را بپرس',
+  'برای بستن فروش، گام بعدی را روشن کن (لینک پرداخت / تماس)': 'فقط وقتی مشتری خواهان خرید یا ادامه ثبت سفارش است، گام بعدی واقعی (لینک پرداخت / تماس) را بگو؛ پاسخ اطلاعاتی کامل را به پیشنهاد خرید تبدیل نکن',
+}
+
+const RETIRED_PRICE_EXAMPLES = new Set([
+  'سلام! قبل از قیمت، بذارید بپرسم برای چه کاربردی می‌خواید؟ چون چند مدل داریم که بسته به نیازتون قیمت متفاوتی دارن. بعد از اینکه مشخص شد، دقیقاً همون مدل رو با قیمت می‌گم.',
+  'سلام! قبل از قیمت، بذارید بپرسم برای چه کاربردی می‌خواید؟ چون چند مدل داریم که بسته به نیازتون قیمت متفاوتی دارن. بعد از اینکه مشخص شد، دقیقاً همون مدل رو با قیمت براتون می‌گم.',
+  'سلام! اگر منظورتون مدل مشخصیه، قیمتش رو همین الان از کاتالوگ می‌گم. چون چند مدل داریم، فقط بگید برای چه کاربردی می‌خواید تا دقیقاً همون مدل مناسب رو با قیمت بگم.',
+])
+
 /**
  * Fill fields introduced after launch without mutating the stored JSON object.
  * Existing agents therefore gain safe natural-conversation defaults without a
@@ -113,8 +131,8 @@ export function normalizePromptConfig(config: PromptConfig): NormalizedPromptCon
       bullets: config.format?.bullets ?? true,
       length: config.format?.length ?? 'medium',
     },
-    qaPairs: config.qaPairs ?? [],
-    doSay: config.doSay ?? [],
+    qaPairs: (config.qaPairs ?? []).filter((pair) => !RETIRED_PRICE_EXAMPLES.has(pair.answer)),
+    doSay: (config.doSay ?? []).map((line) => LEGACY_FOLLOW_UP_RULES[line.trim()] ?? line),
     dontSay: config.dontSay ?? [],
     conversation: {
       formality: enumOrDefault(conversation?.formality, ['formal', 'balanced', 'casual'], DEFAULT_CONVERSATION_CONFIG.formality),
@@ -236,7 +254,7 @@ const LEGACY_ROLE_TEMPLATES: RoleTemplate[] = [
         'اول نیاز و بودجه مشتری را بپرس، بعد محصول پیشنهاد بده',
         'مزایا و معایب هر محصول را صادقانه بگو',
         'اگر محصولی موجود نیست، جایگزین مناسب پیشنهاد بده',
-        'بعد از پاسخ، یک سؤال باز بپرس تا گفتگو ادامه پیدا کند',
+        'پس از پاسخ کامل تمام کن؛ فقط برای رفع ابهام ضروری در درخواست فعلی یک سؤال بپرس',
         'برای تصمیم‌گیری نهایی، لینک خرید یا راه تماس بده',
       ],
       dontSay: [
@@ -304,7 +322,7 @@ const LEGACY_ROLE_TEMPLATES: RoleTemplate[] = [
       ],
       fallbackBehavior:
         'اگر نتوانستی فروش را ببندی، مشتری را تحت فشار نذار. بگو: «تصمیم‌گیری خوبه که با دقت ' +
-        'باشه. هر وقت سؤالی داشتید اینجا هستم. می‌تونم یه خلاصه از گزینه‌ها براتون بفرستم؟»',
+        'باشه. با خیال راحت تصمیم بگیرید.»',
       format: {
         bold: true,
         emoji: false,
@@ -323,8 +341,7 @@ const LEGACY_ROLE_TEMPLATES: RoleTemplate[] = [
         {
           question: 'باید فکر کنم',
           answer:
-            'حتماً، تصمیم خوبه که با دقت گرفته بشه. من اینجا هستم. یک سؤال: چیزی هست که ' +
-            'نگفته باشم و براتون مبهمه؟ شاید بتونم روشن‌تر کنم.',
+            'حتماً، با خیال راحت تصمیم بگیرید.',
         },
       ],
     },
@@ -349,7 +366,7 @@ const LEGACY_ROLE_TEMPLATES: RoleTemplate[] = [
         'اگر مشتری علاقه نشان نداد، یک گزینه سبک بده (مثلاً «هر وقت آماده بودید خبر بدید»)',
         'برای پیگیری سفارش، شماره سفارش یا نام را بپرس و از پایگاه دانش چک کن',
         'بین هر پیگیری، فاصله منطقی بده (به مشتری فشار نده)',
-        'اگر مشتری گفت «بعداً»، وقت مشخص بپرس',
+        'فقط اگر مشتری خودش درخواست تماس یا پیگیری در زمان دیگری کرد، زمان آن را بپرس',
       ],
       dontSay: [
         'پی‌درپی پیام نده (اسپم نکن)',
@@ -461,7 +478,7 @@ const LEGACY_ROLE_TEMPLATES: RoleTemplate[] = [
         'برای قیمت و موجودی فقط از کاتالوگ استفاده کن',
         'اگر مشکل بود، راه‌حل گام‌به‌گام بده',
         'اگر نشد، صادقانه بگو و راه تماس بده',
-        'بعد از پاسخ، یک سؤال باز بپرس',
+        'پس از پاسخ کامل تمام کن؛ فقط برای رفع ابهام ضروری در درخواست فعلی یک سؤال بپرس',
       ],
       dontSay: [
         'محصول، قیمت یا مشخصات را حدس نزن',
@@ -598,7 +615,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       doSay: [
         'اگر مشتری صریح خواست محصول ببیند یا بفرستی، بدون هیچ سؤال اضافه‌ای همان را نشان بده — نیازسنجی فقط برای درخواست‌های مبهم است',
         'اگر درخواست کلی بود، با یک سؤال کوتاه نیاز، کاربرد یا بودجه را روشن کن و بگو در صورت تمایل همه را نشان می‌دهی',
-        'در هر نوبت فقط یک سؤال بپرس و سؤال بعدی را به نوبت بعد بسپار',
+        'فقط اگر اطلاعات ضروری برای درخواست فعلی کم است، حداکثر یک سؤال بپرس',
         'مزایا و معایب هر گزینه را صادقانه بگو و پیشنهادت را با یک دلیل کوتاه همراه کن',
         'اعتراض مشتری (قیمت، کیفیت، اعتماد) را جدی بگیر و اول حل کن، بعد ادامه بده',
         'موجودی و سایز را از کاتالوگ چک کن؛ اگر موجود نیست، نزدیک‌ترین جایگزین مناسب را پیشنهاد بده',
@@ -617,7 +634,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       fallbackBehavior:
         'اگر محصولی در کاتالوگ نبود یا پاسخ را نداشتی، صادقانه بگو: «این مورد را الان در لیست ندارم، ' +
         'ولی می‌تونم بررسی کنم و خبر بدم. راه تماستون رو بدید تا همکارم پیگیری کنه.» ' +
-        'اگر مشتری گفت «باید فکر کنم»، فشار نده — بپرس چه چیزی هنوز مبهم است.',
+        'اگر مشتری گفت «باید فکر کنم»، با تأیید کوتاه تمام کن؛ فقط اگر خودش ابهامی مطرح کرد پاسخ بده.',
       format: {
         bold: true,
         emoji: false,
@@ -720,7 +737,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
         'مراحل بعدی و زمان تقریبی را شفاف بگو',
         'برای گارانتی و مرجوعی فقط از شرایط ثبت‌شده در دانش جواب بده',
         'اگر مشکل محصول بود، راه‌حل گام‌به‌گام بده و اگر حل نشد به اپراتور منتقل کن',
-        'اگر مشتری گفت «بعداً»، زمان مشخص بپرس و همان‌جا جمع‌بندی کن',
+        'اگر مشتری گفت «بعداً»، کوتاه تأیید کن؛ فقط اگر خودش درخواست زمان‌بندی پیگیری کرد زمان لازم را بپرس',
       ],
       dontSay: [
         'وضعیت سفارش یا زمان تحویل را حدس نزن — فقط از داده‌ها',
@@ -769,13 +786,13 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
         'ثبت مشخصات تماس، رزرو وقت، یا ثبت درخواست. به سؤالات از روی دانش پاسخ می‌دهی و ' +
         'به‌صورت طبیعی و بدون فشار، گفتگو را به سمت اقدام بعدی هدایت می‌کنی.',
       tone:
-        'پرانرژی ولی محترمانه و بدون اصرار. جملات کوتاه. هر پاسخ را با یک قدم مشخص بعدی تمام کن. ' +
+        'پرانرژی ولی محترمانه و بدون اصرار. جملات کوتاه. قدم بعدی را فقط وقتی برای درخواست فعلی لازم است بگو. ' +
         'از «شما» محترمانه استفاده کن.',
       doSay: [
         'به سؤال کاربر اول کامل جواب بده، بعد اقدام بعدی را پیشنهاد بده',
         'برای رزرو یا ثبت درخواست، نام و شماره تماس را طبیعی و مرحله‌به‌مرحله بپرس (نه همه یک‌جا)',
         'بازهٔ زمانی ترجیحی مشتری را بپرس (مثلاً «صبح براتون بهتره یا عصر؟») و شفاف بگو زمان دقیق پس از بررسی تقویم توسط همکارت تأیید و اطلاع داده می‌شود',
-        'اگر کاربر آماده نبود، یک راه سبک بده («می‌خواید اطلاعات بیشتر براتون بفرستم؟»)',
+        'اگر کاربر آماده نبود، با تأیید کوتاه تمام کن و درخواست تازه را به خودش بسپار',
         'در پایان، جمع‌بندی کن که چه چیزی ثبت شد و قدم بعدی چیست',
       ],
       dontSay: [
@@ -1196,7 +1213,7 @@ function makeRecommendedBusinessRole(businessType: BusinessType, specs: readonly
       doSay: uniqueLines([
         'ابتدا هدف پیام و مرحله مشتری را تشخیص بده، سپس پاسخ یا اقدام بعدی متناسب را انجام بده',
         'قانون طلایی: اگر مشتری صریح خواست چیزی را ببیند یا بفرستی، بدون سؤال اضافه نشان بده؛ اگر درخواست کلی بود، فقط با یک سؤال کوتاه نیاز را روشن کن و بگو در صورت تمایل همه را نشان می‌دهی',
-        'در هر نوبت حداکثر یک سؤال بپرس؛ اطلاعات لازم (سایز، رنگ، بودجه، زمان و…) را مرحله‌به‌مرحله کامل کن نه یک‌جا',
+        'فقط اگر درخواست فعلی به اطلاعات ضروری نیاز دارد، حداکثر یک سؤال بپرس؛ پس از پاسخ کامل، تشکر یا رد پیشنهاد، گفتگو را با سؤال تازه ادامه نده',
         'فروش، پشتیبانی، ثبت درخواست و پیگیری را در یک گفتگوی پیوسته و بدون تکرار اطلاعات انجام بده',
         'پاسخ و اقدام بعدی را با فرایند واقعی همین نوع کسب‌وکار هماهنگ کن',
         // Put vertical rules before inherited fragments so the array cap can
@@ -1265,12 +1282,12 @@ export function getRoleTemplate(key: string): RoleTemplate | undefined {
 function formatLengthInstruction(length: PromptFormatConfig['length'], isFa: boolean): string {
   if (isFa) {
     if (length === 'short') return 'پاسخ‌ها را کوتاه (۱ تا ۳ جمله) نگه دار.'
-    if (length === 'long') return 'پاسخ‌ها را کامل و توضیحی نگه دار (۵ تا ۱۰ جمله).'
-    return 'پاسخ‌ها را با طول متوسط (۳ تا ۵ جمله) نگه دار.'
+    if (length === 'long') return 'برای درخواست نیازمند توضیح، تا ۱۰ جمله بنویس؛ پاسخ ساده یا تشکر را کوتاه نگه دار.'
+    return 'در صورت نیاز تا ۵ جمله بنویس؛ برای پاسخ ساده یا تشکر یک جمله کافی است.'
   }
   if (length === 'short') return 'Keep replies short (1–3 sentences).'
-  if (length === 'long') return 'Keep replies detailed and explanatory (5–10 sentences).'
-  return 'Keep replies medium length (3–5 sentences).'
+  if (length === 'long') return 'Use up to 10 sentences when explanation is needed; keep simple answers or acknowledgements brief.'
+  return 'Use up to 5 sentences when needed; one sentence is enough for a simple answer or acknowledgement.'
 }
 
 function formatFormatLayer(cfg: PromptFormatConfig, isFa: boolean): string {
@@ -1306,7 +1323,10 @@ function formatQAPairs(pairs: PromptQAPair[], isFa: boolean): string {
     const aLabel = isFa ? `پاسخ ایده‌آل` : `Ideal answer`
     return `${qLabel}: ${p.question}\n${aLabel}: ${p.answer}`
   })
-  return `### ${header}\n${blocks.join('\n\n')}`
+  const boundary = isFa
+    ? 'این نمونه‌ها فقط سبک پاسخ را نشان می‌دهند؛ محصول، قیمت، گارانتی، موجودی یا اقدام ذکرشده در آن‌ها واقعیت این کسب‌وکار نیست و باید جداگانه در دانش یا داده زنده تأیید شود.'
+    : 'These examples demonstrate style only. Their products, prices, warranties, stock and actions are not facts about this business; verify them separately against knowledge or live data.'
+  return `### ${header}\n${boundary}\n${blocks.join('\n\n')}`
 }
 
 function formatConversationLayer(config: PromptConversationConfig, isFa: boolean): string {
@@ -1325,13 +1345,13 @@ function formatConversationLayer(config: PromptConversationConfig, isFa: boolean
   const initiative = isFa
     ? {
         answer_only: 'مستقیم به همان سؤال پاسخ بده و فقط وقتی لازم است اقدام بعدی پیشنهاد کن.',
-        guided: 'بعد از پاسخ، در صورت مفید بودن یک قدم بعدی روشن پیشنهاد کن.',
-        proactive: 'نیاز بعدی محتمل را تشخیص بده و فعالانه یک پیشنهاد مرتبط و غیرتحمیلی ارائه کن.',
+        guided: 'فقط برای پیشبرد درخواست فعلی و در صورت نیاز قدم بعدی را بگو؛ پس از پاسخ کامل متوقف شو.',
+        proactive: 'در درخواست باز، فعالانه یک پیشنهاد مرتبط و غیرتحمیلی ارائه کن؛ پس از تکمیل درخواست یا رد پیشنهاد متوقف شو.',
       }[config.initiative]
     : {
         answer_only: 'Answer the question directly and suggest a next step only when necessary.',
-        guided: 'After answering, offer one clear next step when it would help.',
-        proactive: 'Anticipate the likely next need and proactively offer one relevant, non-pushy next step.',
+        guided: 'Offer a next step only when needed to complete the current request; stop after a complete answer.',
+        proactive: 'For an open request, proactively offer one relevant, non-pushy next step; stop after completion or a declined offer.',
       }[config.initiative]
 
   const empathy = isFa
@@ -1350,12 +1370,12 @@ function formatConversationLayer(config: PromptConversationConfig, isFa: boolean
     ? {
         rare: 'تا وقتی بدون سؤال اضافه می‌توانی کمک کنی، سؤال پیگیری نپرس.',
         when_needed: 'فقط وقتی اطلاعات ضروری کم است، یک سؤال پیگیری مشخص بپرس.',
-        often: 'برای کشف بهتر نیاز، در هر نوبت حداکثر یک سؤال پیگیری مرتبط بپرس.',
+        often: 'در نیازسنجیِ باز می‌توانی یک سؤال مرتبط بپرسی؛ پس از روشن‌شدن نیاز یا تکمیل پاسخ، سؤال اضافه نپرس.',
       }[config.followUp]
     : {
         rare: 'Avoid follow-up questions when you can help without them.',
         when_needed: 'Ask one precise follow-up question only when required information is missing.',
-        often: 'Ask at most one relevant follow-up question per turn to understand the need better.',
+        often: 'During open-ended discovery, you may ask one relevant question; stop asking once the need is clear or the answer is complete.',
       }[config.followUp]
 
   const lines = [formality, initiative, empathy, followUp]

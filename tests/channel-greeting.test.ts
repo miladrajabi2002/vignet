@@ -48,6 +48,13 @@ describe('greeting fast-path detector', () => {
 })
 
 describe('greeting canned reply', () => {
+  it('asks about needs only when opening the conversation', () => {
+    expect(greetingReplyText('سلام', false)).toContain('؟')
+    expect(greetingReplyText('hello', false)).toContain('?')
+    expect(greetingReplyText('سلام', true)).toBe('سلام.')
+    expect(greetingReplyText('hello', true)).toBe('Hello.')
+  })
+
   it('replies in Persian to a Persian greeting', () => {
     expect(greetingReplyText('سلام')).toMatch(/سلام/)
   })

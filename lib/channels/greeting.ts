@@ -103,10 +103,12 @@ function normalizeGreetingText(text: string): string {
 }
 
 /** Localized canned welcome — short, warm, and asking for the real question. */
-export function greetingReplyText(firstMessage: string): string {
+export function greetingReplyText(firstMessage: string, hasPriorReply = false): string {
         // Latin-script message → reply in English; otherwise Persian wins.
         if (/^[\x00-\x7F\s]+$/.test(firstMessage)) {
+                if (hasPriorReply) return 'Hello.'
                 return 'Hello! 👋 Welcome. How can I help you today?'
         }
+        if (hasPriorReply) return 'سلام.'
         return 'سلام! 👋 خوش آمدید. چطور می‌تونم کمکتون کنم؟'
 }

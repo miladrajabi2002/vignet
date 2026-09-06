@@ -81,7 +81,7 @@ const ASSISTANT_OFFER_RE = new RegExp(
         'i',
 )
 const RESET_CONTEXT_RE =
-        /(?:بیخیال|بی‌خیال|فراموش|از\s*اول|درخواست\s*جدید|موضوع\s*جدید|ربطی\s*ندار|اشتباه|بدرد\s*نمی|به\s*درد\s*نمی|never\s*mind|forget|start\s*over|new\s*(?:request|topic))/i
+        /(?:بی\s*خیال|فراموش\s*(?:کن|کنید|کنین)|از\s*اول\s*(?:شروع|بپرس)|درخواست\s*جدید|موضوع\s*جدید|never\s*mind|forget\s+(?:it|that|the\s+previous)|start\s*over|new\s*(?:request|topic))/i
 const OUT_OF_STOCK_RE = /(?:ناموجود|تمام\s*شده|اتمام\s*موجودی|out\s+of\s+stock|sold\s+out)/i
 // Match Persian «دارید/دارین/داری…» as a complete token. The previous loose
 // substring also matched the negated «نداری» in sentences such as «اگر اطلاعات

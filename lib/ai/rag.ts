@@ -1,6 +1,7 @@
 import { embedText } from '@/lib/ai/embeddings'
 import { retrieveChunks, type RetrievedChunk } from '@/lib/knowledge/vector-store'
 import type { ChatMessage } from '@/lib/ai/openrouter'
+import { responseEndingInstruction } from '@/lib/ai/response-policy'
 
 export interface RagContext {
   contextText: string
@@ -49,21 +50,21 @@ function buildConversationFlowInstruction(params: {
 
   if (params.isFa) {
     if (hasPriorTurns) {
-      return 'این نوبت ادامهٔ همان گفتگو است: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و مستقیم از زمینهٔ قبلی ادامه بده. اگر پیام فعلی سؤال روشن و کامل است، پس از جواب تمام کن؛ سؤال عمومی مثل «چطور می‌توانم کمک کنم؟» یا پیشنهاد بی‌ربط اضافه نکن. اگر مشتری فقط سلام کرده هم یک تأیید خیلی کوتاه کافی است. حداکثر یک سؤال یعنی فقط یک جملهٔ پرسشی برای گرفتن یک داده یا تصمیم؛ سؤال دوم، سؤال چندبخشی یا مثالِ پرسشی اضافه نکن و بعد از سؤال با «مثلاً» گزینه‌های پرسشی نساز. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
+      return 'این نوبت ادامهٔ همان گفتگو است: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و مستقیم به پیام آخر پاسخ بده؛ تاریخچه فقط زمینه است، درخواست‌های پاسخ‌داده‌شده را دوباره جواب نده. اگر مشتری فقط سلام کرده هم یک تأیید خیلی کوتاه کافی است. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
     }
     if (greetingOnly) {
-      return 'این پیام فقط احوال‌پرسی است: یک خوش‌آمد کوتاه و طبیعی بگو و فقط یک سؤال ساده برای فهم نیاز بپرس. هنوز محصول، خدمت یا قیمت پیشنهاد نده. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
+      return 'این پیام فقط احوال‌پرسی است: یک خوش‌آمد کوتاه و فقط یک سؤال ساده برای فهم نیاز بپرس؛ مثلاً «سلام! چطور می‌توانم کمکتان کنم؟». سؤال دوم، چندبخشی یا مثالِ پرسشی اضافه نکن. هنوز محصول، خدمت یا قیمت پیشنهاد نده. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
     }
-    return 'این نخستین نوبت است اما مشتری درخواست مشخصی دارد: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و اول همان درخواست را مستقیم پاسخ بده. صرفاً به‌خاطر اولین پیام، پاسخ را عقب نینداز یا از مشتری نپرس چه کمکی می‌خواهد. اگر سؤال کامل پاسخ داده شد، همان‌جا تمام کن و جملهٔ آماده‌ای مثل «اگر سؤال دیگری دارید» اضافه نکن. حداکثر یک سؤال یعنی فقط یک جملهٔ پرسشی برای گرفتن یک داده یا تصمیم؛ سؤال دوم، سؤال چندبخشی یا مثالِ پرسشی اضافه نکن و بعد از سؤال با «مثلاً» گزینه‌های پرسشی نساز. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
+    return 'این نخستین نوبت است اما مشتری درخواست مشخصی دارد: پاسخ را با سلام، خوش‌آمدگویی یا معرفی شروع نکن و اول همان درخواست را مستقیم پاسخ بده. صرفاً به‌خاطر اولین پیام، پاسخ را عقب نینداز یا از مشتری نپرس چه کمکی می‌خواهد. ایموجی فقط وقتی استفاده کن که در فرمت یا صدای برند صریحاً مجاز شده باشد.'
   }
 
   if (hasPriorTurns) {
-    return 'This turn continues the same conversation: do not begin with another greeting, welcome, or introduction; continue directly from context. If the current message is a complete, clear question, stop after answering it—do not add a generic “How else can I help?” or an unrelated offer. Even if the customer only says hello, a very brief acknowledgement is enough. “At most one question” means one interrogative sentence requesting one data point or decision—never add a second, compound, or example question. Use emoji only when the agent format or brand voice explicitly allows it.'
+    return 'This turn continues the same conversation: do not begin with another greeting, welcome, or introduction. Answer the latest message; history is context, not a request to answer resolved questions again. Even if the customer only says hello, a very brief acknowledgement is enough. Use emoji only when the agent format or brand voice explicitly allows it.'
   }
   if (greetingOnly) {
-    return 'This message is only a greeting: give one short, natural welcome and ask one simple question to learn what the customer needs. Do not pitch a product, service, or price yet. Use emoji only when the agent format or brand voice explicitly allows it.'
+    return 'This message is only a greeting: give one short welcome and exactly one simple question, for example “Hello! How can I help?”. Never add a second, compound, or example question. Do not pitch a product, service, or price yet. Use emoji only when the agent format or brand voice explicitly allows it.'
   }
-  return 'This is the first turn, but the customer has made a concrete request: do not begin with a greeting, welcome, or introduction; answer that request first. Never delay an answer merely because it is the first message, and do not ask how you can help. If the question is fully answered, stop there instead of adding a canned “If you have more questions” closing. “At most one question” means one interrogative sentence requesting one data point or decision—never add a second, compound, or example question. Use emoji only when the agent format or brand voice explicitly allows it.'
+  return 'This is the first turn, but the customer has made a concrete request: do not begin with a greeting, welcome, or introduction; answer that request first. Never delay an answer merely because it is the first message, and do not ask how you can help. Use emoji only when the agent format or brand voice explicitly allows it.'
 }
 
 function buildTurnEvidenceReminder(isFa: boolean): string {
@@ -391,7 +392,7 @@ export function buildMessages(params: {
 
   const system: ChatMessage = {
     role: 'system',
-    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${flowInstruction}\n${turnEvidenceReminder}`,
+    content: `${params.systemPrompt}\n\n${langLine} ${toneInstruction}${catalogBlock}${directProductInstruction}${serviceBlock}${cardInstruction}${contextBlock}${params.orderContext ?? ''}\n\n=== ${isFa ? 'دستور همین نوبت' : 'Instruction for this turn'} ===\n${flowInstruction}\n${turnEvidenceReminder}\n${responseEndingInstruction(isFa)}`,
   }
 
   return [

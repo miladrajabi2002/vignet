@@ -21,6 +21,7 @@ node_modules/
 # never in source control. The directory is still used as a local-dev and
 # pre-object-storage migration fallback.
 /public/uploads/products/
+/public/uploads/instagram/
 
 # misc
 .DS_Store

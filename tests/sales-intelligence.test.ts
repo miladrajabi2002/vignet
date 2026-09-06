@@ -112,7 +112,9 @@ describe('sales conversation intelligence', () => {
     const guidance = salesGuidanceForModel(analysis, 'fa')
 
     expect(guidance).toContain('راهنمای داخلی فروش')
-    expect(guidance).toContain('حداکثر یک سؤال')
+    expect(guidance).toContain('تابع قانون پایان پاسخ و پیام آخر مشتری')
+    expect(guidance).toContain('سؤال دیگری نپرس')
+    expect(salesGuidanceForModel(analysis, 'en')).toContain('subordinate to the response ending rule')
     expect(guidance).toContain('از فشار')
   })
 

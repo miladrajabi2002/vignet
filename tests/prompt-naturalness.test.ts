@@ -4,10 +4,13 @@ import {
   hasMeaningfulPromptConfig,
   normalizePromptConfig,
   resolveSystemPrompt,
+  getRoleTemplatesForBusiness,
   type PromptConfig,
 } from '@/lib/ai/prompt-builder'
 import { promptConfigSchema } from '@/lib/validations/agent'
 import { buildMessages } from '@/lib/ai/rag'
+import { BUSINESS_TYPES } from '@/lib/verticals/registry'
+import { responseEndingInstruction } from '@/lib/ai/response-policy'
 
 const oldStoredConfig: PromptConfig = {
   personality: 'You are a careful support agent.',
@@ -20,6 +23,60 @@ const oldStoredConfig: PromptConfig = {
 }
 
 describe('natural conversation prompt controls', () => {
+  it('repairs shipped legacy discovery rules without changing custom copy or stored JSON', () => {
+    const legacy = {
+      ...oldStoredConfig,
+      doSay: ['اول نیاز، کاربرد و بودجه را بپرس، بعد محصول پیشنهاد بده', 'بعد از پاسخ، یک سؤال باز بپرس', 'نام برند را هفت مین بنویس'],
+      qaPairs: [
+        { question: 'سلام، قیمت X چنده؟', answer: 'سلام! قبل از قیمت، بذارید بپرسم برای چه کاربردی می‌خواید؟ چون چند مدل داریم که بسته به نیازتون قیمت متفاوتی دارن. بعد از اینکه مشخص شد، دقیقاً همون مدل رو با قیمت می‌گم.' },
+        { question: 'ساعات کاری؟', answer: 'از ۱۰ تا ۱۸.' },
+      ],
+    }
+    const snapshot = JSON.stringify(legacy)
+    const prompt = buildLayeredPrompt(legacy, '', true)
+    expect(prompt).not.toContain('قبل از قیمت')
+    expect(prompt).not.toContain('بعد از پاسخ، یک سؤال باز بپرس')
+    expect(prompt).toContain('نام برند را هفت مین بنویس')
+    expect(prompt).toContain('از ۱۰ تا ۱۸.')
+    expect(prompt).toContain('این نمونه‌ها فقط سبک پاسخ را نشان می‌دهند')
+    expect(JSON.stringify(legacy)).toBe(snapshot)
+  })
+
+  it.each(BUSINESS_TYPES)('applies the ending policy after %s examples and knowledge', (businessType) => {
+    const role = getRoleTemplatesForBusiness(businessType)[0]!
+    for (const language of ['fa', 'en']) {
+      const systemPrompt = resolveSystemPrompt({
+        promptConfig: { ...role.config, conversation: { ...normalizePromptConfig(role.config).conversation, followUp: 'often' } },
+        roleTemplate: role.key,
+        legacySystemPrompt: '',
+        language,
+      })
+      const messages = buildMessages({
+        systemPrompt,
+        language,
+        contextText: 'Hours: 10–18.',
+        catalogProducts: [],
+        history: [{ role: 'user', content: 'Hours?' }, { role: 'assistant', content: '10–18.' }],
+        userMessage: language === 'fa' ? 'ممنون' : 'Thanks',
+        catalogAccessEnabled: false,
+      })
+      expect(messages[0]?.content?.endsWith(responseEndingInstruction(language === 'fa'))).toBe(true)
+      expect(messages.at(-1)?.content).toBe(language === 'fa' ? 'ممنون' : 'Thanks')
+    }
+  })
+
+  it('overrides unconditional follow-up instructions in old stored and custom prompts at runtime', () => {
+    for (const promptConfig of [null, { ...oldStoredConfig, doSay: ['Always end with a question.'] }]) {
+      const systemPrompt = resolveSystemPrompt({ promptConfig, roleTemplate: null, legacySystemPrompt: 'Always end with a question.', language: 'en' })
+      const messages = buildMessages({ systemPrompt, language: 'en', contextText: '', catalogProducts: [], history: [], userMessage: 'No thanks', catalogAccessEnabled: false })
+      const prompt = messages[0]?.content ?? ''
+      expect(prompt.indexOf('Response ending rule')).toBeGreaterThan(prompt.indexOf('Always end with a question.'))
+      expect(prompt).toContain('one fact/confirmation essential to the current request')
+      expect(prompt).toContain('“yes” accepting a specific offer')
+      expect(prompt).toContain('The configured length is not a minimum')
+    }
+  })
+
   it('fills backward-compatible defaults for configs saved before conversation controls', () => {
     const parsed = promptConfigSchema.parse(oldStoredConfig)
     const normalized = normalizePromptConfig(oldStoredConfig)

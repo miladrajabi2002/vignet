@@ -7,6 +7,7 @@ import { retrieveContext } from '@/lib/ai/rag'
 import { resolveModelId } from '@/lib/ai/models'
 import { applyPlatformModelPolicy, getPlatformAiConfig, hasPlatformAiBudget } from '@/lib/ai/platform-config'
 import { prisma } from '@/lib/prisma'
+import { responseEndingInstruction } from '@/lib/ai/response-policy'
 import {
   resolveSystemPrompt,
   type PromptConfig,
@@ -83,7 +84,7 @@ export async function draftAnswer(
   })
 
   const messages: ChatMessage[] = [
-    { role: 'system', content: `${effectiveAgentPrompt}\n\n${instruction}${contextBlock}` },
+    { role: 'system', content: `${effectiveAgentPrompt}\n\n${instruction}${contextBlock}\n${responseEndingInstruction(isFa)}` },
     { role: 'user', content: question },
   ]
 
