@@ -26,6 +26,7 @@ import { contactAvatarSrc } from '@/lib/crm/avatar'
 import { SalesInsightBadge, SalesInsightCard } from '@/components/crm/sales-insight'
 import { analyzeSalesConversation } from '@/lib/ai/sales-intelligence'
 import { ConversationMobileLayout } from '@/components/crm/conversation-mobile-layout'
+import { currentSessionMessages } from '@/lib/conversations/session'
 
 export default async function ConversationThreadPage(props: {
         params: Promise<{ conversationId: string }>
@@ -80,7 +81,7 @@ export default async function ConversationThreadPage(props: {
                         },
                         salesInsight: true,
                         messages: {
-                                orderBy: { createdAt: 'asc' },
+                                orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
                                 select: {
                                         id: true,
                                         role: true,
@@ -99,7 +100,7 @@ export default async function ConversationThreadPage(props: {
         // bounded inbox backfill has persisted their first snapshot.
         const displayedSalesInsight = conversation.salesInsight ?? {
                 ...analyzeSalesConversation({
-                        messages: conversation.messages,
+                        messages: currentSessionMessages(conversation.messages),
                         businessType: conversation.workspace.businessType,
                         language: conversation.agent.language || conversation.workspace.language,
                         roleTemplate: conversation.agent.roleTemplate,

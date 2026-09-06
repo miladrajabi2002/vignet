@@ -9,6 +9,7 @@ import type {
         SalesUrgency,
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { currentSessionMessages } from '@/lib/conversations/session'
 
 /**
  * Behaviour-based sales intelligence.
@@ -822,7 +823,7 @@ export async function loadSalesConversationContext(
                 language: conversation.agent.language || conversation.workspace.language,
                 roleTemplate: conversation.agent.roleTemplate,
                 messageCount: conversation._count.messages,
-                messages: conversation.messages.reverse(),
+                messages: currentSessionMessages(conversation.messages.reverse()),
         }
 }
 

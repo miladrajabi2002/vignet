@@ -8,6 +8,7 @@ import {
 } from '@/lib/ai/platform-config'
 import { stripProductTokens } from '@/lib/widget/config'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
+import { loadConversationSession, sessionMessageWhere } from '@/lib/conversations/session-store'
 
 export interface SummaryJobData {
   conversationId: string
@@ -122,6 +123,7 @@ export async function ensureConversationSummary(
   conversationId: string,
   options: { preferAi?: boolean; replaceExisting?: boolean } = {},
 ): Promise<ConversationSummaryResult> {
+  const session = await loadConversationSession(conversationId, { pendingInbound: false })
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: {
@@ -130,6 +132,7 @@ export async function ensureConversationSummary(
       summary: true,
       agent: { select: { id: true, language: true, model: true } },
       messages: {
+        where: sessionMessageWhere(session),
         orderBy: { createdAt: 'desc' },
         take: MAX_MESSAGES,
         select: { role: true, content: true, metadata: true },
@@ -137,7 +140,9 @@ export async function ensureConversationSummary(
     },
   })
   if (!conversation) return { summary: null, source: 'empty' }
-  const existingSummary = conversation.summary?.trim() || null
+  // The handoff summary predates rolling session memory and has no cursor.
+  // After a restart, regenerate it solely from this session's messages.
+  const existingSummary = session.restarted ? null : conversation.summary?.trim() || null
   if (existingSummary && !options.replaceExisting) {
     return { summary: existingSummary, source: 'existing' }
   }

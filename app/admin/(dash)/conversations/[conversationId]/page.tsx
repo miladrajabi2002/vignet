@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Bot, MessageSquare, UserRound } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
@@ -8,6 +9,8 @@ import { ConversationBubble, ConversationText } from '@/components/chat/conversa
 import { parseProductShowcaseContent } from '@/components/products/product-showcase'
 import { ProductShowcaseRail } from '@/components/products/product-showcase-rail'
 import { displayPhone } from '@/lib/phone'
+import { conversationSessionBoundaries } from '@/lib/conversations/session'
+import { ConversationSessionDivider } from '@/components/crm/conversation-session-divider'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,11 +33,12 @@ export default async function AdminConversationDetailPage({ params }: { params: 
       workspace: { select: { id: true, name: true } },
       agent: { select: { id: true, name: true } },
       contact: { select: { name: true, phone: true } },
-      messages: { orderBy: { createdAt: 'asc' }, select: { id: true, role: true, content: true, contentType: true, audioUrl: true, createdAt: true } },
+      messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, role: true, content: true, contentType: true, audioUrl: true, createdAt: true } },
     },
   })
   if (!conversation) notFound()
   const contactName = conversation.contact?.name || displayPhone(conversation.contact?.phone) || 'مخاطب ناشناس'
+  const sessionBoundaries = conversationSessionBoundaries(conversation.messages)
 
   return (
     <div className="space-y-5">
@@ -64,6 +68,8 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                 : parseProductShowcaseContent(message.content)
               const hasShowcase = showcase.products.length > 0
               return (
+                <Fragment key={message.id}>
+                {sessionBoundaries.has(message.id) && <ConversationSessionDivider />}
                 <div key={message.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                   {!isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-black text-white"><Bot className="h-3.5 w-3.5" /></div>}
                   <div className={hasShowcase && !isUser ? 'w-full max-w-[46rem]' : 'max-w-[82%]'}>
@@ -92,6 +98,7 @@ export default async function AdminConversationDetailPage({ params }: { params: 
                   </div>
                   {isUser && <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-zinc-100"><UserRound className="h-3.5 w-3.5" /></div>}
                 </div>
+                </Fragment>
               )
             }) : <div dir="auto" className="grid min-h-[420px] place-items-center text-xs text-zinc-400">متنی برای این گفتگو ثبت نشده است</div>}
           </div>

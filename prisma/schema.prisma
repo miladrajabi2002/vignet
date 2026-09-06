@@ -628,6 +628,7 @@ model Conversation {
   messages      Message[]
   handoffAlerts HandoffAlert[]
   salesInsight  ConversationSalesInsight?
+  memory        ConversationMemory?
 
   @@unique([agentId, channel, externalId])
   @@index([workspaceId])
@@ -644,6 +645,19 @@ enum ConvStatus {
   OPEN
   RESOLVED
   HANDED_OFF
+}
+
+// Rolling model context; separate from the short operator handoff summary.
+model ConversationMemory {
+  conversationId String   @id
+  sessionStartId String
+  summary        String   @db.Text
+  throughId      String
+  throughAt      DateTime
+  revision       Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 // ─── MESSAGE ──────────────────────────────────────────────────────

@@ -5,13 +5,15 @@ import type { CatalogProduct } from '@/lib/ai/rag'
 import type { CatalogService } from '@/lib/ai/rag'
 import type { StartChatParams } from '@/lib/ai/chat-types'
 import type { Prisma } from '@prisma/client'
+import { isConversationMemory } from '@/lib/ai/conversation-memory'
 
 /**
  * Conversation resolution + per-turn data loading, extracted from the chat
- * engine. Everything here is pure persistence logic — no LLM calls.
+ * engine. Rolling history and its LLM compaction live in conversation-memory.
  */
 
-export const HISTORY_LIMIT = 12
+export { RECENT_HISTORY_LIMIT as HISTORY_LIMIT } from '@/lib/ai/conversation-memory'
+export { loadConversationHistory as loadHistory } from '@/lib/ai/conversation-memory'
 
 const MAX_SHOWCASE_PRODUCTS = 10
 
@@ -418,7 +420,9 @@ export function historyForProductTurn(
                         !(SERVICE_ONLY_RE.test(content) && !PRODUCT_SUBJECT_RE.test(content)) &&
                         SHOWCASE_COMMAND_RE.test(content) &&
                         (PRODUCT_INTENT_RE.test(content) || AVAILABLE_RE.test(content))
-                if (priorShowcaseBoundary) return history.slice(index)
+                if (priorShowcaseBoundary) {
+                        return [...history.slice(0, index).filter(isConversationMemory), ...history.slice(index)]
+                }
         }
         return history
 }
@@ -553,110 +557,6 @@ export async function resolveConversation(
                 }
                 throw e
         }
-}
-
-/** Load recent conversation history as model-ready chat messages. */
-export async function loadHistory(
-        conversationId: string,
-        excludeInboundEventId?: string,
-): Promise<ChatMessage[]> {
-        // ─ A18: session-scoped history.
-        // (1) Context continuity follows "sessions": walking backwards from the
-        //     newest message, a gap of more than CONTEXT_RESET_GAP_HOURS between
-        //     consecutive messages ends the session. Everything before that gap is
-        //     a NEW topic — the morning-after message starts fresh instead of
-        //     dragging yesterday's (possibly stale) context into the prompt.
-        // (2) A session longer than HISTORY_LIMIT no longer drops its oldest
-        //     turns silently. The persisted conversation summary is prepended as
-        //     a system context message (order numbers, decisions and facts stay
-        //     available), and a summary refresh is dispatched in the background
-        //     when the stored summary is older than the conversation tail.
-        const CONTEXT_RESET_GAP_HOURS = 24
-        const SESSION_SCAN_LIMIT = HISTORY_LIMIT * 5
-
-        const [rows, conversationRow] = await Promise.all([
-                prisma.message.findMany({
-                        where: {
-                                conversationId,
-                                // On a crash retry the durable channel handler may already have
-                                // stored this USER row. It is appended below as the current turn,
-                                // so exclude the event anchor from history to avoid prompting the
-                                // model with the same customer message twice.
-                                ...(excludeInboundEventId
-                                        ? { NOT: { inboundEventId: excludeInboundEventId } }
-                                        : {}),
-                        },
-                        orderBy: { createdAt: 'desc' },
-                        take: SESSION_SCAN_LIMIT,
-                        select: { role: true, content: true, createdAt: true },
-                }),
-                prisma.conversation.findUnique({
-                        where: { id: conversationId },
-                        select: { summary: true, lastMessageAt: true },
-                }),
-        ])
-
-        const dialogueRows = rows.filter((m) => m.role === 'USER' || m.role === 'ASSISTANT')
-
-        // Walk backwards while consecutive dialogue gaps stay under the reset
-        // threshold. dialogueRows is newest-first.
-        const gapMs = CONTEXT_RESET_GAP_HOURS * 60 * 60 * 1000
-        let sessionEnd = 0
-        for (let i = 0; i < dialogueRows.length; i++) {
-                if (i === 0) {
-                        sessionEnd = 1
-                        continue
-                }
-                const delta = dialogueRows[i - 1].createdAt.getTime() - dialogueRows[i].createdAt.getTime()
-                if (delta > gapMs) break
-                sessionEnd = i + 1
-        }
-        const sessionRows = dialogueRows.slice(0, sessionEnd)
-
-        // Long session: keep the persisted summary in play and refresh it in the
-        // background so facts like order numbers survive deep threads. Pre-gap
-        // messages belong to an older topic and are deliberately NOT summarized
-        // into the new session.
-        const hasTruncatedSessionTurns = sessionRows.length > HISTORY_LIMIT
-        let summaryContext: string | null = null
-        if (hasTruncatedSessionTurns) {
-                const summary = conversationRow?.summary?.trim()
-                if (summary) {
-                        summaryContext = summary
-                } else if (sessionRows.length > 4) {
-                        // No summary yet — generate one asynchronously for future turns.
-                        void import('@/lib/queue/jobs')
-                                .then(({ dispatchSummary }) => dispatchSummary({ conversationId }))
-                                .catch(() => {})
-                }
-        }
-
-        const history: ChatMessage[] = sessionRows
-                .slice(0, HISTORY_LIMIT)
-                .reverse()
-                .map((m) => ({
-                        role: m.role === 'USER' ? ('user' as const) : ('assistant' as const),
-                        // Product markers are presentation metadata, not useful
-                        // conversational context; excluding them saves tokens and
-                        // prevents the model from copying stale cards forward.
-                        content: m.content
-                                .replace(/\[\[product:\{[\s\S]*?\}\]\]/g, '')
-                                .replace(/\n{3,}/g, '\n\n')
-                                .trim(),
-                }))
-                .filter((m) => m.content.length > 0)
-
-        // A18: prepend the persisted summary as compact context for long threads
-        // so identifiers (order numbers, addresses, product choices) survive.
-        if (summaryContext) {
-                const clipped = summaryContext.slice(0, 1200)
-                history.unshift({
-                        role: 'system',
-                        content: `[خلاصه گفتگوی قبلی — فقط برای حفظ زمینه] ${clipped}`,
-                })
-        }
-
-        return history
 }
 
 function searchableProductText(product: {

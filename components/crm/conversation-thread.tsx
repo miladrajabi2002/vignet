@@ -25,7 +25,7 @@
  * yanking the scroll position (matches Telegram/WhatsApp web behavior).
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -40,6 +40,8 @@ import {
 } from './conversation-activity'
 import { inboundSourceLabel, readInboundSource } from '@/lib/conversations/source'
 import { presentConversationMessages } from '@/lib/conversations/reactions'
+import { conversationSessionBoundaries } from '@/lib/conversations/session'
+import { ConversationSessionDivider } from './conversation-session-divider'
 
 export type ThreadMessage = {
         id: string
@@ -165,10 +167,16 @@ export function ConversationThread({
                 seenIds.add(m.id)
                 allMessages.push(m)
         }
+        allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id))
         if (allMessages.length > 0) {
                 lastMessageIdRef.current = allMessages[allMessages.length - 1].id
         }
-        const { messages, reactionsByMessageId } = presentConversationMessages(allMessages)
+        const { messages: visibleMessages, reactionsByMessageId } = presentConversationMessages(allMessages)
+        const sessionBoundaries = conversationSessionBoundaries(allMessages)
+        const visibleIds = new Set(visibleMessages.map((message) => message.id))
+        // A legacy reaction may start a session even though it is rendered as
+        // a badge on an older bubble. Keep its boundary at its real timestamp.
+        const messages = allMessages.filter((message) => visibleIds.has(message.id) || sessionBoundaries.has(message.id))
 
         // Clean up pending messages that are now in the server list (after refresh).
         useEffect(() => {
@@ -218,6 +226,7 @@ export function ConversationThread({
                         <div ref={scrollRef} onScroll={handleScroll} dir="ltr" className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                                 <AnimatePresence initial={false}>
                                 {messages.map((m) => {
+                                        if (!visibleIds.has(m.id)) return <ConversationSessionDivider key={m.id} locale={locale} />
                                         const isUser = m.role === 'USER'
                                         const isLiveMessage = !initialMessageIdsRef.current.has(m.id)
                                         if (m.role === 'SYSTEM') {
@@ -253,6 +262,8 @@ export function ConversationThread({
                                         const hasShowcase = showcase.products.length > 0
                                         const reactions = reactionsByMessageId.get(m.id) ?? []
                                         return (
+                                                <Fragment key={m.id}>
+                                                {sessionBoundaries.has(m.id) && <ConversationSessionDivider locale={locale} />}
                                                 <motion.div
                                                         key={m.id}
                                                         layout={reduceMotion ? false : 'position'}
@@ -352,6 +363,7 @@ export function ConversationThread({
                                                                 )}
                                                         </div>
                                                 </motion.div>
+                                                </Fragment>
                                         )
                                 })}
                                 </AnimatePresence>
