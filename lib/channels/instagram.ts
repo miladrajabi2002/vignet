@@ -43,9 +43,34 @@ import {
  * surface a clear error if a reply is attempted with an IG-user token.
  */
 const COMMENT_PREFIX = 'comment:'
-// Meta rejects message[text] above 2,000 UTF-16 code units. Leave some
-// headroom and split at natural boundaries so Persian replies remain readable.
-const INSTAGRAM_TEXT_CHUNK_LIMIT = 1900
+// Instagram's messaging API rejects message[text] around 1,000 UTF-16 code
+// units (Messenger's 2,000 does NOT apply to IG DMs). Split at ~900 with
+// headroom at sentence/paragraph boundaries so Persian replies stay readable
+// and every chunk stays safely under the platform cap (A14).
+const INSTAGRAM_TEXT_CHUNK_LIMIT = 900
+// Pause between consecutive chunks so burst sends respect the messaging
+// rate limit instead of tripping Meta's throttling (A14).
+const INSTAGRAM_CHUNK_DELAY_MS = 1_000
+
+/** Typed error: Meta refused the send because the 24h reply window closed. */
+export class Instagram24hWindowError extends Error {
+        constructor(detail: string) {
+                super(`INSTAGRAM_24H_WINDOW_CLOSED: ${detail}`)
+                this.name = 'Instagram24hWindowError'
+        }
+}
+
+function is24hWindowError(detail: string): boolean {
+        // Meta signals a closed messaging window with error subcodes/messages that
+        // vary by API version. Observed in production logs: code 10 with
+        // error_subcode 2534022 and message "This message is sent outside of
+        // allowed window." (Instagram Send API).
+        return /2534022|outside of allowed window|allowed window|24[- ]?hour|24h|messaging window|window.*closed/i.test(detail)
+}
+
+function sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export function splitInstagramText(
         value: string,
@@ -55,7 +80,7 @@ export function splitInstagramText(
         if (!text) return []
         const chunkLimit = Math.max(
                 100,
-                Math.min(1990, Number.isFinite(limit) ? Math.floor(limit) : INSTAGRAM_TEXT_CHUNK_LIMIT),
+                Math.min(990, Number.isFinite(limit) ? Math.floor(limit) : INSTAGRAM_TEXT_CHUNK_LIMIT),
         )
         const chunks: string[] = []
         let start = 0
@@ -162,21 +187,21 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                         const senderId = m.sender?.id
                                         if (!senderId) continue
 
-						// A reaction webhook is separate from `message`. `unreact`
-						// only removes a previous reaction and must not create a turn.
-						if (m.reaction) {
-							if (m.reaction.action !== 'react' || !m.reaction.mid) continue
-							out.push({
-								chatId: senderId,
-								senderId,
-								senderName: m.sender?.username,
-								senderUsername: m.sender?.username,
-								text: m.reaction.emoji || m.reaction.reaction || '[reaction]',
-								kind: 'REACTION',
-								platformMessageId: m.reaction.mid,
-							})
-							continue
-						}
+                                                // A reaction webhook is separate from `message`. `unreact`
+                                                // only removes a previous reaction and must not create a turn.
+                                                if (m.reaction) {
+                                                        if (m.reaction.action !== 'react' || !m.reaction.mid) continue
+                                                        out.push({
+                                                                chatId: senderId,
+                                                                senderId,
+                                                                senderName: m.sender?.username,
+                                                                senderUsername: m.sender?.username,
+                                                                text: m.reaction.emoji || m.reaction.reaction || '[reaction]',
+                                                                kind: 'REACTION',
+                                                                platformMessageId: m.reaction.mid,
+                                                        })
+                                                        continue
+                                                }
                                         const text = m.message?.text ?? ''
                                         const platformMessageId = m.message?.mid
 
@@ -244,6 +269,34 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                                 text: postback.title,
                                                                 kind: 'DM',
                                                                 platformMessageId,
+                                                        })
+                                                }
+                                                // ─── Media-only DM (A13) ───
+                                                // image/video/sticker/audio/file attachments carry no `text`.
+                                                // Mark them so the shared handler answers with the configurable
+                                                // fixed reply BEFORE any AI turn (the model never sees the
+                                                // placeholder and never guesses the content). IG voice notes are
+                                                // `audio` attachments — the IG adapter has no voice-URL fetcher,
+                                                // so they take the same honest fixed reply.
+                                                const mediaAttachment = m.message?.attachments?.find((a) => {
+                                                        const t = a?.type
+                                                        return t === 'image' || t === 'video' || t === 'sticker'
+                                                                || t === 'audio' || t === 'file' || t === 'media_share'
+                                                })
+                                                if (mediaAttachment) {
+                                                        const t = mediaAttachment.type as string
+                                                        out.push({
+                                                                chatId: senderId,
+                                                                senderId,
+                                                                senderName: m.sender?.username, senderUsername: m.sender?.username,
+                                                                text: '',
+                                                                kind: 'DM',
+                                                                platformMessageId,
+                                                                hasMedia: true,
+                                                                mediaKind: t === 'image' ? 'photo'
+                                                                        : t === 'audio' ? 'audio'
+                                                                        : t === 'media_share' ? 'photo'
+                                                                        : (t as 'video' | 'sticker' | 'file'),
                                                         })
                                                 }
                                                 continue
@@ -394,6 +447,9 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         const privateReply = parsePrivateReplyTarget(chatId)
                         const chunks = splitInstagramText(text)
                         for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                                // A14: pace consecutive chunks so a multi-part reply reads as a
+                                // natural sequence instead of tripping Meta's rate limiter.
+                                if (chunkIndex > 0) await sleep(INSTAGRAM_CHUNK_DELAY_MS)
                                 const message: Record<string, unknown> = { text: chunks[chunkIndex] }
                                 // Suggested replies belong only to the final text part.
                                 if (chunkIndex === chunks.length - 1 && opts?.quickReplies?.length) {
@@ -429,6 +485,26 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                                 messaging_type: 'RESPONSE',
                                         }),
                                 })
+                                // A14: respect Meta's rate limiting — on 429 wait politely and
+                                // retry the SAME chunk once before failing the delivery.
+                                if (res.status === 429) {
+                                        const retryAfter = Number(res.headers.get('retry-after'))
+                                        await sleep(Number.isFinite(retryAfter) && retryAfter > 0
+                                                ? Math.min(retryAfter * 1000, 5_000)
+                                                : 3_000)
+                                        res = await fetch(`${h.base}/me/messages`, {
+                                                method: 'POST',
+                                                headers: {
+                                                        'Content-Type': 'application/json',
+                                                        Authorization: `Bearer ${token}`,
+                                                },
+                                                body: JSON.stringify({
+                                                        recipient,
+                                                        message,
+                                                        messaging_type: 'RESPONSE',
+                                                }),
+                                        })
+                                }
                                 // The comment's single private reply may already be spent (e.g.
                                 // an earlier automation message claimed it). If we know the
                                 // IGSID, retry as a normal DM — succeeds when a thread exists.
@@ -449,6 +525,13 @@ export function instagramAdapter(token: string): MessengerAdapter {
                                 if (res.ok) continue
 
                                 const detail = await res.text().catch(() => '')
+                                // A14: a closed 24-hour messaging window is NOT a retryable
+                                // delivery failure — escalate it as a typed error so the
+                                // handler can hand the thread to an operator instead of a
+                                // silent FAILED loop.
+                                if (is24hWindowError(detail)) {
+                                        throw new Instagram24hWindowError(detail.slice(0, 300))
+                                }
                                 // Map the most common Meta error codes to actionable Persian hints so
                                 // the operator sees "what to do" in /admin/errors, not just an opaque
                                 // OAuthException JSON. The code is parsed from the error body.
@@ -481,27 +564,27 @@ export function instagramAdapter(token: string): MessengerAdapter {
                         }
                 },
 
-				async reactToMessage(messageId: string, recipientId: string): Promise<void> {
-						if (!token) throw new Error('INSTAGRAM invalid credentials')
-						const h = await host()
-						if (!h) throw new Error('INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)')
-						const res = await fetch(`${h.base}/me/messages`, {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								Authorization: `Bearer ${token}`,
-							},
-							body: JSON.stringify({
-								recipient: { id: recipientId },
-								sender_action: 'react',
-								payload: { message_id: messageId, reaction: 'love' },
-							}),
-						})
-						if (!res.ok) {
-							const detail = await res.text().catch(() => '')
-							throw new Error(`INSTAGRAM message reaction failed (${res.status}): ${detail}`)
-						}
-				},
+                                async reactToMessage(messageId: string, recipientId: string): Promise<void> {
+                                                if (!token) throw new Error('INSTAGRAM invalid credentials')
+                                                const h = await host()
+                                                if (!h) throw new Error('INSTAGRAM invalid credentials (token rejected by both Meta Graph hosts)')
+                                                const res = await fetch(`${h.base}/me/messages`, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                                'Content-Type': 'application/json',
+                                                                Authorization: `Bearer ${token}`,
+                                                        },
+                                                        body: JSON.stringify({
+                                                                recipient: { id: recipientId },
+                                                                sender_action: 'react',
+                                                                payload: { message_id: messageId, reaction: 'love' },
+                                                        }),
+                                                })
+                                                if (!res.ok) {
+                                                        const detail = await res.text().catch(() => '')
+                                                        throw new Error(`INSTAGRAM message reaction failed (${res.status}): ${detail}`)
+                                                }
+                                },
 
                 async sendTyping(chatId: string, signal?: AbortSignal): Promise<void> {
                         // Comments have no typing state. The typing_on sender action works
@@ -963,12 +1046,12 @@ interface IgWebhook {
                 messaging?: {
                         sender?: { id?: string; username?: string }
                         recipient?: { id?: string }
-				reaction?: {
-					mid?: string
-					action?: 'react' | 'unreact' | string
-					reaction?: string
-					emoji?: string
-				}
+                                reaction?: {
+                                        mid?: string
+                                        action?: 'react' | 'unreact' | string
+                                        reaction?: string
+                                        emoji?: string
+                                }
                                 message?: {
                                 text?: string
                                 mid?: string

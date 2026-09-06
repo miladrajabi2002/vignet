@@ -2,6 +2,54 @@ export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 import type { PlatformCommercialConfig } from '@/lib/platform/commercial-config'
 import { AGENT_MODELS } from '@/lib/ai/models'
 
+// ─ A4: provider retry policy ────────────────────────────────────────────────
+// Transient failures (network blips, timeouts, 429/5xx) are retried up to
+// PROVIDER_RETRY_ATTEMPTS extra times with a short back-off. Non-retryable
+// statuses (4xx auth/validation) fail immediately — retrying those only adds
+// latency before the same rejection.
+const PROVIDER_RETRY_ATTEMPTS = 2
+const PROVIDER_RETRY_DELAY_MS = 4_000
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableProviderStatus(status: number): boolean {
+  return status === 429 || status === 408 || (status >= 500 && status <= 599)
+}
+
+function isRetryableProviderError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false
+  if (e.name === 'TimeoutError' || e.name === 'AbortError' || e.name === 'TypeError') return true
+  return /fetch failed|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|socket hang up|network/i.test(e.message)
+}
+
+/**
+ * fetch() with provider-grade retries (A4). Returns the first acceptable
+ * response (ok OR non-retryable status). Throws the last network error when
+ * every attempt fails.
+ */
+export async function fetchWithProviderRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  let lastError: unknown
+  for (let attempt = 0; attempt <= PROVIDER_RETRY_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleepMs(PROVIDER_RETRY_DELAY_MS)
+    try {
+      const res = await fetch(url, init)
+      if (res.ok || !isRetryableProviderStatus(res.status)) return res
+      // Retryable status — drain the body so the socket is released, then retry.
+      await res.text().catch(() => undefined)
+      lastError = new Error(`OPENROUTER_HTTP_${res.status}`)
+    } catch (e) {
+      if (!isRetryableProviderError(e)) throw e
+      lastError = e
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('OPENROUTER_RETRY_EXHAUSTED')
+}
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null
@@ -145,7 +193,7 @@ export async function chatCompletion(
 ): Promise<{ content: string; usage: ChatUsage; toolCalls: ChatToolCall[] }> {
   const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const runtime = await getPlatformCommercialConfig()
-  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+  const res = await fetchWithProviderRetry(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, false, runtime)),
@@ -186,7 +234,9 @@ export async function* streamChat(
 ): AsyncGenerator<string, void, unknown> {
   const { getPlatformCommercialConfig } = await import('@/lib/platform/commercial-config')
   const runtime = await getPlatformCommercialConfig()
-  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+  // A4: retried via fetchWithProviderRetry — a failed handshake (timeout / 5xx /
+  // 429) is transparently retried before the stream surfaces any error.
+  const res = await fetchWithProviderRetry(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: appHeaders(),
     body: JSON.stringify(requestBody(opts, true, runtime)),

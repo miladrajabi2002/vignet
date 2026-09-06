@@ -48,6 +48,11 @@ import { maybeRunBookingAgentTurn } from '@/lib/bookings/chat-orchestrator'
 import { refreshConversationSalesInsight, salesGuidanceForModel } from '@/lib/ai/sales-intelligence'
 import { buildOrderContext } from '@/lib/ai/order-context'
 import { buildTrustedProductReply, parseProductDirectives } from '@/lib/products/presentation'
+import { stripTrailingPersianPeriod } from '@/lib/ai/response-postprocess'
+import { getRedis } from '@/lib/redis'
+import { notifyWorkspace } from '@/lib/notifications/create'
+import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
+import type { ChannelType } from '@prisma/client'
 import {
         AGENT_MAX_RESPONSE_TOKENS,
         AGENT_RESPONSE_TEMPERATURE,
@@ -55,6 +60,65 @@ import {
 
 // Re-exported so existing imports (routes, channel handler) keep working.
 export type { ChatAgent, StartChatParams } from '@/lib/ai/chat-types'
+
+// ─ A4: consecutive provider-failure escalation ──────────────────────────────
+// A single failed completion answers with the fallback text. But consecutive
+// failures (provider outage, bad platform key, exhausted daily budget) must
+// surface to the workspace owner AND hand the current conversation to an
+// operator so customers do not keep receiving the apology text forever.
+const PROVIDER_FAILURE_STREAK_WINDOW_S = 30 * 60
+const PROVIDER_FAILURE_STREAK_THRESHOLD = 3
+const providerFailureStreakKey = (workspaceId: string) => `provider-fail-streak:${workspaceId}`
+
+async function resetProviderFailureStreak(workspaceId: string): Promise<void> {
+        await getRedis().del(providerFailureStreakKey(workspaceId)).catch(() => {})
+}
+
+async function trackProviderFailureStreak(params: {
+        workspaceId: string
+        conversationId: string
+        agentId: string
+        channel: ChannelType
+        contactId: string | null
+        contactName: string | null
+}): Promise<void> {
+        try {
+                const redis = getRedis()
+                const key = providerFailureStreakKey(params.workspaceId)
+                const streak = await redis.incr(key)
+                if (streak === 1) await redis.expire(key, PROVIDER_FAILURE_STREAK_WINDOW_S).catch(() => {})
+                if (streak < PROVIDER_FAILURE_STREAK_THRESHOLD) return
+                const agentRow = await prisma.agent.findUnique({
+                        where: { id: params.agentId },
+                        select: { name: true },
+                })
+                // Escalate once per window: notify the owner, hand this thread over.
+                await notifyWorkspace({
+                        workspaceId: params.workspaceId,
+                        type: 'SYSTEM',
+                        title: 'خطای پیوسته در سرویس هوش مصنوعی',
+                        body: `در ۳۰ دقیقه اخیر ${streak} پاسخ با خطای سرویس AI مواجه شد. مشتریان پیام «مشکل فنی» می‌گیرند و گفتگوهای اخیر به اپراتور ارجاع شده‌اند.`,
+                        link: '/conversations',
+                }).catch(() => {})
+                await notifyHandoff({
+                        workspaceId: params.workspaceId,
+                        conversationId: params.conversationId,
+                        agentId: params.agentId,
+                        agentName: agentRow?.name ?? 'ایجنت',
+                        channel: params.channel,
+                        contactId: params.contactId,
+                        contactName: params.contactName,
+                        contactPhone: null,
+                        reason: `خطای پیوسته سرویس AI (${streak} مورد متوالی)؛ گفتگو به اپراتور ارجاع شد`,
+                }).catch(() => {})
+                await prisma.conversation.updateMany({
+                        where: { id: params.conversationId },
+                        data: { handedOff: true, status: 'HANDED_OFF' },
+                }).catch(() => {})
+        } catch (e) {
+                console.error('[chat-engine] failure streak tracking failed:', e)
+        }
+}
 
 /**
  * The chat engine proper: orchestrates one inbound message end-to-end —
@@ -847,10 +911,20 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                                         metadata: { agentId: agent.id, model, conversationId },
                                 })
                                 if (!full) {
-                                        full = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
+                                        full = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
                                         send({ type: 'delta', text: full })
                                 }
                                 send({ type: 'error', error: 'STREAM_FAILED' })
+                                // A4: count consecutive provider failures and escalate to the
+                                // owner + operator once the streak threshold is crossed.
+                                void trackProviderFailureStreak({
+                                        workspaceId,
+                                        conversationId,
+                                        agentId: agent.id,
+                                        channel: params.channel,
+                                        contactId,
+                                        contactName,
+                                })
                         }
 
                         // A disconnect is not a provider failure: the reply was generated
@@ -861,7 +935,7 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         // successful reply and must not consume reply credit.
                         if (!providerFailed && !full.trim()) {
                                 providerFailed = true
-                                full = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
+                                full = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
                                 send({ type: 'delta', text: full })
                                 send({ type: 'error', error: 'EMPTY_RESPONSE' })
                         }
@@ -897,10 +971,18 @@ export async function startChat(params: StartChatParams): Promise<StartChatResul
                         if (providerFailed) {
                                 await releaseChatCredit(reservation, 'Provider stream failed').catch(() => {})
                         } else {
+                                // A4: a successful reply resets the consecutive-failure streak.
+                                await resetProviderFailureStreak(workspaceId)
                                 await captureChatCredit(reservation, usage).catch((e) =>
                                         console.error('[chat-engine] credit capture failed:', e),
                                 )
+                                // A16: post-capture trial quota milestones (80% warning).
+                                void processTrialQuotaAlert({ workspaceId }).catch(() => {})
                         }
+
+                        // A5: canonical chat style — drop trailing periods on short Persian prose.
+                        full = stripTrailingPersianPeriod(full)
+                        send({ type: 'replace', text: full })
 
                         // Persist assistant reply and update conversation counters.
                         try {
@@ -1122,11 +1204,21 @@ export async function generateReply(
                         workspaceId,
                         metadata: { agentId: agent.id, model, conversationId },
                 })
+                // A4: count consecutive provider failures and escalate to the
+                // owner + operator once the streak threshold is crossed.
+                void trackProviderFailureStreak({
+                        workspaceId,
+                        conversationId,
+                        agentId: agent.id,
+                        channel: params.channel,
+                        contactId,
+                        contactName,
+                })
         }
         if (!reply) {
                 // Empty provider content is a failed reply for billing purposes.
                 providerFailed = true
-                reply = agent.fallbackMessage || 'متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.'
+                reply = agent.fallbackMessage || 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
         }
 
         // Canonicalize markers for every public messenger before persistence
@@ -1155,10 +1247,17 @@ export async function generateReply(
         if (providerFailed) {
                 await releaseChatCredit(reservation, 'Provider completion failed').catch(() => {})
         } else {
+                // A4: a successful reply resets the consecutive-failure streak.
+                await resetProviderFailureStreak(workspaceId)
                 await captureChatCredit(reservation, usage).catch((e) =>
                         console.error('[chat-engine] credit capture failed:', e),
                 )
+                // A16: post-capture trial quota milestones (80% warning).
+                void processTrialQuotaAlert({ workspaceId }).catch(() => {})
         }
+
+        // A5: canonical chat style — drop trailing periods on short Persian prose.
+        reply = stripTrailingPersianPeriod(reply)
 
         let persistedMessageId: string | undefined
         try {

@@ -615,3 +615,60 @@ bun run db:migrate   # یا npx prisma migrate deploy
 - تمدید گواهی `bot.miladrajabi.com` ممکن نیست: رکورد DNS آن NXDOMAIN است. برای تمدید باید ساب‌دامینه در DNS مجدداً به ۵.۷۵.۱۹۲.۱۴۷ اشاره کند.
 - ری‌استارت‌های `tgads-queue` (۲۲ بار) عمدی است: `--max-time=3600` الگوی خودترمیمی Laravel است، نه خطا.
 - `zz_remote_query.mjs` در ریشه پروژه یک اسکریپت تحلیل موقت است و عمداً commit نشد.
+
+---
+
+---
+
+## فاز v3.5 — بسته‌ی تعمیرهای عملیاتی (۶ سپتامبر ۲۰۲۶)
+
+مأموریت تعمیر کامل پلتفرم (A16/A9/A19/A14/A2/A5/A13/A4/A8/A18/A15/A17/A20) با اجرای واقعی روی پروداکشن.
+
+### فایل‌های جدید
+- `lib/channels/fixed-replies.ts` — پیام‌های ثابت قابل‌تنظیم (سهمیه تمام‌شده، مدیا، پیام انتظار ۶۰ثانیه‌ای، تأیید ارجاع اتوماسیون) با اولویت businessProfile → env → پیش‌فرض.
+- `lib/billing/trial-quota-alert.ts` — هشدار ۸۰٪/۱۰۰٪ مصرف اعتبار تریال (reconstruction خودکار grant از WalletLedger + latch یک‌باره روی Workspace).
+- `lib/ai/response-postprocess.ts` — حذف نقطه‌ی انتهایی از پاسخ‌های فارسی کوتاه (لیست/انگلیسی/عدد دست‌نخورده).
+- `lib/channels/health.ts` — پایش واقعی سلامت کانال‌ها (getMe تلگرام/بله/روبیکا، Graph اینستاگرام، پروبِ پروکسی پیامک) + ذخیره روی AgentChannel + نوتیفیکیشن هنگام قرمز شدن.
+- `prisma/migrations/20260906090000_vigent_fixes_a16_a20/` — ستون‌های تریال، سلامت کانال و پیش‌فرض روشن orderTrackingEnabled.
+
+### A16 — پایان سکوت مشتری‌های ورک‌اسپیس‌های بدون پاسخ
+- `lib/channels/handler.ts` — حالت AUTOMATION_ONLY بدون سناریوی منطبق دیگر return بی‌صدا نیست: persist + پیام قابل‌تنظیم + فلگ HANDED_OFF + HandoffAlert + Notification (outcome: AUTOMATION_ONLY_ESCALATED).
+- گیت‌های NO_CREDIT / PLAN_BLOCKED (TRIAL_EXPIRED) / AI_UNAVAILABLE در نتیجه generateReply: پیام مؤدبانه‌ی قابل‌تنظیم + فلگ گفتگو + اطلاع مالک برای ارتقا.
+- `lib/sms/ippanel.ts` + `worker/scheduler.ts` — الگوی خطای pattern خالی دیگر هر بار error نمی‌سازد (latch روزانه warn) و sweep بدون حلقه‌ی retry بی‌پایان skip می‌کند (skippedConfig).
+- تست زنده روی ورک‌اسپیس صمدی: پیام بدون سناریو → «پیامتون دریافت شد و برای همکار ما ارسال شد. به‌زودی پاسخ می‌گیرید» + HANDED_OFF + alert + notification. (۷۴ خطای pattern: ۱۷۱ ردیف خطای مرتبط با بکاپ پاک‌سازی شد.)
+
+### A9 + A19 + پیام انتظار — زیرسیستم هنداف
+- `lib/ai/sales-intelligence.ts` — واژه‌نامه‌های expanded: خشم محاوره‌ای (مسخره/کفارتی/چند بار بگم/…)، درخواست صریح انسان (آدم واقعی/با ربات حرف نمی‌زنم/…) و lexicon جدید orderProblem؛ سیگنال operational جدید `orderIssue`.
+- `lib/ai/handoff.ts` — کد دلیل جدید ORDER_ISSUE: مشکل سفارش+خشم → تریگر فوری؛ مشکل آرام → بودجه‌ی یک پاسخ اطلاعاتی (metadata.orderIssueBudget) و پیام بعدی → هنداف قطعی. ORDER_ISSUE به REQUIRED_HANDOFF_REASONS اضافه شد.
+- گیت سخت AI بعد از هنداف از قبل موجود بود (isHumanOwnedConversation در prepareTurn + humanOwned در handler)؛ اکنون بلوک OPERATOR_OWNED پیام انتظار «لطفاً کمی صبر کنید، همکار ما به‌زودی پاسخ می‌دهد» را با حداقل ۶۰ ثانیه فاصله (metadata.waitingAckAt) می‌فرستد و بعد از پاسخ اپراتور (metadata.operator) خاموش می‌شود.
+
+### A14 — ارسال اینستاگرام
+- `lib/channels/instagram.ts` — سقف چانک ۱۹۰۰→۹۰۰ (سقف واقعی IG) + تأخیر ۱ ثانیه بین چانک‌ها + retry یک‌باره روی 429 با احترام به Retry-After.
+- خطای پنجره‌ی بسته‌ی ۲۴ ساعته (subcode 2534022 / «outside of allowed window» — مشاهده‌شده در لاگ پروداکشن) به `Instagram24hWindowError` تایپ‌شده تبدیل می‌شود؛ handler آن را به «نیاز به اپراتور» + نوتیفیکیشن تبدیل می‌کند و ایونت را بدون retry حل می‌کند (IG_WINDOW_CLOSED_ESCALATED).
+- ارسال عکس/صدا/ویدیو در دایرکت از قبل با flow دو مرحله‌ای (upload→attachment_id) موجود بود (sendImage/sendAudio/sendVideo)؛ خطای مشاهده‌شده Media-crawler مربوط به URL تصویر حذف‌شده بود که با خطای دقیق لاگ می‌شود.
+
+### A2 — پیام خوش‌آمد کانفیگ‌شده
+- `lib/channels/greeting.ts` + `handler.ts` — greeting fast-path حالا welcomeMessage ایجنت → welcomeMessage تنظیمات اینستاگرام → پیش‌فرض با نام بیزینس («سلام! به [نام فروشگاه] خوش اومدی، امروز چه کمکی ازم بگرم؟»).
+
+### A5 — سبک پاسخ و نقطه‌ی پایان
+- `lib/ai/prompt-builder.ts` — بخش سراسری «سبک پاسخ» روی همه‌ی ایجنت‌ها (محاوره‌ای، مستقیم، حداکثر ۲ جمله، بدون تعارف تکراری، بدون بازگویی سوال).
+- `lib/ai/chat-engine.ts` — stripTrailingPersianPeriod روی خروجی نهایی هر دو مسیر (استریم و غیراستریم) قبل از persist.
+
+### A13 — پیام‌های مدیا
+- `lib/channels/types.ts` + `instagram.ts` + `handler.ts` — hasMedia/mediaKind روی پیام‌های ورودی؛ تشخیص قبل از LLM، placeholder اینباکس ([عکس]/[ویدیو]/…) و پاسخ ثابت قابل‌تنظیم «متوجهم! ولی الان نمی‌تونم عکس یا فایل ببینم…». تست زنده: DM عکسی → پاسخ ثابت ✓.
+
+### A4 — ری‌ترای LLM
+- `lib/ai/openrouter.ts` — fetchWithProviderRetry: حداکثر ۲ تلاش اضافه با ۴ ثانیه فاصله روی timeout/شبکه/429/5xx؛ 4xx غیرقابل‌تلاش فوری fail. متن fallback سراسری به «یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده» تغییر کرد.
+- `lib/ai/chat-engine.ts` — استریک خطای متوالی در Redis (۳ مورد در ۳۰ دقیقه) → نوتیفیکیشن مالک + هنداف گفتگو.
+
+### A8 — وریفای سفارش
+- پیش‌فرض `orderTrackingEnabled` روی همه‌ی ۲۷ ایجنت روشن شد (migration + UPDATE). buildOrderContext از قبل موجود بود و با گارد سخت از DB تغذیه می‌کند.
+
+### A18 — ریست دقیق‌تر موضوع
+- `lib/ai/conversation.ts` — loadHistory بر اساس «نشست»: گاب >۲۴ ساعت = موضوع جدید (تست: پیام دیروز از کانتکست حذف شد)؛ نشست طولانی → خلاصه‌ی ذخیره‌شده به‌عنوان پیام system در ابتدای کانتکست + dispatch خلاصه‌سازی در پس‌زمینه (تست: مکالمه مرجع ۵۸ پیامی → ۱۲ پیام + خلاصه).
+
+### A15 — ادغام دانش‌نامه‌های تکراری
+- ۳ دانش‌نامه‌ی «سوالات متداول» ورک‌اسپیس سید مهدی حسینی (۴+۱+۱ چانک) → یک KB با ۶ چانک؛ دو ردیف اضافی حذف شد. بکاپ: جداول KBBackup20260906/KBChunkBackup20260906.
+
+### A20 — پایش سلامت کانال‌ها
+- `worker/scheduler.ts` + `lib/channels/health.ts` — هر ۵ دقیقه چک فعال همه‌ی کانال‌ها + پروب پیامک؛ نتیجه در DB (healthStatus/healthCheckedAt/healthError) + نوتیفیکیشن CHANNEL_DOWN هنگام قرمز شدن (dedup) + بج سبز/نارنجی/قرمز با زمان آخرین چک در UI کانال‌ها (`components/channels/messenger-channel.tsx` + صفحات agents/channels + messages fa/en).

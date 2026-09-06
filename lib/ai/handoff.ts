@@ -1,4 +1,5 @@
 import type { BusinessType, ChannelType } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { createHandoffAlert } from '@/lib/channels/operator-handoff'
 import type { ChatAgent } from '@/lib/ai/chat-types'
 import {
@@ -29,6 +30,7 @@ export type HandoffReasonCode =
         | 'LOW_CONFIDENCE'
         | 'NEGOTIATION_AUTHORITY'
         | 'LONG_CHAT'
+        | 'ORDER_ISSUE'
         | 'MANUAL'
 
 const UNANSWERED_PHRASES = [
@@ -76,6 +78,9 @@ const REQUIRED_HANDOFF_REASONS = new Set<HandoffReasonCode>([
         'HIGH_RISK',
         'DISTRESS',
         'UNANSWERED',
+        // A9 — an armed order-issue budget or an angry order complaint must
+        // transfer regardless of the agent's proactive-handoff setting.
+        'ORDER_ISSUE',
 ])
 
 export function shouldActivateHandoff(
@@ -110,6 +115,7 @@ function formatReason(
                 LOW_CONFIDENCE: `اطمینان پایین تحلیل (${Math.round(analysis.confidence * 100)}٪) همراه با اصطکاک`,
                 NEGOTIATION_AUTHORITY: 'مذاکره نیازمند اختیار قیمت یا شرایط انسانی',
                 LONG_CHAT: 'طولانی‌شدن گفتگو همراه با اصطکاک',
+                ORDER_ISSUE: 'مشکل سفارش، ارسال یا وجه',
         }
         const en: Partial<Record<HandoffReasonCode, string>> = {
                 KEYWORD: customKeyword ? `configured keyword: ${customKeyword}` : 'configured handoff keyword',
@@ -121,6 +127,7 @@ function formatReason(
                 LOW_CONFIDENCE: `low analysis confidence (${Math.round(analysis.confidence * 100)}%) with friction`,
                 NEGOTIATION_AUTHORITY: 'negotiation requiring human pricing or terms authority',
                 LONG_CHAT: 'long conversation with additional friction',
+                ORDER_ISSUE: 'order, delivery or payment problem',
         }
         const english = language.toLowerCase().startsWith('en')
         const dictionary = english ? en : fa
@@ -153,6 +160,21 @@ export function evaluateHandoffPolicy(input: HandoffPolicyInput): HandoffDecisio
         if (analysis.riskFlags.length > 0) add('HIGH_RISK', 10, true)
         if (analysis.operational.severeDistress) add('DISTRESS', 8, true)
         if (analysis.operational.consecutiveUnanswered >= 3) add('UNANSWERED', 8, true)
+
+        // ─ A9: order/money problems.
+        // A complaint that ALSO carries anger/distress (or a payment dispute risk)
+        // transfers immediately — matching the reference incident where a customer
+        // waited four hours while the bot kept re-asking the order number. A calm
+        // order problem is NOT a hard trigger: it arms a one-reply budget (set in
+        // shouldHandoff) so the AI gets exactly one info-gathering answer, and the
+        // following customer message transfers the thread to a human.
+        if (analysis.operational.orderIssue) {
+                const angry = analysis.operational.severeDistress
+                        || analysis.sentiment === 'NEGATIVE'
+                        || analysis.operational.negativeSignalCount >= 2
+                        || analysis.riskFlags.length > 0
+                add('ORDER_ISSUE', angry ? 12 : 6, angry)
+        }
 
         if (!hardTrigger) {
                 if (analysis.operational.consecutiveUnanswered === 2) add('UNANSWERED', 3)
@@ -190,6 +212,7 @@ export function evaluateHandoffPolicy(input: HandoffPolicyInput): HandoffDecisio
                 'HIGH_RISK',
                 'DISTRESS',
                 'UNANSWERED',
+                'ORDER_ISSUE',
                 'KEYWORD',
                 'REPEATED_REQUEST',
                 'NEGOTIATION_AUTHORITY',
@@ -261,6 +284,54 @@ export async function shouldHandoff(
                 customKeyword,
         })
 
+        // ─ A9: one-reply budget for calm order/money problems.
+        // If the previous turn armed `orderIssueBudget` (a calm order problem that
+        // already received its single AI info-gathering reply), THIS turn
+        // transfers to a human no matter what. If the current turn is a fresh
+        // calm order problem that did not reach the recommendation threshold,
+        // arm the budget so the NEXT customer message hands off.
+        const freshOrderIssue = analysis.operational.orderIssue
+        let budgetArmed = false
+        try {
+                const conversationRow = await prisma.conversation.findUnique({
+                        where: { id: conversationId },
+                        select: { metadata: true },
+                })
+                const metadata = (conversationRow?.metadata ?? {}) as Record<string, unknown>
+                budgetArmed = metadata.orderIssueBudget === 1
+
+                if (budgetArmed) {
+                        const reasonCodes: HandoffReasonCode[] = candidate.reasonCodes.includes('ORDER_ISSUE')
+                                ? candidate.reasonCodes
+                                : [...candidate.reasonCodes, 'ORDER_ISSUE' as HandoffReasonCode]
+                        // Clear the armed budget — the transfer below consumes it.
+                        await prisma.conversation.update({
+                                where: { id: conversationId },
+                                data: {
+                                        metadata: { ...metadata, orderIssueBudget: 0 },
+                                },
+                        })
+                        return {
+                                ...candidate,
+                                reasonCodes,
+                                code: candidate.recommended ? candidate.code : 'ORDER_ISSUE',
+                                reason: candidate.reason || 'مشکل سفارش پس از پاسخ اطلاعاتی؛ انتقال به اپراتور',
+                                handoff: true,
+                        }
+                }
+
+                if (!candidate.recommended && freshOrderIssue) {
+                        await prisma.conversation.update({
+                                where: { id: conversationId },
+                                data: {
+                                        metadata: { ...metadata, orderIssueBudget: 1 },
+                                },
+                        }).catch(() => {})
+                }
+        } catch (error) {
+                console.error('[handoff] order-issue budget state failed:', error)
+        }
+
         if (context) {
                 await persistConversationSalesInsight(context, analysis, {
                         handoffRecommended: candidate.recommended,
@@ -284,6 +355,11 @@ export function handoffReplyText(decision: HandoffDecision, agent: ChatAgent): s
                 return english
                         ? 'Of course. I’ll transfer this conversation with a summary to a human specialist, so you won’t need to repeat the details.'
                         : 'حتماً؛ گفتگو را همراه با خلاصه همین صحبت‌ها به یک کارشناس منتقل می‌کنم تا لازم نباشد اطلاعات را دوباره توضیح دهید.'
+        }
+        if (decision.code === 'ORDER_ISSUE') {
+                return english
+                        ? 'I’ve passed your order details to a specialist who will follow up on this right away; you won’t need to repeat anything.'
+                        : 'جزئیات سفارشتون رو برای کارشناس پیگیری فرستادم؛ بدون نیاز به توضیح مجدد سریع پیگیری می‌کنه'
         }
         if (decision.code === 'HIGH_RISK' || decision.code === 'DISTRESS') {
                 return english

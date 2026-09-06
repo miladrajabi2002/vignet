@@ -312,7 +312,22 @@ async function sendPatternSms(
   }
 
   if (!patternCode) {
-    await persistLog('error', `${audit.source}:configuration`, new Error('Pattern SMS skipped because its pattern code is missing'), logOptions)
+    // A17: a missing pattern code is a permanent configuration gap, not a
+    // transient provider failure. Log it ONCE per source per day (Redis latch)
+    // at warn level instead of hammering ErrorLog on every attempt, and never
+    // release the caller's dedup claim for a retry (a retry would deterministically
+    // fail again — this exact loop produced 80+ duplicate errors in production).
+    try {
+      const redis = getRedis()
+      const latchKey = `sms:pattern-config-warn:${audit.source}`
+      const firstToday = await redis.set(latchKey, '1', 'EX', 24 * 3600, 'NX')
+      if (firstToday) {
+        await persistLog('warn', `${audit.source}:configuration`, 'Pattern SMS permanently skipped: its pattern code is not configured', logOptions)
+      }
+    } catch {
+      // Redis unavailable — fall back to a single warn without the latch.
+      await persistLog('warn', `${audit.source}:configuration`, 'Pattern SMS skipped because its pattern code is missing', logOptions).catch(() => {})
+    }
     return false
   }
 

@@ -19,6 +19,7 @@ import {
         resolveWooCredentials,
         type StoreIntegrationInput,
 } from '@/lib/integrations/woocommerce'
+import { sweepChannelHealth } from '@/lib/channels/health'
 import { refreshStaleUrlKnowledge } from '@/lib/integrations/crawler'
 import { sweepAdminCommercialSmsOutbox } from '@/lib/billing/admin-commercial-outbox'
 import { cleanupOldRecords } from '@/lib/maintenance/data-retention'
@@ -78,6 +79,8 @@ async function runSweep(): Promise<void> {
 
 const CHANNEL_CHECK_MS = 6 * HOUR_MS
 const CHANNEL_SILENT_MS = 3 * 24 * HOUR_MS // a connected channel silent >3d is suspect
+// A20: active health probe cadence (mission: every 5–10 minutes).
+const CHANNEL_HEALTH_INTERVAL_MS = 5 * 60_000
 
 /**
  * Alert workspaces whose active messenger channels have gone silent (no inbound
@@ -491,6 +494,7 @@ export async function runTrialLifecycleSweep(): Promise<void> {
                 attempted: 0,
                 delivered: 0,
                 failed: 0,
+                skippedConfig: 0,
         }
 
         try {
@@ -538,6 +542,16 @@ export async function runTrialLifecycleSweep(): Promise<void> {
                         let send: () => Promise<boolean>
 
                         if (workspace.onboardingCompleted) {
+                                // A17: the activation-complete pattern code is empty in .env
+                                // (IPPANEL_ACTIVATION_COMPLETE_PATTERN_CODE=""). Sending would
+                                // deterministically fail and the dedup release retried it every
+                                // sweep — 83 error + 83 retry-warning rows. Skip the milestone
+                                // cleanly (stats only) until the pattern is provisioned in the
+                                // IPPanel panel and the env var is filled.
+                                if (!process.env.IPPANEL_ACTIVATION_COMPLETE_PATTERN_CODE?.trim()) {
+                                        stats.skippedConfig += 1
+                                        continue
+                                }
                                 kind = 'activation_complete'
                                 dedupKey = `lifecycle_sms:activation_complete:${workspace.id}`
                                 dedupTtlSeconds = 45 * 24 * 3600
@@ -803,6 +817,22 @@ export function startScheduler(): () => void {
                 TOKEN_REFRESH_INTERVAL_MS,
         )
 
+        // ─ A20: real periodic channel health checks (getMe / token validity / SMS
+        // proxy). Every 5 minutes; first run shortly after boot so the dashboard
+        // has a true status quickly.
+        const runChannelHealthSweep = async () => {
+                try {
+                        const stats = await sweepChannelHealth()
+                        if (stats.down > 0) {
+                                console.log(`[scheduler] channel health: ${stats.down}/${stats.checked} down (${stats.notified} notified)`)
+                        }
+                } catch (e) {
+                        console.error('[scheduler] channel health sweep failed:', e)
+                }
+        }
+        const initialChannelHealth = setTimeout(runChannelHealthSweep, 90_000)
+        const channelHealthInterval = setInterval(runChannelHealthSweep, CHANNEL_HEALTH_INTERVAL_MS)
+
         return () => {
                 clearTimeout(initialSweep)
                 clearInterval(sweepInterval)
@@ -826,5 +856,7 @@ export function startScheduler(): () => void {
                 clearInterval(commercialSmsInterval)
                 clearTimeout(initialTokenRefresh)
                 clearInterval(tokenRefreshInterval)
+                clearTimeout(initialChannelHealth)
+                clearInterval(channelHealthInterval)
         }
 }

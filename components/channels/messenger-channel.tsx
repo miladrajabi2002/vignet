@@ -222,6 +222,54 @@ function WebhookHealth({ lastInboundAt }: { lastInboundAt?: string | null }) {
   )
 }
 
+/** Active health-check badge (A20): green = ok, orange = recent error,
+ * red = down. Shows the last check time so operators trust the state. */
+function ChannelHealthBadge({
+  status,
+  checkedAt,
+  error,
+}: {
+  status?: string | null
+  checkedAt?: string | null
+  error?: string | null
+}) {
+  const t = useTranslations('channels')
+  const [expanded, setExpanded] = useState(false)
+
+  if (!status || status === 'unknown') return null
+
+  const down = status === 'down'
+  const degraded = status === 'degraded'
+  const rel = checkedAt ? formatRelative(Date.now() - new Date(checkedAt).getTime(), t) : null
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className={`flex items-center gap-1.5 text-xs ${
+          down ? 'text-danger' : degraded ? 'text-warning' : 'text-success'
+        }`}
+      >
+        {down || degraded ? (
+          <AlertTriangle className="h-3.5 w-3.5" />
+        ) : (
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+        )}
+        {down
+          ? t('healthDown')
+          : degraded
+            ? t('healthDegraded')
+            : t('healthOk')}
+        {rel ? <span className="text-[var(--text-tertiary)]">— {t('healthChecked', { time: rel })}</span> : null}
+      </button>
+      {expanded && error ? (
+        <div className="mt-1 break-words text-[11px] leading-4 text-[var(--text-tertiary)]">{error}</div>
+      ) : null}
+    </div>
+  )
+}
+
 /** Coarse Persian/intl relative time ("۲ دقیقه پیش") from an age in ms. */
 function formatRelative(ageMs: number, t: ReturnType<typeof useTranslations>): string {
   const min = Math.floor(ageMs / 60000)
@@ -242,6 +290,9 @@ export function MessengerChannel({
   channelId,
   botUsername,
   lastInboundAt,
+  healthStatus,
+  healthCheckedAt,
+  healthError,
   quickReplies = [],
   botAvatar,
 }: {
@@ -254,6 +305,12 @@ export function MessengerChannel({
   botUsername: string | null
   /** ISO timestamp of the last inbound webhook message, or null if none yet. */
   lastInboundAt?: string | null
+  /** A20 — active health check state: 'ok' | 'degraded' | 'down' | 'unknown'. */
+  healthStatus?: string | null
+  /** ISO timestamp of the last completed health check. */
+  healthCheckedAt?: string | null
+  /** Short provider error from the last check. */
+  healthError?: string | null
   /** Saved quick-reply suggestion buttons (config.settings.quickReplies). */
   quickReplies?: string[]
   /** For Instagram OAuth channels: the IG profile picture URL (display). */
@@ -396,6 +453,7 @@ export function MessengerChannel({
 
       {enabled && open && (
         <div id={`channel-details-${type.toLowerCase()}`}>
+          <ChannelHealthBadge status={healthStatus} checkedAt={healthCheckedAt} error={healthError} />
           <WebhookHealth lastInboundAt={lastInboundAt} />
 
       {/* Instagram no longer needs the Development Mode / App Review reminder:

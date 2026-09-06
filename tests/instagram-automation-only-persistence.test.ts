@@ -4,6 +4,10 @@ const mocks = vi.hoisted(() => ({
   agentChannelFindFirst: vi.fn(),
   agentChannelUpdate: vi.fn(),
   conversationFindFirst: vi.fn(),
+  conversationFindUnique: vi.fn(),
+  conversationUpdate: vi.fn(),
+  conversationUpdateMany: vi.fn(),
+  messageFindFirst: vi.fn(),
   transaction: vi.fn(),
   parseUpdate: vi.fn(),
   sendText: vi.fn(),
@@ -16,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   claimInboundEvent: vi.fn(),
   markEffectsCommitted: vi.fn(),
   completeInboundEvent: vi.fn(),
+  notifyHandoff: vi.fn(),
+  notifyWorkspace: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -24,7 +30,17 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: mocks.agentChannelFindFirst,
       update: mocks.agentChannelUpdate,
     },
-    conversation: { findFirst: mocks.conversationFindFirst },
+    conversation: {
+      findFirst: mocks.conversationFindFirst,
+      findUnique: mocks.conversationFindUnique,
+      update: mocks.conversationUpdate,
+      updateMany: mocks.conversationUpdateMany,
+    },
+    message: { findFirst: mocks.messageFindFirst },
+    contact: { findUnique: vi.fn().mockResolvedValue({ name: 'Contact' }), update: vi.fn().mockResolvedValue({}) },
+    workspace: { findUnique: vi.fn().mockResolvedValue(null) },
+    instagramAutomationSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+    inboundEvent: { update: vi.fn().mockResolvedValue({}) },
     $transaction: mocks.transaction,
   },
 }))
@@ -33,6 +49,31 @@ vi.mock('@/lib/crm/contact-identity', () => ({
   resolveInboundContact: mocks.resolveInboundContact,
 }))
 vi.mock('@/lib/ai/chat-engine', () => ({ generateReply: mocks.generateReply }))
+vi.mock('@/lib/ai/handoff', () => ({
+  notifyHandoff: mocks.notifyHandoff,
+  shouldHandoff: vi.fn(),
+  handoffReplyText: vi.fn(() => ''),
+  detectUnanswered: vi.fn(() => false),
+}))
+vi.mock('@/lib/notifications/create', () => ({ notifyWorkspace: mocks.notifyWorkspace }))
+vi.mock('@/lib/billing/trial-quota-alert', () => ({
+  processTrialQuotaAlert: vi.fn(),
+  isCreditExhausted: vi.fn(),
+}))
+vi.mock('@/lib/channels/fixed-replies', () => ({
+  fixedReplyForWorkspace: vi.fn(async (_key: string, workspaceId: string) =>
+    _key === 'automationUnmatchedAckMessage'
+      ? 'پیامتون دریافت شد و برای همکار ما ارسال شد'
+      : 'متن پیش‌فرض'),
+  fixedReplyFromProfile: vi.fn(() => 'متن پیش‌فرض'),
+  WAITING_MESSAGE_MIN_INTERVAL_MS: 60_000,
+}))
+vi.mock('@/lib/crm/contact-activity', () => ({ bumpContactActivity: vi.fn() }))
+vi.mock('@/lib/conversations/activity', () => ({
+  recordConversationActivity: vi.fn(),
+  buildTurnReceipts: vi.fn(() => []),
+  metadataWithReceipts: vi.fn(() => ({})),
+}))
 vi.mock('@/lib/channels/registry', () => ({
   isMessengerType: () => true,
   getAdapter: () => ({
@@ -56,16 +97,17 @@ vi.mock('@/lib/instagram/automation', () => ({
 }))
 vi.mock('@/lib/channels/idempotency', () => ({
   InboundEventLeaseBusyError: class InboundEventLeaseBusyError extends Error {},
+  InboundEventLeaseLostError: class InboundEventLeaseLostError extends Error {},
   inboundExternalEventId: () => 'ig:mid-1:DM',
   claimInboundEvent: mocks.claimInboundEvent,
   withInboundEventLease: async (_lease: unknown, run: (guard: { assertActive: () => Promise<void> }) => Promise<void>) =>
     run({ assertActive: async () => undefined }),
-  beginInboundEventDispatch: vi.fn(),
+  beginInboundEventDispatch: vi.fn().mockResolvedValue(true),
   markInboundEventEffectsCommitted: mocks.markEffectsCommitted,
   markInboundEventDeliveryCompleted: vi.fn(),
   markInboundEventDeliveryUncertain: vi.fn(),
   completeInboundEvent: mocks.completeInboundEvent,
-  failInboundEvent: vi.fn(),
+  failInboundEvent: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@/lib/channels/conversation-lock', () => ({
   withConversationTurnLock: async (
@@ -83,7 +125,7 @@ vi.mock('@/lib/instagram/emoji', () => ({ isEmojiOnly: () => false }))
 vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn() }))
 vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: vi.fn(), downloadAudio: vi.fn() }))
 vi.mock('@/lib/voice/tts', () => ({ synthesizeSpeech: vi.fn() }))
-vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn() }))
+vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
 vi.mock('@/lib/instagram/media', () => ({ sendProductCarousel: vi.fn() }))
 vi.mock('@/lib/products/presentation', () => ({
@@ -120,6 +162,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
       config: { accessToken: 'encrypted' },
       agent: {
         id: 'agent-1',
+        name: 'ایجنت تست',
         workspaceId: 'workspace-1',
         systemPrompt: 'system',
         language: 'fa',
@@ -127,6 +170,7 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
         temperature: 0.2,
         maxTokens: 500,
         fallbackMessage: null,
+        welcomeMessage: null,
         handoffEnabled: false,
         handoffMessage: null,
         handoffKeywords: [],
@@ -164,10 +208,17 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     mocks.willAutomationHandle.mockResolvedValue(false)
     mocks.markEffectsCommitted.mockResolvedValue(undefined)
     mocks.completeInboundEvent.mockResolvedValue(undefined)
+    mocks.conversationUpdate.mockResolvedValue({})
+    mocks.conversationUpdateMany.mockResolvedValue({ count: 1 })
+    mocks.conversationFindUnique.mockResolvedValue(null)
+    mocks.messageFindFirst.mockResolvedValue(null)
+    mocks.notifyHandoff.mockResolvedValue(undefined)
+    mocks.notifyWorkspace.mockResolvedValue(undefined)
+    mocks.sendText.mockResolvedValue(undefined)
   })
 
   it.each(['DM', 'COMMENT', 'STORY_REPLY'] as const)(
-    'acknowledges an unmatched %s without creating a contact, conversation, or message',
+    'escalates an unmatched %s to the operator with an ack instead of silence (A16)',
     async (kind) => {
     mocks.parseUpdate.mockReturnValue([{
       kind,
@@ -179,6 +230,30 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
       ...(kind === 'COMMENT' ? { commentId: 'comment-1', postId: 'post-1' } : {}),
       ...(kind === 'STORY_REPLY' ? { storyId: 'story-1' } : {}),
     }])
+    mocks.resolveInboundContact.mockResolvedValue('contact-1')
+    // persistInboundOnly / persistFixedAssistantReply run inside $transaction.
+    mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+      typeof fn === 'function'
+        ? fn({
+            conversation: {
+              upsert: vi.fn().mockResolvedValue({ id: 'conversation-1', status: 'OPEN', handedOff: false }),
+              update: vi.fn().mockResolvedValue({}),
+            },
+            message: {
+              findFirst: vi.fn().mockResolvedValue(null),
+              findUnique: vi.fn().mockResolvedValue(null),
+              findUniqueOrThrow: vi.fn().mockResolvedValue({ id: 'message-1', conversationId: 'conversation-1' }),
+              create: vi.fn().mockResolvedValue({ id: 'message-1' }),
+              createMany: vi.fn().mockResolvedValue({ count: 1 }),
+              update: vi.fn().mockResolvedValue({}),
+              updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+              count: vi.fn().mockResolvedValue(1),
+            },
+            contact: { update: vi.fn().mockResolvedValue({}), findFirst: vi.fn().mockResolvedValue(null) },
+            conversationSalesInsight: { upsert: vi.fn().mockResolvedValue({}) },
+          })
+        : Promise.resolve([]),
+    )
 
     await handleInbound('INSTAGRAM', 'webhook-token', { object: 'instagram' })
 
@@ -187,16 +262,28 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
       channelId: 'channel-1',
       msg: expect.objectContaining({ platformMessageId: 'mid-1' }),
     })
-    expect(mocks.resolveInboundContact).not.toHaveBeenCalled()
-    expect(mocks.transaction).not.toHaveBeenCalled()
+    // The customer is never dropped: contact resolution runs, the inbound is
+    // persisted, the fixed ack goes out, and the thread is flagged for a human.
+    expect(mocks.resolveInboundContact).toHaveBeenCalled()
+    expect(mocks.transaction).toHaveBeenCalled()
+    expect(mocks.sendText).toHaveBeenCalledWith(
+      'sender-1',
+      'پیامتون دریافت شد و برای همکار ما ارسال شد',
+      undefined,
+    )
+    expect(mocks.conversationUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'conversation-1' } }),
+    )
+    expect(mocks.notifyHandoff).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'workspace-1' }),
+    )
+    expect(mocks.notifyWorkspace).toHaveBeenCalled()
     expect(mocks.runAutomation).not.toHaveBeenCalled()
     expect(mocks.generateReply).not.toHaveBeenCalled()
     expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'event-1' }),
       expect.objectContaining({
-        conversationId: null,
-        inboundMessageId: null,
-        result: { outcome: 'AUTOMATION_ONLY_UNMATCHED' },
+        result: expect.objectContaining({ outcome: 'AUTOMATION_ONLY_ESCALATED' }),
       }),
     )
     expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()

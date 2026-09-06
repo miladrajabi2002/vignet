@@ -604,7 +604,11 @@
     "storeDesc": "Connect your WordPress or WooCommerce site from Store Integrations to sync products and content automatically so the agent can recommend products to customers.",
     "storeCta": "Connect store",
     "leadCaptureRequiredLabel": "Make the lead form mandatory",
-    "leadCaptureRequiredHint": "When on, the visitor cannot skip the lead form and must enter their name and phone. When off, a \"Skip & start chat\" button is shown and the agent will try to extract name/phone from the conversation."
+    "leadCaptureRequiredHint": "When on, the visitor cannot skip the lead form and must enter their name and phone. When off, a \"Skip & start chat\" button is shown and the agent will try to extract name/phone from the conversation.",
+    "healthOk": "Channel is healthy",
+    "healthDegraded": "Recent check error",
+    "healthDown": "Channel is down",
+    "healthChecked": "checked {time}"
   },
   "conversations": {
     "title": "Conversations",

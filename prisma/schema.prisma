@@ -39,6 +39,11 @@ model Workspace {
   onboardingKnowledgeSkipped    Boolean      @default(false)
   onboardingChannelSkipped      Boolean      @default(false)
   dashboardChecklistDismissedAt DateTime?
+  // ─ A16: trial quota alerting. The reconstructed trial grant plus two
+  // one-shot latches (80% warning, 100% exhausted). Null until first use.
+  trialInitialCreditIRR    Int?
+  trialQuota80AlertedAt    DateTime?
+  trialQuota100AlertedAt   DateTime?
   // Internal/test workspaces are intentionally omitted from admin commercial reports.
   excludeFromAdminReports       Boolean      @default(false)
   createdAt                     DateTime     @default(now())
@@ -166,7 +171,7 @@ model Agent {
   requireCustomerInfo  Boolean  @default(false)
   customerInfoPrompt   String?  @db.Text
   productAccessEnabled Boolean  @default(true)
-  orderTrackingEnabled Boolean  @default(false)
+  orderTrackingEnabled Boolean  @default(true)
   productAccessConfigured Boolean @default(false)
   orderTrackingConfigured Boolean @default(false)
   createdAt            DateTime @default(now())
@@ -242,6 +247,11 @@ model AgentChannel {
   webhookUrl      String?
   lastInboundAt   DateTime? // last time an inbound webhook message arrived (health signal)
   healthAlertedAt DateTime? // last time a "channel silent" alert was sent (dedup)
+  // ─ A20: real periodic health check results (getMe / token validity).
+  //   'unknown' | 'ok' | 'degraded' | 'down'
+  healthStatus    String    @default("unknown")
+  healthCheckedAt DateTime? // last completed active health check
+  healthError     String?   // short provider error summary of the last check
   createdAt       DateTime    @default(now())
 
   agent                  Agent                   @relation(fields: [agentId], references: [id], onDelete: Cascade)

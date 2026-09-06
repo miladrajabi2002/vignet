@@ -28,6 +28,15 @@ export interface InboundMessage {
   platformMessageId?: string
   /** Opaque file id for an attached voice message, if any. */
   voiceFileId?: string
+  /**
+   * True when the inbound carried a non-voice media attachment (photo, video,
+   * sticker, file…) with no usable text (A13). The handler answers these with
+   * a configurable fixed reply BEFORE any automation or AI turn so the model
+   * never guesses media content.
+   */
+  hasMedia?: boolean
+  /** Coarse media classification used for the inbox placeholder label. */
+  mediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
   /** When the inbound is itself a reply to another message (e.g. Telegram reply_to_message), the platform message id being quoted. */
   replyToMessageId?: string
   /**

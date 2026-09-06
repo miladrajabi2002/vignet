@@ -31,6 +31,10 @@ export async function GET(_req: Request, props: Params) {
           active: true,
           lastInboundAt: true,
           createdAt: true,
+          // A20 — real periodic health check results for the dashboard badge.
+          healthStatus: true,
+          healthCheckedAt: true,
+          healthError: true,
         },
       },
       _count: { select: { conversations: true, knowledgeBases: true, catalogItems: true } },

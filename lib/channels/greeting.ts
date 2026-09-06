@@ -102,13 +102,69 @@ function normalizeGreetingText(text: string): string {
                 .trim()
 }
 
-/** Localized canned welcome — short, warm, and asking for the real question. */
-export function greetingReplyText(firstMessage: string, hasPriorReply = false): string {
+/**
+ * Resolve the outbound welcome text for a greeting-only turn (A2).
+ *
+ * Precedence:
+ *   1. the agent's configured `welcomeMessage` (dashboard settings),
+ *   2. the channel's configured welcome (e.g. Instagram automation settings),
+ *   3. a warm default that greets with the business name when known,
+ *   4. the generic canned default.
+ *
+ * `hasPriorReply` keeps the short follow-up acknowledgement («سلام.») so a
+ * repeated greeting inside an ongoing thread stays natural.
+ */
+export function greetingReplyText(
+        firstMessage: string,
+        hasPriorReply = false,
+        options?: {
+                configuredWelcome?: string | null
+                channelWelcome?: string | null
+                businessName?: string | null
+        },
+): string {
+        const configured = options?.configuredWelcome?.trim()
+                || options?.channelWelcome?.trim()
+                || ''
         // Latin-script message → reply in English; otherwise Persian wins.
-        if (/^[\x00-\x7F\s]+$/.test(firstMessage)) {
-                if (hasPriorReply) return 'Hello.'
-                return 'Hello! 👋 Welcome. How can I help you today?'
+        const english = /^[\x00-\x7F\s]+$/.test(firstMessage)
+
+        if (hasPriorReply) {
+                if (configured) return configured
+                return english ? 'Hello.' : 'سلام.'
         }
-        if (hasPriorReply) return 'سلام.'
-        return 'سلام! 👋 خوش آمدید. چطور می‌تونم کمکتون کنم؟'
+
+        if (configured) return configured
+
+        if (english) {
+                return options?.businessName
+                        ? `Hello! 👋 Welcome to ${options.businessName}. How can I help you today?`
+                        : 'Hello! 👋 Welcome. How can I help you today?'
+        }
+
+        return options?.businessName
+                ? `سلام! به ${options.businessName} خوش اومدی، امروز چه کمکی ازم بگیرم؟`
+                : 'سلام! 👋 خوش آمدید. چطور می‌تونم کمکتون کنم؟'
 }
+
+/**
+ * Inbox-visible placeholder for media-only inbound messages (A13). The model
+ * never sees this text as a question — it only labels the stored USER row so
+ * the operator can tell what the customer actually sent.
+ */
+export function mediaPlaceholderText(msg: {
+        voiceFileId?: string
+        mediaKind?: 'photo' | 'video' | 'voice' | 'sticker' | 'file' | 'audio'
+}): string {
+        if (msg.voiceFileId) return '[پیام صوتی]'
+        switch (msg.mediaKind) {
+                case 'photo': return '[عکس]'
+                case 'video': return '[ویدیو]'
+                case 'sticker': return '[استیکر]'
+                case 'file': return '[فایل]'
+                case 'voice': return '[پیام صوتی]'
+                case 'audio': return '[فایل صوتی]'
+                default: return '[پیام رسانه‌ای]'
+        }
+}
+

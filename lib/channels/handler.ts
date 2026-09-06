@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { resolveInboundContact } from '@/lib/crm/contact-identity'
 import { prisma } from '@/lib/prisma'
 import { generateReply, type ChatAgent } from '@/lib/ai/chat-engine'
+import { notifyHandoff } from '@/lib/ai/handoff'
 import { startChannelTyping } from '@/lib/channels/typing'
 import { transcribeAudio, downloadAudio } from '@/lib/voice/stt'
 import { synthesizeSpeech } from '@/lib/voice/tts'
@@ -35,7 +36,7 @@ import {
         shouldBatchConsecutiveMessages,
         type AbsorbedInbound,
 } from '@/lib/channels/batching'
-import { greetingReplyText, isGreetingOnlyMessage } from '@/lib/channels/greeting'
+import { greetingReplyText, isGreetingOnlyMessage, mediaPlaceholderText } from '@/lib/channels/greeting'
 import {
         isMarketingOptOutMessage,
         optOutConfirmation,
@@ -57,15 +58,23 @@ import {
         parseProductDirectives,
         resolveProductShowcases,
 } from '@/lib/products/presentation'
+import {
+        fixedReplyForWorkspace,
+        WAITING_MESSAGE_MIN_INTERVAL_MS,
+} from '@/lib/channels/fixed-replies'
+import { processTrialQuotaAlert } from '@/lib/billing/trial-quota-alert'
+import { notifyWorkspace } from '@/lib/notifications/create'
 
 const AGENT_SELECT = {
         id: true,
+        name: true,
         systemPrompt: true,
         language: true,
         model: true,
         temperature: true,
         maxTokens: true,
         fallbackMessage: true,
+        welcomeMessage: true,
         handoffEnabled: true,
         handoffMessage: true,
         handoffKeywords: true,
@@ -87,6 +96,7 @@ interface ResolvedChannel {
         config: Prisma.JsonValue
         agent: {
                 id: string
+                name: string
                 workspaceId: string
                 systemPrompt: string
                 language: string
@@ -94,6 +104,7 @@ interface ResolvedChannel {
                 temperature: number
                 maxTokens: number
                 fallbackMessage: string | null
+                welcomeMessage: string | null
                 handoffEnabled: boolean
                 handoffMessage: string | null
                 handoffKeywords: string[]
@@ -654,6 +665,12 @@ async function processChannelInbound(
                         continue
                 }
                 const eventLease = claim.lease
+                // Escalation context for the outer catch (A14 window-closed path):
+                // the conversation/contact are resolved deep inside nested
+                // callbacks, so mirrors are kept at loop scope for the handler.
+                let escalationConversationId: string | null = null
+                let escalationContactId: string | null = null
+                let escalationContactName: string | null = null
                 try {
                         // Serialize turns per conversation: rapid consecutive messages
                         // arrive as independent webhooks/jobs and would otherwise race —
@@ -674,6 +691,12 @@ async function processChannelInbound(
                         let outcome = 'IGNORED'
                         let deliveryStartedThisAttempt = false
                         let deliveryUncertain = false
+                        // Hoisted for the catch path (A14/A16 escalation): the contact
+                        // and the persisted inbound row are needed to flag the right
+                        // conversation when a delivery error surfaces below.
+                        let contactId: string | null = null
+                        let contactName: string | null = null
+                        let persistedInbound: Awaited<ReturnType<typeof persistInboundOnly>> | null = null
                         const ensureDispatchStarted = async () => {
                                 if (deliveryStartedThisAttempt) return
                                 const maySend = await beginInboundEventDispatch(eventLease)
@@ -728,17 +751,25 @@ async function processChannelInbound(
                         // the MERGED_INTO_TURN completion as a normal skip.
                         await eventGuard.assertActive()
                         let text = await resolveText(agent.workspaceId, adapter, msg)
+                        // ─ A13: media-only inbound (photo/video/voice/sticker/file
+                        // with no usable text). The customer must still get an
+                        // honest fixed answer instead of silence, and the LLM must
+                        // never see a media placeholder as a question. Flag it
+                        // here; the fixed reply is sent right after the inbound is
+                        // persisted and ownership gates are checked.
+                        const mediaOnlyInbound = !text && (msg.hasMedia || Boolean(msg.voiceFileId))
+                        if (mediaOnlyInbound) text = mediaPlaceholderText(msg)
                         if (!text) return
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
 
-                        // In AUTOMATION_ONLY mode, an Instagram event that matches
-                        // neither a fixed reply nor a scenario has no product-level
-                        // recipient: the AI is intentionally disabled and no
-                        // automation will act on it. Decide that before resolving a
-                        // contact or upserting a Conversation so these ignored events
-                        // do not pollute the CRM/inbox. The inbound-event ledger still
-                        // completes below, preserving webhook idempotency.
+                        // ─ A16: in AUTOMATION_ONLY mode, an Instagram event that matches
+                        // neither a fixed reply nor a scenario previously died in
+                        // total silence — the customer got nothing, the inbox got
+                        // nothing. It is now escalated: the inbound is persisted,
+                        // the customer receives a configurable acknowledgement, and
+                        // the thread is flagged for the operator.
+                        let escalateAutomationUnmatched = false
                         let scenarioHandled = false
                         let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         let reactionClassInput = false
@@ -782,14 +813,13 @@ async function processChannelInbound(
                                                         msg,
                                                 })
                                                 if (!automationWillHandle) {
-                                                        outcome = 'AUTOMATION_ONLY_UNMATCHED'
-                                                        return
+                                                        escalateAutomationUnmatched = true
                                                 }
                                         }
                                 }
                         }
 
-                        const contactId = await resolveInboundContact({
+                        const resolvedContactId = await resolveInboundContact({
                                 workspaceId: agent.workspaceId,
                                 channel: type,
                                 senderId: msg.senderId,
@@ -798,6 +828,7 @@ async function processChannelInbound(
                                 senderUsername: msg.senderUsername,
                                 senderAvatarUrl: msg.senderAvatarUrl,
                         })
+                        contactId = resolvedContactId
                         if (!contactId) {
                                 // This happens when the workspace has hit its
                                 // customer limit (TRIAL=100, STARTER=2000, …).
@@ -817,13 +848,15 @@ async function processChannelInbound(
                                         { workspaceId: agent.workspaceId, metadata: { channelId: resolved.channelId, channel: type } },
                                 )
                         }
-                        const contactName = await getContactName(contactId)
+                        contactName = await getContactName(contactId)
+                        escalationContactId = contactId
+                        escalationContactName = contactName
 
                         // Persist ordinary inbound messages before automation. A
                         // native reaction is instead folded into its target message
                         // in the UI and never increments the visible messageCount.
                         // The upsert also gives us sticky operator ownership.
-                        const persistedInbound = type === 'INSTAGRAM' && msg.kind === 'REACTION'
+                        persistedInbound = type === 'INSTAGRAM' && msg.kind === 'REACTION'
                                 ? await persistInstagramReaction({
                                         workspaceId: agent.workspaceId,
                                         agentId: agent.id,
@@ -844,6 +877,7 @@ async function processChannelInbound(
                                         inboundEventId: eventLease.id,
                                 })
                         committedConversationId = persistedInbound.conversationId
+                        escalationConversationId = persistedInbound.conversationId
                         inboundMessageId = persistedInbound.messageId
                         outcome = 'INBOUND_PERSISTED'
 
@@ -854,7 +888,136 @@ async function processChannelInbound(
                         // is sent while an operator owns the thread.
                         if (persistedInbound.humanOwned) {
                                 if (contactId && isMarketingOptOutMessage(text)) await optOutContact(contactId)
+                                // ─ Waiting message after handoff: the customer is never
+                                // left hanging while the operator has not answered yet.
+                                // Sent at most once per WAITING_MESSAGE_MIN_INTERVAL_MS
+                                // (dedup state on conversation.metadata) and suppressed
+                                // entirely once an operator-authored reply exists.
+                                try {
+                                        const conv = await prisma.conversation.findUnique({
+                                                where: { id: persistedInbound.conversationId },
+                                                select: { id: true, metadata: true },
+                                        })
+                                        const meta = (conv?.metadata ?? {}) as Record<string, unknown>
+                                        const lastWaitingAckAt = typeof meta.waitingAckAt === 'string'
+                                                ? Date.parse(meta.waitingAckAt)
+                                                : Number.isFinite(meta.waitingAckAt as number)
+                                                        ? (meta.waitingAckAt as number)
+                                                        : 0
+                                        const operatorReplied = await prisma.message.findFirst({
+                                                where: {
+                                                        conversationId: persistedInbound.conversationId,
+                                                        role: 'ASSISTANT',
+                                                        metadata: { path: ['operator'], equals: true },
+                                                },
+                                                orderBy: { createdAt: 'desc' },
+                                                select: { id: true },
+                                        })
+                                        const rateLimitOk = Date.now() - lastWaitingAckAt >= WAITING_MESSAGE_MIN_INTERVAL_MS
+                                        if (!operatorReplied && rateLimitOk && !isMarketingOptOutMessage(text)) {
+                                                const waitingText = await fixedReplyForWorkspace(
+                                                        'waitingForOperatorMessage',
+                                                        agent.workspaceId,
+                                                )
+                                                resultMessageId = await persistFixedAssistantReply(
+                                                        persistedInbound.conversationId,
+                                                        waitingText,
+                                                        eventLease.id,
+                                                )
+                                                await prisma.conversation.update({
+                                                        where: { id: persistedInbound.conversationId },
+                                                        data: {
+                                                                metadata: {
+                                                                        ...(conv?.metadata as object ?? {}),
+                                                                        waitingAckAt: new Date().toISOString(),
+                                                                },
+                                                        },
+                                                }).catch(() => {})
+                                                if (!eventLease.deliveryStartedAt) {
+                                                        await deliveryAdapter.sendText(msg.chatId, waitingText).catch((e) => {
+                                                                console.error(`[handler] ${type} waiting ack delivery failed:`, e)
+                                                        })
+                                                }
+                                        }
+                                } catch (e) {
+                                        console.error('[handler] waiting-message gate failed:', e)
+                                }
                                 outcome = 'OPERATOR_OWNED'
+                                return
+                        }
+
+                        // ─ A13: media-only inbound. Answer with the configurable fixed
+                        // text before any automation/AI turn — the model never sees the
+                        // media placeholder as a question and never guesses content.
+                        if (mediaOnlyInbound) {
+                                const mediaText = await fixedReplyForWorkspace(
+                                        'mediaUnsupportedMessage',
+                                        agent.workspaceId,
+                                )
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        mediaText,
+                                        eventLease.id,
+                                )
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, mediaText)
+                                outcome = 'MEDIA_UNSUPPORTED_REPLIED'
+                                return
+                        }
+
+                        // ─ A16: automation-only DM matched no scenario. Escalate to the
+                        // operator instead of dropping the customer into silence: fixed
+                        // acknowledgement + handoff alert + owner notification.
+                        if (escalateAutomationUnmatched) {
+                                const ackText = await fixedReplyForWorkspace(
+                                        'automationUnmatchedAckMessage',
+                                        agent.workspaceId,
+                                )
+                                resultMessageId = await persistFixedAssistantReply(
+                                        persistedInbound.conversationId,
+                                        ackText,
+                                        eventLease.id,
+                                )
+                                await prisma.conversation.updateMany({
+                                        where: { id: persistedInbound.conversationId },
+                                        data: {
+                                                handedOff: true,
+                                                status: 'HANDED_OFF',
+                                        },
+                                }).catch(() => {})
+                                await notifyHandoff({
+                                        workspaceId: agent.workspaceId,
+                                        conversationId: persistedInbound.conversationId,
+                                        agentId: agent.id,
+                                        agentName: agent.name,
+                                        channel: type,
+                                        contactId,
+                                        contactName,
+                                        contactPhone: null,
+                                        reason: 'پیام بدون پاسخ خودکار (حالت فقط-اتوماسیون بدون سناریوی منطبق)',
+                                }).catch(() => {})
+                                await notifyWorkspace({
+                                        workspaceId: agent.workspaceId,
+                                        type: 'HANDOFF',
+                                        title: 'پیام مشتری بدون پاسخ خودکار ماند',
+                                        body: 'یک پیام اینستاگرام هیچ سناریو یا پاسخ خودکاری نداشت و برای پیگیری انسانی علامت خورد.',
+                                        link: `/conversations/${persistedInbound.conversationId}`,
+                                }).catch(() => {})
+                                if (eventLease.deliveryStartedAt) {
+                                        deliveryUncertain = !eventLease.deliveryCompletedAt
+                                        outcome = deliveryUncertain
+                                                ? 'DELIVERY_UNCERTAIN'
+                                                : 'DELIVERY_ALREADY_COMPLETED'
+                                        return
+                                }
+                                await deliveryAdapter.sendText(msg.chatId, ackText)
+                                outcome = 'AUTOMATION_ONLY_ESCALATED'
                                 return
                         }
 
@@ -900,6 +1063,9 @@ async function processChannelInbound(
                         // and previously-fetched values aren't clobbered. Fire-and-forget.
                         if (msg.senderId && contactId) {
                                 const pf = profileFields(type)
+                                // contactId is a mutable loop-scope mirror; capture it in a
+                                // const so TS narrowing survives the async closures below.
+                                const contactIdValue = contactId
                                 // For Instagram, use the dedicated multi-token fetcher that
                                 // tries every token × host × fields combination and logs each
                                 // attempt — this is the only way to debug "ناشناس" contacts.
@@ -924,7 +1090,7 @@ async function processChannelInbound(
                                                 if (profile.avatarUrl) {
                                                         prisma.contact
                                                                 .updateMany({
-                                                                        where: { id: contactId, [pf.avatarField]: null },
+                                                                        where: { id: contactIdValue, [pf.avatarField]: null },
                                                                         data: { [pf.avatarField]: profile.avatarUrl },
                                                                 })
                                                                 .catch(() => {})
@@ -933,7 +1099,7 @@ async function processChannelInbound(
                                                 if (profile.username) {
                                                         prisma.contact
                                                                 .updateMany({
-                                                                        where: { id: contactId, [pf.usernameField]: null },
+                                                                        where: { id: contactIdValue, [pf.usernameField]: null },
                                                                         data: { [pf.usernameField]: profile.username },
                                                                 })
                                                                 .catch(() => {})
@@ -945,7 +1111,7 @@ async function processChannelInbound(
                                                         prisma.contact
                                                                 .updateMany({
                                                                         where: {
-                                                                                id: contactId,
+                                                                                id: contactIdValue,
                                                                                 OR: [{ name: null }, { name: msg.senderName ?? '' }],
                                                                         },
                                                                         data: { name: profile.name },
@@ -1178,7 +1344,32 @@ async function processChannelInbound(
                                         },
                                         select: { id: true },
                                 })
-                                const greeting = greetingReplyText(text, !!priorReply)
+                                // ─ A2: use the business's configured welcome. Agent
+                                // settings win, then the channel-level configured
+                                // welcome (Instagram automation settings), then the
+                                // warm default with the business's own name.
+                                const [igWelcomeRow, workspaceProfile] = await Promise.all([
+                                        type === 'INSTAGRAM'
+                                                ? prisma.instagramAutomationSettings.findUnique({
+                                                        where: { agentId: agent.id },
+                                                        select: { welcomeMessage: true },
+                                                })
+                                                : Promise.resolve(null),
+                                        prisma.workspace.findUnique({
+                                                where: { id: agent.workspaceId },
+                                                select: { name: true, businessProfile: true },
+                                        }),
+                                ])
+                                const profile = (workspaceProfile?.businessProfile ?? null) as Record<string, unknown> | null
+                                const profileName = typeof profile?.businessName === 'string' && profile.businessName.trim()
+                                        ? profile.businessName.trim()
+                                        : null
+                                const businessName = profileName || workspaceProfile?.name || null
+                                const greeting = greetingReplyText(text, !!priorReply, {
+                                        configuredWelcome: agent.welcomeMessage,
+                                        channelWelcome: igWelcomeRow?.welcomeMessage ?? null,
+                                        businessName,
+                                })
                                 resultMessageId = await persistFixedAssistantReply(
                                         persistedInbound.conversationId,
                                         greeting,
@@ -1266,6 +1457,70 @@ async function processChannelInbound(
                         }
                         if ('error' in result) {
                                 await textStream?.cancel()
+                                // ─ A16: a gated turn (exhausted credit / expired plan /
+                                // missing platform key) previously ended in TOTAL SILENCE —
+                                // the customer message was persisted but no reply, no flag,
+                                // no owner alert ever happened. Now: the customer gets the
+                                // configurable polite message (quota/plan cases), the thread
+                                // is flagged for the operator, and the owner is notified to
+                                // upgrade. AI_UNAVAILABLE falls back to the technical-apology
+                                // text, matching the A4 provider-failure behaviour.
+                                const gateError = result.error
+                                if (gateError === 'OPERATOR_ACTIVE' || !persistedInbound?.conversationId) {
+                                        outcome = `AI_${gateError}`
+                                        return
+                                }
+                                const gatedConversationId = persistedInbound.conversationId
+                                const isQuotaGate = gateError === 'NO_CREDIT'
+                                        || (gateError === 'PLAN_BLOCKED' && (result.reason === 'TRIAL_EXPIRED' || result.reason === 'SUBSCRIPTION_EXPIRED'))
+                                if (isQuotaGate || gateError === 'AI_UNAVAILABLE' || gateError === 'PLAN_BLOCKED') {
+                                        const gateText = isQuotaGate
+                                                ? await fixedReplyForWorkspace('quotaExhaustedMessage', agent.workspaceId)
+                                                : 'یه مشکل فنی پیش اومده، لطفاً چند لحظه بعد دوباره پیام بده'
+                                        try {
+                                                resultMessageId = await persistFixedAssistantReply(
+                                                        gatedConversationId,
+                                                        gateText,
+                                                        eventLease.id,
+                                                )
+                                        } catch (e) {
+                                                console.error('[handler] gate reply persist failed:', e)
+                                        }
+                                        if (isQuotaGate) {
+                                                // Flag the thread for the operator + alert the owner.
+                                                await prisma.conversation.updateMany({
+                                                        where: { id: gatedConversationId },
+                                                        data: { handedOff: true, status: 'HANDED_OFF' },
+                                                }).catch(() => {})
+                                                await notifyHandoff({
+                                                        workspaceId: agent.workspaceId,
+                                                        conversationId: gatedConversationId,
+                                                        agentId: agent.id,
+                                                        agentName: agent.name,
+                                                        channel: type,
+                                                        contactId,
+                                                        contactName,
+                                                        contactPhone: null,
+                                                        reason: 'ظرفیت پاسخگویی رایگان/پلن این مجموعه تکمیل شده است',
+                                                }).catch(() => {})
+                                                void processTrialQuotaAlert({
+                                                        workspaceId: agent.workspaceId,
+                                                        exhausted: true,
+                                                })
+                                        }
+                                        if (eventLease.deliveryStartedAt) {
+                                                deliveryUncertain = !eventLease.deliveryCompletedAt
+                                                outcome = deliveryUncertain
+                                                        ? 'DELIVERY_UNCERTAIN'
+                                                        : 'DELIVERY_ALREADY_COMPLETED'
+                                                return
+                                        }
+                                        await deliveryAdapter.sendText(msg.chatId, gateText).catch((e) => {
+                                                console.error(`[handler] ${type} quota gate delivery failed:`, e)
+                                        })
+                                        outcome = isQuotaGate ? 'QUOTA_EXHAUSTED_REPLIED' : `AI_${gateError}_REPLIED`
+                                        return
+                                }
                                 outcome = `AI_${result.error}`
                                 return
                         }
@@ -1456,6 +1711,57 @@ async function processChannelInbound(
                                 const mergedAway = await isInboundEventMergedIntoAnotherTurn(eventLease.id)
                                     .catch(() => false)
                                 if (mergedAway) continue
+                        }
+                        // ─ A14: a closed 24-hour Instagram messaging window is a
+                        // terminal, non-retryable condition. Retrying through BullMQ only
+                        // produced silent FAILED loops (observed: error subcode 2534022,
+                        // "This message is sent outside of allowed window"). Instead: mark
+                        // the thread as needing an operator, alert the owner, and settle
+                        // the ledger row as escalated — the customer's message stays in the
+                        // inbox and the operator is explicitly told why the auto-send
+                        // stopped.
+                        if (e instanceof Error && (e.name === 'Instagram24hWindowError' || /INSTAGRAM_24H_WINDOW_CLOSED/.test(e.message))) {
+                                const convId = escalationConversationId
+                                if (convId) {
+                                        await prisma.conversation.updateMany({
+                                                where: { id: convId },
+                                                data: { handedOff: true, status: 'HANDED_OFF' },
+                                        }).catch(() => {})
+                                        await notifyHandoff({
+                                                workspaceId: agent.workspaceId,
+                                                conversationId: convId,
+                                                agentId: agent.id,
+                                                agentName: agent.name,
+                                                channel: 'INSTAGRAM',
+                                                contactId: escalationContactId,
+                                                contactName: escalationContactName,
+                                                contactPhone: null,
+                                                reason: 'پنجره ۲۴ ساعته پاسخ‌دهی اینستاگرام بسته شده است؛ ارسال خودکار ممکن نیست و گفتگو به اپراتور ارجاع شد',
+                                        }).catch(() => {})
+                                        await notifyWorkspace({
+                                                workspaceId: agent.workspaceId,
+                                                type: 'HANDOFF',
+                                                title: 'پنجره ۲۴ ساعته اینستاگرام بسته است',
+                                                body: 'پاسخ خودکار به این مشتری ارسال نشد چون بیش از ۲۴ ساعت از آخرین پیام او گذشته است. برای ادامه گفتگو باید اپراتور پاسخ دهد',
+                                                link: `/conversations/${convId}`,
+                                        }).catch(() => {})
+                                }
+                                captureError(`webhook:${type}:ig-window`, e, {
+                                        workspaceId: agent.workspaceId,
+                                        metadata: { agentId: agent.id, channelId, conversationId: convId },
+                                })
+                                // Settle the ledger row without a queue retry — the send can
+                                // never succeed until the customer messages again.
+                                await prisma.inboundEvent.update({
+                                        where: { id: eventLease.id },
+                                        data: {
+                                                state: 'COMPLETED',
+                                                completedAt: new Date(),
+                                                lastError: null,
+                                                result: { outcome: 'IG_WINDOW_CLOSED_ESCALATED' },
+                                        },
+                                }).catch(() => {})
+                                continue
                         }
                         await failInboundEvent(eventLease, e).catch(() => {})
                         captureError(`webhook:${type}`, e, {

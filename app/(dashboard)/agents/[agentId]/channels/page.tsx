@@ -47,7 +47,7 @@ export default async function AgentChannelsPage(
         requireCustomerInfo: true,
         customerInfoPrompt: true,
         channels: {
-          select: { id: true, type: true, config: true, lastInboundAt: true },
+          select: { id: true, type: true, config: true, lastInboundAt: true, healthStatus: true, healthCheckedAt: true, healthError: true },
         },
         chatLink: {
           select: { slug: true, enabled: true, settings: true, views: true },
@@ -170,6 +170,9 @@ export default async function AgentChannelsPage(
           channelId={channel?.id ?? null}
           botUsername={botUsername || null}
           lastInboundAt={channel?.lastInboundAt ? channel.lastInboundAt.toISOString() : null}
+          healthStatus={channel?.healthStatus ?? 'unknown'}
+          healthCheckedAt={channel?.healthCheckedAt ? channel.healthCheckedAt.toISOString() : null}
+          healthError={channel?.healthError ?? null}
           quickReplies={quickReplies}
           botAvatar={botAvatar || null}
         />

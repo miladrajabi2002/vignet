@@ -41,6 +41,8 @@ export interface SalesEvidence {
 export interface SalesOperationalSignals {
         explicitHumanRequest: boolean
         severeDistress: boolean
+        /** A9: the thread mentions a concrete order/delivery/payment problem. */
+        orderIssue: boolean
         requiresHumanAuthority: boolean
         repeatedRequest: boolean
         consecutiveUnanswered: number
@@ -177,6 +179,13 @@ const TERMS = {
                 'دادگاه', 'پلیس', 'دیگه تحمل ندارم', 'فاجعه',
                 'furious', 'scam', 'fraud', 'i will sue', 'legal action',
                 'unacceptable', 'this is a disaster',
+                // A9 — colloquial Persian anger markers observed in real threads:
+                'مسخره', 'مزخرف', 'کفارتی', 'چه کفارتیه', 'چه وضعشه', 'این چه وضعشه',
+                'یهعوض', 'یه عوض', 'احمقانه', 'بی‌احترامی', 'بی احترامی', 'توهین',
+                'دیگه کافیه', 'بسه دیگه', 'چند بار بگم', 'چند بار شماره بدم',
+                'هیچ جوابی نگرفتم', 'هیچ جوابی ندادید', 'تابحال اینجوریشو ندیدم',
+                'مخم تنگ شد', 'اعصابم خرد شد', 'عصبی کردید', 'عصبانی کردید',
+                'جلوی مشتریا میگم', 'خبرنگار',
         ],
         urgentHigh: [
                 'فوری', 'همین الان', 'الان لازم دارم', 'اورژانسی', 'اضطراری',
@@ -191,12 +200,37 @@ const TERMS = {
                 'با مدیر صحبت', 'وصل کن به پشتیبانی', 'کارشناس انسانی',
                 'human agent', 'real person', 'live agent', 'representative',
                 'speak to someone', 'talk to a manager', 'human support',
+                // A9 — explicit anti-bot phrasing observed in real threads:
+                'آدم واقعی', 'ادم واقعی', 'انسان واقعی', 'با ادم صحبت',
+                'با آدم صحبت', 'با انسان صحبت', 'با ربات حرف نمی‌زنم',
+                'با ربات حرف نمیزنم', 'با ربات کار ندارم', 'با ربات نمی‌خوام',
+                'ربات حرف نزن', 'دیگه ربات جواب نده', 'خود کارشناس بیاد',
+                'وصلم کن به کارشناس', 'ترانسفر کن به ادم',
         ],
         authority: [
                 'مدیر فروش', 'مسئول فروش', 'تصمیم گیرنده', 'تایید مدیر',
                 'شرایط اختصاصی', 'قیمت همکاری', 'فاکتور رسمی', 'مناقصه',
                 'sales manager', 'decision maker', 'manager approval',
                 'procurement', 'custom terms', 'corporate pricing',
+        ],
+        // A9 — order/money problem lexicon. Deliberately complaint-shaped: a
+        // calm status question («سفارش ۴۵۲۱ کی می‌رسه؟») must NOT match, while
+        // «سفارشم هنوز نرسیده» must. These turns get at most ONE AI
+        // info-gathering reply before the thread is handed to a human.
+        orderProblem: [
+                'هنوز نرسیده', 'هنوز نیومده', 'نرسیده هنوز', 'تحویل نشده',
+                'منتظر موندم', 'منتظرمم', 'چند روزه منتظر', 'سه روزه منتظر',
+                'غلط فرستادید', 'غلط فرستادین', 'اشتباه فرستادید', 'اشتباه فرستادین',
+                'کالای اشتباه', 'کالا اشتباه', 'جنس اشتباه', 'اینیس این نیست',
+                'اینو نخواستم', 'اینو نخواسته بودم', 'ناقص', 'ناقص بود',
+                'خراب رسید', 'شکسته', 'شکسته بود',
+                'پولم برگشت ندادید', 'پولم را پس نگرفتم', 'برگشت وجه نکردید',
+                'دوبار کم شده', 'دوبار برداشت', 'شارژ اشتباه', 'کسری',
+                'تعویض می‌خوام', 'تعویض میخوام', 'مرجوع کنم', 'مرجوعی می‌خوام',
+                'پس بگیر', 'پولم بده', 'وجه رو برگردونید',
+                'ارسال نکردید', 'ارسال ندادید', 'هنوز نفرستادید',
+                'still not arrived', 'never arrived', 'wrong item', 'damaged on arrival',
+                'charged twice', 'refund my money', 'want a refund',
         ],
 } as const satisfies Record<string, SignalGroup>
 
@@ -251,6 +285,7 @@ const SIGNAL_LABELS: Record<string, { fa: string; en: string }> = {
         HUMAN_REQUEST: { fa: 'درخواست صریح اپراتور انسانی', en: 'explicit human operator request' },
         AUTHORITY_REQUIRED: { fa: 'نیاز احتمالی به اختیار انسانی', en: 'possible human authority required' },
         REPEATED_REQUEST: { fa: 'تکرار درخواست حل‌نشده', en: 'repeated unresolved request' },
+        ORDER_ISSUE: { fa: 'مشکل سفارش، ارسال یا وجه', en: 'order, delivery or payment problem' },
 }
 
 const STOP_WORDS = new Set([
@@ -463,6 +498,7 @@ export function analyzeSalesConversation(input: {
         let mediumUrgency = false
         let explicitHumanRequest = false
         let severeDistress = false
+        let orderIssue = false
         let authoritySignal = false
         let negativeSignalCount = 0
 
@@ -513,6 +549,7 @@ export function analyzeSalesConversation(input: {
                 const positive = firstMatch(text, TERMS.positive)
                 const negative = firstMatch(text, TERMS.negative)
                 const distress = firstMatch(text, TERMS.severeDistress)
+                const orderProblemMatch = firstMatch(text, TERMS.orderProblem)
                 const urgent = firstMatch(text, TERMS.urgentHigh)
                 const timeBound = firstMatch(text, TERMS.urgentMedium)
                 const human = firstMatch(text, TERMS.humanRequest)
@@ -591,6 +628,12 @@ export function analyzeSalesConversation(input: {
                 if (human) {
                         record('HUMAN_REQUEST', 0, message, age)
                         explicitHumanRequest = true
+                }
+                if (orderProblemMatch) {
+                        // A9 — weight the complaint by recency (a fresh problem matters
+                        // more than an old one) but never let it push the buyer score up.
+                        record('ORDER_ISSUE', -6, message, age)
+                        if (age === 0) orderIssue = true
                 }
                 if (authority) {
                         record('AUTHORITY_REQUIRED', 5, message, age)
@@ -735,6 +778,7 @@ export function analyzeSalesConversation(input: {
                 operational: {
                         explicitHumanRequest,
                         severeDistress,
+                        orderIssue,
                         requiresHumanAuthority,
                         repeatedRequest,
                         consecutiveUnanswered,

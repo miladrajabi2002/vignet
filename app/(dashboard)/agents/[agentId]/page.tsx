@@ -148,6 +148,10 @@ export default async function AgentDetailPage(
           type: true,
           active: true,
           lastInboundAt: true,
+          // A20 — real periodic health check results.
+          healthStatus: true,
+          healthCheckedAt: true,
+          healthError: true,
         },
         orderBy: { createdAt: 'asc' },
       }),
