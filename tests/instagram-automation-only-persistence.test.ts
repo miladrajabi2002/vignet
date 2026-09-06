@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   parseUpdate: vi.fn(),
   sendText: vi.fn(),
+  transcribeAudio: vi.fn(),
+  isMarketingOptOutMessage: vi.fn(),
+  fixedReply: vi.fn(),
   resolveInboundContact: vi.fn(),
   generateReply: vi.fn(),
   loadAutomationPolicy: vi.fn(),
@@ -36,7 +39,7 @@ vi.mock('@/lib/prisma', () => ({
       update: mocks.conversationUpdate,
       updateMany: mocks.conversationUpdateMany,
     },
-    message: { findFirst: mocks.messageFindFirst },
+    message: { findFirst: mocks.messageFindFirst, findUnique: vi.fn().mockResolvedValue(null) },
     contact: { findUnique: vi.fn().mockResolvedValue({ name: 'Contact' }), update: vi.fn().mockResolvedValue({}) },
     workspace: { findUnique: vi.fn().mockResolvedValue(null) },
     instagramAutomationSettings: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -61,10 +64,7 @@ vi.mock('@/lib/billing/trial-quota-alert', () => ({
   isCreditExhausted: vi.fn(),
 }))
 vi.mock('@/lib/channels/fixed-replies', () => ({
-  fixedReplyForWorkspace: vi.fn(async (_key: string, workspaceId: string) =>
-    _key === 'automationUnmatchedAckMessage'
-      ? 'پیامتون دریافت شد و برای همکار ما ارسال شد'
-      : 'متن پیش‌فرض'),
+  fixedReplyForWorkspace: mocks.fixedReply,
   fixedReplyFromProfile: vi.fn(() => 'متن پیش‌فرض'),
   WAITING_MESSAGE_MIN_INTERVAL_MS: 60_000,
 }))
@@ -117,13 +117,13 @@ vi.mock('@/lib/channels/conversation-lock', () => ({
 }))
 vi.mock('@/lib/conversations/source', () => ({ inboundMessageMetadata: () => ({ source: 'instagram' }) }))
 vi.mock('@/lib/crm/marketing-consent', () => ({
-  isMarketingOptOutMessage: () => false,
+  isMarketingOptOutMessage: mocks.isMarketingOptOutMessage,
   optOutConfirmation: vi.fn(),
   optOutContact: vi.fn(),
 }))
 vi.mock('@/lib/instagram/emoji', () => ({ isEmojiOnly: () => false }))
-vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn() }))
-vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: vi.fn(), downloadAudio: vi.fn() }))
+vi.mock('@/lib/instagram/sender-profile', () => ({ fetchInstagramSenderProfile: vi.fn().mockResolvedValue(null) }))
+vi.mock('@/lib/voice/stt', () => ({ transcribeAudio: mocks.transcribeAudio, downloadAudio: vi.fn() }))
 vi.mock('@/lib/voice/tts', () => ({ synthesizeSpeech: vi.fn() }))
 vi.mock('@/lib/ai/sales-intelligence', () => ({ refreshConversationSalesInsight: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/errors/capture', () => ({ captureError: vi.fn() }))
@@ -157,6 +157,8 @@ const automationOnlyPolicy = {
 describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.isMarketingOptOutMessage.mockReturnValue(false)
+    mocks.fixedReply.mockResolvedValue('متن پیش‌فرض')
     mocks.agentChannelFindFirst.mockResolvedValue({
       id: 'channel-1',
       config: { accessToken: 'encrypted' },
@@ -215,21 +217,6 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
     mocks.notifyHandoff.mockResolvedValue(undefined)
     mocks.notifyWorkspace.mockResolvedValue(undefined)
     mocks.sendText.mockResolvedValue(undefined)
-  })
-
-  it.each(['DM', 'COMMENT', 'STORY_REPLY'] as const)(
-    'escalates an unmatched %s to the operator with an ack instead of silence (A16)',
-    async (kind) => {
-    mocks.parseUpdate.mockReturnValue([{
-      kind,
-      platformMessageId: 'mid-1',
-      senderId: 'sender-1',
-      senderName: 'Sender',
-      text: 'پیامی که هیچ سناریویی نمی‌گیرد',
-      chatId: 'sender-1',
-      ...(kind === 'COMMENT' ? { commentId: 'comment-1', postId: 'post-1' } : {}),
-      ...(kind === 'STORY_REPLY' ? { storyId: 'story-1' } : {}),
-    }])
     mocks.resolveInboundContact.mockResolvedValue('contact-1')
     // persistInboundOnly / persistFixedAssistantReply run inside $transaction.
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
@@ -254,39 +241,141 @@ describe('Instagram AUTOMATION_ONLY inbound persistence', () => {
           })
         : Promise.resolve([]),
     )
+  })
 
-    await handleInbound('INSTAGRAM', 'webhook-token', { object: 'instagram' })
+  it.each(['DM', 'COMMENT', 'STORY_REPLY', 'STORY_MENTION', 'STORY_REACTION', 'REACTION'] as const)(
+    'ignores an unmatched %s without a reply, contact, conversation or handoff',
+    async (kind) => {
+      mocks.parseUpdate.mockReturnValue([{
+        kind,
+        platformMessageId: 'mid-1',
+        senderId: 'sender-1',
+        senderName: 'Sender',
+        text: 'پیامی که هیچ سناریویی نمی‌گیرد',
+        chatId: 'sender-1',
+        ...(kind === 'COMMENT' ? { commentId: 'comment-1', postId: 'post-1' } : {}),
+        ...(kind === 'STORY_REPLY' ? { storyId: 'story-1' } : {}),
+      }])
 
-    expect(mocks.willAutomationHandle).toHaveBeenCalledWith({
-      agentId: 'agent-1',
-      channelId: 'channel-1',
-      msg: expect.objectContaining({ platformMessageId: 'mid-1' }),
-    })
-    // The customer is never dropped: contact resolution runs, the inbound is
-    // persisted, the fixed ack goes out, and the thread is flagged for a human.
-    expect(mocks.resolveInboundContact).toHaveBeenCalled()
-    expect(mocks.transaction).toHaveBeenCalled()
-    expect(mocks.sendText).toHaveBeenCalledWith(
-      'sender-1',
-      'پیامتون دریافت شد و برای همکار ما ارسال شد',
-      undefined,
-    )
-    expect(mocks.conversationUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'conversation-1' } }),
-    )
-    expect(mocks.notifyHandoff).toHaveBeenCalledWith(
-      expect.objectContaining({ workspaceId: 'workspace-1' }),
-    )
-    expect(mocks.notifyWorkspace).toHaveBeenCalled()
-    expect(mocks.runAutomation).not.toHaveBeenCalled()
-    expect(mocks.generateReply).not.toHaveBeenCalled()
-    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'event-1' }),
-      expect.objectContaining({
-        result: expect.objectContaining({ outcome: 'AUTOMATION_ONLY_ESCALATED' }),
-      }),
-    )
-    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+      await handleInbound('INSTAGRAM', 'webhook-token', { object: 'instagram' })
+
+      expect(mocks.willAutomationHandle).toHaveBeenCalledWith({
+        agentId: 'agent-1',
+        channelId: 'channel-1',
+        msg: expect.objectContaining({ platformMessageId: 'mid-1' }),
+      })
+      expect(mocks.resolveInboundContact).not.toHaveBeenCalled()
+      expect(mocks.transaction).not.toHaveBeenCalled()
+      expect(mocks.sendText).not.toHaveBeenCalled()
+      expect(mocks.fixedReply).not.toHaveBeenCalled()
+      expect(mocks.conversationUpdateMany).not.toHaveBeenCalled()
+      expect(mocks.conversationUpdate).not.toHaveBeenCalled()
+      expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+      expect(mocks.notifyWorkspace).not.toHaveBeenCalled()
+      expect(mocks.runAutomation).not.toHaveBeenCalled()
+      expect(mocks.generateReply).not.toHaveBeenCalled()
+      expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'event-1' }),
+        expect.objectContaining({
+          conversationId: null,
+          inboundMessageId: null,
+          resultMessageId: null,
+          result: { outcome: 'AUTOMATION_ONLY_UNMATCHED' },
+        }),
+      )
+      expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
     },
   )
+
+  it('ignores unmatched messages even when the previous thread belongs to an operator', async () => {
+    mocks.conversationFindFirst.mockResolvedValue({ id: 'old-thread', status: 'HANDED_OFF', handedOff: true })
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('does not let an opt-out phrase trigger an unconfigured reply or conversation', async () => {
+    mocks.isMarketingOptOutMessage.mockReturnValue(true)
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.resolveInboundContact).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('ignores unmatched media without transcription or a generic media reply', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true, voiceFileId: 'voice-1',
+    }])
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.transcribeAudio).not.toHaveBeenCalled()
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.fixedReply).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it.each(['DM', 'COMMENT', 'STORY_REPLY'] as const)('still executes a configured %s scenario without the default agent', async (kind) => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind, platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1', text: 'سویشرت',
+    }])
+    mocks.willAutomationHandle.mockResolvedValue(true)
+    mocks.runAutomation.mockResolvedValue({ handled: true, replied: false })
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.runAutomation).toHaveBeenCalledOnce()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.fixedReply).not.toHaveBeenCalled()
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    expect(mocks.markEffectsCommitted).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ result: { outcome: 'AUTOMATION_HANDLED' } }),
+    )
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('honors an explicitly configured story reaction reply', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'STORY_REACTION', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1', text: '❤️',
+    }])
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, storyReactionReplyEnabled: true, storyReactionReplyText: 'ممنون از شما',
+    })
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.sendText).toHaveBeenCalledWith('sender-1', 'ممنون از شما', expect.anything())
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.notifyHandoff).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('uses the event-specific policy instead of the global automation-only default', async () => {
+    mocks.loadAutomationPolicy.mockResolvedValue({
+      ...automationOnlyPolicy, dmReplyPolicy: 'AGENT_EXCEPT_SCENARIOS',
+    })
+    mocks.runAutomation.mockResolvedValue({ handled: false, replied: false })
+    mocks.shouldAgentReply.mockResolvedValue(false)
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.willAutomationHandle).not.toHaveBeenCalled()
+    expect(mocks.resolveInboundContact).toHaveBeenCalledOnce()
+    expect(mocks.transaction).toHaveBeenCalled()
+    expect(mocks.shouldAgentReply).toHaveBeenCalledOnce()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
+
+  it('runs a matching media scenario without inserting a generic media reply', async () => {
+    mocks.parseUpdate.mockReturnValue([{
+      kind: 'DM', platformMessageId: 'mid-1', senderId: 'sender-1', chatId: 'sender-1',
+      text: '', hasMedia: true,
+    }])
+    mocks.willAutomationHandle.mockResolvedValue(true)
+    mocks.runAutomation.mockResolvedValue({ handled: true, replied: false })
+    await handleInbound('INSTAGRAM', 'webhook-token', {})
+    expect(mocks.runAutomation).toHaveBeenCalledOnce()
+    expect(mocks.fixedReply).not.toHaveBeenCalled()
+    expect(mocks.sendText).not.toHaveBeenCalled()
+    expect(mocks.generateReply).not.toHaveBeenCalled()
+    expect(mocks.completeInboundEvent).toHaveBeenCalledOnce()
+  })
 })

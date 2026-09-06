@@ -21,9 +21,6 @@ export const DEFAULT_MEDIA_UNSUPPORTED_MESSAGE =
 export const DEFAULT_WAITING_FOR_OPERATOR_MESSAGE =
         'لطفاً کمی صبر کنید، همکار ما به‌زودی پاسخ می‌دهد'
 
-export const DEFAULT_AUTOMATION_UNMATCHED_ACK_MESSAGE =
-        'پیامتون دریافت شد و برای همکار ما ارسال شد. به‌زودی پاسخ می‌گیرید'
-
 /** Minimal interval between repeats of the operator waiting message. */
 export const WAITING_MESSAGE_MIN_INTERVAL_MS = 60_000
 
@@ -31,20 +28,17 @@ type FixedReplyKey =
         | 'quotaExhaustedMessage'
         | 'mediaUnsupportedMessage'
         | 'waitingForOperatorMessage'
-        | 'automationUnmatchedAckMessage'
 
 const ENV_OVERRIDES: Record<FixedReplyKey, string | undefined> = {
         quotaExhaustedMessage: process.env.VIGENT_QUOTA_EXHAUSTED_MESSAGE,
         mediaUnsupportedMessage: process.env.VIGENT_MEDIA_UNSUPPORTED_MESSAGE,
         waitingForOperatorMessage: process.env.VIGENT_WAITING_FOR_OPERATOR_MESSAGE,
-        automationUnmatchedAckMessage: process.env.VIGENT_AUTOMATION_ACK_MESSAGE,
 }
 
 const DEFAULTS: Record<FixedReplyKey, string> = {
         quotaExhaustedMessage: DEFAULT_QUOTA_EXHAUSTED_MESSAGE,
         mediaUnsupportedMessage: DEFAULT_MEDIA_UNSUPPORTED_MESSAGE,
         waitingForOperatorMessage: DEFAULT_WAITING_FOR_OPERATOR_MESSAGE,
-        automationUnmatchedAckMessage: DEFAULT_AUTOMATION_UNMATCHED_ACK_MESSAGE,
 }
 
 /** Read a possibly-JSON `businessProfile` field safely. */

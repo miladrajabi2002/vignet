@@ -180,8 +180,8 @@ export function normalizeInstagramSettings(config: Prisma.JsonValue): {
  *   AGENT_EXCEPT_SCENARIOS — the AI agent replies UNLESS a scenario matched
  *                            (default; backwards-compatible with v1)
  *   AUTOMATION_ONLY        — the AI agent is OFF; only scenarios reply. When
- *                            no scenario matches, the inbound is recorded
- *                            silently with no outbound reply.
+ *                            no configured reply or scenario matches, the event
+ *                            is ignored without adding an inbox conversation.
  *
  * The canonical source is the `InstagramAutomationSettings` table. This reader
  * is a FALLBACK that reads a stale snapshot embedded in `AgentChannel.config`

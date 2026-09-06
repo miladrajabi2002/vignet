@@ -750,7 +750,17 @@ async function processChannelInbound(
                         // The fencing assert throws LeaseLost; the outer catch treats
                         // the MERGED_INTO_TURN completion as a normal skip.
                         await eventGuard.assertActive()
-                        let text = await resolveText(agent.workspaceId, adapter, msg)
+                        const instagramPolicy = type === 'INSTAGRAM'
+                                ? await loadAutomationPolicy(agent.id, resolved.config)
+                                : null
+                        const effectiveInstagramPolicy = msg.kind === 'COMMENT'
+                                ? instagramPolicy?.commentReplyPolicy
+                                : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
+                                        ? instagramPolicy?.storyReplyPolicy
+                                        : instagramPolicy?.dmReplyPolicy
+                        const automationOnly = effectiveInstagramPolicy === 'AUTOMATION_ONLY'
+                        // Automation-only routing uses the received message, never AI transcription.
+                        let text = automationOnly ? msg.text : await resolveText(agent.workspaceId, adapter, msg)
                         // ─ A13: media-only inbound (photo/video/voice/sticker/file
                         // with no usable text). The customer must still get an
                         // honest fixed answer instead of silence, and the LLM must
@@ -763,19 +773,10 @@ async function processChannelInbound(
 
                         const inboundMetadata = inboundMessageMetadata(type, msg)
 
-                        // ─ A16: in AUTOMATION_ONLY mode, an Instagram event that matches
-                        // neither a fixed reply nor a scenario previously died in
-                        // total silence — the customer got nothing, the inbox got
-                        // nothing. It is now escalated: the inbound is persisted,
-                        // the customer receives a configurable acknowledgement, and
-                        // the thread is flagged for the operator.
-                        let escalateAutomationUnmatched = false
                         let scenarioHandled = false
-                        let instagramPolicy: Awaited<ReturnType<typeof loadAutomationPolicy>> | null = null
                         let reactionClassInput = false
                         let fixedInstagramReply: string | null = null
-                        if (type === 'INSTAGRAM') {
-                                instagramPolicy = await loadAutomationPolicy(agent.id, resolved.config)
+                        if (instagramPolicy) {
                                 reactionClassInput = msg.kind === 'REACTION' || msg.kind === 'STORY_REACTION' || isEmojiOnly(text)
                                 fixedInstagramReply = reactionClassInput
                                         ? msg.kind === 'STORY_REACTION' && instagramPolicy.storyReactionReplyEnabled
@@ -784,37 +785,19 @@ async function processChannelInbound(
                                                         ? instagramPolicy.commentEmojiReplyText
                                                         : null
                                         : null
-                                const effectivePolicy = msg.kind === 'COMMENT'
-                                        ? instagramPolicy.commentReplyPolicy
-                                        : msg.kind === 'STORY_REPLY' || msg.kind === 'STORY_REACTION' || msg.kind === 'STORY_MENTION'
-                                                ? instagramPolicy.storyReplyPolicy
-                                                : instagramPolicy.dmReplyPolicy
-
-                                if (
-                                        effectivePolicy === 'AUTOMATION_ONLY' &&
-                                        !fixedInstagramReply &&
-                                        !isMarketingOptOutMessage(text)
-                                ) {
-                                        // Operator-owned threads remain inbox conversations even
-                                        // if the channel policy later changes to automation-only.
-                                        const existingConversation = await prisma.conversation.findFirst({
-                                                where: {
-                                                        agentId: agent.id,
-                                                        channel: 'INSTAGRAM',
-                                                        externalId: msg.chatId,
-                                                },
-                                                select: { status: true, handedOff: true },
+                                // Unmatched automation-only traffic has no inbox or agent side
+                                // effects, including threads previously handed to an operator.
+                                // Only explicitly configured replies, scenarios and follow-gates
+                                // may enter the conversation pipeline.
+                                if (automationOnly && !fixedInstagramReply) {
+                                        const automationWillHandle = await willInstagramAutomationHandle({
+                                                agentId: agent.id,
+                                                channelId,
+                                                msg,
                                         })
-                                        const humanOwned = existingConversation?.handedOff === true || existingConversation?.status === 'HANDED_OFF'
-                                        if (!humanOwned) {
-                                                const automationWillHandle = await willInstagramAutomationHandle({
-                                                        agentId: agent.id,
-                                                        channelId,
-                                                        msg,
-                                                })
-                                                if (!automationWillHandle) {
-                                                        escalateAutomationUnmatched = true
-                                                }
+                                        if (!automationWillHandle) {
+                                                outcome = 'AUTOMATION_ONLY_UNMATCHED'
+                                                return
                                         }
                                 }
                         }
@@ -914,7 +897,7 @@ async function processChannelInbound(
                                                 select: { id: true },
                                         })
                                         const rateLimitOk = Date.now() - lastWaitingAckAt >= WAITING_MESSAGE_MIN_INTERVAL_MS
-                                        if (!operatorReplied && rateLimitOk && !isMarketingOptOutMessage(text)) {
+                                        if (!automationOnly && !operatorReplied && rateLimitOk && !isMarketingOptOutMessage(text)) {
                                                 const waitingText = await fixedReplyForWorkspace(
                                                         'waitingForOperatorMessage',
                                                         agent.workspaceId,
@@ -949,7 +932,7 @@ async function processChannelInbound(
                         // ─ A13: media-only inbound. Answer with the configurable fixed
                         // text before any automation/AI turn — the model never sees the
                         // media placeholder as a question and never guesses content.
-                        if (mediaOnlyInbound) {
+                        if (mediaOnlyInbound && !automationOnly) {
                                 const mediaText = await fixedReplyForWorkspace(
                                         'mediaUnsupportedMessage',
                                         agent.workspaceId,
@@ -971,59 +954,9 @@ async function processChannelInbound(
                                 return
                         }
 
-                        // ─ A16: automation-only DM matched no scenario. Escalate to the
-                        // operator instead of dropping the customer into silence: fixed
-                        // acknowledgement + handoff alert + owner notification.
-                        if (escalateAutomationUnmatched) {
-                                const ackText = await fixedReplyForWorkspace(
-                                        'automationUnmatchedAckMessage',
-                                        agent.workspaceId,
-                                )
-                                resultMessageId = await persistFixedAssistantReply(
-                                        persistedInbound.conversationId,
-                                        ackText,
-                                        eventLease.id,
-                                )
-                                await prisma.conversation.updateMany({
-                                        where: { id: persistedInbound.conversationId },
-                                        data: {
-                                                handedOff: true,
-                                                status: 'HANDED_OFF',
-                                        },
-                                }).catch(() => {})
-                                await notifyHandoff({
-                                        workspaceId: agent.workspaceId,
-                                        conversationId: persistedInbound.conversationId,
-                                        agentId: agent.id,
-                                        agentName: agent.name,
-                                        channel: type,
-                                        contactId,
-                                        contactName,
-                                        contactPhone: null,
-                                        reason: 'پیام بدون پاسخ خودکار (حالت فقط-اتوماسیون بدون سناریوی منطبق)',
-                                }).catch(() => {})
-                                await notifyWorkspace({
-                                        workspaceId: agent.workspaceId,
-                                        type: 'HANDOFF',
-                                        title: 'پیام مشتری بدون پاسخ خودکار ماند',
-                                        body: 'یک پیام اینستاگرام هیچ سناریو یا پاسخ خودکاری نداشت و برای پیگیری انسانی علامت خورد.',
-                                        link: `/conversations/${persistedInbound.conversationId}`,
-                                }).catch(() => {})
-                                if (eventLease.deliveryStartedAt) {
-                                        deliveryUncertain = !eventLease.deliveryCompletedAt
-                                        outcome = deliveryUncertain
-                                                ? 'DELIVERY_UNCERTAIN'
-                                                : 'DELIVERY_ALREADY_COMPLETED'
-                                        return
-                                }
-                                await deliveryAdapter.sendText(msg.chatId, ackText)
-                                outcome = 'AUTOMATION_ONLY_ESCALATED'
-                                return
-                        }
-
                         // Universal campaign opt-out. It runs before Instagram
                         // automations or AI so STOP can never trigger a sales reply.
-                        if (isMarketingOptOutMessage(text)) {
+                        if (!automationOnly && isMarketingOptOutMessage(text)) {
                                 if (contactId) await optOutContact(contactId)
                                 const confirmation = optOutConfirmation(text)
                                 resultMessageId = await persistFixedAssistantReply(
