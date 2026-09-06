@@ -579,3 +579,39 @@ bun run db:migrate   # یا npx prisma migrate deploy
 - کش `proxy/` با sha1(URL) کلید می‌شود — تغییر عکس روی همان URL در ووکامرس تا تغییر خود URL دیده نمی‌شود (فایل‌های ووکامرس عملاً immutable هستند).
 - عکس‌های آپلودی کاربر از این پس از `/media/products/...` سرو می‌شوند و در bucket اشتراکی `products` قرار می‌گیرند؛ فایل‌های قدیمیِ موجود روی دیسک بدون مهاجرت همچنان خوانده می‌شوند.
 - `public/uploads/products/` در `.gitignore` است؛ فایل‌های واقعی کاربران و کش تصاویر وارد repository و commit نمی‌شوند.
+
+
+---
+
+## فاز v3.4 — سیاست پایان گفتگو (ممیزی ۶ سپتامبر) + بازگردانی محافظت لاگ OTP
+
+### زمینه
+ممیزی کیفیت پاسخ‌ها (`docs/customer-response-audit-2026-09-06.fa.md`) نشان داد گفتگوها پس از «ممنون/نه ممنون» دوباره نیازسنجی شروع می‌کنند، اعتراض‌ها به‌اشتباه «تغییر موضوع» تلقی می‌شوند و قالب‌های قدیمی سؤال‌های اضافه تولید می‌کنند. جدا از آن، در دیباگ قبلیِ پیامک، `LOG_OTP_CODES=true` در production فعال مانده و لاگ پاسخ خام IPPanel (`rawResponse`) برگردانده شده بود که سه تست امنیتی را شکسته بود.
+
+### فایل‌های تغییر یافته
+- `lib/ai/response-policy.ts` (جدید): قواعد تشخیص پایان گفتگو (تشکر، خداحافظی، رد پیشنهاد، تعویق تصمیم) و مسیر پاسخ کوتاه ثابت بدون embedding و بدون فراخوانی مدل.
+- `lib/ai/chat-engine.ts`، `lib/ai/conversation.ts`، `lib/ai/learning.ts`، `lib/ai/prompt-builder.ts`، `lib/ai/rag.ts`، `lib/ai/sales-intelligence.ts`: اعمال سیاست پاسخ، حداکثر یک سؤال به‌جای الزام سؤال، تصحیح عبارت‌های قالب قدیمی هنگام ساخت پرامپت.
+- `lib/channels/greeting.ts`، `lib/channels/handler.ts`: سلام کوتاه بدون سؤال در ادامه گفتگو؛ آزادسازی رزرو اعتبار در مسیر پایان.
+- `tests/response-policy.test.ts` (جدید) + به‌روزرسانی چهار فایل تست مرتبط.
+- `scripts/agent-closing-smoke.ts` (جدید): آزمون دود مسیر پایان روی موتور واقعی با هفت پیام‌رسان.
+- `lib/sms/ippanel.ts` و `lib/config/production-env.ts`: بازگردانی به نسخه امن HEAD — حذف override لاگ OTP در production (خطای سخت به‌جای هشدار در gate) و حذف `rawResponse` و `message` از لاگ ارائه‌دهنده.
+- `.gitignore`: افزودن `/public/uploads/instagram/` مطابق سیاست موجود برای products (آپلودهای runtime وارد git نمی‌شوند).
+
+### عملیات اجراشده (۶ سپتامبر ۲۰۲۶)
+- `LOG_OTP_CODES="false"` در `.env` و دیپلوی کامل با `deploy/deploy.sh` (بیلد تازه، بکاپ دیتابیس، migration بدون تغییر).
+- حذف و ثبت مجدد سرویس‌های PM2 (`vignet-web`, `vignet-worker`, `vignet-studio`) با محیط تازه؛ `--update-env` با ecosystem file محیط کهنه را نگه می‌داشت. نتیجه: `IPPANEL_WELCOME_PATTERN_CODE` که از ساعت ۰۲:۴۰ در `.env` بود اما در پروسه خالی مانده بود، فعال شد و خطای `Pattern SMS skipped` رفع شد.
+- آرشیو ۱۱۰ فایل لاگ قدیمی PM2 در `/root/log-archive-vigent-20260906.tar.gz` و حذف آن‌ها؛ ۹ کد OTP نشت‌کرده (از ۲۷ مرداد) از دیسک پاک شد. تایید نهایی: هیچ `otpCode` عددی در لاگ‌های فعال باقی نماند.
+- انتقال `.env.bak-20260904` و `.env.bak-otp-debug` از ریشه پروژه به `/root/env-backups/`.
+- آزادسازی ~۵ گیگابایت دیسک (۸۱٪ → ۷۰٪): حذف کش ms-playwright بدون استفاده (۲.۴G، سه نسخه Chromium) و `npm cache clean`.
+
+### اعتبارسنجی
+- `npx vitest run` — **۶۲۴ از ۶۲۴ موفق** (سه شکست قبلی otp-send-observability، production-env و ippanel-pattern-contract رفع شد) ✓
+- `npx tsc --noEmit` — صفر خطا ✓
+- `npm run check:production-env` — پاس با یک هشدار غیرمرتبط (ALERT_EMAIL) ✓
+- سلامت پس از دیپلوی: `{"status":"operational"}` با database و redis سالم؛ `https://vigent.ir` پاسخ ۲۰۰ ✓
+- محیط پروسه‌ی وب: `NODE_ENV=production`، `LOG_OTP_CODES=false`، `IPPANEL_WELCOME_PATTERN_CODE` تنظیم‌شده ✓
+
+### نکته عملیاتی
+- تمدید گواهی `bot.miladrajabi.com` ممکن نیست: رکورد DNS آن NXDOMAIN است. برای تمدید باید ساب‌دامینه در DNS مجدداً به ۵.۷۵.۱۹۲.۱۴۷ اشاره کند.
+- ری‌استارت‌های `tgads-queue` (۲۲ بار) عمدی است: `--max-time=3600` الگوی خودترمیمی Laravel است، نه خطا.
+- `zz_remote_query.mjs` در ریشه پروژه یک اسکریپت تحلیل موقت است و عمداً commit نشد.
